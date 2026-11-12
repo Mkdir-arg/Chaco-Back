@@ -1,0 +1,144 @@
+{# arquetipo: detalle + apilado #}{# tablero de programa (C3): el hero ocupa el lugar del page_header; secciones apiladas #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Tablero{% endblock %}
+
+{% block main-content %}
+{% comment %}E1 · Tablero del supervisor. Todos los números los calculan `selectors/emergencia_tablero.py` y
+`services/avisos_emergencia.py`; el template no cuenta. Sin gráficos y sin auto-refresh: «Actualizar» vuelve a
+pedir la pantalla. Lo ve solo quien supervisa la mesa.{% endcomment %}
+<div class="space-y-5">
+
+  {% hero_inicio titulo=resumen.titulo eyebrow="Programa Emergencia · Tablero de la mesa" accion_url=url_actualizar accion_texto="Actualizar" accion_icono="fa-rotate" %}
+    {% bajada %}<strong>{{ resumen.hero.abiertos }}</strong> caso{{ resumen.hero.abiertos|pluralize }} abierto{{ resumen.hero.abiertos|pluralize }} · <strong>{{ resumen.hero.fuera }}</strong> fuera de SLA · <strong>{{ resumen.hero.libres }}</strong> plaza{{ resumen.hero.libres|pluralize }} libre{{ resumen.hero.libres|pluralize }} en {{ resumen.hero.dispositivos }} dispositivo{{ resumen.hero.dispositivos|pluralize }}. Actualizado el {{ actualizado }}.{% endbajada %}
+  {% endhero_inicio %}
+
+  {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for tarjeta in resumen.tarjetas %}
+    {% include "components/_stat_card.html" with etiqueta=tarjeta.etiqueta valor=tarjeta.valor nota=tarjeta.nota icono=tarjeta.icono tono=tarjeta.tono variante="tablero" only %}
+    {% endfor %}
+  </div>
+
+  {% if avisos %}
+  <section class="space-y-3" aria-label="Avisos que piden acción">
+    {% for aviso in avisos %}
+    {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto accion_url=aviso.enlace accion_texto=aviso.accion role="status" only %}
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {# ===== Casos por localidad ===== #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-localidades-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="tablero-localidades-titulo" class="text-heading font-bold">Casos por localidad</h2>
+      <p class="mt-1 text-xs text-body-subtle">Las plazas libres son las de los dispositivos de cada localidad. El nombre abre la bandeja filtrada.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Localidad</th>
+            <th class="nodo-th text-right">Nuevos</th>
+            <th class="nodo-th text-right">En gestión</th>
+            <th class="nodo-th text-right">Fuera de SLA</th>
+            <th class="nodo-th text-right">Alojadas hoy</th>
+            <th class="nodo-th text-right">Plazas libres</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in localidades %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">
+              {% if fila.url %}<a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.localidad }}</a>{% else %}{{ fila.localidad }}{% endif %}
+            </td>
+            <td class="nodo-td text-right">{{ fila.nuevos }}</td>
+            <td class="nodo-td text-right">{{ fila.en_gestion }}</td>
+            <td class="nodo-td text-right">{{ fila.fuera_de_sla }}</td>
+            <td class="nodo-td text-right">{{ fila.alojadas_hoy }}</td>
+            <td class="nodo-td text-right">{{ fila.plazas_libres }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="p-0">
+              {% include "components/_estado_vacio.html" with icono="fa-life-ring" titulo="Todavía no hay casos" texto="Cuando la mesa reciba el primero, acá vas a ver dónde están las familias y dónde hay lugar." only %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# ===== Tiempos por tramo (RN-5.3) ===== #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-tiempos-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="tablero-tiempos-titulo" class="text-heading font-bold">Tiempos por tramo</h2>
+      <p class="mt-1 text-xs text-body-subtle">Tramos terminados en las últimas 24 h y los que están en curso. Un tramo sin casos muestra «—».</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Tramo</th>
+            <th class="nodo-th text-right">Objetivo</th>
+            <th class="nodo-th text-right">Casos</th>
+            <th class="nodo-th text-right">Mediana</th>
+            <th class="nodo-th text-right">Percentil 90</th>
+            <th class="nodo-th text-right">Fuera de objetivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in tiempos %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">{{ fila.tramo }}</td>
+            <td class="nodo-td text-right">{{ fila.objetivo }}</td>
+            <td class="nodo-td text-right">{{ fila.casos }}</td>
+            <td class="nodo-td text-right">{{ fila.mediana }}</td>
+            <td class="nodo-td text-right">{{ fila.p90 }}</td>
+            <td class="nodo-td text-right">{{ fila.fuera_de_objetivo }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# ===== Entregas en camino ===== #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-entregas-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="tablero-entregas-titulo" class="text-heading font-bold">Entregas en camino</h2>
+      {% if entregas_ocultas %}<p class="mt-1 text-xs text-body-subtle">Las {{ entregas|length }} que salieron hace más. <a href="{{ url_entregas }}" class="text-fg-brand hover:underline">Ver las {{ entregas_ocultas }} restantes en Entregas de kits</a>.</p>{% endif %}
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">N.°</th>
+            <th class="nodo-th">Dispositivo</th>
+            <th class="nodo-th">Desde</th>
+            <th class="nodo-th">Ítems</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entrega in entregas %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium whitespace-nowrap"><a href="{{ entrega.url }}" class="text-fg-brand hover:underline">{{ entrega.numero }}</a></td>
+            <td class="nodo-td">{{ entrega.dispositivo }}</td>
+            <td class="nodo-td whitespace-nowrap">{{ entrega.desde }}<span class="block text-xs text-body-subtle">{{ entrega.hace }}</span></td>
+            <td class="nodo-td">{{ entrega.items }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="p-0">
+              {% include "components/_estado_vacio.html" with icono="fa-truck" titulo="No hay entregas en camino" texto="Las entregas que la mesa marca en camino aparecen acá hasta que el dispositivo las recibe." only %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

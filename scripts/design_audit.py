@@ -764,9 +764,14 @@ def _p1_tablecanon(rel: str, text: str) -> list[tuple[int, str]]:
 
 
 # Pantallas autorizadas a usar el hero de inicio de programa: SOLO la de inicio y los tableros de
-# programa (ficha componentes/hero_inicio.md). Hoy ninguna lo usa; la primera en incorporarlo se
-# agrega acá y esa línea es lo que ve el revisor. También la lee HeroInicioTest.
-HERO_PANTALLAS: frozenset[str] = frozenset()
+# programa (ficha componentes/hero_inicio.md). Cada una se agrega acá y esa línea es lo que ve el
+# revisor. También la lee HeroInicioTest.
+HERO_PANTALLAS: frozenset[str] = frozenset(
+    {
+        # E1, el tablero del supervisor de Emergencia (plan de Emergencia, C3).
+        "programas/templates/programas/emergencia/tablero.html",
+    }
+)
 # El include directo del componente es la forma mas obvia de saltearse el tag, y el
 # propio componente dice que no se incluye a mano: sin esa alternativa la regla se
 # evadia escribiendo {% include "components/_hero_inicio.html" %}. El componente queda
@@ -1470,12 +1475,14 @@ VARIANTES_DE_ARQUETIPO: dict[tuple[str, str], list] = {
     # surfaces." Sin solapas no hay tablist que pedir, pero si hay que exigir que cada
     # seccion sea una surface con su encabezado: eso es lo que reemplaza a la solapa como
     # unidad navegable, y sin encabezado la pantalla es una sabana.
+    # El encabezado es `page_header`, o el hero en un tablero de programa: el hero ocupa su
+    # lugar (ficha `hero_inicio.md`) y fuera de HERO_PANTALLAS ya lo corta la regla HEROFUERA.
     ("detalle", "apilado"): [
         (r"\{%\s*extends\s+\"includes/base\.html\"\s*%\}", False, "extiende el shell del backoffice"),
         (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
         (r"class=\"space-y-5\"", False, "contenedor de página space-y-5"),
-        (r"\{%\s*page_header\b", False, "{% page_header %}"),
-        (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+        (r"\{%\s*(?:page_header|hero_inicio)\b", False, "{% page_header %} (o el hero de un tablero de programa)"),
+        (r"\{%\s*end(?:page_header|hero_inicio)\s*%\}", False, "{% endpage_header %}"),
         (r"<(?:section|article)\b[^>]*aria-labelledby=", False, "sección con nombre accesible (reemplaza a la solapa)"),
         (r"<h2\b", False, "encabezado de la sección apilada"),
     ],

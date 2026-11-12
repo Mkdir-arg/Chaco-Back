@@ -4,8 +4,11 @@
 **Evidencia:** tag `hero_inicio` de `core/templatetags/nodo_ui.py`, `templates/components/_hero_inicio.html`,
 `static/custom/css/nodo-hero.css` (el shell la carga desde `templates/includes/base.html`),
 `core/tests/test_nodo_ui_piezas.py` (`HeroInicioTest`).
-**Consumidores de referencia:** ninguno todavía. Lo estrena el tablero de la red del programa
-Dispositivos (P1 del mockup v2). El Inicio (`templates/inicio.html`) lo tuvo hasta que FE-22 lo retiró
+**Consumidores de referencia:** el tablero del supervisor de Emergencia (E1,
+`programas/templates/programas/emergencia/tablero.html`): nombre del evento como título, los tres números
+del programa en `<strong>` dentro del `{% bajada %}` y «Actualizar» como la única acción. Es un Detalle
+apilado (`{# arquetipo: detalle + apilado #}`) en el que el hero ocupa el lugar del `page_header`. El
+tablero de la red de Dispositivos (P1 del mockup v2) todavía no lo usa. El Inicio (`templates/inicio.html`) lo tuvo hasta que FE-22 lo retiró
 y hoy usa `{% page_header %}`: volver a ponerlo es una decisión de producto, no un efecto de esta pieza.
 
 ## Regla de uso (taxativa)
