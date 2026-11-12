@@ -8,6 +8,7 @@ en que un rol de otro programa terminaba abriendo un módulo ajeno.
 """
 
 from core import rbac
+from programas.services.dispositivos import dispositivos_operados, puede_configurar_dispositivos
 from programas.services.programa_cache import programa_por_codigo
 
 PROGRAMA_EMERGENCIA_CODIGO = rbac.CODIGO_PROGRAMA_EMERGENCIA
@@ -15,6 +16,10 @@ PROGRAMA_EMERGENCIA_CODIGO = rbac.CODIGO_PROGRAMA_EMERGENCIA
 CAP_EMERGENCIA_RELEVAR = "emergencia.relevar"
 CAP_EMERGENCIA_OPERAR = "emergencia.operar"
 CAP_SUPERVISAR = "emergencia.supervisar"
+#: Las dos de la guardia del dispositivo. Son del programa **Dispositivos** (RU-8, hallazgo
+#: H3 del plan): se evalúan con el Equipo de cada institución, no con el programa EMERGENCIA.
+CAP_ADMITIR = "dispositivo.admitir"
+CAP_RECIBIR_KIT = "emergencia.recibir_kit"
 
 
 def programa_emergencia(user=None):
@@ -48,3 +53,50 @@ def puede_operar_la_mesa(user):
     regla no puede depender de eso.
     """
     return puede_en_programa_emergencia(user, CAP_EMERGENCIA_OPERAR) or puede_supervisar_la_mesa(user)
+
+
+def roles_en_app(user):
+    """Qué accesos del módulo Emergencia abre ``user`` en la app de campo (RU-5).
+
+    Devuelve ``{"relevar": bool, "dispositivo": bool}``:
+
+    * ``relevar`` — es agente territorial: ``emergencia.relevar`` en el programa EMERGENCIA.
+      Abre «Ingreso de familias» (M1).
+    * ``dispositivo`` — es de la guardia de un dispositivo: integra el **Equipo** de alguno
+      con un rol que tiene ``dispositivo.admitir`` o ``emergencia.recibir_kit``, o es
+      administrador del programa Dispositivos (hallazgo H10: ese opera todo sin Equipo, y
+      ``dispositivos_operados`` no lo ve). Abre «Llegada de familias» (M2) y «Recepción de
+      kits» (M3).
+
+    La capacidad tildada en un rol **sin** Equipo no alcanza: no hay dispositivo sobre el
+    que ejercerla. Y ninguna capacidad de otro programa (``becas.campo``,
+    ``inspeccion.relevar``) entra en esta cuenta (RU §6 n.° 3).
+
+    Cuesta a lo sumo tres consultas chicas y ninguna si el usuario no tiene las capacidades
+    en el programa: ``dispositivos_operados`` corta antes de ir al Equipo.
+    """
+    return {
+        "relevar": puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR),
+        "dispositivo": _es_de_la_guardia(user),
+    }
+
+
+def _es_de_la_guardia(user):
+    return (
+        dispositivos_operados(user, CAP_ADMITIR).exists()
+        or dispositivos_operados(user, CAP_RECIBIR_KIT).exists()
+        or puede_configurar_dispositivos(user)
+    )
+
+
+def modulo_habilitado(user):
+    """¿``user`` abre el módulo Emergencia de la app? **La única regla de acceso** (H10).
+
+    La consultan el login (``"emergencia"`` en ``modulos``) y los permisos de
+    ``/api/emergencia/``: si cada uno escribiera la suya, el login le ofrecería a alguien
+    un módulo que después le contesta 403, o al revés. Es verdadera cuando
+    :func:`roles_en_app` da algún acceso.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    return puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR) or _es_de_la_guardia(user)
