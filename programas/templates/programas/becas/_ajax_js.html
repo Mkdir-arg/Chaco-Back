@@ -89,11 +89,30 @@
 
   // Los controles del campo `nombre` dentro del form. Un grupo de radios o de
   // checkboxes llega como RadioNodeList: son varios controles del mismo campo.
+  // Un formulario con prefijo (`formulario-pg-12`) rinde el error con la clave sin
+  // prefijo (`data-error="pg-12"`): si no hay un control con ese nombre exacto, se
+  // buscan los que lo llevan como sufijo después de un guion.
   function controlesDe(form, campo) {
     var nodos = form.elements ? form.elements[campo] : null;
-    if (!nodos) return [];
-    if (nodos.tagName) return [nodos];
-    return Array.prototype.slice.call(nodos);
+    if (nodos) return nodos.tagName ? [nodos] : Array.prototype.slice.call(nodos);
+    if (!form.elements) return [];
+    return Array.prototype.filter.call(form.elements, function (control) {
+      var nombre = control.name || '';
+      return nombre.length > campo.length && nombre.slice(-(campo.length + 1)) === '-' + campo;
+    });
+  }
+
+  // El `<p data-error>` de un control: el de su nombre exacto o, si el formulario
+  // lleva prefijo, el de su nombre sin él (`formulario-pg-12` -> `pg-12`).
+  function cajaDeError(form, nombre) {
+    var clave = nombre;
+    while (clave) {
+      var box = form.querySelector('[data-error="' + clave + '"]');
+      if (box) return box;
+      var corte = clave.indexOf('-');
+      clave = corte === -1 ? '' : clave.slice(corte + 1);
+    }
+    return null;
   }
 
   // `aria-describedby` apunta a un id, así que el `<p>` del error necesita uno.
@@ -276,7 +295,7 @@
     if (!control || !control.name || !control.form) return;
     var form = control.form;
     if (!form.hasAttribute('data-ajax')) return;
-    var box = form.querySelector('[data-error="' + control.name + '"]');
+    var box = cajaDeError(form, control.name);
     if (box && box.textContent) limpiarError(form, box);
   }
   document.addEventListener('input', limpiarAlCorregir);

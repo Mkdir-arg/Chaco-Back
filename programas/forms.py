@@ -974,19 +974,14 @@ def formulario_tipo_para(tipo_id, dispositivo=None, data=None, files=None):
     respondió en ese mismo formulario (por clave). Prefijo ``formulario``: sus campos no
     chocan con los del legajo.
     """
-    from programas.forms_dinamicos import formulario_de_momento_para
-    from programas.services.respuestas_dispositivo import respuestas_guardadas
+    from programas.forms_dinamicos import formulario_del_diseno
+    from programas.services.respuestas_dispositivo import formulario_vigente, respuestas_guardadas
 
-    # `guardadas` es una función del diseño: sin formulario vigente no se lee nada de más.
-    return formulario_de_momento_para(
-        tipo_id,
-        MomentoFormulario.CREAR_DISPOSITIVO,
-        data,
-        files,
-        guardadas=lambda diseno: respuestas_guardadas(dispositivo, diseno),
-        tipos=tipos_para_dispositivo(dispositivo),
-        conservar_archivos=True,
-    )
+    diseno = formulario_vigente(tipo_id, MomentoFormulario.CREAR_DISPOSITIVO, tipos=tipos_para_dispositivo(dispositivo))
+    if diseno is None:
+        return None
+    # En la edición el archivo ya guardado vale como cargado («Ya cargado»): acá no se descartan.
+    return formulario_del_diseno(diseno, data, files, respuestas_guardadas(dispositivo, diseno))
 
 
 # Lo que el alta ya no pide a mano: sale del primer responsable elegido (Cambio 450).
