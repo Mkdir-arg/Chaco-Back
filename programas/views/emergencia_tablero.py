@@ -7,9 +7,10 @@ capacidad en el programa, 403.
 
 Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla.
 
-**Presupuesto de la vista completa** (``test_emergencia_tablero``, 500 casos abiertos, 50
-dispositivos y 200 entregas): los 10 de los selectores, a lo sumo 3 de los avisos, el SLA
-vigente y lo que ponen la sesión, el usuario y el shell (sidebar y permisos memoizados).
+**Presupuesto de la vista completa: 16 consultas** (``test_emergencia_tablero``, 500 casos
+abiertos, 50 dispositivos y 200 entregas): 9 de los selectores del tablero, a lo sumo 1 de los
+avisos («en la puerta», solo si hay), 1 del SLA vigente y 5 del shell (sesión, usuario, sus
+grupos, su perfil y sus capacidades, memoizadas entre el mixin y el sidebar).
 """
 
 from django.shortcuts import render

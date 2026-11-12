@@ -21,14 +21,16 @@ Presupuesto (lo fija ``programas.tests.test_emergencia_tablero`` con ``@tag("per
 500 casos abiertos, 50 dispositivos y 200 entregas; el ``read_timeout`` de ECOM es de 10 s):
 
 =================================  =========================================================
-:func:`foto_del_tablero`           **7 fijas**: casos de la ventana, dispositivos elegibles,
-                                   las tres de ``ocupacion_de_plazas`` en lote, derivaciones
-                                   pendientes y entregas con diferencias sin revisar.
-:func:`resumen` (con foto)         **1**: el conteo de entregas en camino.
+:func:`foto_del_tablero`           **7 fijas**: casos de la ventana (con la última traza y
+                                   el contacto posterior al alojamiento como subconsultas),
+                                   dispositivos elegibles, las tres de ``ocupacion_de_plazas``
+                                   en lote, derivaciones pendientes y entregas (en camino y
+                                   con diferencias sin revisar).
+:func:`resumen` (con foto)         **0**.
 :func:`por_localidad` (con foto)   **0**.
 :func:`tiempos` (con foto)         **0**.
 :func:`entregas_en_camino`         **2**: las entregas con su dispositivo y sus líneas.
-**Selectores del tablero**         **10** en total.
+**Selectores del tablero**         **9** en total.
 =================================  =========================================================
 """
 
@@ -38,11 +40,20 @@ from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, OuterRef, Prefetch, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import CasoEmergencia, Derivacion, Dispositivo, EntregaKit, TrazaEntrega
+from programas.models import (
+    CasoEmergencia,
+    ContactoCaso,
+    Derivacion,
+    Dispositivo,
+    EntregaKit,
+    LineaEntrega,
+    TrazaCaso,
+    TrazaEntrega,
+)
 from programas.selectors.emergencia import (
     SLA_FUERA,
     TRAMO_ALOJAR,
@@ -104,7 +115,11 @@ def dia_operativo(ahora: datetime):
 
 @dataclass(frozen=True)
 class FilaCaso:
-    """Lo que el tablero lee de un caso: las marcas del SLA y poco más (sin JSON)."""
+    """Lo que el tablero lee de un caso: las marcas del SLA y poco más (sin JSON).
+
+    ``ultima_accion`` y ``ultimo_detalle`` son los de su última ``TrazaCaso``;
+    ``contacto_posterior``, si la mesa registró un contacto desde que se alojó.
+    """
 
     id: int
     numero: str
@@ -121,6 +136,9 @@ class FilaCaso:
     aceptado_en: datetime | None
     alojado_en: datetime | None
     cerrado_en: datetime | None
+    ultima_accion: str | None = None
+    ultimo_detalle: str | None = None
+    contacto_posterior: bool = False
 
     @property
     def abierto(self):
@@ -176,6 +194,8 @@ class Foto:
     #: Entregas ``RECIBIDA_CON_DIFERENCIAS`` sin observación de la mesa: ``(id, numero, dispositivo,
     #: recibida_en)``.
     entregas_sin_revisar: tuple
+    #: Cuántas entregas están ``EN_CAMINO``.
+    entregas_en_camino: int
     semaforos: dict = field(default_factory=dict)
 
     @property
@@ -184,12 +204,22 @@ class Foto:
 
 
 def _casos_de_la_ventana(ahora):
-    """Una consulta: los abiertos más los alojados o cerrados en las últimas 24 h, sin JSON."""
+    """Una consulta: los abiertos más los alojados o cerrados en las últimas 24 h, sin JSON.
+
+    La última traza (acción y detalle) y si hubo contacto después del alojamiento van como
+    subconsultas correlacionadas sobre los índices de la FK del caso: son cientos de filas y
+    así los avisos no suman una consulta cada uno.
+    """
 
     limite = ahora - VENTANA
+    ultima = TrazaCaso.objects.filter(caso=OuterRef("pk")).order_by("-creado_en", "-id")
+    contacto = ContactoCaso.objects.filter(caso=OuterRef("pk"), momento__gte=OuterRef("alojado_en"))
     filas = (
-        CasoEmergencia.objects.filter(
-            ~Q(estado=Estado.CERRADO) | Q(alojado_en__gte=limite) | Q(cerrado_en__gte=limite)
+        CasoEmergencia.objects.filter(~Q(estado=Estado.CERRADO) | Q(alojado_en__gte=limite) | Q(cerrado_en__gte=limite))
+        .annotate(
+            ultima_accion=Subquery(ultima.values("accion")[:1]),
+            ultimo_detalle=Subquery(ultima.values("detalle")[:1]),
+            contacto_posterior=Exists(contacto),
         )
         .order_by("creado", "id")
         .values_list(
@@ -208,6 +238,9 @@ def _casos_de_la_ventana(ahora):
             "aceptado_en",
             "alojado_en",
             "cerrado_en",
+            "ultima_accion",
+            "ultimo_detalle",
+            "contacto_posterior",
         )
     )
     return tuple(
@@ -227,6 +260,9 @@ def _casos_de_la_ventana(ahora):
             aceptado_en=aceptado_en,
             alojado_en=alojado_en,
             cerrado_en=cerrado_en,
+            ultima_accion=ultima_accion,
+            ultimo_detalle=ultimo_detalle,
+            contacto_posterior=bool(contacto_posterior),
         )
         for (
             pk,
@@ -244,6 +280,9 @@ def _casos_de_la_ventana(ahora):
             aceptado_en,
             alojado_en,
             cerrado_en,
+            ultima_accion,
+            ultimo_detalle,
+            contacto_posterior,
         ) in filas
     )
 
@@ -267,7 +306,13 @@ def red_de_dispositivos(momento):
     for dispositivo in elegibles:
         conteo = censo.de(dispositivo.pk).conteo
         filas.append(
-            (dispositivo.pk, dispositivo.nombre, dispositivo.localidad, max(conteo.disponibles or 0, 0), conteo.reservadas or 0)
+            (
+                dispositivo.pk,
+                dispositivo.nombre,
+                dispositivo.localidad,
+                max(conteo.disponibles or 0, 0),
+                conteo.reservadas or 0,
+            )
         )
     return Red(dispositivos=tuple(filas))
 
@@ -292,20 +337,32 @@ def q_entrega_sin_revisar():
     return Q(estado=EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS) & ~Q(Exists(observada))
 
 
-def _entregas_sin_revisar():
-    return tuple(
-        EntregaKit.objects.filter(q_entrega_sin_revisar())
+def _entregas():
+    """Una consulta: las en camino y las recibidas con diferencias sin revisar.
+
+    Devuelve ``(sin_revisar, en_camino)``: la lista de las sin revisar y cuántas van en camino.
+    """
+
+    filas = (
+        EntregaKit.objects.filter(Q(estado=EntregaKit.Estado.EN_CAMINO) | q_entrega_sin_revisar())
         .order_by("recibida_en", "id")
-        .values_list("id", "numero", "dispositivo__nombre", "recibida_en")
+        .values_list("id", "numero", "estado", "dispositivo__nombre", "recibida_en")
     )
+    sin_revisar, en_camino = [], 0
+    for pk, numero, estado, dispositivo, recibida_en in filas:
+        if estado == EntregaKit.Estado.EN_CAMINO:
+            en_camino += 1
+        else:
+            sin_revisar.append((pk, numero, dispositivo, recibida_en))
+    return tuple(sin_revisar), en_camino
 
 
 def foto_del_tablero(sla, ahora):
     """Lo que comparten las funciones del tablero y sus avisos. **7 consultas fijas.**
 
     Casos de la ventana (1), red de dispositivos (4, :func:`red_de_dispositivos`),
-    derivaciones pendientes (1) y entregas con diferencias sin revisar (1). El semáforo de
-    cada caso abierto se calcula acá, en Python, con ``estado_sla`` (sin consultas).
+    derivaciones pendientes (1) y entregas en camino o con diferencias sin revisar (1). El
+    semáforo de cada caso abierto se calcula acá, en Python, con ``estado_sla`` (sin consultas).
     """
 
     casos = _casos_de_la_ventana(ahora)
@@ -314,13 +371,15 @@ def foto_del_tablero(sla, ahora):
         semaforo = estado_sla(caso, sla, ahora)
         if semaforo is not None:
             semaforos[caso.id] = semaforo
+    sin_revisar, en_camino = _entregas()
     return Foto(
         sla=sla,
         ahora=ahora,
         casos=casos,
         red=red_de_dispositivos(ahora),
         pendientes=_derivaciones_pendientes(),
-        entregas_sin_revisar=_entregas_sin_revisar(),
+        entregas_sin_revisar=sin_revisar,
+        entregas_en_camino=en_camino,
         semaforos=semaforos,
     )
 
@@ -353,7 +412,7 @@ def resumen(sla, ahora, foto=None):
     dict con ``etiqueta``, ``valor``, ``nota``, ``icono`` y ``tono``, lista para
     ``components/_stat_card.html``; el template no cuenta nada.
 
-    **Presupuesto: 1 consulta** con ``foto`` (el conteo de entregas en camino); **8** sin ella.
+    **Presupuesto: 0 consultas** con ``foto``; 7 sin ella.
     """
 
     foto = _foto(sla, ahora, foto)
@@ -371,7 +430,7 @@ def resumen(sla, ahora, foto=None):
     personas = sum(caso.total_alojado or 0 for caso in alojadas)
     directos = sum(1 for caso in alojadas if caso.ingreso_directo)
     parciales = sum(1 for caso in alojadas if caso.ingreso_parcial)
-    en_camino = EntregaKit.objects.filter(estado=EntregaKit.Estado.EN_CAMINO).count()
+    en_camino = foto.entregas_en_camino
     sin_revisar = len(foto.entregas_sin_revisar)
     libres, reservadas = foto.red.libres, foto.red.reservadas
     n_dispositivos = len(foto.red.dispositivos)
@@ -597,14 +656,14 @@ def entregas_en_camino(ahora, tope=TOPE_ENTREGAS):
     entregas = list(
         EntregaKit.objects.filter(estado=EntregaKit.Estado.EN_CAMINO)
         .select_related("dispositivo")
-        .prefetch_related("lineas__item")
+        .prefetch_related(Prefetch("lineas", queryset=LineaEntrega.objects.select_related("item").order_by("id")))
         .order_by("despachada_en", "id")
     )
     filas = []
     for entrega in entregas[:tope]:
         desde = entrega.despachada_en or entrega.creado
         minutos = max(int((ahora - desde).total_seconds() // 60), 0)
-        lineas = sorted(entrega.lineas.all(), key=lambda linea: linea.id)
+        lineas = list(entrega.lineas.all())
         filas.append(
             {
                 "numero": entrega.numero,
@@ -616,4 +675,3 @@ def entregas_en_camino(ahora, tope=TOPE_ENTREGAS):
             }
         )
     return filas, len(entregas)
-

@@ -28,8 +28,9 @@ Entrega con diferencias sin revisar            media      escribiendo la observa
 Firma de cada regla: ``pendientes(sla, ahora, usuario=None, foto=None)``. ``ahora`` llega por
 parámetro (nada llama a ``now()``); ``foto`` es la de
 ``programas.selectors.emergencia_tablero.foto_del_tablero``, que la vista arma una vez para el
-tablero y sus avisos. Con la foto, las siete reglas suman **a lo sumo 3 consultas**
-(rechazadas, siempre; parciales y «en la puerta», solo si hay candidatos).
+tablero y sus avisos. Con la foto, las siete reglas suman **a lo sumo 1 consulta**: la de
+«en la puerta», solo si hay candidatos (lee ``situacion`` de esos casos para nombrar el
+dispositivo).
 
 **El enlace depende de quién mira.** Cada aviso lleva a la ficha del caso (E3) o al detalle
 de la entrega (E5), que exigen operar o supervisar la mesa. Sin esa capacidad, el aviso
@@ -40,12 +41,11 @@ urgente al menos, y resume el resto en un aviso «y N más» que lleva a la band
 listado de entregas (E4) filtrados.
 """
 
-from django.db.models import Exists, OuterRef, Subquery
 from django.urls import reverse
 
 from core.services import vencimientos
 from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
-from programas.models import CasoEmergencia, ContactoCaso, TrazaCaso
+from programas.models import CasoEmergencia, TrazaCaso
 from programas.selectors import emergencia_tablero as tablero
 from programas.selectors.emergencia import texto_de_minutos
 from programas.services.emergencia_programa import puede_operar_la_mesa
@@ -180,28 +180,21 @@ def derivaciones_por_vencer(sla, ahora, usuario=None, foto=None):
 
 
 def rechazadas_sin_nueva_accion(sla, ahora, usuario=None, foto=None):
-    """Casos abiertos cuya **última** traza es el rechazo de la derivación. **1 consulta.**
+    """Casos abiertos cuya **última** traza es el rechazo de la derivación. Sin consultas con foto.
 
     Cualquier cosa que la mesa haga después (un contacto, derivar de nuevo, cerrar) deja otra
     traza y apaga el aviso.
     """
 
-    ultima = TrazaCaso.objects.filter(caso=OuterRef("pk")).order_by("-creado_en", "-id")
-    casos = list(
-        CasoEmergencia.objects.exclude(estado=Estado.CERRADO)
-        .annotate(ultima_accion=Subquery(ultima.values("accion")[:1]), ultimo_detalle=Subquery(ultima.values("detalle")[:1]))
-        .filter(ultima_accion=Accion.DERIVACION_RECHAZADA)
-        .order_by("modificado", "id")
-        .values_list("id", "numero", "grupo__responsable__apellido", "ultimo_detalle")
-    )
+    casos = [caso for caso in _foto(sla, ahora, foto).abiertos if caso.ultima_accion == Accion.DERIVACION_RECHAZADA]
     avisos = []
-    for pk, numero, apellido, detalle in casos[:TOPE_POR_REGLA]:
-        enlace, accion = _enlace(usuario, _url_caso(pk), "Derivar de nuevo")
+    for caso in casos[:TOPE_POR_REGLA]:
+        enlace, accion = _enlace(usuario, _url_caso(caso.id), "Derivar de nuevo")
         avisos.append(
             Aviso(
-                titulo=f"Derivación del caso {numero} rechazada",
-                texto=f"Familia {apellido}: {detalle or 'el dispositivo rechazó la derivación'}. Nadie volvió a actuar.",
-                origen=f"Caso {numero}",
+                titulo=f"Derivación del caso {caso.numero} rechazada",
+                texto=f"{caso.familia}: {caso.ultimo_detalle or 'el dispositivo rechazó la derivación'}. Nadie volvió a actuar.",
+                origen=f"Caso {caso.numero}",
                 fecha=None,
                 enlace=enlace,
                 accion=accion,
@@ -225,20 +218,17 @@ def ingresos_parciales_sin_revisar(sla, ahora, usuario=None, foto=None):
 
     El caso no tiene un campo de «revisado»: lo que dice que la mesa se ocupó es un
     ``ContactoCaso`` con ``momento`` desde el alojamiento (la mesa llamó a la familia por los
-    que faltan). **0 consultas** si en la foto no hay parciales; 1 si hay.
+    que faltan). Sin consultas con foto: la foto ya trae ``contacto_posterior``.
     """
 
-    foto = _foto(sla, ahora, foto)
-    candidatos = [caso for caso in foto.abiertos if caso.estado == Estado.ALOJADO and caso.ingreso_parcial]
-    if not candidatos:
-        return []
-    contacto_posterior = ContactoCaso.objects.filter(caso=OuterRef("pk"), momento__gte=OuterRef("alojado_en"))
-    revisados = set(
-        CasoEmergencia.objects.filter(pk__in=[caso.id for caso in candidatos])
-        .filter(Exists(contacto_posterior))
-        .values_list("id", flat=True)
+    pendientes = sorted(
+        (
+            caso
+            for caso in _foto(sla, ahora, foto).abiertos
+            if caso.estado == Estado.ALOJADO and caso.ingreso_parcial and not caso.contacto_posterior
+        ),
+        key=lambda caso: (caso.alojado_en, caso.id),
     )
-    pendientes = sorted((caso for caso in candidatos if caso.id not in revisados), key=lambda c: (c.alojado_en, c.id))
     avisos = []
     for caso in pendientes[:TOPE_POR_REGLA]:
         enlace, accion = _enlace(usuario, _url_caso(caso.id), "Abrir el caso")
@@ -353,7 +343,9 @@ def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
 
     foto = _foto(sla, ahora, foto)
     candidatos = [
-        caso for caso in foto.abiertos if caso.estado == Estado.NUEVO and caso.origen == CasoEmergencia.Origen.DISPOSITIVO
+        caso
+        for caso in foto.abiertos
+        if caso.estado == Estado.NUEVO and caso.origen == CasoEmergencia.Origen.DISPOSITIVO
     ]
     if not candidatos:
         return []
@@ -364,7 +356,9 @@ def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
     )
     avisos = []
     for caso in candidatos[:TOPE_POR_REGLA]:
-        donde = ((situaciones.get(caso.id) or {}).get(SITUACION_EN_LA_PUERTA) or {}).get("dispositivo") or "un dispositivo"
+        donde = ((situaciones.get(caso.id) or {}).get(SITUACION_EN_LA_PUERTA) or {}).get(
+            "dispositivo"
+        ) or "un dispositivo"
         minutos = max(int((ahora - caso.creado).total_seconds() // 60), 0)
         enlace, accion = _enlace(usuario, _url_caso(caso.id), "Tomar el caso")
         avisos.append(
@@ -388,7 +382,12 @@ def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
 
 
 REGLAS = (
-    ("emergencia.caso_fuera_de_sla", "Caso con el tramo en curso por encima de su objetivo.", "alta", casos_fuera_de_sla),
+    (
+        "emergencia.caso_fuera_de_sla",
+        "Caso con el tramo en curso por encima de su objetivo.",
+        "alta",
+        casos_fuera_de_sla,
+    ),
     (
         "emergencia.derivacion_rechazada",
         "Derivación rechazada y nadie volvió a actuar sobre el caso.",
