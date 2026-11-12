@@ -9,8 +9,9 @@ la app, y el test y este documento se tocan en el mismo diff. El esquema OpenAPI
 Base: `/api/emergencia/`. Autenticación: `Authorization: Token <token>`, el mismo token del resto de la
 app.
 
-Alcance de esta versión (PR 5): login, perfil y **M1 · Ingreso de familias** (Formulario 1 del agente
-territorial). Lo del dispositivo (M2 y M3) está en «Próximos», al final.
+Alcance de esta versión: login, perfil y **M1 · Ingreso de familias** (Formulario 1 del agente
+territorial, PR 5), y **M3 · Recepción de kits** en el dispositivo (PR 9-API, §9 a §12). **M2 · Llegada de
+familias** está en «Próximos», al final.
 
 ## Resumen de extremos
 
@@ -23,8 +24,12 @@ territorial). Lo del dispositivo (M2 y M3) está en «Próximos», al final.
 | `GET /api/emergencia/localidades/` | módulo | Lista de localidades para el Formulario 1 |
 | `POST /api/emergencia/casos/` | agente | Enviar una familia (multipart, idempotente) |
 | `GET /api/emergencia/casos/mios/` | agente | «Mis envíos» |
+| `GET /api/emergencia/mis-dispositivos/` | módulo | Dispositivos donde el usuario es de la guardia, con sus entregas pendientes |
+| `GET /api/emergencia/dispositivos/{id}/entregas/` | kits | Entregas de kits de un dispositivo (`?pendientes=1`: las que esperan recepción) |
+| `GET /api/emergencia/entregas/{id}/` | kits | Una entrega con sus líneas |
+| `POST /api/emergencia/entregas/{id}/recibir/` | kits | Confirmar la recepción (multipart, idempotente, con conexión) |
 
-«Módulo» y «agente» son los dos permisos del namespace (§2).
+«Módulo», «agente» y «kits» son los tres permisos del namespace (§2).
 
 ## 1. Login
 
@@ -64,12 +69,19 @@ demasiados intentos fallidos.
 
 ## 2. Permisos y códigos de error
 
-Dos permisos, los dos con el mismo `code` que el resto de la app:
+Tres permisos, los tres con el mismo `code` que el resto de la app:
 
 | Permiso | Regla | 403 |
 |---|---|---|
 | **Módulo** | La misma del login (§1): agente, guardia o administrador de Dispositivos | `{"detail": "El usuario no tiene acceso al módulo Emergencia.", "code": "SIN_MODULO"}` |
 | **Agente** | `emergencia.relevar` en el programa Emergencia | `{"detail": "El usuario no tiene permiso para relevar familias en Emergencia. Pedile a quien administra los usuarios que te sume el rol de agente territorial.", "code": "SIN_MODULO"}` |
+| **Kits** | Abre el módulo **y** tiene `emergencia.recibir_kit` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no recibe kits en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que reciba kits.", "code": "SIN_MODULO"}` |
+
+**Alcance por dispositivo (kits).** El permiso «kits» dice que el usuario recibe kits *en algún lado*. Qué
+dispositivo y qué entrega son suyos se resuelve por alcance, y lo que no es suyo contesta **404** con el
+mismo cuerpo que un id que no existe (`{"detail": "No encontrado."}`): la respuesta no confirma que la
+entrega existe ni nombra al otro dispositivo. El 403 queda para quien no tiene el permiso en ningún
+dispositivo.
 
 El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` en todo
 `/api/emergencia/`, y un usuario de Emergencia recibe 403 `SIN_MODULO` en todo `/api/becas/` y
@@ -80,7 +92,9 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | 401 | — | Sin token o token inválido | Volver al login |
 | 403 | `SIN_MODULO` | El usuario no tiene el permiso de la ruta | Mostrar `detail`; no reintentar |
 | 400 | `VALIDACION` | El envío no es válido (§6) | Mostrar el detalle por campo; el agente corrige y reenvía con el **mismo** `uuid_cliente` |
-| 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario | No reintentar con ese identificador |
+| 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
+| 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12) | Mostrar `detail` y recargar la lista de entregas |
+| 404 | — | El dispositivo o la entrega no existen, o no son del usuario (kits) | Recargar «mis dispositivos» |
 | 429 | — | Tope de consultas de identidad (§4) | Seguir con carga manual del nombre |
 
 ## 3. Perfil
@@ -257,11 +271,144 @@ es lo que ya llegó.
  "personas/consultar": "https://…/api/emergencia/personas/consultar/",
  "localidades": "https://…/api/emergencia/localidades/",
  "casos": "https://…/api/emergencia/casos/",
- "casos/mios": "https://…/api/emergencia/casos/mios/"}
+ "casos/mios": "https://…/api/emergencia/casos/mios/",
+ "mis-dispositivos": "https://…/api/emergencia/mis-dispositivos/"}
 ```
 
-## Próximos (PR 8 y 9-API)
+Las rutas que llevan un id (entregas) no figuran en el índice.
+
+## 9. Mis dispositivos
+
+`GET /api/emergencia/mis-dispositivos/` — los dispositivos donde el usuario es de la guardia de
+Emergencia: tiene `dispositivo.admitir` **o** `emergencia.recibir_kit` en su Equipo (el administrador del
+programa Dispositivos los ve todos). Por nombre, **sin paginar**. Con más de uno, la app pide elegir el
+dispositivo primero (RU-5).
+
+```json
+[{"id": 7, "nombre": "Club Sarmiento", "entregas_pendientes": 2},
+ {"id": 9, "nombre": "Escuela 12", "entregas_pendientes": 0}]
+```
+
+- `entregas_pendientes`: cuántas entregas de kits puede recibir el usuario en ese dispositivo (en camino
+  o preparadas). Es `0` donde solo admite familias y no recibe kits.
+- El agente territorial, que abre el módulo pero no es de ninguna guardia, recibe `[]`.
+
+**Claves que se van a sumar (PR 8):** `plazas_libres` y `derivaciones_pendientes`, para «Llegada de
+familias». Agregar una clave no rompe a la app; hoy no vienen.
+
+## 10. Entregas de un dispositivo
+
+`GET /api/emergencia/dispositivos/{id}/entregas/` — las entregas de kits del dispositivo `id`, que tiene
+que ser uno donde el usuario recibe kits (si no, 404).
+
+- Con `?pendientes=1`: las que esperan recepción —`EN_CAMINO` y también `PREPARADA`, por si llegó sin que
+  la mesa la marcara—, de la más vieja a la más nueva, sin tope. Es la lista de M3-1.
+- Sin el parámetro: las últimas **50** de cualquier estado, de la más nueva a la más vieja.
+
+```json
+[{"id": 31, "numero": "2026-K-000031", "estado": "EN_CAMINO",
+  "despachada_en": "2026-11-12T10:00:00-03:00", "recibida_en": null,
+  "observacion_mesa": "Entregar a la directora.", "observacion_dispositivo": "",
+  "lineas": [{"item": 12, "nombre": "Colchón", "unidad": "unidad", "enviada": 10, "recibida": null},
+             {"item": 14, "nombre": "Kit alimentario", "unidad": "kit", "enviada": 3, "recibida": null}]}]
+```
+
+| Clave | Qué es |
+|---|---|
+| `id` | El que va en las rutas de §11 y §12 |
+| `numero` | Número legible de la entrega, «2026-K-000031» |
+| `estado` | `PREPARADA`, `EN_CAMINO`, `RECIBIDA`, `RECIBIDA_CON_DIFERENCIAS` o `CANCELADA` |
+| `despachada_en` | Cuándo salió. `null` si la mesa no la marcó en camino |
+| `recibida_en` | Cuándo se confirmó la recepción (hora del servidor). `null` si todavía no |
+| `observacion_mesa` | Nota de la mesa para quien recibe. Puede venir vacía |
+| `observacion_dispositivo` | Lo que escribió quien la recibió. Vacía hasta la recepción |
+| `lineas[].item` | `id` del ítem: es la clave de `cantidades[<id>]` en §12 |
+| `lineas[].nombre`, `lineas[].unidad` | Para mostrar. La unidad es la del momento en que se armó la entrega |
+| `lineas[].enviada` | Lo que salió: con esto se **precarga** la cantidad a confirmar |
+| `lineas[].recibida` | Lo que se confirmó. `null` hasta la recepción |
+
+La respuesta no trae la foto del remito: se guarda detrás de login y la ven la mesa y el equipo del
+dispositivo desde el backoffice.
+
+## 11. Una entrega
+
+`GET /api/emergencia/entregas/{id}/` — **la misma forma** que cada elemento de §10. 404 si no existe o
+es de un dispositivo donde el usuario no recibe kits.
+
+## 12. Recibir una entrega
+
+`POST /api/emergencia/entregas/{id}/recibir/` — `multipart/form-data`. **Requiere conexión**: no se
+encola (la mesa está esperando la respuesta, y una recepción hecha mientras tanto desde el backoffice
+daría 409).
+
+| Campo | Tipo | Obligatorio | Regla |
+|---|---|---|---|
+| `uuid_cliente` | UUID | **sí** | Lo genera el celular al abrir la recepción. Identifica el envío (ver «Idempotencia») |
+| `cantidades[<id del ítem>]` | entero ≥ 0 | **sí, uno por cada línea** | Cuánto llegó de ese ítem, aunque sea `0`. Ejemplo: `cantidades[12]=8` |
+| `remito` | archivo | **sí** | Foto del remito. **Solo JPEG** (extensión `.jpg`/`.jpeg` y contenido JPEG de verdad), hasta **5 MB** |
+| `observacion` | texto | no | Lo que la mesa tiene que saber |
+
+Vale sobre una entrega `EN_CAMINO` y también sobre una `PREPARADA`. Respuesta **200**:
+
+```json
+{"estado": "RECIBIDA_CON_DIFERENCIAS",
+ "diferencias": [{"item": 12, "enviada": 10, "recibida": 8}]}
+```
+
+- `estado`: `RECIBIDA` si todas las cantidades coinciden con lo enviado; `RECIBIDA_CON_DIFERENCIAS` si
+  alguna difiere. **Llegar de más también es una diferencia.**
+- `diferencias`: solo las líneas donde `recibida` es distinta de `enviada`; `[]` si llegó completa. El
+  nombre del ítem sale de `lineas` (§10), por `item`.
+
+Después de confirmada, la recepción **no se corrige**: no hay ruta para cambiar las cantidades.
+
+### Idempotencia
+
+- El mismo `uuid_cliente` enviado otra vez sobre la misma entrega devuelve **200** con el mismo cuerpo
+  que la primera vez. **No se vuelve a validar ni se escribe nada**: no importa qué traiga el segundo
+  cuerpo (ni siquiera hace falta el remito).
+- Tras un **400**, se corrige y se reenvía con el **mismo** `uuid_cliente`: ese envío no escribió nada.
+- **409 `UUID_EN_USO`**: ese identificador ya es el de la recepción de **otra** entrega.
+
+```json
+{"detail": "Ese identificador de envío ya se usó en otra recepción.", "code": "UUID_EN_USO"}
+```
+
+### La entrega ya no se puede recibir (409)
+
+Otra guardia la confirmó —desde su teléfono, con otro `uuid_cliente`, o desde el backoffice— o la mesa
+la canceló mientras se cargaba la recepción. No se escribe nada y el remito no se guarda.
+
+```json
+{"detail": "Entrega 2026-K-000031 cancelada por la mesa a las 15:02. Ya no se puede recibir.",
+ "estado_actual": "CANCELADA"}
+```
+
+`estado_actual` es `RECIBIDA`, `RECIBIDA_CON_DIFERENCIAS` o `CANCELADA`. La app muestra `detail` y
+recarga la lista de entregas.
+
+### Errores de la recepción
+
+400, con la misma forma que el de §6 (`code: "VALIDACION"`, `detail`, `non_field_errors` y una clave por
+campo con error):
+
+```json
+{"remito": ["Falta la foto del remito."], "detail": "Falta la foto del remito.",
+ "non_field_errors": ["Falta la foto del remito."], "code": "VALIDACION"}
+```
+
+| Clave | Cuándo |
+|---|---|
+| `uuid_cliente` | Falta o no es un UUID |
+| `cantidades` | No viene ninguna; falta la de algún ítem de la entrega (el mensaje dice cuál); alguna no es un entero ≥ 0; viene la de un ítem que no es de la entrega |
+| `remito` | Falta; no es JPEG; pasa de 5 MB |
+
+404: la entrega no existe o es de un dispositivo donde el usuario no recibe kits. 403 `SIN_MODULO`: el
+usuario no recibe kits en ningún dispositivo.
+
+## Próximos (PR 8)
 
 ### M2 · Llegada de familias (PR 8)
 
-### M3 · Recepción de kits (PR 9-API)
+Suma a `GET /api/emergencia/mis-dispositivos/` las claves `plazas_libres` y `derivaciones_pendientes`
+(§9), y las rutas de la llegada de una familia derivada.

@@ -1,0 +1,72 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Nueva entrega — Paso {{ paso_actual }}{% endblock %}
+
+{% comment %}E4 · «Nueva entrega», paso 1 de 3 (arquetipo Wizard, ficha `.claude/design/arquetipos/wizard.md`): elegir
+el dispositivo destino. Paso intermedio sin formulario propio: el contenido es la tabla densa canónica con su
+buscador (esqueleto del arquetipo Listado) y elegir es navegar al paso 2. El asistente no guarda nada en la
+sesión: el destino viaja en la URL. Las cifras de cada fila las arma la vista (`resumenes_de_destino`).{% endcomment %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% page_header titulo="Nueva entrega" eyebrow="Programa Emergencia" volver_url=url_entregas volver_label="entregas de kits" %}
+    {% bajada %}Paso {{ paso_actual }} de {{ total_pasos }} · Elegí el dispositivo que recibe la entrega.{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+  {# GET: solo rearma la lista (no muta, sin csrf). El <form> va sin class y el control con aria-label #}
+  <form method="get" data-dynamic-list-filters>
+    <input type="search" name="q" value="{{ q }}" class="nodo-field max-w-xs" aria-label="Nombre o localidad del dispositivo">
+  </form>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if destinos %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Dispositivo</th>
+            <th class="nodo-th text-right">Personas alojadas hoy</th>
+            <th class="nodo-th text-right">Plazas ocupadas</th>
+            <th class="nodo-th">Última entrega</th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for destino in destinos %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">
+              <a href="{{ destino.url }}" class="text-fg-brand hover:underline">{{ destino.nombre }}</a>
+              <span class="block text-xs text-body-subtle">{{ destino.localidad|default:"Sin localidad cargada" }}</span>
+            </td>
+            <td class="nodo-td text-right">{{ destino.alojadas }}</td>
+            <td class="nodo-td text-right">{{ destino.plazas }}</td>
+            <td class="nodo-td text-body">
+              {% if destino.ultima_entrega %}
+                {{ destino.ultima_entrega.numero }}
+                <span class="block text-xs text-body-subtle">{{ destino.ultima_entrega.fecha }}</span>
+                {% if destino.ultima_entrega.con_diferencias %}<span class="badge badge-warning mt-1">Con diferencias</span>{% endif %}
+              {% else %}
+                <span class="text-body-subtle">Sin entregas</span>
+              {% endif %}
+            </td>
+            <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+              <a href="{{ destino.url }}" class="nodo-icon-btn" aria-label="Elegir {{ destino.nombre }} como destino de la entrega">
+                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="dispositivo" %}
+    {% elif request.GET|hay_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún dispositivo coincide con la búsqueda" texto="Probá con otro nombre o con otra localidad." accion_url=url_sin_filtros %}
+    {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-building-circle-xmark" titulo="No hay dispositivos activos" texto="Una entrega se envía a un dispositivo activo. Cuando haya alguno, aparece acá." %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

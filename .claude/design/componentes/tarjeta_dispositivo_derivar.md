@@ -4,8 +4,10 @@
 dónde queda, cuántas plazas tiene y si alcanza para lo que se pide.
 **Evidencia:** `templates/components/_tarjeta_dispositivo_derivar.html`,
 `core/tests/test_nodo_ui_emergencia.py` (`TarjetaDispositivoDerivarTest`).
-**Consumidores previstos:** el panel «Derivar» de la ficha de un caso de Emergencia y la elección de
-dispositivo en el asistente de entrega de kits. Solo usa clases y tokens que ya existen.
+**Consumidor:** el panel «Derivar» de la ficha de un caso de Emergencia. Solo usa clases y tokens que ya
+existen. El paso 1 del asistente de entrega de kits (`programas/templates/programas/emergencia/kits/nueva_destino.html`)
+**no** la usa: ahí la pregunta es otra —personas alojadas, plazas ocupadas y última entrega, sin distancia ni
+marca— y va como tabla densa canónica (`tabla.md`) en vez de sumarle claves a esta pieza.
 
 **Consumidor de referencia:** el panel «Derivar» de `programas/templates/programas/emergencia/casos/detail.html`
 (dicts armados por `programas/selectors/emergencia_mesa.py`, `panel_de_derivar`, con tope de 20 y filtro por nombre y

@@ -15,13 +15,16 @@ el backoffice. Las dos reglas propias del canal sí están acá: las fotos de la
 del teléfono no puede ser del futuro (`emergencia_campo.acotar_relevado_en`).
 """
 
+import re
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.fields import empty
+from rest_framework.utils import html
 
 from core.validators import ADJUNTO_MAX_BYTES, MENSAJE_ADJUNTO_TAMANIO, firma_coincide
-from programas.models import AdjuntoCaso, CasoEmergencia, GrupoFamiliar
+from programas.models import AdjuntoCaso, CasoEmergencia, EntregaKit, GrupoFamiliar, LineaEntrega
 from programas.services.emergencia_campo import acotar_relevado_en
 
 FOTO_EXTENSIONES_APP = (".jpg", ".jpeg")
@@ -189,3 +192,138 @@ class PerfilEmergenciaSerializer(serializers.Serializer):
     dispositivo = serializers.BooleanField(
         help_text="Guardia de un dispositivo: «Llegada de familias» (M2) y «Recepción de kits» (M3)."
     )
+
+
+# ---------------------------------------------------------------------------
+# M3 · Recepción de kits
+# ---------------------------------------------------------------------------
+
+#: Cómo viaja la cantidad de cada ítem en el multipart de la recepción: `cantidades[<id del ítem>]`.
+CLAVE_DE_CANTIDAD = re.compile(r"^cantidades\[(\d+)\]$")
+MENSAJE_SIN_CANTIDADES = "Indicá cuánto llegó de cada ítem: un campo `cantidades[<id del ítem>]` por línea."
+MENSAJE_CANTIDADES_INVALIDAS = "La cantidad de cada ítem tiene que ser un número entero, cero o más."
+
+
+class MiDispositivoEmergenciaSerializer(serializers.Serializer):
+    """Un dispositivo donde el usuario es de la guardia de Emergencia (RU-5)."""
+
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    entregas_pendientes = serializers.IntegerField(
+        help_text="Entregas de kits que el usuario puede recibir ahí (en camino o preparadas). 0 si solo admite."
+    )
+
+
+class LineaEntregaKitSerializer(serializers.ModelSerializer):
+    """Un ítem de la entrega: lo enviado y, cuando ya se recibió, lo recibido."""
+
+    item = serializers.IntegerField(source="item_id", read_only=True, help_text="`id` del ítem del catálogo.")
+    nombre = serializers.CharField(source="item.nombre", read_only=True)
+    enviada = serializers.IntegerField(source="cantidad_enviada", read_only=True)
+    recibida = serializers.IntegerField(
+        source="cantidad_recibida", read_only=True, allow_null=True, help_text="`null` hasta que se recibe."
+    )
+
+    class Meta:
+        model = LineaEntrega
+        fields = ["item", "nombre", "unidad", "enviada", "recibida"]
+        read_only_fields = fields
+
+
+class EntregaKitSerializer(serializers.ModelSerializer):
+    """Una entrega de kits como la ve la guardia: la misma forma en la lista y en el detalle."""
+
+    lineas = LineaEntregaKitSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = EntregaKit
+        fields = [
+            "id",
+            "numero",
+            "estado",
+            "despachada_en",
+            "recibida_en",
+            "observacion_mesa",
+            "observacion_dispositivo",
+            "lineas",
+        ]
+        read_only_fields = fields
+
+
+class _CantidadesField(serializers.DictField):
+    """``{"<id del ítem>": cantidad}``. En multipart, un campo ``cantidades[<id>]`` por ítem."""
+
+    def get_value(self, dictionary):
+        if html.is_html_input(dictionary):
+            cantidades = {}
+            for clave in dictionary:
+                coincide = CLAVE_DE_CANTIDAD.match(clave)
+                if coincide:
+                    cantidades[coincide.group(1)] = dictionary.get(clave)
+            return cantidades or empty
+        return super().get_value(dictionary)
+
+    def run_child_validation(self, data):
+        # Un solo mensaje para el campo, no un dict de errores por ítem: el 400 de la app es
+        # una lista de mensajes por clave.
+        try:
+            return super().run_child_validation(data)
+        except serializers.ValidationError:
+            raise serializers.ValidationError(MENSAJE_CANTIDADES_INVALIDAS) from None
+
+
+class RecepcionKitEnvioSerializer(serializers.Serializer):
+    """Cuerpo multipart de ``POST /api/emergencia/entregas/{id}/recibir/``.
+
+    Acá solo se mira **la forma** (que el identificador sea un UUID, que las cantidades sean
+    enteros). Las reglas —una cantidad por cada línea, el remito obligatorio en JPEG de hasta
+    5 MB, el estado de la entrega, el alcance— son de ``recibir_entrega``, la misma función
+    que usa la recepción web (RU-2): por eso el remito no es obligatorio en este nivel.
+    """
+
+    uuid_cliente = serializers.UUIDField(
+        help_text="Identificador de la recepción, generado en el celular. Reenviarlo no la repite."
+    )
+    cantidades = _CantidadesField(
+        child=serializers.IntegerField(min_value=0),
+        error_messages={"required": MENSAJE_SIN_CANTIDADES},
+        help_text=(
+            "Cuánto llegó de **cada** ítem de la entrega, aunque sea 0. En multipart, un campo "
+            "`cantidades[<id del ítem>]` por línea (p. ej. `cantidades[12]=8`)."
+        ),
+    )
+    remito = serializers.FileField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Obligatorio. Foto del remito en JPEG, hasta 5 MB. HEIC/HEIF se convierten en la app.",
+    )
+    observacion = _texto(help_text="Lo que la mesa tiene que saber de esta entrega. Opcional.")
+
+    def cantidades_por_item(self):
+        """``{item_id: cantidad}`` con las claves como enteros: lo que recibe ``recibir_entrega``."""
+        return {int(item_id): cantidad for item_id, cantidad in self.validated_data["cantidades"].items()}
+
+
+class DiferenciaDeRecepcionSerializer(serializers.Serializer):
+    item = serializers.IntegerField(help_text="`id` del ítem del catálogo.")
+    enviada = serializers.IntegerField()
+    recibida = serializers.IntegerField()
+
+
+class RecepcionKitRespuestaSerializer(serializers.Serializer):
+    """«Recibida · 2 ítems con diferencia» (M3-2): el estado final y lo que difirió."""
+
+    estado = serializers.ChoiceField(
+        choices=EntregaKit.Estado.choices, help_text="`RECIBIDA` o `RECIBIDA_CON_DIFERENCIAS`."
+    )
+    diferencias = DiferenciaDeRecepcionSerializer(
+        many=True, help_text="Las líneas con `recibida` distinta de `enviada`. Vacía si llegó completa."
+    )
+
+
+class EstadoCambioSerializer(serializers.Serializer):
+    """El 409 de una pantalla que quedó vieja: qué pasó y en qué estado quedó el recurso."""
+
+    detail = serializers.CharField()
+    estado_actual = serializers.CharField()

@@ -37,8 +37,9 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
   Dispositivos (`inspeccion.asignar`) y las dos entradas de Emergencia en el grupo «Programas», con el
   filtro `|puede:`, como las de Becas (el alcance lo exige la vista): «Emergencia» lleva a la bandeja de
   casos y la ve quien tiene `emergencia.operar` **o** `emergencia.supervisar`; «Configuración de Emergencia»
-  (E7) la ve solo quien supervisa. «Emergencia» se marca con `emergencia` en la ruta salvo en
-  `emergencia/config`, que es de la otra. El grupo se abre también con `emergencia` en la ruta, y colapsado
+  (E7) la ve solo quien supervisa; «Entregas de kits» (E4) va con la misma condición que la bandeja, así que
+  no suma una consulta por página. «Emergencia» se marca con `emergencia` en la ruta salvo en
+  `emergencia/config` y `emergencia/entregas`, que son de las otras. El grupo se abre también con `emergencia` en la ruta, y colapsado
   tiene su propio link a la bandeja, como «Reportes». El ícono es Font Awesome con `w-4 text-center`
   (`w-5` colapsado), sin `style=`.
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`

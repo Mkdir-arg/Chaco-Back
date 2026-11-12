@@ -1,0 +1,43 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Nueva entrega — Paso {{ paso_actual }}{% endblock %}
+
+{% comment %}E4 · «Nueva entrega», paso 3 de 3 (arquetipo Wizard, ficha `.claude/design/arquetipos/wizard.md`): resumen y
+confirmación, clonado de la golden `configuracion/programa_wizard_paso4.html`. Es el único paso que escribe.
+El asistente no usa la sesión: las cantidades viajan en los ocultos de este formulario, así que «Crear entrega»
+escribe exactamente lo que este resumen mostró. «Anterior» vuelve al paso 2 con las mismas cantidades.{% endcomment %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% page_header titulo="Nueva entrega" eyebrow="Programa Emergencia" volver_url=url_entregas volver_label="entregas de kits" %}
+    {% bajada %}Paso {{ paso_actual }} de {{ total_pasos }} · Revisá la entrega y confirmá.{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold">Resumen de la entrega</h2>
+    <dl class="mt-3 space-y-1 text-sm text-body">
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Destino:</dt><dd>{{ destino.nombre }}{% if destino.localidad %} · {{ destino.localidad }}{% endif %}</dd></div>
+      {% if repone_a %}
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Repone a:</dt><dd>la entrega {{ repone_a.numero }}</dd></div>
+      {% endif %}
+      {% for linea in lineas %}
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">{{ linea.item }}:</dt><dd>{{ linea.cantidad }} · {{ linea.unidad }}</dd></div>
+      {% endfor %}
+    </dl>
+    <p class="mt-3 text-xs text-body-subtle">La entrega se crea en estado <strong class="text-heading">Preparada</strong>. Cuando salga, marcala en camino.</p>
+  </div>
+
+  <form method="post" action="{{ url_confirmar }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+    {% for field in form.campos_visibles %}{% include "components/_field.html" %}{% endfor %}
+    <div class="flex justify-between gap-3 mt-6 pt-4 border-t border-light">
+      <button type="submit" formaction="{{ url_items }}" formnovalidate class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</button>
+      <button type="submit" name="confirmar" value="1" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Crear entrega</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
