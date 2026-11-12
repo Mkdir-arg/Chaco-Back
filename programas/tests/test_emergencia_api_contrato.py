@@ -319,13 +319,10 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
 
         **Mutación vista en rojo:** con ``modulo_habilitado`` aceptando además
         ``rbac.puede(user, "becas.campo")`` —«cualquier capacidad de campo abre el módulo»—
-        este test falla dos veces: el login devuelve ``["becas", "emergencia"]`` y la raíz,
-        el perfil, las localidades y la consulta contestan 200. Restaurada la regla, verde.
+        este test falla en las dos mitades: la raíz, el perfil y las localidades contestan
+        200 (y la consulta deja de dar 403), y el login devuelve ``["becas", "emergencia"]``.
+        Restaurada la regla, verde.
         """
-        respuesta = self._login("terri_becas")
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.json()["modulos"], ["becas"])
-
         cliente = self._como(self.territorial_becas)
         for url in urls_de_la_api_de_emergencia():
             esperado = SIN_RELEVAR if url in SOLO_DEL_AGENTE else SIN_MODULO
@@ -336,6 +333,10 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
                     self.assertEqual(sorted(respuesta.json()), CLAVES_SIN_MODULO)
                     self.assertEqual(respuesta.json(), esperado)
         self.assertEqual(CasoEmergencia.objects.count(), 0)
+
+        respuesta = self._login("terri_becas")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["modulos"], ["becas"])
 
     def test_el_agente_de_emergencia_no_abre_ninguna_ruta_de_becas(self):
         """RU §6 n.° 3 al revés: ``emergencia.relevar`` no abre Becas, incluida su consulta de identidad.

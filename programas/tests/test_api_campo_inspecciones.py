@@ -143,7 +143,14 @@ class AutenticacionTests(BaseApiInspecciones):
         self.assertEqual(respuesta.data["modulos"], ["dispositivos"])
 
     def test_sin_inspeccion_relevar_no_saca_token_aunque_tenga_lo_demas_de_dispositivos(self):
-        sin_relevar = tuple(c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.relevar")
+        """Lo demás de Dispositivos que **no** es la guardia ni el admin del programa.
+
+        Desde el módulo Emergencia (PR 5), ``dispositivo.admitir`` en el Equipo y
+        ``programa.configurar`` sí abren la app —por Emergencia, no por el relevamiento
+        edilicio—: es el test de abajo. Acá queda el resto, que sigue sin sacar token.
+        """
+        abren_emergencia = ("dispositivo.admitir", "programa.configurar")
+        sin_relevar = tuple(c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.relevar" and c not in abren_emergencia)
         self._usuario("sin_relevar", sin_relevar, [self.parador])
 
         respuesta = self.api.post(
@@ -151,6 +158,20 @@ class AutenticacionTests(BaseApiInspecciones):
         )
 
         self.assertEqual(respuesta.status_code, 403)
+
+    def test_la_guardia_sin_inspeccion_relevar_entra_por_emergencia_y_no_por_dispositivos(self):
+        """Con todo Dispositivos menos ``inspeccion.relevar`` el token existe, pero `modulos` no trae
+        ``"dispositivos"``: lo que abre es Emergencia (RU-4), y el relevamiento edilicio sigue en 403."""
+        sin_relevar = tuple(c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.relevar")
+        usuario = self._usuario("sin_relevar", sin_relevar, [self.parador])
+
+        respuesta = self.api.post(
+            reverse("becas_api:token"), {"username": "sin_relevar", "password": "x"}, format="json"
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.data["modulos"], ["emergencia"])
+        self.assertEqual(self._como(usuario).get(_lista()).status_code, 403)
 
     def test_sin_inspeccion_relevar_es_403_aunque_tenga_todo_lo_demas(self):
         sin_relevar = tuple(c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.relevar")
