@@ -232,10 +232,11 @@
             <div>
                 <h2 class="text-lg font-bold text-heading">Roles por ámbito</h2>
                 <p class="mt-0.5 text-sm text-body-subtle">Una solapa por ámbito: módulos del backoffice y programas. Un usuario puede tener roles de varios ámbitos.</p>
+                {% if form.roles_solo_lectura %}<p class="mt-1 text-sm font-semibold text-body" id="roles-solo-lectura">{{ form.groups.help_text }}</p>{% endif %}
             </div>
             <div class="flex items-center gap-3">
                 <span class="text-sm text-body-subtle"><span id="roles-total">{{ form.groups.value|length }}</span> seleccionado(s)</span>
-                <button type="button" id="roles-limpiar" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"{% if form.solo_segmentos %} disabled{% endif %}>Limpiar</button>
+                <button type="button" id="roles-limpiar" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"{% if form.solo_segmentos or form.roles_solo_lectura %} disabled{% endif %}>Limpiar</button>
             </div>
         </div>
 
@@ -279,7 +280,7 @@
                                data-nombre="{{ rol.nombre }}"
                                {% if rol.territorial %}data-territorial="1"{% endif %}
                                {% if rol.alcance_becas %}data-alcance-becas="{{ rol.alcance_becas }}"{% endif %}
-                               {% if rol.checked %}checked{% endif %}>
+                               {% if rol.checked %}checked{% endif %}{% if form.roles_solo_lectura %} disabled{% endif %}>
                         <span class="min-w-0">
                             <span class="flex flex-wrap items-center gap-1.5">
                                 <span class="text-sm font-semibold text-heading">{{ rol.nombre }}</span>

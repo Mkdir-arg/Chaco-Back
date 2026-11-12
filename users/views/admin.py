@@ -81,6 +81,12 @@ class UserCreateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, CreateView)
         kwargs["operador"] = self.request.user
         return kwargs
 
+    def form_invalid(self, form):
+        # #1114: el rechazo de roles también llega como toast.
+        if getattr(form, "rechazo_roles", None):
+            messages.error(self.request, form.rechazo_roles)
+        return super().form_invalid(form)
+
     def form_valid(self, form):
         try:
             self.object = UsuariosAdminService.create_user_from_form(
@@ -146,6 +152,12 @@ class UserUpdateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, UpdateView)
         kwargs = super().get_form_kwargs()
         kwargs["operador"] = self.request.user
         return kwargs
+
+    def form_invalid(self, form):
+        # #1114: el rechazo de roles también llega como toast.
+        if getattr(form, "rechazo_roles", None):
+            messages.error(self.request, form.rechazo_roles)
+        return super().form_invalid(form)
 
     def form_valid(self, form):
         try:
