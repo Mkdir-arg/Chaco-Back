@@ -25,6 +25,7 @@ cambia solo el largo del texto y el `role`.
 |---|---|
 | `estado` | `EN_TERMINO`, `POR_VENCER` o `FUERA`, **ya resuelto** por el selector. Cualquier otro valor, o ninguno, dibuja el badge neutro «Sin SLA» |
 | `minutos` | Entero ya calculado: en `EN_TERMINO` y `POR_VENCER`, los que faltan para que venza el tramo; en `FUERA`, los que lleva excedido. Sin él (None o vacío) el texto no lleva minutos; un 0 se muestra |
+| `texto_tiempo` | Opcional: los mismos minutos ya escritos para leerse cuando son muchos («5 h», «3 d»), tal como los arma el selector (`EstadoSLA.texto_tiempo`). Reemplaza a «N min» solo si además llegan los `minutos`; sin él, el HTML es el de siempre |
 | `tramo` | Opcional: el tramo en curso («tomar», «derivar», «aceptar», «alojar»). Solo lo usa el reloj; se presenta con mayúscula inicial venga como venga |
 | `variante` | `reloj` para el texto largo con `role="status"`. Sin ella, o con otro valor, es el badge corto |
 
@@ -41,6 +42,10 @@ Render: `<span class="badge badge-dot badge-{variante}" data-semaforo-sla="{esta
 (`aria-hidden`) y el texto. El atributo `data-semaforo-sla` lleva el estado conocido (vacío en el neutro): es
 el gancho para quien necesite ubicar el semáforo en la página. El reloj sin `tramo` dice «Vence en 8 min» y
 «Fuera de SLA · 42 min»; sin `minutos`, «Derivar en término», «Por vencer · Derivar» y «Derivar · Fuera de SLA».
+
+Con `texto_tiempo` el lapso se lee «Fuera de SLA · 48 h» o «Aceptar vence en 5 h» en vez de «2880 min»: la
+pieza no convierte nada, escribe el texto que recibe. Lo pasan la bandeja y la ficha del caso de Emergencia
+(`programas/templates/programas/emergencia/casos/list.html` y `detail.html`).
 
 ## Reglas
 

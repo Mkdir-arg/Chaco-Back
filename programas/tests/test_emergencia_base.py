@@ -378,12 +378,13 @@ class SidebarTests(BaseE7):
         with self.assertNumQueries(0):
             self.assertEqual(plantilla.render(Context({"u": usuario})), "")
 
-    def test_con_operar_solo_todavia_no_se_ve(self):
-        """Hoy la única pantalla es E7: mostrarle la entrada al operador sería un link a un 403."""
+    def test_con_operar_solo_no_se_ve_la_configuracion(self):
+        """E7 es de quien supervisa: al operador se le ofrece la bandeja, no un link a un 403."""
         self.client.force_login(self._usuario("operador", [OPERAR]))
         respuesta = self.client.get(reverse("core:inicio"))
         self.assertEqual(respuesta.status_code, 200)
         self.assertNotContains(respuesta, self.ENLACE)
+        self.assertContains(respuesta, 'href="/emergencia/casos/"')
 
 
 class GuardarSLATests(BaseE7):

@@ -123,6 +123,12 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Encabezado con más de una acción secundaria: el menú `texto="Más acciones"` (ver la «Variante de encabezado» de `componentes/tabla.md`).
 - Sin métricas: se omite la grilla de stat cards.
 - Secciones apiladas en vez de solapas cuando hay un área sola.
+- Apilado con panel lateral (`{# arquetipo: detalle + apilado #}`): las secciones van en la columna
+  `lg:col-span-2 min-w-0 space-y-5` de la grilla de «Formulario con asistencia lateral»
+  (`grid grid-cols-1 lg:grid-cols-3 gap-5`) y el panel que acompaña al registro en un `aside space-y-5 min-w-0`
+  con `aria-label`; se apila en móvil. Evidencia: `programas/templates/programas/emergencia/casos/detail.html`
+  (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). El reloj del SLA
+  (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.
 - Solapa con carga diferida: `@click="tab='x'; $dispatch('<evento>')"` y el JS escucha ese
   evento en `window` (molde: `config/programa_detail.html`, que dispara `becas-dashboard-abrir`).
 - Solapa condicionada por permiso: el `{% if %}` envuelve **el botón y el panel**.

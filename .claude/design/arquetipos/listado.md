@@ -91,6 +91,14 @@ los objetos de `page_obj.object_list`, `estados` (choices), `estado_actual`, `pu
 
 - Sin filtros: se omite el `<form>` entero (y el estado vacío con filtros).
 - Vacío por alcance: si el usuario no ve datos porque no tiene asignación (Becas, `personas_list.html`), una rama `{% elif aviso_sin_segmentos %}` con el mismo `_estado_vacio.html` va antes de la de filtros (ver `dominio/becas.md`).
+- Solapas del lado del servidor (cada una es otra consulta y no entran todas en la página): no son `tabs.md`, que
+  alterna paneles sin recargar. Van como `components/_chips_enlace.html` con el conteo en `n`, entre el encabezado y
+  los filtros, de a seis por fila como mucho; el form de filtros lleva `<input type="hidden" name="solapa">` (el JS
+  conserva los ocultos), los chips conservan los filtros en su URL y `hay_filtros` excluye `solapa`. Evidencia:
+  `programas/templates/programas/emergencia/casos/list.html` (seis por estado y dos que cruzan los estados).
+- Acción de fila que muta sin pedir datos ni destruir nada («Tomar» un caso): `<form method="post">` con
+  `{% csrf_token %}` y un `btn-nodo btn-brand btn-sm btn-fit` con `aria-label` que nombra el registro, junto al
+  `nodo-icon-btn` de abrir. Misma evidencia.
 - Sin acción de alta: el `page_header` sin cuerpo. Acción secundaria: `btn-nodo btn-tertiary btn-base`.
   Cada acción del encabezado, también la secundaria, se dibuja solo si la vista resolvió su capacidad (p. ej. «Exportar
   CSV» con `ciudadano.exportar` en `legajos/templates/legajos/ciudadano_list.html`, SEC-20).

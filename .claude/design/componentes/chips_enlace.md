@@ -7,6 +7,9 @@ salir de la pantalla: cada chip recarga con la URL que armó la vista.
 **Consumidor de referencia:** `programas/templates/programas/dispositivos/legajo/_infra_listado.html` (filtro por
 estado) y `_infra_ficha.html` (cambiar de edificio), en la solapa Infraestructura de P4.
 
+También las solapas de la bandeja de casos de Emergencia (`programas/templates/programas/emergencia/casos/list.html`):
+dos filas de chips con conteo (seis por estado y dos que cruzan los estados), cada una con su `nombre`.
+
 ## Cuándo usarla
 
 - Un filtro corto (hasta 5 opciones) del lado del servidor, o saltar entre hermanos de un mismo registro.
