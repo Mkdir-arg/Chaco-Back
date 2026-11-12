@@ -13,6 +13,8 @@ Alcance de esta versión: login, perfil y **M1 · Ingreso de familias** (Formula
 territorial, PR 5), **M3 · Recepción de kits** en el dispositivo (PR 9-API, §9 a §12) y **M2 · Llegada de
 familias** (PR 8, §13).
 
+Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del módulo: [`emergencia-manual.md`](emergencia-manual.md).
+
 ## Resumen de extremos
 
 | Método y ruta | Quién | Para qué |
