@@ -403,8 +403,8 @@
         {% endif %}
 
         {# ── Programas (grupo colapsable) ─────────────────────── #}
-        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or request.user|puede:"becas.reportes.ver" %}
-        <div x-data="{ open: {% if 'becas' in pagina_actual %}true{% else %}false{% endif %} }"
+        {% if request.user|puede:"becas.segmento.ver" or request.user|puede:"becas.convocatoria.ver" or request.user|puede:"becas.relevamiento.ver" or request.user|puede:"becas.revision.ver" or request.user|puede:"becas.reportes.ver" or request.user|puede:"emergencia.supervisar" %}
+        <div x-data="{ open: {% if 'becas' in pagina_actual or 'emergencia' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
             <template x-if="!sidebarCollapsed">
@@ -537,6 +537,15 @@
                             Reportes
                         </a>
                         {% endif %}
+                        {# Emergencia: hoy la única pantalla es la configuración (E7), así que la entrada sale con `emergencia.supervisar`. Sin alcance, como las de Becas: no suma una consulta por página; el alcance lo exige la vista. #}
+                        {% if request.user|puede:"emergencia.supervisar" %}
+                        <a href="{% url 'emergencia:configuracion' %}"
+                           class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
+                           {% if 'emergencia' in pagina_actual %}aria-current="page"{% endif %}>
+                            <i class="fas fa-life-ring w-4 text-center" aria-hidden="true"></i>
+                            Emergencia
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </template>
@@ -571,6 +580,18 @@
                    {% if 'becas/reportes' in pagina_actual %}aria-current="page"{% endif %}>
                     <i class="fas fa-chart-column" aria-hidden="true"
                        style="width:20px; text-align:center; color: {% if 'becas/reportes' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};"></i>
+                </a>
+            </template>
+            {% endif %}
+
+            {% if request.user|puede:"emergencia.supervisar" %}
+            <template x-if="sidebarCollapsed">
+                <a href="{% url 'emergencia:configuracion' %}"
+                   class="group flex items-center justify-center transition-colors duration-150 px-3.5 py-2.5 rounded-full"
+                   title="Emergencia"
+                   aria-label="Emergencia"
+                   {% if 'emergencia' in pagina_actual %}aria-current="page"{% endif %}>
+                    <i class="fas fa-life-ring w-5 text-center" aria-hidden="true"></i>
                 </a>
             </template>
             {% endif %}
