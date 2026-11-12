@@ -52,6 +52,8 @@ PREFIJO_NOTIFICACIONES = "notificaciones/"
 PREFIJO_ADJUNTO_BITACORA = "dispositivos/bitacora/"
 #: Archivos respondidos en el formulario de un tipo de dispositivo (``programas.AdjuntoRespuestaAlta``, P17).
 PREFIJO_FORMULARIO_DISPOSITIVO = "dispositivos/formularios/"
+#: Fotos de la vivienda y del acceso de un caso de Emergencia (``programas.AdjuntoCaso``).
+PREFIJO_ADJUNTO_EMERGENCIA = "emergencia/casos/"
 
 
 def nombre_opaco(filename):
@@ -96,6 +98,17 @@ def ruta_adjunto_bitacora(instance, filename):
 def ruta_formulario_dispositivo(instance, filename):
     """Un archivo respondido en el formulario de un tipo: `%Y/%m`, como la bitácora."""
     return f"{PREFIJO_FORMULARIO_DISPOSITIVO}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
+
+
+def ruta_adjunto_emergencia(instance, filename):
+    """La foto de un caso de Emergencia: una carpeta opaca por caso y nombre opaco.
+
+    La carpeta la da el adjunto (``AdjuntoCaso.carpeta_media``, derivada del caso). Sin
+    instancia (``generate_filename(None, …)`` del test de cobertura de prefijos) queda en
+    la raíz del prefijo: el prefijo es lo que decide la regla de ``/media/``.
+    """
+    carpeta = getattr(instance, "carpeta_media", "") or ""
+    return f"{PREFIJO_ADJUNTO_EMERGENCIA}{carpeta + '/' if carpeta else ''}{nombre_opaco(filename)}"
 
 
 def ruta_notificacion_excel(instance, filename):
