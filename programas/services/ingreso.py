@@ -257,11 +257,19 @@ RESERVA_NUEVA_DURANTE_EL_INGRESO = (
 
 
 def _reservas_abiertas_de(ciudadano_id):
-    """Las reservas sin resolver de la persona en **cualquier** dispositivo, vencidas o no, por plaza."""
+    """Las reservas sin resolver de la persona en **cualquier** dispositivo, vencidas o no, por plaza.
+
+    **Sin las reservas de derivación** (`derivacion__isnull=True`): las camas guardadas para la
+    familia de un caso de Emergencia llevan al responsable en `ciudadano`, pero son de la familia.
+    Si entraran acá, el ingreso del responsable por este asistente liberaría de un golpe las camas
+    de todos los demás. La decisión del PM del 02/11/2026 (cerrar todas las reservas de quien
+    ingresa) vale igual que antes para toda otra reserva. Ver «Reservas de derivación» en
+    `programas.services.estadias`.
+    """
 
     return list(
         ReservaPlaza.objects.abiertas()
-        .filter(ciudadano_id=ciudadano_id)
+        .filter(ciudadano_id=ciudadano_id, derivacion__isnull=True)
         .select_related("plaza__sector__dispositivo")
         .order_by("plaza_id")
     )
