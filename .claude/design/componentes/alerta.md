@@ -76,7 +76,7 @@ corresponde, el par de la acción; el template no decide la severidad ni cuenta.
 
 Consumidores: las alertas del dispositivo en
 `programas/templates/programas/dispositivos/legajo/detail.html` (referencia) y los avisos del tablero de
-Emergencia. La composición no se extrae a un include propio.
+Emergencia (`programas/templates/programas/emergencia/tablero.html`, armados por `programas/services/avisos_emergencia.py`). La composición no se extrae a un include propio.
 
 ## Deuda conocida
 
