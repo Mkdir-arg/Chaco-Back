@@ -59,6 +59,11 @@ confirmar el ingreso.»), dentro del mismo `<form enctype="multipart/form-data">
 visibles bloquean el ingreso. La lectura (solapa Datos de P4 y detalle de la estadía, P7) usa
 `dispositivos/_formulario_respondido.html`: `section` con `border-t border-light mt-6 pt-5`, `h2` +
 `badge badge-gray` con la versión, `h3` por grupo y `dl` en grilla.
+La misma tarjeta va dentro del modal de egreso (P4 solapa Estadías y P7), debajo de los campos fijos y
+envuelta en `data-formulario-tipo-egreso`; el modal manda `FormData`, así que los archivos suben. Las
+condiciones de las tres pantallas las monta `static/custom/js/nodo-formulario-tipo.js`
+(`NodoFormularioTipo.montar`), que reemplazó los scripts inline de `legajo/form.html` y
+`ingreso/paso_confirmar.html`.
 Lo mismo vale para los forms chicos que viven en un modal, como `FormularioTipoNuevoForm`
 (P17, «Nuevo formulario» del detalle del tipo): el select llega con `INPUT_CLASS` y el modal
 solo pone etiqueta y error.

@@ -82,53 +82,13 @@
 
 {% block customJS %}
 {% if formulario_tipo %}
+<script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 <script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-formulario-tipo.js' %}"></script>
 <script>
-(function () {
   // Las condiciones del formulario del tipo las evalúa NodoCondiciones, el mismo motor que el servidor
   // (que las vuelve a evaluar al confirmar): lo oculto se deshabilita y no viaja.
-  const seccion = document.querySelector('[data-formulario-tipo]');
-  const datos = document.getElementById('formulario-tipo-items');
-  if (!seccion || !datos || !window.NodoCondiciones) return;
-  let items = [];
-  try { items = JSON.parse(datos.textContent) || []; } catch (error) { return; }
-  function valor(caja) {
-    const marcas = caja.querySelectorAll('input[type="checkbox"]');
-    if (marcas.length) {
-      const elegidos = Array.from(marcas).filter(function (m) { return m.checked; }).map(function (m) { return m.value; });
-      return elegidos.length ? elegidos : null;
-    }
-    const control = caja.querySelector('select') || caja.querySelector('textarea, input:not([type="hidden"])');
-    if (!control) return null;
-    if (control.multiple) {
-      const elegidos = Array.from(control.options).filter(function (o) { return o.selected; }).map(function (o) { return o.value; });
-      return elegidos.length ? elegidos : null;
-    }
-    if (control.type === 'file') return control.files && control.files.length ? control.files[0].name : null;
-    return control.value.trim() ? control.value : null;
-  }
-  function aplicar() {
-    const cajas = {};
-    const respuestas = {};
-    items.forEach(function (item) {
-      cajas[item.clave] = seccion.querySelector('[data-item="' + item.clave + '"]');
-      if (item.tipo !== 'campo' || !cajas[item.clave]) return;
-      const actual = valor(cajas[item.clave]);
-      if (actual !== null) respuestas[item.clave] = actual;
-    });
-    const ocultos = window.NodoCondiciones.aplicar(items, respuestas).ocultos;
-    items.forEach(function (item) {
-      const caja = cajas[item.clave];
-      if (!caja) return;
-      const oculto = ocultos.has(item.clave);
-      caja.hidden = oculto;
-      caja.querySelectorAll('select, textarea, input').forEach(function (control) { control.disabled = oculto; });
-    });
-  }
-  seccion.addEventListener('change', aplicar);
-  seccion.addEventListener('input', aplicar);
-  aplicar();
-}());
+  window.NodoFormularioTipo.montar(document.querySelector('[data-formulario-tipo]'));
 </script>
 {% endif %}
 {% endblock %}

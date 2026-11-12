@@ -523,6 +523,8 @@ class DetalleTests(_Base):
 
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[dispositivo.pk]))
         self.assertContains(respuesta, f'href="{adjunto.archivo.url}"')
+        # El id del título lo arma el include con prefijo y contador (un `add` entre texto y número daba vacío).
+        self.assertContains(respuesta, 'id="formulario-respondido-1"')
 
     def test_sin_respuestas_no_hay_seccion(self):
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))

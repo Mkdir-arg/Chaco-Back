@@ -183,73 +183,34 @@
 }());
 </script>
 <script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-formulario-tipo.js' %}"></script>
 <script>
 (function () {
   // Formulario «Crear dispositivo» del tipo (P17). Al cambiar el tipo se reemplaza la
-  // sección por la del tipo nuevo. Las condiciones las evalúa NodoCondiciones —el mismo
-  // motor que el servidor, que las vuelve a evaluar al guardar— y lo oculto se
-  // deshabilita para que no viaje. Los obligatorios visibles sin responder van al
-  // resumen «Qué falta para validar».
+  // sección por la del tipo nuevo. Las condiciones las evalúa NodoFormularioTipo (con
+  // NodoCondiciones, el mismo motor que el servidor, que las vuelve a evaluar al guardar) y lo
+  // oculto se deshabilita para que no viaje. Los obligatorios visibles sin responder
+  // van al resumen «Qué falta para validar».
   const seccion = document.querySelector('[data-formulario-tipo]');
   const tipo = document.getElementById('id_tipo');
   const lista = document.querySelector('[data-faltantes-validacion]');
   if (!seccion || !tipo || !lista) return;
   let controller;
 
-  function planos() {
-    const datos = seccion.querySelector('#formulario-tipo-items');
-    if (!datos) return [];
-    try { return JSON.parse(datos.textContent) || []; } catch (error) { return []; }
-  }
-  function valor(caja) {
-    const marcas = caja.querySelectorAll('input[type="checkbox"]');
-    if (marcas.length) {
-      const elegidos = Array.from(marcas).filter(function (marca) { return marca.checked; }).map(function (marca) { return marca.value; });
-      return elegidos.length ? elegidos : null;
-    }
-    const control = caja.querySelector('select') || caja.querySelector('textarea, input:not([type="hidden"])');
-    if (!control) return null;
-    if (control.multiple) {
-      const elegidos = Array.from(control.options).filter(function (opcion) { return opcion.selected; }).map(function (opcion) { return opcion.value; });
-      return elegidos.length ? elegidos : null;
-    }
-    if (control.type === 'file') {
-      // Sin archivo nuevo vale el que ya estaba guardado.
-      return control.files && control.files.length ? control.files[0].name : (caja.dataset.valor || null);
-    }
-    return control.value.trim() ? control.value : null;
-  }
-  function aplicar() {
-    const items = planos();
-    const cajas = {};
-    const respuestas = {};
-    items.forEach(function (item) {
-      cajas[item.clave] = seccion.querySelector('[data-item="' + item.clave + '"]');
-      if (item.tipo !== 'campo' || !cajas[item.clave]) return;
-      const actual = valor(cajas[item.clave]);
-      if (actual !== null) respuestas[item.clave] = actual;
-    });
-    const ocultos = window.NodoCondiciones ? window.NodoCondiciones.aplicar(items, respuestas).ocultos : new Set();
-    const faltantes = [];
-    items.forEach(function (item) {
-      const caja = cajas[item.clave];
-      if (!caja) return;
-      const oculto = ocultos.has(item.clave);
-      caja.hidden = oculto;
-      caja.querySelectorAll('select, textarea, input').forEach(function (control) { control.disabled = oculto; });
-      if (!oculto && caja.hasAttribute('data-obligatorio') && !Object.prototype.hasOwnProperty.call(respuestas, item.clave)) {
-        faltantes.push(caja.dataset.texto);
-      }
-    });
-    lista.querySelectorAll('[data-faltante-formulario]').forEach(function (fila) { fila.remove(); });
-    faltantes.forEach(function (texto) {
-      const fila = document.createElement('li');
-      fila.dataset.faltanteFormulario = '';
-      fila.textContent = texto;
-      lista.appendChild(fila);
-    });
-    document.dispatchEvent(new CustomEvent('formulario-tipo:faltantes'));
-  }
+  const formulario = window.NodoFormularioTipo.montar(seccion, {
+    archivoGuardado: true,  // sin archivo nuevo vale el que ya estaba guardado
+    alAplicar: function (info) {
+      lista.querySelectorAll('[data-faltante-formulario]').forEach(function (fila) { fila.remove(); });
+      info.faltantes.forEach(function (texto) {
+        const fila = document.createElement('li');
+        fila.dataset.faltanteFormulario = '';
+        fila.textContent = texto;
+        lista.appendChild(fila);
+      });
+      document.dispatchEvent(new CustomEvent('formulario-tipo:faltantes'));
+    },
+  });
+  const aplicar = formulario.aplicar;
   async function cargar() {
     if (controller) controller.abort();
     if (!tipo.value) { seccion.replaceChildren(); aplicar(); return; }
@@ -275,9 +236,6 @@
       }
     });
   });
-  seccion.addEventListener('change', aplicar);
-  seccion.addEventListener('input', aplicar);
-  aplicar();
 }());
 </script>
 <script>

@@ -577,6 +577,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 452 | Se borra el programa Merenderos entero (código, RBAC, tablas y fila del Programa), en una sola release | Merenderos · Dispositivos · Transversal | `#rbac` `#datos` `#ui` `#infra` | PM — decisión del 10/11/2026 (no hay datos en ningún ambiente; antecedente: Cambio 191) | 10/11/2026 | 🟡 **En curso** | `users.0046`, `programas.0115` |
 | 453 | Usuarios: nadie se cambia sus propios roles y el rol Administrador no lo reparte cualquiera (más avisos en el formulario de roles) | Transversal · Usuarios y Roles | `#rbac` `#usuarios` `#ui` | QA — hallazgo del plan #1022 (issue #1114) | 12/11/2026 | 🟡 **En curso** | No requiere |
 | 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟡 **Parcial — el egreso en pantalla es el PR 2** | `programas.0116` |
+| 455 | El formulario de Egreso por tipo va dentro del modal de egreso (PR 2: P4 y P7) | Dispositivos · egreso · estadía | `#ui` `#datos` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -54162,3 +54163,101 @@ No requiere más que el deploy (migración `0116`).
 
 Revertir el código y desaplicar `programas.0116` (borra las cuatro tablas: se pierden las respuestas de ingreso y de
 egreso guardadas, no las estadías).
+
+
+# Cambio 455 — El formulario de Egreso por tipo va dentro del modal de egreso (P17, PR 2: egreso en P4 y P7)
+
+🟢 **HECHO — 12/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · modal de egreso (P4 solapa Estadías y P7) · formularios por tipo (P17) |
+| **Etiquetas** | `#ui` `#datos` `#performance` |
+| **Solicitante** | PM — formularios por tipo de dispositivo (mockup P17), vía el juez; cierra el Cambio 454 |
+| **Fecha del pedido** | 12/11/2026 |
+| **Issue / épica** | sin issue · PR 2 de 2 |
+| **Partes afectadas** | Backoffice: `dispositivos/estadia/detalle.html`, `dispositivos/legajo/detail.html`, `legajo/form.html`, `ingreso/paso_confirmar.html`, `_formulario_respondido.html`, `static/custom/js/nodo-formulario-tipo.js` (nuevo) · Servidor: `views/dispositivos_legajo.py`, `forms.py`, `forms_dinamicos.py` |
+| **Migración** | No requiere (sin cambios de base) |
+
+## Pedido original
+
+Que el formulario de «Egreso» del tipo se pida dentro del modal de egreso, en los dos lugares que lo abren, y que
+se valide y se guarde junto con el egreso (Cambio 454, PR 1: ingreso, modelos, servicio y lectura en P7).
+
+## Alcance acordado
+
+Entra: el formulario en el modal de P7 y en el de P4, la validación y la transacción única en `EstadiaEgresarView`,
+y los cuatro MINOR de la auditoría del PR 1 (id de la sección de lectura, `nodo-buscador.js` en el paso Confirmar,
+un solo constructor del formulario por momento y un solo script de condiciones). Afuera: otros momentos (asignación de
+plaza, novedades, traslado).
+
+## Decisiones tomadas
+
+**Sin cambiar firmas.** `egresar_persona` y `Estadia` quedan como estaban. La vista valida el formulario del tipo
+**antes** de escribir (obligatorios visibles vacíos o un valor mal escrito ⇒ 400 con el error en el campo, sin
+estadía egresada, sin fila ni archivo) y después abre `archivos_atomicos` + `transaction.atomic()`: `egresar_persona`
+y `guardar_respuestas_egreso`. Si guardar las respuestas falla, la estadía sigue ACTIVA y el archivo escrito se borra.
+Sin formulario vigente el POST es el de siempre.
+
+**Los campos llegan renderizados por el servidor, no por fetch.** P7 conoce su estadía y P4 abre su modal con
+`?egreso=<id>` (recarga la página), así que en los dos casos la vista ya tiene el tipo del dispositivo y arma el
+formulario con `formulario_de_egreso(dispositivo)`: una consulta (el vigente del tipo), sin endpoint nuevo ni JS de
+carga. Un formulario dado de baja no se pide. Los campos van con prefijo `formulario-` y el modal manda `FormData`,
+así que los ARCHIVO suben.
+
+**Errores por campo.** Los `data-error` del formulario del tipo son la clave del ítem (`pg-<pk>`), como los escribe
+`components/_field.html`; el 400 usa esas mismas claves, que no chocan con las del egreso fijo. Apartamiento: el
+control del campo no recibe `aria-invalid` porque `_field.html` no usa el nombre con prefijo en `data-error`; el
+mensaje sí se muestra bajo el campo.
+
+**MINOR del PR 1.** (1) El título de la sección de lectura arma su id con `ancla_prefijo` + `ancla_n`: el
+`|add:forloop.counter` daba vacío. (2) `nodo-buscador.js` se carga dentro del `{% if formulario_tipo %}` del paso
+Confirmar. (3) `formulario_de_momento_para` es el único constructor (con `tipos` y `conservar_archivos` para el alta;
+`guardadas` puede ser una función del diseño) y `sin_archivos()` el único punto que descarta las claves ARCHIVO;
+`formulario_tipo_para` lo usa. (4) `static/custom/js/nodo-formulario-tipo.js` (`NodoFormularioTipo.montar`) reemplaza
+los dos scripts duplicados de `form.html` y `paso_confirmar.html` y sirve a los modales de egreso.
+
+**Plan de pantalla.**
+
+```
+Modal de egreso (P4 y P7) — Tipo: A (ajuste) · Arquetipo: Modal · Golden: la del arquetipo
+Bloques: campos fijos como hoy + _formulario_tipo.html tal cual (título «Formulario de egreso»), antes de la alerta
+Novedades: ninguna (clases e includes existentes)
+```
+
+## Implementación
+
+Si el tipo de la institución tiene un formulario de «Egreso» vigente, el modal de egreso lo muestra debajo de los
+campos fijos. Para confirmar hay que completar las obligatorias visibles; el egreso y las respuestas se guardan juntos
+o no se guarda nada. Después, el detalle de la estadía (P7) muestra «Formulario de egreso».
+
+## Archivos
+
+- `programas/views/dispositivos_legajo.py`, `programas/forms.py`, `programas/forms_dinamicos.py`
+- `programas/templates/programas/dispositivos/estadia/detalle.html`, `…/legajo/detail.html`, `…/legajo/form.html`, `…/ingreso/paso_confirmar.html`, `…/_formulario_respondido.html`
+- `static/custom/js/nodo-formulario-tipo.js` (nuevo)
+- `programas/tests/test_dispositivos_formulario_estadia.py`, `programas/tests/test_dispositivos_formulario_alta.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+10 tests nuevos del egreso con formulario (sin formulario, guardado con foto/versión/adjunto, obligatorio vacío 400,
+motivo faltante, rollback, archivo borrado ante falla, formulario dado de baja, campos en P4 y P7, P7 después de
+egresar, una lectura de más en el POST). Verificado por **mutación**: sin la validación previa de la vista, el test
+del obligatorio vacío se pone rojo.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy; sin migración.
+
+## Pendientes / a definir
+
+- El control del campo del tipo no se marca `aria-invalid` en el modal de egreso (ver Decisiones).
+- Otros momentos del tipo (asignación de plaza, novedades, traslado) siguen sin formulario.
+
+## Reversión
+
+`git revert` del merge; no hay migración que desaplicar. Las respuestas de egreso ya guardadas quedan en su tabla.

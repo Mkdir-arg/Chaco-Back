@@ -34,7 +34,10 @@ El Historial de P4 conserva su metadato sin turno. Un `CAMBIO_PLAZA` sin plaza d
 dibuja como «Asignación de plaza» («Se asignó la plaza sector · código»). El modal «Cambiar de plaza»
 de P7 comparte su cuerpo (`dispositivos/_form_cambio_plaza.html`) con P4 y P5.
 P7 suma, bajo la ficha, las secciones «Formulario de ingreso» y «Formulario de egreso» con el include
-`dispositivos/_formulario_respondido.html`; sin respuestas no aparecen.
+`dispositivos/_formulario_respondido.html`; sin respuestas no aparecen. El `id` de cada sección se arma
+con prefijo y contador por separado (`|add:` de texto con número da vacío). El modal «Registrar egreso» de P7
+y de la solapa Estadías de P4 suma, debajo de los campos fijos, la tarjeta del formulario de EGRESO del tipo
+(`legajo/_formulario_tipo.html`, ver la ficha del arquetipo Formulario).
 
 Ese mismo selector prepara el `persona` del encabezado, y lo nombra **«Apellido, Nombre»**
 (`Ciudadano.apellido_nombre`): es el orden con el que la tabla desde la que se entró —la solapa

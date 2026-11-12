@@ -18,6 +18,7 @@ from core.archivos import archivos_atomicos
 from core.http_cache import sin_cache
 from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
+from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_dispositivos import (
     AUTO_ID_PLAZA_LIBERAR,
     AUTO_ID_PLAZA_PRESTAR,
@@ -47,7 +48,16 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoProgramaPermissionMixin,
     dispositivo_operable_o_404,
 )
-from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector, TipoDispositivo
+from programas.models import (
+    Dispositivo,
+    Edificio,
+    Estadia,
+    MomentoFormulario,
+    Plaza,
+    ReservaPlaza,
+    Sector,
+    TipoDispositivo,
+)
 from programas.selectors.capacidad_dispositivo import edificios_vinculables, sectores_inactivos
 from programas.selectors.estadia_detalle import (
     detalle_de_estadia,
@@ -130,6 +140,7 @@ from programas.services.respuestas_dispositivo import (
     formularios_de_estadia,
     formularios_respondidos,
     guardar_respuestas_alta,
+    guardar_respuestas_egreso,
 )
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
@@ -582,6 +593,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             else:
                 context["estadia_egreso"] = estadia
                 context["form_egreso"] = EgresoForm(estadia=estadia)
+                context["formulario_egreso"] = formulario_de_egreso(dispositivo)
                 context["url_egresar"] = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
             context["tab"] = "estadias"
             break
@@ -1322,6 +1334,14 @@ class DispositivoEstadiasView(LoginRequiredMixin, View):
         return redirect(url_solapa_estadias(pk))
 
 
+def formulario_de_egreso(dispositivo, data=None, files=None):
+    """El formulario de «Egreso» que hoy pide el tipo del dispositivo, o ``None`` (sin formulario o dado de
+    baja). Se arma **en el servidor** para la estadía del modal: P7 lo dibuja con la pantalla y P4 con el
+    `?egreso=<id>` que abre ese modal, así que el tipo correcto llega sin un fetch por fila."""
+
+    return formulario_de_momento_para(dispositivo.tipo_id, MomentoFormulario.EGRESO, data, files)
+
+
 class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
     """Registra el egreso. Solo POST: un GET no muta nada ni muestra nada."""
 
@@ -1337,17 +1357,19 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         if not form.is_valid():
             return self._rechazar(request, form.errors, volver)
 
+        # El formulario del tipo se valida ANTES de escribir: los obligatorios visibles bloquean el egreso.
+        formulario = formulario_de_egreso(dispositivo, request.POST, request.FILES)
+        if formulario is not None:
+            valido = formulario.is_valid()
+            if valido and formulario.faltantes():
+                formulario.marcar_faltantes()
+            if not valido or formulario.errors:
+                # Las claves son las de `data-error` de cada campo del formulario del tipo (sin prefijo).
+                return self._rechazar(request, {**form.errors, **formulario.errors}, volver)
+
         datos = form.cleaned_data
         try:
-            egresar_persona(
-                estadia=estadia,
-                usuario=request.user,
-                fecha_egreso=datos["fecha_egreso"],
-                motivo=datos["observaciones"],
-                motivo_egreso=datos["motivo"],
-                destino=datos["destino"],
-                pertenencias_devueltas=datos["pertenencias_devueltas"],
-            )
+            self._egresar(request, estadia, datos, formulario)
         except ValidationError as error:
             return self._rechazar(request, self._errores_del_servicio(error, form), volver)
 
@@ -1360,6 +1382,33 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)
         return redirect(volver)
+
+    @staticmethod
+    @archivos_atomicos
+    def _egresar(request, estadia, datos, formulario):
+        """El egreso y, si el tipo lo pide, sus respuestas: **una** transacción. El servicio de siempre no
+        cambia; si guardar las respuestas falla la estadía sigue activa, y `archivos_atomicos` borra el
+        archivo que ya se hubiera escrito."""
+
+        with transaction.atomic():
+            egresar_persona(
+                estadia=estadia,
+                usuario=request.user,
+                fecha_egreso=datos["fecha_egreso"],
+                motivo=datos["observaciones"],
+                motivo_egreso=datos["motivo"],
+                destino=datos["destino"],
+                pertenencias_devueltas=datos["pertenencias_devueltas"],
+            )
+            if formulario is not None:
+                guardar_respuestas_egreso(
+                    estadia,
+                    formulario.diseno,
+                    formulario.foto,
+                    formulario.respuestas(),
+                    formulario.archivos(),
+                    request.user,
+                )
 
     @staticmethod
     def _volver(request, dispositivo, estadia):
@@ -1506,6 +1555,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
             context["url_cambiar_plaza"] = url_cambio
         if context["puede_egresar"]:
             context["form_egreso"] = EgresoForm(estadia=estadia)
+            context["formulario_egreso"] = formulario_de_egreso(dispositivo)
             context["url_egresar"] = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
         return context
 
