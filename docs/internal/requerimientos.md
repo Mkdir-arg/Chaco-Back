@@ -576,8 +576,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 451 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 452 | Se borra el programa Merenderos entero (código, RBAC, tablas y fila del Programa), en una sola release | Merenderos · Dispositivos · Transversal | `#rbac` `#datos` `#ui` `#infra` | PM — decisión del 10/11/2026 (no hay datos en ningún ambiente; antecedente: Cambio 191) | 10/11/2026 | 🟡 **En curso** | `users.0046`, `programas.0115` |
 | 453 | Usuarios: nadie se cambia sus propios roles y el rol Administrador no lo reparte cualquiera (más avisos en el formulario de roles) | Transversal · Usuarios y Roles | `#rbac` `#usuarios` `#ui` | QA — hallazgo del plan #1022 (issue #1114) | 12/11/2026 | 🟡 **En curso** | No requiere |
-| 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟡 **Parcial — el egreso en pantalla es el PR 2** | `programas.0116` |
+| 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** (el egreso entró en el #1118) | `programas.0116` |
 | 455 | El formulario de Egreso por tipo va dentro del modal de egreso (PR 2: P4 y P7) | Dispositivos · egreso · estadía | `#ui` `#datos` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
+| 456 | Egreso con formulario por tipo: el modal avisa si el formulario cambió, devuelve todos los errores juntos y marca el campo del tipo (seguimiento de la auditoría del #1118) | Dispositivos · egreso · estadía | `#ui` `#datos` | Auditoría del PR #1118 (cinco MINOR), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -54040,7 +54041,7 @@ Revertir el PR. No hay migración ni datos.
 
 # Cambio 454 — Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (P17, PR 1: ingreso y lectura)
 
-🟡 **PARCIAL — 12/11/2026** (el ingreso y la lectura en P7 están hechos; el egreso en la pantalla es el PR 2)
+🟢 **HECHO — 12/11/2026** (el ingreso y la lectura en P7, y el egreso en el modal, que entró en el #1118 — Cambio 455)
 
 | | |
 |---|---|
@@ -54164,6 +54165,11 @@ No requiere más que el deploy (migración `0116`).
 Revertir el código y desaplicar `programas.0116` (borra las cuatro tablas: se pierden las respuestas de ingreso y de
 egreso guardadas, no las estadías).
 
+## Historial
+
+- **12/11/2026 — alta del cambio** (PR 1: ingreso, modelos, servicio y lectura en P7).
+- **12/11/2026 — cerrado:** el egreso entró en el #1118 (Cambio 455) y los cinco MINOR de su auditoría en el Cambio 456; pasa de 🟡 Parcial a 🟢 Hecho.
+
 
 # Cambio 455 — El formulario de Egreso por tipo va dentro del modal de egreso (P17, PR 2: egreso en P4 y P7)
 
@@ -54261,3 +54267,93 @@ Solo el deploy; sin migración.
 ## Reversión
 
 `git revert` del merge; no hay migración que desaplicar. Las respuestas de egreso ya guardadas quedan en su tabla.
+
+
+# Cambio 456 — Egreso con formulario por tipo: seguimiento de la auditoría del #1118 (P17)
+
+🟢 **HECHO — 12/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · modal de egreso (P4 y P7) · asistente de ingreso (P6) · formularios por tipo (P17) |
+| **Etiquetas** | `#ui` `#datos` |
+| **Solicitante** | Auditoría del PR #1118 (cinco MINOR), vía el juez; cierra el carril de formularios de Ingreso/Egreso |
+| **Fecha del pedido** | 12/11/2026 |
+| **Issue / épica** | sin issue · seguimiento de los Cambios 454 y 455 |
+| **Partes afectadas** | Backoffice: `becas/_ajax_js.html`, `ingreso/paso_confirmar.html`, `legajo/_formulario_tipo.html` · Servidor: `views/dispositivos_legajo.py`, `forms.py`, `forms_dinamicos.py` |
+| **Migración** | No requiere (sin cambios de base) |
+
+## Pedido original
+
+Los cinco MINOR que dejó la auditoría del #1118, sin cambiar reglas de negocio ni lo visual.
+
+## Alcance acordado
+
+Entra: (1) `nodo-buscador.css` en el paso Confirmar del ingreso; (2) `aria-invalid`, foco y limpieza al corregir en los
+campos del tipo del modal de egreso; (3) rechazo del egreso si el formulario cambió con el modal abierto; (4) los errores
+del egreso fijo y del tipo juntos; (5) un solo constructor del formulario por momento. Afuera: cualquier cambio de
+reglas, firmas o modelos.
+
+## Decisiones tomadas
+
+**1. CSS del buscador.** `paso_confirmar.html` carga `nodo-buscador.css` en `page_css` dentro de `{% if formulario_tipo %}`,
+como P4 y P7: un campo BUSCADOR del formulario de ingreso ya no muestra el `<select>` nativo al lado del buscador.
+
+**2. ARIA de los campos del tipo.** `_field.html` (canónico) no se toca. `_ajax_js.html` resuelve el control del
+campo cuando el formulario lleva prefijo: `controlesDe` busca, si no hay un control con ese nombre exacto, los que
+terminan en `-<clave>` (`formulario-pg-12` para el error `pg-12`), y `cajaDeError` hace el camino inverso al corregir.
+El contrato de claves del 400 no cambia. Los demás modales `data-ajax` usan el nombre exacto, que se prueba primero:
+sin cambio para ellos (los 26 tests previos de `test_becas_feedback_js` siguen en verde).
+
+**3. El formulario cambió con el modal abierto.** `_formulario_tipo.html` suma el oculto `formulario_tipo_version` al
+lado de `formulario_tipo_diseno`. La vista compara los dos con el formulario vigente y, si no coinciden —se publicó,
+cambió la versión o se dio de baja con el modal abierto—, rechaza **sin escribir** con
+`{"__all__": ["El formulario de egreso cambió mientras estaba abierto: recargá la página y completalo."]}`. Sin
+formulario vigente y sin ocultos en el POST, el egreso es el de siempre.
+
+**4. Errores juntos.** `EstadiaEgresarView` valida `EgresoForm` y el formulario del tipo antes del primer rechazo y
+devuelve un solo 400 con las claves de ambos, como el Confirmar del ingreso.
+
+**5. Un constructor.** `formulario_del_diseno(diseno, data, files, precargadas, prefijo)` es el único que arma el
+formulario. `formulario_de_momento_para` ya no recibe `tipos`, `conservar_archivos` ni una función en `guardadas`:
+recibe un dict y descarta los archivos (`sin_archivos`). `formulario_tipo_para` (el alta) elige el diseño con
+`formulario_vigente(..., tipos=…)`, lee `respuestas_guardadas` solo si hay formulario y llama al constructor sin
+descartar los archivos («Ya cargado»). Sin cambio de comportamiento.
+
+## Implementación
+
+El modal de egreso rechaza con un aviso claro un formulario del tipo que cambió, devuelve todos los errores a la vez y
+marca el campo del tipo con error (foco, `aria-invalid`, se limpia al corregir) igual que los fijos.
+
+## Archivos
+
+- `programas/views/dispositivos_legajo.py`, `programas/forms.py`, `programas/forms_dinamicos.py`
+- `programas/templates/programas/becas/_ajax_js.html`, `…/dispositivos/ingreso/paso_confirmar.html`, `…/dispositivos/legajo/_formulario_tipo.html`
+- `programas/tests/test_dispositivos_formulario_estadia.py`, `programas/tests/test_becas_feedback_js.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests nuevos: formulario publicado con el modal abierto ⇒ 400 y estadía ACTIVA; dado de baja con el modal abierto ⇒ 400;
+faltan motivo y un obligatorio del tipo ⇒ un solo 400 con las dos claves; el campo con prefijo recibe ARIA, foco y se
+limpia al corregir (JS). Verificado por **mutación**: sin la comparación del diseño y la versión en la vista, el test del
+formulario publicado se pone rojo (200 ≠ 400).
+
+## Puesta en marcha en el servidor
+
+Solo el deploy; sin migración.
+
+## Pendientes / a definir
+
+- Otros momentos del tipo (asignación de plaza, novedades, traslado) siguen sin formulario.
+
+## Reversión
+
+`git revert` del merge; no hay migración que desaplicar.
+
+## Historial
+
+- **12/11/2026 — alta del cambio.**

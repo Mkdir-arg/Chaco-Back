@@ -290,32 +290,25 @@ def sin_archivos(foto, valores):
     return {clave: valor for clave, valor in (valores or {}).items() if clave not in archivos}
 
 
-def formulario_de_momento_para(
-    tipo_id,
-    momento,
-    data=None,
-    files=None,
-    guardadas=None,
-    prefijo="formulario",
-    tipos=None,
-    conservar_archivos=False,
-):
-    """El formulario vigente de ``tipo_id`` para un ``momento`` (alta del dispositivo, ingreso, egreso),
-    armado desde su foto, o ``None`` si el tipo no tiene ninguno, lo dio de baja o no es elegible
-    (``tipos`` acota a los tipos elegibles).
-
-    ``guardadas`` precarga por clave lo que se conserva entre un intento y el siguiente (un dict, o una
-    función del diseño que lo devuelve, para leerlo solo si hay formulario). Un archivo no se
-    conserva (:func:`sin_archivos`), salvo en la edición del alta (``conservar_archivos=True``), donde el
-    archivo ya guardado vale como cargado y se muestra «Ya cargado».
-    """
-    diseno = formulario_vigente(tipo_id, momento, tipos=tipos)
-    if diseno is None:
-        return None
-    foto = foto_vigente(diseno)
-    if callable(guardadas):
-        guardadas = guardadas(diseno)
-    precargadas = dict(guardadas or {}) if conservar_archivos else sin_archivos(foto, guardadas)
-    formulario = RespuestasDisenoForm(data, files, foto=foto, guardadas=precargadas, prefix=prefijo)
+def formulario_del_diseno(diseno, data=None, files=None, precargadas=None, prefijo="formulario"):
+    """El formulario de un ``diseno`` ya elegido, armado desde su foto. Es el único constructor: lo usan
+    :func:`formulario_de_momento_para` (que descarta los archivos de lo precargado) y el alta del dispositivo
+    (que los conserva, para mostrar «Ya cargado»)."""
+    formulario = RespuestasDisenoForm(
+        data, files, foto=foto_vigente(diseno), guardadas=dict(precargadas or {}), prefix=prefijo
+    )
     formulario.diseno = diseno
     return formulario
+
+
+def formulario_de_momento_para(tipo_id, momento, data=None, files=None, guardadas=None, prefijo="formulario"):
+    """El formulario vigente de ``tipo_id`` para un ``momento`` (ingreso, egreso), armado desde su foto, o
+    ``None`` si el tipo no tiene ninguno o lo dio de baja.
+
+    ``guardadas`` es un dict por clave con lo que se conserva entre un intento y el siguiente. Un archivo no
+    se conserva (:func:`sin_archivos`): se vuelve a elegir.
+    """
+    diseno = formulario_vigente(tipo_id, momento)
+    if diseno is None:
+        return None
+    return formulario_del_diseno(diseno, data, files, sin_archivos(foto_vigente(diseno), guardadas), prefijo)
