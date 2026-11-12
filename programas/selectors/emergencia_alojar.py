@@ -22,9 +22,19 @@ Tres reglas:
 """
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
+from django.utils import timezone
 
-from programas.models import CasoEmergencia, Derivacion, IntegranteGrupo, Plaza, Sector
+from programas.models import (
+    CasoEmergencia,
+    Derivacion,
+    Dispositivo,
+    Estadia,
+    IntegranteGrupo,
+    Plaza,
+    ReservaPlaza,
+    Sector,
+)
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.nombre_plaza import clave_natural, plaza_con_sector
 from programas.services.ocupacion import (
@@ -129,6 +139,63 @@ def camas_libres(dispositivo, momento=None):
         key=lambda libres: (-len(libres), libres[0].sector.nombre.casefold(), libres[0].sector_id),
     )
     return [cama for libres in sectores for cama in sorted(libres, key=lambda c: clave_natural(c.codigo))]
+
+
+def resumen_de_llegadas(dispositivos, momento=None):
+    """``{id: {"plazas_libres", "derivaciones_pendientes"}}`` de varios dispositivos de una vez (M2, mis-dispositivos).
+
+    ``dispositivos`` es un queryset de ``Dispositivo`` (va como subconsulta, no se evalúa
+    aparte). Un dispositivo sin camas libres ni derivaciones no figura: quien lee usa ``0``.
+
+    * ``plazas_libres`` — **la misma cuenta que** :func:`camas_libres`, hecha en la base:
+      camas de sectores activos, no fuera de servicio, sin estadía activa y sin una reserva
+      vigente en ``momento``. Solo en dispositivos cuyo tipo admite camas. (Es el
+      ``Exists`` de las dos lecturas de ``ocupacion.estado_de_plazas``: con la cama fuera
+      de servicio descartada, su precedencia se reduce a esto.)
+    * ``derivaciones_pendientes`` — derivaciones ``PENDIENTE`` de casos ``DERIVADO``: lo que
+      la guardia tiene por aceptar o rechazar (las de ``llegadas_del_dispositivo``).
+
+    No exige capacidad: quien llama ya armó ``dispositivos`` con el alcance.
+
+    **3 consultas fijas**, haya 1 dispositivo o 500: las camas libres agrupadas, los tipos de
+    los dispositivos que tienen alguna, y las derivaciones agrupadas.
+    """
+
+    momento = momento or timezone.now()
+    libres = dict(
+        Plaza.objects.filter(sector__dispositivo__in=dispositivos, sector__activo=True, tipo=Plaza.Tipo.CAMA)
+        .exclude(estado=Plaza.Estado.FUERA_SERVICIO)
+        .exclude(Exists(Estadia.objects.activas().filter(plaza_id=OuterRef("pk"))))
+        .exclude(Exists(ReservaPlaza.objects.vigentes(momento).filter(plaza_id=OuterRef("pk"))))
+        .order_by()
+        .values("sector__dispositivo_id")
+        .annotate(n=Count("id"))
+        .values_list("sector__dispositivo_id", "n")
+    )
+    if libres:
+        admiten_camas = {
+            dispositivo.pk
+            for dispositivo in Dispositivo.objects.filter(pk__in=list(libres))
+            .select_related("tipo")
+            .only("id", "tipo__tipos_plaza_admitidos")
+            if dispositivo.tipo.admite_tipo_de_plaza(Plaza.Tipo.CAMA)
+        }
+        libres = {pk: n for pk, n in libres.items() if pk in admiten_camas}
+    pendientes = dict(
+        Derivacion.objects.filter(
+            dispositivo__in=dispositivos,
+            estado=Derivacion.Estado.PENDIENTE,
+            caso__estado=CasoEmergencia.Estado.DERIVADO,
+        )
+        .order_by()
+        .values("dispositivo_id")
+        .annotate(n=Count("id"))
+        .values_list("dispositivo_id", "n")
+    )
+    return {
+        pk: {"plazas_libres": libres.get(pk, 0), "derivaciones_pendientes": pendientes.get(pk, 0)}
+        for pk in {*libres, *pendientes}
+    }
 
 
 def derivacion_vigente_en(caso, dispositivo):

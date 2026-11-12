@@ -10,8 +10,8 @@ Base: `/api/emergencia/`. Autenticación: `Authorization: Token <token>`, el mis
 app.
 
 Alcance de esta versión: login, perfil y **M1 · Ingreso de familias** (Formulario 1 del agente
-territorial, PR 5), y **M3 · Recepción de kits** en el dispositivo (PR 9-API, §9 a §12). **M2 · Llegada de
-familias** está en «Próximos», al final.
+territorial, PR 5), **M3 · Recepción de kits** en el dispositivo (PR 9-API, §9 a §12) y **M2 · Llegada de
+familias** (PR 8, §13).
 
 ## Resumen de extremos
 
@@ -28,8 +28,22 @@ familias** está en «Próximos», al final.
 | `GET /api/emergencia/dispositivos/{id}/entregas/` | kits | Entregas de kits de un dispositivo (`?pendientes=1`: las que esperan recepción) |
 | `GET /api/emergencia/entregas/{id}/` | kits | Una entrega con sus líneas |
 | `POST /api/emergencia/entregas/{id}/recibir/` | kits | Confirmar la recepción (multipart, idempotente, con conexión) |
+| `GET /api/emergencia/dispositivos/{id}/buscar/?dni=` | llegadas | Buscar a la familia por DNI (§13.2) |
+| `POST /api/emergencia/derivaciones/{id}/aceptar/` | llegadas | Aceptar la derivación y reservar camas (§13.3) |
+| `POST /api/emergencia/derivaciones/{id}/rechazar/` | llegadas | Rechazar la derivación con motivo (§13.4) |
+| `GET /api/emergencia/casos/{id}/integrantes/` | llegadas | Las personas de la familia y el contador (§13.5) |
+| `POST /api/emergencia/casos/{id}/integrantes/` | llegadas | Agregar una persona (idempotente) (§13.5) |
+| `GET /api/emergencia/casos/{id}/integrantes/{n}/` | llegadas | Una persona con su ficha (§13.6) |
+| `PATCH /api/emergencia/casos/{id}/integrantes/{n}/` | llegadas | Completar las secciones 4 a 8 (§13.6) |
+| `GET /api/emergencia/dispositivos/{id}/plazas/?caso=` | llegadas | Mapa de camas para elegir (§13.7) |
+| `POST /api/emergencia/casos/{id}/integrantes/{n}/confirmar/` | llegadas | Confirmar a la persona con su ficha y su cama (idempotente) (§13.8) |
+| `POST /api/emergencia/casos/{id}/alojar/` | llegadas | «Familia alojada» (§13.9) |
+| `POST /api/emergencia/casos/{id}/cerrar-diferencia/` | llegadas | Cerrar con diferencia (§13.9) |
+| `POST /api/emergencia/casos/{id}/cancelar-ingreso/` | llegadas | Cancelar el ingreso (§13.9) |
+| `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` | llegadas | «Ingresar igual» (multipart, idempotente, se encola) (§13.10) |
+| `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` | llegadas | «Avisar a la mesa» (multipart, idempotente) (§13.10) |
 
-«Módulo», «agente» y «kits» son los tres permisos del namespace (§2).
+«Módulo», «agente», «kits» y «llegadas» son los cuatro permisos del namespace (§2).
 
 ## 1. Login
 
@@ -69,18 +83,22 @@ demasiados intentos fallidos.
 
 ## 2. Permisos y códigos de error
 
-Tres permisos, los tres con el mismo `code` que el resto de la app:
+Cuatro permisos, los cuatro con el mismo `code` que el resto de la app:
 
 | Permiso | Regla | 403 |
 |---|---|---|
 | **Módulo** | La misma del login (§1): agente, guardia o administrador de Dispositivos | `{"detail": "El usuario no tiene acceso al módulo Emergencia.", "code": "SIN_MODULO"}` |
 | **Agente** | `emergencia.relevar` en el programa Emergencia | `{"detail": "El usuario no tiene permiso para relevar familias en Emergencia. Pedile a quien administra los usuarios que te sume el rol de agente territorial.", "code": "SIN_MODULO"}` |
 | **Kits** | Abre el módulo **y** tiene `emergencia.recibir_kit` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no recibe kits en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que reciba kits.", "code": "SIN_MODULO"}` |
+| **Llegadas** | Abre el módulo **y** tiene `dispositivo.admitir` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no admite familias en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que admita familias.", "code": "SIN_MODULO"}` |
 
-**Alcance por dispositivo (kits).** El permiso «kits» dice que el usuario recibe kits *en algún lado*. Qué
-dispositivo y qué entrega son suyos se resuelve por alcance, y lo que no es suyo contesta **404** con el
+**Alcance por dispositivo (kits y llegadas).** Los permisos «kits» y «llegadas» dicen que el usuario
+recibe kits o admite familias *en algún lado*. Qué dispositivo, qué entrega, qué derivación y qué caso son
+suyos se resuelve por alcance, y lo que no es suyo contesta **404** con el
 mismo cuerpo que un id que no existe (`{"detail": "No encontrado."}`): la respuesta no confirma que la
-entrega existe ni nombra al otro dispositivo. El 403 queda para quien no tiene el permiso en ningún
+entrega o el caso existen ni nombra al otro dispositivo. Un caso es «del usuario» si su **última**
+derivación es hacia un dispositivo donde admite: el que la guardia rechazó y la mesa derivó a otro lado
+deja de serlo. El 403 queda para quien no tiene el permiso en ningún
 dispositivo.
 
 El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` en todo
@@ -93,8 +111,8 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | 403 | `SIN_MODULO` | El usuario no tiene el permiso de la ruta | Mostrar `detail`; no reintentar |
 | 400 | `VALIDACION` | El envío no es válido (§6) | Mostrar el detalle por campo; el agente corrige y reenvía con el **mismo** `uuid_cliente` |
 | 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
-| 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12) | Mostrar `detail` y recargar la lista de entregas |
-| 404 | — | El dispositivo o la entrega no existen, o no son del usuario (kits) | Recargar «mis dispositivos» |
+| 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12); el caso ya no está como la acción necesita: otra guardia actuó desde su teléfono o el backoffice, la mesa canceló, el cron venció (§13) | Mostrar `detail` y recargar con `estado_actual` (§13.1) |
+| 404 | — | El dispositivo, la entrega, la derivación o el caso no existen, o no son del usuario | Recargar «mis dispositivos» |
 | 429 | — | Tope de consultas de identidad (§4) | Seguir con carga manual del nombre |
 
 ## 3. Perfil
@@ -106,11 +124,14 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 ```
 
 - `relevar`: agente territorial → «Ingreso de familias» (M1).
-- `dispositivo`: guardia de un dispositivo (o administrador de Dispositivos) → «Llegada de familias»
-  (M2) y «Recepción de kits» (M3).
+- `dispositivo`: **opera** en algún dispositivo —tiene `dispositivo.admitir` o `emergencia.recibir_kit`
+  en su Equipo, o administra el programa Dispositivos **con** alguna de las dos— → «Llegada de familias»
+  (M2) y «Recepción de kits» (M3). Qué dispositivos y qué ofrece cada uno, en «mis dispositivos» (§9).
 
-Con los dos en `true` se muestran los tres accesos. Nunca vienen los dos en `false`: ese usuario recibe
-el 403 del módulo.
+Con los dos en `true` se muestran los tres accesos. Los dos en `false` solo le pasa al administrador del
+programa Dispositivos que no tiene `dispositivo.admitir` ni `emergencia.recibir_kit` (PR 8): entra al
+módulo (§1, el login no cambió) pero no tiene nada que hacer en la app; mostrar «No tenés tareas en la
+app. Pedí que te sumen al equipo de un dispositivo».
 
 ## 4. Consulta de identidad
 
@@ -275,7 +296,7 @@ es lo que ya llegó.
  "mis-dispositivos": "https://…/api/emergencia/mis-dispositivos/"}
 ```
 
-Las rutas que llevan un id (entregas) no figuran en el índice.
+Las rutas que llevan un id (entregas, dispositivos, derivaciones, casos) no figuran en el índice.
 
 ## 9. Mis dispositivos
 
@@ -285,16 +306,16 @@ programa Dispositivos los ve todos). Por nombre, **sin paginar**. Con más de un
 dispositivo primero (RU-5).
 
 ```json
-[{"id": 7, "nombre": "Club Sarmiento", "entregas_pendientes": 2},
- {"id": 9, "nombre": "Escuela 12", "entregas_pendientes": 0}]
+[{"id": 7, "nombre": "Club Sarmiento", "entregas_pendientes": 2, "plazas_libres": 9, "derivaciones_pendientes": 1},
+ {"id": 9, "nombre": "Escuela 12", "entregas_pendientes": 0, "plazas_libres": 3, "derivaciones_pendientes": 0}]
 ```
 
 - `entregas_pendientes`: cuántas entregas de kits puede recibir el usuario en ese dispositivo (en camino
   o preparadas). Es `0` donde solo admite familias y no recibe kits.
 - El agente territorial, que abre el módulo pero no es de ninguna guardia, recibe `[]`.
-
-**Claves que se van a sumar (PR 8):** `plazas_libres` y `derivaciones_pendientes`, para «Llegada de
-familias». Agregar una clave no rompe a la app; hoy no vienen.
+- `plazas_libres` (PR 8): camas libres ahora —la misma cuenta que `buscar` (§13.2)—. `0` donde el
+  usuario solo recibe kits.
+- `derivaciones_pendientes` (PR 8): derivaciones por aceptar o rechazar. `0` donde solo recibe kits.
 
 ## 10. Entregas de un dispositivo
 
@@ -406,9 +427,356 @@ campo con error):
 404: la entrega no existe o es de un dispositivo donde el usuario no recibe kits. 403 `SIN_MODULO`: el
 usuario no recibe kits en ningún dispositivo.
 
-## Próximos (PR 8)
+## 13. M2 · Llegada de familias
 
-### M2 · Llegada de familias (PR 8)
+La guardia del dispositivo recibe a la familia: la busca por DNI, acepta o rechaza la derivación,
+confirma a cada persona con su ficha mínima y su cama, y cierra el ingreso (N de N, o con diferencia).
+Sin derivación, ingresa igual o avisa a la mesa. Es **la misma secuencia y las mismas reglas** que la
+pantalla E6 del backoffice: las dos llaman a las mismas funciones del servidor (RU-1, RU-2), así que lo
+que una guardia hace desde la PC la otra lo ve desde el teléfono, y al revés.
 
-Suma a `GET /api/emergencia/mis-dispositivos/` las claves `plazas_libres` y `derivaciones_pendientes`
-(§9), y las rutas de la llegada de una familia derivada.
+Todas las rutas exigen el permiso **llegadas** (§2) y el alcance por dispositivo. **Requieren conexión**
+(RU-3, RN-3.11): aceptar, confirmar y alojar trabajan sobre camas compartidas con toda la red y no se
+encolan. La app avisa antes de empezar («Sin conexión: no podés reservar camas»). Lo único que se encola
+es el **ingreso directo** (§13.10).
+
+### 13.1 Recorrido
+
+```
+mis-dispositivos ─► buscar?dni= ─┬─ DERIVACION (PENDIENTE) ─► aceptar ─► integrantes ─► confirmar × N ─► alojar
+                                 │                          └► rechazar                └► cerrar-diferencia
+                                 │   DERIVACION (ACEPTADA) ─────────────► integrantes        └► cancelar-ingreso
+                                 ├─ SIN_DERIVACION ─┬─ plazas_libres ≥ 1 ─► ingreso-directo ─► integrantes …
+                                 │                  └─ avisar-mesa
+                                 └─ ALOJADA (fin)
+```
+
+El estado del recorrido es **el del caso en el servidor**, no el del teléfono: ante cualquier 409 la
+app recarga la pantalla que corresponde a `estado_actual`.
+
+| `estado_actual` | Pantalla a la que vuelve la app |
+|---|---|
+| `DERIVADO` | M2-2 (la derivación sigue pendiente) |
+| `INGRESO_EN_CURSO` | M2-3, integrantes |
+| `ALOJADO`, `CERRADO` | M2-3 en modo lectura (familia alojada) |
+| `EN_GESTION`, `NUEVO` | M2-1: el caso volvió a la mesa; buscar de nuevo |
+
+### 13.2 Buscar a la familia
+
+`GET /api/emergencia/dispositivos/{id}/buscar/?dni=30111222` — el DNI del responsable **o de cualquier
+persona ya confirmada** de la familia. `{id}` es un dispositivo de «mis dispositivos».
+
+Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (o `""`).
+
+```json
+{"resultado": "DERIVACION", "dni": "30111222", "plazas_libres": 9,
+ "mensaje": "",
+ "derivacion": {
+   "id": 55, "estado": "PENDIENTE", "plazas_pedidas": 7,
+   "vence_en": "2026-11-12T12:00:00-03:00", "vencida": false,
+   "derivada_en": "2026-11-12T10:00:00-03:00", "derivada_por": "Ana López",
+   "caso": {"id": 184, "numero": "2026-000184", "estado": "DERIVADO", "prioridad": "ALTA", "total_declarado": 7},
+   "responsable": {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222"},
+   "grupo": {"menores_f": 2, "menores_m": 3, "adultos_f": 1, "adultos_m": 1, "mayores_f": 0, "mayores_m": 0,
+             "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1},
+   "necesidades": ["embarazo"], "telefono": "3624000000", "observaciones": "Vienen con un perro."},
+ "alojada_aca": null, "alojada_en": "", "alojada_desde": null}
+```
+
+| `resultado` | Qué significa | Qué hace la app |
+|---|---|---|
+| `DERIVACION` | Hay una derivación `PENDIENTE` o `ACEPTADA` **hacia este dispositivo** | `PENDIENTE` → M2-2 (aceptar o rechazar). `ACEPTADA` → M2-3 con `derivacion.caso.id` |
+| `SIN_DERIVACION` | No hay nada para este dispositivo. **Incluye** una derivación a otro: no se dice cuál ni que existe (RU-9) | M2-6: «Ingresar igual» si `plazas_libres ≥ 1`, y «Avisar a la mesa». Mostrar `mensaje` (si la derivación de acá venció, lo dice) |
+| `ALOJADA` | La persona tiene una estadía abierta en la red | Mostrar `mensaje` y nada más. `alojada_aca`: si es en este dispositivo. `alojada_en` y `alojada_desde`, solo si el usuario puede ver ese dispositivo; si no, vacíos |
+
+- `vencida: true` es una derivación pendiente con `vence_en` pasado que la mesa todavía no marcó: **se
+  puede aceptar igual** (RN-3.3; la familia está en la puerta).
+- `necesidades`: los avisos del Formulario 1 marcados en `true` (`embarazo`, `electrodependiente`,
+  `medicacion_critica`, `mascotas`).
+- 400 `dni` si viene vacío o no es un DNI.
+
+### 13.3 Aceptar la derivación
+
+`POST /api/emergencia/derivaciones/{id}/aceptar/` (JSON). `{id}` es `derivacion.id` de §13.2.
+
+```json
+{"uuid_cliente": "6b1f…"}
+```
+
+`uuid_cliente` es opcional y **no se guarda**: aceptar no es idempotente. Si la respuesta se pierde y la
+app reintenta, recibe 409 con `estado_actual: "INGRESO_EN_CURSO"` y sigue a los integrantes, que es lo
+mismo que habría hecho con el 200.
+
+Respuesta **200**:
+
+```json
+{"caso": {"id": 184, "numero": "2026-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
+ "reservadas": 5, "faltantes": 2, "mensaje": "Reservé 5 de 7 · faltan 2 camas",
+ "integrantes": [{"n": 1, "estado": "SIN_CONFIRMAR", …}, …]}
+```
+
+- Reserva **hasta** `plazas_pedidas` camas, elegidas por el servidor (el sector con más libres primero).
+  Menos de las pedidas es válido: `faltantes > 0` y la app muestra `mensaje`. Se puede seguir.
+- `integrantes`: las N filas de la familia (§13.5), todas sin confirmar.
+- 400 `plazas`: el dispositivo no tiene **ninguna** cama libre («Sin plazas · rechazá con motivo o liberá
+  camas»), o una cama se ocupó mientras se aceptaba (volver a tocar «Aceptar»).
+- 409: otra guardia ya la aceptó (desde su teléfono o desde el backoffice), la mesa la canceló o el cron
+  la venció.
+
+### 13.4 Rechazar la derivación
+
+`POST /api/emergencia/derivaciones/{id}/rechazar/` (JSON).
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `motivo` | **sí** | `SIN_PLAZAS` (Sin plazas), `NO_CUMPLE_PERFIL` (No cumple perfil), `NO_LLEGO` (No llegó), `OTRO` |
+| `observacion` | con `OTRO` | Qué pasó |
+
+Respuesta **200** `{"caso_estado": "EN_GESTION"}`: el caso volvió a la mesa con el motivo. 400 `motivo`
+u `observacion`; 409 si ya no estaba pendiente.
+
+### 13.5 Integrantes (M2-3)
+
+`GET /api/emergencia/casos/{id}/integrantes/` — `{id}` es `caso.id`.
+
+```json
+{"caso": {"id": 184, "numero": "2026-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
+ "integrantes": [
+   {"n": 1, "estado": "CONFIRMADA", "ficha_completa": false,
+    "persona": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
+    "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)"},
+    "parentesco": "Jefe/a de hogar",
+    "confirmada_en": "2026-11-12T10:20:00-03:00", "egresado_en": null},
+   {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": false, "persona": null, "plaza": null,
+    "parentesco": "", "confirmada_en": null, "egresado_en": null}],
+ "confirmadas": 1, "total_declarado": 7, "declaradas_al_relevar": 7, "con_ficha_incompleta": 1}
+```
+
+| Clave | Qué es |
+|---|---|
+| `integrantes[].n` | Número de la persona en la familia (1 a `total_declarado`): va en las rutas de §13.6 a §13.8 |
+| `integrantes[].estado` | `SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA` (confirmada que ya se fue) |
+| `integrantes[].ficha_completa` | Secciones 4 a 8 con algún dato o «sin datos». `false` → «ficha incompleta» |
+| `integrantes[].plaza` | La cama **de hoy** (si la cambiaron desde el mapa, la nueva) |
+| `confirmadas` / `total_declarado` | El contador «1 de 7 confirmadas» |
+| `declaradas_al_relevar` | Lo que dijo el Formulario 1. Si `total_declarado` es mayor, «llegaron 8 sobre 7» |
+
+Con `confirmadas == total_declarado` la app ofrece «Familia alojada» (§13.9); con `0 < confirmadas <
+total_declarado`, «Cerrar con diferencia»; con `0`, «Cancelar ingreso».
+
+Abre con el ingreso aceptado: `INGRESO_EN_CURSO`, `ALOJADO` o `CERRADO`. Antes de aceptar o después de
+un rechazo o una cancelación, 409 con `estado_actual`.
+
+**Agregar persona** (RN-3.8): `POST /api/emergencia/casos/{id}/integrantes/` con `{"uuid_cliente": "…"}`
+(obligatorio). Respuesta **201** `{"integrante": {…fila…}, "total_declarado": 8}`; el reenvío del mismo
+`uuid_cliente` devuelve **200** con la misma fila, sin sumar otra. La persona nueva no tiene cama
+reservada: se elige una libre al confirmarla.
+
+### 13.6 Una persona y su ficha
+
+`GET /api/emergencia/casos/{id}/integrantes/{n}/` — la fila de §13.5 más:
+
+- `ficha`: el Formulario 2 guardado (§13.11), para precargar la pantalla. `{}` sin confirmar.
+- `secciones_incompletas`: los rótulos de las secciones 4 a 8 que faltan, en orden («Educación», …).
+
+404 si `n` no es de la familia.
+
+**Completar la ficha** (secciones 4 a 8, con el ingreso en curso o la familia ya alojada):
+`PATCH /api/emergencia/casos/{id}/integrantes/{n}/` (JSON).
+
+```json
+{"ficha": {"educacion": {"nivel_educativo": "PRIMARIO", "asiste_escuela": true},
+           "vacunacion": {"sin_datos": true}}}
+```
+
+Cada sección **que viene** reemplaza a la guardada; las que no vienen quedan como estaban. Las tres del
+mínimo no se cambian por acá. Respuesta **200** `{"ficha_completa": false, "secciones_incompletas":
+["Salud y medicación", "Trabajo", "Observaciones, mascotas y adulto responsable"]}`. 400 `orden` si la
+persona todavía no se confirmó, o por campo si un valor no es del tipo.
+
+### 13.7 Mapa de camas
+
+`GET /api/emergencia/dispositivos/{id}/plazas/?caso=184` — para elegir la cama de una persona.
+
+```json
+{"caso": 184,
+ "sectores": [
+   {"sector": {"id": 3, "nombre": "Pabellón A", "perfil": "Familias"},
+    "plazas": [
+      {"id": 41, "codigo": "A-01", "nombre": "A-01 (Pabellón A)", "estado": "RESERVADA_FAMILIA",
+       "elegible": true, "texto": "Reservada para esta familia", "tono": "warning", "detalle": ""},
+      {"id": 42, "codigo": "A-02", "nombre": "A-02 (Pabellón A)", "estado": "OCUPADA",
+       "elegible": false, "texto": "Ocupada", "tono": "info", "detalle": ""}],
+    "total": 40, "libres": 12, "reservadas_familia": 7}]}
+```
+
+| `estado` | Elegible | Qué es |
+|---|---|---|
+| `RESERVADA_FAMILIA` | sí | Guardada para **esta** familia al aceptar. Son las que se eligen por defecto (resaltadas) |
+| `LIBRE` | sí | Libre, sin reserva. Para cuando la familia creció o se cambia la cama |
+| `OCUPADA` | no | Con una persona alojada |
+| `FUERA_SERVICIO` | no | `detalle` trae el motivo |
+| `RESERVADA` | no | Guardada para **otra** persona o familia. No se dice para quién |
+
+- La app mira solo `elegible` para dejar elegir. `texto` y `tono` son los del backoffice: se pueden
+  ignorar.
+- `?caso=` tiene que ser un caso derivado a **este** dispositivo (si no, 404). Sin él, ninguna cama
+  sale `RESERVADA_FAMILIA`.
+- Sectores activos que tienen camas, por nombre; camas por código, **a lo sumo 200 por sector** (`total`
+  dice cuántas hay).
+
+### 13.8 Confirmar a una persona (M2-4)
+
+`POST /api/emergencia/casos/{id}/integrantes/{n}/confirmar/` (JSON).
+
+```json
+{"uuid_cliente": "0c6e…",
+ "plaza_id": 41,
+ "ficha": {
+   "parentesco": {"parentesco": "HIJO"},
+   "datos_personales": {"dni": "45111222", "nombre": "Juan", "apellido": "Benítez", "sexo": "M",
+                        "fecha_nacimiento": "2012-03-10"},
+   "avisos_salud": {"embarazo": false, "discapacidad": false, "electrodependiente": false,
+                    "medicacion_critica": false, "alergias_graves": false},
+   "observaciones": {"adulto_responsable": "Rosa Benítez"}}}
+```
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `uuid_cliente` | **sí** | Lo genera el celular al abrir la ficha. Ver «Idempotencia» |
+| `ficha` | **sí** | El Formulario 2 (§13.11): el mínimo y, si se quiere, las secciones 4 a 8 |
+| `plaza_id` | **sí** | Una cama `elegible` de §13.7 |
+
+En **una** transacción: alta mínima de la persona si no está en el legajo, su vínculo con el
+responsable, la estadía en esa cama (la reserva de la familia se consume) y la fila confirmada. Si algo
+falla no queda nada a medias.
+
+Respuesta **201**:
+
+```json
+{"integrante": {"n": 2, "estado": "CONFIRMADA", "ficha_completa": false, "persona": {…}, "plaza": {…}, …},
+ "confirmadas": 2, "total_declarado": 7, "reserva_liberada": false}
+```
+
+`reserva_liberada: true` cuando la persona entró en una cama `LIBRE` y la familia ya tenía más camas
+reservadas que personas por confirmar: el servidor devolvió una (la familia nunca retiene camas de más).
+
+**Idempotencia.** El mismo `uuid_cliente` otra vez sobre la misma persona devuelve **200** con la misma
+fila, sin escribir nada. La persona confirmada por **otro** envío (otra guardia, desde el teléfono o el
+backoffice) es **409**.
+
+Errores 400 (`code: "VALIDACION"`, una clave por campo, **con el nombre plano del campo de la ficha**):
+
+| Clave | Cuándo |
+|---|---|
+| `parentesco`, `parentesco_otro` | Falta el parentesco, o el texto con `OTRO` |
+| `dni` | Falta o no es un número de DNI («Sin un número de DNI válido no se puede confirmar… cerrá con diferencia»); la persona ya está confirmada en esta familia; ya tiene una estadía abierta en la red (dice dónde solo si el usuario puede ver ese dispositivo) |
+| `nombre`, `apellido`, `sexo`, `fecha_nacimiento` | Faltan (si la persona ya está en el legajo, alcanza con el DNI) |
+| `embarazo`, `discapacidad`, `electrodependiente`, `medicacion_critica`, `alergias_graves` | Sin responder: las cinco van, aunque sea `false` |
+| `medicacion_critica_nombre`, `medicacion_critica_tiene_dosis` | Con `medicacion_critica: true` |
+| `adulto_responsable` | La persona tiene menos de 16 años |
+| `plaza` | Sin `plaza_id`; la cama no es de este dispositivo, está ocupada, fuera de servicio o reservada para otra persona; no queda ninguna cama libre («Sin cama libre · liberá una o cerrá con diferencia») |
+| `orden` | `n` no es de la familia |
+| otra clave de la ficha | El valor no es del tipo (opción fuera de lista, fecha ilegible, texto largo) |
+
+### 13.9 Cerrar el ingreso
+
+**Familia alojada** (M2-5, con N de N confirmadas): `POST /api/emergencia/casos/{id}/alojar/` (JSON).
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `sector` | no | `id` de un sector del dispositivo (los de §13.7). Preseleccionar el de las camas de la familia |
+| `aula` | no | Aula o dormitorio, hasta 80 caracteres |
+| `tarjeta_entregada` | no | Booleano |
+| `tarjeta_numero` | con la tarjeta entregada | Hasta 40 caracteres |
+| `encargado` | no | Quién recibe; vacío vale el usuario |
+
+**Cerrar con diferencia** (RN-3.9, llegaron menos, con al menos una confirmada):
+`POST /api/emergencia/casos/{id}/cerrar-diferencia/` con `{"motivo", "observacion"}`. `motivo`:
+`QUEDO_CON_FAMILIARES`, `NO_LLEGO` (No llegó al centro), `DERIVADO_A_SALUD`, `OTRO` (con `observacion`
+obligatoria). Es también el cierre para quien no sabe su número de DNI: `OTRO` y contarlo.
+
+**Cancelar el ingreso** (sin nadie confirmado; el caso vuelve a la mesa):
+`POST /api/emergencia/casos/{id}/cancelar-ingreso/` con `{"motivo"}` (texto obligatorio, hasta 200).
+
+Las tres responden **200** con la misma forma:
+
+```json
+{"estado": "ALOJADO", "total_alojado": 5, "liberadas": 2}
+```
+
+| | `estado` | `total_alojado` | `liberadas` |
+|---|---|---|---|
+| Alojar | `ALOJADO` | N | Reservas que sobraban (la mesa pidió más camas que personas) |
+| Diferencia | `ALOJADO` | Las confirmadas | Las reservas sin usar |
+| Cancelar | `EN_GESTION` (o `NUEVO` si era un ingreso directo) | `null` | Todas las de la familia |
+
+`estado` puede ser `CERRADO` si al alojar ya no quedaba nadie con estadía abierta. 400 por campo, o en
+`non_field_errors` cuando la acción no corresponde al contador (alojar con alguien sin confirmar,
+diferencia sin nadie o con todos confirmados, cancelar con alguien confirmado). 409 si el ingreso ya no
+está en curso.
+
+### 13.10 Sin derivación: ingresar igual o avisar a la mesa (M2-6)
+
+**Ingresar igual**: `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` — `multipart/form-data`,
+el **mismo Formulario 1 de §6** con dos diferencias: **no** lleva `relevado_en`, y `direccion` y
+`localidad` son opcionales (sin ellas valen las del dispositivo). Exige al menos una cama libre.
+
+Respuesta **201**:
+
+```json
+{"caso": {"id": 190, "numero": "2026-000190", "estado": "INGRESO_EN_CURSO", "prioridad": "MEDIA", "total_declarado": 3},
+ "reservadas": 3, "faltantes": 0, "integrantes": [{"n": 1, "estado": "SIN_CONFIRMAR", …}, …]}
+```
+
+El caso nace con origen dispositivo y el ingreso ya en curso (sin pasar por la mesa), con las camas que
+alcanzaron reservadas: se sigue en §13.5. **Es lo único de M2 que se encola sin señal** (RU-3): la
+cola reintenta con el **mismo** `uuid_cliente` hasta recibir 200 o 201; el reenvío devuelve **200** con
+el mismo caso y lo que reservó la primera vez, sin volver a mirar las camas. 409 `UUID_EN_USO` si ese
+identificador ya creó un caso de otro usuario. 400 como §6, más `plazas` (no hay camas libres; mostrar
+«Avisar a la mesa») y `dispositivo` (no recibe familias).
+
+**Avisar a la mesa**: `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` — el mismo cuerpo. Crea el
+caso `NUEVO` con la marca «En la puerta de …»; la mesa lo deriva y la guardia busca de nuevo. No exige
+camas. Respuesta **201** (o **200** en el reenvío) `{"caso": {…}}`. Idempotente igual que el ingreso
+directo.
+
+### 13.11 La ficha individual (Formulario 2)
+
+Esquema **fijo y versionado** (decisión 6 del PM). La única definición es
+`ESQUEMA_FICHA` en `programas/services/emergencia_alojar.py`; lo de abajo es su copia para la app.
+Se manda anidada por sección; lo que no es del esquema se ignora. Una pregunta sin responder **no se
+manda** (o se manda `null` o `""`); `false` **es** una respuesta. Lo que se guarda lleva además
+`"version": 1`.
+
+| Sección | Campo | Tipo | Mínimo |
+|---|---|---|---|
+| `parentesco` | `parentesco` | `JEFE`, `CONYUGE`, `HIJO`, `OTRO` | **sí** |
+| | `parentesco_otro` | texto ≤ 80 | con `OTRO` |
+| `datos_personales` | `dni` | texto ≤ 12 (se queda con los dígitos) | **sí** |
+| | `nombre`, `apellido` | texto ≤ 120 | **sí** (los completa el legajo si la persona existe) |
+| | `sexo` | `F`, `M`, `X` | **sí** (ídem) |
+| | `fecha_nacimiento` | `AAAA-MM-DD` | **sí** (ídem; vale aproximada) |
+| | `fecha_nacimiento_aproximada` | booleano | no |
+| | `telefono` | texto ≤ 40 | no |
+| | `documento_extraviado` | booleano | no |
+| `avisos_salud` | `embarazo`, `discapacidad`, `electrodependiente`, `medicacion_critica`, `alergias_graves` | booleano | **las cinco respondidas** |
+| | `medicacion_critica_nombre` | texto ≤ 200 | con `medicacion_critica: true` |
+| | `medicacion_critica_tiene_dosis` | booleano | con `medicacion_critica: true` |
+| | `alergias_graves_detalle` | texto ≤ 200 | no |
+| `educacion` | `nivel_educativo` | `SIN_INSTRUCCION`, `INICIAL`, `PRIMARIO`, `SECUNDARIO`, `TERCIARIO`, `UNIVERSITARIO` | no |
+| | `escuela` | texto ≤ 200 | no |
+| | `asiste_escuela` | booleano | no |
+| `vacunacion` | `esquema_al_dia` | booleano | no |
+| | `vacunacion_observacion` | texto ≤ 500 | no |
+| `salud` | `obra_social` | texto ≤ 120 | no |
+| | `enfermedades_cronicas`, `medicacion_habitual` | texto ≤ 500 | no |
+| `trabajo` | `ocupacion`, `ingresos` | texto ≤ 200 | no |
+| `observaciones` | `observaciones` | texto ≤ 1000 | no |
+| | `mascotas` | booleano | no |
+| | `adulto_responsable` | texto ≤ 200 | **sí si la persona tiene menos de 16 años** |
+
+Las secciones 4 a 8 (`educacion` a `observaciones`) aceptan además `"sin_datos": true` («pregunté y no
+hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `true` cuando las cinco
+tienen algún dato o `sin_datos`. Los nombres de campo no se repiten entre secciones: por eso los
+errores 400 usan el nombre plano del campo.
