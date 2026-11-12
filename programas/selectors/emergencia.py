@@ -25,10 +25,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When
 
 from core.dni import normalizar_dni
-from programas.models import CasoEmergencia, Dispositivo, Estadia, IntegranteGrupo, Plaza
+from programas.models import CasoEmergencia, Derivacion, Dispositivo, Estadia, IntegranteGrupo, Plaza, TrazaCaso
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -301,7 +301,8 @@ def bandeja(filtros=None, *, sla=None, ahora=None):
     **Presupuesto:** construir el queryset cuesta **0 o 1 consulta** (1 si llegaron
     ``sla`` y ``ahora``: la de :func:`ids_por_estado_sla`). Evaluarlo es **una** consulta
     por página, sin N+1 en la fila: trae el grupo, el responsable, la localidad y quien
-    lo tomó con ``select_related``.
+    lo tomó con ``select_related``, y los avisos de la mesa como subconsultas de esa misma
+    consulta (:func:`con_avisos_de_la_mesa`).
     """
 
     filtros = filtros or {}
@@ -309,7 +310,9 @@ def bandeja(filtros=None, *, sla=None, ahora=None):
     if desconocidos:
         raise ValueError(f"Filtros que la bandeja no conoce: {', '.join(sorted(desconocidos))}.")
 
-    casos = CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por")
+    casos = con_avisos_de_la_mesa(
+        CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por")
+    )
     solapa = filtros.get("solapa") or ""
     filtro_sla = filtros.get("sla") or ""
     if solapa and solapa not in SOLAPAS:
@@ -359,6 +362,51 @@ def conteo_por_solapa():
         total=Count("id"),
         alojados=Count("id", filter=Q(estado=Estado.ALOJADO)),
         **{solapa: Count("id", filter=condicion) for solapa, condicion in _Q_DE_SOLAPA.items()},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Avisos de la mesa (las marcas que dependen de las etapas 3 y 4)
+# ---------------------------------------------------------------------------
+
+#: Las acciones de la traza que dejan un aviso en la bandeja «hasta la próxima acción»: el
+#: aviso se ve mientras esa sea la **última** traza del caso (RN-3.13, HU-2.5).
+ACCIONES_CON_AVISO_HASTA_LA_PROXIMA = (
+    TrazaCaso.Accion.DERIVACION_RECHAZADA,
+    TrazaCaso.Accion.DERIVACION_VENCIDA,
+)
+
+
+def con_avisos_de_la_mesa(casos):
+    """``casos`` (un queryset de ``CasoEmergencia``) con lo que necesitan los avisos de la mesa.
+
+    Suma a cada caso, como subconsultas correlacionadas **de la misma consulta** —no cuesta
+    una consulta más, ni por fila ni por página—:
+
+    * ``ultima_accion`` — la ``accion`` de la última ``TrazaCaso``. «Sin acción posterior»
+      al rechazo o al vencimiento es que esa siga siendo la última.
+    * ``rechazada_por``, ``rechazada_motivo`` y ``rechazada_observacion`` — el dispositivo,
+      el motivo y la observación de la última derivación ``RECHAZADA`` (RN-3.13).
+    * ``derivada_a_inactivo`` — la derivación ``PENDIENTE`` apunta a un dispositivo que dejó
+      de estar ``ACTIVO`` (02 §9). Solo la pendiente: con la aceptada la familia ya llegó.
+
+    Las subconsultas se evalúan sobre las filas de la página (50), y la cuenta del
+    paginador no las arrastra porque nada las referencia.
+    """
+
+    ultima_traza = TrazaCaso.objects.filter(caso=OuterRef("pk")).order_by("-creado_en", "-id")
+    ultima_rechazada = Derivacion.objects.filter(caso=OuterRef("pk"), estado=Derivacion.Estado.RECHAZADA).order_by(
+        "-respondida_en", "-id"
+    )
+    pendiente_a_inactivo = Derivacion.objects.filter(
+        clave_vigente=OuterRef("pk"), estado=Derivacion.Estado.PENDIENTE
+    ).exclude(dispositivo__estado=Dispositivo.Estado.ACTIVO)
+    return casos.annotate(
+        ultima_accion=Subquery(ultima_traza.values("accion")[:1]),
+        rechazada_por=Subquery(ultima_rechazada.values("dispositivo__nombre")[:1]),
+        rechazada_motivo=Subquery(ultima_rechazada.values("motivo")[:1]),
+        rechazada_observacion=Subquery(ultima_rechazada.values("observacion")[:1]),
+        derivada_a_inactivo=Exists(pendiente_a_inactivo),
     )
 
 
