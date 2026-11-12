@@ -1390,6 +1390,7 @@ class ReservaPlaza(TimeStamped):
     # «de la persona» (una reserva por persona, la que el ingreso consume o libera) y solo la
     # consume `estadias.consumir_reserva_de_derivacion`. Ver «Reservas de derivación» en
     # `programas.services.estadias`. En `NULL` —todas las anteriores— es una reserva común.
+    # No lleva índice compuesto: ver el comentario en `Meta.indexes`.
     derivacion = models.ForeignKey(
         "Derivacion",
         on_delete=models.PROTECT,
@@ -1419,9 +1420,15 @@ class ReservaPlaza(TimeStamped):
             # El que usa el servicio de ocupación para contar las reservadas por sector.
             models.Index(fields=["plaza", "estado"]),
             models.Index(fields=["ciudadano", "estado"]),
-            # Las camas que le quedan guardadas a una familia: lo que libera el cierre con
-            # diferencia y lo que cuenta la pantalla de alojar.
-            models.Index(fields=["derivacion", "estado"]),
+            # **Sin** `(derivacion, estado)`, a propósito. Con `derivacion_id` a la izquierda
+            # InnoDB lo adoptaría como índice de la FK (y borraría el implícito), y entonces
+            # cada `UPDATE` de `estado` —liberar, consumir— revalidaría la FK con un lock
+            # compartido sobre la fila de la **derivación**, después de la plaza y la reserva:
+            # al revés del orden global de Emergencia (derivación → plazas → reservas). Liberar
+            # desde el mapa una cama de una familia se cruzaría con la mesa que cancela esa
+            # derivación (`ERROR 1213`). El índice implícito de la FK, de una sola columna,
+            # alcanza: una derivación tiene un puñado de reservas. Lo fija
+            # `test_dispositivos_reservas_derivacion.IndiceDeLaDerivacionTests`.
         ]
 
     def __str__(self):
