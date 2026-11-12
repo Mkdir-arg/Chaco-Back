@@ -51,6 +51,10 @@
         {% for s in secciones %}
         {% include "components/_ficha_seccion.html" with codigo=s.codigo titulo=s.titulo campos=s.campos vacio_texto=s.vacio_texto %}
         {% endfor %}
+        {# P17: lo respondido en los formularios de ingreso y egreso del tipo; sin respuestas no aparecen. #}
+        {% for respondido in formularios_estadia %}
+        {% include "programas/dispositivos/_formulario_respondido.html" with respondido=respondido ancla="formulario-estadia-"|add:forloop.counter %}
+        {% endfor %}
       </div>
 
       <div x-show="tab==='movimientos'" x-cloak role="tabpanel" id="panel-movimientos" aria-labelledby="tab-movimientos">

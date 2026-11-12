@@ -303,6 +303,11 @@
       "servicio": "programas.services.respuestas_dispositivo.formularios_respondidos",
       "consultas_fijas": 2,
       "motivo": "Presupuesto nuevo (P17, carril 2: lectura en la solapa Datos de P4). Las filas de respuestas de la institucion con su formulario y su tipo por select_related (1) y sus adjuntos por prefetch (1); las secciones y las condiciones salen de la foto guardada, sin leer los items. No crece con los campos (4 u 12 campos). Lo corre programas/tests/test_dispositivos_formulario_alta.py con --tag performance."
+    },
+    "dispositivos_formularios_de_estadia": {
+      "servicio": "programas.services.respuestas_dispositivo.formularios_de_estadia",
+      "consultas_fijas": 4,
+      "motivo": "Presupuesto nuevo (P17, formularios de ingreso y egreso: lectura en el detalle de la estadia, P7). Por cada momento, las filas de respuestas de la estadia (1) y sus adjuntos por prefetch (1): 2 momentos x 2 = 4 con los dos respondidos (2 si solo uno; el prefetch no corre sin filas). Las secciones y las condiciones salen de la foto guardada. No crece con los campos. Lo corre programas/tests/test_dispositivos_formulario_estadia.py con --tag performance."
     }
   }
 }

@@ -30,11 +30,15 @@ from core.archivos import anotar_archivo_escrito
 from core.utils_fechas import fecha_local
 from programas.models import (
     AdjuntoRespuestaAlta,
+    AdjuntoRespuestaEgreso,
+    AdjuntoRespuestaIngreso,
     AdjuntoRespuestaRelevamiento,
     DisenoFormulario,
     InspeccionEdificio,
     MomentoFormulario,
     RespuestasAltaDispositivo,
+    RespuestasEgresoEstadia,
+    RespuestasIngresoEstadia,
     RespuestasRelevamiento,
 )
 from programas.services.condiciones import esta_vacio
@@ -45,7 +49,13 @@ from programas.services.respuestas import EXTENSIONES_IMAGEN, aplicar, campos_de
 #: lógica del formulario (``tiene_respuestas``) lo empieza a contar sola. Se suma también
 #: ``InspeccionEdificio``: un relevamiento ya asignado fija su formulario (``diseno``, PROTECT)
 #: antes de que haya una sola respuesta, y ese formulario tampoco se borra.
-MODELOS_DE_RESPUESTAS = (RespuestasAltaDispositivo, RespuestasRelevamiento, InspeccionEdificio)
+MODELOS_DE_RESPUESTAS = (
+    RespuestasAltaDispositivo,
+    RespuestasIngresoEstadia,
+    RespuestasEgresoEstadia,
+    RespuestasRelevamiento,
+    InspeccionEdificio,
+)
 
 
 # ── El formulario vigente ────────────────────────────────────────────────────
@@ -122,20 +132,12 @@ def respuestas_guardadas(dispositivo, diseno):
     return dict(fila.respuestas or {}) if fila is not None else {}
 
 
-def guardar_respuestas_alta(dispositivo, diseno, foto, respuestas, archivos=(), usuario=None):
-    """Guarda lo respondido en «Crear dispositivo», con la foto y la versión vigentes.
-
-    Va **dentro** de la transacción del alta o la edición del legajo, decorada por
-    afuera con ``core.archivos.archivos_atomicos``: un archivo escrito se borra si
-    después algo falla. ``respuestas`` son las visibles y respondidas
-    (``RespuestasDisenoForm.respuestas``); ``archivos``, ``[(clave, archivo)]`` nuevos.
-
-    Las claves del diseño que quedaron sin responder (u ocultas) se quitan; las que el
-    diseño ya no tiene se conservan, con su definición en ``anteriores``.
-    """
-    fila = RespuestasAltaDispositivo.objects.select_for_update().filter(dispositivo=dispositivo, diseno=diseno).first()
+def _guardar_respuestas(modelo, modelo_adjunto, dueno, diseno, foto, respuestas, archivos, usuario):
+    """El guardado común de todos los momentos: ``modelo`` es el de respuestas del momento,
+    ``dueno`` ``{campo_fk: instancia}`` (el dispositivo del alta, la estadía del ingreso y el egreso)."""
+    fila = modelo.objects.select_for_update().filter(diseno=diseno, **dueno).first()
     if fila is None:
-        fila = RespuestasAltaDispositivo(dispositivo=dispositivo, diseno=diseno, respuestas={}, anteriores={})
+        fila = modelo(diseno=diseno, respuestas={}, anteriores={}, **dueno)
     claves_vigentes = {campo["clave"] for campo in campos_de(foto)}
     campos_anteriores = {campo["clave"]: campo for campo in campos_de(fila.definicion)}
     anteriores = dict(fila.anteriores or {})
@@ -158,10 +160,66 @@ def guardar_respuestas_alta(dispositivo, diseno, foto, respuestas, archivos=(), 
     fila.actualizado_por = usuario
     fila.save()
     for clave, archivo in archivos:
-        adjunto = AdjuntoRespuestaAlta(respuestas=fila, clave=clave, archivo=archivo)
+        adjunto = modelo_adjunto(respuestas=fila, clave=clave, archivo=archivo)
         adjunto.save()
         anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
     return fila
+
+
+def guardar_respuestas_alta(dispositivo, diseno, foto, respuestas, archivos=(), usuario=None):
+    """Guarda lo respondido en «Crear dispositivo», con la foto y la versión vigentes.
+
+    Va **dentro** de la transacción del alta o la edición del legajo, decorada por
+    afuera con ``core.archivos.archivos_atomicos``: un archivo escrito se borra si
+    después algo falla. ``respuestas`` son las visibles y respondidas
+    (``RespuestasDisenoForm.respuestas``); ``archivos``, ``[(clave, archivo)]`` nuevos.
+
+    Las claves del diseño que quedaron sin responder (u ocultas) se quitan; las que el
+    diseño ya no tiene se conservan, con su definición en ``anteriores``.
+    """
+    return _guardar_respuestas(
+        RespuestasAltaDispositivo,
+        AdjuntoRespuestaAlta,
+        {"dispositivo": dispositivo},
+        diseno,
+        foto,
+        respuestas,
+        archivos,
+        usuario,
+    )
+
+
+def guardar_respuestas_ingreso(estadia, diseno, foto, respuestas, archivos=(), usuario=None):
+    """Guarda lo respondido en el formulario de ingreso de la ``estadia`` recién creada.
+
+    Mismo contrato que :func:`guardar_respuestas_alta`: va dentro de la transacción del
+    ingreso (la vista), con ``archivos_atomicos`` por afuera. Los obligatorios no se exigen
+    acá: la vista los valida **antes** de ingresar (:func:`faltantes_de`).
+    """
+    return _guardar_respuestas(
+        RespuestasIngresoEstadia,
+        AdjuntoRespuestaIngreso,
+        {"estadia": estadia},
+        diseno,
+        foto,
+        respuestas,
+        archivos,
+        usuario,
+    )
+
+
+def guardar_respuestas_egreso(estadia, diseno, foto, respuestas, archivos=(), usuario=None):
+    """Lo mismo que :func:`guardar_respuestas_ingreso`, para el formulario de egreso."""
+    return _guardar_respuestas(
+        RespuestasEgresoEstadia,
+        AdjuntoRespuestaEgreso,
+        {"estadia": estadia},
+        diseno,
+        foto,
+        respuestas,
+        archivos,
+        usuario,
+    )
 
 
 def faltantes_formulario_alta(dispositivo):
@@ -289,6 +347,44 @@ def formularios_respondidos(dispositivo):
             }
         )
     salida.sort(key=lambda entrada: not entrada["del_tipo_actual"])
+    return salida
+
+
+def formularios_de_estadia(estadia):
+    """Lo respondido en los formularios de ingreso y de egreso de la ``estadia``, para P7.
+
+    ``[{titulo, version, secciones, anteriores, id_anteriores}]``: el de ingreso primero y
+    solo los que tienen respuestas. Cada fila se lee **con su foto**, igual que
+    :func:`formularios_respondidos`. Cuatro consultas fijas (por momento, las filas y sus
+    adjuntos por prefetch), sin importar cuántos campos.
+    """
+    salida = []
+    for titulo, modelo, modelo_adjunto, prefijo in (
+        ("Formulario de ingreso", RespuestasIngresoEstadia, AdjuntoRespuestaIngreso, "ingreso"),
+        ("Formulario de egreso", RespuestasEgresoEstadia, AdjuntoRespuestaEgreso, "egreso"),
+    ):
+        filas = (
+            modelo.objects.filter(estadia=estadia)
+            .prefetch_related(Prefetch("adjuntos", queryset=modelo_adjunto.objects.order_by("-creado", "-id")))
+            .order_by("-modificado", "-id")
+        )
+        for fila in filas:
+            salida.append(
+                {
+                    "titulo": titulo,
+                    "version": fila.version,
+                    "secciones": _secciones(
+                        fila.definicion or {},
+                        fila.respuestas or {},
+                        _adjuntos_por_clave(fila),
+                        fecha_local(fila.modificado) or timezone.localdate(),
+                    ),
+                    "anteriores": respuestas_de_versiones_anteriores(
+                        fila.definicion or {}, fila.respuestas or {}, fila.anteriores
+                    ),
+                    "id_anteriores": f"anteriores-{prefijo}-{fila.pk}",
+                }
+            )
     return salida
 
 

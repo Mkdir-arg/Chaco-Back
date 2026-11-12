@@ -20,6 +20,7 @@ from core.rutas_media import (
     nombre_opaco,
     ruta_adjunto_bitacora,
     ruta_formulario_dispositivo,
+    ruta_formulario_estadia,
     ruta_foto_inspeccion,
 )
 from core.validators import validar_adjunto, validar_foto
@@ -4839,6 +4840,93 @@ class AdjuntoRespuestaAlta(TimeStamped):
     class Meta:
         verbose_name = "Archivo del alta de un dispositivo"
         verbose_name_plural = "Archivos del alta de dispositivos"
+        ordering = ["-creado", "-id"]
+
+    def __str__(self):
+        return f"{self.clave} de {self.respuestas_id}"
+
+
+class RespuestasIngresoEstadia(RespuestasDeFormulario):
+    """Lo respondido en el formulario «Ingreso» del tipo al alojar a una persona: una fila por
+    (estadía, formulario). Se escribe en la transacción del ingreso; la estadía no cambia."""
+
+    estadia = models.ForeignKey(
+        Estadia,
+        on_delete=models.CASCADE,
+        related_name="respuestas_ingreso",
+        verbose_name="Estadía",
+    )
+
+    class Meta:
+        verbose_name = "Respuestas del ingreso de una estadía"
+        verbose_name_plural = "Respuestas del ingreso de estadías"
+        constraints = [
+            models.UniqueConstraint(fields=["estadia", "diseno"], name="uniq_respuestas_ingreso_estadia_diseno"),
+        ]
+
+    def __str__(self):
+        return f"Ingreso de la estadía {self.estadia_id} · v{self.version}"
+
+
+class AdjuntoRespuestaIngreso(TimeStamped):
+    """Un archivo respondido en un campo ARCHIVO del formulario de ingreso. Con varias filas
+    para la misma clave vale la más nueva."""
+
+    respuestas = models.ForeignKey(
+        RespuestasIngresoEstadia,
+        on_delete=models.CASCADE,
+        related_name="adjuntos",
+        verbose_name="Respuestas",
+    )
+    clave = models.CharField(max_length=60, verbose_name="Clave del campo")
+    archivo = models.FileField(upload_to=ruta_formulario_estadia, verbose_name="Archivo")
+
+    class Meta:
+        verbose_name = "Archivo del ingreso de una estadía"
+        verbose_name_plural = "Archivos del ingreso de estadías"
+        ordering = ["-creado", "-id"]
+
+    def __str__(self):
+        return f"{self.clave} de {self.respuestas_id}"
+
+
+class RespuestasEgresoEstadia(RespuestasDeFormulario):
+    """Lo respondido en el formulario «Egreso» del tipo al dar de baja a una persona: una fila
+    por (estadía, formulario)."""
+
+    estadia = models.ForeignKey(
+        Estadia,
+        on_delete=models.CASCADE,
+        related_name="respuestas_egreso",
+        verbose_name="Estadía",
+    )
+
+    class Meta:
+        verbose_name = "Respuestas del egreso de una estadía"
+        verbose_name_plural = "Respuestas del egreso de estadías"
+        constraints = [
+            models.UniqueConstraint(fields=["estadia", "diseno"], name="uniq_respuestas_egreso_estadia_diseno"),
+        ]
+
+    def __str__(self):
+        return f"Egreso de la estadía {self.estadia_id} · v{self.version}"
+
+
+class AdjuntoRespuestaEgreso(TimeStamped):
+    """Un archivo respondido en un campo ARCHIVO del formulario de egreso."""
+
+    respuestas = models.ForeignKey(
+        RespuestasEgresoEstadia,
+        on_delete=models.CASCADE,
+        related_name="adjuntos",
+        verbose_name="Respuestas",
+    )
+    clave = models.CharField(max_length=60, verbose_name="Clave del campo")
+    archivo = models.FileField(upload_to=ruta_formulario_estadia, verbose_name="Archivo")
+
+    class Meta:
+        verbose_name = "Archivo del egreso de una estadía"
+        verbose_name_plural = "Archivos del egreso de estadías"
         ordering = ["-creado", "-id"]
 
     def __str__(self):
