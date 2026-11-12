@@ -368,7 +368,7 @@ body{margin:0}
               <form class="filtros" role="search" aria-label="Buscar persona" onSubmit="{{buscarPersona}}">
                 <label class="nodo-pildora">
                   <span class="nodo-pildora__etiqueta">DNI o apellido:</span>
-                  <input type="search" id="q-persona" name="q" class="nodo-pildora__control" style="cursor: text; width: 150px;" autocomplete="off" placeholder="28412907 o Rojas" aria-label="DNI o apellido" value="{{qCampo}}" onInput="{{escribirQ}}" onChange="{{escribirQ}}">
+                  <input type="search" id="q-persona" name="q" class="nodo-pildora__control" style="cursor: text; width: 150px;" autocomplete="off" placeholder="90000001 o Rojas" aria-label="DNI o apellido" value="{{qCampo}}" onInput="{{escribirQ}}" onChange="{{escribirQ}}">
                 </label>
                 <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>Buscar</button>
                 <button type="button" class="btn-nodo btn-tertiary btn-sm" onClick="{{limpiarBusq}}">Limpiar</button>
@@ -1106,37 +1106,37 @@ class Component extends DCLogic {
 
     // Personas de ejemplo (inventadas). e: activa | reserva | egresada. Fechas AAAA-MM-DD.
     var PERSONAS = [
-      {dni:'28412907', nom:'Rojas, Marcelo Aníbal', edad:41, est:[
+      {dni:'90000001', nom:'Rojas, Marcelo Aníbal', edad:41, est:[
         {d:'Hogar Santa Rita', sec:'Sector Varones', pl:'H1-03', ing:'2026-09-02', e:'activa'},
         {d:'Parador Nocturno Centro', sec:'Sector A', pl:'P2-14', ing:'2026-03-10', egr:'2026-04-02', mot:'Derivación a otro dispositivo', e:'egresada'}]},
-      {dni:'17906331', nom:'Benítez, Rosa Elena', edad:56, est:[
+      {dni:'90000002', nom:'Benítez, Rosa Elena', edad:56, est:[
         {d:'Residencia Ntra. Sra. de Itatí', sec:'Piso 1', pl:'R4-11', ing:'2026-06-15', e:'activa'}]},
-      {dni:'43215880', nom:'Acosta, Lucas Nahuel', edad:23, est:[
+      {dni:'90000003', nom:'Acosta, Lucas Nahuel', edad:23, est:[
         {d:'Centro de Día Villa Río Negro', sec:'Turno mañana', pl:'T3-14', ing:'2026-10-20', e:'activa'}]},
-      {dni:'32774150', nom:'Giménez, Carmen', edad:34, est:[
+      {dni:'90000004', nom:'Giménez, Carmen', edad:34, est:[
         {d:'Hogar Juana Azurduy', sec:'Sector Mujeres', pl:'H5-06', res:'2026-11-06', ven:'2026-11-08', hora:'18:00', e:'reserva'}]},
-      {dni:'12348095', nom:'Villalba, Héctor Ramón', edad:62, est:[
+      {dni:'90000005', nom:'Villalba, Héctor Ramón', edad:62, est:[
         {d:'Parador Sáenz Peña', sec:'Sector General', pl:'P6-21', ing:'2026-11-02', e:'activa'}]},
-      {dni:'22560718', nom:'Duarte, Silvia Noemí', edad:45, est:[
+      {dni:'90000006', nom:'Duarte, Silvia Noemí', edad:45, est:[
         {d:'Hogar Don Bosco', sec:'Sector Mujeres', pl:'H7-09', ing:'2026-07-20', egr:'2026-10-14', mot:'Retorno con su familia', e:'egresada'}]},
-      {dni:'46103442', nom:'Fernández, Matías', edad:19, est:[
+      {dni:'90000007', nom:'Fernández, Matías', edad:19, est:[
         {d:'Comunidad Terapéutica Renacer', sec:'Módulo A', pl:'C13-04', ing:'2026-08-05', e:'activa'}]},
-      {dni:'37889264', nom:'Ledesma, Ana Paula', edad:28, est:[
+      {dni:'90000008', nom:'Ledesma, Ana Paula', edad:28, est:[
         {d:'Hogar Qom Lashepi', sec:'Sector Mujeres', pl:'H10-02', res:'2026-11-07', ven:'2026-11-10', hora:'12:00', e:'reserva'}]},
-      {dni:'14230576', nom:'Sosa, Ramón Oscar', edad:58, est:[
+      {dni:'90000009', nom:'Sosa, Ramón Oscar', edad:58, est:[
         {d:'Residencia San Cayetano', sec:'Planta baja', pl:'R9-18', ing:'2026-05-11', e:'activa'},
         {d:'Hogar Las Breñas', sec:'Sector Varones', pl:'H14-07', ing:'2025-11-20', egr:'2026-02-18', mot:'Alta médica', e:'egresada'}]},
-      {dni:'30455129', nom:'Cardozo, Julián', edad:37, est:[
+      {dni:'90000010', nom:'Cardozo, Julián', edad:37, est:[
         {d:'Parador Bermejito', sec:'Sector General', pl:'P16-07', res:'2026-11-08', ven:'2026-11-08', hora:'20:00', e:'reserva'},
         {d:'Parador Sáenz Peña', sec:'Sector General', pl:'P6-03', ing:'2026-08-10', egr:'2026-09-30', mot:'Egreso voluntario', e:'egresada'}]},
-      {dni:'20118653', nom:'Medina, Graciela Beatriz', edad:51, est:[
+      {dni:'90000011', nom:'Medina, Graciela Beatriz', edad:51, est:[
         {d:'Centro de Día Gral. San Martín', sec:'Turno tarde', pl:'T12-05', ing:'2026-09-01', e:'activa'}]},
-      {dni:'27301846', nom:'Ortiz, Daniel Ángel', edad:44, est:[
+      {dni:'90000012', nom:'Ortiz, Daniel Ángel', edad:44, est:[
         {d:'Hogar Las Breñas', sec:'Sector Varones', pl:'H14-03', ing:'2026-10-28', e:'activa'}]},
-      {dni:'23947012', nom:'Ayala, Mirta Susana', edad:49, est:[
+      {dni:'90000013', nom:'Ayala, Mirta Susana', edad:49, est:[
         {d:'Residencia Tres Isletas', sec:'Planta alta', pl:'R15-12', ing:'2026-09-25', e:'activa'},
         {d:'Hogar San Bernardo', sec:'Sector Mujeres', pl:'H18-05', ing:'2026-02-03', egr:'2026-03-27', mot:'Traslado a residencia', e:'egresada'}]},
-      {dni:'29688431', nom:'Pereyra, Walter Gabriel', edad:39, est:[
+      {dni:'90000014', nom:'Pereyra, Walter Gabriel', edad:39, est:[
         {d:'Hogar San Bernardo', sec:'Sector Varones', pl:'H18-01', ing:'2026-08-18', egr:'2026-11-01', mot:'Egreso con vivienda propia', e:'egresada'}]}
     ];
     var ESTADO_EST = {
