@@ -99,7 +99,11 @@ class Command(BaseCommand):
             self.stdout.write(f"{regla.slug}: sin pendientes.")
             return 0
 
-        with transaction.atomic():
+        if regla.transaccion_unica:
+            with transaction.atomic():
+                afectados = regla.aplicar(regla.pendientes())
+        else:
+            # La regla abre una transacción por fila (ver `ReglaVencimiento`).
             afectados = regla.aplicar(regla.pendientes())
         self.stdout.write(self.style.SUCCESS(f"{regla.slug}: {afectados} procesado(s) — {regla.descripcion}"))
         return afectados

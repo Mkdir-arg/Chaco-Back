@@ -13,6 +13,7 @@ que hay. Lo que ya no puede es decidir por las otras reglas.
 """
 
 import logging
+from dataclasses import replace
 from io import StringIO
 from unittest.mock import patch
 
@@ -20,6 +21,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase
 
+from core.management.commands import procesar_vencimientos as comando
 from core.services import vencimientos as registro
 from core.services.vencimientos import ReglaVencimiento
 
@@ -94,3 +96,29 @@ class ReglasAisladasTests(TestCase):
             call_command("procesar_vencimientos", stdout=salida, stderr=StringIO())
 
         self.assertIn("3 registro(s) procesado(s)", salida.getvalue())
+
+
+class TransaccionDeLaReglaTests(TestCase):
+    """Quién abre la transacción: el comando (una sola) o la regla (una por fila).
+
+    El default es el de siempre —el comando envuelve ``aplicar`` en un ``atomic``—, que es
+    con lo que cuentan las reglas de Becas. ``transaccion_unica=False`` es para las reglas
+    que bloquean fila por fila y no pueden retener todos los candados hasta el final.
+    """
+
+    def _atomics_del_comando(self, regla):
+        with patch.object(registro, "REGLAS", [regla]):
+            with patch.object(comando.transaction, "atomic", wraps=comando.transaction.atomic) as atomic:
+                call_command("procesar_vencimientos", stdout=StringIO(), stderr=StringIO())
+        return atomic.call_count
+
+    def test_por_defecto_el_comando_envuelve_la_regla_en_una_transaccion(self):
+        regla = _regla("de-siempre")
+
+        self.assertTrue(regla.transaccion_unica)
+        self.assertEqual(self._atomics_del_comando(regla), 1)
+
+    def test_la_regla_que_abre_las_suyas_corre_sin_la_del_comando(self):
+        regla = replace(_regla("fila-por-fila", pendientes=4), transaccion_unica=False)
+
+        self.assertEqual(self._atomics_del_comando(regla), 0)
