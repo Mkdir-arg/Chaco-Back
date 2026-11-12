@@ -1,5 +1,5 @@
 ---
-description: Revisar cobertura QA: detectar tasks sin casos de prueba y cubrirlas
+description: "Revisar cobertura QA: detectar tasks sin casos de prueba y cubrirlas"
 ---
 
 # Revisión de cobertura QA
