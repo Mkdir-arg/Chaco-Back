@@ -31,6 +31,7 @@ from core.api_permissions import BackofficeAutenticado
 FUERA_DEL_BACKOFFICE = {
     "api/becas/": "App de campo: Token + CampoBecasPermission, no es una sesión de backoffice.",
     "api/dispositivos/": "App de campo del relevamiento edilicio: Token + CampoInspeccionPermission.",
+    "api/emergencia/": "App de campo del módulo Emergencia: Token + EmergenciaModuloPermission.",
 }
 
 
@@ -88,5 +89,5 @@ class PermisoDeLaApiDelBackofficeTests(SimpleTestCase):
                 self.assertIn(esperada, nombres)
 
     def test_la_app_de_campo_sigue_siendo_la_unica_excepcion(self):
-        """Las dos superficies de la app de campo (Becas y el relevamiento edilicio); nada más."""
-        self.assertEqual(list(FUERA_DEL_BACKOFFICE), ["api/becas/", "api/dispositivos/"])
+        """Las tres superficies de la app de campo (Becas, el relevamiento edilicio y Emergencia); nada más."""
+        self.assertEqual(list(FUERA_DEL_BACKOFFICE), ["api/becas/", "api/dispositivos/", "api/emergencia/"])
