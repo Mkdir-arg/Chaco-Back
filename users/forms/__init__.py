@@ -434,6 +434,44 @@ def _validar_al_menos_un_rol(form):
     )
 
 
+MENSAJE_ROLES_PROPIOS = "No podés cambiar tus propios roles."
+MENSAJE_ROL_ADMINISTRADOR = "Solo un Administrador puede asignar o quitar el rol Administrador."
+AYUDA_ROLES_PROPIOS = "Tus roles los cambia otro administrador."
+
+
+def _rechazar_roles(form, mensaje):
+    """Rechaza el guardado: error en el campo y mensaje para el toast (lo emite la vista)."""
+    form.rechazo_roles = mensaje
+    form._errors.pop("groups", None)  # sin el «opción inválida» de Django encima
+    form.add_error("groups", mensaje)
+
+
+def _validar_roles_sensibles(form):
+    """#1114: nadie se cambia sus roles y el Administrador no lo reparte cualquiera.
+
+    Se mira lo que **llegó en el POST**, no lo que quedó en ``cleaned_data``: un campo
+    deshabilitado ignora el POST y el combo recortado lo rechaza como opción inválida, y en
+    los dos casos el operador no se enteraría de por qué. El servicio hace valer lo mismo
+    aunque este formulario no se use.
+    """
+    operador = getattr(form, "operador", None)
+    if operador is None or not hasattr(form.data, "getlist"):
+        return
+    from users.selectors.usuarios import puede_repartir_administrador, rol_administrador, roles_propios_bloqueados
+
+    enviados = {str(valor) for valor in form.data.getlist(form.add_prefix("groups")) if valor}
+    instancia = form.instance if form.instance and form.instance.pk else None
+    if instancia is not None and roles_propios_bloqueados(operador, instancia):
+        actuales = {str(pk) for pk in instancia.groups.values_list("id", flat=True)}
+        if enviados and enviados != actuales:
+            _rechazar_roles(form, MENSAJE_ROLES_PROPIOS)
+        return
+    if enviados and not puede_repartir_administrador(operador):
+        administrador = rol_administrador()
+        if administrador is not None and str(administrador.pk) in enviados:
+            _rechazar_roles(form, MENSAJE_ROL_ADMINISTRADOR)
+
+
 def _capacidades_prefetcheadas(group):
     """Códigos de capacidad del rol usando los permisos ya traídos por el prefetch."""
     codenames = {p.codename for p in group.permissions.all()}
@@ -450,8 +488,15 @@ def _roles_asignables_queryset(operador=None):
     de los programas que administra; un admin global (o sin operador) ve todos.
     """
     qs = Group.objects.filter(meta__activo=True).exclude(meta__categoria=rbac.CATEGORIA_PORTAL).order_by("name")
-    if operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
+    if operador is None:
         return qs
+    if operador.is_superuser or rbac.puede(operador, "usuario.administrar"):
+        from users.selectors.usuarios import puede_repartir_administrador
+
+        # #1114: el Administrador lo reparte solo el superusuario o quien ya lo tiene.
+        if puede_repartir_administrador(operador):
+            return qs
+        return qs.exclude(meta__clave=rbac.CLAVE_ROL_ADMINISTRADOR)
     from users.selectors.usuarios import es_gestor_territorial
 
     if es_gestor_territorial(operador):
@@ -677,6 +722,7 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
         _validar_clave_tipeada(self)
+        _validar_roles_sensibles(self)
         _validar_al_menos_un_rol(self)
         _validar_roles_becas_sin_pisarse(self)
         _validar_correo_de_entrega(self)
@@ -748,6 +794,8 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
         self.operador = operador
+        from users.selectors.usuarios import puede_repartir_administrador, roles_propios_bloqueados
+
         es_global = operador is None or operador.is_superuser or rbac.puede(operador, "usuario.administrar")
         asignables = _roles_asignables_queryset(operador)
         # Admin global: incluye los roles ya asignados (aunque estén inactivos)
@@ -755,7 +803,22 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         # roles fuera de su alcance (no debe verlos ni tocarlos); igual se
         # preservan en el guardado scoped del servicio.
         if es_global and self.instance and self.instance.pk:
-            asignables = (asignables | self.instance.groups.all()).distinct()
+            propios = self.instance.groups.all()
+            if not puede_repartir_administrador(operador):
+                # #1114: el Administrador de otro no aparece en el combo; el servicio lo preserva.
+                propios = propios.exclude(meta__clave=rbac.CLAVE_ROL_ADMINISTRADOR)
+            asignables = (asignables | propios).distinct()
+        self.roles_solo_lectura = False
+        if self.instance and self.instance.pk and roles_propios_bloqueados(operador, self.instance):
+            # #1114: en su propia ficha los roles se ven pero no se tocan. Deshabilitado, Django
+            # ignora el POST; el servicio y `_validar_roles_sensibles` lo hacen valer igual.
+            asignables = Group.objects.filter(
+                pk__in=list(asignables.values_list("pk", flat=True))
+                + list(self.instance.groups.values_list("pk", flat=True))
+            ).order_by("name")
+            self.roles_solo_lectura = True
+            self.fields["groups"].disabled = True
+            self.fields["groups"].help_text = AYUDA_ROLES_PROPIOS
         self.fields["groups"].queryset = asignables
         self._original_password_hash = self.instance.password
         self.fields["password"].initial = ""
@@ -801,6 +864,7 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         _validar_dni_perfil_usuario(self)
         _validar_segmento_territorial(self)
         _validar_clave_tipeada(self)
+        _validar_roles_sensibles(self)
         _validar_al_menos_un_rol(self)
         _validar_roles_becas_sin_pisarse(self)
         _validar_correo_de_entrega_al_editar(self)
