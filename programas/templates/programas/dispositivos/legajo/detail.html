@@ -74,6 +74,9 @@
         {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
         {% include "components/_menu_fila_item.html" with texto="Cerrar" icono="fa-lock" peligro=True confirm_url=url_cerrar confirm_title="¿Cerrar dispositivo?" confirm_text="La acción conserva el legajo e impide nuevas operaciones." confirm_ok="Sí, cerrar" only %}
         {% endif %}{% endif %}
+        {% if url_kits_emergencia %}
+        {% include "components/_menu_fila_item.html" with texto="Emergencia · Kits" icono="fa-box-open" url=url_kits_emergencia only %}
+        {% endif %}
       {% endmenu_fila %}
     {% endpage_header %}
 

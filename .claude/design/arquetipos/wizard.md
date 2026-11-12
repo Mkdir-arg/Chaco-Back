@@ -114,6 +114,15 @@ orden son solapas de un Detalle, no un wizard.
 - Avisos de situación dentro de un paso (bloqueos, advertencias): `components/_alerta.html`.
   En el paso de plaza, la ocupación crítica usa tono `warning` debajo del mapa y dice «El sistema no bloquea el ingreso.»; la vista arma porcentaje y texto con los umbrales del tipo, desde `services.ocupacion`.
 - Alta mínima dentro de un paso (paso 1 de Dispositivos, cuando la persona no está en el legajo ni en el Registro de Personas): `components/_alerta.html` tono `warning` y, debajo, una segunda tarjeta-formulario con `_field.html`, su propio `csrf_token`, un oculto `accion` y un oculto `persona` con lo que la pantalla mostraba. No es una pieza nueva.
+- **Estado en la URL y en ocultos, sin sesión**: cuando lo que se elige en los pasos es poco y nadie más lo
+  puede tomar mientras tanto, el estado no necesita la sesión —que es de donde sale el problema de las pestañas—:
+  el registro elegido viaja en la URL del paso siguiente y lo cargado en el paso de campos llega al final por
+  POST, donde el formulario lo lleva en ocultos y «Confirmar» escribe eso. «Anterior» del paso final es un
+  `<button type="submit" formaction="<paso anterior>" formnovalidate class="btn-nodo btn-tertiary btn-base">`
+  (un link perdería lo cargado) y en el indicador solo son links los pasos que no llevan datos. El GET del paso
+  final redirige al anterior. Evidencia: «Nueva entrega» de kits de Emergencia
+  (`programas/templates/programas/emergencia/kits/nueva_destino.html`, `nueva_items.html` y `nueva_confirmar.html`):
+  el paso 1 es una tabla densa con buscador en la que elegir es navegar, y el paso final revalida en el servicio.
 - Pie que no cabe en móvil: `flex flex-wrap justify-between gap-3`; si agrupa acciones,
   el grupo también usa `flex flex-wrap gap-3`. Conserva los tamaños canónicos de botón
   y la fila de escritorio. Evidencia: `programas/templates/programas/dispositivos/ingreso/paso_plaza.html`.

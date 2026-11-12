@@ -127,7 +127,9 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   `lg:col-span-2 min-w-0 space-y-5` de la grilla de «Formulario con asistencia lateral»
   (`grid grid-cols-1 lg:grid-cols-3 gap-5`) y el panel que acompaña al registro en un `aside space-y-5 min-w-0`
   con `aria-label`; se apila en móvil. Evidencia: `programas/templates/programas/emergencia/casos/detail.html`
-  (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). El reloj del SLA
+  (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). Sin panel lateral,
+  las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
+  (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.
 - Solapa con carga diferida: `@click="tab='x'; $dispatch('<evento>')"` y el JS escucha ese
   evento en `window` (molde: `config/programa_detail.html`, que dispara `becas-dashboard-abrir`).
@@ -136,6 +138,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+  El menú «Más acciones» de P4 suma «Emergencia · Kits» (ítem con `url`) solo si la vista manda `url_kits_emergencia`: quien tiene `emergencia.recibir_kit` en el Equipo de ese dispositivo.
   Las acciones del encabezado de P4 salen de banderas que arma la vista, no de un `{% if %}` sobre el estado: «Ingresar persona» (`puede_admitir`, misma función que el gate del asistente: `dispositivo.admitir` con alcance y `ciudadano.ver`) y «Enviar a validación» (`puede_enviar_validacion`, desde borrador, observado o rechazado con `dispositivo.editar`).
   La `dl` de datos de la solapa Datos rotula las franjas de P3 como «Horario de atención» (solo informativo; no son los turnos de la Bitácora).
   Solapa «Equipo» de P4 (Cambio 411): la ve quien ve el dispositivo; tabla canónica (`nodo-th`, `menu_fila` con `confirm_url`; baja y quitar responsable en `peligro`) y «Sumar persona» `btn-brand btn-sm btn-fit` que abre un modal de `data-ajax`. Botón, columna de acciones y modal van bajo `puede_gestionar_equipo` (la vista re-verifica en cada POST); la marca de responsable es `badge badge-dot badge-success` y una fila cuyo rol ya no vale lleva `badge badge-warning badge-sm` «Rol no vigente». Bajo `lg`, Rol y Responsable van apilados bajo el nombre (`lg:hidden`) y sus columnas son `hidden lg:table-cell` (Cambio 447: la columna fija de acciones tapaba el resto de la fila).

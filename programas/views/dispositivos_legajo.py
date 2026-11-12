@@ -89,6 +89,7 @@ from programas.services.dispositivos import (
     registrar_edicion_dispositivo,
     validar_dispositivo,
 )
+from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.equipo_dispositivo import (
     equipo_del_dispositivo,
     puede_crear_persona,
@@ -499,6 +500,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
+                # «Emergencia · Kits» del menú: solo para quien recibe kits en ESTE dispositivo.
+                "url_kits_emergencia": (
+                    reverse("emergencia:dispositivo_kits", args=[dispositivo.pk])
+                    if puede_operar_dispositivo(user, dispositivo, CAP_RECIBIR_KIT)
+                    else ""
+                ),
             }
         )
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
