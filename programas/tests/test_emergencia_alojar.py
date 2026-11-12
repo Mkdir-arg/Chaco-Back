@@ -1424,6 +1424,7 @@ class IngresoDirectoTests(BaseAlojar):
 
         self.assertEqual(primero.pk, segundo.pk)
         self.assertTrue(segundo.ya_existia)
+        self.assertEqual((segundo.reservadas, segundo.faltantes), (primero.reservadas, primero.faltantes))
         self.assertEqual(CasoEmergencia.objects.count(), 1)
         self.assertEqual(ReservaPlaza.objects.filter(derivacion__caso=primero).count(), 3)
 
