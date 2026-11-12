@@ -13,7 +13,7 @@ con ``puede_en_programa_emergencia`` (RU-7).
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 
-from programas.services.emergencia_programa import puede_en_programa_emergencia
+from programas.services.emergencia_programa import puede_en_programa_emergencia, puede_operar_la_mesa
 
 
 class EmergenciaPermissionMixin(LoginRequiredMixin):
@@ -25,9 +25,25 @@ class EmergenciaPermissionMixin(LoginRequiredMixin):
 
     capacidad_requerida = None
 
+    def tiene_permiso(self, user):
+        return puede_en_programa_emergencia(user, self.capacidad_requerida)
+
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        if not puede_en_programa_emergencia(request.user, self.capacidad_requerida):
+        if not self.tiene_permiso(request.user):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
+
+
+class MesaPermissionMixin(EmergenciaPermissionMixin):
+    """Las pantallas de la mesa: ``emergencia.operar`` **o** ``emergencia.supervisar`` en el programa.
+
+    Supervisar implica operar (tabla de RU §4), tenga o no el rol tildadas las dos. La mesa
+    ve todos los casos (RU-10): un caso no tiene alcance propio, así que un id inexistente
+    es un 404 y nada más. Quién puede **actuar** sobre un caso —el que lo tiene tomado, o
+    quien supervisa— lo decide el servicio, no este mixin.
+    """
+
+    def tiene_permiso(self, user):
+        return puede_operar_la_mesa(user)

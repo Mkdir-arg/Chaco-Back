@@ -80,6 +80,23 @@ class SemaforoSlaTest(SimpleTestCase):
                 html = self._render(estado="EN_TERMINO", minutos=8, tramo=tramo, variante="reloj")
                 self.assertEqual(_texto(html), "Derivar vence en 8 min")
 
+    def test_con_texto_tiempo_el_lapso_se_lee_como_lo_escribio_el_selector(self):
+        # Una derivación que nadie aceptó en dos días se lee «48 h», no «2880 min».
+        fila = self._render(estado="FUERA", minutos=2880, tramo="aceptar", texto_tiempo="48 h")
+        reloj = self._render(estado="EN_TERMINO", minutos=300, tramo="aceptar", texto_tiempo="5 h", variante="reloj")
+        fuera = self._render(estado="FUERA", minutos=4320, tramo="aceptar", texto_tiempo="3 d", variante="reloj")
+
+        self.assertEqual(_texto(fila), "Fuera de SLA · 48 h")
+        self.assertEqual(_texto(reloj), "Aceptar vence en 5 h")
+        self.assertEqual(_texto(fuera), "Aceptar · Fuera de SLA · 3 d")
+
+    def test_texto_tiempo_sin_minutos_no_se_muestra_y_vacio_no_cambia_nada(self):
+        self.assertEqual(_texto(self._render(estado="FUERA", texto_tiempo="48 h")), "Fuera de SLA")
+        self.assertEqual(
+            self._render(estado="FUERA", minutos=42, texto_tiempo=""), self._render(estado="FUERA", minutos=42)
+        )
+        self.assertEqual(_texto(self._render(estado="INVENTADO", minutos=42, texto_tiempo="48 h")), "Sin SLA")
+
     def test_sin_minutos_el_texto_no_los_lleva_y_un_cero_se_muestra(self):
         self.assertEqual(_texto(self._render(estado="FUERA")), "Fuera de SLA")
         self.assertEqual(_texto(self._render(estado="POR_VENCER", minutos=None)), "Por vencer")
