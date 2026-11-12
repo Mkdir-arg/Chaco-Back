@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-12, cierre de la ola 3 y arranque de la ola 4.
+**Última actualización:** 2026-11-12, cierre de la ola 4 (PR 7 y PR 9).
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -14,7 +14,7 @@ actualiza cada vez que un PR cambia de estado. El plan completo está en
 ```powershell
 git fetch origin
 git checkout docs/emergencia-analisis      # plan, análisis y este archivo
-git checkout feat/emergencia-integracion-ola3   # PRs 0 a 6 juntos, lo más avanzado que está verificado
+git checkout feat/emergencia-integracion-ola4   # PRs 0 a 9 juntos, lo más avanzado que está verificado
 ```
 
 - **Nada está mergeado a `development` y no hay ningún PR abierto en GitHub.** Todo son ramas
@@ -48,8 +48,9 @@ git checkout feat/emergencia-integracion-ola3   # PRs 0 a 6 juntos, lo más avan
 | 5 | API base, login y M1 (backend) | ✅ Verificado y pusheado | `feat/emergencia-pr5-api` | `92141d18` | PR 2 |
 | 6 | Dispositivos: reservas de derivación, bitácora automática, señal de egreso | ✅ Verificado y pusheado | `feat/emergencia-pr6-reservas` | `a5b9e38e` | PR 2 |
 | — | Integración de los PRs 0 a 6 | ✅ Suite completa corrida | `feat/emergencia-integracion-ola3` | `1afe2718` | PR 3 + merges de 6, 4 y 5 |
-| 7 | Alojar: servicios de la etapa 3 y backoffice E6 | 🔄 En desarrollo | `feat/emergencia-pr7-alojar` (sin pushear) | — | integración ola 3 |
-| 9 + 9-API | Kits: modelo, servicios, E4, E5, recepción web y API M3 | 🔄 En desarrollo | `feat/emergencia-pr9-kits` (sin pushear) | — | integración ola 3 |
+| 7 | Alojar: servicios de la etapa 3 y backoffice E6 | ✅ Verificado y pusheado | `feat/emergencia-pr7-alojar` | `c9ada33d` | integración ola 3 |
+| 9 + 9-API | Kits: modelo, servicios, E4, E5, recepción web y API M3 | ✅ Verificado y pusheado | `feat/emergencia-pr9-kits` | `cb738b66` | integración ola 3 |
+| — | Integración de los PRs 0 a 9 | ✅ Suite completa corrida (8.870 tests) | `feat/emergencia-integracion-ola4` | `630f5c5f` | PR 7 + merge de PR 9 |
 | 8 | API M2 (llegada de familias) | ⏳ Pendiente | — | — | PR 7 + PR 5 |
 | 10 | Tablero E1 y avisos | ⏳ Pendiente | — | — | PR 3, 7 y 9 |
 | 11 | Marcas de la bandeja que dependen de las etapas 3 y 4 | ⏳ Pendiente | — | — | PR 7 |
@@ -72,7 +73,7 @@ y, en los PRs con UI, las auditorías de diseño.
 5. PR 8, PR 10, PR 11.
 
 Antes de abrir el PR 3 conviene hacer squash de su commit «wip» (`2587db2a`) con `deae7666`; lo mismo
-con el WIP del PR 4 (`a8f5590d`).
+con el WIP del PR 4 (`a8f5590d`) y el del PR 7 (`c9ada33d`).
 
 ---
 
@@ -148,6 +149,33 @@ con el WIP del PR 4 (`a8f5590d`).
 - Tests: `test_dispositivos_reservas_derivacion.py` y `test_emergencia_reservas_concurrencia.py`. No se
   editó ningún test existente de Dispositivos.
 
+### PR 7 — Alojar (etapa 3)
+- `programas/services/emergencia_alojar.py`: `buscar_por_dni`, `aceptar_derivacion`, `rechazar_derivacion`,
+  `confirmar_integrante`, `completar_ficha`, `agregar_integrante`, `alojar_familia`,
+  `cerrar_con_diferencia`, `cancelar_ingreso`, `ingreso_directo`, `avisar_a_la_mesa`, y el receptor
+  `al_egresar_estadia` (cierra el caso cuando egresa el último integrante).
+- Selectores de alojar y de llegadas del dispositivo.
+- Backoffice E6 «Llegadas» bajo el dispositivo: llegadas, alojar, integrantes, ficha, cama (mapa de plazas
+  en modo emergencia, sin tocar la pieza), Formulario 1 del ingreso directo. Templates en
+  `programas/templates/programas/emergencia/dispositivo/`.
+- E3 de la mesa muestra los integrantes. La guardia del dispositivo ve las fotos del caso.
+- Sin migraciones.
+- Tests: `test_emergencia_alojar.py` (113), `test_emergencia_alojar_vistas.py` (57),
+  `test_emergencia_alojar_concurrencia.py` (7, solo con motor real).
+- Cambió una aserción de `test_dispositivos_reservas_derivacion.py` (PR 6): afirmaba que la señal de
+  egreso no tenía receptores, y el PR 7 es el que agrega el suyo.
+
+### PR 9 y 9-API — Kits
+- Modelos `EntregaKit`, `LineaEntrega`, `TrazaEntrega`. Migración `programas.0120_emergencia_kits`.
+- `programas/services/kits.py`: `crear_entrega`, `marcar_en_camino`, `cancelar_entrega`,
+  `recibir_entrega` (idempotente por `uuid_cliente`), `observar_recepcion`. Selectores en
+  `programas/selectors/kits.py`.
+- Backoffice: E4 (listado + nueva entrega), E5 (detalle con enviado / recibido / diferencia, reponer) y
+  recepción dentro del dispositivo. Templates en `programas/templates/programas/emergencia/kits/`.
+- API M3 en `/api/emergencia/`: `mis-dispositivos/`, entregas pendientes del dispositivo, detalle y
+  `recibir/`. Contrato actualizado en `docs/internal/contrato-app-emergencia.md`.
+- Tests: `test_emergencia_kits.py` (102), `test_emergencia_kits_vistas.py` (63).
+
 ---
 
 ## 4. Decisiones del PM ya tomadas
@@ -186,7 +214,10 @@ El resto de las decisiones abiertas del README §10 sigue con los supuestos del 
 - **Semáforo consultado dos veces** en la bandeja (una consulta de más, evitable tocando el selector).
 - **Sidebar sin alcance de programa**: un rol de otro programa con la capacidad tildada vería el link y
   recibiría 403 al entrar.
-- **Sin revisión visual en navegador** de E2, E3, E7 ni «Nuevo caso».
+- **Sin revisión visual en navegador** de E2, E3, E7, «Nuevo caso», E6, E4 ni E5.
+- **PR 7 y PR 9 sin reporte final del subagente.** Los dos se cortaron por límite de uso justo al
+  terminar; el código está commiteado y pasa todas las verificaciones, pero las decisiones que tomaron
+  no quedaron escritas. Revisarlas en el diff antes de abrir los PRs.
 
 ---
 
@@ -199,8 +230,8 @@ El resto de las decisiones abiertas del README §10 sigue con los supuestos del 
   (`{success, origen, data, datos_api}`), no con el de 01 §8.
 
 ### Pendiente de CI (no se puede correr sin MySQL/MariaDB)
-- Carreras con dos conexiones (`@tag("mysql")`) de los PRs 2, 4 y 6.
-- Job «Migrate ida y vuelta» y `check_sqlmigrate` para las migraciones `0116` a `0119` y `users.0047`.
+- Carreras con dos conexiones (`@tag("mysql")`) de los PRs 2, 4, 6, 7 y 9.
+- Job «Migrate ida y vuelta» y `check_sqlmigrate` para las migraciones `0116` a `0120` y `users.0047`.
 
 ### Condiciones de cierre que todavía no se cumplieron
 - **Entradas en `docs/internal/requerimientos.md`** (etiqueta nueva `#emergencia`): ningún PR la escribió
@@ -218,8 +249,9 @@ MySQL deberían pasar; verificarlo en CI.
 
 ## 7. Qué sigue
 
-1. Terminar, verificar y pushear PR 7 y PR 9.
-2. PR 8 (API M2) sobre PR 7, y PR 11 (marcas de bandeja).
+1. PR 8 (API M2) sobre PR 7, y PR 11 (marcas de bandeja).
+2. Revisar los reportes de decisiones de PR 7 y PR 9: el cierre de los dos lo hizo el orquestador
+   verificando (los subagentes se cortaron por límite de uso antes de reportar).
 3. PR 10 (tablero y avisos) cuando estén 7 y 9.
 4. PR 12 (documentación y entradas de requerimientos).
 5. PWA, cuando se destrabe §6.
@@ -234,4 +266,4 @@ MySQL deberían pasar; verificarlo en CI.
 | 2026-11-12 | Ola 1: PR 0 y PR 1. |
 | 2026-11-12 | Ola 2: PR 2. |
 | 2026-11-12 | Ola 3: PR 3, 4, 5 y 6. Integración de 0 a 6 con la suite completa. |
-| 2026-11-12 | Ola 4 lanzada: PR 7 y PR 9. |
+| 2026-11-12 | Ola 4: PR 7 y PR 9. Los subagentes se cortaron por límite de uso (Fable y después Opus); el orquestador verificó y pusheó lo commiteado. Integración de 0 a 9 con la suite completa. |
