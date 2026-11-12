@@ -52,6 +52,9 @@ PREFIJO_NOTIFICACIONES = "notificaciones/"
 PREFIJO_ADJUNTO_BITACORA = "dispositivos/bitacora/"
 #: Archivos respondidos en el formulario de un tipo de dispositivo (``programas.AdjuntoRespuestaAlta``, P17).
 PREFIJO_FORMULARIO_DISPOSITIVO = "dispositivos/formularios/"
+#: Archivos respondidos en los formularios de ingreso y egreso de una estadía
+#: (``programas.AdjuntoRespuestaIngreso`` y ``AdjuntoRespuestaEgreso``).
+PREFIJO_FORMULARIO_ESTADIA = "dispositivos/estadias/formularios/"
 
 
 def nombre_opaco(filename):
@@ -96,6 +99,11 @@ def ruta_adjunto_bitacora(instance, filename):
 def ruta_formulario_dispositivo(instance, filename):
     """Un archivo respondido en el formulario de un tipo: `%Y/%m`, como la bitácora."""
     return f"{PREFIJO_FORMULARIO_DISPOSITIVO}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
+
+
+def ruta_formulario_estadia(instance, filename):
+    """Un archivo respondido en el formulario de ingreso o egreso: `%Y/%m`, nombre opaco."""
+    return f"{PREFIJO_FORMULARIO_ESTADIA}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 
 
 def ruta_notificacion_excel(instance, filename):

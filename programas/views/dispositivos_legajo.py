@@ -126,7 +126,11 @@ from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.plazas import motivo_sin_ampliar_capacidad, puede_configurar_plazas
 from programas.services.reportes import filtrar_dispositivos
-from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
+from programas.services.respuestas_dispositivo import (
+    formularios_de_estadia,
+    formularios_respondidos,
+    guardar_respuestas_alta,
+)
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
@@ -1460,6 +1464,8 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo, estadia, usuario = self.object, self.estadia, self.request.user
         datos = detalle_de_estadia(estadia)
         context.update(datos)
+        # Lo respondido en los formularios de ingreso y egreso del tipo (cuatro consultas fijas).
+        context["formularios_estadia"] = formularios_de_estadia(estadia)
 
         context["movimientos_page"] = Paginator(datos["movimientos"], MOVIMIENTOS_POR_PAGINA).get_page(
             self.request.GET.get("movimientos_page")

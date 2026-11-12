@@ -576,6 +576,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 451 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 452 | Se borra el programa Merenderos entero (código, RBAC, tablas y fila del Programa), en una sola release | Merenderos · Dispositivos · Transversal | `#rbac` `#datos` `#ui` `#infra` | PM — decisión del 10/11/2026 (no hay datos en ningún ambiente; antecedente: Cambio 191) | 10/11/2026 | 🟡 **En curso** | `users.0046`, `programas.0115` |
 | 453 | Usuarios: nadie se cambia sus propios roles y el rol Administrador no lo reparte cualquiera (más avisos en el formulario de roles) | Transversal · Usuarios y Roles | `#rbac` `#usuarios` `#ui` | QA — hallazgo del plan #1022 (issue #1114) | 12/11/2026 | 🟡 **En curso** | No requiere |
+| 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟡 **Parcial — el egreso en pantalla es el PR 2** | `programas.0116` |
 
 **Notas del índice**
 
@@ -54033,3 +54034,131 @@ Revertir el PR. No hay migración ni datos.
 ## Historial
 
 - **12/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 454 — Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (P17, PR 1: ingreso y lectura)
+
+🟡 **PARCIAL — 12/11/2026** (el ingreso y la lectura en P7 están hechos; el egreso en la pantalla es el PR 2)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) · detalle de la estadía (P7) · formularios por tipo (P17) |
+| **Etiquetas** | `#ui` `#datos` `#rbac` `#performance` |
+| **Solicitante** | PM — formularios por tipo de dispositivo (mockup P17), vía el juez; molde: Cambios 344 y 345 |
+| **Fecha del pedido** | 12/11/2026 |
+| **Issue / épica** | sin issue · PR 1 de 2 |
+| **Partes afectadas** | Backoffice: `dispositivos/ingreso/paso_confirmar.html`, `dispositivos/_formulario_respondido.html` (nuevo), `estadia/detalle.html`, `legajo/detail.html`, `legajo/_formulario_tipo.html` · Servidor: `models/__init__.py`, `forms_dinamicos.py`, `services/respuestas_dispositivo.py`, `views/dispositivos_ingreso.py`, `views/dispositivos_legajo.py`, `core/views/media.py`, `core/rutas_media.py` · Gates: `scripts/perf_budgets.json` |
+| **Migración** | `programas.0116` — `RespuestasIngresoEstadia`, `RespuestasEgresoEstadia` y sus adjuntos (cuatro tablas nuevas; expand puro) |
+
+## Pedido original
+
+Que los formularios del constructor para los momentos «Ingreso de persona» y «Egreso» de cada tipo de
+dispositivo se muestren, se validen y se guarden con el ingreso y el egreso, y se lean en el detalle de la
+estadía. La misma lógica que «Crear dispositivo» (Cambios 344 y 345).
+
+## Alcance acordado
+
+Entra en este PR: los dos modelos de respuestas y sus adjuntos (una sola migración), el servicio de guardado
+de ingreso **y** de egreso, la regla de `/media/`, el formulario de ingreso en el paso «Confirmar» del asistente
+y la lectura de ambos en P7. Afuera: el formulario de egreso en el modal de egreso (estadía y legajo), que es el
+PR 2 y no lleva migración; los otros momentos (asignación de plaza, novedades, traslado).
+
+## Decisiones tomadas
+
+**Sin cambiar firmas.** `ingresar_persona`, `egresar_persona` y `confirmar_ingreso` quedan como estaban y
+`Estadia` no se toca. `IngresoConfirmarView` abre `transaction.atomic()` con `archivos_atomicos` por afuera, llama
+al confirmar de siempre y después a `guardar_respuestas_ingreso(estadia, …)`: si guardar las respuestas falla, se
+deshace la estadía, el alta del legajo que se hubiera hecho en el camino y el archivo escrito.
+
+**Los obligatorios bloquean.** A diferencia de «Crear dispositivo» —que admite borrador y exige al enviar a
+validación—, el ingreso no tiene borrador: antes de llamar al servicio se validan el tipo de cada valor y los
+obligatorios **visibles** (`faltantes_de`, con las condiciones aplicadas). Si algo falta, el paso vuelve con el
+error en cada campo y no se escribe nada: ni estadía, ni fila de respuestas, ni archivo; la plaza sigue libre.
+
+**Dos modelos concretos sobre la abstracta**, como anticipó el Cambio 345: `RespuestasIngresoEstadia` y
+`RespuestasEgresoEstadia`, cada uno con su FK `estadia` (`CASCADE`), `UniqueConstraint(estadia, diseno)` sin
+`condition=` y `diseno` en `PROTECT`; ambos se suman a `MODELOS_DE_RESPUESTAS`, así que un formulario con
+respuestas de ingreso o de egreso no se borra, va a baja. El guardado de los tres momentos comparte una sola
+función (`_guardar_respuestas`), y `guardar_respuestas_alta` conserva su contrato. Sin nada respondido no se
+crea fila.
+
+**Archivos.** Prefijo propio `dispositivos/estadias/formularios/%Y/%m/` con nombre opaco (no `dispositivos/formularios/`,
+que es el del alta), un modelo de adjuntos por momento. La tarjeta va solo en «Confirmar», así que el archivo sube
+en el POST final y nunca cruza pasos. Ante un error de validación o el rebote al paso de la plaza, lo no-archivo
+se conserva (el POST, o `estado["formulario"]` en la sesión del intento) y **el archivo se vuelve a elegir**: el
+mismo apartamiento del Cambio 345. Las claves ARCHIVO nunca se precargan, para que un nombre guardado no valga como
+«ya cargado» sin que haya un archivo.
+
+**`/media/`.** `_archivo_de_formulario_estadia`: lo baja quien tiene `ciudadano.ver` **y** `dispositivo.ver` con
+alcance sobre el dispositivo de la estadía (lo mismo que exige P7, que lo enlaza); cualquier otro caso es el mismo
+404 que un archivo inexistente.
+
+**Sin formulario vigente, el asistente queda como hoy**: el template y el POST son los de siempre (sin
+`multipart`, sin tarjeta). La única consulta nueva es buscar el formulario vigente del tipo (1). Un formulario
+dado de baja no se pide.
+
+**P7.** Las secciones «Formulario de ingreso» y «Formulario de egreso» se dibujan con el mismo markup que la
+solapa Datos de P4, que pasó a un include compartido (`_formulario_respondido.html`, sin cambio de salida en P4);
+sin respuestas no aparecen. P7 ya exigía `ciudadano.ver`.
+
+**Presupuesto nuevo.** `dispositivos_formularios_de_estadia` = 4 consultas: por momento, las filas (1) y sus
+adjuntos por prefetch (1); con un solo momento respondido son 2. No crece con los campos.
+
+**Plan de pantalla.**
+
+```
+Asistente de ingreso, paso Confirmar (P6)
+Tipo: A (ajuste) · Arquetipo: Wizard (paso final) · Golden: la del arquetipo
+Bloques: tarjeta del formulario del tipo = _formulario_tipo.html tal cual (título y nota por contexto),
+         form con enctype multipart, botones Anterior / Confirmar ingreso como hoy
+Novedades: ninguna (clases e includes existentes); script inline de condiciones como el de form.html
+
+Detalle de la estadía (P7)
+Tipo: A (ajuste) · Arquetipo: Detalle · secciones con el markup de lectura de P4 (include compartido)
+Novedades: ninguna
+```
+
+**Apartamientos.** El archivo elegido hay que volver a elegirlo si el paso vuelve con error. El script de
+condiciones está duplicado entre `form.html` y `paso_confirmar.html` (extraerlo a un `.js` compartido es el pendiente).
+
+## Implementación
+
+Si el tipo del dispositivo tiene un formulario de «Ingreso de persona» vigente, el último paso del asistente lo
+muestra debajo de la fecha de ingreso. Para confirmar hay que completar las obligatorias visibles; el ingreso y las
+respuestas se guardan juntos o no se guarda nada. El detalle de la estadía muestra lo respondido en ingreso y,
+cuando exista, en egreso.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0116_respuestas_ingreso_egreso_estadia.py`, `core/rutas_media.py`, `core/views/media.py`
+- `programas/services/respuestas_dispositivo.py`, `programas/forms_dinamicos.py`
+- `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/ingreso/paso_confirmar.html`, `…/_formulario_respondido.html` (nuevo), `…/estadia/detalle.html`, `…/legajo/detail.html`, `…/legajo/_formulario_tipo.html`
+- `programas/tests/test_dispositivos_formulario_estadia.py` (nuevo), `scripts/perf_budgets.json`
+
+## Base de datos
+
+`programas.0116`: cuatro tablas nuevas (respuestas y adjuntos de ingreso y de egreso). Expand puro: no toca
+ninguna tabla existente, así que el código viejo convive con el esquema nuevo. Sin `UUIDField`.
+
+## Validación
+
+17 tests nuevos en verde (`test_dispositivos_formulario_estadia`). Verificado por **mutación**: sin `faltantes()` en la
+vista, el test del obligatorio vacío se pone rojo; sin `transaction.atomic()` en `_confirmar`, el del rollback; sin la
+comprobación de `ciudadano.ver` o sin el alcance en la regla de `/media/`, el de los 404. `manage.py check`,
+`makemigrations --check` y `check_migraciones.py` en verde; `design_audit --ratchet` 0 nuevos; `compile_templates --bloques` 0.
+
+## Puesta en marcha en el servidor
+
+No requiere más que el deploy (migración `0116`).
+
+## Pendientes / a definir
+
+- PR 2: el formulario de egreso en el modal de egreso (estadía y legajo); el servicio ya está.
+- Extraer a un `.js` compartido el script de condiciones de `form.html` y `paso_confirmar.html`.
+
+## Reversión
+
+Revertir el código y desaplicar `programas.0116` (borra las cuatro tablas: se pierden las respuestas de ingreso y de
+egreso guardadas, no las estadías).

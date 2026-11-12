@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load nodo_ui static %}
 {% block title %}Dispositivos · Ingresar persona — Paso {{ paso_actual }}{% endblock %}
 
 {% comment %}Paso final del arquetipo Wizard (ficha `.claude/design/arquetipos/wizard.md`): resumen y confirmación. La plaza se revalida y se toma al confirmar, no antes. Los ocultos `persona` y `plaza` dicen qué resumen mostraba esta pantalla: si otra pestaña lo cambió, la vista no escribe.{% endcomment %}
@@ -44,6 +44,25 @@
     <p class="mt-3 text-xs text-body-subtle">Al confirmar se registra la estadía{% if not resumen.persona.en_legajo %} y se da de alta a la persona en el Legajo Ciudadano con los datos {% if resumen.persona.manual %}cargados a mano, sin validar{% else %}del Registro de Personas{% endif %}{% endif %}.</p>
   </div>
 
+  {% if formulario_tipo %}
+  {# El tipo pide un formulario de ingreso: va en su tarjeta, dentro del mismo form, y los archivos viajan en este POST. #}
+  <form method="post" enctype="multipart/form-data" data-formulario-tipo>
+    {% csrf_token %}
+    <input type="hidden" name="persona" value="{{ mostrado.persona }}">
+    <input type="hidden" name="plaza" value="{{ mostrado.plaza }}">
+    <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+      {% include "components/_form_errores.html" %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for field in form %}{% include "components/_field.html" %}{% endfor %}
+      </div>
+    </div>
+    {% include "programas/dispositivos/legajo/_formulario_tipo.html" %}
+    <div class="flex justify-between gap-3 mt-5">
+      <a href="{{ url_anterior }}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Confirmar ingreso</button>
+    </div>
+  </form>
+  {% else %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% include "components/_form_errores.html" %}
@@ -57,5 +76,59 @@
       <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Confirmar ingreso</button>
     </div>
   </form>
+  {% endif %}
 </div>
+{% endblock %}
+
+{% block customJS %}
+{% if formulario_tipo %}
+<script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script>
+(function () {
+  // Las condiciones del formulario del tipo las evalúa NodoCondiciones, el mismo motor que el servidor
+  // (que las vuelve a evaluar al confirmar): lo oculto se deshabilita y no viaja.
+  const seccion = document.querySelector('[data-formulario-tipo]');
+  const datos = document.getElementById('formulario-tipo-items');
+  if (!seccion || !datos || !window.NodoCondiciones) return;
+  let items = [];
+  try { items = JSON.parse(datos.textContent) || []; } catch (error) { return; }
+  function valor(caja) {
+    const marcas = caja.querySelectorAll('input[type="checkbox"]');
+    if (marcas.length) {
+      const elegidos = Array.from(marcas).filter(function (m) { return m.checked; }).map(function (m) { return m.value; });
+      return elegidos.length ? elegidos : null;
+    }
+    const control = caja.querySelector('select') || caja.querySelector('textarea, input:not([type="hidden"])');
+    if (!control) return null;
+    if (control.multiple) {
+      const elegidos = Array.from(control.options).filter(function (o) { return o.selected; }).map(function (o) { return o.value; });
+      return elegidos.length ? elegidos : null;
+    }
+    if (control.type === 'file') return control.files && control.files.length ? control.files[0].name : null;
+    return control.value.trim() ? control.value : null;
+  }
+  function aplicar() {
+    const cajas = {};
+    const respuestas = {};
+    items.forEach(function (item) {
+      cajas[item.clave] = seccion.querySelector('[data-item="' + item.clave + '"]');
+      if (item.tipo !== 'campo' || !cajas[item.clave]) return;
+      const actual = valor(cajas[item.clave]);
+      if (actual !== null) respuestas[item.clave] = actual;
+    });
+    const ocultos = window.NodoCondiciones.aplicar(items, respuestas).ocultos;
+    items.forEach(function (item) {
+      const caja = cajas[item.clave];
+      if (!caja) return;
+      const oculto = ocultos.has(item.clave);
+      caja.hidden = oculto;
+      caja.querySelectorAll('select, textarea, input').forEach(function (control) { control.disabled = oculto; });
+    });
+  }
+  seccion.addEventListener('change', aplicar);
+  seccion.addEventListener('input', aplicar);
+  aplicar();
+}());
+</script>
+{% endif %}
 {% endblock %}
