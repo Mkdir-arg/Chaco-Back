@@ -356,6 +356,10 @@ class CatalogoProgramaTests(TestCase):
                 "dispositivos",
                 # Relevamiento edilicio de Dispositivos (MVP v2, etapa 4 · #700).
                 "inspecciones",
+                # Módulo Emergencia (PR 1): la mesa, acotada a EMERGENCIA, y la recepción
+                # de kits, acotada a DISPOSITIVOS (hallazgo H3 del plan).
+                "emergencia",
+                "dispositivos_emergencia",
                 "becas_admin",
                 "becas_segmentos",
                 "becas_subsegmentos",

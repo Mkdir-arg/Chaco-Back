@@ -10,8 +10,9 @@ Hace, sin duplicar nada al repetirse:
 2. Corre ``seed_rbac`` (capacidades, RolMeta, roles Administrador y Operador
    de backoffice) y ``seed_becas`` (Programa Becas + sus 5 roles de programa:
    Administrador / Coordinador / Coordinador Regional / Referente / Territorial
-   + adjuntos obligatorios) y ``seed_dispositivos`` (el rol «Dispositivos — Agente de
-   relevamiento», por clave). Como ``seed_becas`` **sincroniza las capacidades
+   + adjuntos obligatorios), ``seed_dispositivos`` (el rol «Dispositivos — Agente de
+   relevamiento», por clave) y ``seed_emergencia`` (el programa EMERGENCIA y su fila de
+   SLA, que solo se crean si faltan). Como ``seed_becas`` **sincroniza las capacidades
    base** de cada rol, correr esto en cada arranque es lo que mantiene los roles
    alineados con el código; un bootstrap que lo omita los deja congelados en el
    estado en que se sembró la base. Lo que la pantalla de Roles deja editar —nombre,
@@ -130,6 +131,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.MIGRATE_LABEL("Roles de Dispositivos..."))
         call_command("seed_dispositivos")
+
+        self.stdout.write(self.style.MIGRATE_LABEL("Programa Emergencia..."))
+        call_command("seed_emergencia")
 
         self.stdout.write(self.style.MIGRATE_LABEL("Roles de menú..."))
         ct = ContentType.objects.get_for_model(Capacidad)
