@@ -142,23 +142,88 @@ def localidades_con_casos():
 # ---------------------------------------------------------------------------
 
 
+def _en_la_puerta(caso):
+    """El nombre del dispositivo donde la familia espera (M2-6), o ``""``.
+
+    «Avisar a la mesa» deja el dato en ``situacion`` para siempre; el aviso vale mientras la
+    familia sigue esperando: el caso está abierto y la mesa todavía no lo derivó nunca.
+    """
+
+    en_la_puerta = (caso.situacion or {}).get(SITUACION_EN_LA_PUERTA)
+    if not en_la_puerta or not caso.abierto or caso.derivado_en is not None:
+        return ""
+    return en_la_puerta.get("dispositivo") or "un dispositivo"
+
+
+def avisos_de_la_mesa(caso):
+    """Los avisos que dejan las etapas 3 y 4 sobre el caso: ``[{"texto", "tono", "detalle"}]``.
+
+    Los mismos para la fila de E2 (``texto`` y ``tono``) y para la cabecera de E3 (que suma
+    ``detalle``). Sin consultas: ``caso`` viene anotado por
+    ``selectors.emergencia.con_avisos_de_la_mesa`` (la bandeja y :func:`casos_para_ficha`).
+
+    * «Rechazado por X: motivo» y «Derivación vencida · volver a derivar» mientras esa sea
+      la última traza del caso: la próxima acción, cualquiera, los saca (RN-3.13, HU-2.5).
+    * «Dispositivo inactivo · volver a derivar» mientras la derivación pendiente apunte a
+      un dispositivo que dejó de estar activo (02 §9).
+    * «Llegaron 8 sobre 7 declaradas» cuando el dispositivo agregó personas (RN-3.8).
+    """
+
+    avisos = []
+    if caso.ultima_accion == TrazaCaso.Accion.DERIVACION_RECHAZADA and caso.rechazada_por:
+        motivo = (caso.rechazada_motivo or "sin motivo").lower()
+        avisos.append(
+            {
+                "texto": f"Rechazado por {caso.rechazada_por}: {motivo}",
+                "tono": "danger",
+                "detalle": caso.rechazada_observacion
+                or "El caso volvió a gestión: derivalo a otro dispositivo o cerralo.",
+            }
+        )
+    elif caso.ultima_accion == TrazaCaso.Accion.DERIVACION_VENCIDA:
+        avisos.append(
+            {
+                "texto": "Derivación vencida · volver a derivar",
+                "tono": "warning",
+                "detalle": "El dispositivo no respondió a tiempo y el caso volvió a gestión.",
+            }
+        )
+    if caso.derivada_a_inactivo:
+        avisos.append(
+            {
+                "texto": "Dispositivo inactivo · volver a derivar",
+                "tono": "danger",
+                "detalle": "El dispositivo al que se derivó dejó de estar activo. Cancelá la derivación y derivalo a otro.",
+            }
+        )
+    declaradas = caso.grupo.suma_de_cantidades()
+    if caso.grupo.total_declarado > declaradas:
+        avisos.append(
+            {
+                "texto": f"Llegaron {caso.grupo.total_declarado} sobre {declaradas} declaradas",
+                "tono": "info",
+                "detalle": "El dispositivo agregó personas que no estaban en el relevamiento.",
+            }
+        )
+    return avisos
+
+
 def _marcas_de_fila(caso, duplicados, alojado):
     """Los avisos de la fila, en texto: ``[{"texto", "tono"}]``.
 
     «Ingreso parcial» y «En la puerta de X» salen de lo que dejó la etapa 3 en el propio caso
-    (``total_alojado`` y ``situacion``): no cuestan consultas. Los que necesitan mirar la
-    última derivación («Rechazado por X», «Derivación vencida») llegan con los avisos de la mesa.
+    (``total_alojado`` y ``situacion``); los de :func:`avisos_de_la_mesa`, de las
+    subconsultas de la bandeja. Ninguno cuesta una consulta.
     """
 
     marcas = []
-    en_la_puerta = (caso.situacion or {}).get(SITUACION_EN_LA_PUERTA)
+    en_la_puerta = _en_la_puerta(caso)
     if en_la_puerta:
         # «Avisar a la mesa» (M2-6): la familia espera en ese dispositivo a que la deriven.
-        marcas.append(
-            {"texto": f"En la puerta de {en_la_puerta.get('dispositivo', 'un dispositivo')}", "tono": "warning"}
-        )
-    elif caso.origen == CasoEmergencia.Origen.DISPOSITIVO:
+        marcas.append({"texto": f"En la puerta de {en_la_puerta}", "tono": "warning"})
+    elif caso.origen == CasoEmergencia.Origen.DISPOSITIVO and SITUACION_EN_LA_PUERTA not in (caso.situacion or {}):
         marcas.append({"texto": "Ingreso directo", "tono": "info"})
+    marcas.extend({"texto": aviso["texto"], "tono": aviso["tono"]} for aviso in avisos_de_la_mesa(caso))
     if caso.ingreso_parcial:
         marcas.append(
             {"texto": f"Ingreso parcial · {caso.total_alojado} de {caso.grupo.total_declarado}", "tono": "warning"}
@@ -242,9 +307,14 @@ def conteos_de_solapas(sla, ahora):
 
 
 def casos_para_ficha():
-    """El queryset del caso con lo que la ficha muestra de una: grupo, responsable, localidad y gente."""
+    """El queryset del caso con lo que la ficha muestra de una: grupo, responsable, localidad y gente.
 
-    return CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por", "relevado_por")
+    Lleva los avisos de la mesa en la misma consulta (``selectors.emergencia.con_avisos_de_la_mesa``).
+    """
+
+    return selectores.con_avisos_de_la_mesa(
+        CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por", "relevado_por")
+    )
 
 
 def _datos_del_relevamiento(caso):
@@ -395,7 +465,6 @@ def _alojamiento(caso):
     """
 
     situacion = caso.situacion or {}
-    en_la_puerta = situacion.get(SITUACION_EN_LA_PUERTA)
     diferencia = situacion.get(SITUACION_DIFERENCIA)
     parcial_titulo = ""
     if caso.ingreso_parcial:
@@ -403,8 +472,8 @@ def _alojamiento(caso):
         if diferencia and diferencia.get("motivo_texto"):
             parcial_titulo = f"{parcial_titulo} · {diferencia['motivo_texto']}"
     return {
-        "directo": caso.origen == CasoEmergencia.Origen.DISPOSITIVO and not en_la_puerta,
-        "en_la_puerta": en_la_puerta.get("dispositivo", "") if en_la_puerta else "",
+        "directo": caso.origen == CasoEmergencia.Origen.DISPOSITIVO and SITUACION_EN_LA_PUERTA not in situacion,
+        "en_la_puerta": _en_la_puerta(caso),
         "parcial": caso.ingreso_parcial,
         "parcial_titulo": parcial_titulo,
         "diferencia": diferencia,
@@ -574,4 +643,5 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         "motivo_cierre": caso.get_motivo_cierre_display() if caso.motivo_cierre else "",
         "integrantes": _integrantes(caso),
         "alojamiento": _alojamiento(caso),
+        "avisos": avisos_de_la_mesa(caso),
     }
