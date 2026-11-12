@@ -19,6 +19,7 @@ from core.rutas_media import (
 from core.rutas_media import (
     nombre_opaco,
     ruta_adjunto_bitacora,
+    ruta_adjunto_emergencia,
     ruta_formulario_dispositivo,
     ruta_formulario_estadia,
     ruta_foto_inspeccion,
@@ -5298,3 +5299,646 @@ class TrazaConfiguracion(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Las trazas de configuración no se eliminan.")
+
+
+# ---------------------------------------------------------------------------
+# Emergencia · el caso y la mesa (PR 2 del módulo)
+# ---------------------------------------------------------------------------
+
+
+class GrupoFamiliar(TimeStamped):
+    """La familia que se evacúa: quién responde y cuántos son, como lo declaró quien relevó.
+
+    Las cantidades son **lo declarado** en el Formulario 1, no personas con nombre: los
+    integrantes se vuelven ``IntegranteGrupo`` recién cuando el dispositivo confirma cada
+    ficha (etapa 3). ``total_declarado`` lo calcula el servidor (RN-1.2) y es el tamaño del
+    grupo para toda la vida del caso: plazas a pedir y fichas a confirmar.
+    """
+
+    class Traslado(models.TextChoices):
+        BOMBEROS = "BOMBEROS", "Bomberos"
+        EJERCITO = "EJERCITO", "Ejército"
+        DEFENSA_CIVIL = "DEFENSA_CIVIL", "Defensa Civil"
+        POLICIA = "POLICIA", "Policía"
+        MUNICIPIO = "MUNICIPIO", "Municipio"
+        AUTOEVACUADO = "AUTOEVACUADO", "Autoevacuado"
+        OTRA = "OTRA", "Otra"
+
+    #: Las seis cantidades del paso 2 del Formulario 1, en el orden de la tabla.
+    CANTIDADES = ("menores_f", "menores_m", "adultos_f", "adultos_m", "mayores_f", "mayores_m")
+
+    responsable = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        related_name="grupos_emergencia",
+        verbose_name="Responsable",
+    )
+    traslado = models.CharField(max_length=20, choices=Traslado.choices, verbose_name="Fuerza que traslada")
+    traslado_otro = models.CharField(max_length=120, blank=True, verbose_name="Otra fuerza que traslada")
+    menores_f = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Menores de 16 · femenino")
+    menores_m = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Menores de 16 · masculino")
+    adultos_f = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Adultos (16 a 59) · femenino")
+    adultos_m = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Adultos (16 a 59) · masculino")
+    mayores_f = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Mayores (60+) · femenino")
+    mayores_m = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Mayores (60+) · masculino")
+    dependientes = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Personas con dependencia")
+    mayores_dependientes = models.PositiveSmallIntegerField(
+        default=0, db_default=0, verbose_name="Mayores dependientes"
+    )
+    lactantes = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Lactantes")
+    total_declarado = models.PositiveSmallIntegerField(verbose_name="Total de personas declarado")
+
+    class Meta:
+        verbose_name = "Grupo familiar de Emergencia"
+        verbose_name_plural = "Grupos familiares de Emergencia"
+        ordering = ["-creado", "-id"]
+
+    def __str__(self):
+        personas = "1 persona" if self.total_declarado == 1 else f"{self.total_declarado} personas"
+        return f"Familia de {self.responsable.apellido_nombre} · {personas}"
+
+    @property
+    def menores(self):
+        return self.menores_f + self.menores_m
+
+    @property
+    def adultos(self):
+        return self.adultos_f + self.adultos_m
+
+    @property
+    def mayores(self):
+        return self.mayores_f + self.mayores_m
+
+    def suma_de_cantidades(self):
+        """La suma de las seis cantidades: lo que ``total_declarado`` vale al crear el caso."""
+
+        return sum(getattr(self, campo) for campo in self.CANTIDADES)
+
+
+class IntegranteGrupo(TimeStamped):
+    """Una persona del grupo, numerada. Se completa cuando el dispositivo confirma su ficha.
+
+    ``ciudadano`` es nulo hasta la confirmación. ``ficha`` es el Formulario 2 con **esquema
+    fijo versionado** (decisión 6 del PM): un JSON con la clave ``version`` adentro. El
+    validador del mínimo para confirmar llega con la etapa 3; acá solo está el dato.
+
+    «Una persona una sola vez por grupo» es un ``UniqueConstraint`` común sobre
+    ``(grupo, ciudadano)``: los ``NULL`` no chocan entre sí en ningún motor del proyecto,
+    así que las filas sin confirmar conviven.
+    """
+
+    class Parentesco(models.TextChoices):
+        JEFE = "JEFE", "Jefe/a de hogar"
+        CONYUGE = "CONYUGE", "Cónyuge/pareja"
+        HIJO = "HIJO", "Hijo/a"
+        OTRO = "OTRO", "Otro"
+
+    grupo = models.ForeignKey(
+        GrupoFamiliar,
+        on_delete=models.PROTECT,
+        related_name="integrantes",
+        verbose_name="Grupo familiar",
+    )
+    orden = models.PositiveSmallIntegerField(verbose_name="N.° dentro del grupo")
+    ciudadano = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="integraciones_emergencia",
+        verbose_name="Persona",
+    )
+    parentesco = models.CharField(max_length=10, choices=Parentesco.choices, blank=True, verbose_name="Parentesco")
+    parentesco_otro = models.CharField(max_length=80, blank=True, verbose_name="Otro parentesco")
+    estadia = models.ForeignKey(
+        Estadia,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="integrantes_emergencia",
+        verbose_name="Estadía",
+    )
+    ficha = models.JSONField(default=dict, blank=True, verbose_name="Ficha individual (Formulario 2)")
+    ficha_completa = models.BooleanField(default=False, db_default=False, verbose_name="Ficha completa")
+    confirmada_en = models.DateTimeField(null=True, blank=True, verbose_name="Confirmada")
+    egresado_en = models.DateTimeField(null=True, blank=True, verbose_name="Egreso")
+
+    class Meta:
+        verbose_name = "Integrante del grupo familiar"
+        verbose_name_plural = "Integrantes del grupo familiar"
+        ordering = ["grupo_id", "orden"]
+        constraints = [
+            models.UniqueConstraint(fields=["grupo", "orden"], name="integrante_orden_unico_por_grupo"),
+            # Sin `condition=`: las filas sin persona (NULL) no chocan en MySQL, MariaDB ni SQLite.
+            models.UniqueConstraint(fields=["grupo", "ciudadano"], name="integrante_persona_unica_por_grupo"),
+        ]
+
+    def __str__(self):
+        quien = self.ciudadano.apellido_nombre if self.ciudadano_id else "sin confirmar"
+        return f"Integrante {self.orden} · {quien}"
+
+    @property
+    def confirmada(self):
+        return self.confirmada_en is not None
+
+
+class CasoEmergencia(TimeStamped):
+    """Una familia que hay que alojar, desde que se releva hasta que el caso se cierra.
+
+    Lo crea **solo** ``programas.services.emergencia.crear_caso`` y cada cambio de estado
+    pasa por ese módulo, que bloquea la fila y deja ``TrazaCaso``.
+
+    Las marcas de tiempo
+    --------------------
+
+    ``tomado_en``, ``derivado_en``, ``aceptado_en``, ``alojado_en`` y ``cerrado_en`` **se
+    escriben una sola vez**, la primera vez que el caso entra a ese estado (RN-2.9).
+    Soltar, reasignar o volver de una derivación cancelada o vencida no las borra: el
+    tramo del SLA sigue corriendo desde la primera vez, porque el SLA mide a la familia y
+    no al operador. ``marcar`` es la única forma de escribirlas.
+
+    ``relevado_en`` es la única hora que viene del teléfono (cuándo estuvo el agente en el
+    lugar, RU-18); ``creado`` es la del servidor al recibir el caso y es desde donde corre
+    el tramo «tomar».
+    """
+
+    class Origen(models.TextChoices):
+        TERRITORIO = "TERRITORIO", "Territorio"
+        MESA = "MESA", "Mesa"
+        DISPOSITIVO = "DISPOSITIVO", "Ingreso directo"
+
+    class Estado(models.TextChoices):
+        NUEVO = "NUEVO", "Nuevo"
+        EN_GESTION = "EN_GESTION", "En gestión"
+        DERIVADO = "DERIVADO", "Derivado"
+        INGRESO_EN_CURSO = "INGRESO_EN_CURSO", "Ingreso en curso"
+        ALOJADO = "ALOJADO", "Alojado"
+        CERRADO = "CERRADO", "Cerrado"
+
+    class Prioridad(models.TextChoices):
+        ALTA = "ALTA", "Alta"
+        MEDIA = "MEDIA", "Media"
+        BAJA = "BAJA", "Baja"
+
+    class MotivoCierre(models.TextChoices):
+        NO_REQUIERE = "NO_REQUIERE", "No requiere alojamiento"
+        SIN_CONTACTO = "SIN_CONTACTO", "Sin contacto con la familia"
+        ASISTIDO_DOMICILIO = "ASISTIDO_DOMICILIO", "Asistido en domicilio"
+        POR_SU_CUENTA = "POR_SU_CUENTA", "Se alojó por su cuenta"
+        OTRO = "OTRO", "Otro"
+        # No lo elige nadie: lo pone el egreso del último integrante (etapa 3).
+        TODOS_EGRESADOS = "TODOS_EGRESADOS", "Todos egresados"
+
+    #: Las marcas del SLA, en el orden en que el caso las va ganando.
+    MARCAS = ("tomado_en", "derivado_en", "aceptado_en", "alojado_en", "cerrado_en")
+    #: Desde cuántos metros de precisión del GPS la mesa lee «ubicación aproximada» (RN-1.7).
+    PRECISION_APROXIMADA_M = 100
+
+    numero = models.CharField(max_length=16, unique=True, editable=False, verbose_name="N.° de caso")
+    grupo = models.OneToOneField(
+        GrupoFamiliar,
+        on_delete=models.PROTECT,
+        related_name="caso",
+        verbose_name="Grupo familiar",
+    )
+    origen = models.CharField(max_length=12, choices=Origen.choices, verbose_name="Origen")
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.NUEVO,
+        db_default=Estado.NUEVO,
+        verbose_name="Estado",
+    )
+    prioridad = models.CharField(max_length=6, choices=Prioridad.choices, verbose_name="Prioridad")
+    localidad = models.ForeignKey(
+        "core.Localidad",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="casos_emergencia",
+        verbose_name="Localidad",
+    )
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Latitud")
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Longitud")
+    precision_m = models.PositiveIntegerField(null=True, blank=True, verbose_name="Precisión del GPS (m)")
+    direccion = models.CharField(max_length=240, verbose_name="Dirección")
+    necesidades = models.JSONField(default=dict, blank=True, verbose_name="Necesidades")
+    situacion = models.JSONField(default=dict, blank=True, verbose_name="Situación")
+    tomado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="casos_emergencia_tomados",
+        verbose_name="Tomado por",
+    )
+    relevado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="casos_emergencia_relevados",
+        verbose_name="Relevado por",
+    )
+    relevado_en = models.DateTimeField(verbose_name="Relevado")
+    tomado_en = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Tomado")
+    derivado_en = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Derivado")
+    aceptado_en = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Aceptado")
+    alojado_en = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Alojado")
+    cerrado_en = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Cerrado")
+    motivo_cierre = models.CharField(
+        max_length=20, choices=MotivoCierre.choices, blank=True, verbose_name="Motivo del cierre"
+    )
+    observacion_cierre = models.TextField(blank=True, verbose_name="Observación del cierre")
+    total_alojado = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Personas alojadas")
+    # App sin conexión: el identificador que generó el teléfono para este envío. Reenviarlo
+    # devuelve el mismo caso (RU-16). Único sobre columna anulable y `char(36)` en
+    # MySQL/MariaDB (programas.0118); se busca con `core.db.q_uuid_en_texto`.
+    uuid_cliente = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador del envío (app)",
+    )
+
+    class Meta:
+        verbose_name = "Caso de Emergencia"
+        verbose_name_plural = "Casos de Emergencia"
+        ordering = ["-creado", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(estado="CERRADO") | models.Q(cerrado_en__isnull=False),
+                name="caso_emergencia_cerrado_con_marca",
+            ),
+        ]
+        indexes = [
+            # Las solapas de la bandeja y su orden.
+            models.Index(fields=["estado", "prioridad"]),
+            # «Míos».
+            models.Index(fields=["tomado_por", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"Caso {self.numero}"
+
+    @staticmethod
+    def formatear_numero(anio, correlativo):
+        """«2026-000184»: el año y el correlativo de la serie, con seis dígitos."""
+
+        return f"{anio}-{correlativo:06d}"
+
+    @property
+    def abierto(self):
+        return self.estado != self.Estado.CERRADO
+
+    @property
+    def con_gps(self):
+        return self.latitud is not None and self.longitud is not None
+
+    @property
+    def ubicacion_aproximada(self):
+        """Con GPS, pero con más de 100 m de error (RN-1.7)."""
+
+        return self.con_gps and self.precision_m is not None and self.precision_m > self.PRECISION_APROXIMADA_M
+
+    @property
+    def ingreso_parcial(self):
+        """Se alojaron menos personas que las declaradas (cierre con diferencia, etapa 3)."""
+
+        return self.total_alojado is not None and self.total_alojado < self.grupo.total_declarado
+
+    @property
+    def carpeta_media(self):
+        """La carpeta de sus fotos bajo ``emergencia/casos/``: opaca y estable.
+
+        Sale del id y no de ``uuid_cliente``, que los casos cargados por la mesa no tienen.
+        """
+
+        if self.pk is None:
+            raise ValueError("Un caso sin guardar no tiene carpeta de archivos.")
+        return uuid.uuid5(uuid.NAMESPACE_OID, f"chaco.emergencia.caso.{self.pk}").hex
+
+    def marcar(self, marca, momento):
+        """Escribe una marca del SLA **solo si todavía no tiene valor** (RN-2.9).
+
+        Devuelve si la escribió. No guarda: el servicio decide el ``update_fields``.
+        """
+
+        if marca not in self.MARCAS:
+            raise ValueError(f"«{marca}» no es una marca de tiempo del caso.")
+        if getattr(self, marca) is not None:
+            return False
+        setattr(self, marca, momento)
+        return True
+
+
+class Derivacion(TimeStamped):
+    """El pedido de la mesa a un dispositivo para que aloje a la familia de un caso.
+
+    La clave de vigencia
+    --------------------
+
+    Un caso tiene **a lo sumo una** derivación pendiente o aceptada (RN-2.6).
+    ``clave_vigente`` vale el id del caso mientras la derivación está en uno de esos dos
+    estados y ``NULL`` apenas deja de estarlo, con un ``UniqueConstraint`` **sin
+    ``condition``** encima: es el patrón de ``Estadia.clave_alojamiento`` y existe por el
+    mismo motivo —un constraint condicional Django lo ignora en MySQL y en MariaDB, pasa
+    los tests en SQLite y no existe en producción—.
+
+    ``save()`` deriva la clave del estado, así que quien cambie el estado no la puede
+    dejar desalineada; un ``update()`` masivo que lo intente choca con el ``CHECK``.
+
+    Derivar **no reserva plazas**: las reserva el dispositivo al aceptar, que es quien
+    elige las camas (etapa 3).
+    """
+
+    class Estado(models.TextChoices):
+        PENDIENTE = "PENDIENTE", "Pendiente"
+        ACEPTADA = "ACEPTADA", "Aceptada"
+        RECHAZADA = "RECHAZADA", "Rechazada"
+        VENCIDA = "VENCIDA", "Vencida"
+        CANCELADA = "CANCELADA", "Cancelada"
+
+    #: Los estados en los que la derivación ocupa el lugar de «la vigente» del caso.
+    ESTADOS_VIGENTES = (Estado.PENDIENTE, Estado.ACEPTADA)
+
+    caso = models.ForeignKey(
+        CasoEmergencia,
+        on_delete=models.PROTECT,
+        related_name="derivaciones",
+        verbose_name="Caso",
+    )
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="derivaciones_emergencia",
+        verbose_name="Dispositivo",
+    )
+    estado = models.CharField(
+        max_length=10,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+        db_default=Estado.PENDIENTE,
+        verbose_name="Estado",
+    )
+    plazas_pedidas = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)], verbose_name="Plazas pedidas")
+    vence_en = models.DateTimeField(verbose_name="Vence")
+    derivada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="derivaciones_emergencia_hechas",
+        verbose_name="Derivada por",
+    )
+    respondida_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="derivaciones_emergencia_respondidas",
+        verbose_name="Respondida por",
+    )
+    respondida_en = models.DateTimeField(null=True, blank=True, verbose_name="Respondida")
+    motivo = models.CharField(max_length=200, blank=True, verbose_name="Motivo")
+    observacion = models.TextField(blank=True, verbose_name="Observación")
+    # `editable=False`: la deriva `save()` del estado. Ver el docstring de la clase.
+    clave_vigente = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Clave de vigencia",
+    )
+
+    class Meta:
+        verbose_name = "Derivación de Emergencia"
+        verbose_name_plural = "Derivaciones de Emergencia"
+        ordering = ["-creado", "-id"]
+        constraints = [
+            # Sin `condition=`, a propósito: es la única garantía de «una vigente por caso»
+            # que existe de verdad en MySQL y en MariaDB.
+            models.UniqueConstraint(fields=["clave_vigente"], name="derivacion_clave_vigente_unica"),
+            # Lo que mantiene honesta a la clave: vigente ⇒ con clave; resuelta ⇒ sin clave.
+            models.CheckConstraint(
+                condition=models.Q(estado__in=["PENDIENTE", "ACEPTADA"], clave_vigente__isnull=False)
+                | models.Q(estado__in=["RECHAZADA", "VENCIDA", "CANCELADA"], clave_vigente__isnull=True),
+                name="derivacion_estado_coherente_con_la_clave",
+            ),
+        ]
+        indexes = [
+            # Lo que busca la guardia: las derivaciones pendientes de su dispositivo.
+            models.Index(fields=["dispositivo", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"Derivación del caso {self.caso.numero} a {self.dispositivo.nombre}"
+
+    @property
+    def vigente(self):
+        return self.estado in self.ESTADOS_VIGENTES
+
+    def save(self, *args, **kwargs):
+        self.clave_vigente = self.caso_id if self.vigente else None
+        campos = kwargs.get("update_fields")
+        if campos is not None and "estado" in campos and "clave_vigente" not in campos:
+            kwargs["update_fields"] = [*campos, "clave_vigente"]
+        return super().save(*args, **kwargs)
+
+
+class ContactoCaso(TimeStamped):
+    """Un contacto de la mesa con la familia. Es un registro manual: no envía nada (RU-21)."""
+
+    class Canal(models.TextChoices):
+        LLAMADA = "LLAMADA", "Llamada"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        SMS = "SMS", "SMS"
+        PRESENCIAL = "PRESENCIAL", "Presencial"
+
+    class Resultado(models.TextChoices):
+        ATENDIO = "ATENDIO", "Atendió"
+        NO_ATENDIO = "NO_ATENDIO", "No atendió"
+        NUMERO_ERRONEO = "NUMERO_ERRONEO", "Número erróneo"
+        OTRO = "OTRO", "Otro"
+
+    caso = models.ForeignKey(
+        CasoEmergencia,
+        on_delete=models.PROTECT,
+        related_name="contactos",
+        verbose_name="Caso",
+    )
+    canal = models.CharField(max_length=12, choices=Canal.choices, verbose_name="Canal")
+    resultado = models.CharField(max_length=16, choices=Resultado.choices, verbose_name="Resultado")
+    observacion = models.TextField(blank=True, verbose_name="Observación")
+    por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="contactos_emergencia",
+        verbose_name="Registrado por",
+    )
+    momento = models.DateTimeField(verbose_name="Momento del contacto")
+
+    class Meta:
+        verbose_name = "Contacto con la familia"
+        verbose_name_plural = "Contactos con la familia"
+        ordering = ["-momento", "-id"]
+
+    def __str__(self):
+        return f"{self.get_canal_display()} · {self.get_resultado_display()} · caso {self.caso.numero}"
+
+
+class AdjuntoCaso(TimeStamped):
+    """Una foto del caso: la vivienda o el acceso. A lo sumo una de cada una (RN-1.9).
+
+    Es un dato personal de la familia: vive detrás de login bajo
+    ``emergencia/casos/<carpeta opaca del caso>/`` con nombre opaco (``core.rutas_media``) y
+    la sirve ``core.views.media`` a quien trabaja en la mesa (RU-17).
+    """
+
+    class Tipo(models.TextChoices):
+        VIVIENDA = "VIVIENDA", "Foto de la vivienda"
+        ACCESO = "ACCESO", "Foto del acceso"
+
+    caso = models.ForeignKey(
+        CasoEmergencia,
+        on_delete=models.PROTECT,
+        related_name="adjuntos",
+        verbose_name="Caso",
+    )
+    archivo = models.FileField(upload_to=ruta_adjunto_emergencia, validators=[validar_foto], verbose_name="Foto")
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, verbose_name="Tipo")
+    cargado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Cargado por",
+    )
+
+    class Meta:
+        verbose_name = "Foto de un caso de Emergencia"
+        verbose_name_plural = "Fotos de casos de Emergencia"
+        ordering = ["caso_id", "tipo"]
+        constraints = [
+            models.UniqueConstraint(fields=["caso", "tipo"], name="adjunto_caso_uno_por_tipo"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} · caso {self.caso.numero}"
+
+    @property
+    def carpeta_media(self):
+        return self.caso.carpeta_media
+
+
+class TrazaCasoQuerySet(models.QuerySet):
+    """Evita vías masivas de mutación para una auditoría solo-aditiva."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Las trazas de un caso son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Las trazas de un caso no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de un caso son inmutables.")
+
+
+class TrazaCasoManager(models.Manager.from_queryset(TrazaCasoQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de un caso son inmutables.")
+
+
+class TrazaCaso(models.Model):
+    """Historial inmutable de un caso de Emergencia: una fila por cada cosa que le pasó (RU-15).
+
+    Es además el reloj de la inactividad: «sin avance» es «sin traza nueva» (RN-2.8). No
+    hereda ``TimeStamped`` porque una fila que no se modifica no tiene ``modificado``
+    (igual que ``TrazaDispositivo``).
+
+    ``accion`` no lleva ``choices``, como en ``TrazaDispositivo``: las etapas siguientes
+    del módulo suman acciones y eso no tiene que costar una migración cada vez. Los
+    valores de esta etapa están en ``Accion``.
+    """
+
+    class Accion(models.TextChoices):
+        CREADO = "CREADO", "Caso creado"
+        TOMADO = "TOMADO", "Tomado"
+        SOLTADO = "SOLTADO", "Soltado"
+        REASIGNADO = "REASIGNADO", "Reasignado"
+        PRIORIDAD = "PRIORIDAD", "Cambio de prioridad"
+        CONTACTO = "CONTACTO", "Contacto con la familia"
+        DERIVADO = "DERIVADO", "Derivado"
+        DERIVACION_CANCELADA = "DERIVACION_CANCELADA", "Derivación cancelada"
+        CERRADO = "CERRADO", "Cerrado sin alojamiento"
+
+    caso = models.ForeignKey(
+        CasoEmergencia,
+        on_delete=models.PROTECT,
+        related_name="trazas",
+        verbose_name="Caso",
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="trazas_casos_emergencia",
+        verbose_name="Usuario",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    accion = models.CharField(max_length=40, verbose_name="Acción")
+    estado_anterior = models.CharField(max_length=20, blank=True, verbose_name="Estado anterior")
+    estado_nuevo = models.CharField(max_length=20, blank=True, verbose_name="Estado nuevo")
+    detalle = models.TextField(blank=True, verbose_name="Detalle")
+    # RU-13: quien supervisa actúa sobre un caso ajeno sin tomarlo, y queda dicho.
+    por_supervisor = models.BooleanField(default=False, db_default=False, verbose_name="Por supervisor")
+    objects = TrazaCasoManager()
+
+    class Meta:
+        verbose_name = "Traza de caso de Emergencia"
+        verbose_name_plural = "Trazas de casos de Emergencia"
+        ordering = ["creado_en", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+
+    def __str__(self):
+        return f"Caso {self.caso.numero} · {self.accion_legible}"
+
+    @property
+    def accion_legible(self):
+        try:
+            return self.Accion(self.accion).label
+        except ValueError:
+            return self.accion
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las trazas de un caso son inmutables.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las trazas de un caso no se eliminan.")
+
+
+class NumeradorEmergencia(TimeStamped):
+    """El contador de una serie de Emergencia en un año: una fila, un número que solo sube.
+
+    Se usa **siempre** con ``select_for_update()`` (``programas.services.emergencia``):
+    quien numera bloquea la fila, suma uno y recién entonces da de alta. Nunca
+    ``MAX(numero) + 1``, que con dos altas a la vez reparte el mismo número.
+    """
+
+    class Serie(models.TextChoices):
+        CASOS = "C", "Casos"
+        KITS = "K", "Entregas de kits"
+
+    serie = models.CharField(max_length=1, choices=Serie.choices, verbose_name="Serie")
+    anio = models.PositiveSmallIntegerField(verbose_name="Año")
+    ultimo = models.PositiveIntegerField(default=0, db_default=0, verbose_name="Último número asignado")
+
+    class Meta:
+        verbose_name = "Numerador de Emergencia"
+        verbose_name_plural = "Numeradores de Emergencia"
+        ordering = ["anio", "serie"]
+        constraints = [
+            models.UniqueConstraint(fields=["serie", "anio"], name="numerador_emergencia_serie_anio_unico"),
+        ]
+
+    def __str__(self):
+        return f"Serie {self.serie} · {self.anio}: {self.ultimo}"

@@ -69,6 +69,7 @@ COLUMNAS_UUID_AMPLIADAS = (
         "uuid_resultado",
         "programas.0093",
     ),
+    ("programas.CasoEmergencia", "uuid_cliente", "programas_casoemergencia", "uuid_cliente", "programas.0118"),
     ("users.SolicitudCambioEmail", "token", "users_solicitudcambioemail", "token", "users.0023"),
     ("legajos.LegajoAtencion", "id", "legajos_legajoatencion", "id", "legajos.0007"),
     ("legajos.AlertaCiudadano", "legajo", "legajos_alertaciudadano", "legajo_id", "legajos.0007"),
