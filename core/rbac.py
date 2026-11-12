@@ -102,6 +102,39 @@ CATALOGO = [
         ],
     },
     {
+        # Emergencia (PR 1 del módulo). ``recibir_kit`` va en un módulo propio y acotado a
+        # DISPOSITIVOS, no en ``emergencia``: se evalúa con ``puede_operar_dispositivo``,
+        # que mira los roles del programa Dispositivos y el Equipo del dispositivo. En un
+        # módulo acotado a EMERGENCIA no se podría tildar en el rol de la guardia (SEC-06)
+        # y nadie la tendría nunca.
+        "modulo": "dispositivos_emergencia",
+        "label": "Emergencia en el dispositivo",
+        "tab": "dispositivos",
+        "alcance": "programa",
+        "programas": ("DISPOSITIVOS",),
+        "capacidades": [
+            ("emergencia.recibir_kit", "Confirmar la recepción de kits de emergencia en su dispositivo"),
+        ],
+    },
+    {
+        # Mesa de Emergencia. Las tres se evalúan con alcance sobre el programa EMERGENCIA
+        # (``programas.services.emergencia_programa.puede_en_programa_emergencia``) y solo
+        # se pueden tildar en un rol de ese programa.
+        "modulo": "emergencia",
+        "label": "Emergencia",
+        "tab": "emergencia",
+        "alcance": "programa",
+        "programas": ("EMERGENCIA",),
+        "capacidades": [
+            ("emergencia.relevar", "Relevar familias en campo (app de campo de Emergencia)"),
+            ("emergencia.operar", "Operar la mesa de Emergencia (casos, derivaciones y entregas de kits)"),
+            (
+                "emergencia.supervisar",
+                "Supervisar la mesa de Emergencia (tablero, reasignar casos y configuración)",
+            ),
+        ],
+    },
+    {
         "modulo": "relevamientos",
         "label": "Relevamientos",
         "tab": "general",
@@ -367,6 +400,7 @@ TABS_CAPACIDADES = [
     {"id": "administracion", "label": "Administración", "icon": "fa-gear"},
     {"id": "becas", "label": "Becas", "icon": "fa-graduation-cap"},
     {"id": "dispositivos", "label": "Dispositivos", "icon": "fa-building"},
+    {"id": "emergencia", "label": "Emergencia", "icon": "fa-life-ring"},
 ]
 
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
@@ -418,6 +452,10 @@ GRUPO_CIUDADANO_PORTAL = "Ciudadanos"
 #: único donde un admin de programa puede delegarla (SEC-07). Vive acá y no en
 #: ``programas`` porque ``core`` no puede importar esa app.
 CODIGO_PROGRAMA_DISPOSITIVOS = "DISPOSITIVOS"
+
+#: Programa de la mesa de Emergencia. Las capacidades del módulo ``emergencia`` se evalúan
+#: con alcance sobre este programa (RU-7). Vive acá por el mismo motivo que el de arriba.
+CODIGO_PROGRAMA_EMERGENCIA = "EMERGENCIA"
 
 
 class SinAdministradorError(Exception):
@@ -871,12 +909,13 @@ def es_ciudadano_portal(user):
 
 
 #: Las capacidades que solo se ejercen desde la app de campo (D-26/SEC-26): el territorial de
-#: Becas y el agente del relevamiento edilicio de Dispositivos (MVP v2, task 38). Quien tiene
-#: alguna de estas **y nada más** nunca pisa el backoffice: el login web lo rechaza, el alta le
-#: exige correo y la clave le llega como link de reseteo. Las dos son de módulos «de
-#: programa», pero el `CATALOGO` solo las deja otorgar en su programa (SEC-06), así que acá
-#: se preguntan sin alcance, como siempre se preguntó ``becas.campo``.
-CAPACIDADES_DE_CAMPO = frozenset({"becas.campo", "inspeccion.relevar"})
+#: Becas, el agente del relevamiento edilicio de Dispositivos (MVP v2, task 38) y el agente
+#: territorial de Emergencia (Formulario 1). Quien tiene alguna de estas **y nada más** nunca
+#: pisa el backoffice: el login web lo rechaza, el alta le exige correo y la clave le llega
+#: como link de reseteo. Las tres son de módulos «de programa», pero el `CATALOGO` solo las
+#: deja otorgar en su programa (SEC-06), así que acá se preguntan sin alcance, como siempre
+#: se preguntó ``becas.campo``.
+CAPACIDADES_DE_CAMPO = frozenset({"becas.campo", "inspeccion.relevar", "emergencia.relevar"})
 
 
 def es_solo_campo(user):

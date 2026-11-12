@@ -102,6 +102,7 @@ class Programa(TimeStamped):
         CAPACITACION_COMUNITARIA = "CAPACITACION_COMUNITARIA", "Capacitación Comunitaria"
         BECAS = "BECAS", "Becas"
         DISPOSITIVOS = "DISPOSITIVOS", "Dispositivos"
+        EMERGENCIA = "EMERGENCIA", "Emergencia"
 
     class Naturaleza(models.TextChoices):
         UN_SOLO_ACTO = "UN_SOLO_ACTO", "Un solo acto"
@@ -5016,3 +5017,196 @@ class CorridaSiis(TimeStamped):
             if not corrida.interrumpida:
                 return corrida
         return None
+
+
+# ---------------------------------------------------------------------------
+# Emergencia · configuración (PR 1 del módulo): SLA de la mesa y catálogo de kits
+# ---------------------------------------------------------------------------
+
+
+class SLAEmergencia(TimeStamped):
+    """Parámetros de la mesa de Emergencia. **Una fila por programa** (pantalla E7).
+
+    Los objetivos son los minutos que tiene cada tramo del caso antes de quedar fuera de
+    SLA; el semáforo se calcula al leer, así que cambiarlos mueve el de todos los casos
+    abiertos. La vigencia de la derivación y los minutos sin avance, en cambio, solo
+    afectan a lo que se crea después (RN-5.5). Cada cambio deja ``TrazaConfiguracion``.
+
+    ``db_default`` además de ``default`` en todas las columnas con valor de fábrica: el
+    default de Python lo pone el ORM al armar el INSERT, y con el esquema adelantado y el
+    código viejo —lo que deja un rollback— ese INSERT no existe. Con el DEFAULT escrito en
+    la base, una fila creada a mano o por un seed viejo nace con los valores acordados.
+    """
+
+    VIGENCIA_MINIMA_MIN = 30
+    UMBRAL_MINIMO_PCT = 50
+    UMBRAL_MAXIMO_PCT = 95
+
+    programa = models.OneToOneField(
+        Programa,
+        on_delete=models.PROTECT,
+        related_name="sla_emergencia",
+        verbose_name="Programa",
+    )
+    nombre_evento = models.CharField(
+        max_length=120,
+        default="Emergencia",
+        db_default="Emergencia",
+        verbose_name="Nombre del evento",
+        help_text="Se muestra en el tablero y en el encabezado de la bandeja de casos.",
+    )
+    objetivo_tomar_min = models.PositiveIntegerField(
+        default=15,
+        db_default=15,
+        validators=[MinValueValidator(1)],
+        verbose_name="Objetivo para tomar el caso (min)",
+        help_text="Minutos desde que entra el caso hasta que un operador lo toma.",
+    )
+    objetivo_derivar_min = models.PositiveIntegerField(
+        default=30,
+        db_default=30,
+        validators=[MinValueValidator(1)],
+        verbose_name="Objetivo para derivar (min)",
+        help_text="Minutos desde que se toma el caso hasta que se deriva a un dispositivo.",
+    )
+    objetivo_aceptar_min = models.PositiveIntegerField(
+        default=120,
+        db_default=120,
+        validators=[MinValueValidator(1)],
+        verbose_name="Objetivo para aceptar la derivación (min)",
+        help_text="Minutos que tiene el dispositivo para aceptar o rechazar la derivación.",
+    )
+    objetivo_alojar_min = models.PositiveIntegerField(
+        default=60,
+        db_default=60,
+        validators=[MinValueValidator(1)],
+        verbose_name="Objetivo para alojar (min)",
+        help_text="Minutos desde que la familia llega al dispositivo hasta que queda alojada.",
+    )
+    vigencia_derivacion_min = models.PositiveIntegerField(
+        default=720,
+        db_default=720,
+        validators=[MinValueValidator(VIGENCIA_MINIMA_MIN)],
+        verbose_name="Vigencia de la derivación (min)",
+        help_text="Mínimo 30. Vale para las derivaciones nuevas; las ya creadas conservan su vencimiento.",
+    )
+    sin_avance_min = models.PositiveIntegerField(
+        default=60,
+        db_default=60,
+        validators=[MinValueValidator(0)],
+        verbose_name="Minutos sin avance antes de devolver a la bandeja",
+        help_text="Con 0 el caso tomado no vuelve solo a la bandeja.",
+    )
+    umbral_por_vencer_pct = models.PositiveSmallIntegerField(
+        default=80,
+        db_default=80,
+        validators=[MinValueValidator(UMBRAL_MINIMO_PCT), MaxValueValidator(UMBRAL_MAXIMO_PCT)],
+        verbose_name="Umbral «por vencer» (%)",
+        help_text="Entre 50 y 95. Porcentaje del objetivo desde el que el caso se marca por vencer.",
+    )
+
+    class Meta:
+        verbose_name = "SLA de Emergencia"
+        verbose_name_plural = "SLA de Emergencia"
+
+    def __str__(self):
+        return f"SLA de {self.nombre_evento}"
+
+
+class TipoKit(TimeStamped):
+    """Ítem del catálogo de kits de Emergencia (RN-4.7).
+
+    **Nunca se borra**: las líneas de las entregas lo referencian. Se desactiva, y deja de
+    ofrecerse en las entregas nuevas sin desaparecer de las viejas.
+    """
+
+    nombre = models.CharField(max_length=80, unique=True, verbose_name="Nombre")
+    unidad = models.CharField(
+        max_length=30,
+        verbose_name="Unidad",
+        help_text="Cómo se cuenta: kit, unidad, bidón…",
+    )
+    activo = models.BooleanField(default=True, db_default=True, verbose_name="Activo")
+    orden = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Tipo de kit"
+        verbose_name_plural = "Tipos de kit"
+        ordering = ["orden", "nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.unidad})"
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Los tipos de kit no se eliminan: se desactivan.")
+
+
+class TrazaConfiguracionQuerySet(models.QuerySet):
+    """Evita vías masivas de mutación para una auditoría solo-aditiva."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Las trazas de configuración son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Las trazas de configuración no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de configuración son inmutables.")
+
+
+class TrazaConfiguracionManager(models.Manager.from_queryset(TrazaConfiguracionQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de configuración son inmutables.")
+
+
+class TrazaConfiguracion(models.Model):
+    """Historial inmutable de la configuración de Emergencia (E7): un cambio por fila.
+
+    Es lo que le permite a la mesa explicar por qué un caso dejó de estar fuera de SLA:
+    quién cambió qué, cuándo, y de qué valor a cuál. No hereda ``TimeStamped`` porque una
+    fila que no se modifica no tiene ``modificado`` (igual que ``TrazaDispositivo``).
+    """
+
+    class Objeto(models.TextChoices):
+        SLA = "SLA", "SLA"
+        TIPO_KIT = "TIPO_KIT", "Tipo de kit"
+
+    programa = models.ForeignKey(
+        Programa,
+        on_delete=models.PROTECT,
+        related_name="trazas_configuracion",
+        verbose_name="Programa",
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="trazas_configuracion_emergencia",
+        verbose_name="Usuario",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    objeto = models.CharField(max_length=20, choices=Objeto.choices, verbose_name="Objeto")
+    objeto_id = models.PositiveBigIntegerField(null=True, blank=True, verbose_name="Id del objeto")
+    campo = models.CharField(max_length=60, verbose_name="Campo")
+    valor_anterior = models.CharField(max_length=255, blank=True, verbose_name="Valor anterior")
+    valor_nuevo = models.CharField(max_length=255, blank=True, verbose_name="Valor nuevo")
+    objects = TrazaConfiguracionManager()
+
+    class Meta:
+        verbose_name = "Traza de configuración de Emergencia"
+        verbose_name_plural = "Trazas de configuración de Emergencia"
+        ordering = ["creado_en", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+
+    def __str__(self):
+        return f"{self.get_objeto_display()} · {self.campo}: {self.valor_anterior or '—'} → {self.valor_nuevo or '—'}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las trazas de configuración son inmutables.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las trazas de configuración no se eliminan.")
