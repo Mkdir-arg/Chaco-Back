@@ -17,8 +17,8 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
 {# Sin overflow-hidden: la lista desplegable del buscador (nodo-buscador) se abre hacia abajo y la tarjeta la recortaba (V-02). #}
 <section class="bg-white rounded-xl border border-base shadow-sm mt-5" aria-labelledby="titulo-formulario-tipo">
   <div class="px-5 py-4 border-b border-light">
-    <h2 id="titulo-formulario-tipo" class="text-heading font-bold">Formulario de ingreso</h2>
-    <p class="mt-1 text-xs text-body-subtle">Lo pide el tipo «{{ formulario_tipo.diseno.tipo_dispositivo.nombre }}». Los campos con * hacen falta para enviar a validación.</p>
+    <h2 id="titulo-formulario-tipo" class="text-heading font-bold">{{ formulario_titulo|default:"Formulario de ingreso" }}</h2>
+    <p class="mt-1 text-xs text-body-subtle">{% if formulario_nota %}{{ formulario_nota }}{% else %}Lo pide el tipo «{{ formulario_tipo.diseno.tipo_dispositivo.nombre }}». Los campos con * hacen falta para enviar a validación.{% endif %}</p>
   </div>
   <div class="p-5">
 {% for grupo in formulario_tipo.grupos %}

@@ -13,8 +13,8 @@ from pathlib import Path
 from django import forms
 
 from core.validators import validar_firma
-from programas.services.respuestas import aplicar, planos_de
-from programas.services.respuestas_dispositivo import faltantes_de
+from programas.services.respuestas import aplicar, campos_de, planos_de
+from programas.services.respuestas_dispositivo import faltantes_de, formulario_vigente, foto_vigente
 
 INPUT_CLASS = "nodo-field w-full"
 
@@ -249,6 +249,12 @@ class RespuestasDisenoForm(forms.Form):
         respuestas = self._respuestas_de(self.cleaned_data)
         return {clave: valor for clave, valor in respuestas.items() if clave not in self._ocultos}
 
+    def respuestas_sin_archivos(self):
+        """Lo de :meth:`respuestas` sin los campos ARCHIVO: lo que se puede conservar entre un intento y
+        el siguiente (el archivo se vuelve a elegir)."""
+        claves = {clave for clave, item in self._campos if item.get("tipo") == "ARCHIVO"}
+        return {clave: valor for clave, valor in self.respuestas().items() if clave not in claves}
+
     def archivos(self):
         """``[(clave, archivo)]`` de los ARCHIVO visibles con un archivo nuevo."""
         subidos = []
@@ -275,3 +281,22 @@ class RespuestasDisenoForm(forms.Form):
         for campo in self.faltantes():
             if campo["clave"] in self.fields and not self.has_error(campo["clave"]):
                 self.add_error(campo["clave"], "Este dato es obligatorio.")
+
+
+def formulario_de_momento_para(tipo_id, momento, data=None, files=None, guardadas=None, prefijo="formulario"):
+    """El formulario vigente de ``tipo_id`` para un ``momento`` de la estadía (ingreso, egreso), armado
+    desde su foto, o ``None`` si el tipo no tiene ninguno o lo dio de baja.
+
+    ``guardadas`` precarga por clave lo que se conserva entre un intento y el siguiente. Un archivo
+    **nunca** se conserva: se vuelve a elegir (un nombre guardado valdría como «ya cargado» sin que haya
+    ningún archivo), así que acá se descartan las claves ARCHIVO.
+    """
+    diseno = formulario_vigente(tipo_id, momento)
+    if diseno is None:
+        return None
+    foto = foto_vigente(diseno)
+    archivos = {campo["clave"] for campo in campos_de(foto) if campo.get("tipo") == "ARCHIVO"}
+    precargadas = {clave: valor for clave, valor in (guardadas or {}).items() if clave not in archivos}
+    formulario = RespuestasDisenoForm(data, files, foto=foto, guardadas=precargadas, prefix=prefijo)
+    formulario.diseno = diseno
+    return formulario

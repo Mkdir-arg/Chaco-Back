@@ -7,7 +7,9 @@ Una URL por paso, con el estado en sesión (arquetipo Wizard):
    en ninguno de los dos, se ofrece el alta mínima (nombre, apellido, nacimiento y género).
 2. **Plaza** — solo si el tipo del dispositivo maneja plazas. Tocar una plaza en el mapa
    la marca; recién «Continuar» la guarda.
-3. **Confirmar** — resumen y escritura.
+3. **Confirmar** — resumen y escritura. Si el tipo del dispositivo tiene un formulario vigente de
+   «Ingreso», se pide acá, en su propia tarjeta: se valida antes de escribir (un obligatorio visible
+   vacío frena el ingreso) y se guarda en la misma transacción que la estadía.
 
 Solo el paso final escribe. Y como entre el paso 2 y el 3 otro operador puede tomar la
 plaza, el paso final **no confía en lo que se eligió antes**: delega en
@@ -30,17 +32,20 @@ import json
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
+from core.archivos import archivos_atomicos
 from core.edad import edad_en_anios, fecha_o_none
 from core.rbac import puede
 from legajos.models import Ciudadano
+from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
 from programas.mixins_dispositivos import dispositivo_operable_o_404
-from programas.models import Dispositivo, Plaza
+from programas.models import Dispositivo, MomentoFormulario, Plaza
 from programas.services.bitacora import turno_vigente
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.estadias import (
@@ -64,6 +69,7 @@ from programas.services.ocupacion import (
     ocupacion_de_plazas,
     tension_de_ocupacion,
 )
+from programas.services.respuestas_dispositivo import guardar_respuestas_ingreso
 
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
@@ -610,7 +616,19 @@ class IngresoConfirmarView(IngresoBaseView):
             return redirect(self.urls()["plaza"])
         return None
 
-    def render_paso(self, request, estado, persona, form, aviso=""):
+    def _formulario(self, estado, data=None, files=None):
+        """El formulario de «Ingreso» del tipo, o ``None`` si no pide ninguno. Lo no-archivo que quedó de
+        un intento que rebotó al paso de la plaza vuelve precargado (``estado["formulario"]``)."""
+
+        return formulario_de_momento_para(
+            self.dispositivo.tipo_id,
+            MomentoFormulario.INGRESO,
+            data,
+            files,
+            guardadas=estado.get("formulario"),
+        )
+
+    def render_paso(self, request, estado, persona, form, aviso="", formulario=None):
         ciudadano = persona.get("ciudadano")
         verificacion = verificar_alojamiento_en_red(ciudadano, request.user) if ciudadano else None
         plaza = None
@@ -629,6 +647,17 @@ class IngresoConfirmarView(IngresoBaseView):
                 "url_anterior": self.urls()["plaza" if self.usa_plazas else "persona"],
             }
         )
+        if formulario is not None:
+            contexto.update(
+                {
+                    "formulario_tipo": formulario,
+                    "formulario_titulo": "Formulario de ingreso",
+                    "formulario_nota": (
+                        f"Lo pide el tipo «{formulario.diseno.tipo_dispositivo.nombre}». "
+                        "Los campos con * son obligatorios para confirmar el ingreso."
+                    ),
+                }
+            )
         return render(request, self.template_name, contexto)
 
     def get(self, request, pk):
@@ -639,7 +668,7 @@ class IngresoConfirmarView(IngresoBaseView):
         persona = self.resumen_persona(estado)
         if persona is None:
             return self.volver_al_inicio("La persona elegida ya no está en el Legajo Ciudadano. Buscala de nuevo.")
-        return self.render_paso(request, estado, persona, IngresoConfirmarForm())
+        return self.render_paso(request, estado, persona, IngresoConfirmarForm(), formulario=self._formulario(estado))
 
     def _es_lo_mostrado(self, estado):
         """¿Persona y plaza del POST son las de la sesión? Si falta alguna, no."""
@@ -665,11 +694,60 @@ class IngresoConfirmarView(IngresoBaseView):
         if not self._es_lo_mostrado(estado):
             # Otra pestaña cambió la persona o la plaza: no se escribe nada y se vuelve a
             # mostrar el resumen con lo que hay ahora, que es lo único que se puede confirmar.
-            return self.render_paso(request, estado, persona, IngresoConfirmarForm(), AVISO_OTRA_PESTANA)
-        if not form.is_valid():
-            return self.render_paso(request, estado, persona, form)
+            return self.render_paso(
+                request,
+                estado,
+                persona,
+                IngresoConfirmarForm(),
+                AVISO_OTRA_PESTANA,
+                formulario=self._formulario(estado),
+            )
+        formulario = self._formulario(estado, request.POST, request.FILES)
+        # Las dos partes se validan siempre, para mostrar todos los errores juntos. Los obligatorios
+        # del formulario del tipo bloquean el ingreso: antes de llamar al servicio no se escribe nada.
+        valido = form.is_valid()
+        if formulario is not None:
+            valido = formulario.is_valid() and valido
+            if valido and formulario.faltantes():
+                formulario.marcar_faltantes()
+                valido = False
+        if not valido:
+            return self.render_paso(request, estado, persona, form, formulario=formulario)
 
         try:
+            estadia = self._confirmar(request, estado, form, formulario)
+        except AlojamientoEnLaRed as error:
+            form.add_error(None, error.verificacion.mensaje)
+            return self.render_paso(request, estado, persona, form, formulario=formulario)
+        except Ciudadano.DoesNotExist:
+            return self.volver_al_inicio("La persona elegida ya no está en el Legajo Ciudadano. Buscala de nuevo.")
+        except Plaza.DoesNotExist:
+            return self._volver_a_la_plaza(estado, "La plaza elegida ya no existe. Elegí otra.", formulario)
+        except ValidationError as error:
+            errores = getattr(error, "message_dict", None) or {"__all__": error.messages}
+            if "plaza" in errores or "reserva" in errores:
+                # Otro operador la tomó (o la sacaron de servicio, o la reserva dejó de
+                # valer) desde que se eligió: se vuelve al paso que la eligió, con el
+                # motivo, y no se reintenta solo.
+                return self._volver_a_la_plaza(
+                    estado, " ".join(errores.get("plaza", []) + errores.get("reserva", [])), formulario
+                )
+            for campo, mensajes in errores.items():
+                for mensaje in mensajes:
+                    form.add_error(campo if campo in form.fields else None, mensaje)
+            return self.render_paso(request, estado, persona, form, formulario=formulario)
+
+        self.limpiar()
+        messages.success(request, f"{estadia.ciudadano.nombre_completo} ingresó a {self.dispositivo.nombre}.")
+        return redirect(self.urls()["dispositivo"])
+
+    @archivos_atomicos
+    def _confirmar(self, request, estado, form, formulario):
+        """El ingreso y, si el tipo lo pide, sus respuestas: **una** transacción. El servicio de siempre
+        no cambia; si guardar las respuestas falla se deshace también la estadía (y el alta del legajo), y
+        `archivos_atomicos` borra el archivo que ya se hubiera escrito."""
+
+        with transaction.atomic():
             estadia = confirmar_ingreso(
                 dispositivo=self.dispositivo,
                 usuario=request.user,
@@ -679,30 +757,21 @@ class IngresoConfirmarView(IngresoBaseView):
                 plaza_id=estado.get("plaza_id"),
                 fecha_ingreso=form.cleaned_data["fecha_ingreso"],
             )
-        except AlojamientoEnLaRed as error:
-            form.add_error(None, error.verificacion.mensaje)
-            return self.render_paso(request, estado, persona, form)
-        except Ciudadano.DoesNotExist:
-            return self.volver_al_inicio("La persona elegida ya no está en el Legajo Ciudadano. Buscala de nuevo.")
-        except Plaza.DoesNotExist:
-            return self._volver_a_la_plaza(estado, "La plaza elegida ya no existe. Elegí otra.")
-        except ValidationError as error:
-            errores = getattr(error, "message_dict", None) or {"__all__": error.messages}
-            if "plaza" in errores or "reserva" in errores:
-                # Otro operador la tomó (o la sacaron de servicio, o la reserva dejó de
-                # valer) desde que se eligió: se vuelve al paso que la eligió, con el
-                # motivo, y no se reintenta solo.
-                return self._volver_a_la_plaza(estado, " ".join(errores.get("plaza", []) + errores.get("reserva", [])))
-            for campo, mensajes in errores.items():
-                for mensaje in mensajes:
-                    form.add_error(campo if campo in form.fields else None, mensaje)
-            return self.render_paso(request, estado, persona, form)
+            if formulario is not None:
+                guardar_respuestas_ingreso(
+                    estadia,
+                    formulario.diseno,
+                    formulario.foto,
+                    formulario.respuestas(),
+                    formulario.archivos(),
+                    request.user,
+                )
+        return estadia
 
-        self.limpiar()
-        messages.success(request, f"{estadia.ciudadano.nombre_completo} ingresó a {self.dispositivo.nombre}.")
-        return redirect(self.urls()["dispositivo"])
-
-    def _volver_a_la_plaza(self, estado, mensaje):
+    def _volver_a_la_plaza(self, estado, mensaje, formulario=None):
+        if formulario is not None:
+            # Lo no-archivo se conserva para cuando vuelva a «Confirmar»; el archivo se vuelve a elegir.
+            estado["formulario"] = formulario.respuestas_sin_archivos()
         estado.pop("plaza_id", None)
         estado.pop("plaza_decidida", None)
         estado["error_plaza"] = mensaje
