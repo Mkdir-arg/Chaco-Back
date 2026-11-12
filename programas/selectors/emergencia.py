@@ -310,7 +310,9 @@ def bandeja(filtros=None, *, sla=None, ahora=None):
     if desconocidos:
         raise ValueError(f"Filtros que la bandeja no conoce: {', '.join(sorted(desconocidos))}.")
 
-    casos = con_avisos_de_la_mesa(CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por"))
+    casos = con_avisos_de_la_mesa(
+        CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por")
+    )
     solapa = filtros.get("solapa") or ""
     filtro_sla = filtros.get("sla") or ""
     if solapa and solapa not in SOLAPAS:
