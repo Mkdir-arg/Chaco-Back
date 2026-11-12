@@ -22,6 +22,7 @@ from core.rutas_media import (
     ruta_adjunto_emergencia,
     ruta_formulario_dispositivo,
     ruta_foto_inspeccion,
+    ruta_remito_entrega,
 )
 from core.validators import validar_adjunto, validar_foto
 from legajos.models import Ciudadano
@@ -5881,3 +5882,249 @@ class NumeradorEmergencia(TimeStamped):
 
     def __str__(self):
         return f"Serie {self.serie} · {self.anio}: {self.ultimo}"
+
+
+class EntregaKit(TimeStamped):
+    """Una entrega de insumos de la mesa a un dispositivo: **una entrega, una recepción** (etapa 4).
+
+    No hay stock ni depósitos (RN-4.6): las cantidades son lo que dice un remito. La mesa
+    la arma (``PREPARADA``), la marca en camino y el dispositivo confirma qué llegó; lo que
+    difiere queda a la vista en cada línea. Toda regla está en ``programas.services.kits``.
+
+    El remito es documentación de la operación del dispositivo: vive detrás de login bajo
+    ``emergencia/entregas/<carpeta opaca de la entrega>/`` y lo bajan la mesa y el Equipo
+    del dispositivo destino (``core.views.media``, RU-17).
+    """
+
+    class Estado(models.TextChoices):
+        PREPARADA = "PREPARADA", "Preparada"
+        EN_CAMINO = "EN_CAMINO", "En camino"
+        RECIBIDA = "RECIBIDA", "Recibida"
+        RECIBIDA_CON_DIFERENCIAS = "RECIBIDA_CON_DIFERENCIAS", "Recibida con diferencias"
+        CANCELADA = "CANCELADA", "Cancelada"
+
+    #: Todavía la puede recibir el dispositivo o cancelar la mesa.
+    ESTADOS_ABIERTOS = (Estado.PREPARADA, Estado.EN_CAMINO)
+    ESTADOS_RECIBIDOS = (Estado.RECIBIDA, Estado.RECIBIDA_CON_DIFERENCIAS)
+
+    numero = models.CharField(max_length=20, unique=True, editable=False, verbose_name="N.° de entrega")
+    dispositivo = models.ForeignKey(
+        "Dispositivo",
+        on_delete=models.PROTECT,
+        related_name="entregas_de_kits",
+        verbose_name="Dispositivo destino",
+    )
+    estado = models.CharField(
+        max_length=30,
+        choices=Estado.choices,
+        default=Estado.PREPARADA,
+        db_default=Estado.PREPARADA,
+        verbose_name="Estado",
+    )
+    armada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="entregas_de_kits_armadas",
+        verbose_name="Armada por",
+    )
+    # Nace con la nota de la mesa para el dispositivo; después de la recepción es donde la
+    # mesa anota una corrección, con traza (RN-4.5).
+    observacion_mesa = models.TextField(blank=True, verbose_name="Observación de la mesa")
+    transporte = models.CharField(max_length=120, blank=True, default="", db_default="", verbose_name="Transporte")
+    despachada_en = models.DateTimeField(null=True, blank=True, verbose_name="En camino desde")
+    recibida_en = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Recibida")
+    recibida_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="entregas_de_kits_recibidas",
+        verbose_name="Recibida por",
+    )
+    observacion_dispositivo = models.TextField(blank=True, verbose_name="Observación del dispositivo")
+    remito = models.FileField(
+        upload_to=ruta_remito_entrega,
+        validators=[validar_foto],
+        blank=True,
+        verbose_name="Foto del remito",
+    )
+    repone_a = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reposiciones",
+        verbose_name="Repone a",
+    )
+    motivo_cancelacion = models.CharField(
+        max_length=200, blank=True, default="", db_default="", verbose_name="Motivo de la cancelación"
+    )
+    # El identificador que generó el teléfono para **esta recepción**: reenviarlo devuelve la
+    # misma entrega sin reescribir (RN-4.4, RU-16). Único sobre columna anulable y `char(36)`
+    # en MySQL/MariaDB (programas.0120); se busca con `core.db.q_uuid_en_texto`.
+    uuid_cliente_recepcion = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador de la recepción (app)",
+    )
+
+    class Meta:
+        verbose_name = "Entrega de kits"
+        verbose_name_plural = "Entregas de kits"
+        ordering = ["-creado", "-id"]
+        indexes = [
+            # Las pendientes de un dispositivo (M3, recepción web) y las solapas de la mesa.
+            models.Index(fields=["dispositivo", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"Entrega {self.numero}"
+
+    @staticmethod
+    def formatear_numero(anio, correlativo):
+        """«2026-K-000031»: el año, la serie de kits y el correlativo con seis dígitos."""
+
+        return f"{anio}-K-{correlativo:06d}"
+
+    @property
+    def abierta(self):
+        return self.estado in self.ESTADOS_ABIERTOS
+
+    @property
+    def recibida(self):
+        return self.estado in self.ESTADOS_RECIBIDOS
+
+    @property
+    def carpeta_media(self):
+        """La carpeta de su remito bajo ``emergencia/entregas/``: opaca y estable."""
+
+        if self.pk is None:
+            raise ValueError("Una entrega sin guardar no tiene carpeta de archivos.")
+        return uuid.uuid5(uuid.NAMESPACE_OID, f"chaco.emergencia.entrega.{self.pk}").hex
+
+
+class LineaEntrega(TimeStamped):
+    """Un ítem de una entrega: cuánto salió y cuánto llegó (RN-4.1, RN-4.3).
+
+    ``unidad`` se **copia** del catálogo al crear la entrega: si después el catálogo cambia
+    la unidad del ítem, la entrega vieja no cambia de significado (04 §10).
+    ``cantidad_recibida`` es ``NULL`` hasta que el dispositivo confirma la recepción.
+    """
+
+    entrega = models.ForeignKey(
+        EntregaKit,
+        on_delete=models.PROTECT,
+        related_name="lineas",
+        verbose_name="Entrega",
+    )
+    item = models.ForeignKey(
+        TipoKit,
+        on_delete=models.PROTECT,
+        related_name="lineas_de_entrega",
+        verbose_name="Ítem",
+    )
+    unidad = models.CharField(max_length=30, verbose_name="Unidad")
+    cantidad_enviada = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name="Cantidad enviada")
+    cantidad_recibida = models.PositiveIntegerField(null=True, blank=True, verbose_name="Cantidad recibida")
+
+    class Meta:
+        verbose_name = "Línea de entrega de kits"
+        verbose_name_plural = "Líneas de entregas de kits"
+        ordering = ["entrega_id", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["entrega", "item"], name="linea_entrega_item_unico_por_entrega"),
+            models.CheckConstraint(condition=models.Q(cantidad_enviada__gte=1), name="linea_entrega_enviada_positiva"),
+        ]
+
+    def __str__(self):
+        return f"{self.item.nombre} × {self.cantidad_enviada} · entrega {self.entrega.numero}"
+
+    @property
+    def diferencia(self):
+        """``recibida − enviada``, o ``None`` si todavía no se recibió."""
+
+        if self.cantidad_recibida is None:
+            return None
+        return self.cantidad_recibida - self.cantidad_enviada
+
+
+class TrazaEntregaQuerySet(models.QuerySet):
+    """Evita vías masivas de mutación para una auditoría solo-aditiva."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Las trazas de una entrega son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Las trazas de una entrega no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de una entrega son inmutables.")
+
+
+class TrazaEntregaManager(models.Manager.from_queryset(TrazaEntregaQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de una entrega son inmutables.")
+
+
+class TrazaEntrega(models.Model):
+    """Historial inmutable de una entrega de kits: una fila por cada cosa que le pasó (RN-4.9).
+
+    El mismo esquema que ``TrazaCaso``, en un modelo aparte para no mezclar FKs. No hereda
+    ``TimeStamped``: una fila que no se modifica no tiene ``modificado``. ``accion`` va sin
+    ``choices`` por el mismo motivo que allá.
+    """
+
+    class Accion(models.TextChoices):
+        CREADA = "CREADA", "Entrega armada"
+        EN_CAMINO = "EN_CAMINO", "Marcada en camino"
+        CANCELADA = "CANCELADA", "Cancelada"
+        RECIBIDA = "RECIBIDA", "Recibida"
+        OBSERVADA = "OBSERVADA", "Observación de la mesa"
+
+    entrega = models.ForeignKey(
+        EntregaKit,
+        on_delete=models.PROTECT,
+        related_name="trazas",
+        verbose_name="Entrega",
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="trazas_entregas_de_kits",
+        verbose_name="Usuario",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    accion = models.CharField(max_length=40, verbose_name="Acción")
+    estado_anterior = models.CharField(max_length=30, blank=True, verbose_name="Estado anterior")
+    estado_nuevo = models.CharField(max_length=30, blank=True, verbose_name="Estado nuevo")
+    detalle = models.TextField(blank=True, verbose_name="Detalle")
+    objects = TrazaEntregaManager()
+
+    class Meta:
+        verbose_name = "Traza de entrega de kits"
+        verbose_name_plural = "Trazas de entregas de kits"
+        ordering = ["creado_en", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+
+    def __str__(self):
+        return f"Entrega {self.entrega.numero} · {self.accion_legible}"
+
+    @property
+    def accion_legible(self):
+        try:
+            return self.Accion(self.accion).label
+        except ValueError:
+            return self.accion
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las trazas de una entrega son inmutables.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las trazas de una entrega no se eliminan.")

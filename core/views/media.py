@@ -247,6 +247,26 @@ def _adjunto_de_emergencia(user, ruta):
     return puede_operar_la_mesa(user)
 
 
+def _remito_de_entrega(user, ruta):
+    """La foto del remito de una entrega de kits: la mesa y el Equipo del dispositivo destino.
+
+    La mesa ve todas las entregas; la guardia, solo las de su dispositivo (RN-4.8), con la
+    misma regla que la deja recibirlas: ``emergencia.recibir_kit`` evaluada con el Equipo de
+    **ese** dispositivo. A cualquier otro se le contesta como si el archivo no existiera
+    (404): ni la ruta confirma que esa institución recibió una entrega.
+    """
+    from programas.models import EntregaKit
+    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
+
+    entrega = EntregaKit.objects.select_related("dispositivo").filter(remito=ruta).first()
+    if entrega is None:
+        return None
+    if puede_operar_la_mesa(user):
+        return True
+    return True if puede_operar_dispositivo(user, entrega.dispositivo, CAP_RECIBIR_KIT) else None
+
+
 def _archivo_de_formulario_dispositivo(user, ruta):
     """Un archivo respondido en el formulario «Crear dispositivo» del tipo (P17).
 
@@ -295,6 +315,7 @@ REGLAS = (
     (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),
     (rutas.PREFIJO_FORMULARIO_DISPOSITIVO, _archivo_de_formulario_dispositivo),
     (rutas.PREFIJO_ADJUNTO_EMERGENCIA, _adjunto_de_emergencia),
+    (rutas.PREFIJO_REMITO_ENTREGA, _remito_de_entrega),
 )
 
 
