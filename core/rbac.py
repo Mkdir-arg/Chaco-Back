@@ -411,6 +411,8 @@ CAPS_ENTRADA_PROGRAMAS = ("programa.configurar", "config.ver", "config.administr
 
 # Nombre del rol protegido y del marcador de identidad del portal.
 ROL_ADMINISTRADOR = "Administrador"
+# Identidad estable del rol Administrador (``RolMeta.clave``): el nombre se puede renombrar desde el ABM.
+CLAVE_ROL_ADMINISTRADOR = "sistema.administrador"
 GRUPO_CIUDADANO_PORTAL = "Ciudadanos"
 
 #: Único programa cuyo dominio evalúa ``programa.configurar`` **con alcance**

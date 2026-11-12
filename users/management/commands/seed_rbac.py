@@ -26,7 +26,7 @@ from users.services.roles import asegurar_rol_sembrado
 #: Claves estables de los dos roles que siembra este comando (OPS-06 fase 2). El rol
 #: se reconoce por la clave, no por el nombre: renombrarlo desde el ABM ya no hace que
 #: el arranque siguiente cree un duplicado con el nombre canónico.
-CLAVE_ADMINISTRADOR = "sistema.administrador"
+CLAVE_ADMINISTRADOR = rbac.CLAVE_ROL_ADMINISTRADOR
 CLAVE_OPERADOR = "sistema.operador_backoffice"
 NOMBRE_OPERADOR = "Operador de backoffice"
 

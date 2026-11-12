@@ -575,7 +575,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 450 | Dispositivos: el alta toma el responsable y el contacto del legajo de la persona elegida; «Responsables del dispositivo» pasa a buscador múltiple | Dispositivos (alta de institución) | `#ui` | PM — pedido del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 451 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 452 | Se borra el programa Merenderos entero (código, RBAC, tablas y fila del Programa), en una sola release | Merenderos · Dispositivos · Transversal | `#rbac` `#datos` `#ui` `#infra` | PM — decisión del 10/11/2026 (no hay datos en ningún ambiente; antecedente: Cambio 191) | 10/11/2026 | 🟡 **En curso** | `users.0046`, `programas.0115` |
-| 453 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟡 **Parcial — el egreso en pantalla es el PR 2** | `programas.0116` |
+| 453 | Usuarios: nadie se cambia sus propios roles y el rol Administrador no lo reparte cualquiera (más avisos en el formulario de roles) | Transversal · Usuarios y Roles | `#rbac` `#usuarios` `#ui` | QA — hallazgo del plan #1022 (issue #1114) | 12/11/2026 | 🟡 **En curso** | No requiere |
+| 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟡 **Parcial — el egreso en pantalla es el PR 2** | `programas.0116` |
 
 **Notas del índice**
 
@@ -53973,7 +53974,70 @@ Datos que se pierden: todos los de Merenderos y los roles atados al programa. No
 
 ---
 
-# Cambio 453 — Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (P17, PR 1: ingreso y lectura)
+---
+
+# Cambio 453 — Usuarios: nadie se cambia sus propios roles y el rol Administrador no lo reparte cualquiera
+
+🟡 **EN CURSO — 12/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Usuarios y Roles (ABM) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | QA — hallazgo del plan #1022 en testing (11/11/2026), issue #1114 |
+| **Fecha del pedido** | 11/11/2026 |
+| **Issue / épica** | #1114 (contigua a TC-ROL-15 y TC-ROL-17; mejora relacionada #1113) |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Quien tiene «Administrar usuarios» editaba su propio usuario y se asignaba cualquier rol, incluido el Administrador protegido: una escalada de privilegios. Además, el formulario de roles no dejaba claro qué casillas dan administración global y cuáles la de un programa.
+
+## Alcance acordado
+
+**Entra:** guarda de «el operador es el usuario editado», recorte del rol Administrador en el combo y en el guardado (alta y edición), mensajes de rechazo y dos avisos en el formulario de roles. **No entra:** un «techo» general de capacidades (rompería el rol «Administración», que da roles de Becas sin tener capacidades de Becas) ni cambios para el admin de programa (reglas de G1b-02).
+
+## Decisiones tomadas
+
+1. **Nadie, salvo el superusuario, cambia sus propios roles** desde el ABM de Usuarios. En su ficha el selector se ve de solo lectura con «Tus roles los cambia otro administrador.»; datos personales y contraseña siguen editables. Esto alcanza también al admin de programa (la definición dice «nadie»).
+2. **El Administrador se identifica por `RolMeta.clave` (`sistema.administrador`, constante `rbac.CLAVE_ROL_ADMINISTRADOR`)**, no por el nombre, que el ABM deja renombrar. Se descartó `RolMeta.protegido` porque el único otro rol protegido es el marcador `Ciudadanos`, que es de Portal y nunca se ofrece.
+3. **Solo lo asigna o quita el superusuario o quien ya lo tiene.** Para el resto no figura en el combo, el POST que lo agrega se rechaza y el guardado **preserva** el Administrador que el usuario editado ya tenga. Quitarlo no es detectable (si no figura en el combo, omitirlo es el guardado normal): queda preservado.
+4. **El rechazo no depende del widget.** Lo hace valer el formulario (`_validar_roles_sensibles`, mira el POST crudo) y, sin confiar en él, el servicio (`UsuariosAdminService._sync_related_data`: no toca los roles propios y no agrega ni quita el Administrador). El rechazo es error de formulario más toast (`messages.error` desde `form_invalid` de las vistas de alta y edición); no se guarda nada.
+5. **Los avisos del formulario de roles** usan `components/_alerta.html` sin variantes nuevas: advertencia bajo «Sistema» e informativa bajo «Programas».
+
+## Implementación
+
+`users/selectors/usuarios.py` suma `es_edicion_propia`, `roles_propios_bloqueados`, `rol_administrador` y `puede_repartir_administrador`. `_roles_asignables_queryset` excluye el Administrador al operador sin permiso; `CustomUserChangeForm` deshabilita el campo en la ficha propia (con `roles_solo_lectura` para que el template deshabilite las casillas y muestre la ayuda).
+
+## Archivos
+
+`core/rbac.py` (constante), `users/selectors/usuarios.py`, `users/forms/__init__.py`, `users/services/admin.py`, `users/views/admin.py`, `users/management/commands/seed_rbac.py` (usa la constante), `users/templates/user/user_form.html`, `users/templates/rol/rol_form.html`, `users/tests/test_escalada_roles_propios.py` (nuevo).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py test users`: 674 tests OK (16 nuevos). `check`, `makemigrations --check --dry-run` (sin SYNCDB), `ruff`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent` OK.
+- Mutación de las guardas: cada una rompe sus tests (propios siempre permitidos, Administrador siempre repartible, servicio sin preservar, formulario sin validación, servicio sin guarda de roles propios).
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR. No hay migración ni datos.
+
+## Historial
+
+- **12/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 454 — Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (P17, PR 1: ingreso y lectura)
 
 🟡 **PARCIAL — 12/11/2026** (el ingreso y la lectura en P7 están hechos; el egreso en la pantalla es el PR 2)
 

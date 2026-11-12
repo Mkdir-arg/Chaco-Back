@@ -142,6 +142,10 @@ Consumidor: «Segmentos asignados (Becas)» del ABM de Usuarios (`users/template
 con un `ModelMultipleChoiceField` + `forms.CheckboxSelectMultiple`. Lo que el operador ve pero no puede
 elegir (segmentos de otro coordinador o inactivos) **no es una opción**: va debajo como badges
 `badge badge-gray badge-sm` con candado, texto «Solo lectura…» y el servidor lo conserva al guardar.
+En la **ficha propia** (#1114, Cambio 453) el bloque «Roles por ámbito» se muestra entero pero de solo
+lectura: cada checkbox lleva `disabled`, «Limpiar» también, y bajo el subtítulo va un
+`<p class="mt-1 text-sm font-semibold text-body">` con la ayuda del campo («Tus roles los cambia otro
+administrador.»). No hay pieza nueva: la regla la hace valer el servidor, el `disabled` solo la muestra.
 
 ## Chips de selección múltiple y switch
 

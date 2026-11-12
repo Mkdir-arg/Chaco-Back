@@ -2,7 +2,12 @@ from django.contrib.auth.models import User
 from django.db import transaction
 
 from core import rbac
-from users.selectors.usuarios import solo_gestiona_segmentos
+from users.selectors.usuarios import (
+    puede_repartir_administrador,
+    rol_administrador,
+    roles_propios_bloqueados,
+    solo_gestiona_segmentos,
+)
 
 
 class UsuariosAdminService:
@@ -110,8 +115,18 @@ class UsuariosAdminService:
     @staticmethod
     def _sync_related_data(user, cleaned_data, alcance_group_ids=None, operador=None):
         seleccionados = list(cleaned_data.get("groups", []))
-        if alcance_group_ids is None:
+        if roles_propios_bloqueados(operador, user):
+            # #1114: nadie, salvo el superusuario, se cambia sus propios roles. No depende del form.
+            pass
+        elif alcance_group_ids is None:
             # Admin global: reemplaza todos los grupos (comportamiento histórico).
+            if not puede_repartir_administrador(operador):
+                # #1114: el Administrador ni se agrega ni se quita: el que ya lo tiene lo conserva.
+                administrador = rol_administrador()
+                if administrador is not None:
+                    seleccionados = [g for g in seleccionados if g.pk != administrador.pk]
+                    if user.pk and user.groups.filter(pk=administrador.pk).exists():
+                        seleccionados.append(administrador)
             user.groups.set(seleccionados)
         else:
             # Admin de programa: solo toca los roles dentro de su alcance; los roles

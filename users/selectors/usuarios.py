@@ -84,6 +84,35 @@ def roles_asignables(operador):
     return _roles_asignables_queryset(operador)
 
 
+def es_edicion_propia(operador, target):
+    """¿El operador es el usuario que está editando?"""
+    operador_pk = getattr(operador, "pk", None)
+    return operador_pk is not None and operador_pk == getattr(target, "pk", None)
+
+
+def roles_propios_bloqueados(operador, target):
+    """Nadie, salvo el superusuario, cambia sus propios roles desde el ABM de Usuarios (#1114)."""
+    return es_edicion_propia(operador, target) and not getattr(operador, "is_superuser", False)
+
+
+def rol_administrador():
+    """El rol protegido Administrador, identificado por su clave estable (no por el nombre)."""
+    from django.contrib.auth.models import Group
+
+    return Group.objects.filter(meta__clave=rbac.CLAVE_ROL_ADMINISTRADOR).first()
+
+
+def puede_repartir_administrador(operador):
+    """¿El operador puede asignar o quitar el rol Administrador? Superusuario o quien ya lo tiene."""
+    if operador is None:
+        return True
+    if getattr(operador, "is_superuser", False):
+        return True
+    if getattr(operador, "pk", None) is None:
+        return False
+    return operador.groups.filter(meta__clave=rbac.CLAVE_ROL_ADMINISTRADOR).exists()
+
+
 def puede_gestionar_usuario(operador, target):
     """¿El operador puede editar a ``target`` según su alcance?
 
