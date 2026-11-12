@@ -65,7 +65,7 @@ from programas.models import (
     TrazaEntrega,
 )
 from programas.services.bitacora import anotar_novedad_automatica
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio, siguiente_correlativo
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
 
@@ -159,6 +159,20 @@ def puede_recibir(usuario, entrega):
     """¿``usuario`` recibe los kits del dispositivo de ``entrega``? La regla de RN-4.8, una sola vez."""
 
     return puede_operar_dispositivo(usuario, entrega.dispositivo, CAP_RECIBIR_KIT)
+
+
+def recibe_kits(usuario):
+    """¿``usuario`` recibe kits en **algún** dispositivo? Lo que abre «Recepción de kits» (web y M3).
+
+    ``emergencia.recibir_kit`` con alcance: en el Equipo de alguna institución, o en todas si
+    además administra el programa Dispositivos. La capacidad tildada en un rol **sin** Equipo
+    no alcanza: no hay dispositivo sobre el que ejercerla. Quien no pasa esto recibe 403; quien
+    lo pasa y pide un dispositivo o una entrega que no son suyos, 404 (plan §2, C2).
+    """
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return False
+    return dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT).exists()
 
 
 def _bloquear_entrega(entrega):

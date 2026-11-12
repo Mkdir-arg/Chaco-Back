@@ -539,7 +539,7 @@ class RecepcionKitsMixin(LoginRequiredMixin):
         en_alcance = dispositivos_en_alcance(request.user, CAP_RECIBIR_KIT)
         self.dispositivo = en_alcance.filter(pk=kwargs["dispositivo"]).first()
         if self.dispositivo is None:
-            if not en_alcance.exists():
+            if not servicio.recibe_kits(request.user):
                 raise PermissionDenied
             raise Http404("Dispositivo inexistente.")
         return super().dispatch(request, *args, **kwargs)

@@ -914,5 +914,6 @@ SPECTACULAR_SETTINGS = {
         # El módulo Emergencia de la app de campo (`/api/emergencia/`).
         "CasoEmergenciaEstadoEnum": "programas.models.CasoEmergencia.Estado",
         "CasoEmergenciaPrioridadEnum": "programas.models.CasoEmergencia.Prioridad",
+        "EntregaKitEstadoEnum": "programas.models.EntregaKit.Estado",
     },
 }
