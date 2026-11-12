@@ -105,6 +105,7 @@ class GuardiaView(LoginRequiredMixin, View):
         url_integrantes = self.url("integrantes", caso.pk) if caso is not None else None
         return {
             "dispositivo": self.dispositivo,
+            "caso": caso,
             "url_dispositivo": reverse("dispositivos:detalle", args=[self.dispositivo.pk]),
             "url_llegadas": self.url("llegadas"),
             "url_integrantes": url_integrantes,
@@ -311,7 +312,6 @@ class IntegrantesView(_IngresoView):
         contexto = self.contexto(
             2,
             caso,
-            caso=caso,
             familia=f"Familia {caso.grupo.responsable.apellido}",
             filas=pantalla.filas_de_integrantes(datos, lambda n: self.url("ficha", caso.pk, n)),
             confirmadas=confirmadas,
@@ -410,7 +410,6 @@ class ElegirCamaView(_IntegranteView):
         contexto = self.contexto(
             2,
             self.caso,
-            caso=self.caso,
             orden=orden,
             sectores=sectores,
             leyenda=selectores.LEYENDA_PLAZAS_EMERGENCIA,
@@ -444,7 +443,6 @@ class FichaIntegranteView(_IntegranteView):
         contexto = self.contexto(
             2,
             self.caso,
-            caso=self.caso,
             orden=integrante.orden,
             titulo=(
                 f"Ficha de la persona {integrante.orden}"
@@ -564,7 +562,6 @@ class FamiliaAlojadaView(_IngresoView):
         contexto = self.contexto(
             3,
             caso,
-            caso=caso,
             form=form,
             resumen={
                 "familia": f"Familia {caso.grupo.responsable.apellido}",

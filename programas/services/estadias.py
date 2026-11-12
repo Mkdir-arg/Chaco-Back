@@ -386,7 +386,13 @@ def _bloquear_plaza(plaza, dispositivo):
     pk = plaza.pk if isinstance(plaza, Plaza) else plaza
     if pk is None or not Plaza.objects.filter(pk=pk, sector__dispositivo_id=dispositivo.pk).exists():
         raise ValidationError({"plaza": PLAZA_FUERA_DEL_DISPOSITIVO})
-    return Plaza.objects.select_for_update().get(pk=pk)
+    # `filter().first()` y no `get()`: el ingreso de una reserva de derivación pide la misma
+    # plaza dos veces en un pedido (`consumir_reserva_de_derivacion` y, adentro,
+    # `ingresar_persona`), y `zeal` lee dos `get()` de la misma línea como un N+1.
+    bloqueada = Plaza.objects.select_for_update().filter(pk=pk).first()
+    if bloqueada is None:
+        raise ValidationError({"plaza": PLAZA_FUERA_DEL_DISPOSITIVO})  # la borraron en el medio
+    return bloqueada
 
 
 def _bloquear_reserva_propia(reserva, *, plaza, ciudadano, momento):
@@ -987,8 +993,10 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
     Plaza.objects.select_for_update().filter(pk=reserva.plaza_id).first()
     # Releída con bloqueo, como en el ingreso que la consume: sin esto, liberar con un
     # objeto viejo pisaría con LIBERADA una reserva que un ingreso acaba de consumir.
-    reserva = ReservaPlaza.objects.select_for_update().get(pk=reserva.pk)
-    if reserva.estado != ReservaPlaza.Estado.VIGENTE:
+    # `filter().first()` y no `get()`: `liberar_reservas_de_derivacion` suelta varias en un
+    # mismo pedido, cada una con su candado, y `zeal` lee esos `get()` como un N+1.
+    reserva = ReservaPlaza.objects.select_for_update().filter(pk=reserva.pk).first()
+    if reserva is None or reserva.estado != ReservaPlaza.Estado.VIGENTE:
         raise ValidationError({"estado": "La reserva ya no está vigente."})
 
     reserva.estado = ReservaPlaza.Estado.LIBERADA
