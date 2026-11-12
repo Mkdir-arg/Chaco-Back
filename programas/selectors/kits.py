@@ -247,11 +247,16 @@ def faltantes_de(lineas):
 def entregas_al_alcance(usuario):
     """Las entregas de los dispositivos donde ``usuario`` recibe kits (RN-4.8). Queryset.
 
-    Es por donde la recepción web y la API buscan una entrega por id: la de otro
-    dispositivo no está en este queryset, así que es un 404 igual que un id inexistente.
+    Es por donde la API busca una entrega por id: la de otro dispositivo no está en este
+    queryset, así que es un 404 igual que un id inexistente. Trae el dispositivo y las líneas
+    con su ítem (una consulta más, no una por línea).
     """
 
-    return EntregaKit.objects.filter(dispositivo__in=dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT))
+    return (
+        EntregaKit.objects.filter(dispositivo__in=dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT))
+        .select_related("dispositivo")
+        .prefetch_related(_lineas_ordenadas())
+    )
 
 
 def entregas_pendientes_de(dispositivo, usuario):
@@ -269,6 +274,21 @@ def entregas_pendientes_de(dispositivo, usuario):
         .select_related("dispositivo")
         .prefetch_related(_lineas_ordenadas())
         .order_by("creado", "id")
+    )
+
+
+def entregas_de(dispositivo):
+    """Todas las entregas de ``dispositivo``, de la más nueva a la más vieja, con sus líneas. Queryset.
+
+    **No recorta por alcance**: la llama quien ya comprobó que el usuario recibe kits ahí
+    (la API busca el dispositivo dentro de ``dispositivos_en_alcance``). 2 consultas.
+    """
+
+    return (
+        EntregaKit.objects.filter(dispositivo=dispositivo)
+        .select_related("dispositivo")
+        .prefetch_related(_lineas_ordenadas())
+        .order_by("-creado", "-id")
     )
 
 

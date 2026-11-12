@@ -865,6 +865,7 @@ class ObservarRecepcionTests(BaseKits):
                 "validar_remito",
                 "mensaje_de_estado",
                 "puede_recibir",
+                "recibe_kits",
                 "estado_visible_de_entrega",
                 "siguiente_numero_de_entrega",
             },
