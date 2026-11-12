@@ -24,8 +24,9 @@ from datetime import timedelta
 from io import StringIO
 from unittest import mock
 
+from django.core.cache import cache
 from django.core.management import call_command
-from django.test import tag
+from django.test import TestCase, tag
 
 from core.services import vencimientos as registro
 from core.tests.candados import orden_de_candados
@@ -35,8 +36,8 @@ from programas.models import (
     Derivacion,
     NumeradorEmergencia,
     Plaza,
+    Programa,
     ReservaPlaza,
-    SLAEmergencia,
     TrazaCaso,
 )
 from programas.services import emergencia as servicio
@@ -227,9 +228,13 @@ class DerivacionVencidaTests(BaseVencimientos):
             self._resolver(self.derivacion, Derivacion.Estado.ACEPTADA, Estado.INGRESO_EN_CURSO)
             return bloquear(caso)
 
-        with mock.patch.object(servicio, "_bloquear_caso", acepta_justo_antes):
-            # Por pk y no por estado: es la foto vieja, la que ya la había visto pendiente.
-            procesadas = reglas.vencer_derivaciones(Derivacion.objects.filter(pk=self.derivacion.pk))
+        # Sin aviso: una aceptada que no vence es lo normal, no el «estado que no debería
+        # existir». Es además lo que distingue al re-chequeo de la derivación del resguardo
+        # sobre el estado del caso, que acá también la frenaría.
+        with self.assertNoLogs("programas.services.emergencia", level=logging.WARNING):
+            with mock.patch.object(servicio, "_bloquear_caso", acepta_justo_antes):
+                # Por pk y no por estado: es la foto vieja, la que ya la había visto pendiente.
+                procesadas = reglas.vencer_derivaciones(Derivacion.objects.filter(pk=self.derivacion.pk))
 
         self.assertEqual(procesadas, 0)
         derivacion = self._derivacion(self.derivacion)
@@ -238,6 +243,34 @@ class DerivacionVencidaTests(BaseVencimientos):
         )
         self.assertEqual(self._fila(self.caso)["estado"], Estado.INGRESO_EN_CURSO)
         self.assertEqual(len(self._trazas(self.caso)), trazas)
+
+    def test_si_la_mesa_cancelo_y_volvio_a_derivar_entre_la_consulta_y_el_candado_se_saltea(self):
+        """La otra carrera: el caso sigue ``DERIVADO``, pero por **otra** derivación.
+
+        Acá el estado del caso no alcanza para darse cuenta. Sin releer el de la derivación,
+        el cron marcaría vencida una cancelada y le sacaría el caso al dispositivo nuevo.
+        """
+        self.reloj.avanzar(minutes=VIGENCIA_MIN + 5)
+        self.assertEqual(list(reglas.derivaciones_vencidas()), [self.derivacion])
+        bloquear = servicio._bloquear_caso
+        nuevas = []
+
+        def cancela_y_vuelve_a_derivar_justo_antes(caso):
+            servicio.cancelar_derivacion(self.derivacion, self.operador, "Va a otro lugar")
+            nuevas.append(servicio.derivar_caso(self.caso, self.operador, self.club, 2))
+            return bloquear(caso)
+
+        # Solo la primera vez: lo que hace la mesa adentro también bloquea el caso.
+        candado = mock.Mock(side_effect=[cancela_y_vuelve_a_derivar_justo_antes] + [bloquear] * 2)
+        with mock.patch.object(servicio, "_bloquear_caso", lambda caso: candado()(caso)):
+            procesadas = reglas.vencer_derivaciones(Derivacion.objects.filter(pk=self.derivacion.pk))
+
+        self.assertEqual(procesadas, 0)
+        self.assertEqual(self._derivacion(self.derivacion)["estado"], Derivacion.Estado.CANCELADA)
+        nueva = self._derivacion(nuevas[0])
+        self.assertEqual((nueva["estado"], nueva["clave_vigente"]), (Derivacion.Estado.PENDIENTE, self.caso.pk))
+        self.assertEqual(self._fila(self.caso)["estado"], Estado.DERIVADO)
+        self.assertEqual(self._trazas(self.caso)[-1].accion, Accion.DERIVADO)
 
     def test_una_pendiente_de_un_caso_que_no_esta_derivado_no_se_adivina(self):
         """Un estado que no debería existir se avisa y se deja como está."""
@@ -508,6 +541,24 @@ class ComandoTests(BaseVencimientos):
         self.assertNotIn(REGLA_DERIVACION, salida)
         self.assertEqual(self._derivacion(derivacion)["estado"], Derivacion.Estado.PENDIENTE)
         self.assertEqual(self._fila(inactivo)["estado"], Estado.NUEVO)
+
+
+class SinProgramaEmergenciaTests(TestCase):
+    """Una base sin el módulo (la de los tests de Becas, un ambiente viejo) no tiene nada que vencer.
+
+    El cron es uno solo para todas las reglas: las de Emergencia no pueden hacerlo terminar
+    en error por un programa que esa base no tiene.
+    """
+
+    def test_el_comando_no_se_pone_rojo(self):
+        cache.clear()
+        self.assertFalse(Programa.objects.filter(codigo="EMERGENCIA").exists())
+
+        salida = _correr()
+
+        self.assertIn(f"{REGLA_DERIVACION}: sin pendientes.", salida)
+        self.assertIn(f"{REGLA_SIN_AVANCE}: sin pendientes.", salida)
+        self.assertIn("Listo. 0 registro(s) procesado(s).", salida)
 
 
 # ---------------------------------------------------------------------------
