@@ -5866,6 +5866,9 @@ class TrazaCaso(models.Model):
         DERIVADO = "DERIVADO", "Derivado"
         DERIVACION_CANCELADA = "DERIVACION_CANCELADA", "Derivación cancelada"
         CERRADO = "CERRADO", "Cerrado sin alojamiento"
+        # Las dos del cron (`procesar_vencimientos`): la traza va sin usuario.
+        DERIVACION_VENCIDA = "DERIVACION_VENCIDA", "Derivación vencida"
+        DEVUELTO_POR_INACTIVIDAD = "DEVUELTO_POR_INACTIVIDAD", "Devuelto a la bandeja por inactividad"
 
     caso = models.ForeignKey(
         CasoEmergencia,
