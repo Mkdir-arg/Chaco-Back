@@ -104,6 +104,19 @@ def dni(valor):
     return ".".join(reversed(grupos))
 
 
+@register.filter
+def menos(valor, otro):
+    """Resta entera para presentar una diferencia (``recibida|menos:enviada``).
+
+    ``None`` si alguno de los dos no es un entero: quien dibuja distingue «falta el dato»
+    de «la diferencia es cero».
+    """
+    try:
+        return int(valor) - int(otro)
+    except (TypeError, ValueError):
+        return None
+
+
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3

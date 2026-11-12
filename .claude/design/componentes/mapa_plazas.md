@@ -70,6 +70,21 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
 - La celda con enlace lleva siempre una clase `bg-*`: sin ella la regla global de enlaces de
   `nodo-brand.css` (`a:not([class*="bg-"])`, con `!important`) le pisaría el color del tono.
 
+## Consumidor: modo emergencia
+
+El ingreso de una familia derivada por Emergencia usa **esta misma pieza, sin cambios**: el mapa del sector se
+abre en modo emergencia para elegir la cama de cada integrante. Todo lo que cambia lo decide la vista con las
+claves de siempre:
+
+- Una plaza reservada para la familia que está ingresando lleva el estado de texto **«Reservada para esta
+  familia»**, `tono` `warning` (el de toda reserva) y **es seleccionable**: trae `url` o `click`.
+- Una plaza reservada para otra persona o familia sigue como «Reservada», sin `url` ni `click`: informativa,
+  con `aria-disabled`.
+- **La selección es única**: a lo sumo una plaza con `seleccionada` por render. Elegir otra reemplaza a la
+  anterior; la pieza no tiene multiselección y no se le agrega.
+- La distinción entre las dos reservas va en el **texto del estado**: las dos comparten tono e ícono. La
+  leyenda de la pantalla suma la entrada «Reservada para esta familia».
+
 ## Tope
 
 Una grilla sin tope se vuelve inmanejable (y pesada) en un dispositivo grande. La pantalla arma **una
