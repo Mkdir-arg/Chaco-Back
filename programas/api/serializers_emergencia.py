@@ -19,12 +19,14 @@ import re
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.fields import empty
 from rest_framework.utils import html
 
 from core.validators import ADJUNTO_MAX_BYTES, MENSAJE_ADJUNTO_TAMANIO, firma_coincide
-from programas.models import AdjuntoCaso, CasoEmergencia, EntregaKit, GrupoFamiliar, LineaEntrega
+from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion, EntregaKit, GrupoFamiliar, LineaEntrega
+from programas.services.emergencia import NECESIDADES
 from programas.services.emergencia_campo import acotar_relevado_en
 
 FOTO_EXTENSIONES_APP = (".jpg", ".jpeg")
@@ -212,6 +214,12 @@ class MiDispositivoEmergenciaSerializer(serializers.Serializer):
     entregas_pendientes = serializers.IntegerField(
         help_text="Entregas de kits que el usuario puede recibir ahí (en camino o preparadas). 0 si solo admite."
     )
+    plazas_libres = serializers.IntegerField(
+        help_text="Camas libres ahora (PR 8). 0 donde el usuario solo recibe kits y no admite familias."
+    )
+    derivaciones_pendientes = serializers.IntegerField(
+        help_text="Derivaciones por aceptar o rechazar (PR 8). 0 donde el usuario solo recibe kits."
+    )
 
 
 class LineaEntregaKitSerializer(serializers.ModelSerializer):
@@ -327,3 +335,343 @@ class EstadoCambioSerializer(serializers.Serializer):
 
     detail = serializers.CharField()
     estado_actual = serializers.CharField()
+
+
+# ---------------------------------------------------------------------------
+# M2 · Llegada de familias (PR 8)
+# ---------------------------------------------------------------------------
+#
+# Mismo criterio que el resto del archivo: acá solo se mira **la forma** del cuerpo (que el
+# identificador sea un UUID, que la ficha sea un objeto). Las reglas —el mínimo de la ficha, la
+# cama, los motivos, el estado del caso, el alcance— son de ``services.emergencia_alojar``, la
+# misma capa que usa la pantalla E6 del backoffice (RU-2): por eso los motivos son texto libre
+# para el serializer y un código inválido lo rechaza el servicio, con su mensaje.
+#
+# Los estados van como texto con sus valores en ``help_text`` y no como ``ChoiceField``: varios
+# campos se llaman ``estado`` con conjuntos distintos, y Spectacular avisaría el choque de
+# nombres de enum (``--fail-on-warn``).
+
+
+class CasoResumenSerializer(serializers.ModelSerializer):
+    """El caso en una línea: lo que la app necesita para el encabezado de M2-2 a M2-5."""
+
+    total_declarado = serializers.IntegerField(source="grupo.total_declarado", read_only=True)
+
+    class Meta:
+        model = CasoEmergencia
+        fields = ["id", "numero", "estado", "prioridad", "total_declarado"]
+        read_only_fields = fields
+
+
+class PersonaDelIntegranteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="`id` del legajo.")
+    nombre = serializers.CharField(help_text="«Apellido, Nombre».")
+    dni = serializers.CharField()
+
+
+class PlazaDelIntegranteSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    nombre = serializers.CharField(help_text="Código con el sector: «B-12 (Pabellón B)».")
+
+
+class IntegranteSerializer(serializers.Serializer):
+    """Una fila de M2-3 («Persona 3 · sin confirmar» o «Pérez, Juan · cama B-12 · ficha incompleta»)."""
+
+    n = serializers.IntegerField(help_text="Número de la persona en la familia (1 a `total_declarado`). Va en la URL.")
+    estado = serializers.CharField(help_text="`SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA`.")
+    ficha_completa = serializers.BooleanField(help_text="Secciones 4 a 8 con algún dato o «sin datos».")
+    persona = PersonaDelIntegranteSerializer(allow_null=True, help_text="`null` hasta que se confirma.")
+    plaza = PlazaDelIntegranteSerializer(allow_null=True, help_text="La cama de **hoy**; `null` sin confirmar.")
+    parentesco = serializers.CharField(help_text="Rótulo del parentesco; vacío sin confirmar.")
+    confirmada_en = serializers.DateTimeField(allow_null=True)
+    egresado_en = serializers.DateTimeField(allow_null=True)
+
+
+class IntegranteDetalleSerializer(IntegranteSerializer):
+    """Una fila con su ficha guardada: lo que la app precarga para completar las secciones 4 a 8."""
+
+    ficha = serializers.DictField(help_text="El Formulario 2 tal como se guardó (contrato, «La ficha»).")
+    secciones_incompletas = serializers.ListField(
+        child=serializers.CharField(), help_text="Rótulos de las secciones 4 a 8 que faltan, en orden."
+    )
+
+
+class IntegrantesDelCasoSerializer(serializers.Serializer):
+    """M2-3: las N filas de la familia con el contador."""
+
+    caso = CasoResumenSerializer()
+    integrantes = IntegranteSerializer(many=True)
+    confirmadas = serializers.IntegerField(help_text="El «3» de «3 de 7 confirmadas».")
+    total_declarado = serializers.IntegerField(help_text="Filas de la familia: crece con «Agregar persona».")
+    declaradas_al_relevar = serializers.IntegerField(help_text="Lo que dijo el Formulario 1 («llegaron 8 sobre 7»).")
+    con_ficha_incompleta = serializers.IntegerField()
+
+
+class ResponsableSerializer(serializers.Serializer):
+    nombre = serializers.CharField()
+    apellido = serializers.CharField()
+    dni = serializers.CharField()
+
+
+class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
+    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia."""
+
+    class Meta:
+        model = GrupoFamiliar
+        fields = [
+            "menores_f",
+            "menores_m",
+            "adultos_f",
+            "adultos_m",
+            "mayores_f",
+            "mayores_m",
+            "dependientes",
+            "mayores_dependientes",
+            "lactantes",
+        ]
+        read_only_fields = fields
+
+
+class DerivacionLlegadaSerializer(serializers.ModelSerializer):
+    """La tarjeta de M2-2. Solo sale si la derivación es hacia el dispositivo de quien busca (RU-9)."""
+
+    estado = serializers.CharField(read_only=True, help_text="`PENDIENTE` (por aceptar) o `ACEPTADA` (en curso).")
+    vencida = serializers.SerializerMethodField(
+        help_text="Pendiente con `vence_en` pasado: se puede aceptar igual mientras la mesa no la marque vencida."
+    )
+    derivada_en = serializers.DateTimeField(source="creado", read_only=True)
+    derivada_por = serializers.SerializerMethodField(help_text="Nombre de quien derivó en la mesa.")
+    caso = CasoResumenSerializer(read_only=True)
+    responsable = ResponsableSerializer(source="caso.grupo.responsable", read_only=True)
+    grupo = GrupoDeLaDerivacionSerializer(source="caso.grupo", read_only=True)
+    necesidades = serializers.SerializerMethodField(
+        help_text="Las que marcó el Formulario 1: `embarazo`, `electrodependiente`, `medicacion_critica`, `mascotas`."
+    )
+    telefono = serializers.SerializerMethodField()
+    observaciones = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Derivacion
+        fields = [
+            "id",
+            "estado",
+            "plazas_pedidas",
+            "vence_en",
+            "vencida",
+            "derivada_en",
+            "derivada_por",
+            "caso",
+            "responsable",
+            "grupo",
+            "necesidades",
+            "telefono",
+            "observaciones",
+        ]
+        read_only_fields = fields
+
+    def get_vencida(self, derivacion) -> bool:
+        return derivacion.estado == Derivacion.Estado.PENDIENTE and derivacion.vence_en < timezone.now()
+
+    def get_derivada_por(self, derivacion) -> str:
+        usuario = derivacion.derivada_por
+        if usuario is None:
+            return ""
+        return usuario.get_full_name().strip() or usuario.get_username()
+
+    def get_necesidades(self, derivacion) -> list[str]:
+        return [clave for clave in NECESIDADES if derivacion.caso.necesidades.get(clave)]
+
+    def get_telefono(self, derivacion) -> str:
+        return derivacion.caso.situacion.get("telefono", "")
+
+    def get_observaciones(self, derivacion) -> str:
+        return derivacion.caso.situacion.get("observaciones", "")
+
+
+class BusquedaPorDniSerializer(serializers.Serializer):
+    """M2-1: lo que contesta ``…/buscar/?dni=`` (03 §7). Las claves vienen **siempre**; las que no aplican, ``null``."""
+
+    resultado = serializers.CharField(help_text="`DERIVACION`, `SIN_DERIVACION` o `ALOJADA`.")
+    dni = serializers.CharField(help_text="El DNI buscado, solo dígitos.")
+    plazas_libres = serializers.IntegerField(help_text="Camas libres del dispositivo ahora: decide «Ingresar igual».")
+    mensaje = serializers.CharField(help_text="El texto para la pantalla. Nunca nombra un dispositivo ajeno.")
+    derivacion = DerivacionLlegadaSerializer(allow_null=True, help_text="Solo con `DERIVACION`.")
+    alojada_aca = serializers.BooleanField(allow_null=True, help_text="Solo con `ALOJADA`: ¿en este dispositivo?")
+    alojada_en = serializers.CharField(
+        help_text="Solo con `ALOJADA` y si quien busca lo puede ver: el nombre del dispositivo. Si no, vacío."
+    )
+    alojada_desde = serializers.DateTimeField(allow_null=True)
+
+
+class AceptarDerivacionEnvioSerializer(serializers.Serializer):
+    uuid_cliente = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text=(
+            "Identificador del toque, generado en el celular. Se acepta y no se guarda: aceptar no es idempotente; "
+            "un reintento contesta 409 con `estado_actual: INGRESO_EN_CURSO` y la app sigue a los integrantes."
+        ),
+    )
+
+
+class AceptacionSerializer(serializers.Serializer):
+    caso = CasoResumenSerializer()
+    reservadas = serializers.IntegerField(help_text="Camas reservadas para la familia.")
+    faltantes = serializers.IntegerField(help_text="Las que faltaron para llegar a las pedidas. 0 si alcanzó.")
+    mensaje = serializers.CharField(help_text="«Reservé 5 de 7 · faltan 2 camas».")
+    integrantes = IntegranteSerializer(many=True)
+
+
+class RechazarDerivacionEnvioSerializer(serializers.Serializer):
+    motivo = _texto(help_text="Obligatorio: `SIN_PLAZAS`, `NO_CUMPLE_PERFIL`, `NO_LLEGO` u `OTRO`.")
+    observacion = _texto(help_text="Obligatoria con `OTRO`.")
+
+
+class RechazoSerializer(serializers.Serializer):
+    caso_estado = serializers.CharField(help_text="`EN_GESTION`: el caso volvió a la mesa.")
+
+
+class ConfirmarIntegranteEnvioSerializer(serializers.Serializer):
+    uuid_cliente = serializers.UUIDField(
+        help_text="Identificador de la confirmación, generado en el celular. Reenviarlo devuelve la misma fila."
+    )
+    ficha = serializers.DictField(
+        required=False, default=dict, help_text="El Formulario 2: el mínimo (secciones 1 a 3) y, si se quiere, 4 a 8."
+    )
+    plaza_id = serializers.IntegerField(
+        required=False, allow_null=True, default=None, help_text="`id` de una cama elegible de `…/plazas/?caso=`."
+    )
+
+
+class ConfirmacionSerializer(serializers.Serializer):
+    integrante = IntegranteSerializer()
+    confirmadas = serializers.IntegerField()
+    total_declarado = serializers.IntegerField()
+    reserva_liberada = serializers.BooleanField(
+        help_text="La persona entró en una cama libre y se devolvió una reserva de la familia que ya sobraba."
+    )
+
+
+class CompletarFichaEnvioSerializer(serializers.Serializer):
+    ficha = serializers.DictField(
+        help_text=(
+            "Las secciones 4 a 8 que se cargan (`educacion`, `vacunacion`, `salud`, `trabajo`, `observaciones`). "
+            "Cada una que viene reemplaza a la guardada; las del mínimo no se cambian."
+        )
+    )
+
+
+class FichaCompletadaSerializer(serializers.Serializer):
+    ficha_completa = serializers.BooleanField()
+    secciones_incompletas = serializers.ListField(child=serializers.CharField())
+
+
+class AgregarIntegranteEnvioSerializer(serializers.Serializer):
+    uuid_cliente = serializers.UUIDField(
+        help_text="Identificador del alta, generado en el celular. Reenviarlo devuelve la misma fila, sin sumar otra."
+    )
+
+
+class IntegranteAgregadoSerializer(serializers.Serializer):
+    integrante = IntegranteSerializer()
+    total_declarado = serializers.IntegerField()
+
+
+class AlojarFamiliaEnvioSerializer(serializers.Serializer):
+    """La sección 4 del Formulario 1 (M2-5)."""
+
+    sector = serializers.IntegerField(
+        required=False, allow_null=True, default=None, help_text="`id` de un sector del dispositivo (`…/plazas/`)."
+    )
+    aula = _texto(help_text="Aula o dormitorio. Hasta 80 caracteres.")
+    tarjeta_entregada = _aviso()
+    tarjeta_numero = _texto(help_text="Obligatorio si `tarjeta_entregada`. Hasta 40 caracteres.")
+    encargado = _texto(help_text="Quién recibe. Vacío: el usuario.")
+
+
+class CerrarConDiferenciaEnvioSerializer(serializers.Serializer):
+    motivo = _texto(help_text="Obligatorio: `QUEDO_CON_FAMILIARES`, `NO_LLEGO`, `DERIVADO_A_SALUD` u `OTRO`.")
+    observacion = _texto(help_text="Obligatoria con `OTRO`.")
+
+
+class CancelarIngresoEnvioSerializer(serializers.Serializer):
+    motivo = _texto(help_text="Obligatorio, hasta 200 caracteres.")
+
+
+class CierreDeIngresoSerializer(serializers.Serializer):
+    """Cómo quedó el caso después de alojar, cerrar con diferencia o cancelar el ingreso."""
+
+    estado = serializers.CharField(
+        help_text="`ALOJADO` (alojar, diferencia), `CERRADO` si ya no quedaba nadie, `EN_GESTION` o `NUEVO` (cancelar)."
+    )
+    total_alojado = serializers.IntegerField(allow_null=True)
+    liberadas = serializers.IntegerField(help_text="Reservas de la familia que quedaron libres.")
+
+
+class SectorDelMapaSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    perfil = serializers.CharField()
+
+
+class PlazaDelMapaSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    nombre = serializers.CharField()
+    estado = serializers.CharField(
+        help_text=(
+            "`LIBRE`, `RESERVADA_FAMILIA` (guardada para esta familia), `OCUPADA`, `FUERA_SERVICIO` o `RESERVADA` "
+            "(para otra persona o familia)."
+        )
+    )
+    elegible = serializers.BooleanField(help_text="`LIBRE` o `RESERVADA_FAMILIA`: lo único que hay que mirar.")
+    texto = serializers.CharField(help_text="Texto del estado (la app lo puede ignorar).")
+    tono = serializers.CharField(help_text="Tono del backoffice (la app lo puede ignorar).")
+    detalle = serializers.CharField(help_text="Motivo de la fuera de servicio u ocupante (con `ciudadano.ver`).")
+
+
+class SectorConPlazasSerializer(serializers.Serializer):
+    sector = SectorDelMapaSerializer()
+    plazas = PlazaDelMapaSerializer(many=True, help_text="A lo sumo 200 por sector, por código.")
+    total = serializers.IntegerField()
+    libres = serializers.IntegerField()
+    reservadas_familia = serializers.IntegerField()
+
+
+class MapaDePlazasSerializer(serializers.Serializer):
+    caso = serializers.IntegerField(allow_null=True, help_text="El `?caso=` pedido, o `null`.")
+    sectores = SectorConPlazasSerializer(many=True)
+
+
+class IngresoDirectoEnvioSerializer(CasoEmergenciaEnvioSerializer):
+    """Cuerpo multipart de ``…/ingreso-directo/`` y ``…/avisar-mesa/``: el Formulario 1 en la puerta.
+
+    El de M1 sin ``relevado_en`` (la familia está en la puerta: vale la hora del servidor). La
+    dirección y la localidad son opcionales: sin ellas van las del dispositivo (RN-3.10).
+    """
+
+    relevado_en = None
+    direccion = _texto(help_text="Opcional: sin ella va el domicilio del dispositivo. Hasta 240 caracteres.")
+
+    def datos_formulario1(self):
+        datos = dict(self.validated_data)
+        datos.pop("uuid_cliente")
+        datos["fotos"] = {}
+        for campo, tipo in FOTOS_DEL_CASO.items():
+            archivo = datos.pop(campo, None)
+            if archivo:
+                datos["fotos"][tipo] = archivo
+        return datos
+
+
+class IngresoDirectoSerializer(serializers.Serializer):
+    caso = CasoResumenSerializer()
+    reservadas = serializers.IntegerField()
+    faltantes = serializers.IntegerField()
+    integrantes = IntegranteSerializer(many=True)
+
+
+class AvisoALaMesaSerializer(serializers.Serializer):
+    caso = CasoResumenSerializer()

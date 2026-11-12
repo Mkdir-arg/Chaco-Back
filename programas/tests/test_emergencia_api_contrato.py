@@ -96,7 +96,7 @@ CLAVES_CONSULTA = ["data", "datos_api", "origen", "success"]
 CLAVES_SIN_MODULO = ["code", "detail"]
 CLAVES_UUID_EN_USO = ["code", "detail"]
 # M3 · Recepción de kits (PR 9-API).
-CLAVES_MI_DISPOSITIVO = ["entregas_pendientes", "id", "nombre"]
+CLAVES_MI_DISPOSITIVO = ["derivaciones_pendientes", "entregas_pendientes", "id", "nombre", "plazas_libres"]
 CLAVES_ENTREGA = [
     "despachada_en",
     "estado",
@@ -111,6 +111,78 @@ CLAVES_LINEA_DE_ENTREGA = ["enviada", "item", "nombre", "recibida", "unidad"]
 CLAVES_RECEPCION = ["diferencias", "estado"]
 CLAVES_DIFERENCIA = ["enviada", "item", "recibida"]
 CLAVES_ESTADO_CAMBIO = ["detail", "estado_actual"]
+# M2 · Llegada de familias (PR 8). Los tests de cada ruta están en `test_emergencia_api_m2`.
+CLAVES_CASO_RESUMEN = ["estado", "id", "numero", "prioridad", "total_declarado"]
+CLAVES_INTEGRANTE = [
+    "confirmada_en",
+    "egresado_en",
+    "estado",
+    "ficha_completa",
+    "n",
+    "parentesco",
+    "persona",
+    "plaza",
+]
+CLAVES_PERSONA_DEL_INTEGRANTE = ["dni", "id", "nombre"]
+CLAVES_PLAZA_DEL_INTEGRANTE = ["codigo", "id", "nombre"]
+CLAVES_INTEGRANTE_DETALLE = sorted([*CLAVES_INTEGRANTE, "ficha", "secciones_incompletas"])
+CLAVES_INTEGRANTES = [
+    "caso",
+    "con_ficha_incompleta",
+    "confirmadas",
+    "declaradas_al_relevar",
+    "integrantes",
+    "total_declarado",
+]
+CLAVES_BUSQUEDA = [
+    "alojada_aca",
+    "alojada_desde",
+    "alojada_en",
+    "derivacion",
+    "dni",
+    "mensaje",
+    "plazas_libres",
+    "resultado",
+]
+CLAVES_DERIVACION_LLEGADA = [
+    "caso",
+    "derivada_en",
+    "derivada_por",
+    "estado",
+    "grupo",
+    "id",
+    "necesidades",
+    "observaciones",
+    "plazas_pedidas",
+    "responsable",
+    "telefono",
+    "vence_en",
+    "vencida",
+]
+CLAVES_RESPONSABLE = ["apellido", "dni", "nombre"]
+CLAVES_GRUPO_DE_LA_DERIVACION = [
+    "adultos_f",
+    "adultos_m",
+    "dependientes",
+    "lactantes",
+    "mayores_dependientes",
+    "mayores_f",
+    "mayores_m",
+    "menores_f",
+    "menores_m",
+]
+CLAVES_ACEPTACION = ["caso", "faltantes", "integrantes", "mensaje", "reservadas"]
+CLAVES_RECHAZO = ["caso_estado"]
+CLAVES_CONFIRMACION = ["confirmadas", "integrante", "reserva_liberada", "total_declarado"]
+CLAVES_FICHA_COMPLETADA = ["ficha_completa", "secciones_incompletas"]
+CLAVES_INTEGRANTE_AGREGADO = ["integrante", "total_declarado"]
+CLAVES_CIERRE_DE_INGRESO = ["estado", "liberadas", "total_alojado"]
+CLAVES_MAPA = ["caso", "sectores"]
+CLAVES_SECTOR_CON_PLAZAS = ["libres", "plazas", "reservadas_familia", "sector", "total"]
+CLAVES_SECTOR_DEL_MAPA = ["id", "nombre", "perfil"]
+CLAVES_PLAZA_DEL_MAPA = ["codigo", "detalle", "elegible", "estado", "id", "nombre", "texto", "tono"]
+CLAVES_INGRESO_DIRECTO = ["caso", "faltantes", "integrantes", "reservadas"]
+CLAVES_AVISO_A_LA_MESA = ["caso"]
 #: El 400 trae además una clave por cada campo con error.
 CLAVES_FIJAS_DEL_400 = {"code", "detail", "non_field_errors"}
 
@@ -130,6 +202,23 @@ URLS_DE_KITS_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/entregas/",
     "/api/emergencia/entregas/1/",
     "/api/emergencia/entregas/1/recibir/",
+]
+
+#: Las de M2 (PR 8) que llevan un id. Sus claves están arriba; los tests de cada ruta, en
+#: ``test_emergencia_api_m2``.
+URLS_DE_LLEGADAS_DEL_BARRIDO = [
+    "/api/emergencia/casos/1/alojar/",
+    "/api/emergencia/casos/1/cancelar-ingreso/",
+    "/api/emergencia/casos/1/cerrar-diferencia/",
+    "/api/emergencia/casos/1/integrantes/",
+    "/api/emergencia/casos/1/integrantes/1/",
+    "/api/emergencia/casos/1/integrantes/1/confirmar/",
+    "/api/emergencia/derivaciones/1/aceptar/",
+    "/api/emergencia/derivaciones/1/rechazar/",
+    "/api/emergencia/dispositivos/1/avisar-mesa/",
+    "/api/emergencia/dispositivos/1/buscar/",
+    "/api/emergencia/dispositivos/1/ingreso-directo/",
+    "/api/emergencia/dispositivos/1/plazas/",
 ]
 
 #: Las rutas que solo abre el agente; el resto las abre cualquiera con el módulo.
@@ -235,10 +324,24 @@ class ModuloHabilitadoTests(BaseApiEmergencia):
         self.assertFalse(modulo_habilitado(User.objects.get(pk=self.guardia.pk)))
 
     def test_el_admin_del_programa_dispositivos_lo_abre_sin_equipo(self):
+        """H10: el login no cambia. Pero sin ``admitir`` ni ``recibir_kit`` no opera nada (PR 8).
+
+        Los servicios de alojar y de kits le niegan todo (``puede_operar_dispositivo`` exige
+        la capacidad aunque administre el programa): el perfil no le ofrece «Llegada de
+        familias» ni «Recepción de kits» para que no le contesten 403 después.
+        """
         admin = self._guardia("admin_disp", ["programa.configurar"])
 
         self.assertTrue(modulo_habilitado(admin))
-        self.assertEqual(roles_en_app(admin), {"relevar": False, "dispositivo": True})
+        self.assertEqual(roles_en_app(admin), {"relevar": False, "dispositivo": False})
+
+    def test_el_admin_del_programa_con_admitir_opera_todos_sin_equipo(self):
+        for capacidad in (ADMITIR, RECIBIR_KIT):
+            with self.subTest(capacidad=capacidad):
+                admin = self._guardia(f"admin_{capacidad}", ["programa.configurar", capacidad])
+
+                self.assertTrue(modulo_habilitado(admin))
+                self.assertEqual(roles_en_app(admin), {"relevar": False, "dispositivo": True})
 
     def test_el_admin_de_otro_programa_no_lo_abre(self):
         admin_becas = self._usuario("admin_becas", ["programa.configurar"], programa=self.becas)
@@ -347,6 +450,7 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
             sorted(
                 [URL_RAIZ, URL_PERFIL, URL_CONSULTAR, URL_LOCALIDADES, URL_CASOS, URL_MIOS, URL_MIS_DISPOSITIVOS]
                 + URLS_DE_KITS_DEL_BARRIDO
+                + URLS_DE_LLEGADAS_DEL_BARRIDO
             ),
         )
         self.assertGreaterEqual(len(urls_de_la_api_de_becas()), 5)
@@ -1114,12 +1218,35 @@ class MisDispositivosTests(BaseApiKits):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual([sorted(fila) for fila in respuesta.json()], [CLAVES_MI_DISPOSITIVO])
-        self.assertEqual(respuesta.json(), [{"id": self.club.pk, "nombre": "Club Sarmiento", "entregas_pendientes": 2}])
+        # Solo recibe kits: lo de «Llegada de familias» viene en cero (PR 8).
+        self.assertEqual(
+            respuesta.json(),
+            [
+                {
+                    "id": self.club.pk,
+                    "nombre": "Club Sarmiento",
+                    "entregas_pendientes": 2,
+                    "plazas_libres": 0,
+                    "derivaciones_pendientes": 0,
+                }
+            ],
+        )
 
     def test_la_guardia_que_solo_admite_ve_su_dispositivo_con_cero_pendientes(self):
         respuesta = self._como(self.guardia).get(URL_MIS_DISPOSITIVOS)
 
-        self.assertEqual(respuesta.json(), [{"id": self.club.pk, "nombre": "Club Sarmiento", "entregas_pendientes": 0}])
+        self.assertEqual(
+            respuesta.json(),
+            [
+                {
+                    "id": self.club.pk,
+                    "nombre": "Club Sarmiento",
+                    "entregas_pendientes": 0,
+                    "plazas_libres": 4,
+                    "derivaciones_pendientes": 0,
+                }
+            ],
+        )
 
     def test_con_dos_dispositivos_vienen_los_dos_por_nombre(self):
         doble = self._sumar_rol(self.deposito, [RECIBIR_KIT], self.dispositivos, [self.escuela])
@@ -1148,8 +1275,10 @@ class MisDispositivosTests(BaseApiKits):
                 self.assertEqual(cliente.get(URL_MIS_DISPOSITIVOS).status_code, 200)
             return len(capturadas)
 
-        con_uno = consultas(self.deposito)
-        muchos = [self._dispositivo(f"Sede {n:02d}") for n in range(30)]
+        # Con las dos capacidades y camas en los dos lados: así corren todas las consultas
+        # de «Llegada de familias» (PR 8) en la medición chica y en la grande.
+        con_uno = consultas(self._sumar_rol(self.deposito, [ADMITIR], self.dispositivos, [self.club]))
+        muchos = [self._dispositivo(f"Sede {n:02d}", camas=2) for n in range(30)]
         de_todos = self._guardia("deposito_de_todos", [RECIBIR_KIT, ADMITIR], muchos)
         for dispositivo in muchos:
             self._entrega_en_camino(dispositivo)
@@ -1460,6 +1589,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
 
         self.assertEqual(self.errores, [])
         self.assertEqual(self.warnings, [])
+        esperados = {}
         for ruta, metodo in (
             (URL_PERFIL, "get"),
             (URL_CONSULTAR, "post"),
@@ -1470,10 +1600,28 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             ("/api/emergencia/dispositivos/{dispositivo_id}/entregas/", "get"),
             ("/api/emergencia/entregas/{id}/", "get"),
             ("/api/emergencia/entregas/{id}/recibir/", "post"),
+            # M2 (PR 8)
+            ("/api/emergencia/dispositivos/{dispositivo_id}/buscar/", "get"),
+            ("/api/emergencia/dispositivos/{dispositivo_id}/plazas/", "get"),
+            ("/api/emergencia/derivaciones/{id}/aceptar/", "post"),
+            ("/api/emergencia/derivaciones/{id}/rechazar/", "post"),
+            ("/api/emergencia/casos/{id}/integrantes/", "get"),
+            ("/api/emergencia/casos/{id}/integrantes/", "post"),
+            ("/api/emergencia/casos/{id}/integrantes/{n}/", "get"),
+            ("/api/emergencia/casos/{id}/integrantes/{n}/", "patch"),
+            ("/api/emergencia/casos/{id}/integrantes/{n}/confirmar/", "post"),
+            ("/api/emergencia/casos/{id}/alojar/", "post"),
+            ("/api/emergencia/casos/{id}/cerrar-diferencia/", "post"),
+            ("/api/emergencia/casos/{id}/cancelar-ingreso/", "post"),
+            ("/api/emergencia/dispositivos/{dispositivo_id}/ingreso-directo/", "post"),
+            ("/api/emergencia/dispositivos/{dispositivo_id}/avisar-mesa/", "post"),
         ):
+            esperados.setdefault(ruta, []).append(metodo)
+        for ruta, metodos in esperados.items():
             with self.subTest(ruta=ruta):
-                self.assertEqual(list(rutas[ruta]), [metodo])
-                self.assertIn("403", rutas[ruta][metodo]["responses"])
+                self.assertEqual(sorted(rutas[ruta]), sorted(metodos))
+                for metodo in metodos:
+                    self.assertIn("403", rutas[ruta][metodo]["responses"])
 
     def test_cada_respuesta_publica_las_claves_del_contrato(self):
         rutas = self.esquema["paths"]
@@ -1489,6 +1637,31 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             (rutas["/api/emergencia/entregas/{id}/"]["get"], "200", CLAVES_ENTREGA),
             (rutas["/api/emergencia/entregas/{id}/recibir/"]["post"], "200", CLAVES_RECEPCION),
             (rutas["/api/emergencia/entregas/{id}/recibir/"]["post"], "409", CLAVES_ESTADO_CAMBIO),
+            # M2 (PR 8)
+            (rutas["/api/emergencia/dispositivos/{dispositivo_id}/buscar/"]["get"], "200", CLAVES_BUSQUEDA),
+            (rutas["/api/emergencia/dispositivos/{dispositivo_id}/plazas/"]["get"], "200", CLAVES_MAPA),
+            (rutas["/api/emergencia/derivaciones/{id}/aceptar/"]["post"], "200", CLAVES_ACEPTACION),
+            (rutas["/api/emergencia/derivaciones/{id}/aceptar/"]["post"], "409", CLAVES_ESTADO_CAMBIO),
+            (rutas["/api/emergencia/derivaciones/{id}/rechazar/"]["post"], "200", CLAVES_RECHAZO),
+            (rutas["/api/emergencia/casos/{id}/integrantes/"]["get"], "200", CLAVES_INTEGRANTES),
+            (rutas["/api/emergencia/casos/{id}/integrantes/"]["post"], "201", CLAVES_INTEGRANTE_AGREGADO),
+            (rutas["/api/emergencia/casos/{id}/integrantes/{n}/"]["get"], "200", CLAVES_INTEGRANTE_DETALLE),
+            (rutas["/api/emergencia/casos/{id}/integrantes/{n}/"]["patch"], "200", CLAVES_FICHA_COMPLETADA),
+            (rutas["/api/emergencia/casos/{id}/integrantes/{n}/confirmar/"]["post"], "201", CLAVES_CONFIRMACION),
+            (rutas["/api/emergencia/casos/{id}/integrantes/{n}/confirmar/"]["post"], "409", CLAVES_ESTADO_CAMBIO),
+            (rutas["/api/emergencia/casos/{id}/alojar/"]["post"], "200", CLAVES_CIERRE_DE_INGRESO),
+            (rutas["/api/emergencia/casos/{id}/cerrar-diferencia/"]["post"], "200", CLAVES_CIERRE_DE_INGRESO),
+            (rutas["/api/emergencia/casos/{id}/cancelar-ingreso/"]["post"], "200", CLAVES_CIERRE_DE_INGRESO),
+            (
+                rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso-directo/"]["post"],
+                "201",
+                CLAVES_INGRESO_DIRECTO,
+            ),
+            (
+                rutas["/api/emergencia/dispositivos/{dispositivo_id}/avisar-mesa/"]["post"],
+                "201",
+                CLAVES_AVISO_A_LA_MESA,
+            ),
         )
         for operacion, codigo, claves in casos:
             with self.subTest(operacion=operacion["operationId"], codigo=codigo):
