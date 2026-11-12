@@ -53,6 +53,12 @@ el segundo—, campos con el campo canónico en `sm:grid-cols-2`). Sin formulari
 ni la tarjeta (el wrapper `data-formulario-tipo` es `contents`). Lo reemplaza `dispositivos:formulario_tipo_seccion` al cambiar el tipo; las condiciones las evalúa
 `nodo-condiciones.js` y las repite el servidor. El form pasa a `multipart/form-data` por los
 campos de archivo; el asterisco marca lo que exige «Enviar a validación».
+El paso «Confirmar» del asistente de ingreso (P6) reusa la misma tarjeta con `formulario_titulo` y
+`formulario_nota` por contexto (título «Formulario de ingreso», «Los campos con * son obligatorios para
+confirmar el ingreso.»), dentro del mismo `<form enctype="multipart/form-data">`; ahí los obligatorios
+visibles bloquean el ingreso. La lectura (solapa Datos de P4 y detalle de la estadía, P7) usa
+`dispositivos/_formulario_respondido.html`: `section` con `border-t border-light mt-6 pt-5`, `h2` +
+`badge badge-gray` con la versión, `h3` por grupo y `dl` en grilla.
 Lo mismo vale para los forms chicos que viven en un modal, como `FormularioTipoNuevoForm`
 (P17, «Nuevo formulario» del detalle del tipo): el select llega con `INPUT_CLASS` y el modal
 solo pone etiqueta y error.
