@@ -1,0 +1,41 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Familia alojada — Paso {{ paso_actual }}{% endblock %}
+
+{% comment %}E6 · paso final del guion de la guardia (M2-5): la sección 4 del Formulario 1, con las N de N
+confirmadas. Arquetipo Wizard, paso final: resumen + confirmación. El estado del recorrido es el del caso —no la
+sesión—, así que acá no hay nada que otra pestaña pueda pisar: si alguien cerró el ingreso antes, el servicio
+contesta que la pantalla quedó vieja.{% endcomment %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% page_header titulo="Familia alojada" eyebrow=dispositivo.nombre volver_url=url_integrantes volver_label="integrantes" %}
+    {% bajada %}Paso {{ paso_actual }} de 3 · Dónde quedó la familia y la tarjeta familiar. Al confirmar, el ingreso queda cerrado.{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold">Resumen del ingreso</h2>
+    <dl class="mt-3 space-y-1 text-sm text-body">
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Familia:</dt><dd>{{ resumen.familia }}</dd></div>
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Caso:</dt><dd>{{ resumen.caso }}</dd></div>
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Personas:</dt><dd>{{ resumen.personas }}</dd></div>
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Camas:</dt><dd>{{ resumen.camas|default:"—" }}</dd></div>
+    </dl>
+    <p class="mt-3 text-xs text-body-subtle">{% if resumen.incompletas %}{{ resumen.incompletas }} ficha{{ resumen.incompletas|pluralize }} incompleta{{ resumen.incompletas|pluralize }}: se puede{{ resumen.incompletas|pluralize:"n" }} terminar después desde la lista de integrantes. {% endif %}La familia pasa a «Alojada» y la mesa lo ve al instante.</p>
+  </div>
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for field in form %}{% include "components/_field.html" %}{% endfor %}
+    </div>
+    <div class="flex justify-between gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{{ url_integrantes }}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Confirmar familia alojada</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -496,6 +496,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
+                # «Emergencia · Llegadas» (E6): la misma regla que su vista, `dispositivo.admitir` con alcance.
+                "url_llegadas_emergencia": (
+                    reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk])
+                    if puede_cambiar  # `dispositivo.admitir` con alcance: ya resuelto arriba
+                    else ""
+                ),
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),

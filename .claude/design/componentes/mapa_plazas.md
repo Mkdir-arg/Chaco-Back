@@ -85,6 +85,14 @@ claves de siempre:
 - La distinción entre las dos reservas va en el **texto del estado**: las dos comparten tono e ícono. La
   leyenda de la pantalla suma la entrada «Reservada para esta familia».
 
+Consumidor: «Elegir cama» de E6 (`programas/templates/programas/emergencia/dispositivo/cama.html`), una
+surface por sector. Las plazas y la leyenda salen del selector de la etapa (`plazas_para_caso` y
+`LEYENDA_PLAZAS_EMERGENCIA`, en los selectores de alojar de Emergencia) y `mapa_para_elegir` las pasa al
+contrato de la pieza. La cama elegible lleva **`url`** —no `click`: no abre ningún diálogo— hacia la ficha de la
+persona con `?cama=<id>`; tocarla no escribe nada, y la cama se toma recién al confirmar la ficha. Solo se
+ofrecen camas (`Plaza.Tipo.CAMA`). Una cama reservada para la familia de otro caso va sin `detalle`: no se
+nombra a su responsable.
+
 ## Tope
 
 Una grilla sin tope se vuelve inmanejable (y pesada) en un dispositivo grande. La pantalla arma **una

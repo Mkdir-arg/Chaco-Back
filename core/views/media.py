@@ -232,19 +232,36 @@ def _adjunto_de_bitacora(user, ruta):
 
 
 def _adjunto_de_emergencia(user, ruta):
-    """La foto de la vivienda o del acceso de un caso de Emergencia: la ve la mesa.
+    """La foto de la vivienda o del acceso de un caso de Emergencia: la mesa y la guardia que recibe a la familia.
 
-    Es un dato personal de la familia (RU-17). La mesa ve todos los casos del programa
-    (RU-10), así que alcanza con operar o supervisar **en el programa EMERGENCIA**. La
-    guardia del dispositivo todavía no las ve: su pantalla llega con la etapa 3, y la
-    regla se amplía ahí, con el alcance sobre el dispositivo de la derivación.
+    Es un dato personal de la familia (RU-17). La ven dos y nadie más:
+
+    * **La mesa**, que ve todos los casos del programa (RU-10): alcanza con operar o
+      supervisar en el programa EMERGENCIA.
+    * **La guardia del dispositivo de la derivación vigente** del caso —pendiente o aceptada:
+      la que está por recibir a la familia o ya la tiene alojada—, con `dispositivo.admitir`
+      y alcance sobre **ese** dispositivo (RU-8, RU-9). La de otro dispositivo, o la de uno
+      al que el caso estuvo derivado y ya no (rechazada, vencida, cancelada), no. Con el caso
+      cerrado deja de verlas: ya no hay nadie a quien recibir ni alojar.
+
+    Son las dos pantallas que las muestran: la ficha del caso (E3) y «Llegadas» (E6).
     """
-    from programas.models import AdjuntoCaso
+    from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion
+    from programas.services.dispositivos import puede_operar_dispositivo
     from programas.services.emergencia_programa import puede_operar_la_mesa
 
-    if not AdjuntoCaso.objects.filter(archivo=ruta).exists():
+    adjunto = AdjuntoCaso.objects.filter(archivo=ruta).values_list("caso_id", flat=True).first()
+    if adjunto is None:
         return None
-    return puede_operar_la_mesa(user)
+    if puede_operar_la_mesa(user):
+        return True
+    vigente = (
+        Derivacion.objects.filter(clave_vigente=adjunto)
+        .exclude(caso__estado=CasoEmergencia.Estado.CERRADO)
+        .select_related("dispositivo")
+        .first()
+    )
+    return vigente is not None and puede_operar_dispositivo(user, vigente.dispositivo, "dispositivo.admitir")
 
 
 def _archivo_de_formulario_dispositivo(user, ruta):

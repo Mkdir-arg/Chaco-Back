@@ -23,6 +23,7 @@ from core import rbac
 from core.models import Localidad
 from programas.models import AdjuntoCaso, CasoEmergencia, ContactoCaso, Derivacion, GrupoFamiliar, TrazaCaso
 from programas.selectors import emergencia as selectores
+from programas.selectors import emergencia_alojar as selectores_alojar
 from programas.services.emergencia import NECESIDADES, estado_visible_de_caso, prioridad_visible
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_OPERAR,
@@ -50,6 +51,23 @@ ROTULO_DE_NECESIDAD = {
 }
 
 MOTIVO_SIN_PLAZAS = "Sin plazas disponibles"
+
+#: Las claves de ``CasoEmergencia.situacion`` que escribe la etapa 3. Se repiten acá —y no se
+#: importan de ``services.emergencia_alojar``— porque ese servicio importa de la mesa lo que
+#: comparte con ella, y traerlo desde un selector invertiría las capas.
+#: ``test_emergencia_alojar_vistas`` fija que coincidan.
+SITUACION_ALOJAMIENTO = "alojamiento"
+SITUACION_DIFERENCIA = "diferencia"
+SITUACION_EN_LA_PUERTA = "en_la_puerta_de"
+
+#: Desde qué estados la ficha muestra a los integrantes: cuando el dispositivo ya aceptó.
+ESTADOS_CON_INTEGRANTES = (Estado.INGRESO_EN_CURSO, Estado.ALOJADO, Estado.CERRADO)
+
+ESTADO_DE_INTEGRANTE = {
+    selectores_alojar.INTEGRANTE_SIN_CONFIRMAR: ("Sin confirmar", "gray"),
+    selectores_alojar.INTEGRANTE_CONFIRMADA: ("Alojada", "success"),
+    selectores_alojar.INTEGRANTE_EGRESADA: ("Egresó", "gray"),
+}
 
 
 def nombre_de(usuario):
@@ -127,13 +145,24 @@ def localidades_con_casos():
 def _marcas_de_fila(caso, duplicados, alojado):
     """Los avisos de la fila, en texto: ``[{"texto", "tono"}]``.
 
-    Los que dependen de las etapas siguientes («Ingreso parcial», «En la puerta de X»,
-    «Rechazado por X», «Derivación vencida») se suman acá cuando esas etapas existan.
+    «Ingreso parcial» y «En la puerta de X» salen de lo que dejó la etapa 3 en el propio caso
+    (``total_alojado`` y ``situacion``): no cuestan consultas. Los que necesitan mirar la
+    última derivación («Rechazado por X», «Derivación vencida») llegan con los avisos de la mesa.
     """
 
     marcas = []
-    if caso.origen == CasoEmergencia.Origen.DISPOSITIVO:
+    en_la_puerta = (caso.situacion or {}).get(SITUACION_EN_LA_PUERTA)
+    if en_la_puerta:
+        # «Avisar a la mesa» (M2-6): la familia espera en ese dispositivo a que la deriven.
+        marcas.append(
+            {"texto": f"En la puerta de {en_la_puerta.get('dispositivo', 'un dispositivo')}", "tono": "warning"}
+        )
+    elif caso.origen == CasoEmergencia.Origen.DISPOSITIVO:
         marcas.append({"texto": "Ingreso directo", "tono": "info"})
+    if caso.ingreso_parcial:
+        marcas.append(
+            {"texto": f"Ingreso parcial · {caso.total_alojado} de {caso.grupo.total_declarado}", "tono": "warning"}
+        )
     if duplicados:
         numeros = ", ".join(numero for _pk, numero in duplicados)
         marcas.append({"texto": f"Posible duplicado: caso {numeros}", "tono": "warning"})
@@ -316,6 +345,73 @@ def _traza(caso):
     return eventos
 
 
+def _integrantes(caso):
+    """La sección «Integrantes» de E3, en solo lectura, o ``None`` si el dispositivo todavía no aceptó. **1 consulta.**
+
+    Son las filas que la guardia va confirmando (etapa 3): quién es cada persona, en qué cama
+    quedó y si su ficha está completa. La mesa solo mira: no hay acción sobre ellas.
+    """
+
+    if caso.estado not in ESTADOS_CON_INTEGRANTES:
+        return None
+    datos = selectores_alojar.integrantes_de(caso)
+    if not datos["integrantes"]:
+        return None
+    filas = []
+    for integrante in datos["integrantes"]:
+        texto, tono = ESTADO_DE_INTEGRANTE[integrante["estado"]]
+        confirmada = integrante["estado"] != selectores_alojar.INTEGRANTE_SIN_CONFIRMAR
+        ficha = ""
+        if confirmada:
+            ficha = "Ficha completa" if integrante["ficha_completa"] else "Ficha incompleta"
+        filas.append(
+            {
+                "n": integrante["n"],
+                "persona": integrante["persona"]["nombre"] if integrante["persona"] else f"Persona {integrante['n']}",
+                "dni": integrante["persona"]["dni"] if integrante["persona"] else "",
+                "parentesco": integrante["parentesco"],
+                "cama": integrante["plaza"]["nombre"] if integrante["plaza"] else "",
+                "estado_texto": texto,
+                "estado_tono": tono,
+                "ficha": ficha,
+                "ficha_tono": "success" if integrante["ficha_completa"] else "warning",
+            }
+        )
+    return {
+        "filas": filas,
+        "confirmadas": datos["confirmadas"],
+        "total": datos["total_declarado"],
+        "declaradas": datos["declaradas_al_relevar"],
+        "crecio": datos["total_declarado"] > datos["declaradas_al_relevar"],
+    }
+
+
+def _alojamiento(caso):
+    """Cómo viene (o terminó) el ingreso, con el dato real de la etapa 3. Sin consultas.
+
+    ``{"directo", "en_la_puerta", "parcial", "parcial_titulo", "diferencia", "donde"}``:
+    ingreso directo, aviso «en la puerta de X», ingreso parcial con su motivo, y la sección 4
+    del Formulario 1 (sector, aula, tarjeta).
+    """
+
+    situacion = caso.situacion or {}
+    en_la_puerta = situacion.get(SITUACION_EN_LA_PUERTA)
+    diferencia = situacion.get(SITUACION_DIFERENCIA)
+    parcial_titulo = ""
+    if caso.ingreso_parcial:
+        parcial_titulo = f"Ingreso parcial · {caso.total_alojado} de {caso.grupo.total_declarado} personas alojadas"
+        if diferencia and diferencia.get("motivo_texto"):
+            parcial_titulo = f"{parcial_titulo} · {diferencia['motivo_texto']}"
+    return {
+        "directo": caso.origen == CasoEmergencia.Origen.DISPOSITIVO and not en_la_puerta,
+        "en_la_puerta": en_la_puerta.get("dispositivo", "") if en_la_puerta else "",
+        "parcial": caso.ingreso_parcial,
+        "parcial_titulo": parcial_titulo,
+        "diferencia": diferencia,
+        "donde": situacion.get(SITUACION_ALOJAMIENTO),
+    }
+
+
 def derivacion_pendiente_de(caso):
     """La derivación ``PENDIENTE`` del caso, o ``None``: la que la mesa puede cancelar. **1 consulta.**"""
 
@@ -397,8 +493,9 @@ def ficha_de_caso(caso, usuario, sla, ahora):
     va a rechazar (RU-12, RU-13): ``puede_actuar`` es «lo tengo tomado, o superviso», y es la
     misma pregunta que ``services.emergencia`` vuelve a hacer sobre la fila bloqueada.
 
-    **Presupuesto: 7 u 8 consultas**: fotos, contactos, traza, las tres de los duplicados, la
-    del responsable alojado y, si el caso está derivado o con ingreso en curso, la derivación.
+    **Presupuesto: 7 a 9 consultas**: fotos, contactos, traza, las tres de los duplicados y la
+    del responsable alojado; si el caso está derivado o más adelante, la derivación; y desde
+    que el dispositivo lo aceptó, los integrantes.
     """
 
     es_duenio = caso.tomado_por_id is not None and caso.tomado_por_id == usuario.pk
@@ -475,4 +572,6 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         "responsable_alojado": selectores.responsable_alojado(caso, usuario),
         "derivacion": derivacion,
         "motivo_cierre": caso.get_motivo_cierre_display() if caso.motivo_cierre else "",
+        "integrantes": _integrantes(caso),
+        "alojamiento": _alojamiento(caso),
     }

@@ -61,6 +61,10 @@
         {% if puede_editar and dispositivo.estado != 'CERRADO' %}
         {% include "components/_menu_fila_item.html" with texto="Editar" icono="fa-pen" url=url_editar_dispositivo only %}
         {% endif %}
+        {# Emergencia: la guardia recibe a las familias derivadas. La URL llega solo con la capacidad y el alcance que exige esa pantalla #}
+        {% if url_llegadas_emergencia %}
+        {% include "components/_menu_fila_item.html" with texto="Emergencia · Llegadas" icono="fa-people-roof" url=url_llegadas_emergencia only %}
+        {% endif %}
         {% if validacion_pendiente %}
         {% include "components/_menu_fila_item.html" with texto="Observar" icono="fa-eye" abre_modal="modalObservar" only %}
         {% include "components/_menu_fila_item.html" with texto="Rechazar" icono="fa-ban" abre_modal="modalRechazar" peligro=True only %}

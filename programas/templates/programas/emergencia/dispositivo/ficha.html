@@ -1,0 +1,79 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Persona {{ orden }} · Caso {{ caso.numero }}{% endblock %}
+
+{% comment %}E6 · la ficha individual (Formulario 2, M2-4). Arquetipo Formulario, con un bloque por sección del
+esquema fijo (`emergencia_alojar.ESQUEMA_FICHA`). Sin confirmar: las ocho secciones más la cama, que viaja oculta
+con lo que la pantalla mostró y se cambia en el mapa (otra pantalla: elegir ahí vuelve acá con esa cama). El
+asterisco marca el mínimo para confirmar, que valida el servicio y no el navegador. Confirmada: quedan las
+secciones 4 a 8, que se pueden terminar después.{% endcomment %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% page_header titulo=titulo eyebrow=dispositivo.nombre volver_url=url_integrantes volver_label="integrantes" %}
+    {% bajada %}Paso 2 de 3 · Caso {{ caso.numero }} · {% if confirmada %}Completá las secciones que faltan; la identidad y la cama ya quedaron al confirmar.{% else %}Con las secciones 1 a 3 y una cama, la persona queda alojada. El resto se puede terminar después.{% endif %}{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+  {% if confirmada %}
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold">{{ persona }}</h2>
+    <dl class="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt>
+        <dd class="mt-1 text-sm text-heading">{{ dni|dni }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">Parentesco</dt>
+        <dd class="mt-1 text-sm text-heading">{{ parentesco|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">Cama</dt>
+        <dd class="mt-1 text-sm text-heading">{% if egresada %}Egresó{% else %}{{ cama_actual|default:"Sin cama" }}{% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">Ficha</dt>
+        <dd class="mt-1 text-sm text-heading"><span class="badge {% if ficha_completa %}badge-success{% else %}badge-warning{% endif %}">{% if ficha_completa %}Completa{% else %}Incompleta{% endif %}</span></dd>
+      </div>
+    </dl>
+    {% if faltan %}<p class="mt-3 text-xs text-body-subtle">Falta: {{ faltan|join:" · " }}.</p>{% endif %}
+  </div>
+  {% endif %}
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% for seccion in form.secciones %}
+    <div{% if not forloop.first %} class="border-t border-light pt-4"{% endif %}>
+      <h2 class="text-heading font-bold">{{ seccion.numero }} · {{ seccion.titulo }}{% if seccion.minimo %} <span class="badge badge-info">Mínimo para confirmar</span>{% endif %}</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">{% if seccion.minimo %}Lo marcado con asterisco hace falta para confirmar a la persona.{% else %}Se puede completar después. Si no hay nada que cargar, marcá «Sin datos para cargar».{% endif %}</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {% for field in seccion.campos %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+        {% if seccion.sin_datos %}{% with field=seccion.sin_datos %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}{% endif %}
+      </div>
+    </div>
+    {% if seccion.codigo == "avisos_salud" %}
+    <div class="border-t border-light pt-4">
+      <h2 class="text-heading font-bold">Cama</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Las camas reservadas para esta familia se ofrecen primero. La cama se toma recién al confirmar.</p>
+      {{ form.plaza }}
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        {% if cama %}
+        <p class="text-sm text-heading"><i class="fas fa-bed" aria-hidden="true"></i> <span class="font-semibold">{{ cama.nombre }}</span> <span class="badge badge-{{ cama.tono }}">{{ cama.texto }}</span></p>
+        {% else %}
+        <p class="text-sm text-body"><i class="fas fa-bed" aria-hidden="true"></i> Sin cama elegida: no queda ninguna reservada para esta familia.</p>
+        {% endif %}
+        <a href="{{ url_cama }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-table-cells" aria-hidden="true"></i> {% if cama %}Cambiar cama{% else %}Elegir cama{% endif %}</a>
+      </div>
+      <p class="mb-4 text-xs text-body-subtle">Al cambiar la cama se abre el mapa y lo que hayas escrito acá se pierde: elegila antes de cargar la ficha.</p>
+    </div>
+    {% endif %}
+    {% endfor %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{{ url_integrantes }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> {% if confirmada %}Guardar ficha{% else %}Confirmar persona{% endif %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
