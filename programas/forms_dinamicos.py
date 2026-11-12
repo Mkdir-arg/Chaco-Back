@@ -252,8 +252,7 @@ class RespuestasDisenoForm(forms.Form):
     def respuestas_sin_archivos(self):
         """Lo de :meth:`respuestas` sin los campos ARCHIVO: lo que se puede conservar entre un intento y
         el siguiente (el archivo se vuelve a elegir)."""
-        claves = {clave for clave, item in self._campos if item.get("tipo") == "ARCHIVO"}
-        return {clave: valor for clave, valor in self.respuestas().items() if clave not in claves}
+        return sin_archivos(self.foto, self.respuestas())
 
     def archivos(self):
         """``[(clave, archivo)]`` de los ARCHIVO visibles con un archivo nuevo."""
@@ -283,20 +282,40 @@ class RespuestasDisenoForm(forms.Form):
                 self.add_error(campo["clave"], "Este dato es obligatorio.")
 
 
-def formulario_de_momento_para(tipo_id, momento, data=None, files=None, guardadas=None, prefijo="formulario"):
-    """El formulario vigente de ``tipo_id`` para un ``momento`` de la estadía (ingreso, egreso), armado
-    desde su foto, o ``None`` si el tipo no tiene ninguno o lo dio de baja.
+def sin_archivos(foto, valores):
+    """``valores`` sin las claves de tipo ARCHIVO de la ``foto``: el único punto que las descarta. Un
+    archivo **nunca** se conserva entre un intento y el siguiente (un nombre guardado valdría como «ya
+    cargado» sin que haya ningún archivo): se vuelve a elegir."""
+    archivos = {campo["clave"] for campo in campos_de(foto) if campo.get("tipo") == "ARCHIVO"}
+    return {clave: valor for clave, valor in (valores or {}).items() if clave not in archivos}
 
-    ``guardadas`` precarga por clave lo que se conserva entre un intento y el siguiente. Un archivo
-    **nunca** se conserva: se vuelve a elegir (un nombre guardado valdría como «ya cargado» sin que haya
-    ningún archivo), así que acá se descartan las claves ARCHIVO.
+
+def formulario_de_momento_para(
+    tipo_id,
+    momento,
+    data=None,
+    files=None,
+    guardadas=None,
+    prefijo="formulario",
+    tipos=None,
+    conservar_archivos=False,
+):
+    """El formulario vigente de ``tipo_id`` para un ``momento`` (alta del dispositivo, ingreso, egreso),
+    armado desde su foto, o ``None`` si el tipo no tiene ninguno, lo dio de baja o no es elegible
+    (``tipos`` acota a los tipos elegibles).
+
+    ``guardadas`` precarga por clave lo que se conserva entre un intento y el siguiente (un dict, o una
+    función del diseño que lo devuelve, para leerlo solo si hay formulario). Un archivo no se
+    conserva (:func:`sin_archivos`), salvo en la edición del alta (``conservar_archivos=True``), donde el
+    archivo ya guardado vale como cargado y se muestra «Ya cargado».
     """
-    diseno = formulario_vigente(tipo_id, momento)
+    diseno = formulario_vigente(tipo_id, momento, tipos=tipos)
     if diseno is None:
         return None
     foto = foto_vigente(diseno)
-    archivos = {campo["clave"] for campo in campos_de(foto) if campo.get("tipo") == "ARCHIVO"}
-    precargadas = {clave: valor for clave, valor in (guardadas or {}).items() if clave not in archivos}
+    if callable(guardadas):
+        guardadas = guardadas(diseno)
+    precargadas = dict(guardadas or {}) if conservar_archivos else sin_archivos(foto, guardadas)
     formulario = RespuestasDisenoForm(data, files, foto=foto, guardadas=precargadas, prefix=prefijo)
     formulario.diseno = diseno
     return formulario

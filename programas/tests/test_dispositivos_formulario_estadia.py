@@ -1,8 +1,8 @@
-"""Formularios de «Ingreso» y «Egreso» del tipo de dispositivo (P17, PR 1 de los momentos de la estadía).
+"""Formularios de «Ingreso» y «Egreso» del tipo de dispositivo (P17, PR 1 y 2 de los momentos de la estadía).
 
 Cubre el paso Confirmar del asistente de ingreso (P6) con y sin formulario, la validación que
 frena antes de escribir, la transacción única con la estadía, los archivos y su regla de
-`/media/`, el servicio de egreso (la UI del egreso es el PR 2), la baja lógica del formulario con
+`/media/`, el servicio de egreso y el formulario en el modal de egreso (P7 y P4), la baja lógica del formulario con
 respuestas y la lectura en el detalle de la estadía (P7). El presupuesto va con `@tag("performance")`.
 """
 
@@ -26,6 +26,7 @@ from programas.models import (
     Estadia,
     ItemDiseno,
     MomentoFormulario,
+    MotivoEgreso,
     RespuestasEgresoEstadia,
     RespuestasIngresoEstadia,
 )
@@ -384,16 +385,17 @@ class DetalleDeEstadiaTests(_Base):
     def test_sin_respuestas_las_secciones_no_aparecen(self):
         pagina = self.client.get(self.url)
         self.assertEqual(pagina.status_code, 200)
-        self.assertNotContains(pagina, "Formulario de ingreso")
-        self.assertNotContains(pagina, "Formulario de egreso")
+        # La tarjeta del modal de egreso también se llama «Formulario de egreso»: se mira el id de la sección.
+        self.assertNotContains(pagina, 'id="formulario-estadia-')
 
     def test_con_respuestas_muestra_las_dos_secciones_y_el_enlace_al_archivo(self):
         self._responder()
 
         pagina = self.client.get(self.url)
 
+        self.assertContains(pagina, 'id="formulario-estadia-1"')
+        self.assertContains(pagina, 'id="formulario-estadia-2"')
         self.assertContains(pagina, "Formulario de ingreso")
-        self.assertContains(pagina, "Formulario de egreso")
         self.assertContains(pagina, "Llega con mochila")
         self.assertContains(pagina, "Se va con familiares")
         self.assertContains(pagina, AdjuntoRespuestaIngreso.objects.get().archivo.url)
@@ -418,3 +420,154 @@ class DetalleDeEstadiaTests(_Base):
 
         self.assertEqual([e["titulo"] for e in entradas], ["Formulario de ingreso", "Formulario de egreso"])
         self.assertEqual(len(consultas), _presupuesto("dispositivos_formularios_de_estadia"))
+
+
+# ── PR 2: el formulario de egreso dentro del modal ───────────────────────────
+
+
+class EgresoConFormularioTests(_Base):
+    """`EstadiaEgresarView` con el formulario de «Egreso» del tipo (P4 y P7 mandan este mismo POST)."""
+
+    def setUp(self):
+        super().setUp()
+        self.estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )
+        self.egreso = self._formulario(MomentoFormulario.EGRESO)
+        self.motivo = MotivoEgreso.objects.create(codigo="alta-t", nombre="Alta de prueba", activo=True)
+        self.url = reverse("dispositivos:egresar", args=[self.cis.pk, self.estadia.pk])
+        self.url_p7 = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia.pk])
+        self.url_p4 = f"{reverse('dispositivos:detalle', args=[self.cis.pk])}?tab=estadias&egreso={self.estadia.pk}"
+
+    def _datos(self, **extra):
+        datos = {
+            "fecha_egreso": timezone.localtime().replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M"),
+            "motivo": self.motivo.pk,
+            "destino": "Domicilio de familiar",
+            self._nombre("Cantidad de pertenencias", self.egreso): "2",
+            self._nombre("Observaciones", self.egreso): "Se va con familiares",
+            self._nombre("Constancia", self.egreso): _pdf(),
+        }
+        datos.update(extra)
+        return datos
+
+    def _post(self, datos):
+        return self.client.post(self.url, datos, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+
+    def _nada_escrito(self):
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.ACTIVA)
+        self.assertEqual(self.estadia.plaza_id, self.plaza.pk)
+        self.assertFalse(RespuestasEgresoEstadia.objects.exists())
+        self.assertFalse(AdjuntoRespuestaEgreso.objects.exists())
+        self.assertEqual(self._carpeta_de_archivos(), [])
+
+    def _con_ciudadano_ver(self):
+        self.client.force_login(
+            self._operador("Ve ciudadano", self.cis, ("dispositivo.ver", "dispositivo.egresar", "ciudadano.ver"))
+        )
+
+    def test_sin_formulario_vigente_el_egreso_es_el_de_siempre(self):
+        self.egreso.dado_de_baja_en = timezone.now()
+        self.egreso.save(update_fields=["dado_de_baja_en"])
+        datos = {k: v for k, v in self._datos().items() if not k.startswith("formulario-")}
+
+        respuesta = self._post(datos)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
+        self.assertFalse(RespuestasEgresoEstadia.objects.exists())
+
+    def test_con_formulario_se_guarda_con_la_foto_la_version_y_el_adjunto(self):
+        respuesta = self._post(self._datos())
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
+        fila = RespuestasEgresoEstadia.objects.get()
+        self.assertEqual(fila.estadia, self.estadia)
+        self.assertEqual(fila.version, self.egreso.version)
+        self.assertEqual(fila.definicion, foto_vigente(self.egreso))
+        self.assertEqual(fila.respuestas[self._item("Cantidad de pertenencias", self.egreso).clave], 2)
+        adjunto = AdjuntoRespuestaEgreso.objects.get()
+        self.assertTrue(adjunto.archivo.name.startswith("dispositivos/estadias/formularios/"))
+        self.assertFalse(RespuestasIngresoEstadia.objects.exists())
+
+    def test_un_obligatorio_vacio_da_400_con_el_error_en_su_campo_y_no_se_escribe_nada(self):
+        clave = self._item("Cantidad de pertenencias", self.egreso).clave
+
+        respuesta = self._post(self._datos(**{self._nombre("Cantidad de pertenencias", self.egreso): ""}))
+
+        self.assertEqual(respuesta.status_code, 400)
+        errores = respuesta.json()["errors"]
+        self.assertEqual(errores[clave], ["Este dato es obligatorio."])
+        self.assertNotIn("__all__", errores)
+        self._nada_escrito()
+
+    def test_un_motivo_faltante_frena_aunque_el_formulario_este_completo(self):
+        respuesta = self._post(self._datos(motivo=""))
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("motivo", respuesta.json()["errors"])
+        self._nada_escrito()
+
+    def test_si_guardar_las_respuestas_explota_la_estadia_sigue_activa(self):
+        with patch("programas.views.dispositivos_legajo.guardar_respuestas_egreso", side_effect=RuntimeError("falla")):
+            with self.assertRaises(RuntimeError):
+                self._post(self._datos())
+
+        self._nada_escrito()
+
+    def test_si_falla_despues_de_escribir_el_archivo_se_borra(self):
+        from programas.services import respuestas_dispositivo as servicio
+
+        original = servicio.anotar_archivo_escrito
+
+        def escribir_y_fallar(*args, **kwargs):
+            original(*args, **kwargs)
+            raise RuntimeError("falla")
+
+        with patch.object(servicio, "anotar_archivo_escrito", side_effect=escribir_y_fallar):
+            with self.assertRaises(RuntimeError):
+                self._post(self._datos())
+
+        self._nada_escrito()
+
+    def test_un_formulario_dado_de_baja_no_se_pide_en_p7_ni_en_p4(self):
+        self._con_ciudadano_ver()
+        for url in (self.url_p7, self.url_p4):
+            self.assertContains(self.client.get(url), "Formulario de egreso")
+        self.egreso.dado_de_baja_en = timezone.now()
+        self.egreso.save(update_fields=["dado_de_baja_en"])
+        for url in (self.url_p7, self.url_p4):
+            self.assertNotContains(self.client.get(url), "Formulario de egreso")
+
+    def test_los_campos_llegan_dentro_del_modal_de_p4_y_de_p7_con_su_data_error(self):
+        clave = self._item("Cantidad de pertenencias", self.egreso).clave
+        self._con_ciudadano_ver()
+        for url in (self.url_p7, self.url_p4):
+            pagina = self.client.get(url)
+            self.assertContains(pagina, f'data-error="{clave}"')
+            self.assertContains(pagina, f'name="formulario-{clave}"')
+            self.assertContains(pagina, "data-formulario-tipo-egreso")
+
+    def test_p7_muestra_el_formulario_de_egreso_despues_de_egresar(self):
+        self._con_ciudadano_ver()
+        self.client.force_login(self.operador_cis)
+        self.assertEqual(self._post(self._datos()).status_code, 200)
+
+        pagina = self.client.get(self.url_p7)
+
+        self.assertContains(pagina, "Formulario de egreso")
+        self.assertContains(pagina, "Se va con familiares")
+        self.assertContains(pagina, AdjuntoRespuestaEgreso.objects.get().archivo.url)
+
+    @tag("performance")
+    def test_el_formulario_suma_una_consulta_de_lectura_al_post_de_egreso(self):
+        """Con formulario el POST lee el vigente del tipo (1) y guarda: fila bloqueada (1), alta (1), adjunto (1)."""
+        with CaptureQueriesContext(connection) as con:
+            self.assertEqual(self._post(self._datos()).status_code, 200)
+        lecturas = [c["sql"] for c in con.captured_queries if "programas_disenoformulario" in c["sql"]]
+        # El vigente (1) y la comprobación de baja que ya hacía el servicio de guardado no se suman: una sola.
+        self.assertEqual(len(lecturas), 1, lecturas)

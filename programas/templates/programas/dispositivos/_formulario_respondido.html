@@ -1,9 +1,9 @@
 {% comment %}
-Lo respondido en un formulario de tipo de dispositivo (P17), de solo lectura: título, versión respondida y, por grupo de la foto, los campos visibles según sus condiciones. Lo comparten la solapa Datos del detalle de la institución (P4) y el detalle de la estadía (P7, formularios de ingreso y egreso). Recibe `respondido` (`programas.services.respuestas_dispositivo`) y `ancla` (id único del título).
+Lo respondido en un formulario de tipo de dispositivo (P17), de solo lectura: título, versión respondida y, por grupo de la foto, los campos visibles según sus condiciones. Lo comparten la solapa Datos del detalle de la institución (P4) y el detalle de la estadía (P7, formularios de ingreso y egreso). Recibe `respondido` (`programas.services.respuestas_dispositivo`), `ancla_prefijo` y `ancla_n` (juntos forman el id único del título: un `add` entre texto y número da vacío en Django).
 {% endcomment %}
-<section class="border-t border-light mt-6 pt-5" aria-labelledby="{{ ancla }}">
+<section class="border-t border-light mt-6 pt-5" aria-labelledby="{{ ancla_prefijo }}{{ ancla_n }}">
   <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
-    <h2 id="{{ ancla }}" class="text-heading font-bold">{{ respondido.titulo }}</h2>
+    <h2 id="{{ ancla_prefijo }}{{ ancla_n }}" class="text-heading font-bold">{{ respondido.titulo }}</h2>
     <span class="badge badge-gray">{% if respondido.del_tipo_actual is False %}Tipo anterior: {{ respondido.tipo }} · {% endif %}Versión {{ respondido.version }}</span>
   </div>
   {% for seccion in respondido.secciones %}

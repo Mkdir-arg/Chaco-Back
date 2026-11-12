@@ -1,7 +1,7 @@
 {% extends "includes/base.html" %}
 {% load static nodo_ui dispositivos %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }}{% endblock %}
-{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
 
 {% block main-content %}
 {% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
@@ -179,7 +179,7 @@
         </div>
         {# P17: lo respondido en el formulario «Crear dispositivo» del tipo, con la foto de la versión respondida; solo lo visible por sus condiciones. #}
         {% for respondido in formularios_respondidos %}
-        {% include "programas/dispositivos/_formulario_respondido.html" with respondido=respondido ancla="formulario-respondido-"|add:forloop.counter %}
+        {% include "programas/dispositivos/_formulario_respondido.html" with respondido=respondido ancla_prefijo="formulario-respondido-" ancla_n=forloop.counter %}
         {% endfor %}
       </div>
 
@@ -502,6 +502,11 @@
             <label class="inline-flex items-center gap-2 text-sm text-body">{{ form_egreso.pertenencias_devueltas }} {{ form_egreso.pertenencias_devueltas.label }}</label>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="pertenencias_devueltas"></p>
           </div>
+          {% if formulario_egreso %}
+          <div data-formulario-tipo-egreso>
+            {% include "programas/dispositivos/legajo/_formulario_tipo.html" with formulario_tipo=formulario_egreso formulario_titulo="Formulario de egreso" formulario_nota="Lo pide el tipo de la institución. Los campos con * hacen falta para registrar el egreso." %}
+          </div>
+          {% endif %}
           {% include "components/_alerta.html" with tono="info" texto="Libera la plaza y la persona vuelve a poder alojarse en cualquier dispositivo de la red. El egreso queda en el historial del dispositivo." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEgreso=false" accion_texto="Confirmar egreso" accion_tono="danger" %}
@@ -680,4 +685,13 @@
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
-<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>
+{% if formulario_egreso %}
+<script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
+<script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-formulario-tipo.js' %}"></script>
+<script>
+  // Formulario de egreso del tipo, dentro del modal: mismas condiciones que evalúa el servidor al egresar.
+  window.NodoFormularioTipo.montar(document.querySelector('[data-formulario-tipo-egreso]'));
+</script>
+{% endif %}{% endblock %}

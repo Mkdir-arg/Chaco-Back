@@ -24,6 +24,7 @@ from programas.models import (
     Formulario,
     GrupoRequisito,
     HorarioDispositivo,
+    MomentoFormulario,
     Plaza,
     PreguntaGlobal,
     PresentacionCampo,
@@ -973,21 +974,19 @@ def formulario_tipo_para(tipo_id, dispositivo=None, data=None, files=None):
     respondió en ese mismo formulario (por clave). Prefijo ``formulario``: sus campos no
     chocan con los del legajo.
     """
-    from programas.forms_dinamicos import RespuestasDisenoForm
-    from programas.services.respuestas_dispositivo import formulario_vigente, foto_vigente, respuestas_guardadas
+    from programas.forms_dinamicos import formulario_de_momento_para
+    from programas.services.respuestas_dispositivo import respuestas_guardadas
 
-    diseno = formulario_vigente(tipo_id, tipos=tipos_para_dispositivo(dispositivo))
-    if diseno is None:
-        return None
-    formulario = RespuestasDisenoForm(
+    # `guardadas` es una función del diseño: sin formulario vigente no se lee nada de más.
+    return formulario_de_momento_para(
+        tipo_id,
+        MomentoFormulario.CREAR_DISPOSITIVO,
         data,
         files,
-        foto=foto_vigente(diseno),
-        guardadas=respuestas_guardadas(dispositivo, diseno),
-        prefix="formulario",
+        guardadas=lambda diseno: respuestas_guardadas(dispositivo, diseno),
+        tipos=tipos_para_dispositivo(dispositivo),
+        conservar_archivos=True,
     )
-    formulario.diseno = diseno
-    return formulario
 
 
 # Lo que el alta ya no pide a mano: sale del primer responsable elegido (Cambio 450).
