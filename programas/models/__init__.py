@@ -5893,6 +5893,19 @@ class TrazaCaso(models.Model):
         # Las dos del cron (`procesar_vencimientos`): la traza va sin usuario.
         DERIVACION_VENCIDA = "DERIVACION_VENCIDA", "Derivación vencida"
         DEVUELTO_POR_INACTIVIDAD = "DEVUELTO_POR_INACTIVIDAD", "Devuelto a la bandeja por inactividad"
+        # Etapa 3 · alojar (`programas.services.emergencia_alojar`): lo que hace la guardia del dispositivo.
+        DERIVACION_ACEPTADA = "DERIVACION_ACEPTADA", "Derivación aceptada"
+        DERIVACION_RECHAZADA = "DERIVACION_RECHAZADA", "Derivación rechazada"
+        INTEGRANTE_CONFIRMADO = "INTEGRANTE_CONFIRMADO", "Persona confirmada con cama"
+        FICHA_ACTUALIZADA = "FICHA_ACTUALIZADA", "Ficha individual actualizada"
+        INTEGRANTE_AGREGADO = "INTEGRANTE_AGREGADO", "Persona agregada por el dispositivo"
+        ALOJADO = "ALOJADO", "Familia alojada"
+        ALOJADO_CON_DIFERENCIA = "ALOJADO_CON_DIFERENCIA", "Ingreso cerrado con diferencia"
+        INGRESO_CANCELADO = "INGRESO_CANCELADO", "Ingreso cancelado"
+        INGRESO_DIRECTO = "INGRESO_DIRECTO", "Ingreso directo en el dispositivo"
+        AVISO_A_LA_MESA = "AVISO_A_LA_MESA", "Aviso a la mesa desde el dispositivo"
+        INTEGRANTE_EGRESADO = "INTEGRANTE_EGRESADO", "Egreso de un integrante"
+        CERRADO_POR_EGRESO = "CERRADO_POR_EGRESO", "Cerrado: todos egresados"
 
     caso = models.ForeignKey(
         CasoEmergencia,
