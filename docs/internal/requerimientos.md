@@ -55044,7 +55044,8 @@ reasignar, prioridad, contacto, derivar, cancelar derivación, cerrar). Sidebar:
    plazas libres y reservadas y distancia.
 5. **Confirmaciones con el arquetipo Modal y `ModernModal`**, no SweetAlert2 (legacy condicionado, C4 del plan); el motivo es
    obligatorio en cerrar y cancelar (RU-22).
-6. **Presupuestos fijados por test:** E2 en 17 consultas con 500 casos abiertos y E3 en 18.
+6. **Presupuestos fijados por test:** E2 en 16 consultas con 500 casos abiertos (17 hasta la auditoría del PR #1128) y E3
+   en 18.
 7. `_semaforo_sla.html` suma el parámetro opcional `texto_tiempo`.
 
 ## Implementación
@@ -55077,7 +55078,7 @@ Nada especial.
 ## Pendientes / a definir
 
 1. Revisión visual en navegador de E2, E3 y «Nuevo caso».
-2. **El semáforo se consulta dos veces en la bandeja** (una consulta de más, evitable tocando el selector).
+2. ~~**El semáforo se consulta dos veces en la bandeja**~~ — resuelto en la auditoría del PR #1128 (ver Historial).
 3. Squash del commit «wip» `2587db2a` con `deae7666` antes de abrir el PR.
 4. Mirar en el review los snapshots de Becas regenerados.
 
@@ -55088,6 +55089,12 @@ Revertir el PR; sin migraciones. Si están mergeados los PRs 7, 10 y 11, reverti
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 3 se cerró en la ola 3, commits `2587db2a` y `deae7666`).
+- **13/11/2026 — ronda de auditoría del PR #1128.** Qué puede hacer quien mira la ficha deja de calcularse en el selector:
+  `services.emergencia.acciones_posibles(caso, usuario, *, es_supervisor, derivacion_pendiente)` es pura, devuelve las mismas
+  claves (`es_duenio`, `puede_*`, `solo_lectura`) y lee las mismas piezas que los guardas del servicio (`_es_duenio`,
+  `caso.abierto`, `ESTADOS_PARA_TOMAR/SOLTAR/DERIVAR/CERRAR/CANCELAR_DERIVACION`); `AccionesPosiblesTests` cruza estado ×
+  dueño/supervisor/otro operador contra lo que contesta cada servicio. E2 calcula `ids_por_estado_sla` una vez y lo pasa a
+  `bandeja(..., semaforos=)` y a `conteos_de_solapas(..., semaforos=)`: 17 → 16 consultas. Sin cambios de comportamiento ni de HTML.
 
 ---
 
@@ -55773,7 +55780,7 @@ tablero (Cambio 472).
 ## Decisiones tomadas
 
 1. **Cada marca se va con la siguiente acción sobre el caso**: no hay que cerrarlas a mano.
-2. **Sin consultas nuevas:** los presupuestos de E2 (17) y E3 (18) no cambian.
+2. **Sin consultas nuevas:** los presupuestos de E2 (16 desde la auditoría del PR #1128; eran 17) y E3 (18) no cambian.
 
 ## Implementación
 

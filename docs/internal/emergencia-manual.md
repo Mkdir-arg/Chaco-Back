@@ -347,7 +347,7 @@ reales de familias. Lo marcado **(motor real)** solo se puede verificar contra M
 ### Rendimiento
 
 56. Con muchos casos abiertos (cientos), la bandeja, la ficha y el tablero responden sin demora visible (presupuestos fijados por
-    test: E2 en 17 consultas, E3 en 18, E1 en 16).
+    test: E2 en 16 consultas, E3 en 18, E1 en 16).
 
 ---
 
