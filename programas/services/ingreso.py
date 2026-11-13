@@ -263,8 +263,8 @@ def _reservas_abiertas_de(ciudadano_id):
     familia de un caso de Emergencia llevan al responsable en `ciudadano`, pero son de la familia.
     Si entraran acá, el ingreso del responsable por este asistente liberaría de un golpe las camas
     de todos los demás. La decisión del PM del 02/11/2026 (cerrar todas las reservas de quien
-    ingresa) vale igual que antes para toda otra reserva. Ver «Reservas de derivación» en
-    `programas.services.estadias`.
+    ingresa) vale igual que antes para toda otra reserva. Ver
+    `programas.services.reservas_derivacion`.
     """
 
     return list(

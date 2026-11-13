@@ -44,6 +44,7 @@ from programas.models import (
 from programas.selectors.capacidad_dispositivo import plazas_tomadas_del_sector
 from programas.senales import estadia_egresada
 from programas.services import alertas_dispositivos
+from programas.services import reservas_derivacion as servicio_reservas_derivacion
 from programas.services.bitacora import (
     anotar_novedad_automatica,
     corregir_entrada,
@@ -53,21 +54,18 @@ from programas.services.bitacora_pantalla import pantalla_bitacora
 from programas.services.estadias import (
     PERSONA_CON_RESERVA,
     PLAZA_FUERA_DEL_DISPOSITIVO,
-    RESERVA_NO_ES_DE_DERIVACION,
-    RESERVA_YA_NO_VIGENTE,
     AlojamientoEnLaRed,
-    consumir_reserva_de_derivacion,
     egresar_persona,
     ingresar_persona,
     liberar_reserva,
-    liberar_reservas_de_derivacion,
     reserva_abierta_de,
     reserva_propia_vigente,
     reservar_plaza,
-    reservar_plazas_de_derivacion,
     sacar_plaza_de_servicio,
 )
 from programas.services.ingreso import (
+    MOTIVO_RESERVA_CERRADA_POR_INGRESO,
+    RESERVA_NUEVA_DURANTE_EL_INGRESO,
     confirmar_ingreso,
     plaza_reservada_de,
     plazas_para_ingresar,
@@ -78,6 +76,13 @@ from programas.services.ocupacion import (
     ESTADO_RESERVADA,
     estado_de_plazas,
     ocupacion_de_plazas,
+)
+from programas.services.reservas_derivacion import (
+    RESERVA_NO_ES_DE_DERIVACION,
+    RESERVA_YA_NO_VIGENTE,
+    consumir_reserva_de_derivacion,
+    liberar_reservas_de_derivacion,
+    reservar_plazas_de_derivacion,
 )
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 
@@ -472,6 +477,55 @@ class ConsumirReservaDeDerivacionTests(BaseDerivacion):
         self.assertEqual(Estadia.objects.activas().filter(dispositivo=self.cis).count(), 3)
         self.assertEqual(self._de_derivacion().filter(estado=ReservaPlaza.Estado.CONSUMIDA).count(), 3)
 
+    def _liberada_por_el_ingreso(self, reserva):
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.LIBERADA, "la D2 del Cambio 409 no se aplicó")
+        self.assertEqual(reserva.motivo, MOTIVO_RESERVA_CERRADA_POR_INGRESO)
+
+    def test_libera_la_reserva_comun_de_quien_entra_en_el_mismo_dispositivo(self):
+        """D2 del Cambio 409, como `confirmar_ingreso`: quien ya está adentro no bloquea otra plaza."""
+
+        comun = reservar_plaza(plaza=self.plazas[4], ciudadano=self.otra_persona, usuario=self.operador_cis)
+
+        estadia = self._consumir(self.otra_persona)
+
+        self.assertEqual(estadia.plaza_id, self.reserva.plaza_id)
+        self._liberada_por_el_ingreso(comun)
+        # Las de la familia no son «de la persona»: siguen guardadas.
+        for otra in self.reservas[1:]:
+            self._intacta(otra)
+
+    def test_libera_la_reserva_comun_de_quien_entra_en_otro_dispositivo(self):
+        comun = reservar_plaza(plaza=self.plaza_parador, ciudadano=self.otra_persona, usuario=self.operador_parador)
+
+        self._consumir(self.otra_persona)
+
+        self._liberada_por_el_ingreso(comun)
+        self.assertIsNone(reserva_abierta_de(self.plaza_parador))
+
+    def test_el_responsable_que_entra_pierde_su_reserva_comun_y_no_las_de_su_familia(self):
+        comun = reservar_plaza(plaza=self.plazas[4], ciudadano=self.persona, usuario=self.operador_cis)
+
+        self._consumir(self.persona)
+
+        self._liberada_por_el_ingreso(comun)
+        for otra in self.reservas[1:]:
+            self._intacta(otra)
+
+    def test_una_reserva_comun_nueva_mientras_se_consume_frena_el_ingreso(self):
+        original = servicio_reservas_derivacion._bloquear_persona
+
+        def bloquear_y_que_aparezca(ciudadano):
+            original(ciudadano)
+            reservar_plaza(plaza=self.plaza_parador, ciudadano=ciudadano, usuario=self.operador_parador)
+
+        with mock.patch.object(servicio_reservas_derivacion, "_bloquear_persona", side_effect=bloquear_y_que_aparezca):
+            with self.assertRaises(ValidationError) as error:
+                self._consumir(self.otra_persona)
+
+        self.assertEqual(error.exception.messages, [RESERVA_NUEVA_DURANTE_EL_INGRESO])
+        self.assertFalse(Estadia.objects.exists())
+
     def test_la_fecha_de_ingreso_viaja_al_ingreso(self):
         hace_una_hora = RELOJ - timedelta(hours=1)
 
@@ -693,6 +747,22 @@ class OrdenDeLosCandadosDeDerivacionTests(BaseDerivacion):
         # Los tres primeros son los de `consumir_…`; los tres siguientes, `ingresar_persona`
         # volviendo a pedir lo que la transacción ya tiene, en el mismo orden.
         self.assertEqual(orden, ["plaza", "reserva", "persona", "plaza", "reserva", "persona"])
+
+    def test_consumir_con_reservas_comunes_toma_todas_las_plazas_antes_de_la_primera_reserva(self):
+        (reserva,) = self._reservar([self.plaza])
+        reservar_plaza(plaza=self.otra_plaza, ciudadano=self.otra_persona, usuario=self.operador_cis)
+        reservar_plaza(plaza=self.plaza_parador, ciudadano=self.otra_persona, usuario=self.operador_parador)
+
+        with self._orden() as orden:
+            consumir_reserva_de_derivacion(reserva=reserva, ciudadano=self.otra_persona, usuario=self.operador_cis)
+
+        # Las tres plazas juntas y la de la cama; la reserva de la familia; por cada común,
+        # `liberar_reserva` (plaza y reserva); la persona, y después `ingresar_persona`.
+        self.assertEqual(
+            orden,
+            ["plaza", "plaza", "reserva", "plaza", "reserva", "plaza", "reserva", "persona"]
+            + ["plaza", "reserva", "persona"],
+        )
 
     def test_liberar_las_de_la_derivacion_toma_todas_las_plazas_antes_de_la_primera_reserva(self):
         self._reservar(self.plazas[:2])
