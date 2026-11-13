@@ -619,13 +619,13 @@ class _VistaDeLlegadas(APIView):
             raise NotFound from None
         except EstadoCambio as cambio:
             return None, _respuesta_409(cambio)
+        except UuidEnUso as error:
+            return None, Response(
+                {"detail": error.message_dict["uuid_cliente"][0], "code": CODIGO_UUID_EN_USO},
+                status=status.HTTP_409_CONFLICT,
+            )
         except ValidationError as error:
-            errores = _errores(error)
-            if isinstance(errores, dict) and errores.get("uuid_cliente") == [UUID_EN_USO]:
-                return None, Response(
-                    {"detail": UUID_EN_USO, "code": CODIGO_UUID_EN_USO}, status=status.HTTP_409_CONFLICT
-                )
-            return None, _respuesta_de_validacion(errores)
+            return None, _respuesta_de_validacion(_errores(error))
 
     def _entrada(self, serializer_class, request):
         """El cuerpo validado en su forma, o ``(None, 400)``."""
