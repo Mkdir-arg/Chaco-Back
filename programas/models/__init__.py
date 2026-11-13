@@ -1385,6 +1385,21 @@ class ReservaPlaza(TimeStamped):
         related_name="reservas_de_plaza",
         verbose_name="Registró la reserva",
     )
+    # Reserva «de derivación» (Emergencia): una de las N camas que el dispositivo guardó para
+    # la familia de un caso al aceptar su derivación. Con valor, la reserva **no es de la
+    # persona** aunque `ciudadano` lleve al responsable del grupo: queda afuera de los caminos
+    # «de la persona» (una reserva por persona, la que el ingreso consume o libera) y solo la
+    # consume `reservas_derivacion.consumir_reserva_de_derivacion`. Ver
+    # `programas.services.reservas_derivacion`. En `NULL` —todas las anteriores— es una reserva común.
+    # No lleva índice compuesto: ver el comentario en `Meta.indexes`.
+    derivacion = models.ForeignKey(
+        "Derivacion",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reservas",
+        verbose_name="Derivación de Emergencia",
+    )
 
     objects = ReservaPlazaQuerySet.as_manager()
 
@@ -1406,6 +1421,15 @@ class ReservaPlaza(TimeStamped):
             # El que usa el servicio de ocupación para contar las reservadas por sector.
             models.Index(fields=["plaza", "estado"]),
             models.Index(fields=["ciudadano", "estado"]),
+            # **Sin** `(derivacion, estado)`, a propósito. Con `derivacion_id` a la izquierda
+            # InnoDB lo adoptaría como índice de la FK (y borraría el implícito), y entonces
+            # cada `UPDATE` de `estado` —liberar, consumir— revalidaría la FK con un lock
+            # compartido sobre la fila de la **derivación**, después de la plaza y la reserva:
+            # al revés del orden global de Emergencia (derivación → plazas → reservas). Liberar
+            # desde el mapa una cama de una familia se cruzaría con la mesa que cancela esa
+            # derivación (`ERROR 1213`). El índice implícito de la FK, de una sola columna,
+            # alcanza: una derivación tiene un puñado de reservas. Lo fija
+            # `test_dispositivos_reservas_derivacion.IndiceDeLaDerivacionTests`.
         ]
 
     def __str__(self):

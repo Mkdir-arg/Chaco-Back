@@ -65,6 +65,10 @@ Al ordenar candados hay que contemplar también los que toma InnoDB al modificar
 índices usados por una FK. `OrdenDeLosCandadosTests` fija el orden por la secuencia de
 llamadas en SQLite; `programas.tests.test_dispositivos_concurrencia` corre la carrera real.
 
+Las reservas **de derivación** de Emergencia se crean, consumen y liberan en
+`programas.services.reservas_derivacion`; acá solo las excluyen (`derivacion__isnull=True`) los
+caminos «de la persona».
+
 La verificación en toda la red
 ------------------------------
 
@@ -104,6 +108,7 @@ from programas.models import (
     ReservaPlaza,
     TrazaDispositivo,
 )
+from programas.senales import estadia_egresada
 from programas.services.bitacora import anotar_en_bitacora
 from programas.services.dispositivos import (
     dispositivos_en_alcance,
@@ -626,6 +631,9 @@ def egresar_persona(
         estado_nuevo=Estadia.Estado.EGRESADA,
         detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · motivo: {motivo_egreso.nombre}",
     )
+    # Al final y adentro de la transacción (Emergencia escribe en el mismo hecho que el egreso);
+    # `send` y no `send_robust`: si un receptor falla, el egreso se deshace. Ver `programas.senales`.
+    estadia_egresada.send(sender=Estadia, estadia=estadia, usuario=usuario)
     return estadia
 
 
@@ -799,8 +807,7 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
 
     ahora = timezone.now()
     desde = desde or ahora
-    if desde > ahora:
-        raise ValidationError({"desde": "Una reserva empieza en el momento en que se toma: no puede ser futura."})
+    _exigir_desde_no_futuro(desde, ahora)
     if hasta is not None and hasta <= ahora:
         raise ValidationError({"hasta": "El vencimiento tiene que ser posterior a este momento."})
 
@@ -810,29 +817,45 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
     if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         # El mismo error para la plaza inexistente y para la de una institución sin
         # alcance: no se distingue «no existe» de «no es tuya».
-        raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
+        raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
     plaza = _tomar_plaza(pk, dispositivo, momento=ahora)
     _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, momento=ahora)
 
-    reserva = ReservaPlaza(
+    return _crear_reserva(
+        dispositivo,
+        usuario,
+        de_quien=f"ciudadano {ciudadano.pk}",
         plaza=plaza,
         ciudadano=ciudadano,
         tipo=tipo,
-        estado=ReservaPlaza.Estado.VIGENTE,
         desde=desde,
         hasta=hasta,
         motivo=motivo,
-        creada_por=usuario,
     )
+
+
+SIN_ALCANCE_PARA_RESERVAR = "No tenés alcance para reservar plazas en este dispositivo."
+
+
+def _exigir_desde_no_futuro(desde, ahora):
+    """Una reserva nace vigente: su `desde` no puede ser posterior a `ahora` (ver `reservar_plaza`)."""
+
+    if desde > ahora:
+        raise ValidationError({"desde": "Una reserva empieza en el momento en que se toma: no puede ser futura."})
+
+
+def _crear_reserva(dispositivo, usuario, *, de_quien, **campos):
+    """Alta `VIGENTE` de `ReservaPlaza(**campos)` en una plaza ya bloqueada, con su traza `PLAZA_RESERVADA`."""
+
+    reserva = ReservaPlaza(estado=ReservaPlaza.Estado.VIGENTE, creada_por=usuario, **campos)
     reserva.clean()
     reserva.save()
-
     _trazar(
         dispositivo,
         usuario,
         "PLAZA_RESERVADA",
         estado_nuevo=ReservaPlaza.Estado.VIGENTE,
-        detalle=f"Plaza {plaza_con_sector(plaza)} · {reserva.get_tipo_display()} · ciudadano {ciudadano.pk}",
+        detalle=f"Plaza {plaza_con_sector(reserva.plaza)} · {reserva.get_tipo_display()} · {de_quien}",
     )
     return reserva
 
@@ -858,6 +881,7 @@ def _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, 
       red porque la reserva es de la institución que la tomó —es quien la puede liberar— y
       preguntar por las de otras instituciones diría, a quien no las ve, que la persona figura
       en su lista. Es el mismo alcance con el que el ingreso cierra las reservas de la persona.
+      Las reservas **de derivación** no cuentan: `reserva_propia_vigente` las excluye.
     """
 
     Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
@@ -875,11 +899,15 @@ def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
 
     Es la que el ingreso de esa persona consume: su plaza es elegible para ella aunque el mapa
     la cuente como tomada.
+
+    **Sin las reservas de derivación** (`programas.services.reservas_derivacion`): llevan al
+    responsable de la familia en `ciudadano`, pero no son suyas; ni le impiden tener su reserva
+    común ni el asistente de ingreso se las ofrece como «su» plaza.
     """
 
     return (
         ReservaPlaza.objects.que_toman(momento)
-        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk)
+        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk, derivacion__isnull=True)
         .select_related("plaza")
         .order_by("id")
         .first()

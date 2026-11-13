@@ -15,6 +15,8 @@ sobrescribía. Acá viven tres cosas:
 4. **Las novedades automáticas** (`anotar_en_bitacora`): el ingreso, el egreso y el
    cambio de plaza dejan la suya, como en P10, en la misma transacción que el cambio y
    colgadas del `MovimientoEstadia` que las generó, que es lo que impide duplicarlas.
+   Y `anotar_novedad_automatica`, la automática **sin movimiento**, para los hechos de
+   otro módulo sobre el dispositivo (Emergencia: derivación aceptada, familia alojada).
 
 Hora local, siempre
 -------------------
@@ -562,22 +564,89 @@ def anotar_en_bitacora(movimiento):
     if situado is None:
         return None
 
-    entrada = EntradaBitacora(
+    entrada = _escribir_automatica(
+        situado,
         dispositivo_id=movimiento.dispositivo_id,
-        turno=situado.turno,
-        fecha_operativa=situado.fecha_operativa,
         momento=movimiento.momento,
         responsable_id=movimiento.responsable_id,
         tipo=tipo,
-        origen=EntradaBitacora.Origen.AUTOMATICA,
         movimiento=movimiento,
         texto=_texto_automatico(movimiento),
     )
-    entrada.clean()
-    entrada.save()
     # La persona involucrada es la estadía, como en cualquier novedad: su id alcanza, y
     # deja la novedad colgando de la estadía para la solapa Novedades de P7.
     _vincular(entrada, [movimiento.estadia_id], [])
+    return entrada
+
+
+#: Una novedad automática sin movimiento usa los tipos que también carga un operador. Los
+#: del sistema (`TIPOS_AUTOMATICOS`) tienen dueño: ingreso, egreso y movimiento salen de un
+#: `MovimientoEstadia` por `anotar_en_bitacora`, y permiso y pase, de sus propios servicios.
+TIPO_NO_ADMITIDO_SIN_MOVIMIENTO = (
+    "Ese tipo de novedad lo genera un movimiento de estadía o un pase, no un aviso suelto."
+)
+
+
+def anotar_novedad_automatica(*, dispositivo, tipo, texto, momento=None, usuario=None):
+    """Una novedad `AUTOMATICA` **sin movimiento de estadía**. Devuelve la entrada, o `None`.
+
+    Para los hechos que el sistema acepta sobre un dispositivo y que no son un ingreso, un
+    egreso ni un cambio de plaza: en Emergencia, «Derivación aceptada», «Familia alojada 7 de
+    7», el cierre con diferencia, el kit recibido. `anotar_en_bitacora` no sirve para eso
+    —cuelga de un `MovimientoEstadia`— y `registrar_entrada` tampoco: es la carga **manual**
+    del operador, con su capacidad y su ventana del turno en curso.
+
+    Las mismas reglas que `anotar_en_bitacora`, por los mismos motivos:
+
+    * **No pide `dispositivo.bitacora`** ni mira el estado del dispositivo: quien llega acá ya
+      pasó el control del servicio que genera el hecho. Tiene que llamarse **dentro de la
+      transacción** de ese servicio: si el hecho se deshace, la novedad también.
+    * **Sin turno para ese momento no escribe y devuelve `None`**: no se inventa un turno. Lo
+      mismo si el dispositivo no tiene turnos configurados (lo avisa la alerta del Cambio 281).
+    * No pasa por `_exigir_turno_en_curso`: la novedad es del turno en el que el hecho **pasó**
+      (`momento`; por omisión, ahora), no del que corre cuando se escribe.
+
+    `usuario` es el responsable de la entrada, que el modelo exige: sin usuario —un proceso
+    sin persona detrás— tampoco se escribe y devuelve `None`, igual que el movimiento sin
+    responsable. `tipo` es uno de los que el modelo admite sin movimiento (`GENERAL` y los
+    demás que también carga un operador); con uno de `TIPOS_AUTOMATICOS` falla. `texto` va
+    **sin nombres de personas**, como el de las otras automáticas: la bitácora la lee quien
+    tiene `dispositivo.ver`, que es menos que `ciudadano.ver`.
+
+    No se corrige a mano: `corregir_entrada` rechaza toda entrada que no sea `MANUAL`, y la
+    pantalla no la ofrece entre las corregibles. No deduplica: a diferencia de la que cuelga
+    de un movimiento, nada en la base impide dos iguales, así que la idempotencia es la del
+    servicio que la llama (que el hecho no se pueda aceptar dos veces).
+    """
+
+    if tipo not in EntradaBitacora.Tipo.values or tipo in EntradaBitacora.TIPOS_AUTOMATICOS:
+        raise ValidationError({"tipo": TIPO_NO_ADMITIDO_SIN_MOVIMIENTO})
+    texto = (texto or "").strip()
+    if not texto:
+        raise ValidationError({"texto": "La novedad necesita un texto."})
+    if usuario is None:
+        return None
+    momento = momento or timezone.now()
+    situado = turno_vigente(dispositivo, momento)
+    if situado is None:
+        return None
+
+    return _escribir_automatica(
+        situado, dispositivo=dispositivo, momento=momento, responsable=usuario, tipo=tipo, texto=texto
+    )
+
+
+def _escribir_automatica(situado, **campos):
+    """Guarda una novedad `AUTOMATICA` en el turno y la fecha operativa de `situado` (`turno_vigente`)."""
+
+    entrada = EntradaBitacora(
+        turno=situado.turno,
+        fecha_operativa=situado.fecha_operativa,
+        origen=EntradaBitacora.Origen.AUTOMATICA,
+        **campos,
+    )
+    entrada.clean()
+    entrada.save()
     return entrada
 
 
