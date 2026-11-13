@@ -281,7 +281,7 @@ def _q_de_texto(texto):
     return q
 
 
-def bandeja(filtros=None, *, sla=None, ahora=None):
+def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
     """El queryset de la bandeja E2, filtrado y ordenado, listo para paginar.
 
     ``filtros`` es un dict con cualquiera de estas claves (las vacías se ignoran):
@@ -298,8 +298,12 @@ def bandeja(filtros=None, *, sla=None, ahora=None):
     Sin ellos se ordena por prioridad y antigüedad. La solapa «Fuera de SLA» y el filtro
     ``sla`` los exigen (``ValueError`` si faltan): no se pueden contestar sin reloj.
 
+    ``semaforos`` es lo que ya contestó :func:`ids_por_estado_sla` para ese ``sla`` y ese
+    ``ahora``, si quien llama lo necesita también para otra cosa (E2 cuenta con él los
+    «Fuera de SLA»); sin él, se calcula acá.
+
     **Presupuesto:** construir el queryset cuesta **0 o 1 consulta** (1 si llegaron
-    ``sla`` y ``ahora``: la de :func:`ids_por_estado_sla`). Evaluarlo es **una** consulta
+    ``sla`` y ``ahora`` sin ``semaforos``: la de :func:`ids_por_estado_sla`). Evaluarlo es **una** consulta
     por página, sin N+1 en la fila: trae el grupo, el responsable, la localidad y quien
     lo tomó con ``select_related``, y los avisos de la mesa como subconsultas de esa misma
     consulta (:func:`con_avisos_de_la_mesa`).
@@ -336,7 +340,8 @@ def bandeja(filtros=None, *, sla=None, ahora=None):
 
     orden = [_ORDEN_PRIORIDAD.asc(), "creado", "id"]
     if con_reloj:
-        semaforos = ids_por_estado_sla(sla, ahora)
+        if semaforos is None:
+            semaforos = ids_por_estado_sla(sla, ahora)
         fuera = [pk for pk, semaforo in semaforos.items() if semaforo.fuera]
         if solapa == SOLAPA_FUERA_SLA:
             casos = casos.filter(pk__in=fuera)
