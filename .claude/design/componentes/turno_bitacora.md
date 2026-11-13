@@ -28,6 +28,7 @@ Tarde · entradas», debajo de su encabezado.
 
 `programas/services/bitacora.py` genera las novedades de ingreso, egreso, cambio y asignación de plaza
 («Se asignó la plaza X») con origen automático. Desde el Cambio 430 las plazas se numeran por sector y el código se repite, así que el texto las nombra con su sector («plaza 01 (Pabellón A)», helper único `nombre_de_plaza` de `programas/services/nombre_plaza.py`; lo mismo en las trazas de `programas/services/estadias.py`): la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
+También genera automáticas **sin movimiento de estadía** (`anotar_novedad_automatica`: hechos de otro módulo sobre el dispositivo, como «Derivación aceptada» de Emergencia), con tipos de carga manual y texto sin nombres de personas; se dibujan igual, con `automatica=True` y sin «Corregir». Las reservas de plaza de una derivación (`programas/services/reservas_derivacion.py`) usan las mismas trazas de `estadias.py` y no suman piezas.
 
 `url_corregir` dibuja «Corregir (crea versión)» como botón terciario chico (`btn-nodo btn-tertiary btn-sm`, área táctil de botón) en la línea de autoría. El nombre del turno se muestra con la primera letra en mayúscula (`capfirst` en la tarjeta).
 La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre
