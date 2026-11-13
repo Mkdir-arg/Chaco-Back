@@ -12,6 +12,8 @@ from programas.services.programa_cache import programa_por_codigo
 
 PROGRAMA_EMERGENCIA_CODIGO = rbac.CODIGO_PROGRAMA_EMERGENCIA
 
+CAP_EMERGENCIA_RELEVAR = "emergencia.relevar"
+CAP_EMERGENCIA_OPERAR = "emergencia.operar"
 CAP_SUPERVISAR = "emergencia.supervisar"
 
 
@@ -31,3 +33,18 @@ def puede_en_programa_emergencia(user, capacidad):
     """
     programa = programa_emergencia(user)
     return programa is not None and rbac.puede(user, capacidad, programa=programa)
+
+
+def puede_supervisar_la_mesa(user):
+    """``emergencia.supervisar`` en el programa: reasignar y actuar sobre casos ajenos (RU-13)."""
+    return puede_en_programa_emergencia(user, CAP_SUPERVISAR)
+
+
+def puede_operar_la_mesa(user):
+    """¿Trabaja en la mesa? ``emergencia.operar`` **o** ``emergencia.supervisar`` en el programa.
+
+    El supervisor hace todo lo del operador (tabla de RU §4) tenga o no tildada además la
+    capacidad de operar: que su rol la traiga es una decisión de quien arma los roles, y la
+    regla no puede depender de eso.
+    """
+    return puede_en_programa_emergencia(user, CAP_EMERGENCIA_OPERAR) or puede_supervisar_la_mesa(user)

@@ -98,9 +98,9 @@ CAPACIDADES_SIN_USO = {
     # Módulo Emergencia, PR 1: el catálogo y los roles van primero para que el PM pueda
     # armarlos; las pantallas y la API que las evalúan llegan en los PRs siguientes del plan
     # (`docs/superpowers/plans/2026-11-12-emergencia-plan.md`). Cada una sale de acá en el
-    # PR que la empieza a evaluar. `emergencia.supervisar` ya se evalúa (E7).
-    "emergencia.relevar": "la evalúa la API de la app de campo de Emergencia (PR 5 del plan)",
-    "emergencia.operar": "la evalúan la bandeja y el detalle del caso (PR 3 del plan)",
+    # PR que la empieza a evaluar. `emergencia.supervisar` ya se evalúa (E7), y desde el
+    # PR 2 también `emergencia.operar` y `emergencia.relevar`: las exigen los servicios del
+    # caso (`programas/services/emergencia.py`).
     "emergencia.recibir_kit": "la evalúa la recepción de kits en el dispositivo (PR 9 del plan)",
 }
 

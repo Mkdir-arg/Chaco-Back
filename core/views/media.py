@@ -231,6 +231,22 @@ def _adjunto_de_bitacora(user, ruta):
     return True if puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver") else None
 
 
+def _adjunto_de_emergencia(user, ruta):
+    """La foto de la vivienda o del acceso de un caso de Emergencia: la ve la mesa.
+
+    Es un dato personal de la familia (RU-17). La mesa ve todos los casos del programa
+    (RU-10), así que alcanza con operar o supervisar **en el programa EMERGENCIA**. La
+    guardia del dispositivo todavía no las ve: su pantalla llega con la etapa 3, y la
+    regla se amplía ahí, con el alcance sobre el dispositivo de la derivación.
+    """
+    from programas.models import AdjuntoCaso
+    from programas.services.emergencia_programa import puede_operar_la_mesa
+
+    if not AdjuntoCaso.objects.filter(archivo=ruta).exists():
+        return None
+    return puede_operar_la_mesa(user)
+
+
 def _archivo_de_formulario_dispositivo(user, ruta):
     """Un archivo respondido en el formulario «Crear dispositivo» del tipo (P17).
 
@@ -302,6 +318,7 @@ REGLAS = (
     (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),
     (rutas.PREFIJO_FORMULARIO_DISPOSITIVO, _archivo_de_formulario_dispositivo),
     (rutas.PREFIJO_FORMULARIO_ESTADIA, _archivo_de_formulario_estadia),
+    (rutas.PREFIJO_ADJUNTO_EMERGENCIA, _adjunto_de_emergencia),
 )
 
 
