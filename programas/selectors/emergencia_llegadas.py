@@ -18,6 +18,7 @@ from programas.selectors import emergencia_alojar as alojar
 from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, _personas, nombre_de
 from programas.selectors.emergencia_mesa import filas_de_integrantes as filas_de_integrantes_de_la_mesa
 from programas.services.emergencia import NECESIDADES, prioridad_visible
+from programas.services.emergencia_ingreso_comun import derivacion_vencida
 
 #: Los tres pasos del guion de la guardia (03 §3). El estado del recorrido es el del caso,
 #: no la sesión: cada paso es una pantalla que se abre por su URL.
@@ -49,7 +50,6 @@ def tarjeta_de_derivacion(derivacion, ahora):
     grupo = caso.grupo
     prioridad_texto, prioridad_tono = prioridad_visible(caso)
     pendiente = derivacion.estado == derivacion.Estado.PENDIENTE
-    vencida = pendiente and derivacion.vence_en < ahora
     return {
         "derivacion": derivacion,
         "caso": caso,
@@ -64,7 +64,7 @@ def tarjeta_de_derivacion(derivacion, ahora):
         "derivada_por": nombre_de(derivacion.derivada_por),
         "derivada_en": _dia_hora(derivacion.creado),
         "vence": _dia_hora(derivacion.vence_en),
-        "vencida": vencida,
+        "vencida": derivacion_vencida(derivacion, ahora),
         "necesidades": [ROTULO_DE_NECESIDAD[clave] for clave in NECESIDADES if caso.necesidades.get(clave)],
         "franjas": [
             {"franja": "Menores de 16", "femenino": grupo.menores_f, "masculino": grupo.menores_m},
@@ -101,7 +101,7 @@ def filas_de_llegadas(derivaciones, ahora, url_de):
                     if pendiente
                     else f"Aceptada {_dia_hora(derivacion.respondida_en or derivacion.creado)}"
                 ),
-                "vencida": pendiente and derivacion.vence_en < ahora,
+                "vencida": derivacion_vencida(derivacion, ahora),
                 "confirmadas": derivacion.confirmadas,
                 "total": grupo.total_declarado,
                 "url": url_de(derivacion),

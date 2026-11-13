@@ -96,9 +96,21 @@ def opera_en_algun_dispositivo(user):
     «existe alguno»: la capacidad en el programa Dispositivos y el alcance —el Equipo, o todo
     si además administra el programa—. A lo sumo cuatro consultas chicas.
     """
-    return (
-        dispositivos_en_alcance(user, CAP_ADMITIR).exists() or dispositivos_en_alcance(user, CAP_RECIBIR_KIT).exists()
-    )
+    return admite_familias(user) or dispositivos_en_alcance(user, CAP_RECIBIR_KIT).exists()
+
+
+def admite_familias(usuario):
+    """¿``usuario`` admite familias en **algún** dispositivo? Lo que abre «Llegada de familias» (M2).
+
+    El molde de ``kits.recibe_kits``: ``dispositivo.admitir`` con alcance —en el Equipo de
+    alguna institución, o en todas si además administra el programa Dispositivos—. La
+    capacidad tildada en un rol **sin** Equipo no alcanza. Quien no pasa esto recibe 403;
+    quien lo pasa y pide un dispositivo, una derivación o un caso que no son suyos, 404 (C2).
+    """
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return False
+    return dispositivos_en_alcance(usuario, CAP_ADMITIR).exists()
 
 
 def _es_de_la_guardia(user):
