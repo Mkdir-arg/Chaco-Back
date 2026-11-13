@@ -107,6 +107,7 @@ from programas.services.emergencia_comun import (  # noqa: F401
     _hora,
     _nombre_de,
     _trazar,
+    siguiente_correlativo,
     siguiente_numero,
 )
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
