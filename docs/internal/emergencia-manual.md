@@ -146,8 +146,8 @@ además del color. Los casos alojados y cerrados no tienen semáforo.
 
 ### Etapa 3 · Alojar (E6 o app M2)
 
-1. La guardia **busca por el DNI del responsable** (o de un integrante **ya confirmado**: los demás no tienen legajo hasta
-   que se los confirma, así que su DNI no encuentra a la familia). Tres resultados: hay derivación a este dispositivo; la
+1. La guardia **busca por el DNI del responsable** (o de un integrante **ya confirmado**: los demás no quedan vinculados a la
+   familia hasta que se los confirma, aunque ya tengan legajo, así que su DNI no la encuentra). Tres resultados: hay derivación a este dispositivo; la
    persona ya está alojada en la red; o «sin derivación vigente» — también cuando la derivación es para **otro** dispositivo,
    que no se nombra. **Si llega primero otra persona de la familia** y su DNI da «sin derivación vigente», pedirle el DNI del
    responsable y buscar de nuevo **antes** de «Ingresar igual» o «Avisar a la mesa»: si no, se crea un segundo caso.
@@ -223,7 +223,7 @@ entrega (sin la capacidad de la mesa, se ve sin enlace). Cada regla muestra los 
 | Aviso | Severidad | Se resuelve |
 |---|---|---|
 | Caso fuera de SLA | alta | Avanzando el caso (o subiendo el objetivo en E7) |
-| Derivación rechazada sin nueva acción | alta | Con la siguiente acción de la mesa sobre el caso, cualquiera (derivar de nuevo, un contacto, cerrarlo…) |
+| Derivación rechazada sin nueva acción | alta | Con la siguiente traza del caso: cualquier acción de la mesa (derivar de nuevo, un contacto, cerrarlo…) o la devolución automática por inactividad (§5). Un ingreso **cancelado** por el dispositivo no es un rechazo: no enciende este aviso, y el caso sale por «fuera de SLA» |
 | Dispositivo sin plazas con derivación pendiente | alta | Cancelando la derivación o liberando plazas |
 | Familia «en la puerta» de un dispositivo | alta | Derivando el caso o cerrándolo (tomarlo no alcanza: con el caso tomado, el aviso dice «Derivar el caso») |
 | Derivación por vencer | media | Que el dispositivo responda, o cancelándola |
@@ -236,8 +236,8 @@ No se cierran a mano; cada una tiene su propia vigencia:
 
 | Marca | Aparece | Se va |
 |---|---|---|
-| «Rechazado por X: motivo» | El dispositivo rechazó la derivación | Con la siguiente acción sobre el caso, cualquiera |
-| «Derivación vencida · volver a derivar» | El cron venció la derivación | Con la siguiente acción sobre el caso, cualquiera |
+| «Rechazado por X: motivo» | El dispositivo rechazó la derivación | Con la siguiente traza del caso: cualquier acción de la mesa o la devolución automática por inactividad (§5) |
+| «Derivación vencida · volver a derivar» | El cron venció la derivación | Con la siguiente traza del caso: cualquier acción de la mesa o la devolución automática por inactividad (§5) |
 | «Dispositivo inactivo · volver a derivar» | La derivación **pendiente** apunta a un dispositivo que dejó de estar activo | Cuando esa derivación deja de estar pendiente (cancelarla y derivar a otro), o si el dispositivo vuelve a estar activo |
 | «En la puerta de X» | La guardia usó «Avisar a la mesa» | Al derivar o cerrar el caso. Tomarlo **no** la saca |
 | «Ingreso parcial · N de M» | El dispositivo cerró el ingreso con diferencia (N alojadas de M declaradas) | No se va: queda en el caso `ALOJADO` |
@@ -337,7 +337,7 @@ reales de familias. Lo marcado **(motor real)** solo se puede verificar contra M
 36. Persona sin número de DNI: no se confirma; se cierra con diferencia «Otro».
 37. Cancelar un ingreso sin confirmados: el caso vuelve a la mesa y las camas se liberan; con un confirmado no deja.
 38. Ingreso directo con camas libres (aparece en la solapa «Ingreso directo»); sin camas no deja; «Avisar a la mesa» crea un
-    caso «En la puerta de X» (reenviado con el mismo `uuid_cliente`, no crea otro); la marca sigue con el caso tomado y se
+    caso «En la puerta de X» (en la API, reenviado con el mismo `uuid_cliente`, no crea otro; en E6 no hay `uuid_cliente`); la marca sigue con el caso tomado y se
     va al derivarlo o cerrarlo.
 39. **Regresión de Dispositivos:** ingresar al responsable por el asistente normal de Dispositivos **no** libera las camas
     reservadas de su familia; una reserva común de otra persona sigue liberándose al ingresar (D2 del Cambio 409).

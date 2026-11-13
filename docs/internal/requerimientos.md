@@ -55545,6 +55545,9 @@ dispositivo (manual §2).
    todo obliga a tocar `estadias.liberar_reserva`; decidir si vale. (#1132.)
 8. **`_IngresoView.preparar` (E6) tiene su propia lectura del ingreso** (`views/emergencia_dispositivo.py`). Solución: usar
    `emergencia_ingreso_comun.ingreso_sin_candado`, como la API; sin riesgo de corrección. (Señalado en #1134.)
+9. **«Avisar a la mesa» de E6 no es idempotente** (`views/emergencia_dispositivo.py`, llama a `avisar_a_la_mesa` sin
+   `uuid_cliente`): un doble envío del formulario que pase la guardia de `base.html` crea dos casos. Solución: un
+   `uuid_cliente` oculto generado al pintar el formulario, como la API. (Señalado en la auditoría de #1137.)
 
 ## Reversión
 
@@ -55850,6 +55853,9 @@ solapa «Mapa de la emergencia» y el auto-refresh.
 8. **«Familia en la puerta» = caso abierto y nunca derivado** (`CasoEmergencia.esperando_en_la_puerta`, y en SQL
    `q_esperando_en_la_puerta`): la misma regla que la marca de E2 y la ficha E3 (Cambio 473). Tomar el caso no apaga el
    aviso (pasa a «Derivar el caso»); derivarlo o cerrarlo, sí.
+9. **Un ingreso cancelado por el dispositivo no es un rechazo:** no enciende «Derivación rechazada sin nueva acción» (la
+   regla mira solo la traza `DERIVACION_RECHAZADA`, como pide la spec); ese caso vuelve a la mesa y sale por «fuera de SLA».
+   El aviso de rechazo y la marca «Rechazado por X» también se van con la devolución automática por inactividad.
 
 ## Implementación
 
@@ -55949,8 +55955,9 @@ tablero (Cambio 472).
 
 1. **Ninguna marca se cierra a mano, y cada una tiene su vigencia** (`selectors/emergencia_mesa.py`, `avisos_de_la_mesa` y
    `_marcas_de_fila`):
-   - «Rechazado por X: motivo» y «Derivación vencida · volver a derivar» se van con la siguiente acción sobre el caso,
-     cualquiera (mientras su traza siga siendo la última: `selectors.emergencia.rechazo_sin_nueva_accion`).
+   - «Rechazado por X: motivo» y «Derivación vencida · volver a derivar» se van con la siguiente traza del caso: cualquier
+     acción de la mesa o la devolución automática por inactividad de `emergencia.caso_sin_avance` (mientras su traza siga
+     siendo la última: `selectors.emergencia.rechazo_sin_nueva_accion`).
    - «Dispositivo inactivo · volver a derivar» queda mientras la derivación **pendiente** apunte a ese dispositivo.
    - «En la puerta de X» queda hasta derivar o cerrar el caso; tomarlo no la saca (decisión 3).
    - «Ingreso parcial · N de M» la deja el cierre con diferencia (`CasoEmergencia.ingreso_parcial`) y es permanente.
@@ -56098,5 +56105,9 @@ Revertir el PR; sin migraciones.
   (tope `emergencia_buscar`, 409 con `_por_que_ya_no`, `CERRADO` legible), 472 (16 consultas, 12 del dominio; «en la
   puerta») y 473 (vigencia de cada marca); Validación del 470 con los 60 tests de M2; y los MINOR que las auditorías de
   #1130 a #1136 dejaron para el próximo PR, cargados en los Pendientes de los Cambios 467 a 473.
+- **13/11/2026 — segunda ronda de la auditoría del PR #1137 (APPROVE).** Cuatro precisiones de texto: las marcas y el
+  aviso de rechazo también se van con la devolución automática por inactividad (manual §6 y decisión 1 del 473); un
+  ingreso cancelado no es rechazo (decisión 9 del 472); el idempotente de «Avisar a la mesa» es de la API (caso 38), y en
+  E6 queda como Pendiente 9 del 469; el DNI de un integrante sin confirmar no encuentra a la familia aunque tenga legajo.
 
 ---
