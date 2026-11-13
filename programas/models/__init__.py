@@ -5518,6 +5518,12 @@ class CasoEmergencia(TimeStamped):
     MARCAS = ("tomado_en", "derivado_en", "aceptado_en", "alojado_en", "cerrado_en")
     #: Desde cuántos metros de precisión del GPS la mesa lee «ubicación aproximada» (RN-1.7).
     PRECISION_APROXIMADA_M = 100
+    #: Dónde queda, dentro de ``situacion``, lo que escribe la etapa 3 (sin migración). Son
+    #: **las** claves: las escriben ``services.emergencia_cierre`` y
+    #: ``services.emergencia_sin_derivacion`` y las leen la mesa y la guardia.
+    SITUACION_ALOJAMIENTO = "alojamiento"  # sección 4 del Formulario 1 (M2-5)
+    SITUACION_DIFERENCIA = "diferencia"  # motivo del cierre con diferencia (RN-3.9)
+    SITUACION_EN_LA_PUERTA = "en_la_puerta_de"  # «Avisar a la mesa» (M2-6)
 
     numero = models.CharField(max_length=16, unique=True, editable=False, verbose_name="N.° de caso")
     grupo = models.OneToOneField(
@@ -5630,6 +5636,30 @@ class CasoEmergencia(TimeStamped):
         """Se alojaron menos personas que las declaradas (cierre con diferencia, etapa 3)."""
 
         return self.total_alojado is not None and self.total_alojado < self.grupo.total_declarado
+
+    @property
+    def en_la_puerta(self):
+        """El aviso «En la puerta de X» (M2-6) —``{"dispositivo_id", "dispositivo"}``— o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_EN_LA_PUERTA) or None
+
+    @property
+    def es_ingreso_directo(self):
+        """¿Nació de «Ingresar igual»? Origen dispositivo y **no** un aviso a la mesa (RN-3.10)."""
+
+        return self.origen == self.Origen.DISPOSITIVO and self.SITUACION_EN_LA_PUERTA not in (self.situacion or {})
+
+    @property
+    def alojamiento(self):
+        """La sección 4 del Formulario 1 que dejó «Familia alojada», o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_ALOJAMIENTO)
+
+    @property
+    def diferencia(self):
+        """El motivo del cierre con diferencia (RN-3.9), o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_DIFERENCIA)
 
     @property
     def carpeta_media(self):

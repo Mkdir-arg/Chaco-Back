@@ -306,9 +306,10 @@ class IntegrantesView(_IngresoView):
     def get(self, request, pk, caso_pk):
         caso = self.caso
         datos = selectores.integrantes_de(caso)
-        en_curso = caso.estado == Estado.INGRESO_EN_CURSO
         confirmadas, total = datos["confirmadas"], datos["total_declarado"]
-        todas = total > 0 and confirmadas >= total
+        acciones = servicio.acciones_del_ingreso(
+            estado=caso.estado, confirmadas=confirmadas, total=max(total, len(datos["integrantes"]))
+        )
         contexto = self.contexto(
             2,
             caso,
@@ -317,14 +318,15 @@ class IntegrantesView(_IngresoView):
             confirmadas=confirmadas,
             total=total,
             declaradas=datos["declaradas_al_relevar"],
-            en_curso=en_curso,
+            en_curso=caso.estado == Estado.INGRESO_EN_CURSO,
             parcial=caso.ingreso_parcial,
-            alojamiento=caso.situacion.get(servicio.SITUACION_ALOJAMIENTO),
-            diferencia=caso.situacion.get(servicio.SITUACION_DIFERENCIA),
+            alojamiento=caso.alojamiento,
+            diferencia=caso.diferencia,
             fotos=pantalla.fotos_del_caso(caso),
-            puede_alojar=en_curso and todas,
-            puede_diferencia=en_curso and 0 < confirmadas < total,
-            puede_cancelar=en_curso and confirmadas == 0,
+            puede_alojar=acciones["alojar"],
+            puede_diferencia=acciones["diferencia"],
+            puede_cancelar=acciones["cancelar"],
+            puede_agregar=acciones["agregar"],
             url_agregar=self.url("agregar", caso.pk),
             url_alojar=self.url("alojar", caso.pk),
             url_diferencia=self.url("diferencia", caso.pk),
@@ -536,13 +538,10 @@ class FamiliaAlojadaView(_IngresoView):
         if previo is not None:
             return previo
         self.datos = selectores.integrantes_de(self.caso)
-        if not self.datos["total_declarado"] or self.datos["confirmadas"] < self.datos["total_declarado"]:
-            faltan = self.datos["total_declarado"] - self.datos["confirmadas"]
-            messages.error(
-                request,
-                f"Falta confirmar a {faltan} persona{'s' if faltan != 1 else ''}. "
-                "Confirmalas, o cerrá el ingreso con diferencia si no llegaron.",
-            )
+        confirmadas = self.datos["confirmadas"]
+        total = max(self.datos["total_declarado"], len(self.datos["integrantes"]))
+        if not servicio.acciones_del_ingreso(estado=self.caso.estado, confirmadas=confirmadas, total=total)["alojar"]:
+            messages.error(request, servicio.mensaje_faltan_confirmar(total - confirmadas))
             return redirect(self.url_integrantes())
         return None
 
@@ -550,9 +549,7 @@ class FamiliaAlojadaView(_IngresoView):
         sectores = selectores.sectores_del_dispositivo(self.dispositivo)
         # El sector se preselecciona con el de las camas de la familia: el que más se repite.
         de_las_camas = Counter(
-            IntegranteGrupo.objects.filter(grupo_id=self.caso.grupo_id, estadia__plaza__isnull=False).values_list(
-                "estadia__plaza__sector_id", flat=True
-            )
+            integrante["plaza"]["sector_id"] for integrante in self.datos["integrantes"] if integrante["plaza"]
         ).most_common(1)
         iniciales = {"sector": de_las_camas[0][0] if de_las_camas else None, "encargado": nombre_de(self.request.user)}
         return FamiliaAlojadaForm(data, sectores=sectores, initial=iniciales)
@@ -590,7 +587,7 @@ class FamiliaAlojadaView(_IngresoView):
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
             return self._render(request, form, status=400)
-        alojamiento = caso.situacion[servicio.SITUACION_ALOJAMIENTO]
+        alojamiento = caso.alojamiento
         donde = " · ".join(parte for parte in (alojamiento["sector"], alojamiento["aula"]) if parte)
         messages.success(
             request,
@@ -616,7 +613,7 @@ class CerrarConDiferenciaView(_IngresoView):
         )
         if respuesta is not None:
             return respuesta
-        diferencia = caso.situacion[servicio.SITUACION_DIFERENCIA]
+        diferencia = caso.diferencia
         messages.success(
             request,
             f"Ingreso cerrado con diferencia: {diferencia['confirmadas']} de {diferencia['declaradas']} personas "
