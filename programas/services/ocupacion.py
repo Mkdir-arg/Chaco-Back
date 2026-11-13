@@ -482,6 +482,11 @@ class EstadoPlaza:
     #: Salen de la misma consulta que el estado: no cuestan ninguna más.
     estadia_id: int | None = None
     ciudadano_id: int | None = None
+    #: Solo en la plaza reservada **para una derivación de Emergencia**: cuál. `None` en la
+    #: reserva común, el préstamo y todo otro estado. Las pantallas de Dispositivos no lo leen
+    #: —la plaza se ve «Reservada» como cualquiera—; es para que Emergencia distinga las camas
+    #: de una familia. Sale de la misma consulta que el estado: no cuesta ninguna más.
+    derivacion_id: int | None = None
 
     @property
     def disponible(self) -> bool:
@@ -511,17 +516,17 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
         .values_list("plaza_id", "ciudadano__apellido", "ciudadano__nombre", "id", "ciudadano_id")
     }
     reservas = {
-        pk: (tipo, apellido, nombre, hasta)
-        for pk, tipo, apellido, nombre, hasta in _reservas_que_cuentan(momento)
+        pk: (tipo, apellido, nombre, hasta, derivacion)
+        for pk, tipo, apellido, nombre, hasta, derivacion in _reservas_que_cuentan(momento)
         .filter(plaza_id__in=ids)
-        .values_list("plaza_id", "tipo", "ciudadano__apellido", "ciudadano__nombre", "hasta")
+        .values_list("plaza_id", "tipo", "ciudadano__apellido", "ciudadano__nombre", "hasta", "derivacion_id")
     }
 
     derivados = {}
     for plaza in plazas:
         detalle = ""
         detalle_completo = ""
-        estadia_id = ciudadano_id = None
+        estadia_id = ciudadano_id = derivacion_id = None
         if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
             estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
         elif plaza.pk in ocupadas:
@@ -529,7 +534,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             apellido, nombre, estadia_id, ciudadano_id = ocupadas[plaza.pk]
             detalle = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
         elif plaza.pk in reservas:
-            tipo, apellido, nombre, hasta = reservas[plaza.pk]
+            tipo, apellido, nombre, hasta, derivacion_id = reservas[plaza.pk]
             prestada = tipo == ReservaPlaza.Tipo.PRESTAMO
             estado = ESTADO_PRESTADA if prestada else ESTADO_RESERVADA
             persona = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
@@ -546,6 +551,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             detalle_completo=detalle_completo or detalle,
             estadia_id=estadia_id,
             ciudadano_id=ciudadano_id,
+            derivacion_id=derivacion_id,
         )
     return derivados
 
