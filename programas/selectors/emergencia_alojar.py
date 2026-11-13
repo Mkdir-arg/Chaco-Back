@@ -36,6 +36,7 @@ from programas.models import (
     Sector,
 )
 from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.emergencia_ficha import CLAVES_DE_ENVIO, secciones_incompletas
 from programas.services.nombre_plaza import clave_natural, plaza_con_sector
 from programas.services.ocupacion import (
     ESTADO_DISPONIBLE,
@@ -340,55 +341,78 @@ def integrantes_de(caso):
     """
 
     grupo = caso.grupo
-    filas = (
-        IntegranteGrupo.objects.filter(grupo_id=grupo.pk)
+    integrantes = [_fila_de_integrante(fila) for fila in _filas_de_la_familia(grupo.pk)]
+    return {
+        "integrantes": integrantes,
+        "confirmadas": sum(1 for fila in integrantes if fila["estado"] != INTEGRANTE_SIN_CONFIRMAR),
+        "total_declarado": grupo.total_declarado,
+        "declaradas_al_relevar": grupo.suma_de_cantidades(),
+        "con_ficha_incompleta": sum(
+            1 for fila in integrantes if fila["estado"] != INTEGRANTE_SIN_CONFIRMAR and not fila["ficha_completa"]
+        ),
+    }
+
+
+def integrante_de(caso, n):
+    """Una persona de la familia (M2-4, ``…/integrantes/{n}/``): su fila más la ficha guardada, o ``None``.
+
+    La fila es la misma de :func:`integrantes_de`, más:
+
+    * ``ficha`` — el Formulario 2 guardado **sin** los identificadores de envío
+      (``CLAVES_DE_ENVIO``), que no son del formulario. ``{}`` sin confirmar.
+    * ``secciones_incompletas`` — los rótulos de las secciones 4 a 8 que faltan.
+
+    ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id``. **1 consulta.**
+    """
+
+    fila = _filas_de_la_familia(caso.grupo_id).filter(orden=n).first()
+    if fila is None:
+        return None
+    ficha = {clave: valor for clave, valor in (fila.ficha or {}).items() if clave not in CLAVES_DE_ENVIO}
+    return {**_fila_de_integrante(fila), "ficha": ficha, "secciones_incompletas": secciones_incompletas(ficha)}
+
+
+def _filas_de_la_familia(grupo_pk):
+    return (
+        IntegranteGrupo.objects.filter(grupo_id=grupo_pk)
         .select_related("ciudadano", "estadia__plaza__sector")
         .order_by("orden")
     )
-    integrantes = []
-    confirmadas = incompletas = 0
-    for fila in filas:
-        if not fila.confirmada:
-            estado = INTEGRANTE_SIN_CONFIRMAR
-        elif fila.egresado_en is not None:
-            estado = INTEGRANTE_EGRESADA
-        else:
-            estado = INTEGRANTE_CONFIRMADA
-        confirmadas += fila.confirmada
-        incompletas += fila.confirmada and not fila.ficha_completa
-        persona = plaza = None
-        if fila.ciudadano_id:
-            persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
-        if fila.estadia_id and fila.estadia.plaza_id:
-            cama = fila.estadia.plaza
-            plaza = {
-                "id": cama.pk,
-                "codigo": cama.codigo,
-                "nombre": plaza_con_sector(cama, cama.sector.nombre),
-                "sector_id": cama.sector_id,
-            }
-        parentesco = fila.get_parentesco_display() if fila.parentesco else ""
-        if fila.parentesco == IntegranteGrupo.Parentesco.OTRO and fila.parentesco_otro:
-            parentesco = fila.parentesco_otro
-        integrantes.append(
-            {
-                "n": fila.orden,
-                "estado": estado,
-                "ficha_completa": fila.ficha_completa,
-                "persona": persona,
-                "plaza": plaza,
-                "parentesco": parentesco,
-                "confirmada_en": fila.confirmada_en,
-                "egresado_en": fila.egresado_en,
-                "estadia_id": fila.estadia_id,
-            }
-        )
+
+
+def _fila_de_integrante(fila):
+    """Una fila de la familia como la leen M2-3 y E6-integrantes. Sin consultas."""
+
+    if not fila.confirmada:
+        estado = INTEGRANTE_SIN_CONFIRMAR
+    elif fila.egresado_en is not None:
+        estado = INTEGRANTE_EGRESADA
+    else:
+        estado = INTEGRANTE_CONFIRMADA
+    persona = plaza = None
+    if fila.ciudadano_id:
+        persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
+    if fila.estadia_id and fila.estadia.plaza_id:
+        cama = fila.estadia.plaza
+        plaza = {
+            "id": cama.pk,
+            "codigo": cama.codigo,
+            "nombre": plaza_con_sector(cama, cama.sector.nombre),
+            "sector_id": cama.sector_id,
+        }
+    parentesco = fila.get_parentesco_display() if fila.parentesco else ""
+    if fila.parentesco == IntegranteGrupo.Parentesco.OTRO and fila.parentesco_otro:
+        parentesco = fila.parentesco_otro
     return {
-        "integrantes": integrantes,
-        "confirmadas": confirmadas,
-        "total_declarado": grupo.total_declarado,
-        "declaradas_al_relevar": grupo.suma_de_cantidades(),
-        "con_ficha_incompleta": incompletas,
+        "n": fila.orden,
+        "estado": estado,
+        "ficha_completa": fila.ficha_completa,
+        "persona": persona,
+        "plaza": plaza,
+        "parentesco": parentesco,
+        "confirmada_en": fila.confirmada_en,
+        "egresado_en": fila.egresado_en,
+        "estadia_id": fila.estadia_id,
     }
 
 

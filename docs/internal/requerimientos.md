@@ -55601,6 +55601,14 @@ Revertir el PR; sin migraciones. La app que use M2 recibirá 404 en esas rutas.
 - **13/11/2026 — propagación de la auditoría del PR #1130** (commit `28bc2a96`). `_ejecutar` (ingreso directo y avisar a la
   mesa) atrapa `UuidEnUso` por tipo para el 409 `UUID_EN_USO`, en vez de comparar el texto. El serializer de la puerta hereda
   del de M1: tampoco tiene tope propio de `traslado_otro` ni mínimo propio en las cantidades.
+- **13/11/2026 — auditoría del PR #1134** (commit `2ce238fd`). `views_emergencia.py` se parte: base y M1 (permisos,
+  `_VistaDeCampo` con `_o_404`/`_entrada`/`_ejecutar` y los traductores, que usan M1 y M3), `views_emergencia_kits.py` (M3),
+  `views_emergencia_llegadas.py` (M2-1 a M2-5 y plazas) y `views_emergencia_sin_derivacion.py` (decisión 4 del PM); mismas
+  URLs, `name=` y `operation_id`. La guarda del ingreso es una sola, `emergencia_ingreso_comun.ingreso_sin_candado`, que usa
+  `_abrir_ingreso` en su paso 1 y la API; el 409 del GET trae el `detail` de `_por_que_ya_no`, el mismo que el POST, y se lee
+  en `ESTADOS_CON_INTEGRANTES` (`CERRADO` incluido). La búsqueda por DNI tiene tope por usuario (`emergencia_buscar`,
+  300/hour, 429 en el contrato §13.2). Además: selector `integrante_de`, `derivacion_vencida` única (API y E6),
+  `admite_familias` y los tests partidos (`base_emergencia_api` sin tests; contrato, `m1`, `kits` y `m2` por flujo).
 
 ---
 
