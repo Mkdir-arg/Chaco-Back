@@ -585,15 +585,15 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 460 | Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo» | Dispositivos · alta y edición de institución (P3) | `#ui` | PM | 13/11/2026 | 🟢 **Hecho** | — |
 | 461 | Sectores y plazas: la plaza disponible ofrece «Ingresar persona», que abre el asistente de ingreso con esa plaza marcada | Dispositivos · P5 Sectores y plazas · asistente de ingreso (P6) | `#ui` `#rbac` | PM — prueba en testing | 13/11/2026 | 🟢 **Hecho** | — |
 | 462 | Emergencia, PR 0: piezas de UI del lote (semáforo de SLA, tarjeta para derivar, contador «N de N» y celda de diferencia) | Emergencia · sistema de diseño | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 463 | Emergencia, PR 1: programa EMERGENCIA, capacidades (`emergencia.*` y `emergencia.recibir_kit` en Dispositivos) y configuración de la mesa (E7); mapa del módulo | Emergencia · Transversal (RBAC) | `#emergencia` `#rbac` `#datos` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0116`, `programas.0117`, `users.0047` |
-| 464 | Emergencia, PR 2: modelo del caso, la derivación y el numerador, y servicios de la mesa | Emergencia · mesa | `#emergencia` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0118` |
+| 463 | Emergencia, PR 1: programa EMERGENCIA, capacidades (`emergencia.*` y `emergencia.recibir_kit` en Dispositivos) y configuración de la mesa (E7); mapa del módulo | Emergencia · Transversal (RBAC) | `#emergencia` `#rbac` `#datos` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0117`, `programas.0118`, `users.0047` |
+| 464 | Emergencia, PR 2: modelo del caso, la derivación y el numerador, y servicios de la mesa | Emergencia · mesa | `#emergencia` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0119` |
 | 465 | Emergencia, PR 3: la mesa en el backoffice — bandeja E2, ficha E3 y «Nuevo caso» | Emergencia · mesa | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
 | 466 | Emergencia, PR 4: vencimientos de la mesa (derivación vencida y caso sin avance) y `transaccion_unica` en el registro de vencimientos | Emergencia · mesa · Transversal (vencimientos) | `#emergencia` `#infra` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
 | 467 | Emergencia, PR 5: API de campo — login con el módulo `emergencia`, perfil, consulta de personas y M1 (enviar una familia) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 468 | Emergencia, PR 6: Dispositivos — reservas de derivación (excluidas de la liberación del Cambio 409 D2), bitácora automática sin movimiento y señal de egreso | Dispositivos · Emergencia | `#emergencia` `#datos` | PM — decisión D-9 del plan del módulo Emergencia | 12/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0119` |
+| 468 | Emergencia, PR 6: Dispositivos — reservas de derivación (excluidas de la liberación del Cambio 409 D2), bitácora automática sin movimiento y señal de egreso | Dispositivos · Emergencia | `#emergencia` `#datos` | PM — decisión D-9 del plan del módulo Emergencia | 12/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0120` |
 | 469 | Emergencia, PR 7: alojar — servicios de la etapa 3 y E6 «Llegadas» en el backoffice del dispositivo | Emergencia · Dispositivos (guardia) | `#emergencia` `#ui` `#datos` `#rbac` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
 | 470 | Emergencia, PR 8: API M2 — llegada de familias desde la app del dispositivo | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 471 | Emergencia, PR 9 y 9-API: entregas de kits — E4, E5, recepción en el dispositivo y API M3 | Emergencia · kits · Dispositivos (recepción) | `#emergencia` `#ui` `#api` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0120` |
+| 471 | Emergencia, PR 9 y 9-API: entregas de kits — E4, E5, recepción en el dispositivo y API M3 | Emergencia · kits · Dispositivos (recepción) | `#emergencia` `#ui` `#api` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0121` |
 | 472 | Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa | Emergencia · tablero | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
 | 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
 | 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
@@ -54762,7 +54762,7 @@ Revertir el PR. Ninguna pantalla existente las usa; si ya están mergeados los P
 | **Fecha del pedido** | 04/11/2026 (diseño del módulo); plan aprobado el 12/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Backoffice · Servidor/API (catálogo de capacidades) · Infra/ECOM (migraciones) |
-| **Migración** | `programas.0116`, `programas.0117`, `users.0047` |
+| **Migración** | `programas.0117`, `programas.0118`, `users.0047` |
 
 ## Pedido original
 
@@ -54781,15 +54781,15 @@ entrada; las demás remiten acá.
 | Cambio | PR | Qué trae | Migración |
 |---|---|---|---|
 | [462](#cambio-462) | 0 | Piezas de UI del lote | — |
-| 463 | 1 | Programa, capacidades y E7 | `programas.0116`, `programas.0117`, `users.0047` |
-| [464](#cambio-464) | 2 | Modelo del caso y servicios de la mesa | `programas.0118` |
+| 463 | 1 | Programa, capacidades y E7 | `programas.0117`, `programas.0118`, `users.0047` |
+| [464](#cambio-464) | 2 | Modelo del caso y servicios de la mesa | `programas.0119` |
 | [465](#cambio-465) | 3 | Mesa en el backoffice: E2, E3 y «Nuevo caso» | — |
 | [466](#cambio-466) | 4 | Vencimientos de la mesa | — |
 | [467](#cambio-467) | 5 | API de campo: login, perfil y M1 | — |
-| [468](#cambio-468) | 6 | Dispositivos: reservas de derivación, bitácora automática y señal de egreso | `programas.0119` |
+| [468](#cambio-468) | 6 | Dispositivos: reservas de derivación, bitácora automática y señal de egreso | `programas.0120` |
 | [469](#cambio-469) | 7 | Alojar: servicios de la etapa 3 y E6 «Llegadas» | — |
 | [470](#cambio-470) | 8 | API M2: llegada de familias | — |
-| [471](#cambio-471) | 9 y 9-API | Kits: E4, E5, recepción web y API M3 | `programas.0120` |
+| [471](#cambio-471) | 9 y 9-API | Kits: E4, E5, recepción web y API M3 | `programas.0121` |
 | [472](#cambio-472) | 10 | Tablero E1 y avisos | — |
 | [473](#cambio-473) | 11 | Marcas de la bandeja y la ficha | — |
 | [474](#cambio-474) | 12 | Manual del módulo y estas entradas | — |
@@ -54820,7 +54820,7 @@ PM).
    cómo se armó el rol.
 5. **`users.0047` le da `operar`, `supervisar` y `recibir_kit` al rol protegido Administrador**, no `relevar` (mismo criterio
    que `users.0040` con `inspeccion.relevar`: solo le sumaría sacar token de la app). Ningún otro rol recibe nada.
-6. **El programa se crea por migración (`programas.0117`) además del seed**: en ECOM el bootstrap no corre y, sin la fila,
+6. **El programa se crea por migración (`programas.0118`) además del seed**: en ECOM el bootstrap no corre y, sin la fila,
    las capacidades no se pueden ni otorgar ni evaluar. El seed y la migración no pisan lo configurado (Cambio 104). La fila de
    `SLAEmergencia` la crea `sla_vigente()` la primera vez que se lee.
 7. **Valores de fábrica del SLA** (decisiones 3 y 7 del análisis, con los supuestos del plan): tomar 15 min, derivar 30,
@@ -54851,13 +54851,13 @@ de kits.
 
 ## Base de datos
 
-- `programas.0116_emergencia_base`: tablas nuevas `SLAEmergencia`, `TipoKit` (`nombre` único) y `TrazaConfiguracion`. Sin
+- `programas.0117_emergencia_base`: tablas nuevas `SLAEmergencia`, `TipoKit` (`nombre` único) y `TrazaConfiguracion`. Sin
   columnas sobre tablas existentes: expand puro.
-- `programas.0117_programa_emergencia`: `RunPython` que crea la fila `Programa(EMERGENCIA)`; la reversa la borra **solo si no
+- `programas.0118_programa_emergencia`: `RunPython` que crea la fila `Programa(EMERGENCIA)`; la reversa la borra **solo si no
   le cuelga nada** (salvo su `SLAEmergencia`) y si no, la deja y lo avisa por log.
 - `users.0047_capacidades_emergencia`: declara las cuatro capacidades y siembra tres al Administrador; la reversa se las quita.
-- **Numeración:** `development` ya tiene `programas.0116_respuestas_ingreso_egreso_estadia`; al rebasar, las migraciones del
-  módulo se renumeran (el plan prohíbe `makemigrations --merge`).
+- **Numeración:** `development` ya tiene `programas.0116_respuestas_ingreso_egreso_estadia`; al rebasar (13/11/2026) las
+  migraciones del módulo se renumeraron de `0116`–`0120` a `0117`–`0121` (el plan prohíbe `makemigrations --merge`).
 
 ## Validación
 
@@ -54875,9 +54875,9 @@ está en [`emergencia-manual.md`](emergencia-manual.md) §2.
 
 ## Pendientes / a definir
 
-1. Job «Migrate ida y vuelta» y `check_sqlmigrate` de `programas.0116`, `0117` y `users.0047` contra MariaDB y MySQL (necesita
+1. Job «Migrate ida y vuelta» y `check_sqlmigrate` de `programas.0117`, `0118` y `users.0047` contra MariaDB y MySQL (necesita
    el CI).
-2. Renumerar las migraciones al rebasar sobre `development`.
+2. ~~Renumerar las migraciones al rebasar sobre `development`.~~ Hecho el 13/11/2026: `programas.0117` a `0121`.
 3. Mirar en el review el diff de los snapshots de Becas regenerados (son líneas en blanco del sidebar).
 4. **Sidebar sin alcance de programa:** un rol de otro programa con `emergencia.operar` tildada vería el enlace y recibiría 403
    al entrar. En la práctica el ABM no deja tildarla fuera del programa (SEC-06), así que no debería pasar.
@@ -54886,7 +54886,7 @@ está en [`emergencia-manual.md`](emergencia-manual.md) §2.
 ## Reversión
 
 1. Revertir antes los PRs que dependen de este (Cambios 464 a 474) y sus migraciones.
-2. `manage.py migrate programas 0115` (desaplica `0117` —borra el programa solo si no tiene roles ni nada colgando— y `0116`,
+2. `manage.py migrate programas 0116` (desaplica `0118` —borra el programa solo si no tiene roles ni nada colgando— y `0117`,
    que borra el SLA, el catálogo de kits y su traza).
 3. `manage.py migrate users 0046` (le quita las capacidades al Administrador).
 4. Revertir el PR y redesplegar.
@@ -54912,7 +54912,7 @@ borrado del programa: hay que borrarlos antes si se quiere el programa fuera.
 | **Fecha del pedido** | 04/11/2026 (diseño del módulo); plan aprobado el 12/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Servidor (modelos, servicios, selectores, media protegida) · Infra/ECOM (migración) |
-| **Migración** | `programas.0118` |
+| **Migración** | `programas.0119` |
 
 ## Pedido original
 
@@ -54959,13 +54959,13 @@ detrás de login y de la capacidad.
 
 ## Archivos
 
-`programas/models/__init__.py`, `programas/migrations/0118_emergencia_casos.py`, `programas/services/emergencia.py`,
+`programas/models/__init__.py`, `programas/migrations/0119_emergencia_casos.py`, `programas/services/emergencia.py`,
 `programas/selectors/emergencia.py`, `programas/services/{ingreso, emergencia_programa}.py`, `core/rutas_media.py`,
 `core/views/media.py`, `programas/tests/{test_emergencia_casos, test_emergencia_concurrencia}.py`, contratos de modelos y RBAC.
 
 ## Base de datos
 
-`programas.0118_emergencia_casos`: ocho tablas nuevas, ningún cambio sobre tablas existentes (expand puro). `uuid_cliente` único
+`programas.0119_emergencia_casos`: ocho tablas nuevas, ningún cambio sobre tablas existentes (expand puro). `uuid_cliente` único
 y ampliado a `char(36)` en MySQL/MariaDB con su reversa; `numero` único; `clave_vigente` con UNIQUE común; índices
 `(estado, prioridad)` y `(tomado_por, estado)` del caso y `(dispositivo, estado)` de la derivación; `db_default` en las columnas
 con valor de fábrica.
@@ -54991,9 +54991,9 @@ Nada especial.
 
 ## Reversión
 
-1. Desaplicar antes `programas.0120` y `programas.0119` (Cambios 471 y 468): la FK `ReservaPlaza.derivacion` apunta a
+1. Desaplicar antes `programas.0121` y `programas.0120` (Cambios 471 y 468): la FK `ReservaPlaza.derivacion` apunta a
    `Derivacion`.
-2. `manage.py migrate programas 0117` (borra las ocho tablas).
+2. `manage.py migrate programas 0118` (borra las ocho tablas).
 3. Revertir el PR.
 
 Se pierden todos los casos, derivaciones, contactos, trazas y el numerador. Las fotos quedan en `media/emergencia/casos/`
@@ -55273,7 +55273,7 @@ volver a loguearse.
 | **Fecha del pedido** | 12/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Servidor (servicios de Dispositivos) · Infra/ECOM (migración) |
-| **Migración** | `programas.0119` |
+| **Migración** | `programas.0120` |
 
 ## Pedido original
 
@@ -55328,13 +55328,13 @@ mostrando como reservadas.
 
 ## Archivos
 
-`programas/models/__init__.py`, `programas/migrations/0119_reserva_plaza_derivacion.py`,
+`programas/models/__init__.py`, `programas/migrations/0120_reserva_plaza_derivacion.py`,
 `programas/services/{estadias, ingreso, bitacora, ocupacion}.py`, `programas/senales.py` (nuevo),
 `programas/tests/{test_dispositivos_reservas_derivacion, test_emergencia_reservas_concurrencia}.py`.
 
 ## Base de datos
 
-`programas.0119_reserva_plaza_derivacion`: columna nueva `derivacion_id` **anulable** sobre `programas_reservaplaza`, con su FK
+`programas.0120_reserva_plaza_derivacion`: columna nueva `derivacion_id` **anulable** sobre `programas_reservaplaza`, con su FK
 (`PROTECT`). Expand puro: el código de la release anterior no la lee ni la escribe y sus altas entran con `NULL`. Sin
 `RunPython` ni `RunSQL` (todas las reservas existentes quedan en `NULL`, que es «común»).
 
@@ -55358,9 +55358,9 @@ Nada especial.
 
 ## Reversión
 
-1. Desaplicar antes `programas.0120` (Cambio 471) si está aplicada.
+1. Desaplicar antes `programas.0121` (Cambio 471) si está aplicada.
 2. Revertir el código de los PRs 7, 8 y 9 (usan las funciones nuevas) y este PR.
-3. `manage.py migrate programas 0118` (borra la columna `derivacion_id`).
+3. `manage.py migrate programas 0119` (borra la columna `derivacion_id`).
 
 Se pierde la marca: las reservas de derivación vigentes quedan como reservas comunes del responsable y **D2 las vuelve a
 liberar** en su próximo ingreso. Revertir con familias en ingreso deja sus camas sin marca: cerrar o cancelar esos ingresos antes.
@@ -55571,7 +55571,7 @@ Revertir el PR; sin migraciones. La app que use M2 recibirá 404 en esas rutas.
 | **Fecha del pedido** | 04/11/2026 (diseño del módulo); plan aprobado el 12/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Backoffice · Servidor/API · Mobile (PR 9-P, bloqueado) · Infra/ECOM (migración) |
-| **Migración** | `programas.0120` |
+| **Migración** | `programas.0121` |
 
 ## Pedido original
 
@@ -55605,7 +55605,7 @@ web en `/emergencia/dispositivos/<id>/kits/` con entrada «Emergencia · Kits» 
    `RECIBIDA_CON_DIFERENCIAS`.
 8. **Numeración propia en la serie `K`** del numerador del PR 2 («2026-K-000031»). Orden de candados corto y propio:
    numerador o entrega, nunca los dos.
-9. **`uuid_cliente_recepcion` en `char(36)`** (patrón de la `0118`) y entra al ratchet de columnas UUID.
+9. **`uuid_cliente_recepcion` en `char(36)`** (patrón de la `0119`) y entra al ratchet de columnas UUID.
 10. Recibir deja una novedad `GENERAL` en la bitácora del turno (PR 6).
 
 ## Implementación
@@ -55616,7 +55616,7 @@ que llegó y la foto del remito.
 
 ## Archivos
 
-`programas/models/__init__.py`, `programas/migrations/0120_emergencia_kits.py`, `programas/services/{kits, emergencia}.py`,
+`programas/models/__init__.py`, `programas/migrations/0121_emergencia_kits.py`, `programas/services/{kits, emergencia}.py`,
 `programas/selectors/kits.py`, `programas/views/emergencia_kits.py`, `programas/forms_emergencia_kits.py`,
 `programas/emergencia_urls.py`, `programas/views/dispositivos_legajo.py`,
 `programas/templates/programas/emergencia/kits/{list, nueva_destino, nueva_items, nueva_confirmar, detail, pendientes,
@@ -55627,7 +55627,7 @@ tests (abajo).
 
 ## Base de datos
 
-`programas.0120_emergencia_kits`: tres tablas nuevas, ninguna columna sobre tablas existentes (expand puro).
+`programas.0121_emergencia_kits`: tres tablas nuevas, ninguna columna sobre tablas existentes (expand puro).
 `uuid_cliente_recepcion` único y ampliado a `char(36)` con su reversa; `numero` único; `(entrega, item)` único; `db_default` en
 las columnas con valor de fábrica.
 
@@ -55651,7 +55651,7 @@ Nada especial. Los remitos quedan en `media/` detrás de login.
 ## Reversión
 
 1. Revertir los PRs 10 (usa las entregas en el tablero) y este.
-2. `manage.py migrate programas 0119` (borra las tres tablas de kits).
+2. `manage.py migrate programas 0120` (borra las tres tablas de kits).
 
 Se pierden las entregas, sus líneas y su traza; las fotos de los remitos quedan huérfanas en `media/`. Con datos, respaldar
 antes.
@@ -55884,6 +55884,8 @@ Revertir el PR; sin migraciones.
 
 - **12/11/2026 — alta del cambio.**
 - **13/11/2026 — rebase sobre `development` (`6770545b`).** El lote pasa a una cadena lineal de ramas
-  `feat/emergencia-*-v2`. Los Cambios se renumeran de 457–469 a 462–474 (`development` ya llegaba al 461).
+  `feat/emergencia-*-v2`. Los Cambios se renumeran de 457–469 a 462–474 (`development` ya llegaba al 461) y las
+  migraciones del módulo de `programas.0116`–`0120` a `0117`–`0121` (`development` ya tenía
+  `0116_respuestas_ingreso_egreso_estadia`).
 
 ---

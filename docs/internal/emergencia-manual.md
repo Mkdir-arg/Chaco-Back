@@ -36,7 +36,7 @@ tiempo) y la **entrega de kits**.
 
 ## 2. Roles: qué tilda el PM
 
-El programa **Emergencia** lo crea la migración (`programas.0117`) y el seed: no hay que darlo de alta. **No hay roles
+El programa **Emergencia** lo crea la migración (`programas.0118`) y el seed: no hay que darlo de alta. **No hay roles
 sembrados** salvo el Administrador, que recibe `emergencia.operar`, `emergencia.supervisar` y `emergencia.recibir_kit`
 (`users.0047`). Los demás los arma el PM en **Usuarios → Roles**. Se autoriza solo por capacidad; el nombre del rol es libre.
 
