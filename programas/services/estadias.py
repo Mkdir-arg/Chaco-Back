@@ -65,67 +65,9 @@ Al ordenar candados hay que contemplar también los que toma InnoDB al modificar
 índices usados por una FK. `OrdenDeLosCandadosTests` fija el orden por la secuencia de
 llamadas en SQLite; `programas.tests.test_dispositivos_concurrencia` corre la carrera real.
 
-Reservas de derivación (Emergencia)
------------------------------------
-
-Una reserva con `ReservaPlaza.derivacion` es una de las N camas que el dispositivo le guardó
-a **la familia** de un caso de Emergencia al aceptar su derivación. Lleva en `ciudadano` al
-responsable del grupo —la columna es obligatoria y los demás integrantes todavía no tienen
-legajo—, pero **no es una reserva de esa persona**: son siete camas para siete personas que
-se van a ir identificando en la puerta. Por eso tiene caminos propios y queda **afuera** de
-los caminos «de la persona», que filtran `derivacion__isnull=True`:
-
-* `reserva_propia_vigente` —y con ella `_exigir_persona_sin_alojamiento_ni_reserva`, el
-  paso de plaza del asistente (`ingreso.plaza_reservada_de`) y la reserva que
-  `confirmar_ingreso` consume— no la ven: «una reserva vigente por persona y por
-  dispositivo» sigue valiendo para las reservas comunes del responsable, y las N de la
-  familia no cuentan ni chocan con ella.
-* `ingreso._reservas_abiertas_de` no la ve: el ingreso del responsable por el asistente
-  normal **no libera** las camas de su familia. La decisión D2 del PM (Cambio 409: al
-  ingresar se cierran todas las reservas de la persona, en cualquier dispositivo) no
-  cambia para ninguna otra reserva.
-
-Para todo lo demás **es una reserva como cualquiera**: toma la plaza (`_plaza_tomada_por`,
-`ocupacion`), el mapa la dibuja reservada, impide sacar la plaza de servicio y dar de baja
-el sector, y el operador la puede liberar desde el mapa con `liberar_reserva`.
-
-Las escribe y las resuelve solo este módulo:
-
-* `reservar_plazas_de_derivacion` crea las N, todo o nada. No aplica «una por persona» ni
-  rechaza al responsable que ya está alojado en la red (RN-2.15: es un dato, no un freno).
-* `consumir_reserva_de_derivacion` aloja a un integrante en una de ellas: con la plaza, la
-  reserva y la persona bloqueadas, pone la reserva a nombre de quien ingresa y delega en
-  `ingresar_persona`, que la valida como propia y la consume. La reasignación solo se hace
-  después de comprobar, con la fila bloqueada, que la reserva **es de derivación**: una
-  reserva común de otra persona sigue rechazada por `_bloquear_reserva_propia` (MAJOR 1 de
-  #802), que no se tocó.
-* `liberar_reservas_de_derivacion` suelta las que quedan vigentes (cierre con diferencia,
-  cancelación del ingreso, vencimiento).
-
-**Orden de candados global con Emergencia: caso → derivación → plazas (por pk) → reservas →
-persona.** El caso y la derivación los bloquea el servicio de Emergencia que llama, antes de
-entrar acá; estas funciones no los bloquean ni los releen, y por eso confían en la
-derivación que reciben. Adentro vale el orden de siempre, con dos cuidados:
-
-* cuando son varias plazas se bloquean **todas de una vez, ordenadas por pk** (igual que
-  `ingreso.confirmar_ingreso`), antes de tocar ninguna reserva;
-* `consumir_reserva_de_derivacion` bloquea a la persona que ingresa **antes** de escribirla
-  en la reserva. El `UPDATE` de `ciudadano_id` revalida la FK y pide un lock **compartido**
-  sobre la fila de la persona; si después `ingresar_persona` pidiera el exclusivo, dos
-  transacciones con el compartido se esperarían en cruz al subirlo (`ERROR 1213`).
-  `reservar_plazas_de_derivacion` no bloquea al responsable: no decide nada sobre él, y el
-  compartido que toma el `INSERT` nunca se sube.
-
-Y un candado que **no** hay que tomar. Liberar una reserva de derivación desde el mapa
-(`liberar_reserva`, sin pasar por Emergencia) bloquea plaza → reserva y **no** toca la
-derivación: por eso `ReservaPlaza` no tiene un índice `(derivacion, estado)`. Con uno,
-InnoDB lo adoptaría para la FK y el `UPDATE` de `estado` pediría un lock compartido sobre la
-fila de la derivación *después* de la plaza —lo mismo que arriba se cuenta de `(plaza,
-estado)`—, y se cruzaría con la mesa que tiene la derivación bloqueada y va por esa plaza
-(cancelar, vencer, cerrar con diferencia). Con el índice implícito de la FK, de una sola
-columna, cambiar `estado` no revalida nada. El único lock sobre la derivación que nace acá
-es el compartido del `INSERT` de `reservar_plazas_de_derivacion`, que corre con la
-derivación ya bloqueada por quien llama.
+Las reservas **de derivación** de Emergencia se crean, consumen y liberan en
+`programas.services.reservas_derivacion`; acá solo las excluyen (`derivacion__isnull=True`) los
+caminos «de la persona».
 
 La verificación en toda la red
 ------------------------------
@@ -164,7 +106,6 @@ from programas.models import (
     MovimientoEstadia,
     Plaza,
     ReservaPlaza,
-    Sector,
     TrazaDispositivo,
 )
 from programas.senales import estadia_egresada
@@ -696,9 +637,8 @@ def egresar_persona(
         estado_nuevo=Estadia.Estado.EGRESADA,
         detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · motivo: {motivo_egreso.nombre}",
     )
-    # Al final y adentro de la transacción: quien escucha (Emergencia marca al integrante y
-    # cierra el caso) escribe en el mismo hecho que el egreso. `send` y no `send_robust`: si
-    # un receptor falla, el egreso se deshace entero. Ver `programas.senales`.
+    # Al final y adentro de la transacción (Emergencia escribe en el mismo hecho que el egreso);
+    # `send` y no `send_robust`: si un receptor falla, el egreso se deshace. Ver `programas.senales`.
     estadia_egresada.send(sender=Estadia, estadia=estadia, usuario=usuario)
     return estadia
 
@@ -873,8 +813,7 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
 
     ahora = timezone.now()
     desde = desde or ahora
-    if desde > ahora:
-        raise ValidationError({"desde": "Una reserva empieza en el momento en que se toma: no puede ser futura."})
+    _exigir_desde_no_futuro(desde, ahora)
     if hasta is not None and hasta <= ahora:
         raise ValidationError({"hasta": "El vencimiento tiene que ser posterior a este momento."})
 
@@ -884,29 +823,45 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
     if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         # El mismo error para la plaza inexistente y para la de una institución sin
         # alcance: no se distingue «no existe» de «no es tuya».
-        raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
+        raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
     plaza = _tomar_plaza(pk, dispositivo, momento=ahora)
     _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, momento=ahora)
 
-    reserva = ReservaPlaza(
+    return _crear_reserva(
+        dispositivo,
+        usuario,
+        de_quien=f"ciudadano {ciudadano.pk}",
         plaza=plaza,
         ciudadano=ciudadano,
         tipo=tipo,
-        estado=ReservaPlaza.Estado.VIGENTE,
         desde=desde,
         hasta=hasta,
         motivo=motivo,
-        creada_por=usuario,
     )
+
+
+SIN_ALCANCE_PARA_RESERVAR = "No tenés alcance para reservar plazas en este dispositivo."
+
+
+def _exigir_desde_no_futuro(desde, ahora):
+    """Una reserva nace vigente: su `desde` no puede ser posterior a `ahora` (ver `reservar_plaza`)."""
+
+    if desde > ahora:
+        raise ValidationError({"desde": "Una reserva empieza en el momento en que se toma: no puede ser futura."})
+
+
+def _crear_reserva(dispositivo, usuario, *, de_quien, **campos):
+    """Alta `VIGENTE` de `ReservaPlaza(**campos)` en una plaza ya bloqueada, con su traza `PLAZA_RESERVADA`."""
+
+    reserva = ReservaPlaza(estado=ReservaPlaza.Estado.VIGENTE, creada_por=usuario, **campos)
     reserva.clean()
     reserva.save()
-
     _trazar(
         dispositivo,
         usuario,
         "PLAZA_RESERVADA",
         estado_nuevo=ReservaPlaza.Estado.VIGENTE,
-        detalle=f"Plaza {plaza_con_sector(plaza)} · {reserva.get_tipo_display()} · ciudadano {ciudadano.pk}",
+        detalle=f"Plaza {plaza_con_sector(reserva.plaza)} · {reserva.get_tipo_display()} · {de_quien}",
     )
     return reserva
 
@@ -932,8 +887,7 @@ def _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, 
       red porque la reserva es de la institución que la tomó —es quien la puede liberar— y
       preguntar por las de otras instituciones diría, a quien no las ve, que la persona figura
       en su lista. Es el mismo alcance con el que el ingreso cierra las reservas de la persona.
-      Las reservas **de derivación** no cuentan (`reserva_propia_vigente` las excluye): al
-      responsable de una familia de Emergencia se le puede guardar además su plaza común.
+      Las reservas **de derivación** no cuentan: `reserva_propia_vigente` las excluye.
     """
 
     Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
@@ -952,19 +906,14 @@ def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
     Es la que el ingreso de esa persona consume: su plaza es elegible para ella aunque el mapa
     la cuente como tomada.
 
-    **Sin las reservas de derivación**: las camas guardadas para la familia de un caso de
-    Emergencia llevan al responsable en `ciudadano`, pero no son suyas (ver «Reservas de
-    derivación» en el módulo). Con este filtro, ni le impiden tener su reserva común ni el
-    asistente de ingreso se las ofrece como «su» plaza.
+    **Sin las reservas de derivación** (`programas.services.reservas_derivacion`): llevan al
+    responsable de la familia en `ciudadano`, pero no son suyas; ni le impiden tener su reserva
+    común ni el asistente de ingreso se las ofrece como «su» plaza.
     """
 
     return (
         ReservaPlaza.objects.que_toman(momento)
-        .filter(
-            ciudadano_id=ciudadano_id,
-            plaza__sector__dispositivo_id=dispositivo.pk,
-            derivacion__isnull=True,
-        )
+        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk, derivacion__isnull=True)
         .select_related("plaza")
         .order_by("id")
         .first()
@@ -1012,238 +961,6 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
         detalle=f"Plaza {plaza_con_sector(reserva.plaza, sector_nombre)} · {reserva.get_tipo_display()}",
     )
     return reserva
-
-
-# --------------------------------------------------------------------------- #
-# Reservas de derivación (Emergencia). Ver la sección del docstring del módulo.
-# --------------------------------------------------------------------------- #
-
-#: Lo que recibe quien opera el dispositivo y pasa una reserva común (o una que se borró
-#: entre la lectura y el candado). Sin alcance no se llega acá: es `PermissionDenied`.
-RESERVA_NO_ES_DE_DERIVACION = "La reserva no es de una derivación de Emergencia."
-RESERVA_YA_NO_VIGENTE = "La reserva ya no está vigente."
-DERIVACION_NO_VIGENTE = "La derivación ya no está vigente: no se le pueden guardar plazas."
-
-
-def motivo_de_reserva_de_derivacion(derivacion):
-    """«Emergencia caso N.° 2026-000184»: lo que dice la reserva sobre por qué existe."""
-
-    return f"Emergencia caso N.° {derivacion.caso.numero}"
-
-
-@transaction.atomic
-def reservar_plazas_de_derivacion(*, derivacion, plazas, usuario, momento=None):
-    """Guarda `plazas` para la familia de `derivacion`. Devuelve las `ReservaPlaza`, por pk de plaza.
-
-    **Todo o nada**: si una sola plaza no se puede tomar —no es del dispositivo de la
-    derivación, está fuera de servicio, en un sector dado de baja, ocupada o ya reservada—
-    falla con `ValidationError` y no queda ninguna reserva. El error de una plaza tomada la
-    nombra, para que quien eligió las camas sepa cuál cambiar.
-
-    No decide **qué** plazas: recibe la lista (instancias o ids) de quien las eligió. Cada
-    reserva nace `VIGENTE`, de tipo `RESERVA`, sin vencimiento, a nombre del responsable del
-    grupo y con `derivacion` puesta. A diferencia de `reservar_plaza`, **no** exige que el
-    responsable no tenga otra reserva ni que no esté alojado en la red: las camas son de la
-    familia (ver «Reservas de derivación» en el módulo).
-
-    Lo autoriza `dispositivo.admitir` sobre el dispositivo de la derivación, que tiene que
-    estar activo. `momento` es el `desde` de las reservas (por omisión, ahora) y no puede ser
-    futuro: una reserva nace vigente.
-
-    **Candados**: quien llama ya bloqueó el caso y la derivación —acá no se bloquean ni se
-    releen—. Se toman todas las plazas de una vez, ordenadas por pk, y recién después se
-    escribe. No se bloquea al responsable.
-    """
-
-    dispositivo = derivacion.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
-        raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
-    if dispositivo.estado != Dispositivo.Estado.ACTIVO:
-        raise ValidationError({"dispositivo": "Solo se reservan plazas en un dispositivo activo."})
-    if not derivacion.vigente:
-        raise ValidationError({"derivacion": DERIVACION_NO_VIGENTE})
-
-    ahora = timezone.now()
-    desde = momento or ahora
-    if desde > ahora:
-        raise ValidationError({"desde": "Una reserva empieza en el momento en que se toma: no puede ser futura."})
-
-    ids = [plaza.pk if isinstance(plaza, Plaza) else plaza for plaza in plazas]
-    if not ids:
-        raise ValidationError({"plaza": "Elegí al menos una plaza para reservar."})
-    if None in ids or len(set(ids)) != len(ids):
-        raise ValidationError({"plaza": "La lista de plazas a reservar tiene una plaza repetida o inválida."})
-
-    # Resueltas dentro del dispositivo **antes** de bloquear, como `_bloquear_plaza`: ni se
-    # toma `FOR UPDATE` sobre una plaza ajena, ni la inexistente y la ajena dan errores distintos.
-    propias = Plaza.objects.filter(pk__in=ids, sector__dispositivo_id=dispositivo.pk).count()
-    if propias != len(ids):
-        raise ValidationError({"plaza": PLAZA_FUERA_DEL_DISPOSITIVO})
-    # Todas de una vez y por pk: dos aceptaciones con plazas en común se forman en la primera
-    # que comparten, sin esperarse en cruz. Sin JOIN, para no bloquear también los sectores.
-    bloqueadas = list(Plaza.objects.select_for_update().filter(pk__in=ids).order_by("pk"))
-    if len(bloqueadas) != len(ids):
-        raise ValidationError({"plaza": PLAZA_FUERA_DEL_DISPOSITIVO})  # la borraron en el medio
-
-    # Los sectores en una sola consulta: `_exigir_plaza_libre` y la traza los leen por plaza.
-    sectores = Sector.objects.in_bulk({plaza.sector_id for plaza in bloqueadas})
-    for plaza in bloqueadas:
-        plaza.sector = sectores[plaza.sector_id]
-        try:
-            _exigir_plaza_libre(plaza, momento=ahora)
-        except ValidationError as error:
-            raise ValidationError(
-                {"plaza": [f"{plaza_con_sector(plaza)}: {mensaje}" for mensaje in error.messages]}
-            ) from error
-
-    responsable_id = derivacion.caso.grupo.responsable_id
-    motivo = motivo_de_reserva_de_derivacion(derivacion)
-    reservas = []
-    for plaza in bloqueadas:
-        reserva = ReservaPlaza(
-            plaza=plaza,
-            ciudadano_id=responsable_id,
-            tipo=ReservaPlaza.Tipo.RESERVA,
-            estado=ReservaPlaza.Estado.VIGENTE,
-            desde=desde,
-            hasta=None,
-            motivo=motivo,
-            creada_por=usuario,
-            derivacion=derivacion,
-        )
-        reserva.clean()
-        reserva.save()
-        reservas.append(reserva)
-        _trazar(
-            dispositivo,
-            usuario,
-            "PLAZA_RESERVADA",
-            estado_nuevo=ReservaPlaza.Estado.VIGENTE,
-            detalle=(
-                f"Plaza {plaza_con_sector(plaza)} · {reserva.get_tipo_display()} · "
-                f"derivación {derivacion.pk} · {motivo}"
-            ),
-        )
-    return reservas
-
-
-@transaction.atomic
-def consumir_reserva_de_derivacion(*, reserva, ciudadano, usuario, fecha_ingreso=None):
-    """Aloja a `ciudadano` en la plaza de una reserva de derivación. Devuelve la `Estadia` abierta.
-
-    Es el ingreso de un integrante de la familia: cualquiera de ellos, no solo el
-    responsable a cuyo nombre nació la reserva. Hace lo mismo que cualquier ingreso —lo
-    delega en `ingresar_persona`, con sus mismas reglas, su movimiento, su `INGRESO` en la
-    bitácora y su traza— y deja la reserva `CONSUMIDA` a nombre de quien entró.
-
-    Falla con `PermissionDenied` sin `dispositivo.admitir` sobre el dispositivo de la plaza
-    (también si la reserva no existe: no se distingue), con `ValidationError` si la reserva
-    no es de derivación o ya no está vigente, y con lo que falle `ingresar_persona`
-    (`AlojamientoEnLaRed` si la persona ya está alojada, plaza fuera de servicio, fechas…).
-    **Si algo falla, la reserva queda como estaba**: vigente y a nombre de quien estaba.
-
-    Por qué reasignar antes de ingresar no rompe el MAJOR 1 de #802
-    ---------------------------------------------------------------
-
-    `_bloquear_reserva_propia` sigue exigiendo que la reserva sea de quien ingresa, y no se
-    tocó. Lo que cambia es **quién puede poner su nombre** en una reserva: solo esta función,
-    solo sobre una reserva que —releída con `FOR UPDATE`— tiene `derivacion`, está vigente y
-    está en una plaza del dispositivo que el usuario opera. Una reserva común (`derivacion`
-    en NULL) se rechaza acá, antes de escribir nada, y por `ingresar_persona(reserva=…)`
-    directo sigue dando «La reserva es de otra persona». La reasignación y el ingreso van
-    en la misma transacción (un savepoint si ya hay una abierta): si el ingreso falla, la
-    excepción deshace también el cambio de nombre.
-
-    **Candados**: plaza → reserva → persona, el orden de siempre. La persona se bloquea
-    **antes** del `UPDATE` que la escribe en la reserva (ver el docstring del módulo).
-    `ingresar_persona` vuelve a pedir los tres, ya tomados por esta transacción.
-    """
-
-    pk = reserva.pk if isinstance(reserva, ReservaPlaza) else reserva
-    # Sin bloquear: `plaza_id` es estable (ningún servicio mueve una reserva de plaza) y de
-    # acá solo sale a qué dispositivo preguntarle el alcance.
-    fila = ReservaPlaza.objects.filter(pk=pk).values_list("plaza_id", "plaza__sector__dispositivo_id").first()
-    dispositivo = Dispositivo.objects.select_related("tipo").filter(pk=fila[1]).first() if fila else None
-    if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
-        # El mismo error para la reserva inexistente y para la de una institución sin alcance.
-        raise PermissionDenied("No tenés alcance para alojar personas en este dispositivo.")
-
-    plaza = _bloquear_plaza(fila[0], dispositivo)
-    reserva = ReservaPlaza.objects.select_for_update().filter(pk=pk).first()
-    # La guarda que sostiene el MAJOR 1 de #802: solo una reserva de derivación cambia de
-    # nombre. Es la única; no hay otra línea que la cubra si esta se va.
-    if reserva is None or reserva.derivacion_id is None:
-        raise ValidationError({"reserva": RESERVA_NO_ES_DE_DERIVACION})
-    if reserva.estado != ReservaPlaza.Estado.VIGENTE:
-        raise ValidationError({"reserva": RESERVA_YA_NO_VIGENTE})
-
-    # La persona, con el exclusivo, antes de nombrarla en la reserva: el UPDATE de abajo toma
-    # el compartido de su fila por la FK, y subirlo después es lo que arma el deadlock.
-    Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
-    if reserva.ciudadano_id != ciudadano.pk:
-        reserva.ciudadano = ciudadano
-        reserva.save(update_fields=["ciudadano", "modificado"])
-
-    return ingresar_persona(
-        ciudadano=ciudadano,
-        dispositivo=dispositivo,
-        usuario=usuario,
-        plaza=plaza,
-        fecha_ingreso=fecha_ingreso,
-        reserva=reserva,
-    )
-
-
-@transaction.atomic
-def liberar_reservas_de_derivacion(*, derivacion, usuario, motivo, verificar_alcance=True):
-    """Suelta las reservas de la derivación que siguen vigentes. Devuelve cuántas liberó.
-
-    Para el cierre con diferencia (sobraron camas), la cancelación del ingreso y el
-    vencimiento de la derivación. Las ya consumidas o liberadas no se tocan, y sin ninguna
-    vigente devuelve 0 sin error: es idempotente. Cada una pasa por `liberar_reserva`, así
-    que queda `LIBERADA`, con `motivo` y con su traza `PLAZA_LIBERADA`, igual que la que el
-    operador libera desde el mapa.
-
-    `verificar_alcance=False` es para quien no actúa como operador del dispositivo —la mesa
-    que cancela, el vencimiento por cron—: igual que en `liberar_reserva`, no es una
-    decisión sobre esa plaza sino la consecuencia de que la derivación terminó.
-
-    **Candados**: quien llama ya bloqueó el caso y la derivación. Acá, todas las plazas de
-    una vez ordenadas por pk y después cada reserva (`liberar_reserva` vuelve a pedir su
-    plaza, ya tomada). Una reserva que se sume a la derivación después de esa lectura no se
-    libera en esta llamada: su plaza no está bloqueada, y bloquearla ahora sería pedir una
-    plaza después de una reserva.
-    """
-
-    if verificar_alcance and not puede_operar_dispositivo(usuario, derivacion.dispositivo, CAP_ADMITIR):
-        raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
-
-    vigentes = list(
-        ReservaPlaza.objects.abiertas()
-        .filter(derivacion=derivacion)
-        .select_related("plaza__sector__dispositivo")
-        .order_by("plaza_id", "id")
-    )
-    if not vigentes:
-        return 0
-    # Solo el candado: `liberar_reserva` vuelve a tomar cada plaza y relee la reserva con bloqueo.
-    list(
-        Plaza.objects.select_for_update()
-        .filter(pk__in={reserva.plaza_id for reserva in vigentes})
-        .order_by("pk")
-        .values_list("pk", flat=True)
-    )
-    # `ReservaPlaza.motivo` es de 200: el de Emergencia puede traer una observación más larga,
-    # y MariaDB en modo estricto rechaza el `UPDATE` entero en vez de recortar.
-    motivo = (motivo or "").strip()[:200]
-    liberadas = 0
-    for reserva in vigentes:
-        try:
-            liberar_reserva(reserva=reserva, usuario=usuario, motivo=motivo, verificar_alcance=False)
-        except ValidationError:
-            continue  # la consumió o la liberó otro entre la lectura y el candado: ya no hay nada que soltar
-        liberadas += 1
-    return liberadas
 
 
 @transaction.atomic
