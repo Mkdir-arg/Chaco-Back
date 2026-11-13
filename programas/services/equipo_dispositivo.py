@@ -23,9 +23,11 @@ from django.db.models import BooleanField, Case, When
 from core import rbac
 from programas.services.dispositivos import (
     membresias_vigentes,
+    nombre_de_persona,
     programa_dispositivos,
     puede_configurar_dispositivos,
     q_membresia_vigente,
+    responsables_vigentes,
 )
 from programas.services.inspecciones import CLAVE_ROL_AGENTE
 
@@ -126,19 +128,11 @@ def exigir_par_sumable(usuario, rol):
     _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
 
 
-def _responsables_activos(dispositivo):
-    from programas.models import MiembroEquipoDispositivo
-
-    return MiembroEquipoDispositivo.objects.filter(
-        q_membresia_vigente(programa_dispositivos()), dispositivo=dispositivo, es_responsable=True
-    )
-
-
 def _exigir_otro_responsable(dispositivo, miembro):
     """No dejar sin responsables a un dispositivo que tenía: queda al menos otro activo."""
 
     es_responsable_activo = miembro.activo and miembro.es_responsable
-    if es_responsable_activo and not _responsables_activos(dispositivo).exclude(pk=miembro.pk).exists():
+    if es_responsable_activo and not responsables_vigentes(dispositivo).exclude(pk=miembro.pk).exists():
         raise ValidationError("El dispositivo no puede quedar sin responsables: marcá a otra persona antes.")
 
 
@@ -296,43 +290,6 @@ def desmarcar_responsable(*, actor, miembro):
         miembro.es_responsable = False
         miembro.save(update_fields=["es_responsable", "modificado"])
         return miembro
-
-
-def nombre_de_persona(usuario):
-    return usuario.get_full_name().strip() or usuario.get_username()
-
-
-def datos_de_contacto(usuario):
-    """Responsable y contacto del legajo tomados de la persona (alta, Cambio 450).
-
-    El alta ya no los pide a mano: salen del primer responsable elegido. Se copian una vez; la
-    edición los sigue mostrando para corregirlos. Sin perfil, documento y teléfono quedan vacíos.
-    Cada valor pasa por la misma regla que el campo escrito a mano; el que no la cumple queda
-    vacío (un teléfono inválido del perfil cuenta como «sin teléfono» y no traba la edición).
-    """
-
-    from programas.validacion_contacto import (
-        normalizar_documento_responsable,
-        normalizar_telefono,
-        validar_nombre_responsable,
-    )
-
-    def _con_regla(regla, valor):
-        valor = (valor or "").strip()
-        if not valor:
-            return ""
-        try:
-            return regla(valor)
-        except ValidationError:
-            return ""
-
-    perfil = getattr(usuario, "profile", None)
-    return {
-        "responsable_nombre": _con_regla(validar_nombre_responsable, nombre_de_persona(usuario))[:200],
-        "responsable_documento": _con_regla(normalizar_documento_responsable, getattr(perfil, "dni", None)),
-        "contacto_telefono": _con_regla(normalizar_telefono, getattr(perfil, "telefono", None)),
-        "contacto_email": (usuario.email or "").strip(),
-    }
 
 
 def pares_persona_rol(dispositivo=None):
