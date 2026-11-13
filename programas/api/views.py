@@ -53,6 +53,7 @@ from programas.services.becas import (
     resolver_ciudadano_offline,
 )
 from programas.services.dispositivos import puede_en_programa_dispositivos
+from programas.services.emergencia_programa import modulo_habilitado
 from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identificar
 from programas.services.inspecciones import CAP_RELEVAR
 from programas.services.padron import datos_de_fila, fila_padron, normalizar_dni, objetivo_con_identidad
@@ -170,7 +171,11 @@ MENSAJE_DEBE_CAMBIAR_CLAVE_SIN_CORREO = (
 
 
 class ObtainCampoToken(ObtainAuthToken):
-    """Login de la app de campo: valida credenciales y exige ``becas.campo``.
+    """Login de la app de campo: valida credenciales y exige abrir algún módulo.
+
+    Los módulos son tres y cada uno tiene su regla: Becas (``becas.campo``), el relevamiento
+    edilicio (``inspeccion.relevar`` en Dispositivos) y Emergencia
+    (``emergencia_programa.modulo_habilitado``). El token no abre nada por sí solo.
 
     SEC-26 · dos cubetas, y cada una frena en un momento distinto:
 
@@ -236,10 +241,16 @@ class ObtainCampoToken(ObtainAuthToken):
         # El mismo login sirve al agente del relevamiento edilicio (tasks 38 y 39). El token
         # no abre nada por sí solo: cada recurso exige su capacidad (`CampoBecasPermission`,
         # `CampoInspeccionPermission`), así que ninguna de las dos abre la otra.
-        if not (puede(user, CAP) or puede_en_programa_dispositivos(user, CAP_RELEVAR)):
+        # Tercera vía (módulo Emergencia): el agente territorial con `emergencia.relevar` y la
+        # guardia de un dispositivo. La regla es una sola función, la misma que usan los
+        # permisos de `/api/emergencia/`: el login no ofrece un módulo que después da 403.
+        abre_becas = puede(user, CAP)
+        abre_dispositivos = puede_en_programa_dispositivos(user, CAP_RELEVAR)
+        abre_emergencia = modulo_habilitado(user)
+        if not (abre_becas or abre_dispositivos or abre_emergencia):
             return Response(
-                # Sin nombrar Becas: este login también lo usa el agente del relevamiento
-                # edilicio, y el 403 es «ninguna de las dos superficies», no «Becas».
+                # Sin nombrar Becas: este login también lo usan el agente del relevamiento
+                # edilicio y el módulo Emergencia, y el 403 es «ninguna superficie», no «Becas».
                 {"detail": "El usuario no tiene acceso a la app de campo."},
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -259,11 +270,15 @@ class ObtainCampoToken(ObtainAuthToken):
         token, _ = Token.objects.get_or_create(user=user)
         # K7 · claves nuevas y aditivas: qué superficies abre este usuario y desde
         # qué versión de la app se puede entrar (``null`` = sin chequeo).
+        # Lo que cambia con Emergencia es un **valor** posible de la lista, siempre al final;
+        # las claves del cuerpo son las de siempre (`CLAVES_LOGIN`).
         modulos = []
-        if puede(user, CAP):
+        if abre_becas:
             modulos.append("becas")
-        if puede_en_programa_dispositivos(user, CAP_RELEVAR):
+        if abre_dispositivos:
             modulos.append("dispositivos")
+        if abre_emergencia:
+            modulos.append("emergencia")
         return Response(
             {
                 "token": token.key,
@@ -494,7 +509,28 @@ class ConsultaPersonasThrottle(UserRateThrottle):
 @permission_classes([IsAuthenticated, CampoBecasPermission])
 @throttle_classes([ConsultaPersonasThrottle])
 def consultar_persona_becas(request):
-    entrada = ConsultaPersonaSerializer(data=request.data)
+    return responder_consulta_de_persona(
+        request.data,
+        lambda relevamiento_id: _relevamientos_para_identificar(request.user, relevamiento_id),
+    )
+
+
+def responder_consulta_de_persona(datos, relevamientos_de=None):
+    """La consulta de identidad de la app de campo: valida, identifica y arma la respuesta.
+
+    La comparten ``POST /api/becas/personas/consultar/`` y
+    ``POST /api/emergencia/personas/consultar/`` (hallazgo H2 del plan de Emergencia): mismo
+    cuerpo, mismos códigos y el mismo servicio (``identidad.identificar``). Lo único que
+    cambia es **contra qué padrones** se busca antes de salir a Base de Personas:
+
+    * ``relevamientos_de(relevamiento_id)`` devuelve los relevamientos cuyo padrón se mira
+      (Becas: los del territorial).
+    * Sin ``relevamientos_de`` no hay padrón: se consulta solo Base de Personas (Emergencia,
+      que no tiene convocatorias). Un ``relevamiento`` que venga en el cuerpo se ignora.
+
+    El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.
+    """
+    entrada = ConsultaPersonaSerializer(data=datos)
     if not entrada.is_valid():
         # El cuerpo del 400 es el de siempre: la app en producción lee `error`,
         # no el diccionario de campos que devolvería `raise_exception=True`.
@@ -508,7 +544,7 @@ def consultar_persona_becas(request):
     # Cascada del Cambio 57 en el servidor: padrón de la convocatoria → Base de
     # Personas (si está activa) → manual. Mismo contrato de respuesta que antes;
     # se suma ``origen`` para que la app lo repita en ``datos_identificacion``.
-    relevamientos = _relevamientos_para_identificar(request.user, entrada.validated_data.get("relevamiento"))
+    relevamientos = relevamientos_de(entrada.validated_data.get("relevamiento")) if relevamientos_de else []
     # El padrón efectivo se mira para todos los relevamientos vigentes de una
     # vez; la Gran Base se consulta una sola vez (no depende del relevamiento).
     elegido = objetivo_con_identidad(relevamientos, dni, sexo) or (relevamientos[0] if relevamientos else None)
