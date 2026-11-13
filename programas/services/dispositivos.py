@@ -106,6 +106,112 @@ def membresias_vigentes(user, programa):
     return MiembroEquipoDispositivo.objects.filter(q_membresia_vigente(programa), usuario=user)
 
 
+def responsables_vigentes(dispositivo):
+    """Responsables del Equipo de ``dispositivo`` cuya membresía todavía vale (``q_membresia_vigente``).
+
+    La usan la gestión del Equipo (no dejarlo sin responsables) y el contacto del legajo (Cambio 457).
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    return MiembroEquipoDispositivo.objects.filter(
+        q_membresia_vigente(programa_dispositivos()), dispositivo=dispositivo, es_responsable=True
+    )
+
+
+# Contacto del legajo (Cambios 450 y 457). Vive acá y no en `equipo_dispositivo` porque las
+# transiciones de este módulo lo sincronizan antes de exigir los datos: así el import va en
+# un solo sentido (equipo_dispositivo → dispositivos) y no abre un ciclo.
+
+
+def nombre_de_persona(usuario):
+    return usuario.get_full_name().strip() or usuario.get_username()
+
+
+def datos_de_contacto(usuario):
+    """Responsable y contacto del legajo tomados de la persona (Cambios 450 y 457).
+
+    Ni el alta ni la edición los piden a mano: salen del primer responsable (el elegido en el
+    alta, después el del Equipo: ``contacto_del_equipo``). Sin perfil, documento y teléfono quedan vacíos.
+    Cada valor pasa por la misma regla que el campo escrito a mano; el que no la cumple queda
+    vacío (un teléfono inválido del perfil cuenta como «sin teléfono» y no traba la edición).
+    """
+
+    from programas.validacion_contacto import (
+        normalizar_documento_responsable,
+        normalizar_telefono,
+        validar_nombre_responsable,
+    )
+
+    def _con_regla(regla, valor):
+        valor = (valor or "").strip()
+        if not valor:
+            return ""
+        try:
+            return regla(valor)
+        except ValidationError:
+            return ""
+
+    perfil = getattr(usuario, "profile", None)
+    return {
+        "responsable_nombre": _con_regla(validar_nombre_responsable, nombre_de_persona(usuario))[:200],
+        "responsable_documento": _con_regla(normalizar_documento_responsable, getattr(perfil, "dni", None)),
+        "contacto_telefono": _con_regla(normalizar_telefono, getattr(perfil, "telefono", None)),
+        "contacto_email": (usuario.email or "").strip(),
+    }
+
+
+def responsable_de_contacto(dispositivo):
+    """La persona de la que sale el contacto del legajo: el primer responsable vigente del Equipo.
+
+    Vigente como en la solapa Equipo (``responsables_vigentes``): quien perdió el rol no cuenta.
+    En el mismo orden que el buscador del alta (apellido, nombre, usuario), así el alta y la
+    edición eligen a la misma persona. ``None`` si el legajo no tiene responsables vigentes (p. ej.
+    los anteriores al Cambio 411): esos conservan el contacto escrito a mano.
+    """
+    if not dispositivo.pk:
+        return None
+    miembro = (
+        responsables_vigentes(dispositivo)
+        .select_related("usuario", "usuario__profile")
+        .order_by("usuario__last_name", "usuario__first_name", "usuario__username", "pk")
+        .first()
+    )
+    return miembro.usuario if miembro else None
+
+
+def contacto_del_equipo(dispositivo, usuario=None):
+    """El contacto que el legajo tiene que tener según su responsable, o ``None`` si no hay de quién tomarlo.
+
+    Cada dato sale de la persona; el que su perfil no trae válido conserva el valor guardado en
+    el legajo, así un contacto cargado antes no se borra al sincronizar (Cambio 457).
+    """
+    usuario = usuario or responsable_de_contacto(dispositivo)
+    if usuario is None:
+        return None
+    return {campo: valor or getattr(dispositivo, campo) or "" for campo, valor in datos_de_contacto(usuario).items()}
+
+
+def sincronizar_contacto(dispositivo):
+    """Copia al legajo, sin guardar, el contacto de su responsable.
+
+    Devuelve los cambios con la forma de la traza de edición, ``{campo: {"anterior", "nuevo"}}``.
+
+    La llaman la edición y las transiciones que exigen los datos (enviar a validación y validar),
+    así un cambio de perfil o de Equipo llega al legajo antes de chequearlo (Cambio 457).
+    """
+    contacto = contacto_del_equipo(dispositivo)
+    if contacto is None:
+        return {}
+    cambios = {}
+    for campo, nuevo in contacto.items():
+        anterior = getattr(dispositivo, campo) or ""
+        if nuevo != anterior:
+            setattr(dispositivo, campo, nuevo)
+            cambios[campo] = {"anterior": anterior, "nuevo": nuevo}
+    return cambios
+
+
 def _filtro_equipo(user, capacidad, programa):
     """Membresías vigentes del Equipo cuyo rol tiene ``capacidad``."""
 
@@ -303,7 +409,6 @@ def _sincronizar_contacto(dispositivo, usuario):
     Si el perfil del responsable o el Equipo cambiaron después del último guardado, el chequeo ve
     lo vigente; lo que se copia queda en la traza como una edición más.
     """
-    from programas.services.equipo_dispositivo import sincronizar_contacto
 
     cambios = sincronizar_contacto(dispositivo)
     if cambios:

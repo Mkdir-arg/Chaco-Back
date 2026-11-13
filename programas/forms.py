@@ -1117,7 +1117,8 @@ class DispositivoForm(forms.ModelForm):
         Desde el Cambio 450 es un buscador múltiple y reemplaza a «Responsable y contacto»: esos
         cuatro datos salen del primer responsable elegido (``datos_de_contacto``).
         """
-        from programas.services.equipo_dispositivo import datos_de_contacto, nombre_de_persona, pares_persona_rol
+        from programas.services.dispositivos import datos_de_contacto, nombre_de_persona
+        from programas.services.equipo_dispositivo import pares_persona_rol
 
         pares = pares_persona_rol()
         self._pares_responsables = {par["valor"]: (par["usuario"], par["rol"]) for par in pares}
@@ -1155,7 +1156,7 @@ class DispositivoForm(forms.ModelForm):
         persona o cambiando los responsables en la solapa Equipo. Un legajo sin responsables (anterior
         al Cambio 411) sigue con los campos escritos a mano.
         """
-        from programas.services.equipo_dispositivo import responsable_de_contacto
+        from programas.services.dispositivos import responsable_de_contacto
 
         self._responsable_del_equipo = responsable_de_contacto(self.instance)
         if self._responsable_del_equipo is not None:
@@ -1179,7 +1180,7 @@ class DispositivoForm(forms.ModelForm):
     @property
     def contacto_de_alta(self):
         """Los datos que el alta copia al legajo (``datos_de_contacto`` de la primera persona), o None."""
-        from programas.services.equipo_dispositivo import datos_de_contacto
+        from programas.services.dispositivos import datos_de_contacto
 
         if "responsables" not in self.fields:
             return None
@@ -1189,7 +1190,7 @@ class DispositivoForm(forms.ModelForm):
     @property
     def contacto_del_equipo(self):
         """Edición: el contacto que el legajo toma de su responsable al guardar (Cambio 457), o None."""
-        from programas.services.equipo_dispositivo import contacto_del_equipo
+        from programas.services.dispositivos import contacto_del_equipo
 
         if self._responsable_del_equipo is None:
             return None
@@ -1219,7 +1220,7 @@ class DispositivoForm(forms.ModelForm):
     @property
     def persona_de_contacto(self):
         """Cómo se nombra en el aviso a la persona de la que sale el contacto (aunque su nombre no valga)."""
-        from programas.services.equipo_dispositivo import nombre_de_persona
+        from programas.services.dispositivos import nombre_de_persona
 
         usuario = self.responsable_de_contacto
         return nombre_de_persona(usuario) if usuario is not None else ""

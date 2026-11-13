@@ -54373,7 +54373,7 @@ Solo el deploy; sin migración.
 | **Solicitante** | PM — 13/11/2026, al probar en testing: el dispositivo 14 se creó bien pero no se podía enviar a validación por el teléfono, y la edición volvía a pedir los campos que el Cambio 450 había sacado |
 | **Fecha del pedido** | 13/11/2026 |
 | **Issue / épica** | sin issue; resuelve el pendiente 1 del [Cambio 450](#cambio-450) |
-| **Partes afectadas** | Backoffice: `programas/services/equipo_dispositivo.py` (`responsable_de_contacto`, `contacto_del_equipo`, `sincronizar_contacto`), `programas/services/dispositivos.py` (`_transicionar`), `programas/forms.py` (`DispositivoForm`), `programas/views/dispositivos_legajo.py` (`DispositivoUpdateView`), `programas/templates/programas/dispositivos/legajo/form.html`, `.claude/design/arquetipos/formulario.md` |
+| **Partes afectadas** | Backoffice: `programas/services/dispositivos.py` (`_transicionar` y el bloque de contacto: `responsables_vigentes`, `nombre_de_persona`, `datos_de_contacto`, `responsable_de_contacto`, `contacto_del_equipo`, `sincronizar_contacto`, movidos desde `equipo_dispositivo.py` para no abrir un ciclo de import), `programas/services/equipo_dispositivo.py` (los importa), `programas/forms.py` (`DispositivoForm`), `programas/views/dispositivos_legajo.py` (`DispositivoUpdateView`), `programas/templates/programas/dispositivos/legajo/form.html`, `.claude/design/arquetipos/formulario.md` |
 | **Migración** | No |
 
 ## Pedido original

@@ -97,6 +97,7 @@ from programas.services.dispositivos import (
     rechazar_dispositivo,
     registrar_alta_dispositivo,
     registrar_edicion_dispositivo,
+    sincronizar_contacto,
     validar_dispositivo,
 )
 from programas.services.equipo_dispositivo import (
@@ -104,7 +105,6 @@ from programas.services.equipo_dispositivo import (
     puede_crear_persona,
     puede_gestionar_equipo,
     roles_para_crear_persona,
-    sincronizar_contacto,
     sumar_responsables_al_crear,
 )
 from programas.services.estadias import (

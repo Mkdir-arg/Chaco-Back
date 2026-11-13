@@ -11,8 +11,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 
 from programas.models import Dispositivo, TrazaDispositivo
-from programas.services.dispositivos import enviar_a_validacion
-from programas.services.equipo_dispositivo import responsable_de_contacto, sincronizar_contacto
+from programas.services.dispositivos import enviar_a_validacion, responsable_de_contacto, sincronizar_contacto
 from programas.tests.test_dispositivos_cambio_407 import _completar
 from programas.tests.test_dispositivos_equipo_ui_411 import BaseUI
 from users.models import Profile
