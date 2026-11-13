@@ -1,11 +1,46 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-12, backend completo y documentado (PRs 0 a 12). Falta rebasar sobre `development`, abrir los PRs y la PWA.
+**Última actualización:** 2026-11-13, backend rebasado sobre `development` (ramas `-v2`) y 13 PRs abiertos, apilados. Falta CI, auditoría y merge.
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
 [`2026-11-12-emergencia-plan.md`](2026-11-12-emergencia-plan.md) y el análisis funcional en
 `docs/internal/emergencia/`. Los dos viven en la rama `docs/emergencia-analisis`, igual que este archivo.
+
+---
+
+## 0. PRs abiertos (lo vigente)
+
+El desarrollo se rebasó sobre `development` @ `6770545b` en una **cadena lineal de ramas `-v2`**. Las
+migraciones del módulo quedaron renumeradas a `programas.0117`–`0121` (`users.0047` no cambió) y los
+Cambios de `requerimientos.md` a **462–474**. Las ramas sin `-v2` y las `integracion-*` quedan solo como
+referencia histórica.
+
+Se mergean **en este orden**. Cada PR apunta a la rama del anterior; al mergear uno, el siguiente pasa a
+apuntar a `development` y recién ahí le corre el CI.
+
+| Orden | PR | Qué | Rama | Cambio |
+|---|---|---|---|---|
+| 1 | [#1125](https://github.com/Mkdir-arg/Chaco-Back/pull/1125) | PR 0 · piezas de UI | `feat/emergencia-pr0-piezas-v2` | 462 |
+| 2 | [#1126](https://github.com/Mkdir-arg/Chaco-Back/pull/1126) | PR 1 · programa, RBAC, E7 | `feat/emergencia-pr1-base-v2` | 463 |
+| 3 | [#1127](https://github.com/Mkdir-arg/Chaco-Back/pull/1127) | PR 2 · caso y servicios de la mesa | `feat/emergencia-pr2-casos-v2` | 464 |
+| 4 | [#1128](https://github.com/Mkdir-arg/Chaco-Back/pull/1128) | PR 3 · mesa E2/E3 | `feat/emergencia-pr3-mesa-v2` | 465 |
+| 5 | [#1129](https://github.com/Mkdir-arg/Chaco-Back/pull/1129) | PR 4 · vencimientos | `feat/emergencia-pr4-vencimientos-v2` | 466 |
+| 6 | [#1130](https://github.com/Mkdir-arg/Chaco-Back/pull/1130) | PR 5 · API base y login | `feat/emergencia-pr5-api-v2` | 467 |
+| 7 | [#1131](https://github.com/Mkdir-arg/Chaco-Back/pull/1131) | PR 6 · reservas en Dispositivos (modo juez) | `feat/emergencia-pr6-reservas-v2` | 468 |
+| 8 | [#1132](https://github.com/Mkdir-arg/Chaco-Back/pull/1132) | PR 7 · alojar y E6 | `feat/emergencia-pr7-alojar-v2` | 469 |
+| 9 | [#1133](https://github.com/Mkdir-arg/Chaco-Back/pull/1133) | PR 9 · kits y API M3 | `feat/emergencia-pr9-kits-v2` | 471 |
+| 10 | [#1134](https://github.com/Mkdir-arg/Chaco-Back/pull/1134) | PR 8 · API M2 | `feat/emergencia-pr8-api-m2-v2` | 470 |
+| 11 | [#1135](https://github.com/Mkdir-arg/Chaco-Back/pull/1135) | PR 10 · tablero y avisos | `feat/emergencia-pr10-tablero-v2` | 472 |
+| 12 | [#1136](https://github.com/Mkdir-arg/Chaco-Back/pull/1136) | PR 11 · marcas | `feat/emergencia-pr11-marcas-v2` | 473 |
+| 13 | [#1137](https://github.com/Mkdir-arg/Chaco-Back/pull/1137) | PR 12 · manual y Cambios | `feat/emergencia-pr12-docs-v2` | 474 |
+| — | [#1138](https://github.com/Mkdir-arg/Chaco-Back/pull/1138) | **Borrador, NO MERGEAR**: todo junto contra `development`, solo para que el CI corra ya | `feat/emergencia-pr12-docs-v2` | — |
+
+Para cada PR: CI en verde → `/auditoria pr <N>` → merge (el hook `guardia_merge` exige el «Aprobado @
+SHA»). Al mergear, si el siguiente no se retargetea solo a `development`, cambiarle la base a mano.
+Verificación local de la punta (`pr12-v2`): 9.051 tests, solo los 30 fallos conocidos del entorno.
+
+Para seguir desde el local: `git fetch origin && git checkout feat/emergencia-pr12-docs-v2`.
 
 ---
 
@@ -270,7 +305,7 @@ El resto de las decisiones abiertas del README §10 sigue con los supuestos del 
 - Carreras con dos conexiones (`@tag("mysql")`) de los PRs 2, 4, 6, 7, 8 y 9.
 - Job «Migrate ida y vuelta» y `check_sqlmigrate` para las migraciones `0116` a `0120` y `users.0047`.
 
-### ⚠️ Antes de abrir los PRs: rebasar sobre `development`
+### ✅ Hecho: rebase sobre `development` (ver §0)
 - `development` avanzó (hoy en `a1563b68`) y ya tiene `programas.0116_respuestas_ingreso_egreso_estadia`.
   Choca con `programas.0116_emergencia_base`. Al rebasar hay que **renumerar las migraciones del módulo
   (0116 a 0120)** y sus dependencias, y actualizar los números citados en los Cambios 457 a 469 y en el
@@ -320,6 +355,7 @@ MySQL deberían pasar; verificarlo en CI.
 | 2026-11-12 | Ola 1: PR 0 y PR 1. |
 | 2026-11-12 | Ola 2: PR 2. |
 | 2026-11-12 | Ola 3: PR 3, 4, 5 y 6. Integración de 0 a 6 con la suite completa. |
+| 2026-11-13 | Rebase sobre `development` en ramas `-v2` (migraciones 0117–0121, Cambios 462–474). Abiertos #1125 a #1137 (apilados) y #1138 (borrador para CI). |
 | 2026-11-12 | PR 12: manual (`docs/internal/emergencia-manual.md`) y Cambios 457 a 469. Detectado el choque de la migración 0116 con `development`. |
 | 2026-11-12 | Ola 5 (Opus): PR 8, PR 10 y PR 11. Integración final del backend con 8.986 tests. |
 | 2026-11-12 | Ola 4: PR 7 y PR 9. Los subagentes se cortaron por límite de uso (Fable y después Opus); el orquestador verificó y pusheó lo commiteado. Integración de 0 a 9 con la suite completa. |
