@@ -8,7 +8,9 @@
   cumplirse (RN-5.4). Visto en rojo con la condición rota: con
   ``q_entrega_sin_revisar`` sin el ``~Exists`` de la traza ``OBSERVADA``,
   ``test_entrega_con_diferencias_se_apaga_con_la_observacion_de_e5`` falla porque el aviso
-  sigue después de observar la entrega en E5.
+  sigue después de observar la entrega en E5. Y con «en la puerta» vuelto a la regla vieja
+  (``NUEVO`` y origen ``DISPOSITIVO``), fallan los dos tests de «en la puerta»: tomado no
+  avisa y, derivado, cancelado y soltado, vuelve a avisar.
 * **RN-5.2** — el SQL del tablero no tiene ``CONVERT_TZ`` ni ``Trunc``.
 * **RN-5.6** — presupuesto de consultas con 500 casos abiertos, 50 dispositivos y 200
   entregas (``--tag performance``).
@@ -599,9 +601,29 @@ class AvisosTests(EscenarioTablero):
         Derivacion.objects.filter(pk=self.derivacion_c6.pk).update(vence_en=_hora(11, 1))
         self.assertNotIn("emergencia.derivacion_por_vencer", self._reglas())
 
-    def test_en_la_puerta_se_apaga_al_tomar_el_caso(self):
+    def _puerta(self):
+        return [aviso for aviso in self._avisos() if aviso["regla"] == "emergencia.familia_en_la_puerta"]
+
+    def test_en_la_puerta_sigue_al_tomar_el_caso(self):
+        """Tomarlo no lo saca: la familia sigue esperando hasta que la mesa la derive (M2-6)."""
         servicio.tomar_caso(self.casos["C3"], self.operador)
-        self.assertNotIn("emergencia.familia_en_la_puerta", self._reglas())
+        puerta = self._puerta()
+        self.assertEqual([aviso["titulo"] for aviso in puerta], ["Familia en la puerta de Escuela 12"])
+        self.assertEqual(puerta[0]["enlace"], reverse("emergencia:caso_detalle", args=[self.casos["C3"].pk]))
+        self.assertEqual(puerta[0]["accion"], "Derivar el caso")
+
+    def test_en_la_puerta_se_apaga_al_derivar_y_no_vuelve_al_cancelar_ni_al_soltar(self):
+        """Derivado una vez, el aviso no vuelve: ni con la derivación cancelada ni con el caso de nuevo en NUEVO."""
+        caso = servicio.tomar_caso(self.casos["C3"], self.operador)
+        derivacion = servicio.derivar_caso(caso, self.operador, self.club, 2)
+        self.assertEqual(self._puerta(), [])
+        servicio.cancelar_derivacion(derivacion, self.operador, "La familia prefiere otro lugar")
+        self.assertEqual(self._puerta(), [])
+        servicio.soltar_caso(CasoEmergencia.objects.get(pk=caso.pk), self.operador)
+        caso = CasoEmergencia.objects.get(pk=caso.pk)
+        self.assertEqual(caso.estado, Estado.NUEVO)
+        self.assertEqual(self._puerta(), [])
+        self.assertEqual(caso.esperando_en_la_puerta, "", "la marca de E2 y el aviso de E3 dicen lo mismo")
 
     def test_ingreso_parcial_se_apaga_con_un_contacto_posterior(self):
         servicio.registrar_contacto(

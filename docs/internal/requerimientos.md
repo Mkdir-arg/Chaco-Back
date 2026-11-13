@@ -55798,6 +55798,12 @@ Revertir el PR; sin migraciones.
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 10 se cerró en la ola 5, commits `c5d4737f`, `fc7ef150` y `959aebe3`).
+- **13/11/2026 — cambia la vigencia de «Familia en la puerta»** (auditoría del PR #1136, commit `4d70ee4c`): el aviso del
+  tablero deja la regla «`NUEVO` y origen `DISPOSITIVO`» y pasa a la única del módulo, `CasoEmergencia.esperando_en_la_puerta`
+  —caso abierto y **nunca** derivado—, la misma de la marca de E2 y la ficha E3. Un caso tomado (`EN_GESTION`) sigue avisando,
+  con «Derivar el caso»; uno derivado, cancelado y devuelto a `NUEVO` ya no avisa. Filtra en SQL con `q_esperando_en_la_puerta`
+  (`has_key` sobre `situacion`); el presupuesto no cambia (10 de selectores y avisos, 16 la vista). Tests: los dos casos nuevos
+  en `test_emergencia_tablero.py` (46).
 
 ---
 
@@ -55863,6 +55869,11 @@ Revertir el PR; sin migraciones.
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 11 se cerró en la ola 5, commits `e9ee78dc` y `839b368c`).
+- **13/11/2026 — auditoría del PR #1136** (commit `4d70ee4c`): «en la puerta» pasa a `CasoEmergencia.esperando_en_la_puerta`,
+  regla única de E1, E2 y E3; el rechazo sin nueva acción, a `selectors.emergencia.rechazo_sin_nueva_accion` (se borra
+  `ACCIONES_CON_AVISO_HASTA_LA_PROXIMA`); la subconsulta de la última traza, a `ultima_traza_del_caso`, que reusa el tablero;
+  «Llegaron N sobre M», a `GrupoFamiliar.llegaron_mas`; el include de `_alerta.html` del bucle de E3 lleva `only`. Sin
+  consultas nuevas: E2 16 y E3 18.
 
 ---
 

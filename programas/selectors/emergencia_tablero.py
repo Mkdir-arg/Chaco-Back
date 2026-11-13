@@ -51,7 +51,6 @@ from programas.models import (
     Dispositivo,
     EntregaKit,
     LineaEntrega,
-    TrazaCaso,
     TrazaEntrega,
 )
 from programas.selectors.emergencia import (
@@ -61,6 +60,7 @@ from programas.selectors.emergencia import (
     dispositivo_elegible,
     estado_sla,
     texto_de_minutos,
+    ultima_traza_del_caso,
 )
 from programas.selectors.kits import resumen_de_items
 from programas.services.ocupacion import ocupacion_de_plazas
@@ -206,13 +206,13 @@ class Foto:
 def _casos_de_la_ventana(ahora):
     """Una consulta: los abiertos más los alojados o cerrados en las últimas 24 h, sin JSON.
 
-    La última traza (acción y detalle) y si hubo contacto después del alojamiento van como
-    subconsultas correlacionadas sobre los índices de la FK del caso: son cientos de filas y
-    así los avisos no suman una consulta cada uno.
+    La última traza (acción y detalle, con ``selectors.emergencia.ultima_traza_del_caso``) y si
+    hubo contacto después del alojamiento van como subconsultas correlacionadas sobre los
+    índices de la FK del caso: son cientos de filas y así los avisos no suman una consulta cada uno.
     """
 
     limite = ahora - VENTANA
-    ultima = TrazaCaso.objects.filter(caso=OuterRef("pk")).order_by("-creado_en", "-id")
+    ultima = ultima_traza_del_caso()
     contacto = ContactoCaso.objects.filter(caso=OuterRef("pk"), momento__gte=OuterRef("alojado_en"))
     filas = (
         CasoEmergencia.objects.filter(~Q(estado=Estado.CERRADO) | Q(alojado_en__gte=limite) | Q(cerrado_en__gte=limite))

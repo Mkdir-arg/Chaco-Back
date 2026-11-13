@@ -143,19 +143,6 @@ def localidades_con_casos():
 # ---------------------------------------------------------------------------
 
 
-def _en_la_puerta(caso):
-    """El nombre del dispositivo donde la familia espera (M2-6), o ``""``.
-
-    «Avisar a la mesa» deja el dato en ``situacion`` para siempre; el aviso vale mientras la
-    familia sigue esperando: el caso está abierto y la mesa todavía no lo derivó nunca.
-    """
-
-    en_la_puerta = caso.en_la_puerta
-    if not en_la_puerta or not caso.abierto or caso.derivado_en is not None:
-        return ""
-    return en_la_puerta.get("dispositivo") or "un dispositivo"
-
-
 def avisos_de_la_mesa(caso):
     """Los avisos que dejan las etapas 3 y 4 sobre el caso: ``[{"texto", "tono", "detalle"}]``.
 
@@ -167,11 +154,11 @@ def avisos_de_la_mesa(caso):
       la última traza del caso: la próxima acción, cualquiera, los saca (RN-3.13, HU-2.5).
     * «Dispositivo inactivo · volver a derivar» mientras la derivación pendiente apunte a
       un dispositivo que dejó de estar activo (02 §9).
-    * «Llegaron 8 sobre 7 declaradas» cuando el dispositivo agregó personas (RN-3.8).
+    * «Llegaron 8 sobre 7 declaradas» cuando el dispositivo agregó personas (``GrupoFamiliar.llegaron_mas``, RN-3.8).
     """
 
     avisos = []
-    if caso.ultima_accion == TrazaCaso.Accion.DERIVACION_RECHAZADA and caso.rechazada_por:
+    if selectores.rechazo_sin_nueva_accion(caso) and caso.rechazada_por:
         motivo = (caso.rechazada_motivo or "sin motivo").lower()
         avisos.append(
             {
@@ -197,11 +184,10 @@ def avisos_de_la_mesa(caso):
                 "detalle": "El dispositivo al que se derivó dejó de estar activo. Cancelá la derivación y derivalo a otro.",
             }
         )
-    declaradas = caso.grupo.suma_de_cantidades()
-    if caso.grupo.total_declarado > declaradas:
+    if caso.grupo.llegaron_mas:
         avisos.append(
             {
-                "texto": f"Llegaron {caso.grupo.total_declarado} sobre {declaradas} declaradas",
+                "texto": f"Llegaron {caso.grupo.total_declarado} sobre {caso.grupo.suma_de_cantidades()} declaradas",
                 "tono": "info",
                 "detalle": "El dispositivo agregó personas que no estaban en el relevamiento.",
             }
@@ -218,7 +204,7 @@ def _marcas_de_fila(caso, duplicados, alojado):
     """
 
     marcas = []
-    en_la_puerta = _en_la_puerta(caso)
+    en_la_puerta = caso.esperando_en_la_puerta
     if en_la_puerta:
         # «Avisar a la mesa» (M2-6): la familia espera en ese dispositivo a que la deriven.
         marcas.append({"texto": f"En la puerta de {en_la_puerta}", "tono": "warning"})
@@ -472,7 +458,7 @@ def _integrantes(caso):
         "confirmadas": datos["confirmadas"],
         "total": datos["total_declarado"],
         "declaradas": datos["declaradas_al_relevar"],
-        "crecio": datos["total_declarado"] > datos["declaradas_al_relevar"],
+        "crecio": caso.grupo.llegaron_mas,
     }
 
 
@@ -492,7 +478,7 @@ def _alojamiento(caso):
             parcial_titulo = f"{parcial_titulo} · {diferencia['motivo_texto']}"
     return {
         "directo": caso.es_ingreso_directo,
-        "en_la_puerta": _en_la_puerta(caso),
+        "en_la_puerta": caso.esperando_en_la_puerta,
         "parcial": caso.ingreso_parcial,
         "parcial_titulo": parcial_titulo,
         "diferencia": diferencia,

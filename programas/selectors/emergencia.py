@@ -374,12 +374,25 @@ def conteo_por_solapa():
 # Avisos de la mesa (las marcas que dependen de las etapas 3 y 4)
 # ---------------------------------------------------------------------------
 
-#: Las acciones de la traza que dejan un aviso en la bandeja «hasta la próxima acción»: el
-#: aviso se ve mientras esa sea la **última** traza del caso (RN-3.13, HU-2.5).
-ACCIONES_CON_AVISO_HASTA_LA_PROXIMA = (
-    TrazaCaso.Accion.DERIVACION_RECHAZADA,
-    TrazaCaso.Accion.DERIVACION_VENCIDA,
-)
+
+def ultima_traza_del_caso():
+    """La subconsulta correlacionada de la última ``TrazaCaso`` del caso de la fila (``OuterRef("pk")``).
+
+    La única definición de «la última traza»: la usan la bandeja, la ficha y el tablero E1.
+    """
+
+    return TrazaCaso.objects.filter(caso=OuterRef("pk")).order_by("-creado_en", "-id")
+
+
+def rechazo_sin_nueva_accion(caso):
+    """¿La última traza del caso sigue siendo el rechazo de la derivación (RN-3.13, HU-2.5)?
+
+    ``caso`` trae ``ultima_accion`` (anotado con :func:`ultima_traza_del_caso`): la próxima
+    acción de la mesa, cualquiera, deja otra traza y lo apaga. Lo leen la marca de E2/E3 y el
+    aviso del tablero E1.
+    """
+
+    return caso.ultima_accion == TrazaCaso.Accion.DERIVACION_RECHAZADA
 
 
 def con_avisos_de_la_mesa(casos):
@@ -399,7 +412,7 @@ def con_avisos_de_la_mesa(casos):
     paginador no las arrastra porque nada las referencia.
     """
 
-    ultima_traza = TrazaCaso.objects.filter(caso=OuterRef("pk")).order_by("-creado_en", "-id")
+    ultima_traza = ultima_traza_del_caso()
     ultima_rechazada = Derivacion.objects.filter(caso=OuterRef("pk"), estado=Derivacion.Estado.RECHAZADA).order_by(
         "-respondida_en", "-id"
     )

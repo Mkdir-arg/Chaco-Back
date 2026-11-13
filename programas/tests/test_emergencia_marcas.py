@@ -10,7 +10,7 @@ ficha (E3)— con su texto exacto: aparece cuando corresponde y se va con la acc
 * **RN-3.8** — «Llegaron 2 sobre 1 declaradas».
 * **RN-3.9 / HU-3.4** — «Ingreso parcial · 1 de 7» en la fila, con el motivo en la ficha.
 * **M2-6** — «En la puerta de X» mientras la mesa no lo derivó; «Ingreso directo» sigue.
-* **Presupuestos** — E2 con 500 casos y E3 cuestan lo mismo que sin marcas (17 y 18).
+* **Presupuestos** — E2 con 500 casos y E3 cuestan lo mismo que sin marcas (16 y 18).
 
 Mutación vista en rojo: con el «sin acción posterior» del rechazo roto (la condición sobre
 ``ultima_accion`` reemplazada por ``True``), ``test_el_rechazo_se_va_con_la_accion_siguiente``
