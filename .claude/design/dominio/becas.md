@@ -35,6 +35,9 @@ el template y obtiene el tono con el filtro `tono_estado_dispositivo`, que lee e
 `TONOS_ESTADO` (desconocido → gray). `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
 «Enviar a validación» exige además los obligatorios visibles del formulario «Crear dispositivo»
 del tipo (`_exigir_formulario_del_tipo`), y sus faltantes entran al mismo resumen lateral de P3.
+Antes de exigir los datos, «Enviar a validación» y «Validar» ponen al día el contacto del legajo
+con el primer responsable vigente del Equipo (`_sincronizar_contacto`, Cambio 457); por eso un
+teléfono faltante se resuelve en el perfil de esa persona y el resumen de P3 lo pide ahí.
 «Enviar a validación» se ofrece desde borrador, observado y rechazado (`estados_desde_los_que_se_envia`; Cambio 407), y «Ingresar persona» solo a quien `puede_ingresar_persona` deja entrar (`dispositivo.admitir` con alcance —desde el Cambio 446, solo el Equipo del dispositivo— y `ciudadano.ver`): el servicio es la fuente y el template solo lee la bandera. Un dispositivo inactivo se reactiva (`reactivar_dispositivo`, traza `REACTIVADO`, misma capacidad que inactivar; Cambio 409) y el cerrado no vuelve.
 Los tags `estado_dispositivo` y `estado_tipo_dispositivo` solo presentan esos datos, sin consultas.
 

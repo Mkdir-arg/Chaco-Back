@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from programas.models import Dispositivo, TrazaDispositivo
 from programas.services.dispositivos import enviar_a_validacion
+from programas.services.equipo_dispositivo import responsable_de_contacto, sincronizar_contacto
 from programas.tests.test_dispositivos_cambio_407 import _completar
 from programas.tests.test_dispositivos_equipo_ui_411 import BaseUI
 from users.models import Profile
@@ -91,6 +92,20 @@ class EdicionContactoDelEquipoTests(BaseUI):
         self.disp_a.refresh_from_db()
         # Alvarez va antes que Zapata, como en las píldoras del alta.
         self.assertEqual(self.disp_a.responsable_nombre, "Ana Alvarez")
+
+    def test_un_responsable_que_perdio_el_rol_no_da_el_contacto(self):
+        """Mutación: con el filtro suelto (`activo=True`) en vez de la membresía vigente, el contacto
+        saldría de Alvarez, que ya no tiene el rol (badge «Rol no vigente» en la solapa Equipo)."""
+        self.admin.first_name, self.admin.last_name = "Ana", "Alvarez"
+        self.admin.save()
+        self._miembro(self.disp_a, self.admin, self.rol_admin, responsable=True)
+        self._entrar(self.admin)
+        self.admin.groups.remove(self.rol_admin)
+        self.assertEqual(responsable_de_contacto(self.disp_a), self.resp)
+        Dispositivo.objects.filter(pk=self.disp_a.pk).update(responsable_nombre="")
+        self.disp_a.refresh_from_db()
+        sincronizar_contacto(self.disp_a)
+        self.assertEqual(self.disp_a.responsable_nombre, "Rita Zapata")
 
     def test_sin_responsables_la_edicion_sigue_con_los_campos_a_mano(self):
         self._entrar(self.admin)

@@ -308,11 +308,7 @@ def _sincronizar_contacto(dispositivo, usuario):
     cambios = sincronizar_contacto(dispositivo)
     if cambios:
         dispositivo.save(update_fields=[*cambios, "modificado"])
-        registrar_edicion_dispositivo(
-            dispositivo,
-            usuario,
-            {campo: {"anterior": anterior, "nuevo": nuevo} for campo, (anterior, nuevo) in cambios.items()},
-        )
+        registrar_edicion_dispositivo(dispositivo, usuario, cambios)
 
 
 def _exigir_formulario_del_tipo(dispositivo):

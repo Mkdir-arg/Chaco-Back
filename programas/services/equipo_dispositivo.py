@@ -336,18 +336,17 @@ def datos_de_contacto(usuario):
 
 
 def responsable_de_contacto(dispositivo):
-    """La persona de la que sale el contacto del legajo: el primer responsable activo del Equipo.
+    """La persona de la que sale el contacto del legajo: el primer responsable vigente del Equipo.
 
+    Vigente como en la solapa Equipo (``_responsables_activos``): quien perdió el rol no cuenta.
     En el mismo orden que el buscador del alta (apellido, nombre, usuario), así el alta y la
-    edición eligen a la misma persona. ``None`` si el legajo no tiene responsables (los
-    anteriores al Cambio 411): esos conservan el contacto escrito a mano.
+    edición eligen a la misma persona. ``None`` si el legajo no tiene responsables vigentes (p. ej.
+    los anteriores al Cambio 411): esos conservan el contacto escrito a mano.
     """
-    from programas.models import MiembroEquipoDispositivo
-
     if not dispositivo.pk:
         return None
     miembro = (
-        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True, es_responsable=True)
+        _responsables_activos(dispositivo)
         .select_related("usuario", "usuario__profile")
         .order_by("usuario__last_name", "usuario__first_name", "usuario__username", "pk")
         .first()
@@ -368,7 +367,9 @@ def contacto_del_equipo(dispositivo, usuario=None):
 
 
 def sincronizar_contacto(dispositivo):
-    """Copia al legajo, sin guardar, el contacto de su responsable; devuelve ``{campo: (anterior, nuevo)}``.
+    """Copia al legajo, sin guardar, el contacto de su responsable.
+
+    Devuelve los cambios con la forma de la traza de edición, ``{campo: {"anterior", "nuevo"}}``.
 
     La llaman la edición y las transiciones que exigen los datos (enviar a validación y validar),
     así un cambio de perfil o de Equipo llega al legajo antes de chequearlo (Cambio 457).
@@ -381,7 +382,7 @@ def sincronizar_contacto(dispositivo):
         anterior = getattr(dispositivo, campo) or ""
         if nuevo != anterior:
             setattr(dispositivo, campo, nuevo)
-            cambios[campo] = (anterior, nuevo)
+            cambios[campo] = {"anterior": anterior, "nuevo": nuevo}
     return cambios
 
 

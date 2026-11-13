@@ -696,9 +696,7 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
                 setattr(dispositivo, field, form.cleaned_data[field])
             # Cambio 457: el contacto no se edita a mano si hay responsable; sale de esa persona.
             contacto = sincronizar_contacto(dispositivo)
-            cambios.update(
-                {campo: {"anterior": anterior, "nuevo": nuevo} for campo, (anterior, nuevo) in contacto.items()}
-            )
+            cambios.update(contacto)
             if cambios:
                 dispositivo.save(update_fields=[*form.changed_data, *contacto, "modificado"])
             cambio_horarios = reemplazar_franjas(dispositivo, form.franjas_horarias())
