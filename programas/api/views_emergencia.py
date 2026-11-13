@@ -419,13 +419,13 @@ class RecibirEntregaKitView(_VistaDeKits):
             return Response(
                 {"detail": cambio.mensaje, "estado_actual": cambio.estado_actual}, status=status.HTTP_409_CONFLICT
             )
+        except UuidEnUso as error:
+            return Response(
+                {"detail": error.message_dict["uuid_cliente"][0], "code": CODIGO_UUID_DE_OTRA_RECEPCION},
+                status=status.HTTP_409_CONFLICT,
+            )
         except ValidationError as error:
             errores = error.message_dict if hasattr(error, "error_dict") else error.messages
-            if isinstance(errores, dict) and errores.get("uuid_cliente") == [servicio_kits.UUID_EN_USO]:
-                return Response(
-                    {"detail": servicio_kits.UUID_EN_USO, "code": CODIGO_UUID_DE_OTRA_RECEPCION},
-                    status=status.HTTP_409_CONFLICT,
-                )
             return _respuesta_de_validacion(errores)
         diferencias = selectores_kits.diferencias_de(selectores_kits.lineas_de(recibida))
         cuerpo = {

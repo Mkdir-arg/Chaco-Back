@@ -66,7 +66,7 @@ from programas.models import (
 )
 from programas.services.bitacora import anotar_novedad_automatica
 from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
-from programas.services.emergencia import EstadoCambio, siguiente_correlativo
+from programas.services.emergencia import EstadoCambio, UuidEnUso, siguiente_correlativo
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
 
 Estado = EntregaKit.Estado
@@ -469,7 +469,7 @@ def _exigir_uuid_libre(uuid_cliente, entrega):
 
     en_otra = EntregaKit.objects.filter(q_uuid_en_texto("uuid_cliente_recepcion", uuid_cliente)).exclude(pk=entrega.pk)
     if en_otra.exists():
-        raise ValidationError({"uuid_cliente": UUID_EN_USO})
+        raise UuidEnUso(UUID_EN_USO)
 
 
 @archivos_atomicos
@@ -544,7 +544,7 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
                 ]
             )
     except IntegrityError:
-        raise ValidationError({"uuid_cliente": UUID_EN_USO}) from None
+        raise UuidEnUso(UUID_EN_USO) from None
     anotar_archivo_escrito(bloqueada.remito, asignado=remito)
     LineaEntrega.objects.bulk_update(lineas, ["cantidad_recibida", "modificado"])
 

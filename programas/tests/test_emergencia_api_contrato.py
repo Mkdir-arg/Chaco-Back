@@ -73,6 +73,7 @@ from programas.selectors.emergencia_campo import TOPE_MIS_CASOS, casos_relevados
 from programas.services import emergencia as servicio
 from programas.services import emergencia_alta
 from programas.services import kits as servicio_kits
+from programas.services.emergencia import UuidEnUso
 from programas.services.emergencia_campo import RELEVADO_EN_FUTURO
 from programas.services.emergencia_programa import modulo_habilitado, roles_en_app
 from programas.tests.test_becas_api_contrato import CLAVES_LOGIN
@@ -1444,6 +1445,24 @@ class RecibirEntregaApiTests(BaseApiKits):
         self.assertEqual(sorted(respuesta.json()), CLAVES_UUID_EN_USO)
         self.assertEqual(respuesta.json()["code"], "UUID_EN_USO")
         self.assertEqual(EntregaKit.objects.get(pk=otra.pk).estado, EntregaKit.Estado.EN_CAMINO)
+
+    def test_el_409_de_la_recepcion_sale_por_tipo_aunque_cambie_el_texto(self):
+        """``UuidEnUso`` también en la recepción: la vista no compara el mensaje (PR #1130).
+
+        **Mutación vista en rojo:** con la vista comparando otra vez ``errores["uuid_cliente"]``
+        contra ``[servicio_kits.UUID_EN_USO]``, un ``UuidEnUso`` con otro texto sale como 400
+        ``VALIDACION``. Restaurada la captura por tipo, verde.
+        """
+        otro_texto = UuidEnUso("Ese identificador ya es de otra entrega.")
+
+        with mock.patch.object(servicio_kits, "_exigir_uuid_libre", side_effect=otro_texto):
+            respuesta = self._recibir(uuid_cliente=uuid.uuid4())
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertEqual(
+            respuesta.json(), {"detail": "Ese identificador ya es de otra entrega.", "code": "UUID_EN_USO"}
+        )
+        self.assertEqual(EntregaKit.objects.get(pk=self.entrega.pk).estado, EntregaKit.Estado.EN_CAMINO)
 
     def _es_400_en(self, respuesta, campo, mensaje):
         self.assertEqual(respuesta.status_code, 400)
