@@ -56,6 +56,8 @@ FUNCIONES_DE_CAPACIDAD = {
     # que recibe es del mismo catálogo.
     "puede_en_programa_dispositivos",
     "puede_operar_dispositivo",
+    # Emergencia hace lo mismo con el suyo.
+    "puede_en_programa_emergencia",
 }
 # Los dos mixins de CBV: `capacidades_requeridas` (core.rbac) y `capacidad_requerida`
 # (el de Dispositivos, en singular).
@@ -93,6 +95,13 @@ CAPACIDADES_SIN_USO = {
     # el egreso contra `Estadia`. Es el ratchet funcionando —«cuando la pantalla llega,
     # la entrada sale de la lista»— y por eso estuvieron declaradas mientras tanto.
     "relevamiento.ver": "Becas usa `becas.relevamiento.ver`; el módulo genérico quedó sin consumidores (OPS-14)",
+    # Módulo Emergencia, PR 1: el catálogo y los roles van primero para que el PM pueda
+    # armarlos; las pantallas y la API que las evalúan llegan en los PRs siguientes del plan
+    # (`docs/superpowers/plans/2026-11-12-emergencia-plan.md`). Cada una sale de acá en el
+    # PR que la empieza a evaluar. `emergencia.supervisar` ya se evalúa (E7).
+    "emergencia.relevar": "la evalúa la API de la app de campo de Emergencia (PR 5 del plan)",
+    "emergencia.operar": "la evalúan la bandeja y el detalle del caso (PR 3 del plan)",
+    "emergencia.recibir_kit": "la evalúa la recepción de kits en el dispositivo (PR 9 del plan)",
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro
