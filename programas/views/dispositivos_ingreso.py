@@ -337,7 +337,8 @@ class IngresoPersonaView(IngresoBaseView):
 
     def get(self, request, pk):
         pedida = request.GET.get("plaza", "")
-        if pedida.isdigit():
+        # Solo dígitos ASCII: un superíndice pasa `isdigit()` y rompe `int()` (como `_entero` del mapa).
+        if pedida.isascii() and pedida.isdecimal():
             # «Ingresar persona» desde una plaza del mapa: empieza un ingreso nuevo con esa plaza
             # sugerida. Solo la marca en el paso 2 si sigue siendo elegible; no la toma ni la valida acá.
             self.guardar({CLAVE_PLAZA_SUGERIDA: int(pedida)})

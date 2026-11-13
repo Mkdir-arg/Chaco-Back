@@ -196,7 +196,7 @@ def url_modal_egreso(dispositivo_pk, estadia_pk):
     return f"{url_solapa_estadias(dispositivo_pk)}&egreso={estadia_pk}"
 
 
-def enlaces_de_plaza(dispositivo, estado, acciones, plaza_pk=None):
+def enlaces_de_plaza(dispositivo, estado, acciones, plaza_pk):
     """`{accion: url}` de las acciones de la plaza que son enlaces, no formularios.
 
     Cada destino es la vista que ya existe y la que decide si deja pasar: la estadía y el legajo

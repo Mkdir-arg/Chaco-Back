@@ -226,6 +226,11 @@ class PlazaSugeridaDesdeElMapaTests(BaseIngreso):
 
         self.assertEqual(respuesta.context["mostrado"]["plaza"], str(self.otra_plaza.pk))
 
+    def test_un_digito_que_no_es_ascii_se_ignora_sin_500(self):
+        respuesta = self.client.get(f"{self.url_persona}?plaza=²")
+
+        self.assertEqual(respuesta.status_code, 200)
+
     def test_marcarla_no_la_guarda_ni_la_toma(self):
         self.client.get(f"{self.url_persona}?plaza={self.otra_plaza.pk}")
         self.client.post(self.url_persona, {"dni": self.persona.dni})
