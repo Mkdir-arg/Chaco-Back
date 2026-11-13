@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("programas", "0115_retirar_merenderos"),
+        ("programas", "0116_respuestas_ingreso_egreso_estadia"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

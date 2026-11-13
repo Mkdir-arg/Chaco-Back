@@ -11,7 +11,7 @@ Reglas de siembra (Cambio 104, igual que ``seed_becas`` y ``seed_dispositivos``)
   capacidades ``emergencia.*``.
 
 Lo llaman ``seed_datos_base`` y ``crear_programas``. La misma fila la crea la migración
-``programas.0117`` en los ambientes donde el bootstrap no corre (ECOM).
+``programas.0118`` en los ambientes donde el bootstrap no corre (ECOM).
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -21,7 +21,7 @@ from programas.models import Programa, SLAEmergencia
 from programas.services.emergencia_programa import PROGRAMA_EMERGENCIA_CODIGO
 from programas.services.programa_cache import invalidar_programa
 
-# Única fuente viva de los datos con que nace el programa. ``programas.0117`` repite los
+# Única fuente viva de los datos con que nace el programa. ``programas.0118`` repite los
 # literales porque una migración no importa código vivo.
 PROGRAMA_EMERGENCIA_DEFAULTS = {
     "nombre": "Emergencia",

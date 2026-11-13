@@ -744,7 +744,7 @@ class ModelosTests(BaseEmergencia):
 
 
 def _sin_programa_emergencia():
-    """Deja la base sin el programa: con las migraciones reales, ``programas.0117`` ya lo creó."""
+    """Deja la base sin el programa: con las migraciones reales, ``programas.0118`` ya lo creó."""
     SLAEmergencia.objects.all().delete()
     Programa.objects.filter(codigo="EMERGENCIA").delete()
     cache.clear()
@@ -821,14 +821,14 @@ class SeedEmergenciaTests(TestCase):
 
 
 class MigracionProgramaEmergenciaTests(TestCase):
-    """``programas.0117``: crea el programa y, al revertir, lo borra solo si está vacío."""
+    """``programas.0118``: crea el programa y, al revertir, lo borra solo si está vacío."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.migracion = importlib.import_module("programas.migrations.0117_programa_emergencia")
+        cls.migracion = importlib.import_module("programas.migrations.0118_programa_emergencia")
         # RED-17: los modelos de entonces, no los de hoy.
-        cls.apps_de_entonces = estado_historico("programas", "0117_programa_emergencia")
+        cls.apps_de_entonces = estado_historico("programas", "0118_programa_emergencia")
 
     def setUp(self):
         _sin_programa_emergencia()
@@ -872,7 +872,7 @@ class MigracionProgramaEmergenciaTests(TestCase):
         rol = Group.objects.create(name="Emergencia — Operador de mesa")
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=programa, activo=True)
 
-        with self.assertLogs("programas.migrations.0117_programa_emergencia", level="WARNING"):
+        with self.assertLogs("programas.migrations.0118_programa_emergencia", level="WARNING"):
             self.migracion.borrar_programa_si_esta_vacio(self.apps_de_entonces, None)
 
         self.assertTrue(Programa.objects.filter(codigo="EMERGENCIA").exists())
@@ -883,7 +883,7 @@ class MigracionProgramaEmergenciaTests(TestCase):
         SLAEmergencia.objects.create(programa=programa)
         TrazaConfiguracion.objects.create(programa=programa, objeto="SLA", campo="objetivo_tomar_min")
 
-        with self.assertLogs("programas.migrations.0117_programa_emergencia", level="WARNING"):
+        with self.assertLogs("programas.migrations.0118_programa_emergencia", level="WARNING"):
             self.migracion.borrar_programa_si_esta_vacio(self.apps_de_entonces, None)
 
         self.assertTrue(Programa.objects.filter(codigo="EMERGENCIA").exists())

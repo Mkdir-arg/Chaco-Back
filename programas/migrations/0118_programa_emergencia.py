@@ -71,7 +71,7 @@ def borrar_programa_si_esta_vacio(apps, schema_editor):
             ocupadas.append(relacion.related_model._meta.label)
     if ocupadas:
         logger.warning(
-            "programas.0117 (reversa): el programa %s no se borra, tiene filas en %s.",
+            "programas.0118 (reversa): el programa %s no se borra, tiene filas en %s.",
             CODIGO,
             ", ".join(sorted(ocupadas)),
         )
@@ -82,7 +82,7 @@ def borrar_programa_si_esta_vacio(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0116_emergencia_base"),
+        ("programas", "0117_emergencia_base"),
         # `users.RolMeta.programa` ya está en el estado (lo trae `programas.0115`), así que
         # la reversa ve los roles del programa sin declarar otra dependencia.
     ]
