@@ -1,6 +1,6 @@
 ---
 name: auditoria
-description: Auditoría de código de Chaco en dos modos: `pr <N>` revisa el diff de un PR antes de mergearlo a development (reemplaza al revisor independiente y deja el «Aprobado @ SHA» que exige el hook guardia_merge) y `completa [módulo]` audita development entera y entrega un informe con solución y regla para no repetir cada error. Usala antes de cualquier merge a development, cuando pidan auditar, revisar si el código es limpio y óptimo, o buscar errores, rendimiento y mejoras sin cambiar lógica ni estética.
+description: "Auditoría de código de Chaco en dos modos: `pr <N>` revisa el diff de un PR antes de mergearlo a development (reemplaza al revisor independiente y deja el «Aprobado @ SHA» que exige el hook guardia_merge) y `completa [módulo]` audita development entera y entrega un informe con solución y regla para no repetir cada error. Usala antes de cualquier merge a development, cuando pidan auditar, revisar si el código es limpio y óptimo, o buscar errores, rendimiento y mejoras sin cambiar lógica ni estética."
 ---
 
 # /auditoria

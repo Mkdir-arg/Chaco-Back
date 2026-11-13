@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tablero de Dispositivos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Tokens de refs/chaco-tokens.css (valores exactos). Van en .chaco y no en :root para que valgan también dentro del lienzo. */
+.chaco{
+  --bg-white:#ffffff; --bg-secondary:#f9fafb; --bg-tertiary:#f3f4f6; --bg-brand:#5059bc; --bg-brand-soft:#fee9ff; --bg-brand-tint:#dee1ff;
+  --bg-success-soft:#ecfdf5; --bg-danger-soft:#fef0f2; --bg-warning-soft:#fff8f1; --bg-info-soft:#f5f3ff; --bg-disabled:#f3f4f6;
+  --border-base:#e5e7eb; --border-light:#f3f4f6; --border-brand:#5059bc; --border-brand-subtle:#fee3ff; --border-success-subtle:#a4f4cf;
+  --border-danger-subtle:#ffccd3; --border-warning-subtle:#fcd9bd; --border-info-subtle:#ddd6fe; --border-warning:#d03801;
+  --text-heading:#252f40; --text-body:#4b5563; --text-body-subtle:#6b7280; --text-nav:#374151; --text-fg-brand:#5059bc; --text-fg-success:#007a55;
+  --text-fg-danger:#c70036; --text-fg-warning:#771d1d; --text-fg-warning-subtle:#d03801; --text-fg-info:#3730a3; --text-fg-disabled:#9ca3af;
+  --gradient-brand:linear-gradient(45deg,#5059bc 0%,#f98dff 100%);
+  --shadow-sm:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);
+  --shadow-brand:0 8px 24px -6px rgba(80,89,188,.45);
+  --serie-success:#009966; --serie-danger:#ec003f; --serie-warning:#ff5a1f; --serie-neutra:#9ca3af;
+  font-family:Manrope,system-ui,sans-serif; color:var(--text-body); background:var(--bg-secondary); font-size:14px; line-height:20px;
+  width:1440px; min-height:2000px; display:flex;
+}
+.chaco *{box-sizing:border-box}
+body{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.chaco :focus-visible{outline:2px solid var(--border-brand);outline-offset:2px}
+.chaco .nodo-hero :focus-visible{outline-color:#ffffff}
+.leaflet-container{font-family:Manrope,system-ui,sans-serif}
+
+/* ---------- Shell: sidebar ---------- */
+.side{width:288px;flex:none;background:var(--bg-white);border-right:1px solid var(--border-base);display:flex;flex-direction:column}
+.side-brand{height:76px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border-light)}
+.side-logo{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--border-base);display:flex;align-items:center;justify-content:center;color:var(--text-fg-brand);font-size:20px}
+.side-wordmark{font-size:16px;line-height:20px;font-weight:800;color:var(--text-heading);letter-spacing:.01em}
+.side-lema{font-size:11px;line-height:16px;color:var(--text-body-subtle)}
+.side-user{display:flex;align-items:center;gap:12px;margin:0 12px;padding:20px 16px;border-bottom:1px solid var(--border-light)}
+.avatar{flex:none;border-radius:50%;background:var(--gradient-brand);color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.side-nav{padding:16px 12px;display:flex;flex-direction:column;gap:4px;flex:1}
+.side-item{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:999px;color:var(--text-nav);font-size:14px;font-weight:500;text-decoration:none}
+.side-item:hover{background:var(--bg-tertiary)}
+.side-item svg.ico{width:20px;height:20px;flex:none}
+.side-item svg.chev{width:16px;height:16px;margin-left:auto;color:var(--text-body-subtle)}
+.side-sub{display:flex;flex-direction:column;gap:2px;padding-left:20px}
+.side-sub a{display:flex;align-items:center;gap:12px;height:36px;padding:0 16px;border-radius:999px;color:var(--text-nav);font-size:14px;font-weight:500;text-decoration:none}
+.side-sub a i{width:16px;text-align:center;font-size:14px}
+.side-sub a:hover{background:var(--bg-tertiary)}
+.side-sub a[aria-current="page"]{background:var(--bg-brand);color:#ffffff;font-weight:700}
+.side-foot{padding:12px;border-top:1px solid var(--border-light)}
+.side-min{width:100%;height:36px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;background:var(--bg-secondary);color:var(--text-body);font:inherit;font-size:12px;font-weight:500;cursor:pointer}
+.side-min:hover{background:var(--bg-tertiary)}
+
+/* ---------- Shell: navbar ---------- */
+.navbar{height:64px;flex:none;background:var(--bg-white);border-bottom:1px solid var(--border-base);display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.nav-buscar{position:relative;width:320px}
+.nav-buscar i{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-body-subtle);font-size:14px}
+.nav-buscar input{width:100%;height:40px;padding:0 16px 0 40px;border:1px solid var(--border-base);border-radius:999px;background:var(--bg-secondary);font:inherit;font-size:14px;color:var(--text-heading)}
+.nav-buscar input::placeholder{color:var(--text-body-subtle)}
+.nav-der{display:flex;align-items:center;gap:12px}
+.nav-usuario{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--text-heading)}
+
+/* ---------- Botones (nodo-buttons.css) ---------- */
+.btn-nodo{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:999px;font:inherit;font-weight:700;white-space:nowrap;text-decoration:none;cursor:pointer}
+.btn-base{height:40px;padding:0 20px;font-size:14px}
+.btn-sm{height:36px;padding:0 16px;font-size:14px}
+.btn-brand{background:var(--gradient-brand);color:#ffffff}
+.btn-brand:hover{box-shadow:var(--shadow-brand)}
+.btn-secondary{background:var(--bg-secondary);border-color:var(--border-base);color:var(--text-heading)}
+.btn-secondary:hover{background:var(--bg-tertiary)}
+.btn-tertiary{background:var(--bg-white);border-color:var(--border-base);color:var(--text-body)}
+.btn-tertiary:hover{background:var(--bg-brand-tint);color:var(--text-fg-brand)}
+.btn-nodo[aria-disabled="true"]{background:var(--bg-disabled);border-color:var(--border-base);color:var(--text-fg-disabled);cursor:not-allowed;box-shadow:none}
+.nodo-icon-btn{display:inline-flex;align-items:center;justify-content:center;padding:6px;border:0;border-radius:8px;background:transparent;color:var(--text-body-subtle);font-size:14px;line-height:16px;text-decoration:none;cursor:pointer}
+.nodo-icon-btn i{width:16px;text-align:center}
+.nodo-icon-btn:hover{background:var(--bg-secondary);color:var(--text-fg-brand)}
+
+/* ---------- Badges (nodo-badges.css) ---------- */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border:1px solid transparent;border-radius:999px;font-size:12px;line-height:16px;font-weight:600;white-space:nowrap}
+.badge-success{background:var(--bg-success-soft);border-color:var(--border-success-subtle);color:var(--text-fg-success)}
+.badge-danger{background:var(--bg-danger-soft);border-color:var(--border-danger-subtle);color:var(--text-fg-danger)}
+.badge-warning{background:var(--bg-warning-soft);border-color:var(--border-warning-subtle);color:var(--text-fg-warning)}
+.badge-warning i{color:var(--text-fg-warning-subtle)}
+.badge-info{background:var(--bg-info-soft);border-color:var(--border-info-subtle);color:var(--text-fg-info)}
+.badge-brand{background:var(--bg-brand-soft);border-color:var(--border-brand-subtle);color:var(--text-fg-brand)}
+.badge-gray{background:var(--bg-tertiary);border-color:var(--border-base);color:var(--text-body)}
+
+/* ---------- Superficies ---------- */
+.surface{background:var(--bg-white);border:1px solid var(--border-base);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.surface-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border-light)}
+.surface-title{margin:0;font-size:16px;line-height:24px;font-weight:700;color:var(--text-heading)}
+.surface-meta{margin-top:2px;font-size:12px;line-height:16px;color:var(--text-body-subtle)}
+.surface-body{flex:1;min-height:0;padding:20px;display:flex;flex-direction:column}
+.surface-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 20px;border-top:1px solid var(--border-light);font-size:12px;line-height:16px;color:var(--text-body-subtle)}
+.pieza-nueva{display:inline-flex;align-items:center;gap:6px;flex:none;padding:2px 10px;border:1px dashed var(--border-warning);border-radius:999px;background:var(--bg-warning-soft);color:var(--text-fg-warning);font-size:12px;line-height:16px;font-weight:600}
+
+/* ---------- Hero (nodo-hero.css) ---------- */
+.nodo-hero{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px 32px;border-radius:16px;background:var(--gradient-brand);box-shadow:var(--shadow-brand);color:#ffffff}
+.nodo-hero__eyebrow{font-size:13px;line-height:16px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.nodo-hero__titulo{margin:8px 0;font-size:30px;line-height:36px;font-weight:800;letter-spacing:-.02em;color:#ffffff}
+.nodo-hero__bajada{margin:0;max-width:480px;font-size:14.5px;line-height:22px}
+.nodo-hero__accion{flex:none;height:44px;padding:0 24px;display:inline-flex;align-items:center;gap:8px;border-radius:999px;background:#ffffff;color:var(--text-fg-brand);font-size:14px;font-weight:700;text-decoration:none}
+
+/* ---------- Filtros en píldora ---------- */
+.filtros{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.nodo-pildora{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 4px 0 16px;border:1px solid var(--border-base);border-radius:999px;background:var(--bg-white);font-size:14px;color:var(--text-body)}
+.nodo-pildora:focus-within{outline:2px solid var(--border-brand);outline-offset:2px}
+.nodo-pildora__etiqueta{white-space:nowrap;font-weight:600}
+.nodo-pildora__control{height:32px;max-width:220px;padding:0 8px 0 0;border:0;background:transparent;color:var(--text-heading);font:inherit;font-weight:500;cursor:pointer}
+.nodo-pildora__control:focus-visible{outline:none}
+.filtros-der{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-body-subtle)}
+
+/* ---------- Stat card variante tablero (nodo-stat-card.css) ---------- */
+.nodo-stat-tablero{display:flex;flex-direction:column;padding:20px;background:var(--bg-white);border:1px solid var(--border-base);border-radius:12px;box-shadow:var(--shadow-sm)}
+.nodo-stat-tablero__fila{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:52px}
+.nodo-stat-tablero__etiqueta{font-size:12px;line-height:16px;font-weight:600;color:var(--text-body-subtle)}
+.nodo-stat-tablero__icono{flex:none;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.nodo-stat-tablero__valor{margin-top:8px;font-size:32px;line-height:40px;font-weight:800;letter-spacing:-.02em;color:var(--text-heading)}
+.nodo-stat-tablero__sufijo{font-size:14px;font-weight:600;color:var(--text-body-subtle);letter-spacing:0}
+.nodo-stat-tablero__nota{margin-top:4px;font-size:12px;line-height:16px;color:var(--text-body-subtle)}
+.ic-brand{background:var(--bg-brand-soft);color:var(--text-fg-brand)}
+.ic-success{background:var(--bg-success-soft);color:var(--text-fg-success)}
+.ic-danger{background:var(--bg-danger-soft);color:var(--text-fg-danger)}
+.ic-warning{background:var(--bg-warning-soft);color:var(--text-fg-warning-subtle)}
+.ic-gradient{background:var(--gradient-brand);color:#ffffff}
+.stat-chica{display:flex;flex-direction:column;padding:16px;background:var(--bg-white);border:1px solid var(--border-base);border-radius:12px}
+.stat-chica__fila{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.stat-chica__etiqueta{font-size:12px;line-height:16px;font-weight:600;color:var(--text-body-subtle)}
+.stat-chica__icono{flex:none;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.stat-chica__valor{margin-top:8px;font-size:24px;line-height:32px;font-weight:700;color:var(--text-heading)}
+
+/* ---------- Solapas ---------- */
+.nodo-tablist{display:flex;gap:4px;flex-wrap:wrap;padding:0 8px;border-bottom:1px solid var(--border-base)}
+.nodo-tab{appearance:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:-1px;padding:12px 16px;border:0;border-bottom:2px solid transparent;background:none;color:var(--text-body-subtle);font:inherit;font-size:14px;font-weight:500;white-space:nowrap;cursor:pointer}
+.nodo-tab:hover{color:var(--text-body)}
+.nodo-tab.is-active{color:var(--text-fg-brand);border-bottom-color:var(--border-brand);font-weight:700}
+
+/* ---------- Alertas (_alerta.html) ---------- */
+.alerta{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid;border-radius:8px;font-size:14px;line-height:20px}
+.alerta-danger{background:var(--bg-danger-soft);border-color:var(--border-danger-subtle)}
+.alerta-danger .alerta__icono{color:var(--text-fg-danger)}
+.alerta-warning{background:var(--bg-warning-soft);border-color:var(--border-warning-subtle)}
+.alerta-warning .alerta__icono{color:var(--text-fg-warning-subtle)}
+.alerta__icono{flex:none;font-size:18px;line-height:20px}
+.alerta__cuerpo{flex:1;min-width:0}
+.alerta__cuerpo strong{display:block;color:var(--text-heading)}
+.alerta__cuerpo p{margin:4px 0 0;color:var(--text-body)}
+.alerta__accion{flex:none;align-self:center;padding:0;border:0;background:none;font:inherit;font-weight:600;color:var(--text-heading);text-decoration:underline;cursor:pointer}
+.lista-alertas{display:flex;flex-direction:column;gap:12px}
+
+/* ---------- Estado vacío (_estado_vacio.html) ---------- */
+.estado-vacio{display:flex;flex-direction:column;align-items:center;gap:12px;padding:56px 24px;text-align:center}
+.estado-vacio i.ev-icono{font-size:48px;line-height:1;color:var(--text-fg-brand)}
+.estado-vacio__titulo{margin:0;font-size:17px;line-height:24px;font-weight:700;color:var(--text-heading)}
+.estado-vacio__texto{margin:0;max-width:320px;font-size:14px;line-height:20px;color:var(--text-body)}
+.estado-vacio .btn-nodo{margin-top:8px}
+
+/* ---------- Tabla (nodo-tables.css) ---------- */
+.tabla-scroll{position:relative;overflow-x:auto}
+.tabla{width:100%;border-collapse:collapse}
+.nodo-thead-row{background:var(--bg-secondary);border-bottom:1px solid var(--border-base)}
+.nodo-th{position:relative;padding:11px 16px;text-align:left;font-size:11px;line-height:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-body-subtle);white-space:nowrap}
+.nodo-th.der,.nodo-td.der{text-align:right}
+.nodo-td{padding:13px 16px;border-top:1px solid var(--border-light);font-size:14px;color:var(--text-body)}
+.fila:hover{background:var(--bg-secondary)}
+.th-orden{appearance:none;display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.th-orden:hover{color:var(--text-heading)}
+.th-orden i{font-size:10px}
+.th-orden i.inactivo{color:var(--text-fg-disabled)}
+.enlace-entidad{font-weight:600;color:var(--text-fg-brand);text-decoration:none}
+.enlace-entidad:hover{text-decoration:underline}
+.celda-meta{font-size:12px;line-height:16px;color:var(--text-body-subtle)}
+.txt-success{color:var(--text-fg-success)}
+.txt-danger{color:var(--text-fg-danger)}
+.acciones{display:inline-flex;align-items:center;gap:4px}
+.barra{height:8px;border-radius:999px;background:var(--bg-tertiary)}
+.barra > span{display:block;height:8px;border-radius:999px}
+
+/* ---------- Ocupación por tipo ---------- */
+.lista-tipos{display:flex;flex-direction:column;gap:16px}
+.tipo-fila{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tipo-nombre{font-weight:700;color:var(--text-heading)}
+.tipo-der{display:inline-flex;align-items:center;gap:12px}
+.umbrales{position:relative;margin-top:8px}
+.umbrales .marca{position:absolute;top:-4px;width:2px;height:16px;border-radius:1px}
+.marca-am{background:var(--serie-warning)}
+.marca-ro{background:var(--serie-danger)}
+.leyenda-marca{display:inline-flex;align-items:center;gap:6px}
+.leyenda-marca .marca{display:inline-block;width:2px;height:12px;border-radius:1px}
+
+/* ---------- Localidades y gráfico ---------- */
+.lista-loc{display:flex;flex-direction:column;justify-content:space-between;gap:12px;flex:1}
+.loc-fila{display:grid;grid-template-columns:120px 1fr 32px;align-items:center;gap:12px}
+.loc-nombre{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-heading)}
+.grilla-rels{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:12px}
+.chart{display:flex;gap:8px;flex:1;min-height:176px}
+.chart-y{width:20px;display:flex;flex-direction:column;justify-content:space-between;text-align:right;font-size:11px;line-height:12px;color:var(--text-body-subtle)}
+.chart-plot{position:relative;flex:1;border-bottom:1px solid var(--border-base)}
+.chart-linea{position:absolute;left:0;right:0;border-top:1px dashed var(--border-light)}
+.chart-barras{position:absolute;inset:0;display:flex;align-items:flex-end;gap:6px}
+.chart-par{flex:1;height:100%;display:flex;align-items:flex-end;gap:2px}
+.chart-par > span{flex:1;border-radius:3px 3px 0 0}
+.chart-ejex{display:flex;justify-content:space-between;margin:8px 0 0 28px;font-size:11px;line-height:16px;color:var(--text-body-subtle)}
+.chart-leyenda{display:flex;gap:16px;margin-top:12px;font-size:12px;line-height:16px;color:var(--text-body)}
+.chart-leyenda .sw{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px}
+
+/* ---------- Mapa ---------- */
+.mapa-leyenda{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:12px 20px;border-bottom:1px solid var(--border-light);font-size:12px;color:var(--text-body-subtle)}
+.mapa-wrap{position:relative;flex:1;min-height:560px;margin:20px;border:1px solid var(--border-base);border-radius:12px;overflow:hidden;background:var(--bg-tertiary)}
+.mapa-wrap > .mapa{position:absolute;inset:0}
+.ficha-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ficha-tile{padding:12px;border:1px solid var(--border-base);border-radius:12px}
+.ficha-tile .v{font-size:24px;line-height:32px;font-weight:700;color:var(--text-heading)}
+.item-lista{appearance:none;width:100%;display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;text-align:left;cursor:pointer}
+.item-lista:hover{background:var(--bg-secondary)}
+.item-lista.is-active{background:var(--bg-info-soft);border-color:var(--border-info-subtle)}
+.item-lista__texto{flex:1;min-width:0}
+.item-lista__nombre{display:block;font-weight:700;color:var(--text-heading);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-lista__meta{display:block;font-size:12px;line-height:16px;color:var(--text-body-subtle)}
+</style>
+</helmet>
+
+<div class="chaco">
+
+  <!-- ===== Shell: sidebar (qa-1053-c4 / c5) ===== -->
+  <aside class="side">
+    <div class="side-brand">
+      <span class="side-logo" aria-hidden="true"><i class="fa-solid fa-wheat-awn"></i></span>
+      <div>
+        <div class="side-wordmark">DATAÑACH</div>
+        <div class="side-lema">Gobierno del Chaco</div>
+      </div>
+    </div>
+    <div class="side-user">
+      <span class="avatar" aria-hidden="true" style="width: 36px; height: 36px; font-size: 14px;">M</span>
+      <div>
+        <div style="font-size: 14px; line-height: 20px; font-weight: 700; color: var(--text-heading);">Matias Farina</div>
+        <div style="font-size: 11px; line-height: 16px; color: var(--text-body-subtle);">Administrador</div>
+      </div>
+    </div>
+    <nav class="side-nav" aria-label="Menú principal">
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>Inicio</a>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>Dashboard<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg></a>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>Ciudadanos</a>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 20.25v-5.25a.75.75 0 01.75-.75h2.5a.75.75 0 01.75.75v5.25M9.5 20.25V9.75A.75.75 0 0110.25 9h2.5a.75.75 0 01.75.75v10.5M14.5 20.25v-14a.75.75 0 01.75-.75h2.5a.75.75 0 01.75.75v14M3 20.25h18"/></svg>Reportes</a>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>Notificaciones<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg></a>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>Configuración<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg></a>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5"/></svg>Programas<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg></a>
+      <a class="side-item" href="#" aria-expanded="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"/></svg>Dispositivos<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 15.75l7.5-7.5 7.5 7.5"/></svg></a>
+      <div class="side-sub">
+        <a href="#" aria-current="page"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i>Tablero</a>
+        <a href="#"><i class="fa-regular fa-building" aria-hidden="true"></i>Instituciones</a>
+        <a href="#"><i class="fa-regular fa-clipboard" aria-hidden="true"></i>Relevamientos</a>
+        <a href="#"><i class="fa-solid fa-sliders" aria-hidden="true"></i>Configuración</a>
+      </div>
+      <a class="side-item" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281zM15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Administración<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg></a>
+    </nav>
+    <div class="side-foot">
+      <button type="button" class="side-min"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>Minimizar</button>
+    </div>
+  </aside>
+
+  <!-- ===== Área de contenido ===== -->
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+
+    <!-- Shell: navbar -->
+    <header class="navbar">
+      <div class="nav-buscar">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" placeholder="Buscar ciudadano…" aria-label="Buscar ciudadano">
+      </div>
+      <div class="nav-der">
+        <button type="button" class="nodo-icon-btn" aria-label="Notificaciones" title="Notificaciones" style="font-size: 16px; padding: 8px;"><i class="fa-regular fa-bell" aria-hidden="true"></i></button>
+        <span title="Conexión estable" style="display: inline-flex; align-items: center;"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-body-subtle);"></span><span class="sr-only">Conexión estable</span></span>
+        <div class="nav-usuario">
+          <span class="avatar" aria-hidden="true" style="width: 36px; height: 36px; font-size: 14px;">M</span>
+          Matias Farina
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--text-body-subtle);"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+      </div>
+    </header>
+
+    <main style="padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 24px;">
+
+      <!-- hero_inicio: pieza canónica, autorizada para el tablero de programa -->
+      <section class="nodo-hero" aria-labelledby="titulo-tablero">
+        <div>
+          <div class="nodo-hero__eyebrow">Programa Dispositivos · Abordaje Psicosocial</div>
+          <h1 id="titulo-tablero" class="nodo-hero__titulo">Red de dispositivos</h1>
+          <p class="nodo-hero__bajada">{{bajada}}</p>
+        </div>
+        <a href="#" class="nodo-hero__accion"><i class="fa-solid fa-building" aria-hidden="true"></i>Ver instituciones</a>
+      </section>
+
+      <!-- Filtros en píldora (filtros.md): el botón Filtrar aplica; no se filtra al cambiar el valor -->
+      <form class="filtros" aria-label="Filtrar el tablero" onSubmit="{{filtrar}}">
+        <label class="nodo-pildora">
+          <span class="nodo-pildora__etiqueta">Tipo:</span>
+          <select class="nodo-pildora__control" name="tipo" aria-label="Tipo de dispositivo" onChange="{{cambiarTipo}}">
+            <sc-for list="{{opcionesTipo}}" as="o" hint-placeholder-count="6"><option value="{{o.v}}" selected="{{o.sel}}">{{o.l}}</option></sc-for>
+          </select>
+        </label>
+        <label class="nodo-pildora">
+          <span class="nodo-pildora__etiqueta">Localidad:</span>
+          <select class="nodo-pildora__control" name="loc" aria-label="Localidad" onChange="{{cambiarLoc}}">
+            <sc-for list="{{opcionesLoc}}" as="o" hint-placeholder-count="6"><option value="{{o.v}}" selected="{{o.sel}}">{{o.l}}</option></sc-for>
+          </select>
+        </label>
+        <label class="nodo-pildora">
+          <span class="nodo-pildora__etiqueta">Situación:</span>
+          <select class="nodo-pildora__control" name="situacion" aria-label="Situación" onChange="{{cambiarSit}}">
+            <sc-for list="{{opcionesSit}}" as="o" hint-placeholder-count="2"><option value="{{o.v}}" selected="{{o.sel}}">{{o.l}}</option></sc-for>
+          </select>
+        </label>
+        <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fa-solid fa-filter" aria-hidden="true"></i>Filtrar</button>
+        <button type="button" class="btn-nodo btn-tertiary btn-sm" onClick="{{limpiar}}">Limpiar</button>
+        <div class="filtros-der">
+          <span><i class="fa-regular fa-clock" aria-hidden="true"></i> Actualizado a las 10:42</span>
+          <button type="button" class="btn-nodo btn-secondary btn-sm"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i>Exportar</button>
+        </div>
+      </form>
+
+      <!-- stat_card variante="tablero": una sola franja grande -->
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px;">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="5">
+          <div class="nodo-stat-tablero">
+            <div class="nodo-stat-tablero__fila">
+              <span class="nodo-stat-tablero__etiqueta">{{k.etiqueta}}</span>
+              <span class="nodo-stat-tablero__icono {{k.cajaClase}}"><i class="{{k.icono}}" aria-hidden="true"></i></span>
+            </div>
+            <div class="nodo-stat-tablero__valor num">{{k.valor}}<span class="nodo-stat-tablero__sufijo">{{k.sufijo}}</span></div>
+            <div class="nodo-stat-tablero__nota">{{k.nota}}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- Solapas (tabs.md): la barra vive en una surface; los paneles son sus propias surfaces -->
+      <div class="surface">
+        <div class="nodo-tablist" role="tablist" aria-label="Vistas del tablero">
+          <sc-for list="{{solapas}}" as="p" hint-placeholder-count="2">
+            <button type="button" role="tab" id="{{p.id}}" aria-controls="{{p.panel}}" aria-selected="{{p.activa}}" tabindex="{{p.tabindex}}" class="nodo-tab {{p.clase}}" onClick="{{p.elegir}}" onKeyDown="{{p.tecla}}"><i class="{{p.icono}}" aria-hidden="true"></i>{{p.l}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{verResumen}}" hint-placeholder-val="{{ true }}">
+      <div role="tabpanel" id="panel-resumen" aria-labelledby="tab-resumen" style="display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- Herramientas de trabajo diario: buscar persona + encontrar plaza libre -->
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+
+          <section class="surface" aria-labelledby="h-buscar">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-buscar" class="surface-title">Buscar persona</h2>
+                <div class="surface-meta">Por DNI o apellido</div>
+              </div>
+              <span class="pieza-nueva"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Pieza nueva · fila de persona</span>
+            </div>
+            <div class="surface-body" style="gap: 16px;">
+              <form class="filtros" role="search" aria-label="Buscar persona" onSubmit="{{buscarPersona}}">
+                <label class="nodo-pildora">
+                  <span class="nodo-pildora__etiqueta">DNI o apellido:</span>
+                  <input type="search" id="q-persona" name="q" class="nodo-pildora__control" style="cursor: text; width: 150px;" autocomplete="off" placeholder="90000001 o Rojas" aria-label="DNI o apellido" value="{{qCampo}}" onInput="{{escribirQ}}" onChange="{{escribirQ}}">
+                </label>
+                <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>Buscar</button>
+                <button type="button" class="btn-nodo btn-tertiary btn-sm" onClick="{{limpiarBusq}}">Limpiar</button>
+              </form>
+
+              <div aria-live="polite" style="flex: 1; display: flex; flex-direction: column;">
+                <sc-if value="{{verAyudaBusq}}" hint-placeholder-val="{{ true }}">
+                  <p style="display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--text-body);"><i class="fa-solid fa-circle-info" aria-hidden="true" style="margin-top: 2px; color: var(--text-fg-brand);"></i><span>{{ayudaBusq}}</span></p>
+                </sc-if>
+                <sc-if value="{{hayResBusq}}" hint-placeholder-val="{{ false }}">
+                  <div class="celda-meta">{{resumenBusq}}</div>
+                  <ul style="list-style: none; margin: 4px 0 0; padding: 0;">
+                    <sc-for list="{{filasBusq}}" as="r" hint-placeholder-count="4">
+                      <li style="margin-left: {{r.sangria}}; padding: {{r.pad}}; border-top: {{r.borde}};">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                          <div><strong style="font-size: {{r.tamTitulo}}; line-height: 20px; color: var(--text-heading);">{{r.titulo}}<span class="sr-only">{{r.srTitulo}}</span></strong> <span class="celda-meta num">{{r.sub}}</span></div>
+                          <span class="badge {{r.badgeClase}}"><i class="{{r.badgeIcono}}" aria-hidden="true"></i>{{r.badgeTexto}}</span>
+                        </div>
+                        <div style="margin-top: 4px; font-size: {{r.tamDonde}}; line-height: 20px; color: var(--text-heading);"><i class="fa-solid fa-location-dot" aria-hidden="true" style="margin-right: 6px; color: var(--text-body-subtle);"></i>{{r.donde}}</div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                          <span class="celda-meta">{{r.detalle}}</span>
+                          <div class="acciones" style="flex: none;">
+                            <a href="#" class="nodo-icon-btn" style="display: {{r.legajoDisplay}};" aria-label="{{r.ariaLegajo}}" title="{{r.ariaLegajo}}"><i class="fa-regular fa-address-card" aria-hidden="true"></i></a>
+                            <a href="#" class="nodo-icon-btn" aria-label="{{r.ariaEstadia}}" title="{{r.ariaEstadia}}"><i class="fa-solid fa-timeline" aria-hidden="true"></i></a>
+                          </div>
+                        </div>
+                      </li>
+                    </sc-for>
+                  </ul>
+                </sc-if>
+                <sc-if value="{{vacioBusq}}" hint-placeholder-val="{{ false }}">
+                  <div class="estado-vacio" style="flex: 1; justify-content: center; padding: 32px 16px;">
+                    <i class="ev-icono fa-solid fa-user-slash" aria-hidden="true"></i>
+                    <p class="estado-vacio__titulo">{{vacioTitulo}}</p>
+                    <p class="estado-vacio__texto">Revisá el DNI (sin puntos) o probá con otra parte del apellido.</p>
+                    <button type="button" class="btn-nodo btn-tertiary btn-base" onClick="{{limpiarBusq}}">Limpiar búsqueda</button>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <div class="surface-foot" style="justify-content: flex-start; gap: 8px;">
+              <i class="fa-solid fa-lock" aria-hidden="true"></i><span>Solo ves personas de los dispositivos de tu alcance.</span>
+            </div>
+          </section>
+
+          <section class="surface" aria-labelledby="h-plaza">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-plaza" class="surface-title">Encontrar plaza libre</h2>
+                <div class="surface-meta">Dispositivos con lugar, del más cercano al más lejano</div>
+              </div>
+              <span class="pieza-nueva"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Pieza nueva · fila de plaza</span>
+            </div>
+            <div class="surface-body" style="gap: 16px;">
+              <form class="filtros" role="search" aria-label="Encontrar plaza libre" onSubmit="{{buscarPlaza}}">
+                <label class="nodo-pildora">
+                  <span class="nodo-pildora__etiqueta">Plaza:</span>
+                  <select class="nodo-pildora__control" name="plaza" aria-label="Tipo de plaza" onChange="{{cambiarPlT}}">
+                    <sc-for list="{{opcionesPlT}}" as="o" hint-placeholder-count="4"><option value="{{o.v}}" selected="{{o.sel}}">{{o.l}}</option></sc-for>
+                  </select>
+                </label>
+                <label class="nodo-pildora">
+                  <span class="nodo-pildora__etiqueta">Dispositivo:</span>
+                  <select class="nodo-pildora__control" name="dispositivo" aria-label="Tipo de dispositivo para la plaza" onChange="{{cambiarPlD}}">
+                    <sc-for list="{{opcionesPlD}}" as="o" hint-placeholder-count="6"><option value="{{o.v}}" selected="{{o.sel}}">{{o.l}}</option></sc-for>
+                  </select>
+                </label>
+                <label class="nodo-pildora">
+                  <span class="nodo-pildora__etiqueta">Cerca de:</span>
+                  <select class="nodo-pildora__control" name="cerca" aria-label="Cerca de la localidad" onChange="{{cambiarPlL}}">
+                    <sc-for list="{{opcionesPlL}}" as="o" hint-placeholder-count="14"><option value="{{o.v}}" selected="{{o.sel}}">{{o.l}}</option></sc-for>
+                  </select>
+                </label>
+                <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>Buscar plaza</button>
+              </form>
+
+              <div aria-live="polite" style="flex: 1; display: flex; flex-direction: column;">
+                <sc-if value="{{hayPlazas}}" hint-placeholder-val="{{ true }}">
+                  <div class="celda-meta">{{resumenPlazas}}</div>
+                  <ul style="list-style: none; margin: 4px 0 0; padding: 0;">
+                    <sc-for list="{{filasPlazas}}" as="p" hint-placeholder-count="5">
+                      <li style="padding: 12px 0; border-top: {{p.borde}};">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                          <strong style="color: var(--text-heading);">{{p.n}}</strong>
+                          <span class="badge {{p.estClase}} num"><i class="{{p.estIcono}}" aria-hidden="true"></i>{{p.pct}} % · {{p.est}}</span>
+                        </div>
+                        <div class="celda-meta">{{p.meta}}</div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px;">
+                          <span><strong class="num txt-success">{{p.libresTxt}}</strong> <span class="celda-meta">· {{p.dist}}</span></span>
+                          <div style="display: flex; align-items: center; gap: 8px; flex: none;">
+                            <a href="#" class="btn-nodo btn-secondary btn-sm" aria-label="Reservar plaza en {{p.n}}"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Reservar</a>
+                            <button type="button" class="btn-nodo btn-tertiary btn-sm" aria-label="Ver {{p.n}} en el mapa" onClick="{{p.verMapa}}"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>Ver en el mapa</button>
+                          </div>
+                        </div>
+                      </li>
+                    </sc-for>
+                  </ul>
+                </sc-if>
+                <sc-if value="{{vacioPlazas}}" hint-placeholder-val="{{ false }}">
+                  <div class="estado-vacio" style="flex: 1; justify-content: center; padding: 32px 16px;">
+                    <i class="ev-icono fa-solid fa-bed" aria-hidden="true"></i>
+                    <p class="estado-vacio__titulo">Ningún dispositivo tiene plazas de ese tipo</p>
+                    <p class="estado-vacio__texto">Probá con otro tipo de plaza o de dispositivo.</p>
+                    <button type="button" class="btn-nodo btn-tertiary btn-base" onClick="{{limpiarPlaza}}">Limpiar filtros</button>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <div class="surface-foot" style="justify-content: flex-start; gap: 8px;">
+              <i class="fa-solid fa-route" aria-hidden="true"></i><span>{{pieDistancia}}</span>
+            </div>
+          </section>
+        </div>
+
+        <!-- Estadías largas y reservas que vencen: tabla nodo, respeta los filtros del tablero -->
+        <section class="surface" aria-labelledby="h-largas">
+          <div class="surface-head">
+            <div>
+              <h2 id="h-largas" class="surface-title">Estadías largas y reservas que vencen</h2>
+              <div class="surface-meta">{{resumenLargas}}</div>
+            </div>
+          </div>
+          <sc-if value="{{hayLargas}}" hint-placeholder-val="{{ true }}">
+            <div class="tabla-scroll">
+              <table class="tabla">
+                <caption class="sr-only">Estadías activas de más de 60 días y reservas que vencen hoy</caption>
+                <thead>
+                  <tr class="nodo-thead-row">
+                    <th scope="col" class="nodo-th">Persona</th>
+                    <th scope="col" class="nodo-th">Dispositivo</th>
+                    <th scope="col" class="nodo-th">Situación</th>
+                    <th scope="col" class="nodo-th der">Días o vencimiento</th>
+                    <th scope="col" class="nodo-th der"><span class="sr-only">Acciones</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{filasLargas}}" as="f" hint-placeholder-count="7">
+                    <tr class="fila">
+                      <td class="nodo-td"><a href="#" class="enlace-entidad">{{f.nombre}}</a><div class="celda-meta num">DNI {{f.dni}}</div></td>
+                      <td class="nodo-td">{{f.disp}}<div class="celda-meta">{{f.donde}}</div></td>
+                      <td class="nodo-td"><span class="badge {{f.badgeClase}}"><i class="{{f.badgeIcono}}" aria-hidden="true"></i>{{f.badgeTexto}}</span></td>
+                      <td class="nodo-td num der" style="font-weight: 700; color: var(--text-heading);">{{f.plazo}}</td>
+                      <td class="nodo-td der">
+                        <div class="acciones">
+                          <a href="#" class="nodo-icon-btn" aria-label="{{f.aria}}" title="{{f.aria}}"><i class="{{f.accionIcono}}" aria-hidden="true"></i></a>
+                        </div>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+          <sc-if value="{{sinLargas}}" hint-placeholder-val="{{ false }}">
+            <div class="estado-vacio">
+              <i class="ev-icono fa-solid fa-circle-check" aria-hidden="true"></i>
+              <p class="estado-vacio__titulo">Nada por vencer</p>
+              <p class="estado-vacio__texto">Con estos filtros no hay estadías largas ni reservas que venzan hoy.</p>
+            </div>
+          </sc-if>
+        </section>
+
+        <!-- Fila 1: atención + ocupación por tipo -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <section class="surface" aria-labelledby="h-atencion">
+            <div class="surface-head">
+              <h2 id="h-atencion" class="surface-title">Necesita atención</h2>
+              <span class="surface-meta" style="margin-top: 0;">{{cantAtencion}}</span>
+            </div>
+            <div class="surface-body">
+              <div class="lista-alertas">
+                <sc-for list="{{alertas}}" as="a" hint-placeholder-count="4">
+                  <div role="alert" class="alerta {{a.clase}}">
+                    <i class="alerta__icono {{a.icono}}" aria-hidden="true"></i>
+                    <div class="alerta__cuerpo">
+                      <strong>{{a.titulo}}</strong>
+                      <p>{{a.detalle}}</p>
+                    </div>
+                    <a href="#" class="alerta__accion" aria-label="{{a.aria}}">{{a.accion}}</a>
+                  </div>
+                </sc-for>
+              </div>
+              <sc-if value="{{sinAlertas}}" hint-placeholder-val="{{ false }}">
+                <div class="estado-vacio">
+                  <i class="ev-icono fa-solid fa-circle-check" aria-hidden="true"></i>
+                  <p class="estado-vacio__titulo">Nada pendiente</p>
+                  <p class="estado-vacio__texto">Con estos filtros ningún dispositivo pide atención.</p>
+                </div>
+              </sc-if>
+            </div>
+            <sc-if value="{{hayAlertas}}" hint-placeholder-val="{{ true }}">
+              <div class="surface-foot">
+                <span>{{pieAlertas}}</span>
+                <button type="button" class="btn-nodo btn-tertiary btn-sm" onClick="{{verAtencion}}"><i class="fa-solid fa-list" aria-hidden="true"></i>Ver en la tabla</button>
+              </div>
+            </sc-if>
+          </section>
+
+          <section class="surface" aria-labelledby="h-ocupacion">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-ocupacion" class="surface-title">Ocupación por tipo</h2>
+                <div class="surface-meta">Con los umbrales de cada tipo de dispositivo</div>
+              </div>
+            </div>
+            <div class="surface-body">
+              <div class="lista-tipos">
+                <sc-for list="{{porTipo}}" as="t" hint-placeholder-count="5">
+                  <div>
+                    <div class="tipo-fila">
+                      <span><span class="tipo-nombre">{{t.nombre}}</span> <span class="celda-meta">· {{t.cant}}</span></span>
+                      <span class="tipo-der"><span class="num" style="font-weight: 700; color: var(--text-heading);">{{t.ocupadas}} / {{t.plazas}}</span><span class="badge {{t.badgeClase}}"><i class="{{t.badgeIcono}}" aria-hidden="true"></i>{{t.pct}} % · {{t.estado}}</span></span>
+                    </div>
+                    <div class="umbrales">
+                      <div class="barra"><span style="width: {{t.ancho}}; background: {{t.barra}};"></span></div>
+                      <span class="marca marca-am" title="Umbral de alerta" style="left: {{t.umbAm}};"></span>
+                      <span class="marca marca-ro" title="Umbral crítico" style="left: {{t.umbRo}};"></span>
+                    </div>
+                    <div class="celda-meta" style="margin-top: 4px;">Alerta desde {{t.am}} % · crítico desde {{t.ro}} %</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div class="surface-foot" style="justify-content: flex-start; gap: 24px;">
+              <span class="leyenda-marca"><span class="marca marca-am" aria-hidden="true"></span>Umbral de alerta</span>
+              <span class="leyenda-marca"><span class="marca marca-ro" aria-hidden="true"></span>Umbral crítico</span>
+            </div>
+          </section>
+        </div>
+
+        <!-- Tabla nodo -->
+        <section class="surface" aria-labelledby="h-tabla">
+          <div class="surface-head">
+            <div>
+              <h2 id="h-tabla" class="surface-title">Dispositivos de la red</h2>
+              <div class="surface-meta">{{resumenTabla}}</div>
+            </div>
+            <a href="#" class="btn-nodo btn-secondary btn-sm"><i class="fa-solid fa-list" aria-hidden="true"></i>Ver listado completo</a>
+          </div>
+          <div class="tabla-scroll">
+            <table class="tabla">
+              <thead>
+                <tr class="nodo-thead-row">
+                  <sc-for list="{{columnas}}" as="c" hint-placeholder-count="7">
+                    <th scope="col" aria-sort="{{c.aria}}" class="nodo-th {{c.clase}}"><button type="button" class="th-orden" onClick="{{c.ordenar}}">{{c.l}}<i class="{{c.icono}} {{c.iconoClase}}" aria-hidden="true"></i></button></th>
+                  </sc-for>
+                  <th scope="col" class="nodo-th der"><span class="sr-only">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{filas}}" as="f" hint-placeholder-count="10">
+                  <tr class="fila">
+                    <td class="nodo-td"><a href="#" class="enlace-entidad">{{f.n}}</a><div class="celda-meta">{{f.t}}</div></td>
+                    <td class="nodo-td">{{f.loc}}</td>
+                    <td class="nodo-td" style="width: 224px;">
+                      <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="barra" style="flex: 1;"><span style="width: {{f.ancho}}; background: {{f.barra}};"></span></div>
+                        <span class="num" style="width: 44px; text-align: right; font-weight: 700; color: var(--text-heading);">{{f.pct}} %</span>
+                      </div>
+                    </td>
+                    <td class="nodo-td num der">{{f.o}} / {{f.c}}</td>
+                    <td class="nodo-td num der {{f.libresClase}}" style="font-weight: 700;">{{f.libres}}</td>
+                    <td class="nodo-td"><span class="badge {{f.estClase}}"><i class="{{f.estIcono}}" aria-hidden="true"></i>{{f.est}}</span></td>
+                    <td class="nodo-td"><span class="badge {{f.relClase}}"><i class="{{f.relIcono}}" aria-hidden="true"></i>{{f.rel}}</span></td>
+                    <td class="nodo-td der">
+                      <div class="acciones">
+                        <a href="#" class="nodo-icon-btn" aria-label="Ver {{f.n}}" title="Ver {{f.n}}"><i class="fa-regular fa-eye" aria-hidden="true"></i></a>
+                        <a href="#" class="nodo-icon-btn" aria-label="Ver plazas de {{f.n}}" title="Ver plazas de {{f.n}}"><i class="fa-solid fa-bed" aria-hidden="true"></i></a>
+                      </div>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <sc-if value="{{tablaVacia}}" hint-placeholder-val="{{ false }}">
+            <div class="estado-vacio">
+              <i class="ev-icono fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              <p class="estado-vacio__titulo">Ningún dispositivo coincide con los filtros</p>
+              <p class="estado-vacio__texto">Probá con otro tipo, otra localidad o quitá el filtro de situación.</p>
+              <button type="button" class="btn-nodo btn-tertiary btn-base" onClick="{{limpiar}}">Limpiar filtros</button>
+            </div>
+          </sc-if>
+        </section>
+
+        <!-- Fila inferior: tres surfaces de igual alto -->
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+          <section class="surface" aria-labelledby="h-rels">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-rels" class="surface-title">Relevamientos</h2>
+                <div class="surface-meta">Estado de los relevamientos asignados</div>
+              </div>
+            </div>
+            <div class="surface-body">
+              <div class="grilla-rels">
+                <sc-for list="{{rels}}" as="r" hint-placeholder-count="4">
+                  <div class="stat-chica">
+                    <div class="stat-chica__fila">
+                      <span class="stat-chica__etiqueta">{{r.l}}</span>
+                      <span class="stat-chica__icono {{r.cajaClase}}"><i class="{{r.icono}}" aria-hidden="true"></i></span>
+                    </div>
+                    <div class="stat-chica__valor num">{{r.v}}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface" aria-labelledby="h-loc">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-loc" class="surface-title">Plazas libres por localidad</h2>
+                <div class="surface-meta">Dónde derivar hoy</div>
+              </div>
+            </div>
+            <div class="surface-body">
+              <div class="lista-loc">
+                <sc-for list="{{porLoc}}" as="l" hint-placeholder-count="7">
+                  <div class="loc-fila">
+                    <span class="loc-nombre">{{l.nombre}}</span>
+                    <div class="barra"><span style="width: {{l.ancho}}; background: var(--serie-success);"></span></div>
+                    <span class="num" style="text-align: right; font-weight: 700; color: var(--text-heading);">{{l.libres}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface" aria-labelledby="h-mov">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-mov" class="surface-title">Ingresos y egresos</h2>
+                <div class="surface-meta">Últimos 14 días en la red</div>
+              </div>
+              <span class="pieza-nueva"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Pieza nueva · gráfico</span>
+            </div>
+            <div class="surface-body">
+              <div class="chart">
+                <div class="chart-y" aria-hidden="true"><span>16</span><span>8</span><span>0</span></div>
+                <div class="chart-plot" role="img" aria-label="{{ariaMov}}">
+                  <div class="chart-linea" style="top: 0;" aria-hidden="true"></div>
+                  <div class="chart-linea" style="top: 50%;" aria-hidden="true"></div>
+                  <div class="chart-barras">
+                    <sc-for list="{{mov}}" as="m" hint-placeholder-count="14">
+                      <div class="chart-par" title="{{m.tip}}">
+                        <span style="background: var(--bg-brand); height: {{m.hi}};"></span>
+                        <span style="background: var(--serie-neutra); height: {{m.he}};"></span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-ejex" aria-hidden="true"><span>26 oct</span><span>2 nov</span><span>hoy</span></div>
+              <div class="chart-leyenda">
+                <span><span class="sw" style="background: var(--bg-brand);" aria-hidden="true"></span>Ingresos · {{totIng}}</span>
+                <span><span class="sw" style="background: var(--serie-neutra);" aria-hidden="true"></span>Egresos · {{totEgr}}</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- Solapa Mapa -->
+      <sc-if value="{{verMapa}}" hint-placeholder-val="{{ false }}">
+      <div role="tabpanel" id="panel-mapa" aria-labelledby="tab-mapa" style="display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: stretch;">
+        <section class="surface" aria-labelledby="h-mapa">
+          <div class="surface-head">
+            <div>
+              <h2 id="h-mapa" class="surface-title">Mapa de la red</h2>
+              <div class="surface-meta">{{resumenMapa}}</div>
+            </div>
+            <span class="pieza-nueva"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Pieza nueva · mapa (Leaflet)</span>
+          </div>
+          <div class="mapa-leyenda">
+            <span class="badge badge-danger"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>Crítico</span>
+            <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>En alerta</span>
+            <span class="badge badge-success"><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Normal</span>
+            <span>El tamaño del círculo indica la cantidad de plazas.</span>
+          </div>
+
+          <sc-if value="{{mapaCerrado}}" hint-placeholder-val="{{ true }}">
+            <div class="estado-vacio" style="flex: 1; justify-content: center; min-height: 560px;">
+              <i class="ev-icono fa-solid fa-map-location-dot" aria-hidden="true"></i>
+              <p class="estado-vacio__titulo">{{puntosTexto}}</p>
+              <p class="estado-vacio__texto">El mapa usa mosaicos de OpenStreetMap. No se carga nada de afuera hasta que lo abrís.</p>
+              <button type="button" class="btn-nodo btn-brand btn-base" onClick="{{abrirMapa}}"><i class="fa-solid fa-map" aria-hidden="true"></i>Ver el mapa</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{mapaError}}" hint-placeholder-val="{{ false }}">
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; min-height: 560px; padding: 20px;">
+              <div role="alert" class="alerta alerta-danger">
+                <i class="alerta__icono fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                <div class="alerta__cuerpo">
+                  <strong>No se pudo cargar el mapa</strong>
+                  <p>Revisá la conexión a internet. Los datos de la red no se perdieron: están en la solapa Resumen.</p>
+                </div>
+                <button type="button" class="alerta__accion" onClick="{{abrirMapa}}">Reintentar</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{mapaAbierto}}" hint-placeholder-val="{{ false }}">
+            <div class="mapa-wrap">
+              <div id="mapa-red" class="mapa" role="region" aria-label="Mapa de los dispositivos de la red"></div>
+            </div>
+          </sc-if>
+        </section>
+
+        <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+          <section class="surface" aria-labelledby="h-sel">
+            <div class="surface-head"><h2 id="h-sel" class="surface-title">Dispositivo seleccionado</h2></div>
+            <div class="surface-body">
+              <sc-if value="{{haySel}}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                  <div>
+                    <div style="font-size: 16px; line-height: 24px; font-weight: 700; color: var(--text-heading);">{{sel.n}}</div>
+                    <div class="celda-meta">{{sel.t}} · {{sel.loc}}</div>
+                  </div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span class="badge {{sel.estClase}}"><i class="{{sel.estIcono}}" aria-hidden="true"></i>{{sel.est}}</span>
+                    <span class="badge {{sel.relClase}}"><i class="{{sel.relIcono}}" aria-hidden="true"></i>Relevamiento {{sel.rel}}</span>
+                  </div>
+                  <div>
+                    <div style="display: flex; justify-content: space-between;"><span>Ocupación</span><strong class="num" style="color: var(--text-heading);">{{sel.pct}} %</strong></div>
+                    <div class="barra" style="margin-top: 8px;"><span style="width: {{sel.ancho}}; background: {{sel.barra}};"></span></div>
+                  </div>
+                  <div class="ficha-tiles">
+                    <div class="ficha-tile"><div class="v num">{{sel.o}} / {{sel.c}}</div><div class="celda-meta">plazas ocupadas</div></div>
+                    <div class="ficha-tile"><div class="v num {{sel.libresClase}}">{{sel.libres}}</div><div class="celda-meta">plazas libres</div></div>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <a href="#" class="btn-nodo btn-brand btn-sm" style="flex: 1;"><i class="fa-regular fa-eye" aria-hidden="true"></i>Ver dispositivo</a>
+                    <a href="#" class="btn-nodo btn-secondary btn-sm" style="flex: 1;"><i class="fa-solid fa-bed" aria-hidden="true"></i>Ver plazas</a>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{sinSel}}" hint-placeholder-val="{{ false }}">
+                <div class="estado-vacio" style="flex: 1; justify-content: center; padding: 32px 16px;">
+                  <i class="ev-icono fa-solid fa-location-dot" aria-hidden="true"></i>
+                  <p class="estado-vacio__titulo">Ningún dispositivo elegido</p>
+                  <p class="estado-vacio__texto">Tocá un punto del mapa o un dispositivo de la lista.</p>
+                </div>
+              </sc-if>
+            </div>
+          </section>
+
+          <section class="surface" aria-labelledby="h-tens">
+            <div class="surface-head">
+              <div>
+                <h2 id="h-tens" class="surface-title">Más tensionados</h2>
+                <div class="surface-meta">Más cerca del umbral crítico de su tipo</div>
+              </div>
+            </div>
+            <div style="padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+              <sc-for list="{{listaMapa}}" as="d" hint-placeholder-count="8">
+                <button type="button" class="item-lista {{d.clase}}" onClick="{{d.elegir}}" aria-pressed="{{d.activo}}">
+                  <span class="item-lista__texto"><span class="item-lista__nombre">{{d.n}}</span><span class="item-lista__meta">{{d.loc}}</span></span>
+                  <span class="badge {{d.estClase}} num"><i class="{{d.estIcono}}" aria-hidden="true"></i>{{d.pct}} %<span class="sr-only"> · {{d.est}}</span></span>
+                </button>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </div>
+      </sc-if>
+
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(props){ super(props); this.state = { tipo:'', loc:'', criticos:false, pTipo:'', pLoc:'', pSit:'', orden:'tension', dir:-1, tab:'resumen', mapa:false, sel:null, mapaError:false,
+      qCampo:'', qBuscado:'', buscado:false, plT:'', plD:'', plL:'Resistencia', pplT:'', pplD:'', pplL:'Resistencia' }; this._puntos = []; }
+  enfocar(id){ var self = this; setTimeout(function(){ var el = self.buscar(id); if (el) el.focus(); }, 30); }
+  componentDidMount(){ this.programarMapa(); }
+  componentDidUpdate(){ this.programarMapa(); }
+  componentWillUnmount(){ clearTimeout(this._tMapa); if (this._map) { this._map.remove(); this._map = null; } }
+  programarMapa(){ var self = this; clearTimeout(this._tMapa); this._tMapa = setTimeout(function(){ self.syncMapa(0); }, 30); }
+  buscar(id){
+    var el = document.getElementById(id); if (el) return el;
+    var pila = [document];
+    while (pila.length) { var raiz = pila.pop(), todos = raiz.querySelectorAll('*');
+      for (var i = 0; i < todos.length; i++) { if (todos[i].id === id) return todos[i]; if (todos[i].shadowRoot) pila.push(todos[i].shadowRoot); } }
+    return null;
+  }
+  cargarLeaflet(cb){
+    var self = this;
+    if (window.L) return cb();
+    if (!document.getElementById('leaflet-css')) { var l = document.createElement('link'); l.id = 'leaflet-css'; l.rel = 'stylesheet'; l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(l); }
+    if (window.__cbLeaflet) { window.__cbLeaflet.push(cb); return; }
+    window.__cbLeaflet = [cb];
+    var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    sc.onload = function(){ var cbs = window.__cbLeaflet; window.__cbLeaflet = null; cbs.forEach(function(f){ f(); }); };
+    sc.onerror = function(){ window.__cbLeaflet = null; if (sc.parentNode) sc.parentNode.removeChild(sc); self.setState({ mapaError:true }); };
+    document.head.appendChild(sc);
+  }
+  syncMapa(intento){
+    var self = this, s = this.state;
+    if (s.tab !== 'mapa' || !s.mapa) { if (this._map) { this._map.remove(); this._map = null; } return; }
+    // Con el aviso de error a la vista no se reintenta solo: lo hace el botón «Reintentar».
+    if (s.mapaError) { if (this._map) { this._map.remove(); this._map = null; } return; }
+    var el = this.buscar('mapa-red');
+    if (!el) { if (intento < 20) setTimeout(function(){ self.syncMapa(intento + 1); }, 100); return; }
+    this.cargarLeaflet(function(){
+      var L = window.L;
+      if (self._map && self._map.getContainer() !== el) { self._map.remove(); self._map = null; }
+      var nuevo = false;
+      if (!self._map) {
+        nuevo = true;
+        self._map = L.map(el, { zoomControl:true, scrollWheelZoom:false }).setView([-26.4, -60.6], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenStreetMap', referrerPolicy:'no-referrer' }).addTo(self._map);
+        self._capa = L.layerGroup().addTo(self._map);
+        setTimeout(function(){ if (self._map) self._map.invalidateSize(); }, 120);
+      }
+      self._capa.clearLayers();
+      var bounds = [];
+      self._puntos.forEach(function(p){
+        var activo = p.n === self.state.sel;
+        var m = L.circleMarker([p.lat, p.lng], { radius: p.radio + (activo ? 4 : 0), color: activo ? '#111827' : '#ffffff', weight: activo ? 3 : 2, fillColor: p.color, fillOpacity: .9 });
+        m.bindTooltip('<strong>' + p.n + '</strong><br>' + p.pct + ' % · ' + p.libres + ' libres · ' + p.est, { direction:'top', offset:[0, -p.radio] });
+        m.on('click', function(){ self.setState({ sel:p.n }); });
+        m.addTo(self._capa);
+        bounds.push([p.lat, p.lng]);
+      });
+      var clave = s.tipo + '|' + s.loc + '|' + s.criticos;
+      if ((nuevo || clave !== self._clave) && bounds.length) {
+        self._clave = clave;
+        if (bounds.length === 1) self._map.setView(bounds[0], 11); else self._map.fitBounds(bounds, { padding:[40, 40], maxZoom:11 });
+      }
+      if (self.state.sel && self._selPrev !== self.state.sel) {
+        var ps = self._puntos.filter(function(p){ return p.n === self.state.sel; })[0];
+        if (ps) self._map.panTo([ps.lat, ps.lng]);
+      }
+      self._selPrev = self.state.sel;
+    });
+  }
+  renderVals(){
+    var self = this, s = this.state;
+    var TIPOS = {
+      'Hogar':{am:70, ro:90}, 'Parador nocturno':{am:80, ro:95}, 'Centro de día':{am:60, ro:85},
+      'Residencia':{am:75, ro:90}, 'Comunidad terapéutica':{am:70, ro:90}
+    };
+    var DATA = [
+      {n:'Hogar Santa Rita', t:'Hogar', loc:'Resistencia', o:38, c:40, rel:'dia'},
+      {n:'Parador Nocturno Centro', t:'Parador nocturno', loc:'Resistencia', o:60, c:60, rel:'dia'},
+      {n:'Centro de Día Villa Río Negro', t:'Centro de día', loc:'Resistencia', o:41, c:70, rel:'dia'},
+      {n:'Residencia Ntra. Sra. de Itatí', t:'Residencia', loc:'Barranqueras', o:27, c:32, rel:'dia'},
+      {n:'Hogar Juana Azurduy', t:'Hogar', loc:'Fontana', o:18, c:30, rel:'por'},
+      {n:'Parador Sáenz Peña', t:'Parador nocturno', loc:'Sáenz Peña', o:33, c:36, rel:'dia'},
+      {n:'Hogar Don Bosco', t:'Hogar', loc:'Sáenz Peña', o:20, c:28, rel:'dia'},
+      {n:'Centro de Día Villa Ángela', t:'Centro de día', loc:'Villa Ángela', o:22, c:40, rel:'dia'},
+      {n:'Residencia San Cayetano', t:'Residencia', loc:'Charata', o:25, c:26, rel:'por'},
+      {n:'Hogar Qom Lashepi', t:'Hogar', loc:'Castelli', o:14, c:24, rel:'dia'},
+      {n:'Parador Castelli', t:'Parador nocturno', loc:'Castelli', o:19, c:20, rel:'dia'},
+      {n:'Centro de Día Gral. San Martín', t:'Centro de día', loc:'Gral. San Martín', o:15, c:35, rel:'venc'},
+      {n:'Comunidad Terapéutica Renacer', t:'Comunidad terapéutica', loc:'Machagai', o:11, c:16, rel:'dia'},
+      {n:'Hogar Las Breñas', t:'Hogar', loc:'Las Breñas', o:9, c:20, rel:'venc'},
+      {n:'Residencia Tres Isletas', t:'Residencia', loc:'Tres Isletas', o:17, c:22, rel:'dia'},
+      {n:'Parador Bermejito', t:'Parador nocturno', loc:'El Sauzalito', o:12, c:12, rel:'venc'},
+      {n:'Centro de Día Miraflores', t:'Centro de día', loc:'Miraflores', o:8, c:25, rel:'por'},
+      {n:'Hogar San Bernardo', t:'Hogar', loc:'San Bernardo', o:10, c:18, rel:'dia'}
+    ];
+    // Colores de serie (barras y marcadores): tokens --serie-* del estilo. Todo lo demás sale por clase.
+    var TONO = {
+      danger:{barra:'#ec003f', clase:'badge-danger', caja:'ic-danger'},
+      warning:{barra:'#ff5a1f', clase:'badge-warning', caja:'ic-warning'},
+      success:{barra:'#009966', clase:'badge-success', caja:'ic-success'},
+      brand:{barra:'#5059bc', clase:'badge-brand', caja:'ic-brand'}
+    };
+    function pct(o,c){ return Math.round(o*100/c); }
+    function nivel(d){ var u = TIPOS[d.t], p = pct(d.o,d.c); return p >= u.ro ? 'danger' : (p >= u.am ? 'warning' : 'success'); }
+    function tension(d){ var u = TIPOS[d.t]; return pct(d.o,d.c) - u.ro; }
+    function plural(n, uno, varios){ return n + ' ' + (n === 1 ? uno : varios); }
+
+    var base = DATA.filter(function(d){ return (!s.tipo || d.t === s.tipo) && (!s.loc || d.loc === s.loc); });
+    var vista = s.criticos ? base.filter(function(d){ return nivel(d) !== 'success' || d.rel === 'venc'; }) : base;
+
+    var occ = 0, cap = 0, crit = 0, venc = 0, locs = {};
+    base.forEach(function(d){ occ += d.o; cap += d.c; if (nivel(d) === 'danger') crit++; if (d.rel === 'venc') venc++; locs[d.loc] = 1; });
+    var pRed = cap ? pct(occ,cap) : 0;
+    var nLocs = Object.keys(locs).length;
+
+    // Filtros en píldora: lo elegido queda pendiente hasta «Filtrar» (filtros.md, WCAG 3.2.2).
+    var opcionesTipo = [{v:'', l:'Todos'}].concat(Object.keys(TIPOS).map(function(t){ return {v:t, l:t}; }))
+      .map(function(o){ o.sel = o.v === s.pTipo; return o; });
+    var todasLocs = []; DATA.forEach(function(d){ if (todasLocs.indexOf(d.loc) < 0) todasLocs.push(d.loc); });
+    var opcionesLoc = [{v:'', l:'Toda la provincia'}].concat(todasLocs.sort().map(function(l){ return {v:l, l:l}; }))
+      .map(function(o){ o.sel = o.v === s.pLoc; return o; });
+    var opcionesSit = [{v:'', l:'Todas'}, {v:'atencion', l:'Necesitan atención'}]
+      .map(function(o){ o.sel = o.v === s.pSit; return o; });
+
+    var kpis = [
+      {etiqueta:'Ocupación de la red', valor:pRed, sufijo:' %', nota:occ + ' de ' + cap + ' plazas', icono:'fa-solid fa-bed', tono: pRed >= 85 ? 'danger' : (pRed >= 70 ? 'warning' : 'success')},
+      {etiqueta:'Plazas libres', valor:cap - occ, sufijo:'', nota:'en ' + plural(base.filter(function(d){ return d.c > d.o; }).length, 'dispositivo', 'dispositivos'), icono:'fa-solid fa-door-open', tono:'success'},
+      {etiqueta:'Dispositivos críticos', valor:crit, sufijo:'', nota:'sobre el umbral rojo', icono:'fa-solid fa-triangle-exclamation', tono: crit ? 'danger' : 'success'},
+      {etiqueta:'Relevamientos vencidos', valor:venc, sufijo:'', nota:'sin realizar', icono:'fa-regular fa-clipboard', tono: venc ? 'danger' : 'success'},
+      {etiqueta:'Movimientos de hoy', valor:'+11', sufijo:' / −8', nota:'ingresos / egresos', icono:'fa-solid fa-right-left', tono:null}
+    ].map(function(k){
+      k.cajaClase = k.tono ? TONO[k.tono].caja : 'ic-gradient';
+      return k;
+    });
+
+    var alertasTodas = [];
+    base.slice().sort(function(a,b){ return tension(b) - tension(a); }).forEach(function(d){
+      var lib = d.c - d.o;
+      if (nivel(d) === 'danger') alertasTodas.push({clase:'alerta-danger', icono:'fa-solid fa-circle-exclamation', titulo: d.n + (lib ? ' al ' + pct(d.o,d.c) + ' %' : ' está lleno'), detalle: (lib ? 'Quedan ' + plural(lib, 'plaza libre', 'plazas libres') + '. ' : 'Sin plazas libres. ') + d.loc + ' · ' + d.t + '.', accion:'Ver plazas', aria:'Ver plazas de ' + d.n});
+    });
+    base.forEach(function(d){
+      if (d.rel === 'venc') alertasTodas.push({clase:'alerta-warning', icono:'fa-solid fa-triangle-exclamation', titulo:'Atención: relevamiento vencido', detalle: d.n + ' · ' + d.loc + '. Reasignar o reprogramar.', accion:'Ver relevamiento', aria:'Ver relevamiento de ' + d.n});
+    });
+    var MAX_ALERTAS = 4;
+    var alertas = alertasTodas.slice(0, MAX_ALERTAS);
+    var cantAtencion = alertasTodas.length ? plural(alertasTodas.length, 'pendiente', 'pendientes') : '';
+    var pieAlertas = 'Mostrando ' + alertas.length + ' de ' + alertasTodas.length;
+
+    var ICON_NIVEL = {danger:'fa-solid fa-circle-exclamation', warning:'fa-solid fa-triangle-exclamation', success:'fa-solid fa-circle-check'};
+    var EST = {danger:{l:'Crítico', i:ICON_NIVEL.danger}, warning:{l:'En alerta', i:ICON_NIVEL.warning}, success:{l:'Normal', i:ICON_NIVEL.success}};
+    var REL = {dia:{l:'Al día', tono:'success', i:'fa-solid fa-circle-check'}, por:{l:'Por vencer', tono:'warning', i:'fa-regular fa-clock'}, venc:{l:'Vencido', tono:'danger', i:'fa-solid fa-circle-xmark'}};
+
+    var porTipo = Object.keys(TIPOS).map(function(t){
+      var ds = base.filter(function(d){ return d.t === t; });
+      if (!ds.length) return null;
+      var o = 0, c = 0; ds.forEach(function(d){ o += d.o; c += d.c; });
+      var p = pct(o,c), u = TIPOS[t], nv = p >= u.ro ? 'danger' : (p >= u.am ? 'warning' : 'success');
+      return {nombre:t, cant: plural(ds.length, 'dispositivo', 'dispositivos'), ocupadas:o, plazas:c, pct:p, ancho:p + '%',
+        barra:TONO[nv].barra, badgeClase:TONO[nv].clase, badgeIcono:ICON_NIVEL[nv], estado:EST[nv].l, am:u.am, ro:u.ro, umbAm:u.am + '%', umbRo:u.ro + '%'};
+    }).filter(Boolean);
+
+    var COLS = [
+      {k:'n', l:'Dispositivo', alin:'left'}, {k:'loc', l:'Localidad', alin:'left'}, {k:'tension', l:'Ocupación', alin:'left'},
+      {k:'c', l:'Plazas', alin:'right'}, {k:'libres', l:'Libres', alin:'right'}, {k:'est', l:'Estado', alin:'left'}, {k:'rel', l:'Relevamiento', alin:'left'}
+    ];
+    function val(d,k){ if (k === 'tension') return tension(d); if (k === 'libres') return d.c - d.o; if (k === 'est') return {danger:2, warning:1, success:0}[nivel(d)]; if (k === 'rel') return {venc:2, por:1, dia:0}[d.rel]; return d[k]; }
+    var columnas = COLS.map(function(c){
+      var act = s.orden === c.k;
+      return {l:c.l, clase: c.alin === 'right' ? 'der' : '', aria: act ? (s.dir > 0 ? 'ascending' : 'descending') : 'none',
+        icono: act ? (s.dir > 0 ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-down') : 'fa-solid fa-sort', iconoClase: act ? '' : 'inactivo',
+        ordenar:function(){ self.setState({orden:c.k, dir: act ? -s.dir : (c.alin === 'right' || c.k === 'tension' || c.k === 'est' || c.k === 'rel' ? -1 : 1)}); }};
+    });
+    function ficha(d){
+      var nv = nivel(d), r = REL[d.rel], lib = d.c - d.o;
+      return {n:d.n, t:d.t, loc:d.loc, o:d.o, c:d.c, pct:pct(d.o,d.c), ancho:pct(d.o,d.c) + '%', barra:TONO[nv].barra,
+        libres:lib, libresClase: lib ? 'txt-success' : 'txt-danger',
+        est:EST[nv].l, estIcono:EST[nv].i, estClase:TONO[nv].clase,
+        rel:r.l, relIcono:r.i, relClase:TONO[r.tono].clase};
+    }
+    var filas = vista.slice().sort(function(a,b){
+      var x = val(a,s.orden), y = val(b,s.orden);
+      if (typeof x === 'string') return s.dir * x.localeCompare(y, 'es');
+      return s.dir * (x - y);
+    }).map(ficha);
+
+    var colAct = COLS.filter(function(c){ return c.k === s.orden; })[0];
+    var criterio = s.orden === 'tension' ? 'tensión (cercanía al umbral crítico de su tipo)' : colAct.l.toLowerCase();
+    var resumenTabla = filas.length + ' de ' + DATA.length + ' dispositivos · ordenados por ' + criterio + ', ' + (s.dir > 0 ? 'de menor a mayor' : 'de mayor a menor');
+
+    var cAsig = base.length, cDia = base.filter(function(d){ return d.rel === 'dia'; }).length,
+        cPor = base.filter(function(d){ return d.rel === 'por'; }).length;
+    var rels = [
+      {l:'Asignados', v:cAsig, icono:'fa-regular fa-clipboard', tono:'brand'},
+      {l:'Al día', v:cDia, icono:'fa-solid fa-circle-check', tono:'success'},
+      {l:'Por vencer', v:cPor, icono:'fa-regular fa-clock', tono:'warning'},
+      {l:'Vencidos', v:venc, icono:'fa-solid fa-circle-xmark', tono:'danger'}
+    ].map(function(r){ r.cajaClase = TONO[r.tono].caja; return r; });
+
+    var libLoc = {};
+    base.forEach(function(d){ libLoc[d.loc] = (libLoc[d.loc] || 0) + d.c - d.o; });
+    var locArr = Object.keys(libLoc).map(function(k){ return {nombre:k, libres:libLoc[k]}; }).sort(function(a,b){ return b.libres - a.libres; }).slice(0,7);
+    var maxL = Math.max.apply(null, locArr.map(function(l){ return l.libres; }).concat([1]));
+    var porLoc = locArr.map(function(l){ l.ancho = Math.round(l.libres*100/maxL) + '%'; return l; });
+
+    var factor = cap / 554;
+    var ING = [9,12,8,14,11,7,6,13,10,15,12,9,8,11], EGR = [7,10,9,11,8,6,5,12,9,10,11,8,7,8];
+    var totIng = 0, totEgr = 0;
+    var mov = ING.map(function(v,i){
+      var a = Math.round(v*factor), b = Math.round(EGR[i]*factor); totIng += a; totEgr += b;
+      return {hi: Math.round(a*100/16) + '%', he: Math.round(b*100/16) + '%', tip: a + ' ingresos · ' + b + ' egresos'};
+    });
+
+    var GEO = {
+      'Resistencia':[-27.4606,-58.9839], 'Barranqueras':[-27.4833,-58.9333], 'Fontana':[-27.4167,-59.0333],
+      'Sáenz Peña':[-26.7852,-60.4388], 'Villa Ángela':[-27.5738,-60.7153], 'Charata':[-27.2144,-61.1883],
+      'Castelli':[-25.9467,-60.6197], 'Gral. San Martín':[-26.5374,-59.3416], 'Machagai':[-26.9264,-60.0496],
+      'Las Breñas':[-27.0897,-61.0819], 'Tres Isletas':[-26.3406,-60.4322], 'El Sauzalito':[-24.4333,-61.6833],
+      'Miraflores':[-25.65,-60.93], 'San Bernardo':[-27.2876,-60.7125]
+    };
+    var vecesLoc = {};
+    this._puntos = vista.map(function(d){
+      var g = GEO[d.loc], k = vecesLoc[d.loc] = (vecesLoc[d.loc] || 0) + 1, ang = k * 2.1;
+      var off = k > 1 ? 0.018 : 0;
+      return {n:d.n, lat:g[0] + Math.sin(ang)*off, lng:g[1] + Math.cos(ang)*off, color:TONO[nivel(d)].barra,
+        radio: 7 + Math.round(Math.sqrt(d.c)*1.3), pct:pct(d.o,d.c), libres:d.c - d.o, est:EST[nivel(d)].l};
+    });
+    var selD = DATA.filter(function(d){ return d.n === s.sel; })[0];
+    var listaMapa = vista.slice().sort(function(a,b){ return tension(b) - tension(a); }).slice(0,8).map(function(d){
+      var f = ficha(d), act = d.n === s.sel;
+      f.activo = act ? 'true' : 'false'; f.clase = act ? 'is-active' : '';
+      f.elegir = function(){ self.setState({ sel:d.n }); };
+      return f;
+    });
+
+    var SOLAPAS = [{k:'resumen', l:'Resumen', i:'fa-solid fa-chart-pie'}, {k:'mapa', l:'Mapa', i:'fa-solid fa-map-location-dot'}];
+    var solapas = SOLAPAS.map(function(p, idx){
+      var act = s.tab === p.k;
+      return {id:'tab-' + p.k, panel:'panel-' + p.k, l:p.l, icono:p.i, activa: act ? 'true' : 'false', tabindex: act ? '0' : '-1', clase: act ? 'is-active' : '',
+        elegir:function(){ self.setState({ tab:p.k }); },
+        tecla:function(e){
+          var n = SOLAPAS.length, j = null;
+          if (e.key === 'ArrowRight') j = (idx + 1) % n; else if (e.key === 'ArrowLeft') j = (idx + n - 1) % n;
+          else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = n - 1;
+          if (j === null) return;
+          e.preventDefault();
+          self.setState({ tab:SOLAPAS[j].k });
+          setTimeout(function(){ var el = self.buscar('tab-' + SOLAPAS[j].k); if (el) el.focus(); }, 30);
+        }};
+    });
+
+    var bajada = base.length
+      ? occ + ' de ' + cap + ' plazas ocupadas en ' + plural(base.length, 'dispositivo', 'dispositivos') + ' de ' + plural(nLocs, 'localidad', 'localidades') + '. ' + (crit ? crit + (crit === 1 ? ' está' : ' están') + ' sobre el umbral crítico de su tipo.' : 'Ninguno sobre el umbral crítico.')
+      : 'Ningún dispositivo coincide con el filtro.';
+
+    // ---------- Herramientas de trabajo diario ----------
+    var HOY = '2026-11-08';
+    var MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    function ms(f){ var a = f.split('-'); return Date.UTC(+a[0], +a[1] - 1, +a[2]); }
+    function entre(a, b){ return Math.round((ms(b) - ms(a)) / 86400000); }
+    function fechaL(f){ var a = f.split('-'); return (+a[2]) + ' ' + MESES[+a[1] - 1] + ' ' + a[0]; }
+    function dniL(n){ return n.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+    function norm(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+    function dEstadia(n){ return plural(n, 'día', 'días') + ' de estadía'; }
+
+    // Personas de ejemplo (inventadas). e: activa | reserva | egresada. Fechas AAAA-MM-DD.
+    var PERSONAS = [
+      {dni:'90000001', nom:'Rojas, Marcelo Aníbal', edad:41, est:[
+        {d:'Hogar Santa Rita', sec:'Sector Varones', pl:'H1-03', ing:'2026-09-02', e:'activa'},
+        {d:'Parador Nocturno Centro', sec:'Sector A', pl:'P2-14', ing:'2026-03-10', egr:'2026-04-02', mot:'Derivación a otro dispositivo', e:'egresada'}]},
+      {dni:'90000002', nom:'Benítez, Rosa Elena', edad:56, est:[
+        {d:'Residencia Ntra. Sra. de Itatí', sec:'Piso 1', pl:'R4-11', ing:'2026-06-15', e:'activa'}]},
+      {dni:'90000003', nom:'Acosta, Lucas Nahuel', edad:23, est:[
+        {d:'Centro de Día Villa Río Negro', sec:'Turno mañana', pl:'T3-14', ing:'2026-10-20', e:'activa'}]},
+      {dni:'90000004', nom:'Giménez, Carmen', edad:34, est:[
+        {d:'Hogar Juana Azurduy', sec:'Sector Mujeres', pl:'H5-06', res:'2026-11-06', ven:'2026-11-08', hora:'18:00', e:'reserva'}]},
+      {dni:'90000005', nom:'Villalba, Héctor Ramón', edad:62, est:[
+        {d:'Parador Sáenz Peña', sec:'Sector General', pl:'P6-21', ing:'2026-11-02', e:'activa'}]},
+      {dni:'90000006', nom:'Duarte, Silvia Noemí', edad:45, est:[
+        {d:'Hogar Don Bosco', sec:'Sector Mujeres', pl:'H7-09', ing:'2026-07-20', egr:'2026-10-14', mot:'Retorno con su familia', e:'egresada'}]},
+      {dni:'90000007', nom:'Fernández, Matías', edad:19, est:[
+        {d:'Comunidad Terapéutica Renacer', sec:'Módulo A', pl:'C13-04', ing:'2026-08-05', e:'activa'}]},
+      {dni:'90000008', nom:'Ledesma, Ana Paula', edad:28, est:[
+        {d:'Hogar Qom Lashepi', sec:'Sector Mujeres', pl:'H10-02', res:'2026-11-07', ven:'2026-11-10', hora:'12:00', e:'reserva'}]},
+      {dni:'90000009', nom:'Sosa, Ramón Oscar', edad:58, est:[
+        {d:'Residencia San Cayetano', sec:'Planta baja', pl:'R9-18', ing:'2026-05-11', e:'activa'},
+        {d:'Hogar Las Breñas', sec:'Sector Varones', pl:'H14-07', ing:'2025-11-20', egr:'2026-02-18', mot:'Alta médica', e:'egresada'}]},
+      {dni:'90000010', nom:'Cardozo, Julián', edad:37, est:[
+        {d:'Parador Bermejito', sec:'Sector General', pl:'P16-07', res:'2026-11-08', ven:'2026-11-08', hora:'20:00', e:'reserva'},
+        {d:'Parador Sáenz Peña', sec:'Sector General', pl:'P6-03', ing:'2026-08-10', egr:'2026-09-30', mot:'Egreso voluntario', e:'egresada'}]},
+      {dni:'90000011', nom:'Medina, Graciela Beatriz', edad:51, est:[
+        {d:'Centro de Día Gral. San Martín', sec:'Turno tarde', pl:'T12-05', ing:'2026-09-01', e:'activa'}]},
+      {dni:'90000012', nom:'Ortiz, Daniel Ángel', edad:44, est:[
+        {d:'Hogar Las Breñas', sec:'Sector Varones', pl:'H14-03', ing:'2026-10-28', e:'activa'}]},
+      {dni:'90000013', nom:'Ayala, Mirta Susana', edad:49, est:[
+        {d:'Residencia Tres Isletas', sec:'Planta alta', pl:'R15-12', ing:'2026-09-25', e:'activa'},
+        {d:'Hogar San Bernardo', sec:'Sector Mujeres', pl:'H18-05', ing:'2026-02-03', egr:'2026-03-27', mot:'Traslado a residencia', e:'egresada'}]},
+      {dni:'90000014', nom:'Pereyra, Walter Gabriel', edad:39, est:[
+        {d:'Hogar San Bernardo', sec:'Sector Varones', pl:'H18-01', ing:'2026-08-18', egr:'2026-11-01', mot:'Egreso con vivienda propia', e:'egresada'}]}
+    ];
+    var ESTADO_EST = {
+      activa:{clase:'badge-success', icono:'fa-solid fa-circle-check', texto:'Estadía activa'},
+      reserva:{clase:'badge-info', icono:'fa-regular fa-calendar-check', texto:'Con reserva de plaza'},
+      egresada:{clase:'badge-gray', icono:'fa-solid fa-arrow-right-from-bracket', texto:'Estadía egresada'}
+    };
+    function detalleEst(e){
+      if (e.e === 'activa') return dEstadia(entre(e.ing, HOY)) + ' · ingresó el ' + fechaL(e.ing);
+      if (e.e === 'egresada') return 'Egresó el ' + fechaL(e.egr) + ' · ' + e.mot + ' · ' + dEstadia(entre(e.ing, e.egr));
+      return 'Sin estadía iniciada · ' + (e.ven === HOY ? 'la reserva vence hoy a las ' + e.hora : 'la reserva vence el ' + fechaL(e.ven) + ' a las ' + e.hora);
+    }
+
+    // Buscar persona: DNI (desde 4 dígitos) o apellido (desde 3 letras), sin tildes ni mayúsculas.
+    var qRaw = s.qBuscado.trim(), qDig = qRaw.replace(/[.\s-]/g, ''), qEsDni = /^\d+$/.test(qDig), qTxt = norm(qRaw);
+    var qValida = qEsDni ? qDig.length >= 4 : qTxt.length >= 3;
+    var MAX_PERSONAS = 5;
+    var halladas = (s.buscado && qValida) ? PERSONAS.filter(function(p){
+      return qEsDni ? p.dni.indexOf(qDig) >= 0 : norm(p.nom).indexOf(qTxt) >= 0;
+    }).sort(function(a, b){ return a.nom.localeCompare(b.nom, 'es'); }) : [];
+    var ORDEN_EST = {activa:0, reserva:1, egresada:2};
+    var filasBusq = [];
+    halladas.slice(0, MAX_PERSONAS).forEach(function(p, i){
+      var ests = p.est.slice().sort(function(a, b){
+        if (ORDEN_EST[a.e] !== ORDEN_EST[b.e]) return ORDEN_EST[a.e] - ORDEN_EST[b.e];
+        return (b.egr || '').localeCompare(a.egr || '');
+      });
+      ests.forEach(function(e, j){
+        var prin = j === 0, b = ESTADO_EST[e.e];
+        filasBusq.push({
+          titulo: prin ? p.nom : 'Estadía anterior', srTitulo: prin ? '' : ' de ' + p.nom, sub: prin ? 'DNI ' + dniL(p.dni) + ' · ' + p.edad + ' años' : '',
+          tamTitulo: prin ? '15px' : '12px', tamDonde: prin ? '14px' : '12px',
+          sangria: prin ? '0' : '16px', pad: prin ? '12px 0 4px' : '4px 0', borde: (prin && i > 0) ? '1px solid var(--border-light)' : 'none',
+          badgeClase:b.clase, badgeIcono:b.icono, badgeTexto:b.texto,
+          donde: e.d + ' · ' + e.sec + ' · plaza ' + e.pl, detalle: detalleEst(e),
+          legajoDisplay: prin ? 'inline-flex' : 'none',
+          ariaLegajo: 'Ver legajo de ' + p.nom, ariaEstadia: 'Ver estadía ' + (e.e === 'egresada' ? 'anterior ' : '') + 'de ' + p.nom + ' en ' + e.d
+        });
+      });
+    });
+    var hayResBusq = halladas.length > 0;
+    var vacioBusq = s.buscado && qValida && !halladas.length;
+    var verAyudaBusq = !s.buscado || !qValida;
+    var resumenBusq = halladas.length > MAX_PERSONAS
+      ? 'Mostrando ' + MAX_PERSONAS + ' de ' + halladas.length + ' personas. Afiná la búsqueda para ver el resto.'
+      : plural(halladas.length, 'persona encontrada', 'personas encontradas');
+
+    // Encontrar plaza libre: tipo de plaza según el tipo de dispositivo; distancia en línea recta (haversine) sobre GEO.
+    var PLAZA = {'Hogar':'Cama', 'Parador nocturno':'Cama', 'Residencia':'Cama', 'Comunidad terapéutica':'Cupo', 'Centro de día':'Turno'};
+    function rad(g){ return g * Math.PI / 180; }
+    function km(a, b){
+      var dLat = rad(b[0] - a[0]), dLng = rad(b[1] - a[1]);
+      var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    }
+    var origen = GEO[s.plL];
+    var candidatos = DATA.filter(function(d){
+      return d.c > d.o && (!s.plT || PLAZA[d.t] === s.plT) && (!s.plD || d.t === s.plD);
+    }).map(function(d){ return {d:d, km:km(origen, GEO[d.loc])}; })
+      .sort(function(a, b){ return (a.km - b.km) || ((b.d.c - b.d.o) - (a.d.c - a.d.o)); });
+    var MAX_PLAZAS = 5;
+    var filasPlazas = candidatos.slice(0, MAX_PLAZAS).map(function(x, i){
+      var d = x.d, f = ficha(d);
+      return {n:d.n, borde: i ? '1px solid var(--border-light)' : 'none',
+        meta: d.t + ' · ' + d.loc + ' · plazas tipo ' + PLAZA[d.t].toLowerCase(),
+        libresTxt: plural(f.libres, 'libre', 'libres') + ' de ' + d.c,
+        dist: x.km < 1 ? 'en la misma localidad' : 'a unos ' + Math.round(x.km) + ' km',
+        pct:f.pct, est:f.est, estIcono:f.estIcono, estClase:f.estClase,
+        verMapa:function(){
+          var cambios = {tab:'mapa', sel:d.n};
+          if (vista.indexOf(d) < 0) { cambios.tipo = ''; cambios.loc = ''; cambios.criticos = false; cambios.pTipo = ''; cambios.pLoc = ''; cambios.pSit = ''; }
+          self.setState(cambios);
+          self.enfocar('tab-mapa');
+        }};
+    });
+    var opcionesPlT = [{v:'', l:'Cualquiera'}, {v:'Cama', l:'Cama'}, {v:'Cupo', l:'Cupo'}, {v:'Turno', l:'Turno'}].map(function(o){ o.sel = o.v === s.pplT; return o; });
+    var opcionesPlD = [{v:'', l:'Todos'}].concat(Object.keys(TIPOS).map(function(t){ return {v:t, l:t}; })).map(function(o){ o.sel = o.v === s.pplD; return o; });
+    var opcionesPlL = todasLocs.map(function(l){ return {v:l, l:l, sel: l === s.pplL}; });
+    var resumenPlazas = candidatos.length > MAX_PLAZAS
+      ? 'Mostrando ' + MAX_PLAZAS + ' de ' + candidatos.length + ' dispositivos con plazas libres, cerca de ' + s.plL
+      : plural(candidatos.length, 'dispositivo con plazas libres', 'dispositivos con plazas libres') + ', cerca de ' + s.plL;
+
+    // Estadías largas (activas de más de 60 días) y reservas que vencen hoy; respetan los filtros del tablero.
+    var nombresBase = {}; base.forEach(function(d){ nombresBase[d.n] = 1; });
+    var largas = [];
+    PERSONAS.forEach(function(p){
+      p.est.forEach(function(e){
+        if (!nombresBase[e.d]) return;
+        var donde = e.sec + ' · plaza ' + e.pl, comun = {nombre:p.nom, dni:dniL(p.dni), disp:e.d, donde:donde};
+        if (e.e === 'activa' && entre(e.ing, HOY) > 60) {
+          var n = entre(e.ing, HOY);
+          largas.push({o:0, k:-n, f:Object.assign({}, comun, {badgeClase:'badge-warning', badgeIcono:'fa-regular fa-clock', badgeTexto:'Estadía larga', plazo: plural(n, 'día', 'días'),
+            accionIcono:'fa-solid fa-clipboard-check', aria:'Revisar la estadía de ' + p.nom + ' en ' + e.d})});
+        }
+        if (e.e === 'reserva' && e.ven === HOY) {
+          largas.push({o:-1, k:+e.hora.replace(':', ''), f:Object.assign({}, comun, {badgeClase:'badge-danger', badgeIcono:'fa-solid fa-hourglass-end', badgeTexto:'Reserva vence hoy', plazo:'hoy · ' + e.hora + ' h',
+            accionIcono:'fa-regular fa-calendar-check', aria:'Confirmar o liberar la reserva de ' + p.nom + ' en ' + e.d})});
+        }
+      });
+    });
+    largas.sort(function(a, b){ return (a.o - b.o) || (a.k - b.k); });
+    var filasLargas = largas.map(function(x){ return x.f; });
+    var nReservas = largas.filter(function(x){ return x.o < 0; }).length;
+    var resumenLargas = filasLargas.length
+      ? plural(filasLargas.length, 'caso', 'casos') + ' · ' + plural(nReservas, 'reserva vence', 'reservas vencen') + ' hoy · estadías de más de 60 días'
+      : 'Con los filtros actuales';
+
+    return {
+      bajada: bajada,
+      qCampo: s.qCampo, escribirQ: function(e){ self.setState({qCampo: e.target.value}); },
+      buscarPersona: function(e){ if (e && e.preventDefault) e.preventDefault(); var el = self.buscar('q-persona'), v = el ? el.value : self.state.qCampo; self.setState({qCampo:v, qBuscado:v, buscado:true}); },
+      limpiarBusq: function(){ self.setState({qCampo:'', qBuscado:'', buscado:false}); self.enfocar('q-persona'); },
+      verAyudaBusq: verAyudaBusq, hayResBusq: hayResBusq, vacioBusq: vacioBusq, resumenBusq: resumenBusq, filasBusq: filasBusq,
+      ayudaBusq: s.buscado && !qValida ? 'Escribí al menos 4 dígitos del DNI o 3 letras del apellido.' : 'Escribí un DNI (sin puntos) o parte del apellido y tocá Buscar. También sirve Enter.',
+      vacioTitulo: 'Ninguna persona coincide con «' + qRaw + '»',
+      opcionesPlT: opcionesPlT, opcionesPlD: opcionesPlD, opcionesPlL: opcionesPlL,
+      cambiarPlT: function(e){ self.setState({pplT: e.target.value}); },
+      cambiarPlD: function(e){ self.setState({pplD: e.target.value}); },
+      cambiarPlL: function(e){ self.setState({pplL: e.target.value}); },
+      buscarPlaza: function(e){ if (e && e.preventDefault) e.preventDefault(); var t = self.state; self.setState({plT:t.pplT, plD:t.pplD, plL:t.pplL}); },
+      limpiarPlaza: function(){ self.setState({plT:'', plD:'', plL:'Resistencia', pplT:'', pplD:'', pplL:'Resistencia'}); },
+      hayPlazas: candidatos.length > 0, vacioPlazas: !candidatos.length, filasPlazas: filasPlazas, resumenPlazas: resumenPlazas,
+      pieDistancia: 'Distancia aproximada, en línea recta desde ' + s.plL + '.',
+      hayLargas: filasLargas.length > 0, sinLargas: !filasLargas.length, filasLargas: filasLargas, resumenLargas: resumenLargas,
+
+      opcionesTipo: opcionesTipo, opcionesLoc: opcionesLoc, opcionesSit: opcionesSit,
+      cambiarTipo: function(e){ self.setState({pTipo: e.target.value}); },
+      cambiarLoc: function(e){ self.setState({pLoc: e.target.value}); },
+      cambiarSit: function(e){ self.setState({pSit: e.target.value}); },
+      filtrar: function(e){ if (e && e.preventDefault) e.preventDefault(); var t = self.state; self.setState({tipo:t.pTipo, loc:t.pLoc, criticos:t.pSit === 'atencion'}); },
+      limpiar: function(){ self.setState({tipo:'', loc:'', criticos:false, pTipo:'', pLoc:'', pSit:''}); },
+      verAtencion: function(){ var t = self.state; self.setState({criticos:true, pSit:'atencion', pTipo:t.tipo, pLoc:t.loc}); },
+      kpis: kpis,
+      alertas: alertas, sinAlertas: !alertasTodas.length, hayAlertas: alertasTodas.length > 0, cantAtencion: cantAtencion, pieAlertas: pieAlertas,
+      porTipo: porTipo,
+      columnas: columnas, filas: filas, tablaVacia: !filas.length, resumenTabla: resumenTabla,
+      rels: rels, porLoc: porLoc, mov: mov, totIng: totIng, totEgr: totEgr,
+      ariaMov: 'Ingresos y egresos de los últimos 14 días: ' + totIng + ' ingresos y ' + totEgr + ' egresos en total. El detalle de cada día está en la descripción de cada par de barras.',
+      solapas: solapas, verResumen: s.tab === 'resumen', verMapa: s.tab === 'mapa',
+      mapaCerrado: !s.mapa, mapaAbierto: s.mapa && !s.mapaError, mapaError: s.mapa && s.mapaError,
+      abrirMapa: function(){ self.setState({ mapa:true, mapaError:false }); },
+      puntosTexto: plural(vista.length, 'dispositivo para ubicar', 'dispositivos para ubicar'),
+      resumenMapa: plural(vista.length, 'dispositivo', 'dispositivos') + ' · ' + plural(cap - occ, 'plaza libre', 'plazas libres') + ' con el filtro actual',
+      haySel: !!selD, sinSel: !selD, sel: selD ? ficha(selD) : {},
+      listaMapa: listaMapa
+    };
+  }
+}
+</script>
+</body>
+</html>
