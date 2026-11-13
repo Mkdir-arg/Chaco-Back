@@ -26,7 +26,10 @@ operador hizo algo, la fila se saltea sin error. Por eso las reglas se registran
 cada caso hasta la última fila, con la mesa esperando detrás.
 
 Una fila que falla queda en el log (``logger.exception``) y no frena a las demás. Lo que
-devuelve ``aplicar`` son las filas que **cambiaron de verdad**, no las que se leyeron.
+devuelve ``aplicar`` son las filas que **cambiaron de verdad**, no las que se leyeron. Si al
+terminar el recorrido alguna falló, ``aplicar`` levanta ``VencimientoConFallas``: el comando
+la anota como regla fallida, sigue con las demás y termina en error (OPS-07). Las filas que sí
+se procesaron ya quedaron commiteadas, cada una en su transacción.
 
 El orden entre las dos reglas no importa: la primera deja una traza en el caso, y esa
 traza es actividad. Un caso que acaba de volver de una derivación vencida tiene un plazo
@@ -48,19 +51,33 @@ from programas.services.configuracion_emergencia import ProgramaEmergenciaInexis
 logger = logging.getLogger(__name__)
 
 
+class VencimientoConFallas(RuntimeError):
+    """Alguna fila falló. Se levanta **después** de recorrerlas todas, para poner el cron en rojo."""
+
+    def __init__(self, que: str, fallidas: list, procesadas: int):
+        self.fallidas = fallidas
+        self.procesadas = procesadas
+        super().__init__(
+            f"{que}: {len(fallidas)} fila(s) fallaron (ids={fallidas}) y {procesadas} sí se procesaron. "
+            "El traceback de cada una está en el log."
+        )
+
+
 def _aplicar_una_por_una(qs: QuerySet, transicion, que: str) -> int:
     """Corre ``transicion`` sobre cada fila de ``qs`` y cuenta las que cambiaron.
 
     Por pk, para que dos corridas simultáneas pidan los casos en el mismo orden. La
-    transición abre su propia transacción: lo que falla deshace esa fila y nada más.
+    transición abre su propia transacción: lo que falla deshace esa fila y nada más. Si
+    alguna falló, al final levanta ``VencimientoConFallas`` (las procesadas ya quedaron).
     """
 
-    procesadas, salteadas = [], []
+    procesadas, salteadas, fallidas = [], [], []
     for fila in qs.order_by("pk"):
         try:
             resultado = transicion(fila)
         except Exception:
             logger.exception("Vencimiento de Emergencia: falló %s (id=%s). Se sigue con las demás.", que, fila.pk)
+            fallidas.append(fila.pk)
             continue
         (procesadas if resultado is not None else salteadas).append(fila.pk)
     if procesadas:
@@ -72,6 +89,8 @@ def _aplicar_una_por_una(qs: QuerySet, transicion, que: str) -> int:
             que,
             salteadas,
         )
+    if fallidas:
+        raise VencimientoConFallas(que, fallidas, len(procesadas))
     return len(procesadas)
 
 
