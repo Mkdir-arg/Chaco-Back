@@ -66,8 +66,11 @@ class Command(BaseCommand):
             # la va a registrar Legajos— y el comando corre en el **arranque del
             # contenedor** además del cron de las 03:10. Sin aislar, la primera que
             # explota deja a las demás sin correr y, en el arranque, tira abajo el pod:
-            # el entrypoint corre con `set -eu`. Cada regla ya tiene su propia `atomic`,
-            # así que lo que falla no deja nada a medias.
+            # el entrypoint corre con `set -eu`. Una regla con `transaccion_unica=True`
+            # corre entera en una `atomic`: si falla, no deja nada a medias. Una con
+            # `transaccion_unica=False` abre una por fila: las filas buenas quedan
+            # commiteadas y la regla levanta al final si alguna falló, así que también
+            # llega acá y pone el cron en rojo.
             try:
                 total += self._correr_regla(regla, dry)
             except Exception as excepcion:
