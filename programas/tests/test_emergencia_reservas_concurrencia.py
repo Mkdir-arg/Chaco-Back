@@ -27,10 +27,9 @@ from programas.models import (
     Plaza,
     ReservaPlaza,
 )
-from programas.services.estadias import (
+from programas.services.estadias import ingresar_persona, liberar_reserva
+from programas.services.reservas_derivacion import (
     consumir_reserva_de_derivacion,
-    ingresar_persona,
-    liberar_reserva,
     reservar_plazas_de_derivacion,
 )
 from programas.tests.test_dispositivos_concurrencia import (

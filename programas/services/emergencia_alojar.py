@@ -34,10 +34,11 @@ El global del módulo (plan §8, R1)::
 
     caso → derivación → plazas (por pk) → reservas → persona
 
-* El caso y la derivación los bloquea **este módulo**; ``estadias.py`` no los bloquea ni los
-  relee (contrato del PR 6). Sin JOIN, como en ``services.emergencia``.
+* El caso y la derivación los bloquea **este módulo**; ``estadias.py`` y
+  ``reservas_derivacion.py`` no los bloquean ni los releen (contrato del PR 6). Sin JOIN, como
+  en ``services.emergencia``.
 * Las plazas, las reservas y la persona que ingresa los bloquean las funciones de
-  ``estadias.py``. Cuando una confirmación toca **dos** plazas —la cama libre que eligió la
+  ``estadias.py`` y ``reservas_derivacion.py``. Cuando una confirmación toca **dos** plazas —la cama libre que eligió la
   guardia y la de la reserva sobrante que devuelve—, acá se piden las dos de una vez
   ordenadas por pk, se libera la reserva y recién entonces se ingresa: plaza → reserva →
   persona, nunca al revés.
@@ -128,15 +129,17 @@ from programas.services.emergencia import (
 )
 from programas.services.estadias import (
     AlojamientoEnLaRed,
-    consumir_reserva_de_derivacion,
     ingresar_persona,
     liberar_reserva,
-    liberar_reservas_de_derivacion,
-    reservar_plazas_de_derivacion,
     verificar_alojamiento_en_red,
 )
 from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
 from programas.services.nombre_plaza import plaza_con_sector
+from programas.services.reservas_derivacion import (
+    consumir_reserva_de_derivacion,
+    liberar_reservas_de_derivacion,
+    reservar_plazas_de_derivacion,
+)
 
 Estado = CasoEmergencia.Estado
 Origen = CasoEmergencia.Origen
@@ -912,7 +915,7 @@ def aceptar_derivacion(*, derivacion, usuario):
       del caso —esta función o ``vencer_derivacion``— gana, y el otro ve el estado nuevo.
     * Elige sola las camas (``selectors.emergencia_alojar.camas_libres``: el sector con más
       libres primero, por código) y reserva **hasta** ``plazas_pedidas`` con
-      ``estadias.reservar_plazas_de_derivacion``, todo o nada. Menos camas que las pedidas es
+      ``reservas_derivacion.reservar_plazas_de_derivacion``, todo o nada. Menos camas que las pedidas es
       válido y se avisa («Reservé 5 de 7 · faltan 2 camas»); con **0 libres** no se acepta
       (``ValidationError``): se rechaza con motivo o se liberan camas.
     * El caso pasa a ``INGRESO_EN_CURSO`` con ``aceptado_en``; se crean las N filas de
@@ -1212,7 +1215,7 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
     4. Resuelve el ``Ciudadano`` por DNI, o le da el alta mínima.
     5. La cama (``plaza``: instancia o id, del dispositivo de la derivación):
 
-       * **reservada para esta familia** → ``estadias.consumir_reserva_de_derivacion``: la
+       * **reservada para esta familia** → ``reservas_derivacion.consumir_reserva_de_derivacion``: la
          reserva pasa a nombre de quien entra y queda ``CONSUMIDA``;
        * **libre, sin reserva** (la familia creció o la guardia cambió la cama) →
          ``estadias.ingresar_persona`` directo. Regla de la reserva sobrante: **la
@@ -1267,8 +1270,10 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
     ficha = ficha_minima_valida(_con_lo_del_legajo(ficha, existente))
     cama = _cama_del_dispositivo(plaza, dispositivo, derivacion)
 
-    # La reserva que toma esa cama, leída sin candado: decide el camino. `estadias` la
-    # vuelve a leer bloqueada, y si cambió en el medio falla con su propio error.
+    # La reserva que toma esa cama, leída sin candado: decide el camino. `reservas_derivacion` la
+    # vuelve a leer bloqueada, y si cambió en el medio falla con su propio error. Que sea de
+    # **esta** derivación se mira acá: `consumir_reserva_de_derivacion` no recibe la derivación y
+    # acepta la de cualquiera (`derivacion_id` no cambia nunca, así que leerlo sin candado alcanza).
     reserva = ReservaPlaza.objects.que_toman().filter(plaza_id=cama.pk).order_by("id").first()
     if reserva is not None and reserva.derivacion_id != derivacion.pk:
         raise ValidationError(

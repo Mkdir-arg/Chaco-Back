@@ -564,19 +564,15 @@ def anotar_en_bitacora(movimiento):
     if situado is None:
         return None
 
-    entrada = EntradaBitacora(
+    entrada = _escribir_automatica(
+        situado,
         dispositivo_id=movimiento.dispositivo_id,
-        turno=situado.turno,
-        fecha_operativa=situado.fecha_operativa,
         momento=movimiento.momento,
         responsable_id=movimiento.responsable_id,
         tipo=tipo,
-        origen=EntradaBitacora.Origen.AUTOMATICA,
         movimiento=movimiento,
         texto=_texto_automatico(movimiento),
     )
-    entrada.clean()
-    entrada.save()
     # La persona involucrada es la estadía, como en cualquier novedad: su id alcanza, y
     # deja la novedad colgando de la estadía para la solapa Novedades de P7.
     _vincular(entrada, [movimiento.estadia_id], [])
@@ -635,15 +631,19 @@ def anotar_novedad_automatica(*, dispositivo, tipo, texto, momento=None, usuario
     if situado is None:
         return None
 
+    return _escribir_automatica(
+        situado, dispositivo=dispositivo, momento=momento, responsable=usuario, tipo=tipo, texto=texto
+    )
+
+
+def _escribir_automatica(situado, **campos):
+    """Guarda una novedad `AUTOMATICA` en el turno y la fecha operativa de `situado` (`turno_vigente`)."""
+
     entrada = EntradaBitacora(
-        dispositivo=dispositivo,
         turno=situado.turno,
         fecha_operativa=situado.fecha_operativa,
-        momento=momento,
-        responsable=usuario,
-        tipo=tipo,
         origen=EntradaBitacora.Origen.AUTOMATICA,
-        texto=texto,
+        **campos,
     )
     entrada.clean()
     entrada.save()
