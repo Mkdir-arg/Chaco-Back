@@ -6062,7 +6062,7 @@ class EntregaKit(TimeStamped):
     )
     # El identificador que generó el teléfono para **esta recepción**: reenviarlo devuelve la
     # misma entrega sin reescribir (RN-4.4, RU-16). Único sobre columna anulable y `char(36)`
-    # en MySQL/MariaDB (programas.0120); se busca con `core.db.q_uuid_en_texto`.
+    # en MySQL/MariaDB (programas.0121); se busca con `core.db.q_uuid_en_texto`.
     uuid_cliente_recepcion = models.UUIDField(
         null=True,
         blank=True,

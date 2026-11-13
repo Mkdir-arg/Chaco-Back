@@ -6,7 +6,7 @@
 # * `EntregaKit.uuid_cliente_recepcion` nace anulable y único, y se amplía a `char(36)` en
 #   MySQL/MariaDB: con MariaDB 10.7+ Django 5 manda el UUID **con guiones** y una columna
 #   `char(32)` —la que queda tras un restore desde MySQL— da «Data too long» (patrón de
-#   programas.0118, Cambio 99). Se busca con `core.db.q_uuid_en_texto`.
+#   programas.0119, Cambio 99). Se busca con `core.db.q_uuid_en_texto`.
 # * Ninguna exclusión condicional: los únicos son comunes (`numero`, `(entrega, item)`).
 # * Las columnas con valor de fábrica llevan `db_default`: el DEFAULT queda en el esquema.
 
@@ -44,7 +44,7 @@ def restaurar_uuid_mysql(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0119_reserva_plaza_derivacion"),
+        ("programas", "0120_reserva_plaza_derivacion"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

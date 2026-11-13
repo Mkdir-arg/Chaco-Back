@@ -76,7 +76,7 @@ COLUMNAS_UUID_AMPLIADAS = (
         "uuid_cliente_recepcion",
         "programas_entregakit",
         "uuid_cliente_recepcion",
-        "programas.0120",
+        "programas.0121",
     ),
     ("users.SolicitudCambioEmail", "token", "users_solicitudcambioemail", "token", "users.0023"),
     ("legajos.LegajoAtencion", "id", "legajos_legajoatencion", "id", "legajos.0007"),
