@@ -584,19 +584,19 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 459 | Dispositivos: la edición también toma el contacto del primer responsable del Equipo y no pide los campos a mano | Dispositivos · legajo institucional | `#ui` `#datos` | PM — dispositivo 14 de testing no se podía enviar a validación, 13/11/2026 | 13/11/2026 | 🟢 **Hecho** | — |
 | 460 | Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo» | Dispositivos · alta y edición de institución (P3) | `#ui` | PM | 13/11/2026 | 🟢 **Hecho** | — |
 | 461 | Sectores y plazas: la plaza disponible ofrece «Ingresar persona», que abre el asistente de ingreso con esa plaza marcada | Dispositivos · P5 Sectores y plazas · asistente de ingreso (P6) | `#ui` `#rbac` | PM — prueba en testing | 13/11/2026 | 🟢 **Hecho** | — |
-| 462 | Emergencia, PR 0: piezas de UI del lote (semáforo de SLA, tarjeta para derivar, contador «N de N» y celda de diferencia) | Emergencia · sistema de diseño | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 463 | Emergencia, PR 1: programa EMERGENCIA, capacidades (`emergencia.*` y `emergencia.recibir_kit` en Dispositivos) y configuración de la mesa (E7); mapa del módulo | Emergencia · Transversal (RBAC) | `#emergencia` `#rbac` `#datos` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0117`, `programas.0118`, `users.0047` |
-| 464 | Emergencia, PR 2: modelo del caso, la derivación y el numerador, y servicios de la mesa | Emergencia · mesa | `#emergencia` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0119` |
-| 465 | Emergencia, PR 3: la mesa en el backoffice — bandeja E2, ficha E3 y «Nuevo caso» | Emergencia · mesa | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 466 | Emergencia, PR 4: vencimientos de la mesa (derivación vencida y caso sin avance) y `transaccion_unica` en el registro de vencimientos | Emergencia · mesa · Transversal (vencimientos) | `#emergencia` `#infra` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 467 | Emergencia, PR 5: API de campo — login con el módulo `emergencia`, perfil, consulta de personas y M1 (enviar una familia) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 468 | Emergencia, PR 6: Dispositivos — reservas de derivación (excluidas de la liberación del Cambio 409 D2), bitácora automática sin movimiento y señal de egreso | Dispositivos · Emergencia | `#emergencia` `#datos` | PM — decisión D-9 del plan del módulo Emergencia | 12/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0120` |
-| 469 | Emergencia, PR 7: alojar — servicios de la etapa 3 y E6 «Llegadas» en el backoffice del dispositivo | Emergencia · Dispositivos (guardia) | `#emergencia` `#ui` `#datos` `#rbac` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 470 | Emergencia, PR 8: API M2 — llegada de familias desde la app del dispositivo | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 471 | Emergencia, PR 9 y 9-API: entregas de kits — E4, E5, recepción en el dispositivo y API M3 | Emergencia · kits · Dispositivos (recepción) | `#emergencia` `#ui` `#api` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | `programas.0121` |
-| 472 | Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa | Emergencia · tablero | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
-| 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟡 **En curso — rama pusheada, sin mergear** | No requiere |
+| 462 | Emergencia, PR 0: piezas de UI del lote (semáforo de SLA, tarjeta para derivar, contador «N de N» y celda de diferencia) | Emergencia · sistema de diseño | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 463 | Emergencia, PR 1: programa EMERGENCIA, capacidades (`emergencia.*` y `emergencia.recibir_kit` en Dispositivos) y configuración de la mesa (E7); mapa del módulo | Emergencia · Transversal (RBAC) | `#emergencia` `#rbac` `#datos` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | `programas.0117`, `programas.0118`, `users.0047` |
+| 464 | Emergencia, PR 2: modelo del caso, la derivación y el numerador, y servicios de la mesa | Emergencia · mesa | `#emergencia` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | `programas.0119` |
+| 465 | Emergencia, PR 3: la mesa en el backoffice — bandeja E2, ficha E3 y «Nuevo caso» | Emergencia · mesa | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 466 | Emergencia, PR 4: vencimientos de la mesa (derivación vencida y caso sin avance) y `transaccion_unica` en el registro de vencimientos | Emergencia · mesa · Transversal (vencimientos) | `#emergencia` `#infra` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 467 | Emergencia, PR 5: API de campo — login con el módulo `emergencia`, perfil, consulta de personas y M1 (enviar una familia) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 468 | Emergencia, PR 6: Dispositivos — reservas de derivación (excluidas de la liberación del Cambio 409 D2), bitácora automática sin movimiento y señal de egreso | Dispositivos · Emergencia | `#emergencia` `#datos` | PM — decisión D-9 del plan del módulo Emergencia | 12/11/2026 | 🟢 **Hecho** | `programas.0120` |
+| 469 | Emergencia, PR 7: alojar — servicios de la etapa 3 y E6 «Llegadas» en el backoffice del dispositivo | Emergencia · Dispositivos (guardia) | `#emergencia` `#ui` `#datos` `#rbac` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 470 | Emergencia, PR 8: API M2 — llegada de familias desde la app del dispositivo | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 471 | Emergencia, PR 9 y 9-API: entregas de kits — E4, E5, recepción en el dispositivo y API M3 | Emergencia · kits · Dispositivos (recepción) | `#emergencia` `#ui` `#api` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | `programas.0121` |
+| 472 | Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa | Emergencia · tablero | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
+| 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟡 **En curso — PR #1137 abierto, sin mergear** | No requiere |
 
 **Notas del índice**
 
@@ -54672,7 +54672,7 @@ Solo el deploy; sin migración.
 
 # Cambio 462 — Emergencia, PR 0: piezas de UI del lote (semáforo de SLA, tarjeta para derivar, contador «N de N» y celda de diferencia)
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr0-piezas` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1125 (rama `feat/emergencia-pr0-piezas-v2`)
 
 | | |
 |---|---|
@@ -54738,7 +54738,7 @@ Nada especial.
 ## Pendientes / a definir
 
 1. Revisión visual en navegador de las cuatro piezas dentro de sus pantallas (no se hizo para ninguna pantalla del módulo).
-2. `/auditoria pr <N>` antes del merge.
+2. ~~`/auditoria pr <N>` antes del merge.~~ Hecho: aprobado y mergeado en el PR #1125.
 
 ## Reversión
 
@@ -54747,12 +54747,13 @@ Revertir el PR. Ninguna pantalla existente las usa; si ya están mergeados los P
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12 del módulo; el PR 0 se cerró en la ola 1 del mismo día, commit `c8932a9d`).
+- **13/11/2026 — mergeado** (PR #1125, merge `a03504da` en `development`).
 
 ---
 
 # Cambio 463 — Emergencia, PR 1: programa EMERGENCIA, capacidades y configuración de la mesa (E7)
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr1-base` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1126 (rama `feat/emergencia-pr1-base-v2`)
 
 | | |
 |---|---|
@@ -54897,12 +54898,13 @@ borrado del programa: hay que borrarlos antes si se quiere el programa fuera.
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12 del módulo; el PR 1 se cerró en la ola 1, commits `b2334f6b` y `8e14fe50`).
+- **13/11/2026 — mergeado** (PR #1126, merge `b75aca8c` en `development`).
 
 ---
 
 # Cambio 464 — Emergencia, PR 2: modelo del caso, la derivación y el numerador, y servicios de la mesa
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr2-casos` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1127 (rama `feat/emergencia-pr2-casos-v2`)
 
 | | |
 |---|---|
@@ -55002,12 +55004,13 @@ huérfanas (borrarlas a mano si hace falta). Con datos cargados, respaldar antes
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 2 se cerró en la ola 2, commits `627cea54` y `ffd070b9`).
+- **13/11/2026 — mergeado** (PR #1127, merge `5bc7e8a4` en `development`).
 
 ---
 
 # Cambio 465 — Emergencia, PR 3: la mesa en el backoffice — bandeja E2, ficha E3 y «Nuevo caso»
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr3-mesa` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1128 (rama `feat/emergencia-pr3-mesa-v2`)
 
 | | |
 |---|---|
@@ -55044,8 +55047,7 @@ reasignar, prioridad, contacto, derivar, cancelar derivación, cerrar). Sidebar:
    plazas libres y reservadas y distancia.
 5. **Confirmaciones con el arquetipo Modal y `ModernModal`**, no SweetAlert2 (legacy condicionado, C4 del plan); el motivo es
    obligatorio en cerrar y cancelar (RU-22).
-6. **Presupuestos fijados por test:** E2 en 16 consultas con 500 casos abiertos (17 hasta la auditoría del PR #1128) y E3
-   en 18.
+6. **Presupuestos fijados por test:** E2 en 16 consultas con 500 casos abiertos y E3 en 18.
 7. `_semaforo_sla.html` suma el parámetro opcional `texto_tiempo`.
 
 ## Implementación
@@ -55079,7 +55081,8 @@ Nada especial.
 
 1. Revisión visual en navegador de E2, E3 y «Nuevo caso».
 2. ~~**El semáforo se consulta dos veces en la bandeja**~~ — resuelto en la auditoría del PR #1128 (ver Historial).
-3. Squash del commit «wip» `2587db2a` con `deae7666` antes de abrir el PR.
+3. ~~Squash del commit «wip» `2587db2a` con `deae7666` antes de abrir el PR.~~ Vencido: el lote se rehízo en las ramas
+   `-v2` y el PR #1128 se mergeó sin squash (el «wip» quedó en la historia como `c5a64903`).
 4. Mirar en el review los snapshots de Becas regenerados.
 
 ## Reversión
@@ -55095,12 +55098,13 @@ Revertir el PR; sin migraciones. Si están mergeados los PRs 7, 10 y 11, reverti
   `caso.abierto`, `ESTADOS_PARA_TOMAR/SOLTAR/DERIVAR/CERRAR/CANCELAR_DERIVACION`); `AccionesPosiblesTests` cruza estado ×
   dueño/supervisor/otro operador contra lo que contesta cada servicio. E2 calcula `ids_por_estado_sla` una vez y lo pasa a
   `bandeja(..., semaforos=)` y a `conteos_de_solapas(..., semaforos=)`: 17 → 16 consultas. Sin cambios de comportamiento ni de HTML.
+- **13/11/2026 — mergeado** (PR #1128, merge `d0197bca` en `development`).
 
 ---
 
 # Cambio 466 — Emergencia, PR 4: vencimientos de la mesa (derivación vencida y caso sin avance)
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr4-vencimientos` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1129 (rama `feat/emergencia-pr4-vencimientos-v2`)
 
 | | |
 |---|---|
@@ -55178,7 +55182,8 @@ envoltorio `chaco-cron.sh` (y el CronJob equivalente en ECOM). No está hecho en
    `--solo emergencia.caso_sin_avance`. Archivos: `docker/cron/procesar_vencimientos.cron` y `docker/k8s/cronjobs.yaml` (no se
    tocaron en este lote).
 2. Carrera aceptar contra vencer con motor real (CI).
-3. Squash del «wip» `a8f5590d` con `1dc4bd61` antes de abrir el PR.
+3. ~~Squash del «wip» `a8f5590d` con `1dc4bd61` antes de abrir el PR.~~ Vencido: el PR #1129 se mergeó sin squash (el
+   «wip» quedó en la historia como `3ea0cd85`).
 
 ## Reversión
 
@@ -55190,12 +55195,13 @@ Revertir el PR; sin migraciones. Las derivaciones ya vencidas y los casos devuel
 - **13/11/2026 — auditoría del PR #1129:** una fila que fallaba no ponía el cron en rojo. Ahora la regla levanta
   `VencimientoConFallas` al final del recorrido y el comando termina en `CommandError` (OPS-07); tests por regla con
   `call_command`. Propagado por merge a PR 5…12.
+- **13/11/2026 — mergeado** (PR #1129, merge `86d5c6af` en `development`).
 
 ---
 
 # Cambio 467 — Emergencia, PR 5: API de campo — login con el módulo `emergencia`, perfil, consulta de personas y M1 (enviar una familia)
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr5-api` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1130 (rama `feat/emergencia-pr5-api-v2`)
 
 | | |
 |---|---|
@@ -55265,6 +55271,20 @@ Nada especial.
    Dispositivos de la app están en `test`, no en `main`; supuesto S-11).
 2. Para el PR 5-P: la consulta de personas pide `sexo` además del DNI y responde con el formato de Becas
    (`{success, origen, data, datos_api}`), no con el de 01 §8. Avisar a quien haga la PWA.
+3. **`traslado_otro` de más de 120 caracteres sale en un segundo 400** (`services/emergencia_alta.py`,
+   `_validar_formulario1`): el largo lo mira el `full_clean` del final, no llega junto con los demás errores, y la docstring
+   del serializer promete lo contrario. Solución: controlarlo en `_validar_formulario1` con el `max_length` del modelo y el
+   mensaje de Django. (MINOR de #1130.)
+4. **`_respuesta_400`, privado, se importa de otro módulo** (`api/views_emergencia.py`, desde `views_inspecciones`).
+   Solución: hacerlo público en un módulo común de la API. (MINOR de #1130.)
+5. **`CAP_ADMITIR = "dispositivo.admitir"` está definida seis veces** (`services/{estadias, emergencia_programa,
+   emergencia_ingreso_comun, emergencia_alta}.py`, `selectors/emergencia_alojar.py`, `views/emergencia_dispositivo.py`).
+   Solución: una sola constante, importada. (MINOR de #1130.)
+6. **Doble `EXISTS` en `perfil/`**: el permiso (`modulo_habilitado` → `_es_de_la_guardia`) y `roles_en_app` →
+   `opera_en_algun_dispositivo` (`services/emergencia_programa.py`) preguntan lo mismo. Solución: calcular el alcance una
+   vez por request. (MINOR de #1130.)
+7. **`validar_foto_de_la_app` repite `validar_adjunto`** (`api/serializers_emergencia.py` contra `core/validators.py`).
+   Solución: llamar a `validar_adjunto` con JPEG y 5 MB. (MINOR de #1130.)
 
 ## Reversión
 
@@ -55279,12 +55299,13 @@ volver a loguearse.
   `min_value=0` en las cantidades (el signo lo valida `crear_caso`, «No puede ser negativo.», junto con los demás errores);
   el contrato dice «Hasta 120 caracteres» y §6 aclara qué se mira en un reenvío idempotente. [MINOR] El alta levanta
   `UuidEnUso` (subclase de `ValidationError`, misma clave y mensaje) y la vista lo atrapa por tipo para el 409.
+- **13/11/2026 — mergeado** (PR #1130, merge `870998e1` en `development`).
 
 ---
 
 # Cambio 468 — Emergencia, PR 6: Dispositivos — reservas de derivación (excluidas de la liberación del Cambio 409 D2), bitácora automática sin movimiento y señal de egreso
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr6-reservas` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1131 (rama `feat/emergencia-pr6-reservas-v2`)
 
 | | |
 |---|---|
@@ -55374,8 +55395,16 @@ Nada especial.
 
 ## Pendientes / a definir
 
-1. Carreras con motor real y migración ida y vuelta (CI). El PR va en **modo juez** (`/auditoria pr <N>`), como pide el plan.
+1. Carreras con motor real y migración ida y vuelta (CI). ~~El PR va en **modo juez** (`/auditoria pr <N>`), como pide el
+   plan.~~ Hecho: aprobado y mergeado en el PR #1131.
 2. Medir contra MariaDB que la falta del índice compuesto no pesa en el listado de reservas de una derivación.
+3. **El protocolo de candados de D2 está copiado** de `ingreso.confirmar_ingreso` en
+   `reservas_derivacion.consumir_reserva_de_derivacion`, y el bloqueo de plazas aparece una tercera vez en
+   `liberar_reservas_de_derivacion`. Solución: extraer `_bloquear_plazas(ids)` y `_cerrar_reservas_comunes(...)`; hoy el
+   orden lo fija un test. (MINOR de #1131.)
+4. **Tres mensajes literales copiados de `estadias.py`** en `services/reservas_derivacion.py`: «La reserva ya no está
+   vigente.», «No tenés alcance para alojar personas…» y «…liberar plazas…». Solución: constantes compartidas, como
+   `SIN_ALCANCE_PARA_RESERVAR`. (MINOR de #1131.)
 
 ## Reversión
 
@@ -55396,12 +55425,13 @@ liberar** en su próximo ingreso. Revertir con familias en ingreso deja sus cama
   re-chequeo `RESERVA_NUEVA_DURANTE_EL_INGRESO`); `_exigir_desde_no_futuro`/`_crear_reserva` y
   `bitacora._escribir_automatica` sacan las altas duplicadas; el recorte del motivo lee el `max_length` del modelo. El
   PR 7 ya comprobaba `reserva.derivacion_id == derivacion.pk` antes de consumir.
+- **13/11/2026 — mergeado** (PR #1131, merge `413eb813` en `development`).
 
 ---
 
 # Cambio 469 — Emergencia, PR 7: alojar — servicios de la etapa 3 y E6 «Llegadas» en el backoffice del dispositivo
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr7-alojar` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1132 (rama `feat/emergencia-pr7-alojar-v2`)
 
 | | |
 |---|---|
@@ -55494,12 +55524,27 @@ dispositivo (manual §2).
 
 ## Pendientes / a definir
 
-1. **El subagente del PR 7 se cortó por límite de uso sin reporte final**: el código está commiteado y verificado, pero conviene
-   revisar el diff completo antes de abrir el PR. Las decisiones de arriba salen del código y sus docstrings.
-2. **Validación antes que alcance** en `cerrar_con_diferencia` y `rechazar_derivacion`: con un id ajeno y un motivo inválido dan
-   400 en vez de 404. No filtra datos; se puede reordenar en un PR chico.
-3. Squash del «wip» `c9ada33d` antes de abrir el PR.
+1. ~~**El subagente del PR 7 se cortó por límite de uso sin reporte final**: revisar el diff completo antes de abrir el
+   PR.~~ Vencido: el PR #1132 pasó tres rondas de `/auditoria pr` con el diff completo y se mergeó.
+2. ~~**Validación antes que alcance** en `cerrar_con_diferencia` y `rechazar_derivacion`: con un id ajeno y un motivo inválido
+   dan 400 en vez de 404.~~ Resuelto en HTTP: E6 (`_AccionDeDerivacionView.preparar`, `_IngresoView.preparar` en
+   `views/emergencia_dispositivo.py`) y la API (`_derivacion`/`_ingreso` antes de `_entrada` en
+   `api/views_emergencia_llegadas.py`) dan el 404 antes de validar. Dentro de los servicios el orden sigue siendo motivo →
+   alcance; solo importa a un llamador nuevo.
+3. ~~Squash del «wip» `c9ada33d` antes de abrir el PR.~~ Vencido: el PR #1132 se mergeó sin squash (el «wip» quedó en la
+   historia como `f03889e4`).
 4. Revisión visual en navegador de E6 y del mapa en modo emergencia.
+5. **`acciones_del_ingreso` recibe un `total` calculado de dos formas** (`services/emergencia_ingreso_comun.py`; lo llaman
+   `emergencia_cierre.py` y `views/emergencia_dispositivo.py`): unos pasan `max(declarado, filas)` y otros solo
+   `total_declarado`. Hoy da lo mismo. Solución: calcularlo adentro de la función. (MINOR de #1132.)
+6. **Código que producción no usa:** los alias `SITUACION_*` de la fachada (`services/emergencia_alojar.py`) y el envoltorio
+   `emergencia_sin_derivacion.es_ingreso_directo(caso)`; solo los usan los tests. Solución: borrarlos y que los tests lean
+   `CasoEmergencia`. (MINOR de #1132.)
+7. **Ciclo improbable con un egreso simultáneo** (reserva común vencida sobre la cama de un familiar que egresa), documentado
+   en la fachada `services/emergencia_alojar.py`: InnoDB deshace entera una de las dos transacciones. Solución: evitarlo del
+   todo obliga a tocar `estadias.liberar_reserva`; decidir si vale. (#1132.)
+8. **`_IngresoView.preparar` (E6) tiene su propia lectura del ingreso** (`views/emergencia_dispositivo.py`). Solución: usar
+   `emergencia_ingreso_comun.ingreso_sin_candado`, como la API; sin riesgo de corrección. (Señalado en #1134.)
 
 ## Reversión
 
@@ -55522,12 +55567,13 @@ reservas; los que estén en `INGRESO_EN_CURSO` quedan sin pantalla para terminar
   `_formulario1_bloques.html` (HTML idéntico), flag `cama_despues`, `sector_id` en `integrantes_de`, tests partidos con
   `test_emergencia_alojar_base` y presupuesto de llegadas con 2 y 20 derivaciones. Ficha `turno_bitacora.md` con las
   automáticas de Emergencia sin movimiento.
+- **13/11/2026 — mergeado** (PR #1132, merge `916aa160` en `development`).
 
 ---
 
 # Cambio 470 — Emergencia, PR 8: API M2 — llegada de familias desde la app del dispositivo
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr8-api-m2` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1134 (rama `feat/emergencia-pr8-api-m2-v2`)
 
 | | |
 |---|---|
@@ -55556,11 +55602,21 @@ en [`contrato-app-emergencia.md`](contrato-app-emergencia.md) §13, con el esque
 2. **Sin alcance → 404; estado cambiado → 409 con `{detail, estado_actual}`** (otra guardia actuó desde el backoffice o desde su
    teléfono, la mesa canceló, el cron venció). La app muestra `detail` y recarga.
 3. **Aceptar, rechazar, alojar y los cierres no son idempotentes por `uuid_cliente`**: no hay dónde guardarlo sin migración. Un
-   reintento da 409 y la app recarga. Confirmar y agregar integrante, y el ingreso directo, sí lo son.
+   reintento da 409 y la app recarga. Confirmar y agregar integrante, el ingreso directo y «Avisar a la mesa» sí lo son
+   (`avisar_a_la_mesa` crea el caso con `crear_caso(..., uuid_cliente=)` y devuelve el que ya existía).
 4. **`perfil.dispositivo` es `false` para el admin de Dispositivos que no puede operar** (no tiene `admitir` ni `recibir_kit`): el
    módulo se le abre (H10) pero la app no le ofrece pantallas que después le contestan 403. Se cambió una aserción de los tests
    del PR 5 por eso.
 5. **Requiere conexión** salvo el ingreso directo (RU-3, RN-3.11): son operaciones sobre plazas compartidas con toda la red.
+6. **Tope de la búsqueda por DNI: `emergencia_buscar`, 300/hour por usuario** (`config/settings.py`,
+   `BuscarFamiliaThrottle` en `api/views_emergencia_llegadas.py`), con 429 y `Retry-After` (contrato §13.2). DRF evalúa los
+   permisos antes que el throttle (`APIView.initial`), así que un 403 no gasta la cubeta.
+7. **El 409 del ingreso dice qué pasó:** `{detail, estado_actual}` con el texto de
+   `emergencia_ingreso_comun._por_que_ya_no`, que levanta `ingreso_sin_candado`; es el mismo en el GET y en el POST de las
+   rutas `casos/{id}/`.
+8. **Un caso `CERRADO` sigue legible en la API:** las lecturas de `casos/{id}/` aceptan `ESTADOS_CON_INTEGRANTES`
+   (`INGRESO_EN_CURSO`, `ALOJADO` y `CERRADO`, de `selectors/emergencia_mesa.py`), los mismos que la ficha de la mesa: la app
+   vuelve a M2-3 después de cerrar.
 
 ## Implementación
 
@@ -55569,9 +55625,11 @@ cerrar con diferencia, cancelar, ingresar sin derivación y avisar a la mesa.
 
 ## Archivos
 
-`programas/api/{views_emergencia, serializers_emergencia}.py`, `programas/api_emergencia_urls.py`,
-`programas/selectors/emergencia_alojar.py`, `programas/services/emergencia_programa.py`, `docs/internal/contrato-app-emergencia.md`,
-`programas/tests/{test_emergencia_api_m2, test_emergencia_api_contrato}.py`.
+`programas/api/{views_emergencia, views_emergencia_llegadas, views_emergencia_sin_derivacion, serializers_emergencia}.py`,
+`programas/api_emergencia_urls.py`, `programas/selectors/emergencia_alojar.py`, `programas/services/emergencia_programa.py`,
+`config/settings.py` (throttle `emergencia_buscar`), `docs/internal/contrato-app-emergencia.md`,
+`programas/tests/{base_emergencia_api, test_emergencia_api_m2, test_emergencia_api_m2_busqueda, test_emergencia_api_m2_cierre,
+test_emergencia_api_m2_integrantes, test_emergencia_api_contrato}.py`.
 
 ## Base de datos
 
@@ -55579,8 +55637,9 @@ No aplica.
 
 ## Validación
 
-`test_emergencia_api_m2.py` (51): claves de cada respuesta, 409 contra la web sobre el mismo servicio, idempotencia donde
-corresponde, alcance 404 y presupuestos de `mis-dispositivos`.
+`test_emergencia_api_m2*.py` (60: `m2` 15, `m2_busqueda` 14, `m2_cierre` 12 y `m2_integrantes` 19): claves de cada
+respuesta, 409 contra la web sobre el mismo servicio, idempotencia donde corresponde, alcance 404, tope de la búsqueda y
+presupuestos de `mis-dispositivos`.
 
 ## Puesta en marcha en el servidor
 
@@ -55590,6 +55649,9 @@ Nada especial.
 
 1. PWA (PR 8-P) bloqueada, igual que el 5-P (Cambio 467).
 2. Si se quiere idempotencia en aceptar/alojar/cerrar, hace falta una columna (migración aparte).
+3. **`opera_en_algun_dispositivo` repite en línea `kits.recibe_kits`** (`services/emergencia_programa.py`). Solución: mover
+   `recibe_kits` a `emergencia_programa.py`, junto a `admite_familias`; la dependencia ya va de `kits` hacia
+   `emergencia_programa`, así que no se forma un ciclo. (MINOR de #1134.)
 
 ## Reversión
 
@@ -55609,12 +55671,13 @@ Revertir el PR; sin migraciones. La app que use M2 recibirá 404 en esas rutas.
   en `ESTADOS_CON_INTEGRANTES` (`CERRADO` incluido). La búsqueda por DNI tiene tope por usuario (`emergencia_buscar`,
   300/hour, 429 en el contrato §13.2). Además: selector `integrante_de`, `derivacion_vencida` única (API y E6),
   `admite_familias` y los tests partidos (`base_emergencia_api` sin tests; contrato, `m1`, `kits` y `m2` por flujo).
+- **13/11/2026 — mergeado** (PR #1134, merge `cf544a33` en `development`).
 
 ---
 
 # Cambio 471 — Emergencia, PR 9 y 9-API: entregas de kits — E4, E5, recepción en el dispositivo y API M3
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr9-kits` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1133 (rama `feat/emergencia-pr9-kits-v2`)
 
 | | |
 |---|---|
@@ -55696,10 +55759,31 @@ Nada especial. Los remitos quedan en `media/` detrás de login.
 
 ## Pendientes / a definir
 
-1. **El subagente del PR 9 se cortó por límite de uso sin reporte final**: revisar el diff completo antes de abrir el PR.
+1. ~~**El subagente del PR 9 se cortó por límite de uso sin reporte final**: revisar el diff completo antes de abrir el
+   PR.~~ Vencido: el PR #1133 pasó `/auditoria pr` con el diff completo y se mergeó.
 2. PWA (PR 9-P) bloqueada (Cambio 467).
 3. Carreras y migración ida y vuelta con motor real (CI).
 4. Revisión visual en navegador de E4, E5 y la recepción.
+5. **Remito huérfano** (`services/kits.py`, `recibir_entrega`): si el UNIQUE de `uuid_cliente_recepcion` corta la recepción
+   en una carrera, el JPEG ya quedó en `media/` (`FileField.pre_save` escribe antes del `UPDATE`) y
+   `anotar_archivo_escrito` no corre en el `except IntegrityError`. Solución: anotarlo también ahí (o en un `try/finally`)
+   y sumar el caso al test de huérfanos. (MINOR de #1133.)
+6. **Contrato §12 «Idempotencia»** (`contrato-app-emergencia.md`): dice que en el reenvío «no importa qué traiga el segundo
+   cuerpo», pero el serializer exige igual `cantidades` enteras ≥ 0. Solución: corregir el texto; el comportamiento queda.
+   (MINOR de #1133.)
+7. **Helpers copiados:** `_url` y `_errores_de` (`views/emergencia_kits.py`) y `nombre_de` y `fecha_hora`
+   (`selectors/kits.py`) repiten los de `views/emergencia.py` y `selectors/emergencia_mesa.py`; la pluralización de ítems
+   aparece tres veces. Solución: un módulo común, con el texto de respaldo como parámetro. (MINOR de #1133.)
+8. **La regla de acciones por estado de la entrega** está en cinco lugares de `views/emergencia_kits.py` y en
+   `kits._exigir_estado`. Solución: `acciones_de(entrega)` o propiedades de `EntregaKit`. (MINOR de #1133.)
+9. **Un selector autoriza:** `selectors/kits.entregas_pendientes_de` vuelve a evaluar `puede_operar_dispositivo` aunque quien
+   lo llama ya resolvió el alcance (un `EXISTS` más). Solución: que reciba el dispositivo ya autorizado. (MINOR de #1133.)
+10. **Sexta copia del bloque «traza inmutable»** (`TrazaEntrega` en `models/__init__.py`). Solución, para la auditoría
+    completa: un `TrazaInmutableMixin`. (MINOR de #1133.)
+11. **`test_emergencia_kits.py` tiene 1358 líneas.** Solución: los presupuestos y las carreras a módulos propios (M3 ya
+    está en `test_emergencia_api_kits.py`). (MINOR de #1133.)
+12. **Modales duplicados:** «Marcar en camino» y «Cancelar» están en `kits/list.html` y en `kits/detail.html`. Solución: un
+    include. (MINOR de #1133.)
 
 ## Reversión
 
@@ -55714,12 +55798,13 @@ antes.
 - **12/11/2026 — alta del cambio** (PR 12; los PRs 9 y 9-API se cerraron en la ola 4, commits `900170e1` a `cb738b66`).
 - **13/11/2026 — propagación de la auditoría del PR #1130** (commit `6ac2bad0`). La recepción levanta `UuidEnUso` con su
   mensaje de «otra recepción» y la vista lo atrapa por tipo para el 409 `UUID_EN_USO`, en vez de comparar el texto.
+- **13/11/2026 — mergeado** (PR #1133, merge `70b5965e` en `development`).
 
 ---
 
 # Cambio 472 — Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr10-tablero` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1135 (rama `feat/emergencia-pr10-tablero-v2`)
 
 | | |
 |---|---|
@@ -55756,10 +55841,15 @@ solapa «Mapa de la emergencia» y el auto-refresh.
    un tope de casos y resume el resto en «y N más». Sin capacidad de la mesa, el aviso se ve sin enlace.
 5. **«Ingreso parcial sin revisar» se da por revisado con un contacto posterior al alojamiento** registrado en E3: no hay campo de
    observación de la mesa en el caso.
-6. **Presupuesto:** 9 consultas de los selectores y a lo sumo 1 de los avisos (con 500 casos, 50 dispositivos y 200 entregas);
-   la vista completa en 16. Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla.
+6. **Presupuesto (RN-5.6):** E1 entera en **16 consultas** (`PRESUPUESTO_VISTA` de `test_emergencia_tablero.py`): 10 del
+   tablero y sus avisos —9 de los selectores y 1 de «en la puerta»—, 1 del SLA vigente y 5 del shell. El presupuesto del
+   dominio es **12** (`test_rn_5_6_selectores_y_avisos_en_12_o_menos`, que hoy mide 10). Constante con 500 casos, 50
+   dispositivos y 200 entregas. Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla.
 7. **`scripts/design_audit.py` cambió:** el tablero entra en `HERO_PANTALLAS` y la variante «detalle + apilado» acepta el hero en
    lugar del `page_header`.
+8. **«Familia en la puerta» = caso abierto y nunca derivado** (`CasoEmergencia.esperando_en_la_puerta`, y en SQL
+   `q_esperando_en_la_puerta`): la misma regla que la marca de E2 y la ficha E3 (Cambio 473). Tomar el caso no apaga el
+   aviso (pasa a «Derivar el caso»); derivarlo o cerrarlo, sí.
 
 ## Implementación
 
@@ -55779,7 +55869,7 @@ No aplica.
 
 ## Validación
 
-`test_emergencia_tablero.py` (45): cada número del hero y de las tarjetas contra un escenario sembrado, cada aviso aparece y
+`test_emergencia_tablero.py` (46): cada número del hero y de las tarjetas contra un escenario sembrado, cada aviso aparece y
 desaparece, presupuesto con `--tag performance`, el SQL capturado no contiene `CONVERT_TZ`, programa vacío sin división por cero.
 
 ## Puesta en marcha en el servidor
@@ -55790,6 +55880,29 @@ Nada especial.
 
 1. «Plazas libres» cuenta todas las plazas, no solo camas (Cambio 464, pendiente 2).
 2. Revisión visual en navegador.
+3. **Casos por localidad agrupa por nombre** (`selectors/emergencia_tablero.py`, `localidad__nombre`): en Chaco hay 63
+   nombres repetidos y el enlace filtra la bandeja por una sola. Solución: agrupar por `localidad_id`, o sin URL cuando una
+   fila junta varias. (MINOR de #1135.)
+4. **«Todavía no hay casos» no aparece cuando ya hay red** (`emergencia/tablero.html`): las filas con solo plazas tapan el
+   `{% empty %}` y `hay_casos` no se usa. Solución: condicionar con `hay_casos`. (MINOR de #1135.)
+5. **Solapa «Mapa de la emergencia»** (05 §3): la spec la pide deshabilitada con «Próxima etapa». Queda fuera del alcance de
+   este lote y no se promete; si el PM la quiere visible, va deshabilitada en `tablero.html`. (MINOR de #1135.)
+6. **`entregas_en_camino` carga todo** (`selectors/emergencia_tablero.py`): trae todas las entregas en camino con sus líneas
+   para mostrar 20 y cuenta dos veces. Solución: recortar en la base y tomar el total de la foto. (MINOR de #1135.)
+7. **Dos definiciones de ingreso directo:** `FilaCaso.ingreso_directo` (`selectors/emergencia_tablero.py`) usa
+   `tomado_en == creado`, distinto de `CasoEmergencia.es_ingreso_directo`. Solución: una sola, o un test que cruce las dos.
+   (MINOR de #1135.)
+8. **Copias:** la consulta de elegibles repite `_dispositivos_elegibles()`, las plazas libres se calculan en tres lugares,
+   `TONOS`/`ICONOS` de `services/avisos_emergencia.py` son los de `services/alertas_dispositivos.py`, y `_foto` y `_plural`
+   están duplicados. Solución: reusar las de origen. (MINOR de #1135.)
+9. **Reglas fuera de su módulo:** `q_entrega_sin_revisar` (`selectors/emergencia_tablero.py`) es de kits y va a
+   `selectors/kits.py`; `avisos_emergencia.py` lee tuplas por posición (`fila[3]`, `fila[5]`). Solución: moverla y pasar
+   las filas a `NamedTuple`. (MINOR de #1135.)
+10. **Ventana de RN-5.1 sin índice:** el OR sobre `alojado_en` y `cerrado_en` probablemente recorre la tabla de casos.
+    Solución: medirlo con `EXPLAIN` en `scripts/perf_mysql/` y, si pesa, un índice `(estado, cerrado_en)` (migración
+    aparte) y un filtro más simple. (MINOR de #1135.)
+11. **Comentario muerto** en `core/tests/test_nodo_ui_piezas.py` sobre `PANTALLAS_CON_HERO = frozenset()`, que contradice la
+    asignación de abajo. Solución: borrarlo. (MINOR de #1135.)
 
 ## Reversión
 
@@ -55804,12 +55917,13 @@ Revertir el PR; sin migraciones.
   con «Derivar el caso»; uno derivado, cancelado y devuelto a `NUEVO` ya no avisa. Filtra en SQL con `q_esperando_en_la_puerta`
   (`has_key` sobre `situacion`); el presupuesto no cambia (10 de selectores y avisos, 16 la vista). Tests: los dos casos nuevos
   en `test_emergencia_tablero.py` (46).
+- **13/11/2026 — mergeado** (PR #1135, merge `8400f935` en `development`).
 
 ---
 
 # Cambio 473 — Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr11-marcas` pusheada, sin mergear a `development`
+🟢 **HECHO — 13/11/2026** · PR #1136 (rama `feat/emergencia-pr11-marcas-v2`)
 
 | | |
 |---|---|
@@ -55833,8 +55947,18 @@ tablero (Cambio 472).
 
 ## Decisiones tomadas
 
-1. **Cada marca se va con la siguiente acción sobre el caso**: no hay que cerrarlas a mano.
-2. **Sin consultas nuevas:** los presupuestos de E2 (16 desde la auditoría del PR #1128; eran 17) y E3 (18) no cambian.
+1. **Ninguna marca se cierra a mano, y cada una tiene su vigencia** (`selectors/emergencia_mesa.py`, `avisos_de_la_mesa` y
+   `_marcas_de_fila`):
+   - «Rechazado por X: motivo» y «Derivación vencida · volver a derivar» se van con la siguiente acción sobre el caso,
+     cualquiera (mientras su traza siga siendo la última: `selectors.emergencia.rechazo_sin_nueva_accion`).
+   - «Dispositivo inactivo · volver a derivar» queda mientras la derivación **pendiente** apunte a ese dispositivo.
+   - «En la puerta de X» queda hasta derivar o cerrar el caso; tomarlo no la saca (decisión 3).
+   - «Ingreso parcial · N de M» la deja el cierre con diferencia (`CasoEmergencia.ingreso_parcial`) y es permanente.
+   - «Llegaron N sobre M declaradas» aparece cuando el dispositivo agregó personas (`GrupoFamiliar.llegaron_mas`) y es
+     permanente.
+2. **Sin consultas nuevas:** los presupuestos de E2 en 16 y E3 en 18 no cambian.
+3. **«En la puerta» = caso abierto y nunca derivado** (`CasoEmergencia.esperando_en_la_puerta`; en SQL,
+   `q_esperando_en_la_puerta`). Es la única regla de la marca de E2, el aviso de E3 y el del tablero E1 (Cambio 472).
 
 ## Implementación
 
@@ -55852,7 +55976,7 @@ No aplica.
 
 ## Validación
 
-`test_emergencia_marcas.py` (19): cada marca aparece y se va con la siguiente acción, con los presupuestos.
+`test_emergencia_marcas.py` (19): cada marca aparece y se va cuando corresponde, con los presupuestos.
 
 ## Puesta en marcha en el servidor
 
@@ -55861,6 +55985,14 @@ Nada especial.
 ## Pendientes / a definir
 
 1. Revisión visual en navegador.
+2. **`__has_key` sin prueba en motor real:** `CasoEmergencia.q_esperando_en_la_puerta` es el primer `__has_key` del repo
+   (Django lo traduce a `JSON_CONTAINS_PATH`). Solución: un test `@tag("mysql")` que filtre sobre `{}`,
+   `{"en_la_puerta_de": null}`, `{"en_la_puerta_de": {}}` y un dispositivo con nombre. (MINOR de #1136.)
+3. **`familias_en_la_puerta` filtra sin acotar** (`services/avisos_emergencia.py`): recorre los casos abiertos sin derivar de
+   toda la tabla. Solución: sumar `pk__in` con los sin derivar de la foto; el resultado es el mismo. (MINOR de #1136.)
+4. **Accesibilidad de E3** (`emergencia/casos/detail.html`, include de `_alerta.html` en el bucle de avisos): quedan con
+   `role="alert"` y con dos `danger` el lector anuncia toda la pila. Solución: `role="status"`, como pide la ficha
+   `alerta.md` («Lista de avisos»); sin cambio visual. (MINOR de #1136.)
 
 ## Reversión
 
@@ -55874,12 +56006,13 @@ Revertir el PR; sin migraciones.
   `ACCIONES_CON_AVISO_HASTA_LA_PROXIMA`); la subconsulta de la última traza, a `ultima_traza_del_caso`, que reusa el tablero;
   «Llegaron N sobre M», a `GrupoFamiliar.llegaron_mas`; el include de `_alerta.html` del bucle de E3 lleva `only`. Sin
   consultas nuevas: E2 16 y E3 18.
+- **13/11/2026 — mergeado** (PR #1136, merge `0bb5b72e` en `development`).
 
 ---
 
 # Cambio 474 — Emergencia, PR 12: manual del módulo y registro del lote en este archivo
 
-🟡 **EN CURSO — 12/11/2026** · rama `feat/emergencia-pr12-docs` pusheada, sin mergear a `development`
+🟡 **EN CURSO — 13/11/2026** · PR #1137 (rama `feat/emergencia-pr12-docs-v2`), sin mergear a `development`
 
 | | |
 |---|---|
@@ -55939,7 +56072,8 @@ Nada especial.
 
 ## Pendientes / a definir
 
-1. Al mergear cada PR, pasar su entrada a 🟢 con la fecha y el SHA del merge (en el historial).
+1. Al mergear este PR, pasar esta entrada a 🟢 con la fecha y el SHA del merge (en el historial). Los Cambios 462 a 473 ya
+   pasaron el 13/11/2026.
 2. Casos de QA por task y plan de pruebas de la épica (PR 13), a partir del §8 del manual.
 
 ## Reversión
@@ -55953,5 +56087,16 @@ Revertir el PR; sin migraciones.
   `feat/emergencia-*-v2`. Los Cambios se renumeran de 457–469 a 462–474 (`development` ya llegaba al 461) y las
   migraciones del módulo de `programas.0116`–`0120` a `0117`–`0121` (`development` ya tenía
   `0116_respuestas_ingreso_egreso_estadia`).
+- **13/11/2026 — auditoría del PR #1137 (CHANGES_NEEDED @ `f0f69714`).** Los PRs 0 a 11 ya estaban mergeados: los Cambios
+  462 a 473 pasan a 🟢 con su PR, su rama `-v2` y el SHA del merge en el Historial, y se tachan los pendientes vencidos
+  (squash de los «wip», subagentes cortados, `/auditoria pr` antes del merge). Manual: la búsqueda por DNI encuentra a la
+  familia por el responsable o un integrante ya confirmado (`emergencia_recepcion.buscar_por_dni`); las marcas de E2 y E3
+  con su vigencia real (`emergencia_mesa.avisos_de_la_mesa` y `_marcas_de_fila`): «Ingreso parcial · N de M» al cerrar con
+  diferencia y «Llegaron N sobre M» al agregar personas, con un caso de prueba nuevo; el caso 7 con 404 en Llegadas web
+  (`GuardiaView` → `dispositivo_operable_o_404`) y 403 en M2 y Kits; «Avisar a la mesa» idempotente; el relevamiento lo carga
+  la mesa mientras no exista la app; fuera la limitación del 400 en vez de 404. Registro: decisiones de los Cambios 470
+  (tope `emergencia_buscar`, 409 con `_por_que_ya_no`, `CERRADO` legible), 472 (16 consultas, 12 del dominio; «en la
+  puerta») y 473 (vigencia de cada marca); Validación del 470 con los 60 tests de M2; y los MINOR que las auditorías de
+  #1130 a #1136 dejaron para el próximo PR, cargados en los Pendientes de los Cambios 467 a 473.
 
 ---

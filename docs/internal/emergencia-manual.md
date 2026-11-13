@@ -1,13 +1,14 @@
 # Módulo Emergencia — manual para QA y para quien opera
 
 Qué es el módulo, cómo se habilita, qué pantalla hace qué y qué hay que probar. Es el manual **del backend tal como quedó**
-(PRs 0 a 11, ramas `feat/emergencia-*`): ante una diferencia con el análisis funcional (rama `docs/emergencia-analisis`,
+(PRs 0 a 11, mergeados a `development` el 13/11/2026: #1125 a #1136): ante una diferencia con el análisis funcional (rama `docs/emergencia-analisis`,
 `docs/internal/emergencia/`), gana el código, y las correcciones al análisis están en las entradas del registro. El registro
 de decisiones son los Cambios 462 a 474 de [`requerimientos.md`](requerimientos.md) (`scripts/requerimientos.py --tag
 emergencia`); lo que pide y devuelve la app está en [`contrato-app-emergencia.md`](contrato-app-emergencia.md).
 
-> **Estado (12/11/2026):** nada está mergeado a `development`. La app (PWA) del módulo **todavía no existe**: la API está lista y
-> probada, pero las pantallas M1, M2 y M3 de `Chaco-mobile` están bloqueadas. Todo lo de la app se prueba hoy contra la API.
+> **Lo que sigue vigente (13/11/2026):** la app (PWA) del módulo **todavía no existe**. La API está en `development` y
+> probada, pero las pantallas M1, M2 y M3 de `Chaco-mobile` están bloqueadas (Cambio 467). Todo lo de la app se prueba hoy
+> contra la API, y mientras no haya app el relevamiento lo carga la mesa con «Nuevo caso» (§4, etapa 1).
 
 ---
 
@@ -42,7 +43,7 @@ sembrados** salvo el Administrador, que recibe `emergencia.operar`, `emergencia.
 
 | Rol en la vida real | Programa del rol | Capacidades a tildar | Además |
 |---|---|---|---|
-| **Agente territorial** | Emergencia | `emergencia.relevar` (solapa «Emergencia») | Es una capacidad de campo: el usuario entra a la app, no al backoffice. |
+| **Agente territorial** | Emergencia | `emergencia.relevar` (solapa «Emergencia») | Es una capacidad de campo: el usuario entra a la app, no al backoffice. **Depende de la app, que todavía no existe**: mientras tanto el relevamiento lo carga la mesa con «Nuevo caso». |
 | **Operador de mesa** | Emergencia | `emergencia.operar` | — |
 | **Supervisor de mesa** | Emergencia | `emergencia.supervisar` (con o sin `operar`: supervisar ya incluye todo lo de operar) | — |
 | **Guardia del dispositivo** | **Dispositivos** | `dispositivo.admitir` (llegadas), `emergencia.recibir_kit` (kits, solapa «Dispositivos» → «Emergencia en el dispositivo»), `dispositivo.egresar` (egresos), `dispositivo.ver` | **Tiene que integrar el Equipo del dispositivo** (detalle del dispositivo → Equipo) con ese rol. Sin Equipo la capacidad no alcanza a ningún dispositivo. |
@@ -123,10 +124,12 @@ además del color. Los casos alojados y cerrados no tienen semáforo.
 
 ### Etapa 1 · Relevar
 
-- **Desde la app** (agente con `emergencia.relevar`): Formulario 1 en cuatro pasos (traslado y responsable, personas que ingresan
-  juntas, quiénes necesitan asistencia, ubicación y fotos). Funciona sin señal: queda en cola y se envía al volver la conexión. El mismo envío dos veces crea **un**
+- **Desde la mesa** (E2 → «Nuevo caso»): el Formulario 1 en una página con cuatro bloques (traslado y responsable, personas
+  que ingresan juntas, quiénes necesitan asistencia, ubicación y fotos). **Hoy es la única vía en uso**: la app todavía no
+  existe.
+- **Desde la app** (agente con `emergencia.relevar`), cuando exista: el mismo formulario en cuatro pasos, contra
+  `POST /api/emergencia/casos/`, que ya está. La API admite el envío encolado sin señal: el mismo envío dos veces crea **un**
   caso. Fotos JPEG de hasta 5 MB; sin dirección, se rechaza.
-- **Desde la mesa** (E2 → «Nuevo caso»): el mismo formulario en una página con cuatro bloques.
 - El servidor calcula el total declarado y la prioridad, numera el caso («2026-C-000031») y lo deja `NUEVO`, con origen
   Territorio o Mesa. El responsable queda dado de alta como `Ciudadano` si no existía.
 
@@ -143,9 +146,11 @@ además del color. Los casos alojados y cerrados no tienen semáforo.
 
 ### Etapa 3 · Alojar (E6 o app M2)
 
-1. La guardia **busca por DNI** (de cualquier persona de la familia). Tres resultados: hay derivación a este dispositivo; la
-   persona ya está alojada en la red; o «sin derivación vigente» — también cuando la derivación es para **otro** dispositivo, que
-   no se nombra.
+1. La guardia **busca por el DNI del responsable** (o de un integrante **ya confirmado**: los demás no tienen legajo hasta
+   que se los confirma, así que su DNI no encuentra a la familia). Tres resultados: hay derivación a este dispositivo; la
+   persona ya está alojada en la red; o «sin derivación vigente» — también cuando la derivación es para **otro** dispositivo,
+   que no se nombra. **Si llega primero otra persona de la familia** y su DNI da «sin derivación vigente», pedirle el DNI del
+   responsable y buscar de nuevo **antes** de «Ingresar igual» o «Avisar a la mesa»: si no, se crea un segundo caso.
 2. **Acepta** (reserva sola hasta las camas pedidas; menos es válido y se avisa; con 0 libres no se puede) o **rechaza** con
    motivo (el caso vuelve a la mesa con «Rechazado por X»). Una derivación ya vencida se puede aceptar mientras el cron no la
    marcó.
@@ -158,7 +163,8 @@ además del color. Los casos alojados y cerrados no tienen semáforo.
 5. **Persona que no sabe su número de DNI:** no se le da cama; el ingreso se cierra con diferencia, motivo «Otro» y la
    observación. Quien perdió el documento pero sabe el número entra con «no tiene DNI físico».
 6. **Familia sin derivación en la puerta:** «Ingresar igual» (ingreso directo, solo con camas libres; nace `INGRESO_EN_CURSO` y
-   se marca en la bandeja) o «Avisar a la mesa» (crea un caso `NUEVO` con la marca «En la puerta de X»).
+   se marca en la bandeja) o «Avisar a la mesa» (crea un caso `NUEVO` con la marca «En la puerta de X», que sigue mientras
+   el caso esté abierto y nunca derivado: tomarlo no la saca; derivarlo o cerrarlo, sí).
 7. **Egreso:** cuando egresa (desde Dispositivos, como siempre) el último integrante alojado, el caso se cierra solo («Todos
    egresados»).
 
@@ -217,17 +223,27 @@ entrega (sin la capacidad de la mesa, se ve sin enlace). Cada regla muestra los 
 | Aviso | Severidad | Se resuelve |
 |---|---|---|
 | Caso fuera de SLA | alta | Avanzando el caso (o subiendo el objetivo en E7) |
-| Derivación rechazada sin nueva acción | alta | Derivando de nuevo o cerrando |
+| Derivación rechazada sin nueva acción | alta | Con la siguiente acción de la mesa sobre el caso, cualquiera (derivar de nuevo, un contacto, cerrarlo…) |
 | Dispositivo sin plazas con derivación pendiente | alta | Cancelando la derivación o liberando plazas |
-| Familia «en la puerta» de un dispositivo | alta | Tomando el caso y derivándolo |
+| Familia «en la puerta» de un dispositivo | alta | Derivando el caso o cerrándolo (tomarlo no alcanza: con el caso tomado, el aviso dice «Derivar el caso») |
 | Derivación por vencer | media | Que el dispositivo responda, o cancelándola |
 | Ingreso parcial sin revisar | media | Registrando un contacto con la familia **después** del alojamiento (E3) |
 | Entrega con diferencias sin revisar | media | Escribiendo la observación de la mesa en E5 |
 
 ### En la bandeja y la ficha (E2, E3)
 
-Marcas que se van con la siguiente acción sobre el caso: «Rechazado por X: motivo», «Derivación vencida · volver a derivar»,
-«Dispositivo inactivo · volver a derivar», «Llegaron N sobre M declaradas» y «En la puerta de X».
+No se cierran a mano; cada una tiene su propia vigencia:
+
+| Marca | Aparece | Se va |
+|---|---|---|
+| «Rechazado por X: motivo» | El dispositivo rechazó la derivación | Con la siguiente acción sobre el caso, cualquiera |
+| «Derivación vencida · volver a derivar» | El cron venció la derivación | Con la siguiente acción sobre el caso, cualquiera |
+| «Dispositivo inactivo · volver a derivar» | La derivación **pendiente** apunta a un dispositivo que dejó de estar activo | Cuando esa derivación deja de estar pendiente (cancelarla y derivar a otro), o si el dispositivo vuelve a estar activo |
+| «En la puerta de X» | La guardia usó «Avisar a la mesa» | Al derivar o cerrar el caso. Tomarlo **no** la saca |
+| «Ingreso parcial · N de M» | El dispositivo cerró el ingreso con diferencia (N alojadas de M declaradas) | No se va: queda en el caso `ALOJADO` |
+| «Llegaron N sobre M declaradas» | El dispositivo **agregó** personas (N con las agregadas, M las del relevamiento) | No se va: es permanente |
+
+Además la fila puede llevar «Ingreso directo», «Posible duplicado», «Responsable alojado en X» y «Ubicación aproximada».
 
 ---
 
@@ -242,8 +258,9 @@ El contrato completo es [`contrato-app-emergencia.md`](contrato-app-emergencia.m
   y «Recepción de kits» (M3).
 - **M1**: consulta de personas propia de Emergencia, localidades, enviar una familia (multipart, idempotente por `uuid_cliente`,
   funciona encolado sin señal) y «Mis envíos».
-- **M2**: todo lo de E6, con **conexión obligatoria** salvo el ingreso directo. Confirmar, agregar persona e ingreso directo son
-  idempotentes; aceptar, rechazar, alojar y los cierres no: un reintento da 409 y la app recarga.
+- **M2**: todo lo de E6, con **conexión obligatoria** salvo el ingreso directo. Confirmar, agregar persona, ingreso directo y
+  «Avisar a la mesa» son idempotentes por `uuid_cliente`; aceptar, rechazar, alojar y los cierres no: un reintento da 409 y la
+  app recarga.
 - **M3**: mis dispositivos, entregas de un dispositivo, detalle y recibir (idempotente, con conexión).
 - **Errores:** sin módulo, 403 `SIN_MODULO`; recurso de otro dispositivo, 404; el estado cambió (otra guardia, la mesa, el cron),
   409 con `{detail, estado_actual}`.
@@ -268,8 +285,8 @@ reales de familias. Lo marcado **(motor real)** solo se puede verificar contra M
    en el login.
 6. Guardia del dispositivo A: abre Llegadas y Kits de A; con el id de B, 404; en la búsqueda por DNI de una familia derivada a B,
    «sin derivación vigente» sin nombrar B.
-7. Guardia con la capacidad pero sin Equipo: no abre Llegadas de ningún dispositivo (403) y el perfil de la app da
-   `dispositivo: false`.
+7. Guardia con la capacidad pero sin Equipo: Llegadas web da **404** (tiene la capacidad en el programa, pero ningún
+   dispositivo en alcance); la API M2 da **403**; «Emergencia · Kits» da **403**; el perfil de la app da `dispositivo: false`.
 
 ### Etapa 1 · Relevar
 
@@ -305,48 +322,53 @@ reales de familias. Lo marcado **(motor real)** solo se puede verificar contra M
 
 ### Etapa 3 · Alojar (repetir en E6 y en la API)
 
-27. Buscar por DNI del responsable y de un integrante confirmado; los tres resultados.
+27. Buscar por DNI del responsable y de un integrante confirmado; los tres resultados. El DNI de un integrante **sin
+    confirmar** da «sin derivación vigente»: pedir el del responsable antes de «Ingresar igual» o «Avisar a la mesa».
 28. Aceptar con camas de sobra; con menos camas que las pedidas (aviso «Reservé N de M»); con 0 libres (no deja).
 29. Rechazar con cada motivo; «Otro» exige observación; la mesa ve «Rechazado por X».
 30. Confirmar a cada persona con la ficha mínima: cada faltante se informa; menor de 16 sin adulto responsable no confirma.
 31. Elegir cama en el mapa: solo una; la reservada para la familia se puede elegir, la reservada ajena no.
 32. Agregar una persona no declarada y confirmarla.
-33. «Familia alojada» con N de N; con una sin confirmar no deja.
-34. Cerrar con diferencia: el caso queda `ALOJADO` con «Llegaron N sobre M»; las camas sobrantes quedan libres en el mapa.
-35. Persona sin número de DNI: no se confirma; se cierra con diferencia «Otro».
-36. Cancelar un ingreso sin confirmados: el caso vuelve a la mesa y las camas se liberan; con un confirmado no deja.
-37. Ingreso directo con camas libres (aparece en la solapa «Ingreso directo»); sin camas no deja; «Avisar a la mesa» crea un
-    caso «En la puerta de X».
-38. **Regresión de Dispositivos:** ingresar al responsable por el asistente normal de Dispositivos **no** libera las camas
+33. Después de agregar una persona, la bandeja y la ficha muestran «Llegaron N sobre M declaradas» (N con la agregada); la marca
+    sigue después de alojar a la familia.
+34. «Familia alojada» con N de N; con una sin confirmar no deja.
+35. Cerrar con diferencia: el caso queda `ALOJADO` con «Ingreso parcial · N de M» en la bandeja y la ficha; las camas sobrantes
+    quedan libres en el mapa.
+36. Persona sin número de DNI: no se confirma; se cierra con diferencia «Otro».
+37. Cancelar un ingreso sin confirmados: el caso vuelve a la mesa y las camas se liberan; con un confirmado no deja.
+38. Ingreso directo con camas libres (aparece en la solapa «Ingreso directo»); sin camas no deja; «Avisar a la mesa» crea un
+    caso «En la puerta de X» (reenviado con el mismo `uuid_cliente`, no crea otro); la marca sigue con el caso tomado y se
+    va al derivarlo o cerrarlo.
+39. **Regresión de Dispositivos:** ingresar al responsable por el asistente normal de Dispositivos **no** libera las camas
     reservadas de su familia; una reserva común de otra persona sigue liberándose al ingresar (D2 del Cambio 409).
-39. Egresar a todos los integrantes desde Dispositivos cierra el caso («Todos egresados»).
-40. Bitácora: con turno vigente, aceptar, alojar y cerrar con diferencia dejan su novedad; sin turno, no, y el caso avanza igual.
-41. Una guardia acepta desde el backoffice y otra desde la app a la vez: una recibe 409 y recarga **(motor real)**.
-42. La guardia ve las fotos del caso; un usuario sin alcance no.
+40. Egresar a todos los integrantes desde Dispositivos cierra el caso («Todos egresados»).
+41. Bitácora: con turno vigente, aceptar, alojar y cerrar con diferencia dejan su novedad; sin turno, no, y el caso avanza igual.
+42. Una guardia acepta desde el backoffice y otra desde la app a la vez: una recibe 409 y recarga **(motor real)**.
+43. La guardia ve las fotos del caso; un usuario sin alcance no.
 
 ### Etapa 4 · Kits
 
-43. Armar una entrega: destino inactivo no; ítem inactivo no; cantidad 0 no; ítem repetido no.
-44. Marcar en camino; hora de salida futura no.
-45. Cancelar con motivo; una recibida no se cancela.
-46. Recibir sin diferencias → `RECIBIDA`; con faltantes o sobrantes → `RECIBIDA_CON_DIFERENCIAS`; sin remito o remito no JPEG o
+44. Armar una entrega: destino inactivo no; ítem inactivo no; cantidad 0 no; ítem repetido no.
+45. Marcar en camino; hora de salida futura no.
+46. Cancelar con motivo; una recibida no se cancela.
+47. Recibir sin diferencias → `RECIBIDA`; con faltantes o sobrantes → `RECIBIDA_CON_DIFERENCIAS`; sin remito o remito no JPEG o
     > 5 MB → error; recibir una `PREPARADA` deja la traza «sin marca de salida».
-47. Reintento de la recepción con el mismo identificador: no duplica; con otro, 409 «ya la recibió …».
-48. Observación de la mesa: no cambia cantidades; la traza guarda la anterior.
-49. Reponer precarga las diferencias y solo vale para una recibida con diferencias del mismo dispositivo.
-50. Guardia de A no recibe una entrega de B (404). La mesa cancela mientras la guardia recibe: gana uno **(motor real)**.
+48. Reintento de la recepción con el mismo identificador: no duplica; con otro, 409 «ya la recibió …».
+49. Observación de la mesa: no cambia cantidades; la traza guarda la anterior.
+50. Reponer precarga las diferencias y solo vale para una recibida con diferencias del mismo dispositivo.
+51. Guardia de A no recibe una entrega de B (404). La mesa cancela mientras la guardia recibe: gana uno **(motor real)**.
 
 ### Etapa 5 · Tablero y configuración
 
-51. Solo supervisar abre E1 y E7.
-52. Cada número del tablero contra un escenario armado a mano (incluido el corte del día a las 06:00).
-53. Cada aviso aparece con su condición y desaparece al resolverla; «y N más» cuando hay muchos.
-54. Programa sin datos: el tablero abre sin errores.
-55. E7: vigencia < 30 y umbral fuera de 50-95 se rechazan; un tipo de kit se desactiva y deja de ofrecerse en una entrega nueva.
+52. Solo supervisar abre E1 y E7.
+53. Cada número del tablero contra un escenario armado a mano (incluido el corte del día a las 06:00).
+54. Cada aviso aparece con su condición y desaparece al resolverla; «y N más» cuando hay muchos.
+55. Programa sin datos: el tablero abre sin errores.
+56. E7: vigencia < 30 y umbral fuera de 50-95 se rechazan; un tipo de kit se desactiva y deja de ofrecerse en una entrega nueva.
 
 ### Rendimiento
 
-56. Con muchos casos abiertos (cientos), la bandeja, la ficha y el tablero responden sin demora visible (presupuestos fijados por
+57. Con muchos casos abiertos (cientos), la bandeja, la ficha y el tablero responden sin demora visible (presupuestos fijados por
     test: E2 en 16 consultas, E3 en 18, E1 en 16).
 
 ---
@@ -357,5 +379,4 @@ reales de familias. Lo marcado **(motor real)** solo se puede verificar contra M
 - **Sin distancia sin GPS:** las localidades no tienen coordenadas.
 - **Sin aviso automático a la familia:** el contacto se registra a mano.
 - **Sin revisión visual en navegador** de ninguna pantalla nueva todavía.
-- Con un id ajeno **y** un motivo inválido, cerrar con diferencia y rechazar dan 400 en vez de 404 (no muestran datos).
 - La corrida frecuente de vencimientos no está programada (§5).
