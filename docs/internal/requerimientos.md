@@ -54467,7 +54467,7 @@ El Cambio 450 sacó los cuatro campos solo del **alta**: el contacto se copiaba 
 
 ## Decisiones tomadas
 
-1. **Quién es «el primer responsable»:** el responsable **vigente** del Equipo (`_responsables_activos`: quien perdió el rol no cuenta, como en la solapa Equipo), en el orden del buscador del alta (apellido, nombre, usuario), así el alta y la edición eligen a la misma persona.
+1. **Quién es «el primer responsable»:** el responsable **vigente** del Equipo (`responsables_vigentes`: quien perdió el rol no cuenta, como en la solapa Equipo), en el orden del buscador del alta (apellido, nombre, usuario), así el alta y la edición eligen a la misma persona.
 2. **No se borra lo cargado:** cada dato sale de la persona, pero el que su perfil no trae válido conserva el valor guardado en el legajo. Un teléfono escrito a mano antes de este cambio no se pierde al editar.
 3. **Legajo sin responsables** (anteriores al Cambio 411): la edición sigue con los cuatro campos a mano, sin cambios.
 4. **Privacidad:** como en el alta, solo nombre y teléfono llegan a la página; DNI y email no.
@@ -54475,7 +54475,7 @@ El Cambio 450 sacó los cuatro campos solo del **alta**: el contacto se copiaba 
 
 ## Archivos
 
-Los de «Partes afectadas», más los tests `programas/tests/test_dispositivos_contacto_edicion_457.py` (nuevo) y `programas/tests/test_dispositivos_alta_contacto_450.py`.
+Los de «Partes afectadas», más los tests `programas/tests/test_dispositivos_contacto_edicion_459.py` (nuevo) y `programas/tests/test_dispositivos_alta_contacto_450.py`.
 
 ## Base de datos
 
@@ -54483,7 +54483,7 @@ Sin cambios de esquema. Los legajos se actualizan solos la próxima vez que se e
 
 ## Validación
 
-- `test_dispositivos_contacto_edicion_457` (10 tests): la edición no tiene los campos y muestra el contacto sin DNI ni email; el resumen pide el teléfono en el perfil; guardar copia el contacto y lo deja en la traza; un POST con los campos viejos no los pisa; lo que el perfil no trae conserva lo guardado (verificado por mutación: sin el respaldo el test falla); toma al primer responsable en el orden del alta; un responsable que perdió el rol no da el contacto (verificado por mutación); sin responsables siguen los campos a mano; enviar a validación falla sin teléfono y pasa (copiándolo) cuando se carga en el perfil.
+- `test_dispositivos_contacto_edicion_459` (10 tests): la edición no tiene los campos y muestra el contacto sin DNI ni email; el resumen pide el teléfono en el perfil; guardar copia el contacto y lo deja en la traza; un POST con los campos viejos no los pisa; lo que el perfil no trae conserva lo guardado (verificado por mutación: sin el respaldo el test falla); toma al primer responsable en el orden del alta; un responsable que perdió el rol no da el contacto (verificado por mutación); sin responsables siguen los campos a mano; enviar a validación falla sin teléfono y pasa (copiándolo) cuando se carga en el perfil.
 - Suite de Dispositivos + `test_validacion_contacto`: 1859 tests OK (`.venv312`, Py 3.12 + Dj 5.2). `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent` OK.
 
 ## Pendientes / a definir
@@ -54498,6 +54498,7 @@ Revertir el PR; los legajos conservan lo último copiado y la edición vuelve a 
 
 - **13/11/2026 — alta del cambio.**
 - **13/11/2026 — auditoría del PR #1121:** dos MINOR resueltos en el mismo PR (el contacto sale solo de un responsable vigente; `sincronizar_contacto` devuelve los cambios con la forma de la traza), y la ficha `dominio/becas.md` documenta la sincronización antes de validar.
+- **13/11/2026 — MINOR de la auditoría del #1121:** la entrada nombraba el test y la función con sus nombres anteriores; ahora dice `test_dispositivos_contacto_edicion_459` y `responsables_vigentes`, y `test_dispositivos_fidelidad_fi` importa `nombre_de_persona` desde `services/dispositivos.py`.
 
 ---
 
