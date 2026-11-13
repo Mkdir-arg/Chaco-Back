@@ -25,7 +25,7 @@ from io import StringIO
 from unittest import mock
 
 from django.core.cache import cache
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase, tag
 
 from core.services import vencimientos as registro
@@ -282,11 +282,7 @@ class DerivacionVencidaTests(BaseVencimientos):
 
         self.assertEqual(self._derivacion(self.derivacion)["estado"], Derivacion.Estado.PENDIENTE)
 
-    def test_una_fila_que_falla_no_frena_a_las_demas(self):
-        """Y lo que se informa son las que se procesaron de verdad."""
-        _, segunda = self._derivado()
-        _, tercera = self._derivado()
-        self.reloj.avanzar(minutes=VIGENCIA_MIN + 5)
+    def _falla_en(self, segunda):
         vencer = servicio.vencer_derivacion
 
         def falla_en_la_segunda(derivacion):
@@ -294,10 +290,22 @@ class DerivacionVencidaTests(BaseVencimientos):
                 raise RuntimeError("se cortó la conexión")
             return vencer(derivacion)
 
-        with mock.patch.object(servicio, "vencer_derivacion", falla_en_la_segunda):
-            with self.assertLogs(LOG_REGLAS, level=logging.ERROR) as log:
-                self.assertEqual(self._vencer_las_pendientes(), 2)
+        return mock.patch.object(servicio, "vencer_derivacion", falla_en_la_segunda)
 
+    def test_una_fila_que_falla_no_frena_a_las_demas(self):
+        """Procesa todas, y al final levanta con las fallidas y las que sí se procesaron (OPS-07)."""
+        _, segunda = self._derivado()
+        _, tercera = self._derivado()
+        self.reloj.avanzar(minutes=VIGENCIA_MIN + 5)
+
+        with self._falla_en(segunda):
+            with self.assertLogs(LOG_REGLAS, level=logging.ERROR) as log:
+                with self.assertRaises(reglas.VencimientoConFallas) as error:
+                    self._vencer_las_pendientes()
+
+        self.assertEqual((error.exception.fallidas, error.exception.procesadas), ([segunda.pk], 2))
+        self.assertIn(f"ids=[{segunda.pk}]", str(error.exception))
+        self.assertIn("2 sí se procesaron", str(error.exception))
         self.assertTrue(any("Traceback" in linea and f"id={segunda.pk}" in linea for linea in log.output))
         self.assertEqual(
             {d.pk: d.estado for d in Derivacion.objects.all()},
@@ -309,6 +317,31 @@ class DerivacionVencidaTests(BaseVencimientos):
         )
         # Sigue pendiente, así que la corrida siguiente la levanta.
         self.assertEqual(self._vencer_las_pendientes(), 1)
+
+    def test_el_comando_se_pone_rojo_y_deja_procesadas_las_buenas(self):
+        _, segunda = self._derivado()
+        _, tercera = self._derivado()
+        self.reloj.avanzar(minutes=VIGENCIA_MIN + 5)
+        salida, errores = StringIO(), StringIO()
+
+        with self._falla_en(segunda), self.assertLogs(LOG_REGLAS, level=logging.ERROR):
+            with self.assertRaisesMessage(CommandError, REGLA_DERIVACION):
+                call_command("procesar_vencimientos", stdout=salida, stderr=errores)
+
+        self.assertEqual(
+            {d.pk: d.estado for d in Derivacion.objects.all()},
+            {
+                self.derivacion.pk: Derivacion.Estado.VENCIDA,
+                segunda.pk: Derivacion.Estado.PENDIENTE,
+                tercera.pk: Derivacion.Estado.VENCIDA,
+            },
+        )
+        self.assertIn(f"{REGLA_DERIVACION}: falló (", errores.getvalue())
+        self.assertIn("2 sí se procesaron", errores.getvalue())
+        # Las de Becas y la otra de Emergencia corrieron igual.
+        self.assertIn("becas.convocatoria: sin pendientes.", salida.getvalue())
+        self.assertIn("becas.relevamiento: sin pendientes.", salida.getvalue())
+        self.assertIn(f"{REGLA_SIN_AVANCE}:", salida.getvalue())
 
     def test_cambiar_la_vigencia_no_mueve_las_derivaciones_ya_creadas(self):
         """RN-5.5: ``vence_en`` se fijó al derivar. La vigencia nueva vale para la próxima."""
@@ -464,9 +497,7 @@ class CasoSinAvanceTests(BaseVencimientos):
 
         self.assertEqual(self._fila(self.caso)["estado"], Estado.EN_GESTION)
 
-    def test_una_fila_que_falla_no_frena_a_las_demas(self):
-        otro = self._caso_tomado(por=self.otro_operador)
-        self.reloj.avanzar(minutes=SIN_AVANCE_MIN + 5)
+    def _falla_en_el_primero(self):
         devolver = servicio.devolver_a_bandeja_por_inactividad
 
         def falla_en_el_primero(caso):
@@ -474,12 +505,41 @@ class CasoSinAvanceTests(BaseVencimientos):
                 raise RuntimeError("se cortó la conexión")
             return devolver(caso)
 
-        with mock.patch.object(servicio, "devolver_a_bandeja_por_inactividad", falla_en_el_primero):
+        return mock.patch.object(servicio, "devolver_a_bandeja_por_inactividad", falla_en_el_primero)
+
+    def test_una_fila_que_falla_no_frena_a_las_demas(self):
+        otro = self._caso_tomado(por=self.otro_operador)
+        tercero = self._caso_tomado(por=self.otro_operador)
+        self.reloj.avanzar(minutes=SIN_AVANCE_MIN + 5)
+
+        with self._falla_en_el_primero():
             with self.assertLogs(LOG_REGLAS, level=logging.ERROR):
-                self.assertEqual(self._devolver_los_inactivos(), 1)
+                with self.assertRaises(reglas.VencimientoConFallas) as error:
+                    self._devolver_los_inactivos()
+
+        self.assertEqual((error.exception.fallidas, error.exception.procesadas), ([self.caso.pk], 2))
+        self.assertEqual(self._fila(self.caso)["estado"], Estado.EN_GESTION)
+        self.assertEqual(self._fila(otro)["estado"], Estado.NUEVO)
+        self.assertEqual(self._fila(tercero)["estado"], Estado.NUEVO)
+
+    def test_el_comando_se_pone_rojo_y_deja_procesadas_las_buenas(self):
+        otro = self._caso_tomado(por=self.otro_operador)
+        tercero = self._caso_tomado(por=self.otro_operador)
+        self.reloj.avanzar(minutes=SIN_AVANCE_MIN + 5)
+        salida, errores = StringIO(), StringIO()
+
+        with self._falla_en_el_primero(), self.assertLogs(LOG_REGLAS, level=logging.ERROR):
+            with self.assertRaisesMessage(CommandError, REGLA_SIN_AVANCE):
+                call_command("procesar_vencimientos", stdout=salida, stderr=errores)
 
         self.assertEqual(self._fila(self.caso)["estado"], Estado.EN_GESTION)
         self.assertEqual(self._fila(otro)["estado"], Estado.NUEVO)
+        self.assertEqual(self._fila(tercero)["estado"], Estado.NUEVO)
+        self.assertIn(f"{REGLA_SIN_AVANCE}: falló (", errores.getvalue())
+        self.assertIn("2 sí se procesaron", errores.getvalue())
+        self.assertIn("becas.convocatoria: sin pendientes.", salida.getvalue())
+        self.assertIn("becas.relevamiento: sin pendientes.", salida.getvalue())
+        self.assertIn(f"{REGLA_DERIVACION}:", salida.getvalue())
 
 
 # ---------------------------------------------------------------------------
