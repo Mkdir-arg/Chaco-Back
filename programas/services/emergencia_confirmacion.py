@@ -281,14 +281,15 @@ def _ingresar_en_cama_libre(*, ciudadano, cama, propia, derivacion, por_confirma
     a_liberar = ([(sobrante, MOTIVO_RESERVA_SOBRANTE, True)] if sobrante is not None else []) + [
         (comun, MOTIVO_RESERVA_CERRADA_POR_INGRESO, False) for comun in comunes
     ]
-    if a_liberar:
-        # Solo el candado: `liberar_reserva` e `ingresar_persona` vuelven a tomar cada plaza.
-        list(
-            Plaza.objects.select_for_update()
-            .filter(pk__in={cama.pk} | {reserva.plaza_id for reserva, _motivo, _alcance in a_liberar})
-            .order_by("pk")
-            .values_list("pk", flat=True)
-        )
+    # Solo el candado: `liberar_reserva` e `ingresar_persona` vuelven a tomar cada plaza. Va
+    # siempre, aunque no haya nada que liberar: la cama tiene que quedar tomada antes que la
+    # persona, como en `ingresar_persona` y `reservar_plaza` (plaza → persona).
+    list(
+        Plaza.objects.select_for_update()
+        .filter(pk__in={cama.pk} | {reserva.plaza_id for reserva, _motivo, _alcance in a_liberar})
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
     reserva_liberada = False
     for reserva, motivo, verificar_alcance in a_liberar:
         try:
