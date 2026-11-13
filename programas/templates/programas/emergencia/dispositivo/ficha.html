@@ -53,7 +53,7 @@ secciones 4 a 8, que se pueden terminar después.{% endcomment %}
         {% if seccion.sin_datos %}{% with field=seccion.sin_datos %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}{% endif %}
       </div>
     </div>
-    {% if seccion.codigo == "avisos_salud" %}
+    {% if seccion.cama_despues %}
     <div class="border-t border-light pt-4">
       <h2 class="text-heading font-bold">Cama</h2>
       <p class="mt-1 mb-4 text-xs text-body-subtle">Las camas reservadas para esta familia se ofrecen primero. La cama se toma recién al confirmar.</p>

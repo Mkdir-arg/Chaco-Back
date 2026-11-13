@@ -763,12 +763,22 @@ class RecorridoCompletoTests(BaseLlegadas):
 
 
 class LaMesaLoVeTests(BaseLlegadas):
-    def test_las_claves_de_situacion_de_la_mesa_son_las_del_servicio(self):
-        """El selector de la mesa las repite para no importar el servicio de alojar."""
+    def test_la_situacion_de_la_etapa_3_se_lee_del_modelo(self):
+        """Una sola definición de las claves y del «ingreso directo»: el modelo. La mesa no las repite."""
 
-        self.assertEqual(emergencia_mesa.SITUACION_ALOJAMIENTO, servicio.SITUACION_ALOJAMIENTO)
-        self.assertEqual(emergencia_mesa.SITUACION_DIFERENCIA, servicio.SITUACION_DIFERENCIA)
-        self.assertEqual(emergencia_mesa.SITUACION_EN_LA_PUERTA, servicio.SITUACION_EN_LA_PUERTA)
+        self.assertFalse(hasattr(emergencia_mesa, "SITUACION_EN_LA_PUERTA"))
+        directo = CasoEmergencia(origen=CasoEmergencia.Origen.DISPOSITIVO, situacion={})
+        aviso = CasoEmergencia(
+            origen=CasoEmergencia.Origen.DISPOSITIVO,
+            situacion={CasoEmergencia.SITUACION_EN_LA_PUERTA: {"dispositivo_id": 1, "dispositivo": "Club"}},
+        )
+        de_la_mesa = CasoEmergencia(origen=CasoEmergencia.Origen.MESA, situacion={})
+        self.assertTrue(directo.es_ingreso_directo)
+        self.assertTrue(servicio.es_ingreso_directo(directo))
+        self.assertFalse(aviso.es_ingreso_directo)
+        self.assertFalse(de_la_mesa.es_ingreso_directo)
+        self.assertEqual(aviso.en_la_puerta["dispositivo"], "Club")
+        self.assertIsNone(directo.en_la_puerta)
 
     def test_la_ficha_de_la_mesa_muestra_los_integrantes_y_el_ingreso_parcial(self):
         caso, derivacion = self._aceptado()

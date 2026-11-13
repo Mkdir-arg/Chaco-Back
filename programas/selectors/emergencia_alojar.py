@@ -249,7 +249,7 @@ def integrantes_de(caso):
             "integrantes": [
                 {"n": 1, "estado": "CONFIRMADA", "ficha_completa": False,
                  "persona": {"id": 9, "nombre": "Pérez, Juan", "dni": "30111222"},
-                 "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)"},
+                 "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)", "sector_id": 3},
                  "parentesco": "Jefe/a de hogar",
                  "confirmada_en": datetime, "egresado_en": None, "estadia_id": 77},
                 {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": False,
@@ -294,7 +294,12 @@ def integrantes_de(caso):
             persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
         if fila.estadia_id and fila.estadia.plaza_id:
             cama = fila.estadia.plaza
-            plaza = {"id": cama.pk, "codigo": cama.codigo, "nombre": plaza_con_sector(cama, cama.sector.nombre)}
+            plaza = {
+                "id": cama.pk,
+                "codigo": cama.codigo,
+                "nombre": plaza_con_sector(cama, cama.sector.nombre),
+                "sector_id": cama.sector_id,
+            }
         parentesco = fila.get_parentesco_display() if fila.parentesco else ""
         if fila.parentesco == IntegranteGrupo.Parentesco.OTRO and fila.parentesco_otro:
             parentesco = fila.parentesco_otro

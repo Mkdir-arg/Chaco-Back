@@ -23,7 +23,10 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import connection
 from django.test import SimpleTestCase, tag
+from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 from core.models import Localidad
 from core.tests.candados import orden_de_candados
@@ -45,9 +48,10 @@ from programas.models import (
     Turno,
 )
 from programas.selectors import emergencia_alojar as selectores
+from programas.selectors import emergencia_llegadas as pantalla
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
-from programas.services import emergencia_alojar as servicio_confirmacion
+from programas.services import emergencia_confirmacion as servicio_confirmacion
 from programas.services import ingreso as servicio_ingreso
 from programas.services.emergencia import EstadoCambio
 from programas.services.estadias import egresar_persona, liberar_reserva, reservar_plaza
@@ -776,7 +780,9 @@ class ConfirmarIntegranteTests(BaseAlojar):
         """El otro lado de la atomicidad: lo que se deshace incluye el ingreso ya hecho."""
 
         caso, derivacion = self._aceptado()
-        with mock.patch.object(servicio, "_vincular_con_el_responsable", side_effect=RuntimeError("se cayó")):
+        with mock.patch.object(
+            servicio_confirmacion, "_vincular_con_el_responsable", side_effect=RuntimeError("se cayó")
+        ):
             with self.assertRaises(RuntimeError):
                 self._confirmar(caso, 2, "45000111")
 
@@ -929,9 +935,7 @@ class ConfirmarIntegranteTests(BaseAlojar):
             original(ciudadano)
             reservar_plaza(plaza=escuela, ciudadano=ciudadano, usuario=self.guardia_escuela)
 
-        with mock.patch.object(
-            servicio_confirmacion, "_bloquear_persona", side_effect=bloquear_y_que_aparezca, create=True
-        ):
+        with mock.patch.object(servicio_confirmacion, "_bloquear_persona", side_effect=bloquear_y_que_aparezca):
             with self.assertRaises(ValidationError) as error:
                 self._confirmar(caso, 2, "45000111", plaza=self._cama_libre())
 
@@ -1869,7 +1873,13 @@ class SelectoresTests(BaseAlojar):
         self.assertEqual(confirmada["estado"], "CONFIRMADA")
         self.assertEqual(confirmada["persona"]["nombre"], "Pérez, Juan")
         self.assertEqual(
-            confirmada["plaza"], {"id": plaza.pk, "codigo": plaza.codigo, "nombre": f"{plaza.codigo} (General)"}
+            confirmada["plaza"],
+            {
+                "id": plaza.pk,
+                "codigo": plaza.codigo,
+                "nombre": f"{plaza.codigo} (General)",
+                "sector_id": plaza.sector_id,
+            },
         )
         self.assertEqual(confirmada["parentesco"], "Hijo/a")
         self.assertFalse(confirmada["ficha_completa"])
@@ -1943,3 +1953,44 @@ class PresupuestoDeConsultasDeAlojarTests(BaseAlojar):
             datos = selectores.integrantes_de(caso)
 
         self.assertEqual((datos["confirmadas"], datos["total_declarado"]), (30, 40))
+
+    def _llegadas_cuestan(self):
+        """Cuántas consultas cuesta la lista de llegadas, con el usuario recién leído.
+
+        Cuenta también el armado de las filas y de las tarjetas (familia, responsable, quién
+        derivó): es lo que lee la pantalla, y donde aparecería un N+1 si el selector dejara de
+        traer algo.
+        """
+
+        usuario = User.objects.get(pk=self.guardia_grande.pk)
+        ahora = timezone.now()
+        with CaptureQueriesContext(connection) as consultas:
+            llegadas = selectores.llegadas_del_dispositivo(self.grande, usuario)
+            for derivaciones in llegadas.values():
+                pantalla.filas_de_llegadas(derivaciones, ahora, lambda derivacion: "")
+                for derivacion in derivaciones:
+                    pantalla.tarjeta_de_derivacion(derivacion, ahora)
+        return len(consultas), llegadas
+
+    def _familias_derivadas(self, desde, cuantas):
+        """``cuantas`` familias de 2 derivadas al Polideportivo: la mitad aceptadas, la otra pendientes."""
+
+        for n in range(desde, desde + cuantas):
+            _caso, derivacion = self._derivado(
+                dispositivo=self.grande, dni=str(31_000_000 + n), menores_f=0, menores_m=1, plazas=2
+            )
+            if n % 2:
+                servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia_grande)
+
+    def test_llegadas_cuestan_lo_mismo_con_2_que_con_20_derivaciones(self):
+        """Sin N+1: la lista de llegadas trae caso, grupo, responsable y quién derivó en la misma consulta."""
+
+        self._familias_derivadas(0, 2)
+        con_2, llegadas = self._llegadas_cuestan()
+        self.assertEqual((len(llegadas["pendientes"]), len(llegadas["en_curso"])), (1, 1))
+
+        self._familias_derivadas(2, 18)
+        con_20, llegadas = self._llegadas_cuestan()
+        self.assertEqual((len(llegadas["pendientes"]), len(llegadas["en_curso"])), (10, 10))
+
+        self.assertEqual(con_20, con_2, "las consultas de llegadas crecen con las derivaciones")
