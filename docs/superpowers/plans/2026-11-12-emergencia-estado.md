@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-13 21:00. **8 de 13 PRs mergeados a `development`** (PR 0 a PR 7). En auditoría: #1133 (PR 9).
+**Última actualización:** 2026-11-13 22:40. **11 de 13 PRs mergeados a `development`** (PR 0 a PR 10, más el PR 9 antes que el PR 8). #1136 (PR 11) está aprobado y espera el CI. Falta #1137 (PR 12, documentación).
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -48,11 +48,37 @@ apuntar a `development` y recién ahí le corre el CI.
 | #1130 PR 5 | Mergeado | `870998e1` | 2 rondas. Se sacaron del serializer reglas que no tiene el servicio (`max_length=60`, `min_value=0`) y el 409 pasó a reconocerse por tipo (`UuidEnUso`, también en kits del PR 9). |
 | #1131 PR 6 | Mergeado | `413eb813` | 2 rondas. Las reservas de derivación pasaron a `services/reservas_derivacion.py` (`estadias.py` 1316 → 1033 líneas). D2 del Cambio 409 en `consumir_reserva_de_derivacion`. Ficha `turno_bitacora.md` actualizada (la exige `check_design_agent`). |
 | #1132 PR 7 | Mergeado | `916aa160` | Pasó por dos rondas y una tercera revisión acotada. `emergencia_alojar.py` (1893 líneas) quedó partido en 6 módulos más una fachada. D2 del Cambio 409 en la cama libre. `acciones_del_ingreso` es la regla única. La cama se bloquea siempre antes que la persona. Ficha `turno_bitacora.md`. |
-| #1133 PR 9 | En auditoría (ronda 1) | | Kits y API M3. Migración `0121`. |
-| #1134 a #1137 | Pendientes | | |
+| #1133 PR 9 | Mergeado | `70b5965e` | Una ronda. Kits y API M3. Migración `0121`. |
+| #1134 PR 8 | Mergeado | `cf544a33` | Dos rondas. `views_emergencia.py` (1128 líneas) se partió en base, kits, llegadas y sin_derivacion. `ingreso_sin_candado` es la guarda única: GET y POST dan el mismo 409. La búsqueda por DNI tiene un tope `emergencia_buscar` de 300/h. |
+| #1135 PR 10 | Mergeado | `8400f935` | Una ronda. Tablero E1 y avisos. Se aceptan 16 consultas en la vista y 12 en el dominio. Se actualizó la ficha `shells.md` y el sidebar quedó con una sola entrada activa en la recepción de kits. |
+| #1136 PR 11 | Aprobado (ronda 2), espera el CI | | «En la puerta» quedó con una sola regla, «caso abierto y nunca derivado», en E1, E2 y E3. «Rechazo sin nueva acción» y la última traza tienen una sola fuente. |
+| #1137 PR 12 | Pendiente | | Manual y Cambios 462 a 474. |
 
 **MINOR registrados para PRs siguientes:**
 - **PR 5:** el largo de `traslado_otro` no sale en el primer 400; `test_emergencia_api_contrato.py` tiene 1084 líneas; `_respuesta_400` privado; tercera definición de `CAP_ADMITIR`; doble `EXISTS` en `perfil/`; `validar_foto_de_la_app` duplica a `validar_adjunto`.
+- **PR 9:**
+  - El remito queda huérfano si el UNIQUE corta la recepción.
+  - El contrato §12 dice «no importa el segundo cuerpo».
+  - Hay helpers copiados (`_url`, `_errores_de`, `nombre_de`, `fecha_hora`).
+  - La regla de acciones por estado de la entrega está repetida.
+  - Un selector autoriza por su cuenta.
+  - Los modelos traen la sexta copia de la traza inmutable.
+  - Los tests de kits pasan las 1000 líneas.
+  - Los modales están duplicados.
+- **PR 8:** `opera_en_algun_dispositivo` repite `recibe_kits` en línea; habría que mover `recibe_kits` a `emergencia_programa`.
+- **PR 10:**
+  - Las localidades homónimas se agrupan por nombre.
+  - «Todavía no hay casos» no aparece cuando hay red.
+  - Falta la solapa «Mapa de la emergencia», que va deshabilitada.
+  - `entregas_en_camino` carga todo.
+  - Hay dos definiciones de ingreso directo.
+  - Están copiados los elegibles, las plazas libres y `TONOS`/`ICONOS`.
+  - La ventana RN-5.1 no tiene índice `(estado, cerrado_en)`.
+  - Queda un comentario muerto en `test_nodo_ui_piezas`.
+- **PR 11:**
+  - Falta un test `@tag("mysql")` para `__has_key`.
+  - `familias_en_la_puerta` debería acotarse con `pk__in`.
+  - Los avisos de E3 tienen que llevar `role="status"`.
 - **PR 7:** `acciones_del_ingreso` recibe el `total` calculado de dos formas (conviene calcularlo adentro). Quedan los alias `SITUACION_*` y el envoltorio `es_ingreso_directo` sin uso en producción. Hay un ciclo improbable con un egreso simultáneo, documentado en la fachada.
 - **PR 6:** el protocolo de candados de D2 está copiado de `confirmar_ingreso` (convendría extraer `_bloquear_plazas` y `_cerrar_reservas_comunes`); tres mensajes literales copiados de `estadias.py`.
 
@@ -72,7 +98,7 @@ git checkout docs/emergencia-analisis      # plan, análisis y este archivo
 git checkout feat/emergencia-integracion-final  # todo el backend (PRs 0 a 11) junto y verificado
 ```
 
-- **PR 0 a PR 7 ya están en `development`** (ver §0). Los PRs 8 a 12 siguen abiertos y apilados.
+- **PR 0 a PR 10 ya están en `development`** (ver §0). Quedan abiertos el PR 11 (aprobado) y el PR 12.
 - Las ramas van **apiladas**: para abrir los PRs contra `development` hay que hacerlo en orden
   (§2), o mergear primero la base de cada una.
 - Las ramas `feat/emergencia-*` salen de `development` @ `e968b179` y **no** traen los commits de
