@@ -233,7 +233,25 @@ def _foto(etiqueta):
     )
 
 
-class NuevoCasoMesaForm(forms.Form):
+class ErroresDelServicioMixin:
+    """Lleva cada rechazo de un servicio (``ValidationError``) a su campo; lo que no es de un campo, arriba.
+
+    Los servicios de Emergencia validan las reglas y devuelven el error por clave; la vista
+    no lo reinterpreta. ``CAMPOS_ARRIBA`` son claves que **son** campos del form pero cuyo
+    error se lee mejor arriba (la cama de la ficha, que viaja oculta).
+    """
+
+    CAMPOS_ARRIBA = ()
+
+    def agregar_errores_del_servicio(self, error):
+        if not hasattr(error, "error_dict"):
+            self.add_error(None, error)
+            return
+        for clave, errores in error.error_dict.items():
+            self.add_error(clave if clave in self.fields and clave not in self.CAMPOS_ARRIBA else None, errores)
+
+
+class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
     """El Formulario 1 cargado desde la mesa (HU-1.4): lo que llega por teléfono.
 
     Los cuatro bloques son los cuatro pasos del formulario del agente (01 §4). No lleva GPS
@@ -365,15 +383,6 @@ class NuevoCasoMesaForm(forms.Form):
             tipo: self.cleaned_data[campo] for campo, tipo in self.FOTOS.items() if self.cleaned_data.get(campo)
         }
         return datos
-
-    def agregar_errores_del_servicio(self, error):
-        """Lleva cada rechazo de ``crear_caso`` a su campo; lo que no es de un campo, arriba."""
-
-        if not hasattr(error, "error_dict"):
-            self.add_error(None, error)
-            return
-        for clave, errores in error.error_dict.items():
-            self.add_error(clave if clave in self.fields else None, errores)
 
 
 # Lo que dice cada formulario chico de la ficha cuando llega algo que no puede ser. Van al

@@ -1,0 +1,257 @@
+{# arquetipo: detalle + apilado #}{# un área sola (las llegadas del dispositivo): secciones apiladas en surfaces #}
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Emergencia · Llegadas · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+{% comment %}E6 · paso 1 del guion de la guardia (M2-1, M2-2 y M2-6): buscar a la familia por DNI y ver lo que el
+dispositivo tiene por recibir. El resultado de la búsqueda lo arma el servidor: la tarjeta de la derivación
+(Aceptar es un POST directo; Rechazar pide motivo y es el arquetipo Modal), «sin derivación» (Ingresar igual /
+Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el servicio, no este template.{% endcomment %}
+<div x-data="{ modalRechazar: false }">
+
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
+  <div class="space-y-5">
+    {% page_header titulo="Emergencia · Llegadas" eyebrow=dispositivo.nombre volver_url=url_dispositivo volver_label=dispositivo.nombre %}
+      {% bajada %}Paso 1 de 3 · Buscá a la familia que llegó con el DNI de cualquiera de sus personas.{% endbajada %}
+    {% endpage_header %}
+
+    {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
+
+    {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+    {# ===== 1. Buscar ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="llegadas-buscar-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="llegadas-buscar-titulo" class="text-heading font-bold">Buscar a la familia</h2>
+      </div>
+      {# GET: solo busca (no muta, sin csrf) #}
+      <form method="get" action="{{ url_llegadas }}" class="p-5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {% with field=form.dni %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+        </div>
+        <div class="flex justify-end mt-4">
+          <button type="submit" class="btn-nodo btn-brand btn-sm"><i class="fas fa-magnifying-glass" aria-hidden="true"></i> Buscar</button>
+        </div>
+      </form>
+    </section>
+
+    {# ===== 2. Resultado ===== #}
+    {% if tarjeta %}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="llegadas-derivacion-titulo">
+      <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
+        <h2 id="llegadas-derivacion-titulo" class="text-heading font-bold">{{ tarjeta.familia }} · {{ tarjeta.personas }} declarada{{ tarjeta.caso.grupo.total_declarado|pluralize }}</h2>
+        <span class="badge badge-dot {% if tarjeta.pendiente %}badge-warning{% else %}badge-success{% endif %}">{% if tarjeta.pendiente %}Derivación por recibir{% else %}Ingreso en curso{% endif %}</span>
+      </div>
+      <div class="p-5 space-y-5">
+        {% if tarjeta.vencida %}
+        {% include "components/_alerta.html" with tono="warning" titulo="El plazo de la derivación ya pasó" texto="Si la familia está en la puerta, la podés aceptar igual: sigue vigente hasta que el sistema la dé por vencida." %}
+        {% endif %}
+        <dl class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.responsable }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.dni|dni }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Caso</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.caso.numero }} <span class="badge badge-{{ tarjeta.prioridad_tono }}">Prioridad {{ tarjeta.prioridad_texto|lower }}</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Camas pedidas</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.plazas }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Derivada por</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.derivada_por }} · {{ tarjeta.derivada_en }}</dd>
+          </div>
+          {% if tarjeta.pendiente %}
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Vence</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.vence }}</dd>
+          </div>
+          {% endif %}
+          {% if tarjeta.telefono %}
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Teléfono de contacto</dt>
+            <dd class="mt-1 text-sm text-heading">{{ tarjeta.telefono }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+        <p class="text-sm text-body">
+          {% for necesidad in tarjeta.necesidades %}<span class="badge badge-warning">{{ necesidad }}</span> {% empty %}<span class="text-body-subtle">Sin embarazo, electrodependencia, medicación crítica ni mascotas declaradas.</span>{% endfor %}
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Franja</th>
+                <th class="nodo-th text-center">Femenino</th>
+                <th class="nodo-th text-center">Masculino</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in tarjeta.franjas %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td text-heading font-medium">{{ fila.franja }}</td>
+                <td class="nodo-td text-center">{{ fila.femenino }}</td>
+                <td class="nodo-td text-center">{{ fila.masculino }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <dl class="grid gap-5 sm:grid-cols-3">
+          {% for dato in tarjeta.asistencia %}
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
+            <dd class="mt-1 text-sm font-semibold text-heading">{{ dato.valor }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+        {% if tarjeta.observaciones %}
+        <div>
+          <h3 class="text-sm font-bold text-heading">Observaciones de quien relevó</h3>
+          <p class="mt-1 text-sm text-body">{{ tarjeta.observaciones }}</p>
+        </div>
+        {% endif %}
+        <div class="flex flex-wrap justify-end gap-3 pt-4 border-t border-light">
+          {% if tarjeta.pendiente %}
+          <button type="button" @click="modalRechazar=true" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-ban" aria-hidden="true"></i> Rechazar</button>
+          <form method="post" action="{{ tarjeta.url_aceptar }}">
+            {% csrf_token %}
+            <button type="submit" class="btn-nodo btn-brand btn-sm"><i class="fas fa-check" aria-hidden="true"></i> Aceptar y reservar camas</button>
+          </form>
+          {% else %}
+          <a href="{{ tarjeta.url_integrantes }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-people-group" aria-hidden="true"></i> Seguir con el ingreso</a>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+    {% elif sin_derivacion %}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="llegadas-sin-derivacion-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="llegadas-sin-derivacion-titulo" class="text-heading font-bold">Sin derivación para el DNI {{ resultado.dni|dni }}</h2>
+      </div>
+      <div class="p-5 space-y-4">
+        {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Si la familia está en la puerta, la podés ingresar igual mientras haya camas libres, o avisarle a la mesa para que la derive." %}
+        {% if not puede_ingresar_igual %}
+        {% include "components/_alerta.html" with tono="warning" titulo="No hay camas libres" texto="Para ingresarla igual primero hay que liberar una cama. Mientras tanto, avisale a la mesa." %}
+        {% endif %}
+        <div class="flex flex-wrap justify-end gap-3">
+          <a href="{{ url_avisar }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-bullhorn" aria-hidden="true"></i> Avisar a la mesa</a>
+          {% if puede_ingresar_igual %}
+          <a href="{{ url_ingreso_directo }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Ingresar igual</a>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+    {% elif alojada %}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="llegadas-alojada-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="llegadas-alojada-titulo" class="text-heading font-bold">La persona del DNI {{ resultado.dni|dni }} ya está alojada</h2>
+      </div>
+      <div class="p-5">
+        {% if resultado.alojada_aca %}
+        {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Ya tiene una estadía abierta en este dispositivo: no hay nada que ingresar." %}
+        {% else %}
+        {% include "components/_alerta.html" with tono="warning" titulo=resultado.mensaje texto="Tiene una estadía abierta en la red. Para alojarla acá, primero tienen que registrar su egreso." %}
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    {# ===== 3. Derivaciones por recibir ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="llegadas-pendientes-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="llegadas-pendientes-titulo" class="text-heading font-bold">Derivaciones por recibir</h2>
+        <p class="mt-1 text-xs text-body-subtle">Las familias que la mesa derivó a este dispositivo y todavía no se aceptaron.</p>
+      </div>
+      {% if pendientes %}
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Familia</th>
+              <th class="nodo-th">Prioridad</th>
+              <th class="nodo-th">Plazo</th>
+              <th class="nodo-th nodo-col-acciones"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in pendientes %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.familia }}</span><span class="block text-xs text-body-subtle">{{ fila.detalle }}</span></td>
+              <td class="nodo-td"><span class="badge badge-{{ fila.prioridad_tono }}">{{ fila.prioridad_texto }}</span></td>
+              <td class="nodo-td">{{ fila.cuando }}{% if fila.vencida %} <span class="badge badge-warning">Plazo cumplido</span>{% endif %}</td>
+              <td class="nodo-td nodo-col-acciones"><a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Ver la derivación de la {{ fila.familia }}"><i class="fas fa-eye" aria-hidden="true"></i></a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-inbox" titulo="No hay derivaciones por recibir" texto="Cuando la mesa derive una familia a este dispositivo, aparece acá." %}
+      {% endif %}
+    </section>
+
+    {# ===== 4. Ingresos en curso ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="llegadas-en-curso-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="llegadas-en-curso-titulo" class="text-heading font-bold">Ingresos en curso</h2>
+        <p class="mt-1 text-xs text-body-subtle">Las familias aceptadas a las que todavía les falta confirmar personas o cerrar el ingreso.</p>
+      </div>
+      {% if en_curso %}
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Familia</th>
+              <th class="nodo-th">Confirmadas</th>
+              <th class="nodo-th">Aceptada</th>
+              <th class="nodo-th nodo-col-acciones"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in en_curso %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.familia }}</span><span class="block text-xs text-body-subtle">{{ fila.detalle }}</span></td>
+              <td class="nodo-td">{% include "components/_contador_avance.html" with hechos=fila.confirmadas total=fila.total etiqueta="confirmadas" nombre="Avance de la "|add:fila.familia only %}</td>
+              <td class="nodo-td">{{ fila.cuando }}</td>
+              <td class="nodo-td nodo-col-acciones"><a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Seguir con el ingreso de la {{ fila.familia }}"><i class="fas fa-people-group" aria-hidden="true"></i></a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="No hay ingresos en curso" texto="Al aceptar una derivación, la familia queda acá hasta que se cierra su ingreso." %}
+      {% endif %}
+    </section>
+  </div>
+
+  {% if form_rechazo %}
+  {# Modal: Rechazar la derivación — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalRechazar" x-cloak x-becas-modal="modalRechazar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalRechazar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-rechazar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Rechazar la derivación" titulo_id="modal-rechazar-titulo" subtitulo=tarjeta.familia icono="fa-ban" tono="danger" cerrar="modalRechazar=false" %}
+      <form method="post" action="{{ tarjeta.url_rechazar }}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_rechazo %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="El caso vuelve a la mesa con el motivo, para que lo deriven a otro dispositivo. Acá ya no se va a poder aceptar." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRechazar=false" cancelar_texto="Volver" accion_texto="Sí, rechazar" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

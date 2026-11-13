@@ -1,10 +1,11 @@
-"""Las piezas que comparten el alta del caso y la mesa de Emergencia.
+"""Las piezas que comparten el alta del caso, la mesa y la etapa 3 de Emergencia.
 
-``programas.services.emergencia_alta`` (crear el caso) y ``programas.services.emergencia``
-(lo que le pasa después) usan las dos la misma traza, el mismo permiso de la mesa y el
-mismo numerador. Viven acá para que la dependencia vaya en un solo sentido —los dos
-importan de este módulo, y ``emergencia`` reexporta el alta— sin un ciclo de imports
-sostenido por un import diferido (``programas.tests.test_arquitectura``).
+``programas.services.emergencia_alta`` (crear el caso), ``programas.services.emergencia``
+(lo que le pasa después) y los módulos de la etapa 3 (``emergencia_alojar`` y los que
+reexporta) usan la misma traza, el mismo permiso de la mesa, el mismo numerador y el
+mismo primer candado (el del caso). Viven acá para que la dependencia vaya en un solo
+sentido —todos importan de este módulo, y ``emergencia`` reexporta el alta— sin un ciclo
+de imports sostenido por un import diferido (``programas.tests.test_arquitectura``).
 
 ``emergencia`` las reexporta: quien las importa o las parcha desde ahí sigue andando.
 El numerador es una hoja del orden de los candados que documenta aquel módulo.
@@ -66,3 +67,26 @@ def siguiente_numero(serie, momento=None):
     numerador.ultimo += 1
     numerador.save(update_fields=["ultimo", "modificado"])
     return CasoEmergencia.formatear_numero(anio, numerador.ultimo)
+
+
+def _nombre_de(usuario):
+    """Nombre y apellido de quien trabaja en la mesa o en la guardia; ``"nadie"`` sin usuario."""
+
+    if usuario is None:
+        return "nadie"
+    return usuario.get_full_name().strip() or usuario.get_username()
+
+
+def _hora(momento):
+    """«14:05», en hora local."""
+
+    return f"{timezone.localtime(momento):%H:%M}"
+
+
+def _bloquear_caso(caso):
+    """La fila del caso con ``FOR UPDATE``, recién leída. **Siempre el primer candado.**
+
+    Sin ``select_related``: un JOIN acá bloquearía también las filas que trae.
+    """
+
+    return CasoEmergencia.objects.select_for_update().get(pk=getattr(caso, "pk", caso))

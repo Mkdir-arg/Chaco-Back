@@ -1,0 +1,25 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · {{ titulo }} · {{ dispositivo.nombre }}{% endblock %}
+
+{% comment %}E6 · el Formulario 1 cargado en la puerta del dispositivo (M2-6): «Ingresar igual» y «Avisar a la mesa»
+usan esta misma pantalla, con el título, la bajada y la acción que les pone la vista. Es el formulario de «Nuevo
+caso» de la mesa (arquetipo Formulario, un bloque por cada paso del formulario del agente) con la dirección y la
+localidad opcionales: la familia está acá.{% endcomment %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% page_header titulo=titulo eyebrow=dispositivo.nombre volver_url=url_llegadas volver_label="llegadas" %}
+    {% bajada %}{{ bajada }}{% endbajada %}
+  {% endpage_header %}
+  <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% include "programas/emergencia/_formulario1_bloques.html" with ayuda_asistencia="Con esto el sistema sugiere la prioridad del caso." titulo_ubicacion="De dónde viene y fotos" ayuda_ubicacion="La dirección y la localidad son opcionales: la familia ya está en el dispositivo. Las fotos también (JPG o PNG)." %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{{ url_llegadas }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas {{ icono }}" aria-hidden="true"></i> {{ accion }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

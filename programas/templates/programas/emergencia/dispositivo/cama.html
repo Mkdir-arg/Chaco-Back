@@ -1,0 +1,43 @@
+{# arquetipo: detalle + apilado #}{# un área sola (las camas del dispositivo): una surface por sector #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Elegir cama · Caso {{ caso.numero }}{% endblock %}
+
+{% block main-content %}
+{% comment %}E6 · el mapa de plazas en modo emergencia (M2-4, «Elegir cama»). Usa `components/_mapa_plazas.html` sin
+tocarla (ficha `mapa_plazas.md`, «Consumidor: modo emergencia»): la vista decide el texto, el tono y qué cama
+lleva `url`. Tocar una cama no escribe nada: vuelve a la ficha de la persona con esa cama elegida, y se toma
+recién al confirmar. La selección es única.{% endcomment %}
+<div class="space-y-5">
+  {% page_header titulo="Elegir cama" eyebrow=dispositivo.nombre volver_url=url_ficha volver_label="la ficha" %}
+    {% bajada %}Paso 2 de 3 · Caso {{ caso.numero }} · Persona {{ orden }}. Tocá una cama libre o una reservada para esta familia.{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+  {% if not hay_elegibles %}
+  {% include "components/_alerta.html" with tono="warning" icono="bed" titulo="Sin cama libre" texto="No queda ninguna cama libre ni reservada para esta familia. Liberá una desde «Sectores y plazas» o cerrá el ingreso con diferencia." %}
+  {% endif %}
+
+  {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+
+  {% for item in sectores %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.id }}-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="sector-{{ item.sector.id }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %}</h2>
+      <p class="text-xs text-body-subtle mt-1">{{ item.reservadas_familia }} reservada{{ item.reservadas_familia|pluralize }} para esta familia · {{ item.libres }} libre{{ item.libres|pluralize }} de {{ item.total }} cama{{ item.total|pluralize }}</p>
+    </div>
+    <div class="p-5">
+      {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.total %}
+    </div>
+  </section>
+  {% empty %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sin-sectores-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="sin-sectores-titulo" class="text-heading font-bold">Camas</h2>
+    </div>
+    {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene camas cargadas" texto="Cuando se carguen los sectores y sus camas, se pueden elegir desde acá." %}
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

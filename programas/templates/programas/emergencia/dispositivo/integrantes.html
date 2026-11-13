@@ -1,0 +1,165 @@
+{# arquetipo: detalle + apilado #}{# un área sola (la familia que ingresa): secciones apiladas en surfaces #}
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Emergencia · {{ familia }} · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+{% comment %}E6 · paso 2 del guion de la guardia (M2-3): las N filas de la familia con el contador «3 de 7».
+Qué botón se ofrece lo decide `services.emergencia_ingreso_comun.acciones_del_ingreso` (`puede_*`); el servicio lo vuelve a exigir en cada POST.
+«Agregar persona» es una confirmación sí/no (`data-confirm-url` → ModernModal); cerrar con diferencia y cancelar
+el ingreso piden motivo y son el arquetipo Modal con POST clásico.{% endcomment %}
+<div x-data="{ modalDiferencia: false, modalCancelar: false }">
+
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
+  <div class="space-y-5">
+    {% page_header titulo=familia eyebrow=dispositivo.nombre volver_url=url_llegadas volver_label="llegadas" %}
+      {% bajada %}Paso 2 de 3 · Caso {{ caso.numero }} · {{ total }} persona{{ total|pluralize }}{% if total != declaradas %} ({{ declaradas }} declarada{{ declaradas|pluralize }} al relevar){% endif %}.{% endbajada %}
+      {% if puede_alojar %}
+      <a href="{{ url_alojar }}" class="btn-nodo btn-brand btn-sm btn-fit"><i class="fas fa-house-circle-check" aria-hidden="true"></i> Familia alojada</a>
+      {% endif %}
+      {# Las acciones secundarias van al menú; si ninguna corresponde al estado, el menú no se dibuja #}
+      {% menu_fila id="acciones-ingreso" etiqueta="Más acciones del ingreso de la "|add:familia texto="Más acciones" %}
+        {% if puede_agregar %}
+        {% include "components/_menu_fila_item.html" with texto="Agregar persona" icono="fa-user-plus" confirm_url=url_agregar confirm_title="¿Agregar una persona a la familia?" confirm_text="Suma una fila que no estaba declarada. No tiene cama reservada: se elige entre las libres al confirmarla." confirm_ok="Sí, agregar" only %}
+        {% endif %}
+        {% if puede_diferencia %}
+        {% include "components/_menu_fila_item.html" with texto="Cerrar ingreso con diferencia" icono="fa-people-arrows" abre_modal="modalDiferencia" only %}
+        {% endif %}
+        {% if puede_cancelar %}
+        {% include "components/_menu_fila_item.html" with texto="Cancelar ingreso" icono="fa-ban" abre_modal="modalCancelar" peligro=True only %}
+        {% endif %}
+      {% endmenu_fila %}
+    {% endpage_header %}
+
+    {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
+
+    {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+    {% if not en_curso %}
+      {% if parcial and diferencia %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Ingreso parcial · "|add:diferencia.motivo_texto texto=diferencia.observacion|default:"La familia quedó alojada con menos personas que las declaradas." %}
+      {% else %}
+      {% include "components/_alerta.html" with tono="success" titulo="Familia alojada" texto="El ingreso está cerrado. Las fichas incompletas se pueden terminar desde acá." %}
+      {% endif %}
+    {% elif puede_alojar %}
+      {% include "components/_alerta.html" with tono="success" titulo="Están todas las personas confirmadas" texto="Falta cerrar el ingreso con «Familia alojada»: dónde quedó la familia y la tarjeta familiar." %}
+    {% endif %}
+
+    {# ===== 1. Integrantes ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="ingreso-integrantes-titulo">
+      <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+        <h2 id="ingreso-integrantes-titulo" class="text-heading font-bold">Integrantes</h2>
+        {% include "components/_contador_avance.html" with hechos=confirmadas total=total etiqueta="confirmadas" only %}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">N.°</th>
+              <th class="nodo-th">Persona</th>
+              <th class="nodo-th">Cama</th>
+              <th class="nodo-th">Estado</th>
+              <th class="nodo-th nodo-col-acciones"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td">{{ fila.n }}</td>
+              <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.rotulo }}</span>{% if fila.persona %}<span class="block text-xs text-body-subtle">DNI {{ fila.persona.dni|dni }}{% if fila.parentesco %} · {{ fila.parentesco }}{% endif %}</span>{% endif %}</td>
+              <td class="nodo-td">{{ fila.plaza.nombre|default:"—" }}</td>
+              <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>{% if fila.ficha_texto %} <span class="badge badge-{{ fila.ficha_tono }}">{{ fila.ficha_texto }}</span>{% endif %}</td>
+              <td class="nodo-td nodo-col-acciones">
+                {% if fila.confirmada or en_curso %}
+                <a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="{{ fila.accion }}: {{ fila.rotulo }}"><i class="fas {% if fila.confirmada %}fa-file-pen{% else %}fa-user-check{% endif %}" aria-hidden="true"></i></a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if alojamiento %}
+    {# ===== 2. Dónde quedó la familia (sección 4 del Formulario 1) ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="ingreso-alojamiento-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="ingreso-alojamiento-titulo" class="text-heading font-bold">Dónde quedó la familia</h2>
+      </div>
+      <dl class="p-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Sector o ala</dt>
+          <dd class="mt-1 text-sm text-heading">{{ alojamiento.sector|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Aula o dormitorio</dt>
+          <dd class="mt-1 text-sm text-heading">{{ alojamiento.aula|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Tarjeta familiar</dt>
+          <dd class="mt-1 text-sm text-heading">{% if alojamiento.tarjeta_entregada %}Entregada · N.° {{ alojamiento.tarjeta_numero }}{% else %}No se entregó{% endif %}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Encargado que recibió</dt>
+          <dd class="mt-1 text-sm text-heading">{{ alojamiento.encargado|default:"—" }}</dd>
+        </div>
+      </dl>
+    </section>
+    {% endif %}
+
+    {% if fotos %}
+    {# ===== 3. Fotos del relevamiento (media/ va detrás de login: las ve la mesa y la guardia de este dispositivo) ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="ingreso-fotos-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="ingreso-fotos-titulo" class="text-heading font-bold">Fotos del relevamiento</h2>
+      </div>
+      <div class="p-5">
+        {% include "components/_galeria_fotos.html" with fotos=fotos %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  {% if form_diferencia %}
+  {# Modal: Cerrar ingreso con diferencia — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalDiferencia" x-cloak x-becas-modal="modalDiferencia" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalDiferencia=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-diferencia-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cerrar ingreso con diferencia" titulo_id="modal-diferencia-titulo" icono="fa-people-arrows" tono="warning" cerrar="modalDiferencia=false" %}
+      <form method="post" action="{{ url_diferencia }}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_diferencia %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="La familia queda alojada con las personas confirmadas, las camas reservadas que sobran se liberan y la mesa ve la diferencia con el motivo. Las personas sin confirmar ya no se pueden ingresar por este caso." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalDiferencia=false" cancelar_texto="Volver" accion_texto="Sí, cerrar con diferencia" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cancelar %}
+  {# Modal: Cancelar ingreso — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalCancelar" x-cloak x-becas-modal="modalCancelar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCancelar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cancelar ingreso" titulo_id="modal-cancelar-titulo" icono="fa-ban" tono="danger" cerrar="modalCancelar=false" %}
+      <form method="post" action="{{ url_cancelar }}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_cancelar %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="Las camas reservadas para la familia quedan libres y el caso vuelve a la mesa, que lo puede derivar de nuevo." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelar=false" cancelar_texto="Volver" accion_texto="Sí, cancelar el ingreso" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

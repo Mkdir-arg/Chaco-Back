@@ -12,6 +12,9 @@ dispositivo en el asistente de entrega de kits. Solo usa clases y tokens que ya 
 localidad). Derivar es un POST y la acción de la tarjeta solo navega: `accion_url` vuelve a la misma ficha con
 `?derivar=<pk>` y el servidor abre ahí el modal de confirmación (arquetipo Modal, variante «abierto por parámetro
 GET»), que es el que lleva el formulario con las plazas y, si faltan, la pregunta. La tarjeta no cambió para eso.
+Ese mismo selector arma, sin tocar esta tarjeta, lo que la ficha muestra después de derivar: la sección
+«Integrantes» en solo lectura (con `_contador_avance.html`) y los avisos de ingreso directo, «en la puerta de…» e
+ingreso parcial, que son `_alerta.html`.
 
 ## Por qué no es `_tarjeta_edificio` ni `_lista_tarjetas`
 

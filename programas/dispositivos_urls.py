@@ -1,5 +1,6 @@
 from django.urls import path
 
+from programas import dispositivos_emergencia_urls
 from programas.views import dispositivos_bitacora as bitacora
 from programas.views import dispositivos_capacidad as capacidad
 from programas.views import dispositivos_config as cfg
@@ -218,3 +219,6 @@ urlpatterns = [
         name="formulario_item_eliminar",
     ),
 ]
+
+# Emergencia · Llegadas (E6): la guardia recibe a la familia. Ver `dispositivos_emergencia_urls`.
+urlpatterns += dispositivos_emergencia_urls.urlpatterns
