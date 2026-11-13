@@ -55274,6 +55274,11 @@ volver a loguearse.
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 5 se cerró en la ola 3, commits `6fd023ff` y `92141d18`).
+- **13/11/2026 — hallazgos de la auditoría del PR #1130** (commit `ea05015e`). [MAJOR] El serializer del envío ya no tiene
+  reglas del Formulario 1: sin `max_length=60` en `traslado_otro` (el tope es el del modelo, 120, como en la mesa) ni
+  `min_value=0` en las cantidades (el signo lo valida `crear_caso`, «No puede ser negativo.», junto con los demás errores);
+  el contrato dice «Hasta 120 caracteres» y §6 aclara qué se mira en un reenvío idempotente. [MINOR] El alta levanta
+  `UuidEnUso` (subclase de `ValidationError`, misma clave y mensaje) y la vista lo atrapa por tipo para el 409.
 
 ---
 
@@ -55572,6 +55577,9 @@ Revertir el PR; sin migraciones. La app que use M2 recibirá 404 en esas rutas.
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 8 se cerró en la ola 5, commits `6b2049c7` y `cca63bf7`).
+- **13/11/2026 — propagación de la auditoría del PR #1130** (commit `28bc2a96`). `_ejecutar` (ingreso directo y avisar a la
+  mesa) atrapa `UuidEnUso` por tipo para el 409 `UUID_EN_USO`, en vez de comparar el texto. El serializer de la puerta hereda
+  del de M1: tampoco tiene tope propio de `traslado_otro` ni mínimo propio en las cantidades.
 
 ---
 
@@ -55675,6 +55683,8 @@ antes.
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; los PRs 9 y 9-API se cerraron en la ola 4, commits `900170e1` a `cb738b66`).
+- **13/11/2026 — propagación de la auditoría del PR #1130** (commit `6ac2bad0`). La recepción levanta `UuidEnUso` con su
+  mensaje de «otra recepción» y la vista lo atrapa por tipo para el 409 `UUID_EN_USO`, en vez de comparar el texto.
 
 ---
 
