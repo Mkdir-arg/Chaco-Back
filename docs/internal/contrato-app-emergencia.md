@@ -163,7 +163,7 @@ No trae coordenadas: no se puede preseleccionar «la más cercana al GPS». El `
 | `uuid_cliente` | UUID | **sí** | Lo genera el celular al abrir el formulario. Identifica el envío (ver «Idempotencia») |
 | `relevado_en` | fecha y hora ISO 8601 con zona | no | Hora del teléfono al tocar «Enviar». Ver «Hora del relevamiento» |
 | `traslado` | texto | **sí** | `BOMBEROS`, `EJERCITO`, `DEFENSA_CIVIL`, `POLICIA`, `MUNICIPIO`, `AUTOEVACUADO`, `OTRA` |
-| `traslado_otro` | texto | si `traslado` es `OTRA` | Hasta 60 caracteres |
+| `traslado_otro` | texto | si `traslado` es `OTRA` | Hasta 120 caracteres |
 | `dni` | texto | **sí** | DNI del responsable, 7 u 8 dígitos |
 | `nombre`, `apellido` | texto | si la persona no está en el legajo | Alta mínima del responsable |
 | `fecha_nacimiento` | `AAAA-MM-DD` | no | Solo se usa en el alta mínima |
@@ -195,7 +195,10 @@ Respuesta **201** (creado) o **200** (ya existía), con el mismo cuerpo:
 ### Idempotencia
 
 - El mismo `uuid_cliente` enviado otra vez por el mismo usuario devuelve **200** con el caso que ya
-  existía. **No se vuelve a validar ni se escribe nada**: no importa qué traiga el segundo cuerpo.
+  existía. **No se vuelven a validar las reglas del Formulario 1 ni se escribe nada**: no importa qué
+  datos traiga el segundo cuerpo. Lo único que se mira antes es que se pueda leer: los tipos (un entero
+  donde va un entero), que las fotos sean JPEG de hasta 5 MB y que `relevado_en` no esté adelantada más
+  de un día.
 - La cola sin señal reintenta con el mismo `uuid_cliente` hasta recibir 200 o 201.
 - Tras un **400**, el agente corrige y reenvía con el **mismo** `uuid_cliente`: ese envío no creó nada.
 - **409 `UUID_EN_USO`**: el identificador ya creó un caso de otro usuario. No es un reenvío.

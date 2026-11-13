@@ -9,8 +9,9 @@ sacarla es un release coordinado de la app: las claves de cada respuesta están 
 obligatoria, DNI, localidad— son de `programas.services.emergencia.crear_caso`, que es la
 misma función que usa la mesa (RU-2). Acá solo se **traduce el multipart**: un `"false"` de
 formulario a booleano, un `"3"` a entero, una fecha ISO a `datetime`. Por eso casi todo es
-opcional para el serializer: lo que falta lo dice el servicio, con el mismo mensaje que en
-el backoffice. Las dos reglas propias del canal sí están acá: las fotos de la app son
+opcional para el serializer, y no hay topes ni mínimos: lo que falta, lo negativo o lo largo
+lo dice el servicio (o el ``full_clean`` del modelo), con el mismo mensaje que en el
+backoffice y junto con los demás errores. Las dos reglas propias del canal sí están acá: las fotos de la app son
 **JPEG** (RN-1.9; el modelo admite además PNG y WEBP, que es lo que sube la mesa) y la hora
 del teléfono no puede ser del futuro (`emergencia_campo.acotar_relevado_en`).
 """
@@ -58,7 +59,7 @@ def _texto(**kwargs):
 
 
 def _cantidad(**kwargs):
-    return serializers.IntegerField(required=False, default=0, min_value=0, **kwargs)
+    return serializers.IntegerField(required=False, default=0, **kwargs)
 
 
 def _aviso(**kwargs):
@@ -87,7 +88,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
 
     # Paso 1 · traslado y responsable
     traslado = _texto(help_text=f"Obligatorio. Fuerza que traslada: {_TRASLADOS}.")
-    traslado_otro = _texto(max_length=60, help_text="Obligatorio si `traslado` es `OTRA`.")
+    traslado_otro = _texto(help_text="Obligatorio si `traslado` es `OTRA`.")
     dni = _texto(help_text="Obligatorio. DNI del responsable; se queda solo con los dígitos.")
     nombre = _texto(help_text="Obligatorio si la persona no está en el legajo (alta mínima).")
     apellido = _texto(help_text="Obligatorio si la persona no está en el legajo (alta mínima).")
