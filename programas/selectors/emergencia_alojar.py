@@ -22,10 +22,21 @@ Tres reglas:
 """
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
+from django.utils import timezone
 
-from programas.models import CasoEmergencia, Derivacion, IntegranteGrupo, Plaza, Sector
+from programas.models import (
+    CasoEmergencia,
+    Derivacion,
+    Dispositivo,
+    Estadia,
+    IntegranteGrupo,
+    Plaza,
+    ReservaPlaza,
+    Sector,
+)
 from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.emergencia_ficha import CLAVES_DE_ENVIO, secciones_incompletas
 from programas.services.nombre_plaza import clave_natural, plaza_con_sector
 from programas.services.ocupacion import (
     ESTADO_DISPONIBLE,
@@ -129,6 +140,63 @@ def camas_libres(dispositivo, momento=None):
         key=lambda libres: (-len(libres), libres[0].sector.nombre.casefold(), libres[0].sector_id),
     )
     return [cama for libres in sectores for cama in sorted(libres, key=lambda c: clave_natural(c.codigo))]
+
+
+def resumen_de_llegadas(dispositivos, momento=None):
+    """``{id: {"plazas_libres", "derivaciones_pendientes"}}`` de varios dispositivos de una vez (M2, mis-dispositivos).
+
+    ``dispositivos`` es un queryset de ``Dispositivo`` (va como subconsulta, no se evalúa
+    aparte). Un dispositivo sin camas libres ni derivaciones no figura: quien lee usa ``0``.
+
+    * ``plazas_libres`` — **la misma cuenta que** :func:`camas_libres`, hecha en la base:
+      camas de sectores activos, no fuera de servicio, sin estadía activa y sin una reserva
+      vigente en ``momento``. Solo en dispositivos cuyo tipo admite camas. (Es el
+      ``Exists`` de las dos lecturas de ``ocupacion.estado_de_plazas``: con la cama fuera
+      de servicio descartada, su precedencia se reduce a esto.)
+    * ``derivaciones_pendientes`` — derivaciones ``PENDIENTE`` de casos ``DERIVADO``: lo que
+      la guardia tiene por aceptar o rechazar (las de ``llegadas_del_dispositivo``).
+
+    No exige capacidad: quien llama ya armó ``dispositivos`` con el alcance.
+
+    **3 consultas fijas**, haya 1 dispositivo o 500: las camas libres agrupadas, los tipos de
+    los dispositivos que tienen alguna, y las derivaciones agrupadas.
+    """
+
+    momento = momento or timezone.now()
+    libres = dict(
+        Plaza.objects.filter(sector__dispositivo__in=dispositivos, sector__activo=True, tipo=Plaza.Tipo.CAMA)
+        .exclude(estado=Plaza.Estado.FUERA_SERVICIO)
+        .exclude(Exists(Estadia.objects.activas().filter(plaza_id=OuterRef("pk"))))
+        .exclude(Exists(ReservaPlaza.objects.vigentes(momento).filter(plaza_id=OuterRef("pk"))))
+        .order_by()
+        .values("sector__dispositivo_id")
+        .annotate(n=Count("id"))
+        .values_list("sector__dispositivo_id", "n")
+    )
+    if libres:
+        admiten_camas = {
+            dispositivo.pk
+            for dispositivo in Dispositivo.objects.filter(pk__in=list(libres))
+            .select_related("tipo")
+            .only("id", "tipo__tipos_plaza_admitidos")
+            if dispositivo.tipo.admite_tipo_de_plaza(Plaza.Tipo.CAMA)
+        }
+        libres = {pk: n for pk, n in libres.items() if pk in admiten_camas}
+    pendientes = dict(
+        Derivacion.objects.filter(
+            dispositivo__in=dispositivos,
+            estado=Derivacion.Estado.PENDIENTE,
+            caso__estado=CasoEmergencia.Estado.DERIVADO,
+        )
+        .order_by()
+        .values("dispositivo_id")
+        .annotate(n=Count("id"))
+        .values_list("dispositivo_id", "n")
+    )
+    return {
+        pk: {"plazas_libres": libres.get(pk, 0), "derivaciones_pendientes": pendientes.get(pk, 0)}
+        for pk in {*libres, *pendientes}
+    }
 
 
 def derivacion_vigente_en(caso, dispositivo):
@@ -273,55 +341,78 @@ def integrantes_de(caso):
     """
 
     grupo = caso.grupo
-    filas = (
-        IntegranteGrupo.objects.filter(grupo_id=grupo.pk)
+    integrantes = [_fila_de_integrante(fila) for fila in _filas_de_la_familia(grupo.pk)]
+    return {
+        "integrantes": integrantes,
+        "confirmadas": sum(1 for fila in integrantes if fila["estado"] != INTEGRANTE_SIN_CONFIRMAR),
+        "total_declarado": grupo.total_declarado,
+        "declaradas_al_relevar": grupo.suma_de_cantidades(),
+        "con_ficha_incompleta": sum(
+            1 for fila in integrantes if fila["estado"] != INTEGRANTE_SIN_CONFIRMAR and not fila["ficha_completa"]
+        ),
+    }
+
+
+def integrante_de(caso, n):
+    """Una persona de la familia (M2-4, ``…/integrantes/{n}/``): su fila más la ficha guardada, o ``None``.
+
+    La fila es la misma de :func:`integrantes_de`, más:
+
+    * ``ficha`` — el Formulario 2 guardado **sin** los identificadores de envío
+      (``CLAVES_DE_ENVIO``), que no son del formulario. ``{}`` sin confirmar.
+    * ``secciones_incompletas`` — los rótulos de las secciones 4 a 8 que faltan.
+
+    ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id``. **1 consulta.**
+    """
+
+    fila = _filas_de_la_familia(caso.grupo_id).filter(orden=n).first()
+    if fila is None:
+        return None
+    ficha = {clave: valor for clave, valor in (fila.ficha or {}).items() if clave not in CLAVES_DE_ENVIO}
+    return {**_fila_de_integrante(fila), "ficha": ficha, "secciones_incompletas": secciones_incompletas(ficha)}
+
+
+def _filas_de_la_familia(grupo_pk):
+    return (
+        IntegranteGrupo.objects.filter(grupo_id=grupo_pk)
         .select_related("ciudadano", "estadia__plaza__sector")
         .order_by("orden")
     )
-    integrantes = []
-    confirmadas = incompletas = 0
-    for fila in filas:
-        if not fila.confirmada:
-            estado = INTEGRANTE_SIN_CONFIRMAR
-        elif fila.egresado_en is not None:
-            estado = INTEGRANTE_EGRESADA
-        else:
-            estado = INTEGRANTE_CONFIRMADA
-        confirmadas += fila.confirmada
-        incompletas += fila.confirmada and not fila.ficha_completa
-        persona = plaza = None
-        if fila.ciudadano_id:
-            persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
-        if fila.estadia_id and fila.estadia.plaza_id:
-            cama = fila.estadia.plaza
-            plaza = {
-                "id": cama.pk,
-                "codigo": cama.codigo,
-                "nombre": plaza_con_sector(cama, cama.sector.nombre),
-                "sector_id": cama.sector_id,
-            }
-        parentesco = fila.get_parentesco_display() if fila.parentesco else ""
-        if fila.parentesco == IntegranteGrupo.Parentesco.OTRO and fila.parentesco_otro:
-            parentesco = fila.parentesco_otro
-        integrantes.append(
-            {
-                "n": fila.orden,
-                "estado": estado,
-                "ficha_completa": fila.ficha_completa,
-                "persona": persona,
-                "plaza": plaza,
-                "parentesco": parentesco,
-                "confirmada_en": fila.confirmada_en,
-                "egresado_en": fila.egresado_en,
-                "estadia_id": fila.estadia_id,
-            }
-        )
+
+
+def _fila_de_integrante(fila):
+    """Una fila de la familia como la leen M2-3 y E6-integrantes. Sin consultas."""
+
+    if not fila.confirmada:
+        estado = INTEGRANTE_SIN_CONFIRMAR
+    elif fila.egresado_en is not None:
+        estado = INTEGRANTE_EGRESADA
+    else:
+        estado = INTEGRANTE_CONFIRMADA
+    persona = plaza = None
+    if fila.ciudadano_id:
+        persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
+    if fila.estadia_id and fila.estadia.plaza_id:
+        cama = fila.estadia.plaza
+        plaza = {
+            "id": cama.pk,
+            "codigo": cama.codigo,
+            "nombre": plaza_con_sector(cama, cama.sector.nombre),
+            "sector_id": cama.sector_id,
+        }
+    parentesco = fila.get_parentesco_display() if fila.parentesco else ""
+    if fila.parentesco == IntegranteGrupo.Parentesco.OTRO and fila.parentesco_otro:
+        parentesco = fila.parentesco_otro
     return {
-        "integrantes": integrantes,
-        "confirmadas": confirmadas,
-        "total_declarado": grupo.total_declarado,
-        "declaradas_al_relevar": grupo.suma_de_cantidades(),
-        "con_ficha_incompleta": incompletas,
+        "n": fila.orden,
+        "estado": estado,
+        "ficha_completa": fila.ficha_completa,
+        "persona": persona,
+        "plaza": plaza,
+        "parentesco": parentesco,
+        "confirmada_en": fila.confirmada_en,
+        "egresado_en": fila.egresado_en,
+        "estadia_id": fila.estadia_id,
     }
 
 

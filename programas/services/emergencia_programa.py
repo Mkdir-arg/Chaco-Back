@@ -8,7 +8,11 @@ en que un rol de otro programa terminaba abriendo un módulo ajeno.
 """
 
 from core import rbac
-from programas.services.dispositivos import dispositivos_operados, puede_configurar_dispositivos
+from programas.services.dispositivos import (
+    dispositivos_en_alcance,
+    dispositivos_operados,
+    puede_configurar_dispositivos,
+)
 from programas.services.programa_cache import programa_por_codigo
 
 PROGRAMA_EMERGENCIA_CODIGO = rbac.CODIGO_PROGRAMA_EMERGENCIA
@@ -62,11 +66,15 @@ def roles_en_app(user):
 
     * ``relevar`` — es agente territorial: ``emergencia.relevar`` en el programa EMERGENCIA.
       Abre «Ingreso de familias» (M1).
-    * ``dispositivo`` — es de la guardia de un dispositivo: integra el **Equipo** de alguno
-      con un rol que tiene ``dispositivo.admitir`` o ``emergencia.recibir_kit``, o es
-      administrador del programa Dispositivos (hallazgo H10: ese opera todo sin Equipo, y
-      ``dispositivos_operados`` no lo ve). Abre «Llegada de familias» (M2) y «Recepción de
-      kits» (M3).
+    * ``dispositivo`` — **opera de verdad** en algún dispositivo: tiene ``dispositivo.admitir``
+      o ``emergencia.recibir_kit`` con alcance (:func:`opera_en_algun_dispositivo`): integra
+      el **Equipo** de alguno con un rol que la tiene, o administra el programa Dispositivos
+      **y** su rol la tiene. Abre «Llegada de familias» (M2) y «Recepción de kits» (M3).
+
+      El administrador del programa Dispositivos **sin** ninguna de las dos abre el módulo
+      (H10, :func:`modulo_habilitado`), pero los servicios de alojar y de kits le niegan
+      todo: para él ``dispositivo`` es ``False`` (PR 8), y la app no le ofrece pantallas que
+      después le contestan 403. Puede pasar entonces que vengan los dos en ``False``.
 
     La capacidad tildada en un rol **sin** Equipo no alcanza: no hay dispositivo sobre el
     que ejercerla. Y ninguna capacidad de otro programa (``becas.campo``,
@@ -77,8 +85,32 @@ def roles_en_app(user):
     """
     return {
         "relevar": puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR),
-        "dispositivo": _es_de_la_guardia(user),
+        "dispositivo": opera_en_algun_dispositivo(user),
     }
+
+
+def opera_en_algun_dispositivo(user):
+    """¿``user`` puede admitir familias o recibir kits en **algún** dispositivo? (perfil, PR 8).
+
+    Es la misma regla que aplican los servicios (``puede_operar_dispositivo``) en forma de
+    «existe alguno»: la capacidad en el programa Dispositivos y el alcance —el Equipo, o todo
+    si además administra el programa—. A lo sumo cuatro consultas chicas.
+    """
+    return admite_familias(user) or dispositivos_en_alcance(user, CAP_RECIBIR_KIT).exists()
+
+
+def admite_familias(usuario):
+    """¿``usuario`` admite familias en **algún** dispositivo? Lo que abre «Llegada de familias» (M2).
+
+    El molde de ``kits.recibe_kits``: ``dispositivo.admitir`` con alcance —en el Equipo de
+    alguna institución, o en todas si además administra el programa Dispositivos—. La
+    capacidad tildada en un rol **sin** Equipo no alcanza. Quien no pasa esto recibe 403;
+    quien lo pasa y pide un dispositivo, una derivación o un caso que no son suyos, 404 (C2).
+    """
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return False
+    return dispositivos_en_alcance(usuario, CAP_ADMITIR).exists()
 
 
 def _es_de_la_guardia(user):
@@ -95,7 +127,9 @@ def modulo_habilitado(user):
     La consultan el login (``"emergencia"`` en ``modulos``) y los permisos de
     ``/api/emergencia/``: si cada uno escribiera la suya, el login le ofrecería a alguien
     un módulo que después le contesta 403, o al revés. Es verdadera cuando
-    :func:`roles_en_app` da algún acceso.
+    :func:`roles_en_app` da algún acceso, y también para el administrador del programa
+    Dispositivos sin ``dispositivo.admitir`` ni ``emergencia.recibir_kit`` (H10: el login no
+    cambia); a ese el perfil le contesta ``dispositivo: false``.
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False

@@ -1,4 +1,5 @@
-"""URLs de la API de campo del módulo Emergencia (PR 5: base, perfil y M1; PR 9-API: M3, recepción de kits).
+"""URLs de la API de campo del módulo Emergencia (PR 5: base, perfil y M1; PR 9-API: M3, recepción de kits;
+PR 8: M2, llegada de familias).
 
 Namespace ``emergencia_api``. El login es el de la app de campo,
 ``/api/becas/auth/token/``: un solo token por usuario, y cada recurso con su permiso.
@@ -10,15 +11,30 @@ from django.urls import path
 from programas.api.views_emergencia import (
     CasosEmergenciaView,
     ConsultarPersonaEmergenciaView,
-    EntregaKitDetalleView,
-    EntregasDelDispositivoView,
     LocalidadesEmergenciaView,
     MisCasosEmergenciaView,
-    MisDispositivosEmergenciaView,
     PerfilEmergenciaView,
     RaizApiEmergencia,
+)
+from programas.api.views_emergencia_kits import (
+    EntregaKitDetalleView,
+    EntregasDelDispositivoView,
+    MisDispositivosEmergenciaView,
     RecibirEntregaKitView,
 )
+from programas.api.views_emergencia_llegadas import (
+    AceptarDerivacionView,
+    AlojarFamiliaView,
+    BuscarFamiliaView,
+    CancelarIngresoView,
+    CerrarConDiferenciaView,
+    ConfirmarIntegranteView,
+    IntegrantesView,
+    IntegranteView,
+    PlazasDelDispositivoView,
+    RechazarDerivacionView,
+)
+from programas.api.views_emergencia_sin_derivacion import AvisarALaMesaView, IngresoDirectoView
 
 app_name = "emergencia_api"
 
@@ -46,4 +62,26 @@ urlpatterns = [
     ),
     path("entregas/<int:pk>/", EntregaKitDetalleView.as_view(), name="entrega-detail"),
     path("entregas/<int:pk>/recibir/", RecibirEntregaKitView.as_view(), name="entrega-recibir"),
+    # M2 · Llegada de familias (PR 8): la guardia con `dispositivo.admitir` en su Equipo.
+    path("dispositivos/<int:dispositivo_id>/buscar/", BuscarFamiliaView.as_view(), name="dispositivo-buscar"),
+    path("dispositivos/<int:dispositivo_id>/plazas/", PlazasDelDispositivoView.as_view(), name="dispositivo-plazas"),
+    path("derivaciones/<int:pk>/aceptar/", AceptarDerivacionView.as_view(), name="derivacion-aceptar"),
+    path("derivaciones/<int:pk>/rechazar/", RechazarDerivacionView.as_view(), name="derivacion-rechazar"),
+    path("casos/<int:pk>/integrantes/", IntegrantesView.as_view(), name="caso-integrantes"),
+    path("casos/<int:pk>/integrantes/<int:n>/", IntegranteView.as_view(), name="caso-integrante"),
+    path(
+        "casos/<int:pk>/integrantes/<int:n>/confirmar/",
+        ConfirmarIntegranteView.as_view(),
+        name="caso-integrante-confirmar",
+    ),
+    path("casos/<int:pk>/alojar/", AlojarFamiliaView.as_view(), name="caso-alojar"),
+    path("casos/<int:pk>/cerrar-diferencia/", CerrarConDiferenciaView.as_view(), name="caso-cerrar-diferencia"),
+    path("casos/<int:pk>/cancelar-ingreso/", CancelarIngresoView.as_view(), name="caso-cancelar-ingreso"),
+    # Ingreso directo y aviso a la mesa (decisión 4 del PM): al final y en sus propias rutas, para poder sacarlos.
+    path(
+        "dispositivos/<int:dispositivo_id>/ingreso-directo/",
+        IngresoDirectoView.as_view(),
+        name="dispositivo-ingreso-directo",
+    ),
+    path("dispositivos/<int:dispositivo_id>/avisar-mesa/", AvisarALaMesaView.as_view(), name="dispositivo-avisar-mesa"),
 ]
