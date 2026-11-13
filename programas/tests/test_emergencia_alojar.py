@@ -47,8 +47,11 @@ from programas.models import (
 from programas.selectors import emergencia_alojar as selectores
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
+from programas.services import emergencia_alojar as servicio_confirmacion
+from programas.services import ingreso as servicio_ingreso
 from programas.services.emergencia import EstadoCambio
-from programas.services.estadias import egresar_persona, liberar_reserva
+from programas.services.estadias import egresar_persona, liberar_reserva, reservar_plaza
+from programas.services.ingreso import MOTIVO_RESERVA_CERRADA_POR_INGRESO, RESERVA_NUEVA_DURANTE_EL_INGRESO
 from programas.tests.test_emergencia_casos import T0, BaseCasos
 
 Estado = CasoEmergencia.Estado
@@ -873,6 +876,68 @@ class ConfirmarIntegranteTests(BaseAlojar):
         self.assertIn("está reservada para otra persona · elegí otra", error.exception.message_dict["plaza"][0])
         self.assertFalse(Ciudadano.objects.filter(dni="45000111").exists())
 
+    def _con_reserva_comun(self, dni, plaza, usuario):
+        """Una persona con legajo y una reserva **común** (no de derivación) abierta en ``plaza``."""
+
+        persona = Ciudadano.objects.create(dni=dni, nombre="Juan", apellido="Pérez")
+        return persona, reservar_plaza(plaza=plaza, ciudadano=persona, usuario=usuario)
+
+    def test_en_una_cama_libre_se_cierra_su_reserva_comun_de_otro_dispositivo(self):
+        """D2 del Cambio 409: quien entra en una cama libre no sigue bloqueando la que tenía en otro lado.
+
+        Visto en rojo: sin leer ``_reservas_abiertas_de`` en la rama de la cama libre, la
+        persona quedaba alojada en el Club y su reserva de la Escuela seguía ``VIGENTE``.
+        """
+
+        caso, _derivacion = self._aceptado()
+        escuela = Plaza.objects.filter(sector__dispositivo=self.escuela).order_by("pk").first()
+        _persona, comun = self._con_reserva_comun("45000111", escuela, self.guardia_escuela)
+        libre = self._cama_libre()
+
+        integrante = self._confirmar(caso, 2, "45000111", plaza=libre)
+
+        self.assertEqual(integrante.estadia.plaza, libre)
+        comun.refresh_from_db()
+        self.assertEqual(comun.estado, ReservaPlaza.Estado.LIBERADA, "la D2 del Cambio 409 no se aplicó")
+        self.assertEqual(comun.motivo, MOTIVO_RESERVA_CERRADA_POR_INGRESO)
+
+    def test_su_reserva_comun_en_la_cama_elegida_se_consume(self):
+        """Una cama guardada para **la misma persona** no es «de otra persona»: el ingreso la consume.
+
+        Visto en rojo: se rechazaba con «está reservada para otra persona».
+        """
+
+        caso, _derivacion = self._aceptado()
+        libre = self._cama_libre()
+        _persona, comun = self._con_reserva_comun("45000111", libre, self.guardia)
+
+        integrante = self._confirmar(caso, 2, "45000111", plaza=libre)
+
+        self.assertEqual(integrante.estadia.plaza, libre)
+        comun.refresh_from_db()
+        self.assertEqual(comun.estado, ReservaPlaza.Estado.CONSUMIDA)
+
+    def test_una_reserva_comun_nueva_mientras_se_confirma_frena_el_ingreso(self):
+        """Con la persona bloqueada se vuelve a mirar: una reserva que apareció en el medio frena."""
+
+        caso, _derivacion = self._aceptado()
+        Ciudadano.objects.create(dni="45000111", nombre="Juan", apellido="Pérez")
+        escuela = Plaza.objects.filter(sector__dispositivo=self.escuela).order_by("pk").first()
+        original = servicio_ingreso._bloquear_persona
+
+        def bloquear_y_que_aparezca(ciudadano):
+            original(ciudadano)
+            reservar_plaza(plaza=escuela, ciudadano=ciudadano, usuario=self.guardia_escuela)
+
+        with mock.patch.object(
+            servicio_confirmacion, "_bloquear_persona", side_effect=bloquear_y_que_aparezca, create=True
+        ):
+            with self.assertRaises(ValidationError) as error:
+                self._confirmar(caso, 2, "45000111", plaza=self._cama_libre())
+
+        self.assertEqual(error.exception.messages, [RESERVA_NUEVA_DURANTE_EL_INGRESO])
+        self.assertFalse(Estadia.objects.exists())
+
     def test_una_cama_ocupada_se_rechaza_sin_pedir_su_candado(self):
         """Es lo que impide el ciclo con un egreso en curso (docstring del módulo)."""
 
@@ -1645,7 +1710,27 @@ class OrdenDeLosCandadosDeAlojarTests(BaseAlojar):
             integrante = self._confirmar(caso, 2, "45000111", plaza=libre)
         self.assertTrue(integrante.reserva_liberada)
         self.assertEqual(self._sin_repetir(orden), ["caso", "derivacion", "plaza", "reserva", "persona"])
-        self.assertEqual(orden.index("persona"), len(orden) - 1, "pidió algo después de bloquear a la persona")
+        self._nada_nuevo_despues_de_la_persona(orden)
+
+    def _nada_nuevo_despues_de_la_persona(self, orden):
+        """Después de la persona solo se vuelve a pedir lo que ya estaba tomado (``ingresar_persona`` relee)."""
+
+        persona = orden.index("persona")
+        nuevas = [tipo for tipo in orden[persona + 1 :] if tipo not in orden[: persona + 1]]
+        self.assertEqual(nuevas, [], "pidió algo nuevo después de bloquear a la persona")
+
+    def test_confirmar_en_una_cama_libre_cerrando_su_reserva_comun_de_otro_dispositivo(self):
+        """D2 del Cambio 409: la plaza de la reserva común entra en el mismo bloqueo único por pk."""
+
+        caso, _derivacion = self._aceptado()
+        persona = Ciudadano.objects.create(dni="45000111", nombre="Juan", apellido="Pérez")
+        escuela = Plaza.objects.filter(sector__dispositivo=self.escuela).order_by("pk").first()
+        reservar_plaza(plaza=escuela, ciudadano=persona, usuario=self.guardia_escuela)
+        libre = self._cama_libre()
+        with self._orden() as orden:
+            self._confirmar(caso, 2, "45000111", plaza=libre)
+        self.assertEqual(self._sin_repetir(orden), ["caso", "derivacion", "plaza", "reserva", "persona"])
+        self._nada_nuevo_despues_de_la_persona(orden)
 
     def test_cerrar_con_diferencia_cancelar_y_alojar(self):
         acciones = {

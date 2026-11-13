@@ -38,10 +38,11 @@ El global del módulo (plan §8, R1)::
   ``reservas_derivacion.py`` no los bloquean ni los releen (contrato del PR 6). Sin JOIN, como
   en ``services.emergencia``.
 * Las plazas, las reservas y la persona que ingresa los bloquean las funciones de
-  ``estadias.py`` y ``reservas_derivacion.py``. Cuando una confirmación toca **dos** plazas —la cama libre que eligió la
-  guardia y la de la reserva sobrante que devuelve—, acá se piden las dos de una vez
-  ordenadas por pk, se libera la reserva y recién entonces se ingresa: plaza → reserva →
-  persona, nunca al revés.
+  ``estadias.py`` y ``reservas_derivacion.py``. Cuando una confirmación toca **varias** plazas
+  —la cama libre que eligió la guardia, la de la reserva sobrante que devuelve y las de las
+  reservas comunes de la persona que se cierran—, se piden todas de una vez ordenadas por
+  pk, se liberan las reservas, se bloquea a la persona y recién entonces se ingresa: plaza →
+  reserva → persona, nunca al revés.
 * El alta mínima de la persona va **antes** de las plazas: un ``INSERT`` no espera a nadie
   que tenga algo nuestro, y si choca con el mismo DNI dado de alta a la vez, espera con solo
   el caso y la derivación tomados.
@@ -133,7 +134,14 @@ from programas.services.estadias import (
     liberar_reserva,
     verificar_alojamiento_en_red,
 )
-from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
+from programas.services.ingreso import (
+    MOTIVO_RESERVA_CERRADA_POR_INGRESO,
+    RESERVA_NUEVA_DURANTE_EL_INGRESO,
+    _bloquear_persona,
+    _reservas_abiertas_de,
+    alta_minima_de_persona,
+    buscar_ciudadano_por_dni,
+)
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.reservas_derivacion import (
     consumir_reserva_de_derivacion,
@@ -1200,6 +1208,53 @@ def _error_de_cama(error, cama):
     return ValidationError({"plaza": f"Cama {nombre}: {mensajes} Recargá el mapa y elegí otra."})
 
 
+def _ingresar_en_cama_libre(*, ciudadano, cama, propia, derivacion, por_confirmar_despues, usuario):
+    """El ingreso en una cama que no es de la familia. Devuelve ``(estadia, reserva_liberada)``.
+
+    Dos cosas se cierran antes de ingresar, en esta transacción:
+
+    * la **reserva sobrante** de la familia: la derivación nunca retiene más camas que personas
+      faltan confirmar, así que si quedarían de más se libera la de la plaza con id más alto;
+    * las **reservas comunes** de la persona, en cualquier dispositivo (D2 del Cambio 409), salvo
+      ``propia`` —la suya en esta misma cama—, que el ingreso consume.
+
+    Candados: todas las plazas de una vez y por pk (la cama, la sobrante y las de las comunes),
+    después las reservas, y la persona al final; con ella bloqueada se vuelve a mirar que no le
+    hayan guardado otra plaza en el medio (``RESERVA_NUEVA_DURANTE_EL_INGRESO``).
+    """
+
+    comunes = [comun for comun in _reservas_abiertas_de(ciudadano.pk) if propia is None or comun.pk != propia.pk]
+    vigentes = list(ReservaPlaza.objects.abiertas().filter(derivacion_id=derivacion.pk).order_by("plaza_id"))
+    sobrante = vigentes[-1] if len(vigentes) > por_confirmar_despues else None
+    # La sobrante es de este dispositivo (el alcance ya se exigió); las comunes pueden ser de
+    # otro donde quien confirma no opera: no es una decisión suya, es que la persona ya entró.
+    a_liberar = ([(sobrante, MOTIVO_RESERVA_SOBRANTE, True)] if sobrante is not None else []) + [
+        (comun, MOTIVO_RESERVA_CERRADA_POR_INGRESO, False) for comun in comunes
+    ]
+    if a_liberar:
+        # Solo el candado: `liberar_reserva` e `ingresar_persona` vuelven a tomar cada plaza.
+        list(
+            Plaza.objects.select_for_update()
+            .filter(pk__in={cama.pk} | {reserva.plaza_id for reserva, _motivo, _alcance in a_liberar})
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+    reserva_liberada = False
+    for reserva, motivo, verificar_alcance in a_liberar:
+        try:
+            liberar_reserva(reserva=reserva, usuario=usuario, motivo=motivo, verificar_alcance=verificar_alcance)
+        except ValidationError:
+            continue  # ya la resolvió otro (la liberaron desde el mapa): no retiene nada
+        reserva_liberada = reserva_liberada or reserva is sobrante
+    _bloquear_persona(ciudadano)
+    if any(propia is None or otra.pk != propia.pk for otra in _reservas_abiertas_de(ciudadano.pk)):
+        raise ValidationError(RESERVA_NUEVA_DURANTE_EL_INGRESO)
+    estadia = ingresar_persona(
+        ciudadano=ciudadano, dispositivo=derivacion.dispositivo, usuario=usuario, plaza=cama, reserva=propia
+    )
+    return estadia, reserva_liberada
+
+
 @transaction.atomic
 def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=None):
     """Confirma a la persona ``orden`` de la familia con su ficha mínima y su cama (HU-3.3, RN-3.5 a 3.7).
@@ -1222,7 +1277,10 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
          derivación nunca retiene más camas que personas faltan confirmar**. Si después de
          esta confirmación quedarían más reservas vigentes que personas sin confirmar, se
          libera **una** —la de la plaza con id más alto— en esta misma transacción, antes
-         del ingreso. Si todavía hacen falta todas (reservó 5 de 7), no se libera ninguna;
+         del ingreso. Si todavía hacen falta todas (reservó 5 de 7), no se libera ninguna.
+         Las **reservas comunes** de la persona, en cualquier dispositivo, se cierran (D2
+         del Cambio 409), como en ``ingreso.confirmar_ingreso``;
+       * con una reserva común **de la misma persona** → el ingreso la consume;
        * reservada para otra persona, ocupada o fuera de servicio → ``ValidationError``
          sobre ``plaza`` diciendo cuál y que elija otra.
 
@@ -1274,14 +1332,20 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
     # vuelve a leer bloqueada, y si cambió en el medio falla con su propio error. Que sea de
     # **esta** derivación se mira acá: `consumir_reserva_de_derivacion` no recibe la derivación y
     # acepta la de cualquiera (`derivacion_id` no cambia nunca, así que leerlo sin candado alcanza).
+    # Una reserva **común de la misma persona** en esa cama es suya: el ingreso la consume
+    # (`propia`), como en `ingreso.confirmar_ingreso`.
     reserva = ReservaPlaza.objects.que_toman().filter(plaza_id=cama.pk).order_by("id").first()
+    propia = None
     if reserva is not None and reserva.derivacion_id != derivacion.pk:
-        raise ValidationError(
-            {
-                "plaza": f"La cama {plaza_con_sector(cama, cama.sector.nombre)} "
-                "está reservada para otra persona · elegí otra."
-            }
-        )
+        if reserva.derivacion_id is None and existente is not None and reserva.ciudadano_id == existente.pk:
+            propia, reserva = reserva, None
+        else:
+            raise ValidationError(
+                {
+                    "plaza": f"La cama {plaza_con_sector(cama, cama.sector.nombre)} "
+                    "está reservada para otra persona · elegí otra."
+                }
+            )
 
     # El alta, antes de las plazas (ver el orden de candados del módulo).
     ciudadano = existente if existente is not None else _dar_de_alta(ficha)
@@ -1291,23 +1355,14 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
         if reserva is not None:
             estadia = consumir_reserva_de_derivacion(reserva=reserva, ciudadano=ciudadano, usuario=usuario)
         else:
-            por_confirmar_despues = max(grupo.total_declarado - _confirmadas(filas) - 1, 0)
-            vigentes = list(ReservaPlaza.objects.abiertas().filter(derivacion_id=derivacion.pk).order_by("plaza_id"))
-            sobrante = vigentes[-1] if len(vigentes) > por_confirmar_despues else None
-            if sobrante is not None:
-                # Las dos plazas de una vez y por pk; después la reserva; la persona, al final.
-                list(
-                    Plaza.objects.select_for_update()
-                    .filter(pk__in={cama.pk, sobrante.plaza_id})
-                    .order_by("pk")
-                    .values_list("pk", flat=True)
-                )
-                try:
-                    liberar_reserva(reserva=sobrante, usuario=usuario, motivo=MOTIVO_RESERVA_SOBRANTE)
-                    reserva_liberada = True
-                except ValidationError:
-                    pass  # la liberaron desde el mapa en el medio: ya no retiene nada
-            estadia = ingresar_persona(ciudadano=ciudadano, dispositivo=dispositivo, usuario=usuario, plaza=cama)
+            estadia, reserva_liberada = _ingresar_en_cama_libre(
+                ciudadano=ciudadano,
+                cama=cama,
+                propia=propia,
+                derivacion=derivacion,
+                por_confirmar_despues=max(grupo.total_declarado - _confirmadas(filas) - 1, 0),
+                usuario=usuario,
+            )
     except AlojamientoEnLaRed as error:
         raise PersonaYaAlojada(ciudadano, error.verificacion) from error
     except ValidationError as error:
