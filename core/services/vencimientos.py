@@ -49,12 +49,22 @@ from django.db.models import QuerySet
 
 @dataclass(frozen=True)
 class ReglaVencimiento:
-    """Una regla de cierre/transición por fecha."""
+    """Una regla de cierre/transición por fecha.
+
+    ``transaccion_unica`` dice quién abre la transacción. Con ``True`` —el default, y lo
+    que hacen las reglas de Becas— el comando envuelve ``aplicar`` en un solo
+    ``atomic``: la regla se aplica entera o no se aplica. Con ``False`` el comando no
+    abre ninguna y ``aplicar`` abre **una por fila**: es para las reglas que bloquean
+    filas que también pelea una persona desde una pantalla (los casos de Emergencia),
+    donde un solo ``atomic`` retendría todos los candados hasta la última fila y una que
+    falla se llevaría puestas a las demás.
+    """
 
     slug: str
     descripcion: str
     pendientes: Callable[[], QuerySet]
     aplicar: Callable[[QuerySet], int]
+    transaccion_unica: bool = True
 
 
 # Registro global. Se puebla al importar los módulos de reglas de cada app

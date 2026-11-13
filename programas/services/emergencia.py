@@ -53,6 +53,16 @@ Que el bloqueo alcance depende del nivel de aislamiento, igual que en
 ``programas.services.estadias``: el proyecto fija ``READ COMMITTED``, así que la lectura
 que sigue al candado ve lo que commiteó el que ganó.
 
+Lo que hace el sistema solo
+---------------------------
+
+``vencer_derivacion`` y ``devolver_a_bandeja_por_inactividad`` no tienen usuario: las llama
+``procesar_vencimientos`` (``programas.services.vencimientos_emergencia``). No exigen
+capacidad, dejan la traza con ``usuario = NULL`` y, cuando la fila bloqueada ya no está
+para eso —el dispositivo aceptó, el operador hizo algo—, **no levantan nada**: devuelven
+``None`` y el cron sigue con la siguiente. Un :class:`EstadoCambio` es para una pantalla
+que quedó vieja, y acá no hay pantalla.
+
 Dueño y supervisor (RU-12, RU-13)
 ---------------------------------
 
@@ -61,6 +71,7 @@ tiene tomados; quien supervisa actúa sobre cualquiera **sin tomarlo**, y la tra
 marcada ``por_supervisor`` y lo dice en el detalle.
 """
 
+import logging
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -96,6 +107,8 @@ from programas.services.emergencia_comun import (  # noqa: F401
 )
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
 from programas.services.ocupacion import ocupacion_de_plazas
+
+logger = logging.getLogger(__name__)
 
 Estado = CasoEmergencia.Estado
 Origen = CasoEmergencia.Origen
@@ -617,6 +630,111 @@ def cancelar_derivacion(derivacion, usuario, motivo):
         por_supervisor=por_supervisor,
     )
     return derivacion
+
+
+# ---------------------------------------------------------------------------
+# Lo que hace el sistema solo: vencimientos de la mesa
+# ---------------------------------------------------------------------------
+
+
+def limite_de_inactividad(ahora=None):
+    """El momento desde el que una traza cuenta como «avance» (RN-2.8), o ``None`` si está apagado.
+
+    Es ``ahora`` menos los «minutos sin avance» de E7. Un caso ``EN_GESTION`` está inactivo
+    si su **última** traza es anterior a ese momento. Con ``sin_avance_min = 0`` la
+    devolución automática está apagada y no hay límite que comparar.
+    """
+
+    minutos = sla_vigente().sin_avance_min
+    if not minutos:
+        return None
+    return (ahora or timezone.now()) - timedelta(minutes=minutos)
+
+
+@transaction.atomic
+def vencer_derivacion(derivacion):
+    """Vence una derivación ``PENDIENTE`` que pasó su ``vence_en`` sin respuesta (RN-2.7, HU-2.5).
+
+    La llama el cron, sin usuario. Bloquea **primero el caso y después la derivación** —el
+    mismo orden que ``cancelar_derivacion`` y que el aceptar del dispositivo— y decide con
+    lo que lee de las filas bloqueadas:
+
+    * la derivación pasa a ``VENCIDA`` y suelta ``clave_vigente``: el caso se puede volver
+      a derivar;
+    * el caso vuelve a ``EN_GESTION`` **con el mismo operador**. Ninguna marca de tiempo se
+      toca: ``derivado_en`` es de la primera vez (RN-2.9);
+    * queda una traza del sistema, sin usuario. Esa traza es además lo que le da al
+      operador un plazo entero de «sin avance» antes de que el caso vuelva a la bandeja.
+
+    Devuelve la ``Derivacion`` vencida, o ``None`` **sin tocar nada** si ya no corresponde:
+    el dispositivo la aceptó o la rechazó, la mesa la canceló, otra corrida ya la venció, o
+    todavía no llegó su hora. Una ``PENDIENTE`` con el plazo cumplido se acepta mientras el
+    cron no la haya vencido (RN-3.3): quien tome primero el candado del caso, gana.
+    """
+
+    caso = _bloquear_caso(derivacion.caso_id)
+    derivacion = Derivacion.objects.select_for_update().get(pk=derivacion.pk)
+    ahora = timezone.now()
+    if derivacion.estado != Derivacion.Estado.PENDIENTE or derivacion.vence_en > ahora:
+        return None
+    if caso.estado != Estado.DERIVADO:
+        # No debería existir: una pendiente es de un caso derivado. No se adivina el arreglo.
+        logger.warning(
+            "La derivación %s está pendiente y vencida, pero su caso %s está en %s: no se vence.",
+            derivacion.pk,
+            caso.numero,
+            caso.estado,
+        )
+        return None
+
+    derivacion.estado = Derivacion.Estado.VENCIDA
+    derivacion.save(update_fields=["estado", "modificado"])
+    caso.estado = Estado.EN_GESTION
+    caso.save(update_fields=["estado", "modificado"])
+    _trazar(
+        caso,
+        None,
+        Accion.DERIVACION_VENCIDA,
+        estado_anterior=Estado.DERIVADO,
+        detalle=f"Derivación vencida sin respuesta ({derivacion.dispositivo.nombre})",
+    )
+    return derivacion
+
+
+@transaction.atomic
+def devolver_a_bandeja_por_inactividad(caso):
+    """Devuelve a la bandeja un caso ``EN_GESTION`` que nadie movió en el plazo de E7 (RN-2.8, HU-2.5).
+
+    La llama el cron, sin usuario. Bloquea el caso y **vuelve a mirar la inactividad sobre
+    la fila bloqueada**: si entre la consulta del cron y el candado el operador hizo algo
+    —cualquier traza nueva—, el caso ya no está abandonado.
+
+    El caso vuelve a ``NUEVO`` sin dueño. ``tomado_en`` se conserva (RN-2.9), igual que al
+    soltarlo a mano. La traza es del sistema y nombra a quien lo tenía.
+
+    Devuelve el caso, o ``None`` **sin tocar nada** si ya no está en gestión, si tuvo
+    actividad dentro del plazo o si la devolución automática está apagada.
+    """
+
+    caso = _bloquear_caso(caso)
+    if caso.estado != Estado.EN_GESTION:
+        return None
+    limite = limite_de_inactividad()
+    if limite is None or TrazaCaso.objects.filter(caso=caso, creado_en__gte=limite).exists():
+        return None
+
+    anterior = caso.tomado_por
+    caso.estado = Estado.NUEVO
+    caso.tomado_por = None
+    caso.save(update_fields=["estado", "tomado_por", "modificado"])
+    _trazar(
+        caso,
+        None,
+        Accion.DEVUELTO_POR_INACTIVIDAD,
+        estado_anterior=Estado.EN_GESTION,
+        detalle=f"Devuelto a bandeja por inactividad ({_nombre_de(anterior)})",
+    )
+    return caso
 
 
 # ---------------------------------------------------------------------------

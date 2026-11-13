@@ -390,9 +390,10 @@ class RegistroTests(TestCase):
     """
 
     def test_las_reglas_estan_registradas_al_arrancar(self):
+        # El registro es global: desde el PR 4 de Emergencia también tiene las de la mesa.
         self.assertEqual(
             {regla.slug for regla in vencimientos_core.REGLAS},
-            {"becas.convocatoria", "becas.relevamiento"},
+            {"becas.convocatoria", "becas.relevamiento", "emergencia.derivacion", "emergencia.caso_sin_avance"},
         )
 
     def test_el_ready_de_la_app_es_el_que_las_registra(self):
