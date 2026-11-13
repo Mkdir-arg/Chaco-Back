@@ -1183,11 +1183,11 @@ class PresupuestoDeConsultasTests(BaseMesa):
     """
 
     #: E2: la sesión, el usuario, sus roles, su perfil y sus capacidades (5, las del shell), el
-    #: SLA (1), el semáforo de los abiertos dos veces —el orden de la bandeja y el conteo de
-    #: «Fuera de SLA»— (2), el conteo y la página del paginador (2), el agregado de solapas (1),
-    #: los duplicados (3), los responsables alojados (1) y los operadores y las localidades
-    #: del filtro (2).
-    CONSULTAS_E2 = 17
+    #: SLA (1), el semáforo de los abiertos una sola vez —lo comparten el orden de la bandeja y
+    #: el conteo de «Fuera de SLA»— (1), el conteo y la página del paginador (2), el agregado
+    #: de solapas (1), los duplicados (3), los responsables alojados (1) y los operadores y las
+    #: localidades del filtro (2).
+    CONSULTAS_E2 = 16
     #: E3: las cinco del shell, el caso (1), el SLA (1), los duplicados (3), fotos, contactos y
     #: traza (3), el responsable alojado (1) y el panel de derivar (4).
     CONSULTAS_E3 = 18
