@@ -911,5 +911,8 @@ SPECTACULAR_SETTINGS = {
         "RelevamientoEstadoEnum": "programas.models.Relevamiento.Estado",
         # El relevamiento edilicio de la app de campo (`/api/dispositivos/`, tasks 38 y 39).
         "InspeccionEstadoEnum": "programas.models.InspeccionEdificio.Estado",
+        # El módulo Emergencia de la app de campo (`/api/emergencia/`).
+        "CasoEmergenciaEstadoEnum": "programas.models.CasoEmergencia.Estado",
+        "CasoEmergenciaPrioridadEnum": "programas.models.CasoEmergencia.Prioridad",
     },
 }
