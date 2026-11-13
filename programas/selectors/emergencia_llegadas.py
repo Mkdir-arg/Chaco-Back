@@ -15,7 +15,8 @@ from django.utils import timezone
 
 from programas.models import AdjuntoCaso
 from programas.selectors import emergencia_alojar as alojar
-from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, nombre_de
+from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, _personas, nombre_de
+from programas.selectors.emergencia_mesa import filas_de_integrantes as filas_de_integrantes_de_la_mesa
 from programas.services.emergencia import NECESIDADES, prioridad_visible
 
 #: Los tres pasos del guion de la guardia (03 §3). El estado del recorrido es el del caso,
@@ -23,16 +24,8 @@ from programas.services.emergencia import NECESIDADES, prioridad_visible
 PASOS = ("Buscar a la familia", "Integrantes y camas", "Familia alojada")
 
 
-def _hora(momento):
-    return f"{timezone.localtime(momento):%H:%M}"
-
-
 def _dia_hora(momento):
     return f"{timezone.localtime(momento):%d/%m %H:%M}"
-
-
-def _personas(total):
-    return "1 persona" if total == 1 else f"{total} personas"
 
 
 def pasos(paso_actual, url_llegadas, url_integrantes=None):
@@ -117,7 +110,7 @@ def filas_de_llegadas(derivaciones, ahora, url_de):
     return filas
 
 
-#: Cómo se lee cada fila de la familia: texto y tono del badge.
+#: Cómo lee la guardia cada fila de la familia: texto y tono del badge.
 ESTADOS_DE_INTEGRANTE = {
     alojar.INTEGRANTE_SIN_CONFIRMAR: ("Sin confirmar", "gray"),
     alojar.INTEGRANTE_CONFIRMADA: ("Confirmada", "success"),
@@ -126,30 +119,9 @@ ESTADOS_DE_INTEGRANTE = {
 
 
 def filas_de_integrantes(datos, url_de=None):
-    """Las filas de M2-3 desde lo que contesta ``integrantes_de``. ``url_de(n)`` arma el destino de la ficha."""
+    """Las filas de M2-3 desde lo que contesta ``integrantes_de``: las de la mesa, con la tabla de la guardia."""
 
-    filas = []
-    for integrante in datos["integrantes"]:
-        texto, tono = ESTADOS_DE_INTEGRANTE[integrante["estado"]]
-        confirmada = integrante["estado"] != alojar.INTEGRANTE_SIN_CONFIRMAR
-        filas.append(
-            {
-                **integrante,
-                "rotulo": integrante["persona"]["nombre"] if integrante["persona"] else f"Persona {integrante['n']}",
-                "estado_texto": texto,
-                "estado_tono": tono,
-                "confirmada": confirmada,
-                "ficha_texto": ("Ficha completa" if integrante["ficha_completa"] else "Ficha incompleta")
-                if confirmada
-                else "",
-                "ficha_tono": "success" if integrante["ficha_completa"] else "warning",
-                "accion": ("Completar ficha" if not integrante["ficha_completa"] else "Ver ficha")
-                if confirmada
-                else "Confirmar",
-                "url": url_de(integrante["n"]) if url_de is not None else "",
-            }
-        )
-    return filas
+    return filas_de_integrantes_de_la_mesa(datos, url_de, estados=ESTADOS_DE_INTEGRANTE)
 
 
 def mapa_para_elegir(sectores, elegida, url_de):

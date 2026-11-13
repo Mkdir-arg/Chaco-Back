@@ -43,7 +43,7 @@ from programas.services import emergencia_alojar as servicio
 from programas.services.emergencia import EstadoCambio
 from programas.services.estadias import liberar_reserva
 from programas.tests.test_dispositivos_concurrencia import _permiso, en_paralelo, punto_critico
-from programas.tests.test_emergencia_alojar import ficha_minima
+from programas.tests.test_emergencia_alojar_base import ficha_minima
 from programas.tests.test_emergencia_concurrencia import _RELOJ, CASO_BLOQUEADO, _BaseCarreraEmergencia
 from users.models import RolMeta
 
