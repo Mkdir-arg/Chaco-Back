@@ -5517,6 +5517,12 @@ class CasoEmergencia(TimeStamped):
     MARCAS = ("tomado_en", "derivado_en", "aceptado_en", "alojado_en", "cerrado_en")
     #: Desde cuántos metros de precisión del GPS la mesa lee «ubicación aproximada» (RN-1.7).
     PRECISION_APROXIMADA_M = 100
+    #: Dónde queda, dentro de ``situacion``, lo que escribe la etapa 3 (sin migración). Son
+    #: **las** claves: las escriben ``services.emergencia_cierre`` y
+    #: ``services.emergencia_sin_derivacion`` y las leen la mesa y la guardia.
+    SITUACION_ALOJAMIENTO = "alojamiento"  # sección 4 del Formulario 1 (M2-5)
+    SITUACION_DIFERENCIA = "diferencia"  # motivo del cierre con diferencia (RN-3.9)
+    SITUACION_EN_LA_PUERTA = "en_la_puerta_de"  # «Avisar a la mesa» (M2-6)
 
     numero = models.CharField(max_length=16, unique=True, editable=False, verbose_name="N.° de caso")
     grupo = models.OneToOneField(
@@ -5629,6 +5635,30 @@ class CasoEmergencia(TimeStamped):
         """Se alojaron menos personas que las declaradas (cierre con diferencia, etapa 3)."""
 
         return self.total_alojado is not None and self.total_alojado < self.grupo.total_declarado
+
+    @property
+    def en_la_puerta(self):
+        """El aviso «En la puerta de X» (M2-6) —``{"dispositivo_id", "dispositivo"}``— o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_EN_LA_PUERTA) or None
+
+    @property
+    def es_ingreso_directo(self):
+        """¿Nació de «Ingresar igual»? Origen dispositivo y **no** un aviso a la mesa (RN-3.10)."""
+
+        return self.origen == self.Origen.DISPOSITIVO and self.SITUACION_EN_LA_PUERTA not in (self.situacion or {})
+
+    @property
+    def alojamiento(self):
+        """La sección 4 del Formulario 1 que dejó «Familia alojada», o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_ALOJAMIENTO)
+
+    @property
+    def diferencia(self):
+        """El motivo del cierre con diferencia (RN-3.9), o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_DIFERENCIA)
 
     @property
     def carpeta_media(self):
@@ -5893,6 +5923,19 @@ class TrazaCaso(models.Model):
         # Las dos del cron (`procesar_vencimientos`): la traza va sin usuario.
         DERIVACION_VENCIDA = "DERIVACION_VENCIDA", "Derivación vencida"
         DEVUELTO_POR_INACTIVIDAD = "DEVUELTO_POR_INACTIVIDAD", "Devuelto a la bandeja por inactividad"
+        # Etapa 3 · alojar (`programas.services.emergencia_alojar`): lo que hace la guardia del dispositivo.
+        DERIVACION_ACEPTADA = "DERIVACION_ACEPTADA", "Derivación aceptada"
+        DERIVACION_RECHAZADA = "DERIVACION_RECHAZADA", "Derivación rechazada"
+        INTEGRANTE_CONFIRMADO = "INTEGRANTE_CONFIRMADO", "Persona confirmada con cama"
+        FICHA_ACTUALIZADA = "FICHA_ACTUALIZADA", "Ficha individual actualizada"
+        INTEGRANTE_AGREGADO = "INTEGRANTE_AGREGADO", "Persona agregada por el dispositivo"
+        ALOJADO = "ALOJADO", "Familia alojada"
+        ALOJADO_CON_DIFERENCIA = "ALOJADO_CON_DIFERENCIA", "Ingreso cerrado con diferencia"
+        INGRESO_CANCELADO = "INGRESO_CANCELADO", "Ingreso cancelado"
+        INGRESO_DIRECTO = "INGRESO_DIRECTO", "Ingreso directo en el dispositivo"
+        AVISO_A_LA_MESA = "AVISO_A_LA_MESA", "Aviso a la mesa desde el dispositivo"
+        INTEGRANTE_EGRESADO = "INTEGRANTE_EGRESADO", "Egreso de un integrante"
+        CERRADO_POR_EGRESO = "CERRADO_POR_EGRESO", "Cerrado: todos egresados"
 
     caso = models.ForeignKey(
         CasoEmergencia,

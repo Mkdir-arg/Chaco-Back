@@ -101,8 +101,11 @@ from programas.services.emergencia_alta import (  # noqa: F401
 )
 from programas.services.emergencia_comun import (  # noqa: F401
     SIN_PERMISO_DE_MESA,
+    _bloquear_caso,
     _bloquear_numerador,
     _exigir_mesa,
+    _hora,
+    _nombre_de,
     _trazar,
     siguiente_numero,
 )
@@ -236,25 +239,6 @@ class FaltanPlazas(ValidationError):
 # ---------------------------------------------------------------------------
 # Piezas internas
 # ---------------------------------------------------------------------------
-
-
-def _nombre_de(usuario):
-    if usuario is None:
-        return "nadie"
-    return usuario.get_full_name().strip() or usuario.get_username()
-
-
-def _hora(momento):
-    return f"{timezone.localtime(momento):%H:%M}"
-
-
-def _bloquear_caso(caso):
-    """La fila del caso con ``FOR UPDATE``, recién leída. **Siempre el primer candado.**
-
-    Sin ``select_related``: un JOIN acá bloquearía también las filas que trae.
-    """
-
-    return CasoEmergencia.objects.select_for_update().get(pk=getattr(caso, "pk", caso))
 
 
 def _exigir_estado(caso, *estados, mensaje):

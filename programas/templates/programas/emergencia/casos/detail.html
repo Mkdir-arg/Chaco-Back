@@ -55,6 +55,14 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
     {% if motivo_cierre %}
       {% include "components/_alerta.html" with tono="info" titulo="Caso cerrado: "|add:motivo_cierre texto=caso.observacion_cierre %}
     {% endif %}
+    {% if alojamiento.en_la_puerta %}
+      {% include "components/_alerta.html" with tono="warning" titulo="En la puerta de "|add:alojamiento.en_la_puerta texto="La guardia de ese dispositivo avisó que la familia llegó sin derivación y está esperando ahí. Tomá el caso y derivalo a donde corresponda." %}
+    {% elif alojamiento.directo %}
+      {% include "components/_alerta.html" with tono="info" titulo="Ingreso directo" texto="El dispositivo recibió a la familia sin pasar por la mesa: el caso nació con el ingreso en curso." %}
+    {% endif %}
+    {% if alojamiento.parcial %}
+      {% include "components/_alerta.html" with tono="warning" titulo=alojamiento.parcial_titulo texto=alojamiento.diferencia.observacion|default:"El dispositivo cerró el ingreso con menos personas que las declaradas." %}
+    {% endif %}
     {% if duplicado %}
       {% include "components/_alerta.html" with tono="warning" titulo="Posible duplicado" texto=duplicado.texto accion_url=duplicado.url accion_texto=duplicado.accion %}
     {% endif %}
@@ -144,12 +152,53 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
           </div>
         </section>
 
-        {# ===== 3. Integrantes: se llena cuando el dispositivo confirma las fichas (etapa 3) ===== #}
+        {# ===== 3. Integrantes: los confirma el dispositivo (etapa 3); la mesa los ve en solo lectura ===== #}
         <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-integrantes-titulo">
-          <div class="px-5 py-4 border-b border-light">
-            <h2 id="caso-integrantes-titulo" class="text-heading font-bold">Integrantes</h2>
+          <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 id="caso-integrantes-titulo" class="text-heading font-bold">Integrantes</h2>
+              {% if integrantes.crecio %}<p class="mt-1 text-xs text-body-subtle">Llegaron {{ integrantes.total }} sobre {{ integrantes.declaradas }} declaradas: el dispositivo agregó personas.</p>{% endif %}
+            </div>
+            {% if integrantes %}{% include "components/_contador_avance.html" with hechos=integrantes.confirmadas total=integrantes.total etiqueta="confirmadas" only %}{% endif %}
           </div>
+          {% if integrantes %}
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="nodo-thead-row">
+                  <th class="nodo-th">N.°</th>
+                  <th class="nodo-th">Persona</th>
+                  <th class="nodo-th">Cama</th>
+                  <th class="nodo-th">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fila in integrantes.filas %}
+                <tr class="hover:bg-secondary">
+                  <td class="nodo-td">{{ fila.n }}</td>
+                  <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.rotulo }}</span>{% if fila.persona.dni %}<span class="block text-xs text-body-subtle">DNI {{ fila.persona.dni|dni }}{% if fila.parentesco %} · {{ fila.parentesco }}{% endif %}</span>{% endif %}</td>
+                  <td class="nodo-td">{{ fila.plaza.nombre|default:"—" }}</td>
+                  <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>{% if fila.ficha_texto %} <span class="badge badge-{{ fila.ficha_tono }}">{{ fila.ficha_texto }}</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if alojamiento.donde %}
+          <dl class="p-5 border-t border-light grid gap-5 sm:grid-cols-2">
+            <div>
+              <dt class="text-xs font-semibold uppercase text-body-subtle">Dónde quedó la familia</dt>
+              <dd class="mt-1 text-sm text-heading">{{ alojamiento.donde.sector|default:"Sin sector indicado" }}{% if alojamiento.donde.aula %} · {{ alojamiento.donde.aula }}{% endif %}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-body-subtle">Tarjeta familiar</dt>
+              <dd class="mt-1 text-sm text-heading">{% if alojamiento.donde.tarjeta_entregada %}Entregada · N.° {{ alojamiento.donde.tarjeta_numero }}{% else %}No se entregó{% endif %}{% if alojamiento.donde.encargado %} · recibió {{ alojamiento.donde.encargado }}{% endif %}</dd>
+            </div>
+          </dl>
+          {% endif %}
+          {% else %}
           {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Todavía no hay fichas confirmadas" texto="Se completa cuando el dispositivo confirma las fichas de cada persona." %}
+          {% endif %}
         </section>
 
         {# ===== 4. Fotos (media/ va detrás de login y solo para la mesa) ===== #}
