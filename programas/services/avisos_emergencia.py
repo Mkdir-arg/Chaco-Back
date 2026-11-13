@@ -29,8 +29,8 @@ Firma de cada regla: ``pendientes(sla, ahora, usuario=None, foto=None)``. ``ahor
 parámetro (nada llama a ``now()``); ``foto`` es la de
 ``programas.selectors.emergencia_tablero.foto_del_tablero``, que la vista arma una vez para el
 tablero y sus avisos. Con la foto, las siete reglas suman **a lo sumo 1 consulta**: la de
-«en la puerta», solo si hay candidatos (lee ``situacion`` de esos casos para nombrar el
-dispositivo).
+«en la puerta», solo si hay casos abiertos que nunca se derivaron (lee ``situacion`` para
+nombrar el dispositivo).
 
 **El enlace depende de quién mira.** Cada aviso lleva a la ficha del caso (E3) o al detalle
 de la entrega (E5), que exigen operar o supervisar la mesa. Sin esa capacidad, el aviso
@@ -47,7 +47,7 @@ from core.services import vencimientos
 from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
 from programas.models import CasoEmergencia, TrazaCaso
 from programas.selectors import emergencia_tablero as tablero
-from programas.selectors.emergencia import texto_de_minutos
+from programas.selectors.emergencia import rechazo_sin_nueva_accion, texto_de_minutos
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -62,9 +62,6 @@ TOPE_POR_REGLA = 5
 
 #: «Derivación por vencer»: le quedan menos de estos minutos (05 §3).
 POR_VENCER_MIN = 60
-
-#: La clave de ``CasoEmergencia.situacion`` que escribe «Avisar a la mesa» (M2-6): vive en el modelo.
-SITUACION_EN_LA_PUERTA = CasoEmergencia.SITUACION_EN_LA_PUERTA
 
 Estado = CasoEmergencia.Estado
 Accion = TrazaCaso.Accion
@@ -180,11 +177,12 @@ def derivaciones_por_vencer(sla, ahora, usuario=None, foto=None):
 def rechazadas_sin_nueva_accion(sla, ahora, usuario=None, foto=None):
     """Casos abiertos cuya **última** traza es el rechazo de la derivación. Sin consultas con foto.
 
-    Cualquier cosa que la mesa haga después (un contacto, derivar de nuevo, cerrar) deja otra
+    El predicado es ``selectors.emergencia.rechazo_sin_nueva_accion``, el mismo de la marca de
+    E2 y E3. Cualquier cosa que la mesa haga después (un contacto, derivar de nuevo, cerrar) deja otra
     traza y apaga el aviso.
     """
 
-    casos = [caso for caso in _foto(sla, ahora, foto).abiertos if caso.ultima_accion == Accion.DERIVACION_RECHAZADA]
+    casos = [caso for caso in _foto(sla, ahora, foto).abiertos if rechazo_sin_nueva_accion(caso)]
     avisos = []
     for caso in casos[:TOPE_POR_REGLA]:
         enlace, accion = _enlace(usuario, _url_caso(caso.id), "Derivar de nuevo")
@@ -333,35 +331,34 @@ def sin_plazas_con_derivacion_pendiente(sla, ahora, usuario=None, foto=None):
 
 
 def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
-    """Casos ``NUEVO`` de origen ``DISPOSITIVO``: la guardia avisó que la familia espera ahí.
+    """La guardia avisó que la familia espera en el dispositivo y la mesa todavía no la derivó.
 
-    **0 consultas** si en la foto no hay ninguno; 1 si hay (lee ``situacion`` solo de esos
-    casos, para nombrar el dispositivo).
+    La regla es ``CasoEmergencia.esperando_en_la_puerta`` —caso abierto y **nunca** derivado—,
+    la misma de la marca de E2 y el aviso de E3: tomar el caso no apaga el aviso, derivarlo sí,
+    y cancelar esa derivación no lo vuelve a encender. **0 consultas** si en la foto no hay
+    ningún caso abierto sin derivar; si hay, 1 (``q_esperando_en_la_puerta``, que filtra la
+    clave de ``situacion`` en la base y trae el JSON solo de esos casos).
     """
 
     foto = _foto(sla, ahora, foto)
-    candidatos = [
-        caso
-        for caso in foto.abiertos
-        if caso.estado == Estado.NUEVO and caso.origen == CasoEmergencia.Origen.DISPOSITIVO
-    ]
-    if not candidatos:
+    sin_derivar = [caso for caso in foto.abiertos if caso.derivado_en is None]
+    if not sin_derivar:
         return []
-    situaciones = dict(
-        CasoEmergencia.objects.filter(pk__in=[caso.id for caso in candidatos[:TOPE_POR_REGLA]]).values_list(
-            "id", "situacion"
+    donde = {
+        caso.pk: caso.esperando_en_la_puerta
+        for caso in CasoEmergencia.objects.filter(CasoEmergencia.q_esperando_en_la_puerta()).only(
+            "id", "estado", "derivado_en", "situacion"
         )
-    )
+    }
+    candidatos = [caso for caso in sin_derivar if donde.get(caso.id)]
     avisos = []
     for caso in candidatos[:TOPE_POR_REGLA]:
-        donde = ((situaciones.get(caso.id) or {}).get(SITUACION_EN_LA_PUERTA) or {}).get(
-            "dispositivo"
-        ) or "un dispositivo"
         minutos = max(int((ahora - caso.creado).total_seconds() // 60), 0)
-        enlace, accion = _enlace(usuario, _url_caso(caso.id), "Tomar el caso")
+        texto = "Tomar el caso" if caso.estado == Estado.NUEVO else "Derivar el caso"
+        enlace, accion = _enlace(usuario, _url_caso(caso.id), texto)
         avisos.append(
             Aviso(
-                titulo=f"Familia en la puerta de {donde}",
+                titulo=f"Familia en la puerta de {donde[caso.id]}",
                 texto=f"{caso.familia} (caso {caso.numero}) espera hace {texto_de_minutos(minutos)} que la deriven.",
                 origen=f"Caso {caso.numero}",
                 fecha=None,
@@ -374,7 +371,7 @@ def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
         usuario,
         singular="familia en la puerta",
         plural="familias en la puerta",
-        url=f"{reverse('emergencia:bandeja')}?solapa=nuevos",
+        url=f"{reverse('emergencia:bandeja')}?solapa=abiertos",
         accion="Ver en la bandeja",
     )
 

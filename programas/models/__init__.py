@@ -5399,6 +5399,12 @@ class GrupoFamiliar(TimeStamped):
 
         return sum(getattr(self, campo) for campo in self.CANTIDADES)
 
+    @property
+    def llegaron_mas(self):
+        """¿El dispositivo agregó personas al confirmar (RN-3.8)? «Llegaron 8 sobre 7 declaradas»."""
+
+        return self.total_declarado > self.suma_de_cantidades()
+
 
 class IntegranteGrupo(TimeStamped):
     """Una persona del grupo, numerada. Se completa cuando el dispositivo confirma su ficha.
@@ -5642,6 +5648,29 @@ class CasoEmergencia(TimeStamped):
         """El aviso «En la puerta de X» (M2-6) —``{"dispositivo_id", "dispositivo"}``— o ``None``."""
 
         return (self.situacion or {}).get(self.SITUACION_EN_LA_PUERTA) or None
+
+    @property
+    def esperando_en_la_puerta(self):
+        """El dispositivo donde la familia **sigue** esperando (M2-6), o ``""``. Sin consultas.
+
+        «Avisar a la mesa» deja ``en_la_puerta`` en ``situacion`` para siempre; la familia sigue
+        en la puerta mientras el caso está abierto y la mesa **nunca** lo derivó: tomarlo no la
+        saca, derivarlo sí, y una derivación cancelada no la devuelve. Es la regla única de la
+        marca de E2, el aviso de E3 y el del tablero E1; en SQL, :meth:`q_esperando_en_la_puerta`.
+        """
+
+        en_la_puerta = self.en_la_puerta
+        if not en_la_puerta or not self.abierto or self.derivado_en is not None:
+            return ""
+        return en_la_puerta.get("dispositivo") or "un dispositivo"
+
+    @classmethod
+    def q_esperando_en_la_puerta(cls):
+        """El filtro de :attr:`esperando_en_la_puerta` en SQL (``has_key`` anda en SQLite, MySQL y MariaDB)."""
+
+        return ~models.Q(estado=cls.Estado.CERRADO) & models.Q(
+            derivado_en__isnull=True, situacion__has_key=cls.SITUACION_EN_LA_PUERTA
+        )
 
     @property
     def es_ingreso_directo(self):
