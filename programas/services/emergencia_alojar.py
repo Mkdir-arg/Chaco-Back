@@ -87,6 +87,14 @@ tomado, algo que un egreso tenga**:
   ocupada y la confirmación se rechaza sin esperar; cuando commiteó, ya no tiene locks.
 * el receptor bloquea el caso **antes** de escribir al integrante, igual que
   ``completar_ficha``: los dos piden caso → integrante.
+* **La excepción conocida:** al confirmar en una cama libre, ``confirmar_integrante`` también
+  bloquea las plazas de las reservas comunes de la persona, que salen de ``abiertas()`` y no de
+  ``vigentes()``: una común con el ``hasta`` vencido y sin liberar puede estar sobre la cama de
+  un familiar ya confirmado. Si ese familiar egresa en el mismo instante, el egreso (estadía →
+  plaza compartida → caso) y la confirmación (caso → plaza) se esperan: ``ERROR 1213`` y una
+  de las dos se deshace entera, sin dato a medias. Evitarlo pediría tocar ``liberar_reserva``
+  de Dispositivos; hacen falta la misma familia, una reserva vencida sin liberar y un egreso
+  simultáneo.
 
 Para una estadía que no es de Emergencia el receptor hace **una** consulta y vuelve: está en
 el camino de todos los egresos de Dispositivos.
