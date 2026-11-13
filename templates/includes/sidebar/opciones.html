@@ -541,7 +541,7 @@
                         {% if request.user|puede:"emergencia.operar" or request.user|puede:"emergencia.supervisar" %}
                         <a href="{% url 'emergencia:bandeja' %}"
                            class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
-                           {% if 'emergencia' in pagina_actual and 'emergencia/config' not in pagina_actual and 'emergencia/entregas' not in pagina_actual %}aria-current="page"{% endif %}>
+                           {% if 'emergencia' in pagina_actual and 'emergencia/config' not in pagina_actual and 'emergencia/entregas' not in pagina_actual and 'emergencia/tablero' not in pagina_actual and 'emergencia/dispositivos' not in pagina_actual %}aria-current="page"{% endif %}>
                             <i class="fas fa-life-ring w-4 text-center" aria-hidden="true"></i>
                             Emergencia
                         </a>
@@ -554,6 +554,13 @@
                         </a>
                         {% endif %}
                         {% if request.user|puede:"emergencia.supervisar" %}
+                        {# Tablero (E1): solo quien supervisa (RU §4); misma condición que la configuración, sin consultas de más. #}
+                        <a href="{% url 'emergencia:tablero' %}"
+                           class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
+                           {% if 'emergencia/tablero' in pagina_actual %}aria-current="page"{% endif %}>
+                            <i class="fas fa-gauge-high w-4 text-center" aria-hidden="true"></i>
+                            Tablero de Emergencia
+                        </a>
                         <a href="{% url 'emergencia:configuracion' %}"
                            class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
                            {% if 'emergencia/config' in pagina_actual %}aria-current="page"{% endif %}>

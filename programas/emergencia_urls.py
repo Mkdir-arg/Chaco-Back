@@ -3,15 +3,17 @@ from django.urls import path
 from programas.views import emergencia as mesa
 from programas.views import emergencia_config as config
 from programas.views import emergencia_kits as kits
+from programas.views import emergencia_tablero as tablero
 
 app_name = "emergencia"
 
 # Módulo Emergencia: la mesa (bandeja E2, ficha E3 y «Nuevo caso») y la configuración (E7).
-# Las entregas de kits (E4, E5 y la recepción en el dispositivo) van abajo; el tablero se suma después. El segmento de E7 es
+# Las entregas de kits (E4, E5 y la recepción en el dispositivo) van abajo; el tablero (E1) es del supervisor. El segmento de E7 es
 # `config/` y no `configuracion/` a propósito: el sidebar enciende el grupo «Configuración»
 # con cualquier ruta que contenga esa palabra.
 urlpatterns = [
     path("config/", config.ConfiguracionEmergenciaView.as_view(), name="configuracion"),
+    path("tablero/", tablero.TableroView.as_view(), name="tablero"),
     path("casos/", mesa.BandejaCasosView.as_view(), name="bandeja"),
     path("casos/nuevo/", mesa.NuevoCasoView.as_view(), name="caso_nuevo"),
     path("casos/<int:pk>/", mesa.CasoDetalleView.as_view(), name="caso_detalle"),
