@@ -69,7 +69,7 @@ nada más que para dibujarse.
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Plaza, ReservaPlaza, Sector
+from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
 from programas.selectors.capacidad_dispositivo import nombre_de_edificio
 from programas.services.estadias import reserva_abierta_de
 from programas.services.nombre_plaza import clave_natural
@@ -97,6 +97,8 @@ ACCION_PRESTAR = "prestar"
 ACCION_VER_ESTADIA = "ver_estadia"
 ACCION_VER_LEGAJO = "ver_legajo"
 ACCION_EGRESAR = "egresar"
+#: Abre el asistente de ingreso con la plaza ya marcada: es un enlace, no un formulario del modal.
+ACCION_INGRESAR = "ingresar"
 
 # Las acciones cuyo formulario arma el navegador: con una sola, el modal abre directo en él.
 ACCIONES_CON_FORMULARIO = (ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO, ACCION_LIBERAR, ACCION_VOLVER)
@@ -117,6 +119,7 @@ def acciones_de_plaza(
     puede_editar=False,
     puede_buscar_personas=False,
     puede_egresar=False,
+    dispositivo_activo=False,
 ):
     """Las acciones que admite una plaza y que quien mira puede ejercer, en el orden del modal.
 
@@ -126,7 +129,9 @@ def acciones_de_plaza(
     ofrece, en este orden y cada una con su capacidad: cambiar de plaza (`admitir`), ver la
     estadía y el legajo (`ciudadano.ver`, `puede_buscar_personas`), registrar el egreso
     (`egresar`) y «sacar de servicio» (`editar`), esta última siempre bloqueada con su motivo. La disponible ofrece reservar y prestar (`admitir`) y sacar de
-    servicio (`editar`). Reservar y prestar buscan a la persona por DNI en el padrón, así que
+    servicio (`editar`), y además ingresar a una persona en ella, que abre el asistente de ingreso con la
+    plaza marcada: pide lo mismo que el asistente (`admitir` + `ciudadano.ver`) y un dispositivo activo
+    (`dispositivo_activo`), porque el asistente rechaza los demás. Reservar y prestar buscan a la persona por DNI en el padrón, así que
     piden además `ciudadano.ver` (`puede_buscar_personas`), como el asistente de ingreso. Lista vacía: la plaza no es accionable para este usuario.
     """
 
@@ -143,7 +148,11 @@ def acciones_de_plaza(
         if puede_editar:
             acciones.append(ACCION_FUERA_SERVICIO)
         return acciones
-    acciones = [ACCION_RESERVAR, ACCION_PRESTAR] if puede_admitir and puede_buscar_personas else []
+    acciones = []
+    if puede_admitir and puede_buscar_personas:
+        if dispositivo_activo:
+            acciones.append(ACCION_INGRESAR)
+        acciones += [ACCION_RESERVAR, ACCION_PRESTAR]
     if puede_editar:
         acciones.append(ACCION_FUERA_SERVICIO)
     return acciones
@@ -187,15 +196,18 @@ def url_modal_egreso(dispositivo_pk, estadia_pk):
     return f"{url_solapa_estadias(dispositivo_pk)}&egreso={estadia_pk}"
 
 
-def enlaces_de_plaza(dispositivo, estado, acciones):
-    """`{accion: url}` de las acciones de la plaza ocupada que son enlaces, no formularios.
+def enlaces_de_plaza(dispositivo, estado, acciones, plaza_pk):
+    """`{accion: url}` de las acciones de la plaza que son enlaces, no formularios.
 
     Cada destino es la vista que ya existe y la que decide si deja pasar: la estadía y el legajo
-    piden `ciudadano.ver`, el egreso abre el modal de la solapa Estadías (`?tab=estadias&egreso=`).
-    No consulta nada: la estadía y la persona vienen en el estado.
+    piden `ciudadano.ver`, el egreso abre el modal de la solapa Estadías (`?tab=estadias&egreso=`) y
+    el ingreso abre el asistente con la plaza marcada (`?plaza=`, `plaza_pk`). No consulta nada: la estadía y la persona vienen en el estado.
     """
 
     enlaces = {}
+    if ACCION_INGRESAR in acciones:
+        url = reverse("dispositivos:ingreso_persona", args=[dispositivo.pk])
+        enlaces[ACCION_INGRESAR] = f"{url}?plaza={plaza_pk}"
     if estado.estadia_id is None:
         return enlaces
     if ACCION_VER_ESTADIA in acciones:
@@ -244,6 +256,7 @@ def plaza_para_accion(
         puede_editar=puede_configurar_plazas,
         puede_buscar_personas=puede_ver_personas,
         puede_egresar=puede_egresar,
+        dispositivo_activo=dispositivo.estado == Dispositivo.Estado.ACTIVO,
     )
     if not acciones:
         return None
@@ -255,7 +268,7 @@ def plaza_para_accion(
         "acciones": acciones,
         "bloqueo": bloqueo_del_modal(estado, acciones),
         "reserva": reserva,
-        "enlaces": enlaces_de_plaza(dispositivo, estado, acciones),
+        "enlaces": enlaces_de_plaza(dispositivo, estado, acciones, plaza.pk),
     }
 
 
@@ -402,6 +415,7 @@ def sectores_con_plazas(
 
     armados = []
     plazas_modal = {}
+    activo = dispositivo.estado == Dispositivo.Estado.ACTIVO
     for item in ocupacion.sectores:
         sector = sectores[item.sector_id]
         plazas = por_sector.get(item.sector_id, [])
@@ -415,6 +429,7 @@ def sectores_con_plazas(
                 puede_editar=puede_configurar_plazas,
                 puede_buscar_personas=puede_ver_personas,
                 puede_egresar=puede_egresar,
+                dispositivo_activo=activo,
             )
             url = f"?plaza={plaza.pk}" if acciones else ""
             click = ""
@@ -428,7 +443,7 @@ def sectores_con_plazas(
                     estado,
                     acciones,
                     bloqueo_del_modal(estado, acciones),
-                    enlaces_de_plaza(dispositivo, estado, acciones),
+                    enlaces_de_plaza(dispositivo, estado, acciones, plaza.pk),
                 )
             if not url and puede_configurar_plazas:
                 # Editar la identidad no libera la reserva ni exige dispositivo.admitir.

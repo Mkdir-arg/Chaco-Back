@@ -6,7 +6,8 @@ Una URL por paso, con el estado en sesión (arquetipo Wizard):
    Registro de Personas (RENAPER). Acá se avisa si ya está alojada en la red. Si no está
    en ninguno de los dos, se ofrece el alta mínima (nombre, apellido, nacimiento y género).
 2. **Plaza** — solo si el tipo del dispositivo maneja plazas. Tocar una plaza en el mapa
-   la marca; recién «Continuar» la guarda.
+   la marca; recién «Continuar» la guarda. Si el asistente se abrió desde «Ingresar persona» del
+   mapa de Sectores y plazas (`?plaza=<id>` en el paso 1), esa plaza llega marcada.
 3. **Confirmar** — resumen y escritura. Si el tipo del dispositivo tiene un formulario vigente de
    «Ingreso», se pide acá, en su propia tarjeta: se valida antes de escribir (un obligatorio visible
    vacío frena el ingreso) y se guarda en la misma transacción que la estadía.
@@ -73,6 +74,8 @@ from programas.services.respuestas_dispositivo import guardar_respuestas_ingreso
 
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
+#: La plaza desde la que se abrió el asistente («Ingresar persona» del mapa de plazas).
+CLAVE_PLAZA_SUGERIDA = "plaza_sugerida"
 #: Dar de alta en el legajo a la persona que no está: el asistente lo ofrece solo a quien puede.
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
@@ -333,6 +336,13 @@ class IngresoPersonaView(IngresoBaseView):
         return IngresoAltaMinimaForm(data, dni=sin_registro["dni"], sexo=sin_registro.get("sexo") or "")
 
     def get(self, request, pk):
+        pedida = request.GET.get("plaza", "")
+        # Solo dígitos ASCII: un superíndice pasa `isdigit()` y rompe `int()` (como `_entero` del mapa).
+        if pedida.isascii() and pedida.isdecimal():
+            # «Ingresar persona» desde una plaza del mapa: empieza un ingreso nuevo con esa plaza
+            # sugerida. Solo la marca en el paso 2 si sigue siendo elegible; no la toma ni la valida acá.
+            self.guardar({CLAVE_PLAZA_SUGERIDA: int(pedida)})
+            return redirect(self.urls()["persona"])
         estado = self.estado()
         sin_registro = estado.get("sin_registro")
         if sin_registro and puede(request.user, CAP_CREAR_CIUDADANO):
@@ -352,6 +362,14 @@ class IngresoPersonaView(IngresoBaseView):
             return self.render_paso(request, form, verificacion)
         return self._guardar_y_seguir({"ciudadano_id": ciudadano.pk})
 
+    def _con_sugerida(self, nuevo):
+        """`nuevo` con la plaza sugerida del mapa, que sobrevive al cambio de persona del paso 1."""
+
+        sugerida = self.estado().get(CLAVE_PLAZA_SUGERIDA)
+        if sugerida is not None:
+            nuevo[CLAVE_PLAZA_SUGERIDA] = sugerida
+        return nuevo
+
     def _descartar_alta_minima(self):
         """Una búsqueda nueva invalida la anterior: si corta con error no queda `sin_registro`."""
 
@@ -362,7 +380,7 @@ class IngresoPersonaView(IngresoBaseView):
     def _guardar_y_seguir(self, nuevo):
         # El paso se guarda recién ahora, con el form válido; lo que dependía de la persona
         # anterior (la plaza) se descarta.
-        self.guardar(nuevo)
+        self.guardar(self._con_sugerida(nuevo))
         return redirect(self.urls()["plaza"] if self.usa_plazas else self.urls()["confirmar"])
 
     def post(self, request, pk):
@@ -394,7 +412,7 @@ class IngresoPersonaView(IngresoBaseView):
             # Ni el legajo ni el Registro la tienen: se ofrece el alta mínima. La sesión
             # solo recuerda qué se consultó; no hay persona elegida ni se escribe nada.
             sin_registro = {"dni": dni, "sexo": sexo}
-            self.guardar({"sin_registro": sin_registro})
+            self.guardar(self._con_sugerida({"sin_registro": sin_registro}))
             return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro), motivo=motivo)
         return self._guardar_y_seguir({"ciudadano_id": None, "renaper": datos, "sexo": sexo})
 
@@ -539,6 +557,10 @@ class IngresoPlazaView(IngresoBaseView):
         guardada = estado.get("plaza_id")
         if guardada in elegibles:
             return self.render_paso(request, estado, persona, guardada, error)
+        # La plaza desde la que se abrió el asistente en el mapa, si todavía se puede elegir.
+        sugerida = estado.get(CLAVE_PLAZA_SUGERIDA)
+        if sugerida in elegibles:
+            return self.render_paso(request, estado, persona, sugerida, error)
         # Sin plaza elegida, la que la persona ya tenía guardada llega marcada: es la suya.
         propia = self.plaza_propia()
         return self.render_paso(request, estado, persona, propia if propia in elegibles else None, error)
