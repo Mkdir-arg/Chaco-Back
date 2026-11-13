@@ -99,11 +99,13 @@ class BandejaCasosView(MesaPermissionMixin, View):
         form = FiltrosBandejaForm(request.GET)
         filtros = form.filtros(request.user)
         sla, ahora = sla_vigente(), timezone.now()
-        pagina = Paginator(selectores.bandeja(filtros, sla=sla, ahora=ahora), CASOS_POR_PAGINA).get_page(
-            request.GET.get("page")
-        )
+        # Una sola vez: ordena la bandeja y cuenta la solapa «Fuera de SLA».
+        semaforos = selectores.ids_por_estado_sla(sla, ahora)
+        pagina = Paginator(
+            selectores.bandeja(filtros, sla=sla, ahora=ahora, semaforos=semaforos), CASOS_POR_PAGINA
+        ).get_page(request.GET.get("page"))
         elegidos = {campo: valor for campo, valor in form.limpios().items() if campo not in NO_SON_FILTRO}
-        conteos = mesa.conteos_de_solapas(sla, ahora)
+        conteos = mesa.conteos_de_solapas(sla, ahora, semaforos=semaforos)
         solapa = filtros["solapa"]
         contexto = {
             "page_obj": pagina,
