@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-13 22:40. **11 de 13 PRs mergeados a `development`** (PR 0 a PR 10, más el PR 9 antes que el PR 8). #1136 (PR 11) está aprobado y espera el CI. Falta #1137 (PR 12, documentación).
+**Última actualización:** 2026-11-13 23:20. **Los 13 PRs del backend están mergeados en `development`** (último merge `f6aecbb8`). El borrador #1138 se cerró sin mergear. La deuda menor de las auditorías quedó cargada en los Pendientes de los Cambios 467 a 473 de `docs/internal/requerimientos.md`, que pasa a ser la lista única.
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -51,10 +51,10 @@ apuntar a `development` y recién ahí le corre el CI.
 | #1133 PR 9 | Mergeado | `70b5965e` | Una ronda. Kits y API M3. Migración `0121`. |
 | #1134 PR 8 | Mergeado | `cf544a33` | Dos rondas. `views_emergencia.py` (1128 líneas) se partió en base, kits, llegadas y sin_derivacion. `ingreso_sin_candado` es la guarda única: GET y POST dan el mismo 409. La búsqueda por DNI tiene un tope `emergencia_buscar` de 300/h. |
 | #1135 PR 10 | Mergeado | `8400f935` | Una ronda. Tablero E1 y avisos. Se aceptan 16 consultas en la vista y 12 en el dominio. Se actualizó la ficha `shells.md` y el sidebar quedó con una sola entrada activa en la recepción de kits. |
-| #1136 PR 11 | Aprobado (ronda 2), espera el CI | | «En la puerta» quedó con una sola regla, «caso abierto y nunca derivado», en E1, E2 y E3. «Rechazo sin nueva acción» y la última traza tienen una sola fuente. |
-| #1137 PR 12 | Pendiente | | Manual y Cambios 462 a 474. |
+| #1136 PR 11 | Mergeado | `0bb5b72e` | 2 rondas. «En la puerta» = caso abierto y nunca derivado (E1, E2 y E3). Hay una sola fuente para «rechazo sin nueva acción» y para la última traza. |
+| #1137 PR 12 | Mergeado | `f6aecbb8` | 2 rondas. Los Cambios 462 a 473 quedaron en 🟢 y se cargaron 32 MINOR diferidos en sus Pendientes. El Cambio 474 sigue en 🟡: su Pendiente 1 pide pasarlo a 🟢 con este merge en el próximo PR que toque `requerimientos.md`. |
 
-**MINOR registrados para PRs siguientes:**
+**MINOR registrados para PRs siguientes** (ya copiados a los Pendientes de los Cambios 467 a 473 de `requerimientos.md`, que es la fuente vigente):
 - **PR 5:** el largo de `traslado_otro` no sale en el primer 400; `test_emergencia_api_contrato.py` tiene 1084 líneas; `_respuesta_400` privado; tercera definición de `CAP_ADMITIR`; doble `EXISTS` en `perfil/`; `validar_foto_de_la_app` duplica a `validar_adjunto`.
 - **PR 9:**
   - El remito queda huérfano si el UNIQUE corta la recepción.
@@ -98,7 +98,7 @@ git checkout docs/emergencia-analisis      # plan, análisis y este archivo
 git checkout feat/emergencia-integracion-final  # todo el backend (PRs 0 a 11) junto y verificado
 ```
 
-- **PR 0 a PR 10 ya están en `development`** (ver §0). Quedan abiertos el PR 11 (aprobado) y el PR 12.
+- **Todo el backend (PR 0 a PR 12) está en `development`.** El borrador #1138 se cerró. Para trabajar: `git checkout development`.
 - Las ramas van **apiladas**: para abrir los PRs contra `development` hay que hacerlo en orden
   (§2), o mergear primero la base de cada una.
 - Las ramas `feat/emergencia-*` salen de `development` @ `e968b179` y **no** traen los commits de
@@ -404,3 +404,15 @@ MySQL deberían pasar; verificarlo en CI.
 | 2026-11-12 | PR 12: manual (`docs/internal/emergencia-manual.md`) y Cambios 457 a 469. Detectado el choque de la migración 0116 con `development`. |
 | 2026-11-12 | Ola 5 (Opus): PR 8, PR 10 y PR 11. Integración final del backend con 8.986 tests. |
 | 2026-11-12 | Ola 4: PR 7 y PR 9. Los subagentes se cortaron por límite de uso (Fable y después Opus); el orquestador verificó y pusheó lo commiteado. Integración de 0 a 9 con la suite completa. |
+
+
+---
+
+## Qué queda (después del merge del backend)
+
+1. **Cron de `procesar_vencimientos`:** hoy corre una vez por día. Para operar una emergencia hace falta correrlo cada 5 minutos (`--solo emergencia.derivacion` y `--solo emergencia.caso_sin_avance`) en icore-srv y en ECOM. Lo tiene que decidir el usuario o el PM; no se tocaron ni `docker/cron/procesar_vencimientos.cron` ni `docker/k8s/cronjobs.yaml`.
+2. **App PWA (M1, M2 y M3 en `Chaco-mobile`):** está bloqueada porque falta permiso de escritura sobre el repo y hay que confirmar la rama `test`. La API ya está lista y documentada en `docs/internal/contrato-app-emergencia.md`.
+3. **Cambio 474:** pasarlo a 🟢 con el merge `f6aecbb8`.
+4. **Casos de QA (PR 13):** el manual (`docs/internal/emergencia-manual.md`, §8) trae 57 casos de alto nivel para cargar en los issues.
+5. **Deuda menor:** los Pendientes de los Cambios 467 a 473, que son 33 ítems (incluido el Pendiente 9 del 469: «Avisar a la mesa» de E6 sin `uuid_cliente`).
+6. **Antes de ECOM:** correr `/auditoria-pre-release` y después `/pushGitLabecomTEST`.
