@@ -842,5 +842,9 @@ class Migration(migrations.Migration):
                 fields=("grupo", "ciudadano"), name="integrante_persona_unica_por_grupo"
             ),
         ),
-        migrations.RunPython(ampliar_uuid_mysql, restaurar_uuid_mysql),
+        # `atomic=False`: en MySQL/MariaDB Django envuelve un RunPython de una migración atómica en
+        # una transacción, y el `ALTER TABLE … MODIFY` de adentro muere con TransactionManagementError
+        # (lo cazó el job «Motor real (mariadb:10.11)»). El paso es idempotente: `modificar_columna`
+        # mira el tipo real de la columna antes de tocarla.
+        migrations.RunPython(ampliar_uuid_mysql, restaurar_uuid_mysql, atomic=False),
     ]
