@@ -34,6 +34,7 @@ from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth.models import AnonymousUser, Group, User
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import override_settings, tag
@@ -54,6 +55,7 @@ from programas.api.views_emergencia import MENSAJE_SIN_MODULO, MENSAJE_SIN_RELEV
 from programas.models import AdjuntoCaso, CasoEmergencia, GrupoFamiliar, MiembroEquipoDispositivo, TrazaCaso
 from programas.selectors.emergencia_campo import TOPE_MIS_CASOS, casos_relevados_por, localidades_para_relevar
 from programas.services import emergencia as servicio
+from programas.services import emergencia_alta
 from programas.services.emergencia_campo import RELEVADO_EN_FUTURO
 from programas.services.emergencia_programa import modulo_habilitado, roles_en_app
 from programas.tests.test_becas_api_contrato import CLAVES_LOGIN
@@ -636,6 +638,51 @@ class EnviarCasoTests(BaseApiEmergencia):
         self.assertEqual(respuesta.json(), {"detail": servicio.UUID_EN_USO, "code": "UUID_EN_USO"})
         self.assertEqual(CasoEmergencia.objects.count(), 1)
 
+    def test_el_409_sale_por_tipo_aunque_cambie_el_texto_del_mensaje(self):
+        """La vista atrapa ``UuidEnUso`` por tipo, no compara el texto (hallazgo MINOR del PR #1130).
+
+        **Mutación vista en rojo:** con la vista comparando otra vez ``errores["uuid_cliente"]``
+        contra ``[UUID_EN_USO]``, el mensaje cambiado sale como 400 ``VALIDACION``. Restaurada la
+        captura por tipo, verde.
+        """
+        otro = self._usuario("otro_agente", [RELEVAR])
+        identificador = uuid.uuid4()
+        self._enviar(uuid_cliente=identificador)
+
+        with mock.patch.object(emergencia_alta, "UUID_EN_USO", "Ese identificador ya lo usó otra persona."):
+            respuesta = self._enviar(otro, uuid_cliente=identificador)
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertEqual(
+            respuesta.json(), {"detail": "Ese identificador ya lo usó otra persona.", "code": "UUID_EN_USO"}
+        )
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
+    def test_el_uuid_en_uso_sigue_siendo_un_validation_error_con_su_clave(self):
+        """La mesa y los tests que lo atrapan como ``ValidationError`` lo ven igual que antes."""
+        error = servicio.UuidEnUso()
+
+        self.assertIsInstance(error, ValidationError)
+        self.assertEqual(error.message_dict, {"uuid_cliente": [servicio.UUID_EN_USO]})
+
+    def test_el_reenvio_no_revalida_lo_que_el_serializer_ya_no_rechaza(self):
+        """§6: el segundo cuerpo con reglas del Formulario 1 rotas igual devuelve el caso (200).
+
+        Una cantidad negativa y un ``traslado_otro`` de más de 120 caracteres los rechazaría el
+        servicio, que no llega a validarlos; antes los frenaba el serializer con un 400.
+        """
+        identificador = uuid.uuid4()
+        primera = self._enviar(uuid_cliente=identificador)
+
+        segunda = self._enviar(
+            uuid_cliente=identificador, adultos_f=-1, traslado=GrupoFamiliar.Traslado.OTRA, traslado_otro="x" * 200
+        )
+
+        self.assertEqual(primera.status_code, 201, primera.content)
+        self.assertEqual(segunda.status_code, 200, segunda.content)
+        self.assertEqual(segunda.json(), primera.json())
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
     def test_sin_uuid_cliente_es_400(self):
         cuerpo = self._cuerpo()
         del cuerpo["uuid_cliente"]
@@ -695,6 +742,43 @@ class EnviarCasoTests(BaseApiEmergencia):
                 respuesta = self._enviar(**cambios)
                 self.assertEqual(respuesta.status_code, 400)
                 self.assertIn(campo, respuesta.json())
+        self.assertEqual(CasoEmergencia.objects.count(), 0)
+
+    def test_traslado_otro_tiene_el_tope_del_modelo_y_no_uno_propio(self):
+        """El largo de ``traslado_otro`` lo decide el modelo (120), igual que en la mesa.
+
+        **Mutación vista en rojo:** con ``max_length=60`` de vuelta en el serializer, los 80
+        caracteres dan 400 con el mensaje de DRF. Restaurado, verde.
+        """
+        respuesta = self._enviar(traslado=GrupoFamiliar.Traslado.OTRA, traslado_otro="G" * 80)
+
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+        self.assertEqual(CasoEmergencia.objects.get().grupo.traslado_otro, "G" * 80)
+
+        largo = self._enviar(traslado=GrupoFamiliar.Traslado.OTRA, traslado_otro="G" * 121)
+
+        self.assertEqual(largo.status_code, 400, largo.content)
+        cuerpo = largo.json()
+        self.assertEqual(cuerpo["code"], "VALIDACION")
+        self.assertEqual(set(cuerpo), CLAVES_FIJAS_DEL_400 | {"traslado_otro"})
+        self.assertIn("120", cuerpo["traslado_otro"][0])
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
+    def test_una_cantidad_negativa_la_rechaza_el_servicio_junto_con_los_demas_errores(self):
+        """El signo lo valida ``crear_caso`` con su mensaje, en el mismo 400 que el resto.
+
+        **Mutación vista en rojo:** con ``min_value=0`` de vuelta en ``_cantidad`` el 400 sale
+        del serializer, con el mensaje de DRF y sin la clave ``direccion``. Restaurado, verde.
+        """
+        respuesta = self._enviar(adultos_f=-1, direccion="")
+
+        self.assertEqual(respuesta.status_code, 400, respuesta.content)
+        cuerpo = respuesta.json()
+        self.assertEqual(set(cuerpo), CLAVES_FIJAS_DEL_400 | {"adultos_f", "direccion"})
+        self.assertEqual(cuerpo["adultos_f"], ["No puede ser negativo."])
+        self.assertEqual(
+            cuerpo["direccion"], ["Escribí la dirección o una referencia: es el mínimo para ubicar a la familia."]
+        )
         self.assertEqual(CasoEmergencia.objects.count(), 0)
 
     def test_sin_personas_no_se_envia(self):

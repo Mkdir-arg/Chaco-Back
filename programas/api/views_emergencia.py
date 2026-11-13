@@ -43,7 +43,7 @@ from programas.api.views import ConsultaPersonasThrottle, responder_consulta_de_
 from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
-from programas.services.emergencia import UUID_EN_USO, crear_caso
+from programas.services.emergencia import UuidEnUso, crear_caso
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     modulo_habilitado,
@@ -215,10 +215,11 @@ class CasosEmergenciaView(APIView):
             # No debería llegar: el permiso de la vista pregunta lo mismo. Si llega, el
             # mismo cuerpo que da el permiso.
             return Response(EmergenciaRelevarPermission.message, status=status.HTTP_403_FORBIDDEN)
+        except UuidEnUso as error:
+            detalle = error.message_dict["uuid_cliente"][0]
+            return Response({"detail": detalle, "code": CODIGO_UUID_EN_USO}, status=status.HTTP_409_CONFLICT)
         except ValidationError as error:
             errores = error.message_dict if hasattr(error, "error_dict") else error.messages
-            if isinstance(errores, dict) and errores.get("uuid_cliente") == [UUID_EN_USO]:
-                return Response({"detail": UUID_EN_USO, "code": CODIGO_UUID_EN_USO}, status=status.HTTP_409_CONFLICT)
             return _respuesta_de_validacion(errores)
         codigo = status.HTTP_200_OK if caso.ya_existia else status.HTTP_201_CREATED
         return Response(CasoEmergenciaCreadoSerializer(caso).data, status=codigo)

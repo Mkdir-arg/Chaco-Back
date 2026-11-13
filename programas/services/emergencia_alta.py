@@ -67,6 +67,19 @@ SIN_PERMISO_DE_INGRESO_DIRECTO = "No tenés permiso para registrar un ingreso di
 UUID_EN_USO = "Ese identificador de envío ya se usó en otro caso."
 FOTO_NO_ES_UN_ARCHIVO = "Mandá la foto como archivo: no se aceptan rutas ni archivos ya guardados."
 
+
+class UuidEnUso(ValidationError):
+    """El ``uuid_cliente`` ya creó un caso de otro usuario: no es un reenvío.
+
+    Es un ``ValidationError`` con la clave ``uuid_cliente`` —la mesa y quien ya lo atrapa como
+    tal lo ven igual que antes—, pero con tipo propio para que la API lo convierta en 409 sin
+    comparar el texto del mensaje.
+    """
+
+    def __init__(self, mensaje=None):
+        super().__init__({"uuid_cliente": mensaje or UUID_EN_USO})
+
+
 #: El tope de ``CasoEmergencia.precision_m`` (``PositiveIntegerField``) en MySQL y MariaDB.
 PRECISION_MAXIMA_M = 2147483647
 
@@ -281,14 +294,14 @@ def _responsable(datos, limpio):
 
 
 def _caso_de_ese_envio(uuid_cliente, usuario):
-    """El caso que ya creó ese ``uuid_cliente``, o ``None``. De otro usuario, ``ValidationError``."""
+    """El caso que ya creó ese ``uuid_cliente``, o ``None``. De otro usuario, :class:`UuidEnUso`."""
 
     existente = CasoEmergencia.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
     if existente is None:
         return None
     if existente.relevado_por_id != usuario.pk:
         # El mismo identificador en manos de otro no es un reenvío: no se le devuelve un caso ajeno.
-        raise ValidationError({"uuid_cliente": UUID_EN_USO})
+        raise UuidEnUso()
     existente.ya_existia = True
     return existente
 
@@ -335,7 +348,7 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
        programa Dispositivos para ``DISPOSITIVO``.
     2. **Idempotencia** (RU-16): si ``uuid_cliente`` ya creó un caso de este usuario, lo
        devuelve tal cual, con ``caso.ya_existia = True``, sin validar ni escribir nada. El
-       mismo identificador usado por otro usuario es un ``ValidationError``.
+       mismo identificador usado por otro usuario es un :class:`UuidEnUso` (``ValidationError``).
     3. Valida el Formulario 1 (``ValidationError`` con los errores por campo): total ≥ 1,
        RN-1.3, dirección obligatoria (RN-1.12) y fotos: solo archivos subidos, sin guardar, que
        sean fotos de verdad.
