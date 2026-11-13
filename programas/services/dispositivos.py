@@ -297,6 +297,24 @@ def _exigir_campos_para_validacion(dispositivo):
         )
 
 
+def _sincronizar_contacto(dispositivo, usuario):
+    """Antes de exigir los datos, el contacto del legajo se pone al día con su responsable (Cambio 457).
+
+    Si el perfil del responsable o el Equipo cambiaron después del último guardado, el chequeo ve
+    lo vigente; lo que se copia queda en la traza como una edición más.
+    """
+    from programas.services.equipo_dispositivo import sincronizar_contacto
+
+    cambios = sincronizar_contacto(dispositivo)
+    if cambios:
+        dispositivo.save(update_fields=[*cambios, "modificado"])
+        registrar_edicion_dispositivo(
+            dispositivo,
+            usuario,
+            {campo: {"anterior": anterior, "nuevo": nuevo} for campo, (anterior, nuevo) in cambios.items()},
+        )
+
+
 def _exigir_formulario_del_tipo(dispositivo):
     """Los obligatorios visibles del formulario «Crear dispositivo» de su tipo (P17).
 
@@ -325,6 +343,7 @@ def _transicionar(
         if dispositivo.estado not in origenes:
             raise ValidationError("La transición de estado solicitada no está permitida.")
         if exige_datos:
+            _sincronizar_contacto(dispositivo, usuario)
             _exigir_campos_para_validacion(dispositivo)
         if exige_formulario:
             _exigir_formulario_del_tipo(dispositivo)

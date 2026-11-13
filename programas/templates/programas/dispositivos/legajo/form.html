@@ -48,6 +48,15 @@
       {% endwith %}
       <p class="mt-1 text-xs text-fg-danger{% if not form.responsables.errors %} hidden{% endif %}" data-error="responsables">{{ form.responsables.errors|join:" " }}</p>
     </div>
+    {% elif form.contacto_del_equipo %}
+    {% comment %}Cambio 457: en la edición el contacto tampoco se escribe a mano; sale del primer responsable del Equipo al guardar y al enviar a validación. Como en el alta, solo nombre y teléfono llegan a la página.{% endcomment %}
+    {% with contacto=form.contacto_del_equipo %}
+    <div class="border-t border-light mt-5 pt-4">
+      <h2 class="text-heading font-bold">Responsable y contacto</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Se toman del primer responsable del Equipo. Para corregirlos, editá el perfil de esa persona o cambiá los responsables en la solapa «Equipo» del detalle.</p>
+      <p class="text-sm text-body" data-contacto-responsable>{{ form.persona_de_contacto }} · {{ contacto.contacto_telefono|default:"sin teléfono en su perfil" }}</p>
+    </div>
+    {% endwith %}
     {% else %}
     <div class="border-t border-light mt-5 pt-4">
       <h2 class="text-heading font-bold mb-4">Responsable y contacto</h2>
@@ -140,8 +149,8 @@
       <div class="p-5" aria-live="polite">
         <ul class="list-disc pl-5 text-sm text-body" data-faltantes-validacion>
           {% for field in form.requisitos_validacion %}<li data-requisito-campo="{{ field.id_for_label }}"{% if field not in form.faltantes_validacion %} class="hidden"{% endif %}>{{ field.label }}</li>{% endfor %}
-          {% if form.responsables %}
-          <li data-faltante-responsable="ninguno"{% if 'ninguno' not in form.faltantes_responsable %} class="hidden"{% endif %}>Responsables del dispositivo</li>
+          {% if form.responsables or form.contacto_del_equipo %}
+          {% if form.responsables %}<li data-faltante-responsable="ninguno"{% if 'ninguno' not in form.faltantes_responsable %} class="hidden"{% endif %}>Responsables del dispositivo</li>{% endif %}
           <li data-faltante-responsable="nombre"{% if 'nombre' not in form.faltantes_responsable %} class="hidden"{% endif %}>Nombre del responsable: cargalo en el perfil de <span data-nombre-responsable>{{ form.persona_de_contacto }}</span></li>
           <li data-faltante-responsable="telefono"{% if 'telefono' not in form.faltantes_responsable %} class="hidden"{% endif %}>Teléfono del responsable: cargalo en el perfil de <span data-nombre-responsable>{{ form.persona_de_contacto }}</span></li>
           {% endif %}

@@ -104,6 +104,7 @@ from programas.services.equipo_dispositivo import (
     puede_crear_persona,
     puede_gestionar_equipo,
     roles_para_crear_persona,
+    sincronizar_contacto,
     sumar_responsables_al_crear,
 )
 from programas.services.estadias import (
@@ -693,8 +694,13 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
             }
             for field in form.changed_data:
                 setattr(dispositivo, field, form.cleaned_data[field])
+            # Cambio 457: el contacto no se edita a mano si hay responsable; sale de esa persona.
+            contacto = sincronizar_contacto(dispositivo)
+            cambios.update(
+                {campo: {"anterior": anterior, "nuevo": nuevo} for campo, (anterior, nuevo) in contacto.items()}
+            )
             if cambios:
-                dispositivo.save(update_fields=[*form.changed_data, "modificado"])
+                dispositivo.save(update_fields=[*form.changed_data, *contacto, "modificado"])
             cambio_horarios = reemplazar_franjas(dispositivo, form.franjas_horarias())
             if cambio_horarios:
                 cambios["horarios"] = cambio_horarios

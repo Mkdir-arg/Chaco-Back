@@ -303,10 +303,10 @@ def nombre_de_persona(usuario):
 
 
 def datos_de_contacto(usuario):
-    """Responsable y contacto del legajo tomados de la persona (alta, Cambio 450).
+    """Responsable y contacto del legajo tomados de la persona (Cambios 450 y 457).
 
-    El alta ya no los pide a mano: salen del primer responsable elegido. Se copian una vez; la
-    edición los sigue mostrando para corregirlos. Sin perfil, documento y teléfono quedan vacíos.
+    Ni el alta ni la edición los piden a mano: salen del primer responsable (el elegido en el
+    alta, después el del Equipo: ``contacto_del_equipo``). Sin perfil, documento y teléfono quedan vacíos.
     Cada valor pasa por la misma regla que el campo escrito a mano; el que no la cumple queda
     vacío (un teléfono inválido del perfil cuenta como «sin teléfono» y no traba la edición).
     """
@@ -333,6 +333,56 @@ def datos_de_contacto(usuario):
         "contacto_telefono": _con_regla(normalizar_telefono, getattr(perfil, "telefono", None)),
         "contacto_email": (usuario.email or "").strip(),
     }
+
+
+def responsable_de_contacto(dispositivo):
+    """La persona de la que sale el contacto del legajo: el primer responsable activo del Equipo.
+
+    En el mismo orden que el buscador del alta (apellido, nombre, usuario), así el alta y la
+    edición eligen a la misma persona. ``None`` si el legajo no tiene responsables (los
+    anteriores al Cambio 411): esos conservan el contacto escrito a mano.
+    """
+    from programas.models import MiembroEquipoDispositivo
+
+    if not dispositivo.pk:
+        return None
+    miembro = (
+        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True, es_responsable=True)
+        .select_related("usuario", "usuario__profile")
+        .order_by("usuario__last_name", "usuario__first_name", "usuario__username", "pk")
+        .first()
+    )
+    return miembro.usuario if miembro else None
+
+
+def contacto_del_equipo(dispositivo, usuario=None):
+    """El contacto que el legajo tiene que tener según su responsable, o ``None`` si no hay de quién tomarlo.
+
+    Cada dato sale de la persona; el que su perfil no trae válido conserva el valor guardado en
+    el legajo, así un contacto cargado antes no se borra al sincronizar (Cambio 457).
+    """
+    usuario = usuario or responsable_de_contacto(dispositivo)
+    if usuario is None:
+        return None
+    return {campo: valor or getattr(dispositivo, campo) or "" for campo, valor in datos_de_contacto(usuario).items()}
+
+
+def sincronizar_contacto(dispositivo):
+    """Copia al legajo, sin guardar, el contacto de su responsable; devuelve ``{campo: (anterior, nuevo)}``.
+
+    La llaman la edición y las transiciones que exigen los datos (enviar a validación y validar),
+    así un cambio de perfil o de Equipo llega al legajo antes de chequearlo (Cambio 457).
+    """
+    contacto = contacto_del_equipo(dispositivo)
+    if contacto is None:
+        return {}
+    cambios = {}
+    for campo, nuevo in contacto.items():
+        anterior = getattr(dispositivo, campo) or ""
+        if nuevo != anterior:
+            setattr(dispositivo, campo, nuevo)
+            cambios[campo] = (anterior, nuevo)
+    return cambios
 
 
 def pares_persona_rol(dispositivo=None):

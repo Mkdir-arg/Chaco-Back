@@ -1064,8 +1064,11 @@ class DispositivoForm(forms.ModelForm):
         from programas.services.horarios_dispositivo import franjas_del_dispositivo
 
         super().__init__(*args, **kwargs)
+        self._responsable_del_equipo = None
         if con_responsables:
             self._agregar_responsables()
+        else:
+            self._contacto_desde_el_equipo()
         self.fields["localidad"].choices = _opciones_de_localidad(self.instance.localidad if self.instance.pk else "")
         guardadas = franjas_del_dispositivo(self.instance)
         # Un POST sin el bloque de franjas (sin su management form) no las toca: no es
@@ -1145,6 +1148,20 @@ class DispositivoForm(forms.ModelForm):
             },
         )
 
+    def _contacto_desde_el_equipo(self):
+        """Edición (Cambio 457): con un responsable en el Equipo, el contacto sale de esa persona.
+
+        Los cuatro campos dejan de pedirse, igual que en el alta; se corrigen en el perfil de la
+        persona o cambiando los responsables en la solapa Equipo. Un legajo sin responsables (anterior
+        al Cambio 411) sigue con los campos escritos a mano.
+        """
+        from programas.services.equipo_dispositivo import responsable_de_contacto
+
+        self._responsable_del_equipo = responsable_de_contacto(self.instance)
+        if self._responsable_del_equipo is not None:
+            for nombre in CAMPOS_CONTACTO_DEL_RESPONSABLE:
+                del self.fields[nombre]
+
     def clean_responsables(self):
         # En el orden del listado, que es el de las píldoras: la primera da el contacto del legajo.
         elegidos = set(self.cleaned_data["responsables"])
@@ -1152,9 +1169,10 @@ class DispositivoForm(forms.ModelForm):
 
     @property
     def responsable_de_contacto(self):
-        """La persona de la que sale el contacto del legajo en el alta: la primera elegida, o None."""
+        """La persona de la que sale el contacto del legajo: en el alta la primera elegida; en la
+        edición el primer responsable del Equipo (Cambio 457). None si no hay."""
         if "responsables" not in self.fields:
-            return None
+            return self._responsable_del_equipo
         elegidos = {str(valor) for valor in (self["responsables"].value() or [])}
         return next((usuario for valor, (usuario, _rol) in self._pares_responsables.items() if valor in elegidos), None)
 
@@ -1163,21 +1181,35 @@ class DispositivoForm(forms.ModelForm):
         """Los datos que el alta copia al legajo (``datos_de_contacto`` de la primera persona), o None."""
         from programas.services.equipo_dispositivo import datos_de_contacto
 
+        if "responsables" not in self.fields:
+            return None
         usuario = self.responsable_de_contacto
         return datos_de_contacto(usuario) if usuario is not None else None
 
     @property
-    def faltantes_responsable(self):
-        """Lo que el alta necesita del primer responsable para enviar a validación.
+    def contacto_del_equipo(self):
+        """Edición: el contacto que el legajo toma de su responsable al guardar (Cambio 457), o None."""
+        from programas.services.equipo_dispositivo import contacto_del_equipo
 
-        ``ninguno`` si no hay, y si lo hay, ``nombre`` y/o ``telefono`` cuando su perfil no trae uno
-        válido: son los dos datos de contacto que exige `enviar_a_validacion`.
+        if self._responsable_del_equipo is None:
+            return None
+        return contacto_del_equipo(self.instance, self._responsable_del_equipo)
+
+    @property
+    def faltantes_responsable(self):
+        """Lo que hace falta del primer responsable para enviar a validación.
+
+        En el alta, ``ninguno`` si no se eligió a nadie; en el alta y en la edición, ``nombre`` y/o
+        ``telefono`` cuando no hay uno válido: son los dos datos de contacto que exige `enviar_a_validacion`.
         """
-        if "responsables" not in self.fields:
-            return []
-        contacto = self.contacto_de_alta
-        if contacto is None:
-            return ["ninguno"]
+        if "responsables" in self.fields:
+            contacto = self.contacto_de_alta
+            if contacto is None:
+                return ["ninguno"]
+        else:
+            contacto = self.contacto_del_equipo
+            if contacto is None:
+                return []
         return [
             clave
             for clave, campo in (("nombre", "responsable_nombre"), ("telefono", "contacto_telefono"))
@@ -1265,7 +1297,8 @@ class DispositivoForm(forms.ModelForm):
     def requisitos_validacion(self):
         from programas.services.dispositivos import campos_para_validacion
 
-        # En el alta el responsable y el teléfono no son campos: los cubre `faltantes_responsable`.
+        # Con responsable (alta, o edición con Equipo) el responsable y el teléfono no son campos:
+        # los cubre `faltantes_responsable`.
         return [self[nombre] for nombre in campos_para_validacion() if nombre in self.fields]
 
     @property
