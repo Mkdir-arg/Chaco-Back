@@ -580,7 +580,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 455 | El formulario de Egreso por tipo va dentro del modal de egreso (PR 2: P4 y P7) | Dispositivos · egreso · estadía | `#ui` `#datos` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 | 456 | Egreso con formulario por tipo: el modal avisa si el formulario cambió, devuelve todos los errores juntos y marca el campo del tipo (seguimiento de la auditoría del #1118) | Dispositivos · egreso · estadía | `#ui` `#datos` | Auditoría del PR #1118 (cinco MINOR), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 | 457 | Formularios de Ingreso y Egreso por tipo: la foto del formulario se arma una sola vez (seguimiento de la auditoría del #1119) | Dispositivos · ingreso · egreso · estadía | `#performance` | Auditoría del PR #1119 (un MINOR), vía el PM | 13/11/2026 | 🟢 **Hecho** | — |
-| 458 | Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo» | Dispositivos · alta y edición de institución (P3) | `#ui` | PM | 13/11/2026 | 🟢 **Hecho** | — |
+| 459 | Dispositivos: la edición también toma el contacto del primer responsable del Equipo y no pide los campos a mano | Dispositivos · legajo institucional | `#ui` `#datos` | PM — dispositivo 14 de testing no se podía enviar a validación, 13/11/2026 | 13/11/2026 | 🟢 **Hecho** | — |
+| 460 | Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo» | Dispositivos · alta y edición de institución (P3) | `#ui` | PM | 13/11/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -53827,6 +53828,7 @@ Revertir el PR; los legajos creados mientras tanto conservan los datos copiados.
 
 - **09/11/2026 — alta del cambio.** La auditoría del PR #1073 pidió normalizar los datos del perfil con las reglas del legajo; resuelto en el mismo PR.
 - **09/11/2026 — MINOR de la auditoría del #1073 (PR siguiente):** el resumen también pide el **nombre** cuando el perfil del primer responsable no trae uno válido (p. ej. username = DNI sin nombre), nombrando a la persona por su etiqueta del listado (`data-persona`, `persona_de_contacto`); y vuelven a «Cambio 448» dos comentarios del #1071 que el merge había renumerado por error.
+- **13/11/2026 — pendiente 1 resuelto en el [Cambio 459](#cambio-459):** la edición también toma el contacto del primer responsable del Equipo, al guardar y antes de enviar a validación.
 
 ---
 
@@ -54432,7 +54434,74 @@ No requiere.
 
 ---
 
-# Cambio 458 — Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo»
+# Cambio 459 — Dispositivos: la edición también toma el contacto del primer responsable del Equipo
+
+🟢 **HECHO — 13/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo institucional (alta P3, edición, enviar a validación y validar) |
+| **Etiquetas** | `#ui` `#datos` |
+| **Solicitante** | PM — 13/11/2026, al probar en testing: el dispositivo 14 se creó bien pero no se podía enviar a validación por el teléfono, y la edición volvía a pedir los campos que el Cambio 450 había sacado |
+| **Fecha del pedido** | 13/11/2026 |
+| **Issue / épica** | sin issue; resuelve el pendiente 1 del [Cambio 450](#cambio-450) |
+| **Partes afectadas** | Backoffice: `programas/services/dispositivos.py` (`_transicionar` y el bloque de contacto: `responsables_vigentes`, `nombre_de_persona`, `datos_de_contacto`, `responsable_de_contacto`, `contacto_del_equipo`, `sincronizar_contacto`, movidos desde `equipo_dispositivo.py` para no abrir un ciclo de import), `programas/services/equipo_dispositivo.py` (los importa), `programas/forms.py` (`DispositivoForm`), `programas/views/dispositivos_legajo.py` (`DispositivoUpdateView`), `programas/templates/programas/dispositivos/legajo/form.html`, `.claude/design/arquetipos/formulario.md` |
+| **Migración** | No |
+
+## Pedido original
+
+«Cuando creo estamos ok, pero cuando quiero ir a validar no me deja porque me pide teléfono. Entro a `/dispositivos/14/editar/` y me pide los campos que borramos (Responsable, DNI/CUIT, Teléfono, Email), y los cambiamos por el selector.» Se eligió la opción «el contacto sale siempre de la persona».
+
+## Causa
+
+El Cambio 450 sacó los cuatro campos solo del **alta**: el contacto se copiaba una vez de la primera persona elegida. Si su perfil no tenía teléfono, el legajo quedaba sin teléfono, «Enviar a validación» lo exigía (decisión 4 del 450) y el único lugar para cargarlo era la edición, que seguía con los campos a mano.
+
+## Alcance acordado
+
+**Entra:**
+1. Con al menos un responsable activo en el Equipo, la edición **no muestra** los cuatro campos: «Responsable y contacto» pasa a solo lectura («<nombre> · <teléfono>») con la indicación de corregirlo en el perfil de la persona o en la solapa Equipo.
+2. El legajo toma nombre, DNI/CUIT, teléfono y email del primer responsable **al guardar la edición** y **antes de enviar a validación o validar**; lo copiado queda en la traza como una edición.
+3. «Qué falta para validar» de la edición pide el nombre o el teléfono «en el perfil de <persona>», igual que el alta.
+
+**Queda afuera:** sincronizar al cambiar el perfil o el Equipo sin pasar por la edición ni por una transición (el detalle muestra lo último copiado); legajos sin responsables.
+
+## Decisiones tomadas
+
+1. **Quién es «el primer responsable»:** el responsable **vigente** del Equipo (`_responsables_activos`: quien perdió el rol no cuenta, como en la solapa Equipo), en el orden del buscador del alta (apellido, nombre, usuario), así el alta y la edición eligen a la misma persona.
+2. **No se borra lo cargado:** cada dato sale de la persona, pero el que su perfil no trae válido conserva el valor guardado en el legajo. Un teléfono escrito a mano antes de este cambio no se pierde al editar.
+3. **Legajo sin responsables** (anteriores al Cambio 411): la edición sigue con los cuatro campos a mano, sin cambios.
+4. **Privacidad:** como en el alta, solo nombre y teléfono llegan a la página; DNI y email no.
+5. Un POST de la edición que mande los campos viejos no los pisa: con responsable, no son campos del formulario.
+
+## Archivos
+
+Los de «Partes afectadas», más los tests `programas/tests/test_dispositivos_contacto_edicion_457.py` (nuevo) y `programas/tests/test_dispositivos_alta_contacto_450.py`.
+
+## Base de datos
+
+Sin cambios de esquema. Los legajos se actualizan solos la próxima vez que se editan o se envían a validación.
+
+## Validación
+
+- `test_dispositivos_contacto_edicion_457` (10 tests): la edición no tiene los campos y muestra el contacto sin DNI ni email; el resumen pide el teléfono en el perfil; guardar copia el contacto y lo deja en la traza; un POST con los campos viejos no los pisa; lo que el perfil no trae conserva lo guardado (verificado por mutación: sin el respaldo el test falla); toma al primer responsable en el orden del alta; un responsable que perdió el rol no da el contacto (verificado por mutación); sin responsables siguen los campos a mano; enviar a validación falla sin teléfono y pasa (copiándolo) cuando se carga en el perfil.
+- Suite de Dispositivos + `test_validacion_contacto`: 1859 tests OK (`.venv312`, Py 3.12 + Dj 5.2). `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent` OK.
+
+## Pendientes / a definir
+
+1. Si el responsable cambia a una persona sin teléfono, el legajo conserva el teléfono anterior (de otra persona) hasta que se cargue en el perfil. Se eligió no borrar datos; si el PM prefiere vaciarlo, es un cambio de una línea en `contacto_del_equipo`.
+
+## Reversión
+
+Revertir el PR; los legajos conservan lo último copiado y la edición vuelve a mostrar los campos.
+
+## Historial
+
+- **13/11/2026 — alta del cambio.**
+- **13/11/2026 — auditoría del PR #1121:** dos MINOR resueltos en el mismo PR (el contacto sale solo de un responsable vigente; `sincronizar_contacto` devuelve los cambios con la forma de la traza), y la ficha `dominio/becas.md` documenta la sincronización antes de validar.
+
+---
+
+# Cambio 460 — Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo»
 
 🟢 **HECHO — 13/11/2026**
 
