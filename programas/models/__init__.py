@@ -1390,8 +1390,8 @@ class ReservaPlaza(TimeStamped):
     # la familia de un caso al aceptar su derivación. Con valor, la reserva **no es de la
     # persona** aunque `ciudadano` lleve al responsable del grupo: queda afuera de los caminos
     # «de la persona» (una reserva por persona, la que el ingreso consume o libera) y solo la
-    # consume `estadias.consumir_reserva_de_derivacion`. Ver «Reservas de derivación» en
-    # `programas.services.estadias`. En `NULL` —todas las anteriores— es una reserva común.
+    # consume `reservas_derivacion.consumir_reserva_de_derivacion`. Ver
+    # `programas.services.reservas_derivacion`. En `NULL` —todas las anteriores— es una reserva común.
     # No lleva índice compuesto: ver el comentario en `Meta.indexes`.
     derivacion = models.ForeignKey(
         "Derivacion",

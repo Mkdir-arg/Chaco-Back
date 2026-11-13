@@ -752,7 +752,7 @@ class ConfirmarIntegranteTests(BaseAlojar):
         personas, trazas = Ciudadano.objects.count(), len(self._trazas(caso))
 
         with mock.patch(
-            "programas.services.estadias.ingresar_persona",
+            "programas.services.reservas_derivacion.ingresar_persona",
             side_effect=ValidationError({"fecha_ingreso": "El ingreso no puede ser futuro."}),
         ):
             with self.assertRaises(ValidationError):
