@@ -579,6 +579,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** (el egreso entró en el #1118) | `programas.0116` |
 | 455 | El formulario de Egreso por tipo va dentro del modal de egreso (PR 2: P4 y P7) | Dispositivos · egreso · estadía | `#ui` `#datos` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 | 456 | Egreso con formulario por tipo: el modal avisa si el formulario cambió, devuelve todos los errores juntos y marca el campo del tipo (seguimiento de la auditoría del #1118) | Dispositivos · egreso · estadía | `#ui` `#datos` | Auditoría del PR #1118 (cinco MINOR), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
+| 457 | Sectores y plazas: la plaza disponible ofrece «Ingresar persona», que abre el asistente de ingreso con esa plaza marcada | Dispositivos · P5 Sectores y plazas · asistente de ingreso (P6) | `#ui` `#rbac` | PM — prueba en testing | 13/11/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -54357,3 +54358,86 @@ Solo el deploy; sin migración.
 ## Historial
 
 - **12/11/2026 — alta del cambio.**
+
+
+# Cambio 457 — Sectores y plazas: «Ingresar persona» desde una plaza disponible
+
+🟢 **HECHO — 13/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas · asistente de ingreso (P6) |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — prueba en testing (`/dispositivos/13/sectores/`, plaza A-102) |
+| **Fecha del pedido** | 13/11/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html` · Servidor: `services/sectores_plazas.py`, `views/dispositivos_ingreso.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El modal de una plaza disponible ofrecía Reservar, Prestar y Sacar de servicio. Faltaba la opción de ingresar a una
+persona en esa plaza.
+
+## Alcance acordado
+
+- La plaza disponible suma **«Ingresar persona»**, primera del menú. No es un formulario del modal: es un enlace al
+  asistente de ingreso que ya existe (`dispositivos:ingreso_persona?plaza=<id>`).
+- No contradice el Cambio 389 («sin alta de personas desde el mapa»): el ingreso y el alta siguen pasando por el
+  asistente, con sus tres pasos, sus validaciones y su gate; el mapa solo lo abre con la plaza elegida.
+
+## Decisiones tomadas
+
+- **Quién la ve:** la misma regla que el asistente (`puede_ingresar_persona`): `dispositivo.admitir` con alcance y
+  `ciudadano.ver`, y además el dispositivo **activo**, porque el asistente rechaza los demás. La opción nunca aparece
+  donde el asistente respondería 403 o redirigiría.
+- **La plaza se sugiere, no se toma.** `?plaza=<id>` en el paso 1 empieza un ingreso nuevo para ese dispositivo y
+  guarda la plaza como sugerida en la sesión (`plaza_sugerida`), que sobrevive a la elección de la persona. En el paso
+  2 llega **marcada** si sigue siendo elegible para el ingreso (el mismo `plazas_para_ingresar`); si no, no se marca
+  nada. Igual hay que tocar «Continuar», y el paso final la revalida y la bloquea como siempre.
+- **Precedencia en el paso 2:** la plaza ya guardada (al volver desde Confirmar) › la sugerida desde el mapa › la que
+  la persona tenía reservada en el dispositivo.
+
+## Implementación
+
+- `sectores_plazas.py`: `ACCION_INGRESAR`; `acciones_de_plaza(..., dispositivo_activo=)` la antepone a reservar y
+  prestar; `enlaces_de_plaza(..., plaza_pk)` arma el enlace.
+- `dispositivos_ingreso.py`: `CLAVE_PLAZA_SUGERIDA`; el GET del paso 1 la guarda y redirige sin el parámetro; el
+  paso 2 la marca.
+- `sectores.html`: el botón, con las mismas clases que «Ver estadía» y «Registrar egreso».
+
+## Archivos
+
+- `programas/services/sectores_plazas.py`, `programas/views/dispositivos_ingreso.py`
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/tests/test_dispositivos_plazas_acciones.py`, `programas/tests/test_dispositivos_ingreso.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests nuevos: el enlace del modal apunta al asistente con la plaza; con el dispositivo observado la opción no aparece;
+la plaza sugerida llega marcada después de elegir a la persona, no se guarda ni se toma sola, una plaza no elegible no
+se marca y el ingreso termina en la plaza sugerida. `test_dispositivos_*` completo con `.venv312`: 1841 OK.
+
+Nota: en el checkout principal, `FragmentoReubicarTests.test_cuesta_pocas_consultas_y_no_arma_el_mapa` da 21 > 20 por
+el `.env` local (logging DEBUG formatea el contexto del template y `Sector.__str__` consulta el dispositivo); pasa en un
+worktree sin `.env`, igual que en el CI, y falla igual sobre `HEAD`. No lo causa este cambio.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy; sin migración.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+`git revert` del merge; no hay migración que desaplicar.
+
+## Historial
+
+- **13/11/2026 — alta del cambio.**

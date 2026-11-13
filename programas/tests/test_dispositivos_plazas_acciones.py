@@ -34,6 +34,7 @@ from programas.services.ocupacion import ESTADO_DISPONIBLE, ESTADO_FUERA_SERVICI
 from programas.services.sectores_plazas import (
     ACCION_EGRESAR,
     ACCION_FUERA_SERVICIO,
+    ACCION_INGRESAR,
     ACCION_LIBERAR,
     ACCION_PRESTAR,
     ACCION_RESERVAR,
@@ -119,7 +120,7 @@ class AccionPorPlazaTests(BaseMapa):
         self.assertEqual(celda["url"], f"?plaza={self.plaza.pk}")
         self.assertEqual(
             self._pantalla(self.con_personas, plaza=self.plaza.pk).context["plaza_accion"]["acciones"],
-            [ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO],
+            [ACCION_INGRESAR, ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO],
         )
 
     def test_una_plaza_fuera_de_servicio_se_puede_volver_a_servicio(self):
@@ -465,12 +466,15 @@ class CapacidadDelMapaTests(BaseMapa):
         respuesta = self._pantalla(self.sin_editar_con_personas)
         self.assertEqual(self._celdas(respuesta)["P1"]["url"], f"?plaza={self.plaza.pk}")
         self.assertEqual(
-            respuesta.context["plazas_modal"][self.plaza.pk]["acciones"], [ACCION_RESERVAR, ACCION_PRESTAR]
+            respuesta.context["plazas_modal"][self.plaza.pk]["acciones"],
+            [ACCION_INGRESAR, ACCION_RESERVAR, ACCION_PRESTAR],
         )
 
     def test_sin_dispositivo_editar_el_modal_no_ofrece_sacar_de_servicio(self):
         respuesta = self._pantalla(self.sin_editar_con_personas, plaza=self.plaza.pk)
-        self.assertEqual(respuesta.context["plaza_accion"]["acciones"], [ACCION_RESERVAR, ACCION_PRESTAR])
+        self.assertEqual(
+            respuesta.context["plaza_accion"]["acciones"], [ACCION_INGRESAR, ACCION_RESERVAR, ACCION_PRESTAR]
+        )
         self.assertNotIn(ACCION_FUERA_SERVICIO, respuesta.context["plazas_modal"][self.plaza.pk]["acciones"])
 
     def test_sin_dispositivo_admitir_la_plaza_reservada_no_se_puede_liberar(self):
@@ -664,9 +668,26 @@ class PlazaDisponibleSinRecargaTests(BaseMapa):
         return self._pantalla(usuario).context["plazas_modal"][self.plaza.pk]["acciones"]
 
     def test_la_disponible_ofrece_cada_opcion_segun_la_capacidad(self):
-        self.assertEqual(self._opciones(self.con_personas), [ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO])
-        self.assertEqual(self._opciones(self.sin_editar_con_personas), [ACCION_RESERVAR, ACCION_PRESTAR])
+        self.assertEqual(
+            self._opciones(self.con_personas), [ACCION_INGRESAR, ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO]
+        )
+        self.assertEqual(
+            self._opciones(self.sin_editar_con_personas), [ACCION_INGRESAR, ACCION_RESERVAR, ACCION_PRESTAR]
+        )
         self.assertEqual(self._opciones(self.sin_admitir), [ACCION_FUERA_SERVICIO])
+
+    def test_ingresar_persona_abre_el_asistente_con_la_plaza(self):
+        datos = self._pantalla(self.con_personas).context["plazas_modal"][self.plaza.pk]
+
+        url = reverse("dispositivos:ingreso_persona", args=[self.cis.pk])
+        self.assertEqual(datos["enlaces"][ACCION_INGRESAR], f"{url}?plaza={self.plaza.pk}")
+
+    def test_con_el_dispositivo_no_activo_no_se_ofrece_ingresar(self):
+        """El asistente rechaza un dispositivo que no está activo: la opción no aparece."""
+
+        type(self.cis).objects.filter(pk=self.cis.pk).update(estado=type(self.cis).Estado.OBSERVADO)
+
+        self.assertEqual(self._opciones(self.con_personas), [ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO])
 
     def test_sin_ciudadano_ver_no_se_ofrece_reservar_ni_prestar(self):
         """Buscar a la persona por DNI es mirar el padrón: `admitir` solo no alcanza, como en el ingreso."""
