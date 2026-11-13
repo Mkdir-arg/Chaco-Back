@@ -2,7 +2,7 @@
 
 Lo que lee y manda la app (`Chaco-mobile`). Agregar una clave es seguro; renombrarla o
 sacarla es un release coordinado de la app: las claves de cada respuesta están fijadas en
-`programas/tests/test_emergencia_api_contrato.py` y documentadas en
+`programas/tests/base_emergencia_api.py` y documentadas en
 `docs/internal/contrato-app-emergencia.md`.
 
 **Qué valida este archivo y qué no.** Las reglas del Formulario 1 —total, RN-1.3, dirección
@@ -20,15 +20,16 @@ import re
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.fields import empty
 from rest_framework.utils import html
 
 from core.validators import ADJUNTO_MAX_BYTES, MENSAJE_ADJUNTO_TAMANIO, firma_coincide
 from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion, EntregaKit, GrupoFamiliar, LineaEntrega
+from programas.selectors.emergencia_mesa import nombre_de
 from programas.services.emergencia import NECESIDADES
 from programas.services.emergencia_campo import acotar_relevado_en
+from programas.services.emergencia_ingreso_comun import derivacion_vencida
 
 FOTO_EXTENSIONES_APP = (".jpg", ".jpeg")
 MENSAJE_FOTO_JPEG = "La foto tiene que llegar en JPEG. La app convierte y comprime antes de enviar."
@@ -151,7 +152,8 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
         """Lo validado, con la forma que espera ``crear_caso`` (``fotos`` por tipo)."""
         datos = dict(self.validated_data)
         datos.pop("uuid_cliente")
-        datos.pop("relevado_en")
+        # El de la puerta (`IngresoDirectoEnvioSerializer`) no tiene `relevado_en`.
+        datos.pop("relevado_en", None)
         datos["fotos"] = {}
         for campo, tipo in FOTOS_DEL_CASO.items():
             archivo = datos.pop(campo, None)
@@ -472,13 +474,10 @@ class DerivacionLlegadaSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_vencida(self, derivacion) -> bool:
-        return derivacion.estado == Derivacion.Estado.PENDIENTE and derivacion.vence_en < timezone.now()
+        return derivacion_vencida(derivacion)
 
     def get_derivada_por(self, derivacion) -> str:
-        usuario = derivacion.derivada_por
-        if usuario is None:
-            return ""
-        return usuario.get_full_name().strip() or usuario.get_username()
+        return nombre_de(derivacion.derivada_por)
 
     def get_necesidades(self, derivacion) -> list[str]:
         return [clave for clave in NECESIDADES if derivacion.caso.necesidades.get(clave)]
@@ -655,16 +654,6 @@ class IngresoDirectoEnvioSerializer(CasoEmergenciaEnvioSerializer):
 
     relevado_en = None
     direccion = _texto(help_text="Opcional: sin ella va el domicilio del dispositivo. Hasta 240 caracteres.")
-
-    def datos_formulario1(self):
-        datos = dict(self.validated_data)
-        datos.pop("uuid_cliente")
-        datos["fotos"] = {}
-        for campo, tipo in FOTOS_DEL_CASO.items():
-            archivo = datos.pop(campo, None)
-            if archivo:
-                datos["fotos"][tipo] = archivo
-        return datos
 
 
 class IngresoDirectoSerializer(serializers.Serializer):

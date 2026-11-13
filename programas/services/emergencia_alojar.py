@@ -162,6 +162,8 @@ from programas.services.emergencia_ingreso_comun import (  # noqa: F401
     CAP_ADMITIR,
     SIN_ALCANCE,
     acciones_del_ingreso,
+    derivacion_vencida,
+    ingreso_sin_candado,
     mensaje_faltan_confirmar,
     mensaje_vencida,
 )
