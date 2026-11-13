@@ -16,7 +16,7 @@ from django import forms
 from core.widgets import SwitchInput
 from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
-from programas.forms_emergencia import NuevoCasoMesaForm
+from programas.forms_emergencia import ErroresDelServicioMixin, NuevoCasoMesaForm
 from programas.models import IntegranteGrupo, Sector
 from programas.services import emergencia_alojar as servicio
 
@@ -143,7 +143,7 @@ CAMPOS_DEL_MINIMO = (
 )
 
 
-class FichaIntegranteForm(forms.Form):
+class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
     """El Formulario 2 de una persona (M2-4), con las ocho secciones de ``ESQUEMA_FICHA``.
 
     ``solo_opcionales=True`` es la ficha de una persona **ya confirmada**: quedan las
@@ -153,6 +153,8 @@ class FichaIntegranteForm(forms.Form):
     """
 
     plaza = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+
+    CAMPOS_ARRIBA = ("plaza",)
 
     def __init__(self, *args, solo_opcionales=False, ficha=None, **kwargs):
         if ficha is not None:
@@ -182,7 +184,11 @@ class FichaIntegranteForm(forms.Form):
         return iniciales
 
     def secciones(self):
-        """Las secciones para el template: ``[{codigo, numero, titulo, minimo, campos, sin_datos}]``."""
+        """Las secciones para el template: ``[{codigo, numero, titulo, minimo, campos, sin_datos, cama_despues}]``.
+
+        ``cama_despues`` marca dónde va el bloque de la cama: después de la última sección del
+        mínimo, y solo si el form la lleva (sin confirmar).
+        """
 
         armadas = []
         for numero, seccion in enumerate(servicio.ESQUEMA_FICHA, start=1):
@@ -197,6 +203,7 @@ class FichaIntegranteForm(forms.Form):
                     "minimo": seccion in servicio.SECCIONES_MINIMAS,
                     "campos": [self[campo] for campo in servicio.ESQUEMA_FICHA[seccion]],
                     "sin_datos": self[sin_datos] if sin_datos in self.fields else None,
+                    "cama_despues": "plaza" in self.fields and seccion == servicio.SECCIONES_MINIMAS[-1],
                 }
             )
         return armadas
@@ -211,15 +218,6 @@ class FichaIntegranteForm(forms.Form):
         }
         ficha = servicio.ficha_desde_plano(datos)
         return {seccion: ficha[seccion] for seccion in self.secciones_del_form}
-
-    def agregar_errores_del_servicio(self, error):
-        """Lleva cada rechazo del servicio a su campo; lo que no es de un campo (la cama), arriba."""
-
-        if not hasattr(error, "error_dict"):
-            self.add_error(None, error)
-            return
-        for clave, errores in error.error_dict.items():
-            self.add_error(clave if clave in self.fields and clave != "plaza" else None, errores)
 
 
 class BuscarFamiliaForm(forms.Form):
@@ -280,7 +278,7 @@ class CancelarIngresoForm(forms.Form):
     )
 
 
-class FamiliaAlojadaForm(forms.Form):
+class FamiliaAlojadaForm(ErroresDelServicioMixin, forms.Form):
     """La sección 4 del Formulario 1 (M2-5): dónde quedó la familia y la tarjeta."""
 
     sector = forms.ModelChoiceField(
@@ -314,13 +312,6 @@ class FamiliaAlojadaForm(forms.Form):
     def __init__(self, *args, sectores, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["sector"].queryset = sectores
-
-    def agregar_errores_del_servicio(self, error):
-        if not hasattr(error, "error_dict"):
-            self.add_error(None, error)
-            return
-        for clave, errores in error.error_dict.items():
-            self.add_error(clave if clave in self.fields else None, errores)
 
 
 class Formulario1DispositivoForm(NuevoCasoMesaForm):

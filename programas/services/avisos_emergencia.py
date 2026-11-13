@@ -63,10 +63,8 @@ TOPE_POR_REGLA = 5
 #: «Derivación por vencer»: le quedan menos de estos minutos (05 §3).
 POR_VENCER_MIN = 60
 
-#: La clave de ``CasoEmergencia.situacion`` que escribe «Avisar a la mesa» (M2-6). Se repite
-#: acá —y no se importa de ``services.emergencia_alojar``— por el mismo motivo que en
-#: ``selectors.emergencia_mesa``: ese servicio importa de la mesa y traerlo invertiría capas.
-SITUACION_EN_LA_PUERTA = "en_la_puerta_de"
+#: La clave de ``CasoEmergencia.situacion`` que escribe «Avisar a la mesa» (M2-6): vive en el modelo.
+SITUACION_EN_LA_PUERTA = CasoEmergencia.SITUACION_EN_LA_PUERTA
 
 Estado = CasoEmergencia.Estado
 Accion = TrazaCaso.Accion

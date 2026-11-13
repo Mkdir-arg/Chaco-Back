@@ -1,0 +1,32 @@
+{% comment %}Los cuatro bloques del Formulario 1 (traslado, personas, asistencia, ubicación), los mismos en «Nuevo caso» de la mesa y en la puerta del dispositivo (M2-6). Quien incluye pone la ayuda del bloque 3 y el título y la ayuda del bloque 4. Sin salto de línea al final, a propósito: el HTML queda igual al de antes de partirlo.{% endcomment %}<div>
+      <h2 class="text-heading font-bold">1 · Traslado y responsable</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Con el DNI se busca a la persona en el legajo. Si no está, completá nombre y apellido y se la da de alta.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {% for field in form.campos_de_traslado %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+      </div>
+    </div>
+    <div class="border-t border-light pt-4">
+      <h2 class="text-heading font-bold">2 · Personas que ingresan juntas</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Cuántas son por edad y sexo. El responsable está incluido; el total lo calcula el sistema.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {% for field in form.campos_de_personas %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+      </div>
+    </div>
+    <div class="border-t border-light pt-4">
+      <h2 class="text-heading font-bold">3 · Necesitan asistencia</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">{{ ayuda_asistencia }}</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        {% for field in form.campos_de_asistencia %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {% for field in form.campos_de_necesidades %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+      </div>
+    </div>
+    <div class="border-t border-light pt-4">
+      <h2 class="text-heading font-bold">4 · {{ titulo_ubicacion }}</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">{{ ayuda_ubicacion }}</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {% for field in form.campos_de_ubicacion %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+      </div>
+      {% for field in form.campos_de_observaciones %}{% include "components/_field.html" %}{% endfor %}
+    </div>
