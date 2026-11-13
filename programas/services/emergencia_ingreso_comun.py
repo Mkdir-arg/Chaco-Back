@@ -91,12 +91,38 @@ def _bloquear_derivacion(pk, caso, dispositivo):
     return derivacion
 
 
+def ingreso_sin_candado(caso, usuario, *estados):
+    """El ingreso del caso **sin candado**: la guarda de quien lo lee y el paso 1 de quien lo toca.
+
+    Lee la **última** derivación del caso —con el caso y su grupo, y el dispositivo con su
+    tipo— y exige alcance sobre su dispositivo (RU-9). Sin derivación, o de otro dispositivo,
+    ``PermissionDenied``: el mismo error, para no decir si el caso existe. Un caso que la
+    guardia rechazó y la mesa derivó a otro lado deja de ser suyo.
+
+    Con ``estados``, exige además que la derivación siga ``ACEPTADA`` y el caso en uno de
+    ellos; si no, :class:`EstadoCambio` con :func:`_por_que_ya_no`. Sin ``estados``, solo el
+    alcance: quien escribe vuelve a preguntar el estado con el candado puesto
+    (:func:`_abrir_ingreso`).
+
+    Devuelve ``(caso, derivacion)`` sin bloquear. **1 consulta** más las del alcance.
+    """
+
+    pk = getattr(caso, "pk", caso)
+    derivacion = (
+        Derivacion.objects.filter(caso_id=pk).select_related("caso__grupo", "dispositivo__tipo").order_by("-id").first()
+    )
+    _exigir_alcance(usuario, derivacion.dispositivo if derivacion is not None else None)
+    caso = derivacion.caso
+    if estados and (derivacion.estado != Derivacion.Estado.ACEPTADA or caso.estado not in estados):
+        raise EstadoCambio(_por_que_ya_no(caso, derivacion), estado_actual=caso.estado, caso=caso)
+    return caso, derivacion
+
+
 def _abrir_ingreso(caso, usuario, *estados):
     """Alcance, candados y estado de toda acción sobre un ingreso ya aceptado.
 
-    1. Lee sin candado la **última** derivación del caso y exige alcance sobre su
-       dispositivo. Sin derivación, o de otro dispositivo, ``PermissionDenied``: el mismo
-       error, para no decir si el caso existe.
+    1. :func:`ingreso_sin_candado` sin estados: la última derivación del caso y el alcance
+       sobre su dispositivo, o ``PermissionDenied``.
     2. Bloquea caso → derivación.
     3. Exige que la derivación siga ``ACEPTADA`` y el caso en uno de ``estados``; si no,
        :class:`EstadoCambio`. Quien llega acá opera el dispositivo al que el caso estuvo
@@ -105,10 +131,8 @@ def _abrir_ingreso(caso, usuario, *estados):
     Devuelve ``(caso, derivacion)`` bloqueados; ``derivacion.dispositivo`` trae su tipo.
     """
 
-    pk = getattr(caso, "pk", caso)
-    previa = Derivacion.objects.filter(caso_id=pk).select_related("dispositivo__tipo").order_by("-id").first()
-    _exigir_alcance(usuario, previa.dispositivo if previa is not None else None)
-    caso = _bloquear_caso(pk)
+    _caso, previa = ingreso_sin_candado(caso, usuario)
+    caso = _bloquear_caso(previa.caso_id)
     derivacion = _bloquear_derivacion(previa.pk, caso, previa.dispositivo)
     if derivacion.estado != Derivacion.Estado.ACEPTADA or caso.estado not in estados:
         raise EstadoCambio(_por_que_ya_no(caso, derivacion), estado_actual=caso.estado, caso=caso)
@@ -131,6 +155,17 @@ def _por_que_ya_no(caso, derivacion):
     if derivacion.estado == Derivacion.Estado.RECHAZADA:
         return "La derivación ya fue rechazada o el ingreso se canceló. Buscá a la familia de nuevo."
     return f"El caso {caso.numero} ya no está para esto. Buscá a la familia de nuevo."
+
+
+def derivacion_vencida(derivacion, ahora=None):
+    """¿Pendiente con ``vence_en`` pasado y todavía sin marcar? Se acepta igual (RN-3.3).
+
+    **La** regla de «vencida» que muestran la API (M2-1) y la pantalla E6. El cron la marca
+    ``VENCIDA`` después; hasta entonces la familia en la puerta entra.
+    """
+
+    ahora = ahora or timezone.now()
+    return derivacion.estado == Derivacion.Estado.PENDIENTE and derivacion.vence_en < ahora
 
 
 def mensaje_vencida(derivacion):

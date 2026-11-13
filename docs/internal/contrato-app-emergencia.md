@@ -1,8 +1,8 @@
 # Contrato de la app de campo de Emergencia
 
 Qué le pide la app (`Chaco-mobile`) al back para el **módulo Emergencia** y qué recibe. Las claves de
-cada respuesta están fijadas con igualdad exacta en `programas/tests/test_emergencia_api_contrato.py`
-(constantes `CLAVES_*`): agregar una clave es seguro; renombrarla o sacarla es un release coordinado de
+cada respuesta están fijadas con igualdad exacta en `programas/tests/base_emergencia_api.py`
+(constantes `CLAVES_*`, que usan los `test_emergencia_api_*`): agregar una clave es seguro; renombrarla o sacarla es un release coordinado de
 la app, y el test y este documento se tocan en el mismo diff. El esquema OpenAPI publicado
 (`/api/schema/`) documenta los mismos extremos.
 
@@ -113,7 +113,7 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
 | 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12); el caso ya no está como la acción necesita: otra guardia actuó desde su teléfono o el backoffice, la mesa canceló, el cron venció (§13) | Mostrar `detail` y recargar con `estado_actual` (§13.1) |
 | 404 | — | El dispositivo, la entrega, la derivación o el caso no existen, o no son del usuario | Recargar «mis dispositivos» |
-| 429 | — | Tope de consultas de identidad (§4) | Seguir con carga manual del nombre |
+| 429 | — | Tope de consultas de identidad (§4) o de búsquedas por DNI (§13.2). Trae `Retry-After` | Identidad: seguir con carga manual del nombre. Búsqueda: esperar `Retry-After` y volver a buscar |
 
 ## 3. Perfil
 
@@ -497,6 +497,10 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
 - `necesidades`: los avisos del Formulario 1 marcados en `true` (`embarazo`, `electrodependiente`,
   `medicacion_critica`, `mascotas`).
 - 400 `dni` si viene vacío o no es un DNI.
+- 429 pasado el tope de búsquedas **del usuario** (`emergencia_buscar`, 300 por hora, aparte del de
+  identidad de §4): la búsqueda dice si un DNI está derivado o alojado en la red, y sin tope un token
+  perdido enumera DNIs. Trae `Retry-After`; la app avisa y deja volver a buscar después. Un 403 no gasta
+  la cubeta.
 
 ### 13.3 Aceptar la derivación
 
@@ -567,8 +571,19 @@ u `observacion`; 409 si ya no estaba pendiente.
 Con `confirmadas == total_declarado` la app ofrece «Familia alojada» (§13.9); con `0 < confirmadas <
 total_declarado`, «Cerrar con diferencia»; con `0`, «Cancelar ingreso».
 
-Abre con el ingreso aceptado: `INGRESO_EN_CURSO`, `ALOJADO` o `CERRADO`. Antes de aceptar o después de
-un rechazo o una cancelación, 409 con `estado_actual`.
+Abre con el ingreso aceptado: `INGRESO_EN_CURSO`, `ALOJADO` o `CERRADO` (la app vuelve acá después de
+cerrar). Antes de aceptar o después de un rechazo, una cancelación o un vencimiento, 409 con `estado_actual`
+y un `detail` que dice qué pasó y qué hacer. Es **el mismo** `{detail, estado_actual}` en el `GET` y en
+cualquier acción sobre el caso (`POST`/`PATCH` de §13.5 a §13.9): lo arma el servidor con una sola regla.
+
+| Qué pasó | `detail` | `estado_actual` |
+|---|---|---|
+| La derivación sigue pendiente: todavía no se aceptó (§13.3) | «El caso 2026-000184 ya no está para esto. Buscá a la familia de nuevo.» | `DERIVADO` |
+| El cron la venció | «La derivación venció a las 12:00. Pedile a la mesa que vuelva a derivar o ingresala igual si tenés plazas.» | `EN_GESTION` |
+| La mesa la canceló | «La mesa canceló la derivación. Si la familia está en la puerta, avisale a la mesa.» | `EN_GESTION` |
+| La guardia la rechazó o canceló el ingreso | «La derivación ya fue rechazada o el ingreso se canceló. Buscá a la familia de nuevo.» | `EN_GESTION` o `NUEVO` |
+
+La app no compara `detail`: lo muestra, y recarga con `estado_actual` (§13.1).
 
 **Agregar persona** (RN-3.8): `POST /api/emergencia/casos/{id}/integrantes/` con `{"uuid_cliente": "…"}`
 (obligatorio). Respuesta **201** `{"integrante": {…fila…}, "total_declarado": 8}`; el reenvío del mismo
