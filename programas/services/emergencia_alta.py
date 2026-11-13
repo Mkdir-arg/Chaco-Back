@@ -12,10 +12,10 @@ directo llaman a esta misma función (RU-2), y el orden de los candados es el qu
 ``programas.services.emergencia``. ``crear_caso`` no bloquea ningún caso —todavía no
 hay—: su único candado es el del numerador, que es una hoja.
 
-La dependencia va en un solo sentido: este módulo importa de ``emergencia`` las piezas
-compartidas (``_trazar``, ``_exigir_mesa``, ``siguiente_numero``) y ``emergencia`` no lo
-importa al cargarse. Los nombres que se mudaron se siguen pudiendo importar desde
-``programas.services.emergencia``, que los resuelve a pedido.
+La dependencia va en un solo sentido: las piezas que comparte con la mesa (``_trazar``,
+``_exigir_mesa``, ``siguiente_numero``) las toma de ``programas.services.emergencia_comun``,
+nunca de ``emergencia``, y ``emergencia`` reexporta lo de acá: los imports de siempre
+(``from programas.services.emergencia import crear_caso``) siguen andando.
 """
 
 import uuid as _uuid
@@ -39,7 +39,7 @@ from programas.models import (
     TrazaCaso,
 )
 from programas.services.dispositivos import puede_en_programa_dispositivos
-from programas.services.emergencia import _exigir_mesa, _trazar, siguiente_numero
+from programas.services.emergencia_comun import _exigir_mesa, _trazar, siguiente_numero
 from programas.services.emergencia_programa import CAP_EMERGENCIA_RELEVAR, puede_en_programa_emergencia
 from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
 
