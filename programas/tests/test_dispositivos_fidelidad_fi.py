@@ -20,8 +20,7 @@ from programas.forms import DispositivoForm
 from programas.models import Dispositivo, Edificio, InspeccionEdificio, TrazaDispositivo
 from programas.services.alertas_dispositivos import relevamientos_vencidos
 from programas.services.detalle_dispositivo import infraestructura_del_dispositivo
-from programas.services.dispositivos import campos_para_validacion
-from programas.services.equipo_dispositivo import nombre_de_persona
+from programas.services.dispositivos import campos_para_validacion, nombre_de_persona
 from programas.services.inspecciones import SEMAFOROS, SIN_RELEVAR, VENCIDO, semaforos_de_dispositivos
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import catalogo_chaco
