@@ -55482,7 +55482,8 @@ No aplica.
 
 ## Validación
 
-`test_emergencia_alojar.py` (113, con mutaciones y orden de candados), `test_emergencia_alojar_vistas.py` (57: vistas,
+`test_emergencia_alojar.py` y los de cada módulo (`test_emergencia_{ficha, recepcion, confirmacion, cierre,
+sin_derivacion}.py`, con `test_emergencia_alojar_base.py`; mutaciones y orden de candados), `test_emergencia_alojar_vistas.py` (57: vistas,
 recorrido de punta a punta, alcance por HTTP y fotos), `test_emergencia_alojar_concurrencia.py` (7, `@tag("mysql")`: doble
 aceptación, doble confirmación, aceptar contra vencer — **pendiente de CI**). Snapshots de `_mapa_plazas` intactos.
 
@@ -55508,6 +55509,19 @@ reservas; los que estén en `INGRESO_EN_CURSO` quedan sin pantalla para terminar
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 7 se cerró en la ola 4, commits `db0660dd` a `c9ada33d`).
+- **13/11/2026 — arreglos del veredicto de `/auditoria pr 1132`** (rama `feat/emergencia-pr7-alojar-v2`, commits
+  `42a8bf26` a `286b9ca4`, propagados a los PRs 9, 8, 10, 11 y 12). **D2 del Cambio 409 en la cama libre:**
+  `confirmar_integrante` cierra las reservas comunes de la persona en cualquier dispositivo (bloqueo único de plazas por pk,
+  `MOTIVO_RESERVA_CERRADA_POR_INGRESO`, persona bloqueada y `RESERVA_NUEVA_DURANTE_EL_INGRESO`) y consume como propia la suya
+  en la cama elegida; tres tests vistos en rojo. `ingreso_directo` no ingresa a nadie: no tenía el defecto. **Partición** de
+  `emergencia_alojar.py` (fachada) en `emergencia_ficha`, `emergencia_ingreso_comun`, `emergencia_recepcion`,
+  `emergencia_confirmacion`, `emergencia_cierre` y `emergencia_sin_derivacion`; `_bloquear_caso`, `_hora` y `_nombre_de` a
+  `emergencia_comun`. **`acciones_del_ingreso`**: una regla para alojar, diferencia, cancelar y agregar en el servicio y en E6.
+  Las claves de `situacion` y el ingreso directo pasan al modelo (`CasoEmergencia.SITUACION_*`, `es_ingreso_directo`,
+  `en_la_puerta`, `alojamiento`, `diferencia`; sin migración). MINOR: `ErroresDelServicioMixin`, include
+  `_formulario1_bloques.html` (HTML idéntico), flag `cama_despues`, `sector_id` en `integrantes_de`, tests partidos con
+  `test_emergencia_alojar_base` y presupuesto de llegadas con 2 y 20 derivaciones. Ficha `turno_bitacora.md` con las
+  automáticas de Emergencia sin movimiento.
 
 ---
 

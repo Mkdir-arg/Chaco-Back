@@ -749,7 +749,7 @@ directo.
 ### 13.11 La ficha individual (Formulario 2)
 
 Esquema **fijo y versionado** (decisión 6 del PM). La única definición es
-`ESQUEMA_FICHA` en `programas/services/emergencia_alojar.py`; lo de abajo es su copia para la app.
+`ESQUEMA_FICHA` en `programas/services/emergencia_ficha.py` (reexportado por `emergencia_alojar`); lo de abajo es su copia para la app.
 Se manda anidada por sección; lo que no es del esquema se ignora. Una pregunta sin responder **no se
 manda** (o se manda `null` o `""`); `false` **es** una respuesta. Lo que se guarda lleva además
 `"version": 1`.
