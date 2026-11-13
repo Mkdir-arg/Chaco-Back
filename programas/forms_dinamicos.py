@@ -290,13 +290,16 @@ def sin_archivos(foto, valores):
     return {clave: valor for clave, valor in (valores or {}).items() if clave not in archivos}
 
 
-def formulario_del_diseno(diseno, data=None, files=None, precargadas=None, prefijo="formulario"):
+def formulario_del_diseno(diseno, data=None, files=None, precargadas=None, prefijo="formulario", foto=None):
     """El formulario de un ``diseno`` ya elegido, armado desde su foto. Es el único constructor: lo usan
     :func:`formulario_de_momento_para` (que descarta los archivos de lo precargado) y el alta del dispositivo
-    (que los conserva, para mostrar «Ya cargado»)."""
-    formulario = RespuestasDisenoForm(
-        data, files, foto=foto_vigente(diseno), guardadas=dict(precargadas or {}), prefix=prefijo
-    )
+    (que los conserva, para mostrar «Ya cargado»).
+
+    ``foto`` es la de :func:`foto_vigente` si quien llama ya la armó: armarla cuesta una consulta a los ítems
+    y una serialización, y no se repite."""
+    if foto is None:
+        foto = foto_vigente(diseno)
+    formulario = RespuestasDisenoForm(data, files, foto=foto, guardadas=dict(precargadas or {}), prefix=prefijo)
     formulario.diseno = diseno
     return formulario
 
@@ -311,4 +314,5 @@ def formulario_de_momento_para(tipo_id, momento, data=None, files=None, guardada
     diseno = formulario_vigente(tipo_id, momento)
     if diseno is None:
         return None
-    return formulario_del_diseno(diseno, data, files, sin_archivos(foto_vigente(diseno), guardadas), prefijo)
+    foto = foto_vigente(diseno)
+    return formulario_del_diseno(diseno, data, files, sin_archivos(foto, guardadas), prefijo, foto=foto)
