@@ -121,6 +121,22 @@ class OrdenDeLosCandadosDeAlojarTests(BaseAlojar):
         self.assertEqual(self._sin_repetir(orden), ["caso", "derivacion", "plaza", "reserva", "persona"])
         self._nada_nuevo_despues_de_la_persona(orden)
 
+    def test_confirmar_en_una_cama_libre_sin_nada_que_liberar(self):
+        """La cama se bloquea antes que la persona aunque no haya sobrante ni reservas comunes.
+
+        Si no, el orden quedaba persona → plaza, el revés de ``ingresar_persona`` y
+        ``reservar_plaza`` de Dispositivos: con una guardia de Dispositivos sobre la misma cama
+        y la misma persona, deadlock en vez del rechazo prolijo.
+        """
+
+        caso, _derivacion = self._aceptado(plazas=2)  # retiene 2 de 7: no hay sobrante
+        libre = self._cama_libre()
+        with self._orden() as orden:
+            integrante = self._confirmar(caso, 2, "45000111", plaza=libre)
+        self.assertFalse(integrante.reserva_liberada)
+        self.assertEqual(self._sin_repetir(orden), ["caso", "derivacion", "plaza", "persona"])
+        self._nada_nuevo_despues_de_la_persona(orden)
+
     def test_cerrar_con_diferencia_cancelar_y_alojar(self):
         acciones = {
             "diferencia": lambda caso: servicio.cerrar_con_diferencia(
