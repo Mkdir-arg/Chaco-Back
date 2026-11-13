@@ -24,7 +24,13 @@ from core.models import Localidad
 from programas.models import AdjuntoCaso, CasoEmergencia, ContactoCaso, Derivacion, GrupoFamiliar, TrazaCaso
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_alojar as selectores_alojar
-from programas.services.emergencia import NECESIDADES, estado_visible_de_caso, prioridad_visible
+from programas.services.emergencia import (
+    ESTADOS_PARA_TOMAR,
+    NECESIDADES,
+    acciones_posibles,
+    estado_visible_de_caso,
+    prioridad_visible,
+)
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_OPERAR,
     CAP_SUPERVISAR,
@@ -206,7 +212,7 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
                 "tomado_por": nombre_de(caso.tomado_por) if caso.tomado_por_id else "",
                 "sla": selectores.estado_sla(caso, sla, ahora),
                 "marcas": _marcas_de_fila(caso, duplicados.get(caso.pk), alojados.get(caso.pk)),
-                "puede_tomar": caso.estado == Estado.NUEVO,
+                "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
             }
         )
     return filas
@@ -228,11 +234,18 @@ SOLAPAS_DE_ATENCION = (
 )
 
 
-def conteos_de_solapas(sla, ahora):
-    """``{solapa: cantidad}`` de las ocho solapas. **2 consultas**: el agregado y los fuera de SLA."""
+def conteos_de_solapas(sla, ahora, *, semaforos=None):
+    """``{solapa: cantidad}`` de las ocho solapas.
 
+    ``semaforos`` es lo que contestó ``selectors.emergencia.ids_por_estado_sla(sla, ahora)``:
+    E2 ya lo calculó para ordenar la bandeja y los «Fuera de SLA» se cuentan de ahí. **1
+    consulta** (el agregado) con él; **2** sin él, que lo calcula.
+    """
+
+    if semaforos is None:
+        semaforos = selectores.ids_por_estado_sla(sla, ahora)
     conteo = dict(selectores.conteo_por_solapa())
-    conteo[selectores.SOLAPA_FUERA_SLA] = len(selectores.ids_fuera_de_sla(sla, ahora))
+    conteo[selectores.SOLAPA_FUERA_SLA] = sum(1 for semaforo in semaforos.values() if semaforo.fuera)
     return conteo
 
 
@@ -489,29 +502,30 @@ def ficha_de_caso(caso, usuario, sla, ahora):
 
     ``caso`` viene de :func:`casos_para_ficha`.
 
-    Qué puede hacer quien mira se **adelanta** acá para no ofrecer un botón que el servicio
-    va a rechazar (RU-12, RU-13): ``puede_actuar`` es «lo tengo tomado, o superviso», y es la
-    misma pregunta que ``services.emergencia`` vuelve a hacer sobre la fila bloqueada.
+    Qué puede hacer quien mira (``es_duenio``, ``puede_*``, ``solo_lectura``) no se decide
+    acá: lo contesta ``services.emergencia.acciones_posibles`` con los mismos predicados que
+    los guardas del servicio vuelven a evaluar sobre la fila bloqueada (RU-12, RU-13).
 
     **Presupuesto: 7 a 9 consultas**: fotos, contactos, traza, las tres de los duplicados y la
     del responsable alojado; si el caso está derivado o más adelante, la derivación; y desde
     que el dispositivo lo aceptó, los integrantes.
     """
 
-    es_duenio = caso.tomado_por_id is not None and caso.tomado_por_id == usuario.pk
     es_supervisor = puede_supervisar_la_mesa(usuario)
-    puede_actuar = caso.abierto and (es_duenio or es_supervisor)
     estado_texto, estado_tono = estado_visible_de_caso(caso)
     prioridad_texto, prioridad_tono = prioridad_visible(caso)
-
-    tomado = ""
-    if caso.tomado_por_id and caso.abierto:
-        desde = f" {_hace(caso.tomado_en, ahora)}" if caso.tomado_en else ""
-        tomado = "Lo tenés tomado vos." if es_duenio else f"Tomado por {nombre_de(caso.tomado_por)}{desde}."
 
     derivacion = None
     if caso.estado in (Estado.DERIVADO, Estado.INGRESO_EN_CURSO, Estado.ALOJADO):
         derivacion = _derivacion_vigente(caso)
+    acciones = acciones_posibles(
+        caso, usuario, es_supervisor=es_supervisor, derivacion_pendiente=bool(derivacion and derivacion["pendiente"])
+    )
+
+    tomado = ""
+    if caso.tomado_por_id and caso.abierto:
+        desde = f" {_hace(caso.tomado_en, ahora)}" if caso.tomado_en else ""
+        tomado = "Lo tenés tomado vos." if acciones["es_duenio"] else f"Tomado por {nombre_de(caso.tomado_por)}{desde}."
 
     duplicados = selectores.posibles_duplicados(caso)
     duplicado = None
@@ -551,18 +565,8 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         "prioridad_texto": prioridad_texto,
         "prioridad_tono": prioridad_tono,
         "sla": selectores.estado_sla(caso, sla, ahora),
-        "es_duenio": es_duenio,
-        "es_supervisor": es_supervisor,
-        "puede_actuar": puede_actuar,
-        "puede_tomar": caso.estado == Estado.NUEVO,
-        "puede_soltar": puede_actuar and caso.estado == Estado.EN_GESTION,
-        "puede_derivar": puede_actuar and caso.estado == Estado.EN_GESTION,
-        "puede_cerrar": puede_actuar and caso.estado == Estado.EN_GESTION,
-        "puede_cancelar_derivacion": puede_actuar and bool(derivacion and derivacion["pendiente"]),
-        "puede_reasignar": es_supervisor and caso.abierto,
+        **acciones,
         "tomado": tomado,
-        # RU-12: quien no lo tiene tomado ni supervisa lo ve en solo lectura, y se le dice por qué.
-        "solo_lectura": caso.abierto and not puede_actuar and caso.estado != Estado.NUEVO,
         "datos": _datos_del_relevamiento(caso),
         "observaciones": caso.situacion.get("observaciones", ""),
         "personas": _personas_del_grupo(caso),

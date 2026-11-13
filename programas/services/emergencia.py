@@ -157,6 +157,15 @@ MOTIVOS_DE_CIERRE_MANUAL = (
     CasoEmergencia.MotivoCierre.OTRO,
 )
 
+#: Desde qué estados se puede cada acción de la mesa. Son **la** regla: la leen los guardas
+#: de cada servicio sobre la fila bloqueada y :func:`acciones_posibles` para no ofrecer en
+#: pantalla un botón que el servicio va a rechazar.
+ESTADOS_PARA_TOMAR = (Estado.NUEVO,)
+ESTADOS_PARA_SOLTAR = (Estado.EN_GESTION,)
+ESTADOS_PARA_DERIVAR = (Estado.EN_GESTION,)
+ESTADOS_PARA_CERRAR = (Estado.EN_GESTION,)
+ESTADOS_PARA_CANCELAR_DERIVACION = (Estado.DERIVADO,)
+
 SIN_PERMISO_DE_SUPERVISAR = "Solo quien supervisa la mesa puede reasignar un caso."
 NO_ES_EL_DUENIO = "Solo quien tiene tomado el caso, o quien supervisa la mesa, puede hacer esto."
 CASO_CERRADO = "El caso está cerrado y no se reabre. Si hace falta, cargá uno nuevo."
@@ -259,18 +268,56 @@ def _exigir_estado(caso, *estados, mensaje):
 
 
 def _exigir_abierto(caso):
-    if caso.estado == Estado.CERRADO:
+    if not caso.abierto:
         raise EstadoCambio(CASO_CERRADO, estado_actual=caso.estado, caso=caso)
+
+
+def _es_duenio(caso, usuario):
+    """«Dueño» es quien tiene tomado el caso (RU-12). Sin consultas."""
+
+    return caso.tomado_por_id is not None and caso.tomado_por_id == usuario.pk
 
 
 def _exigir_duenio_o_supervisor(caso, usuario):
     """RU-12 y RU-13 sobre la fila bloqueada. Devuelve si actúa **como supervisor**."""
 
-    if caso.tomado_por_id is not None and caso.tomado_por_id == usuario.pk:
+    if _es_duenio(caso, usuario):
         return False
     if puede_supervisar_la_mesa(usuario):
         return True
     raise PermissionDenied(NO_ES_EL_DUENIO)
+
+
+def acciones_posibles(caso, usuario, *, es_supervisor: bool, derivacion_pendiente: bool) -> dict:
+    """Qué acciones de la mesa tiene ``usuario`` sobre ``caso``, para no ofrecer lo que el servicio rechaza.
+
+    **Pura, sin consultas**: ``es_supervisor`` es ``puede_supervisar_la_mesa(usuario)`` —que
+    sí puede consultar— y ``derivacion_pendiente`` si el caso tiene una derivación
+    ``PENDIENTE``; los dos los resuelve quien llama. Lee las mismas piezas que los guardas
+    de cada servicio (:func:`_es_duenio`, ``caso.abierto`` y los ``ESTADOS_PARA_*``), así
+    que una regla que cambie allá cambia acá.
+
+    Devuelve ``es_duenio``, ``es_supervisor``, ``puede_actuar`` («lo tengo tomado, o
+    superviso», sobre un caso abierto), ``puede_tomar``, ``puede_soltar``,
+    ``puede_derivar``, ``puede_cerrar``, ``puede_cancelar_derivacion``, ``puede_reasignar``
+    y ``solo_lectura`` (RU-12: quien no lo tiene tomado ni supervisa lo ve sin acciones).
+    """
+
+    es_duenio = _es_duenio(caso, usuario)
+    es_supervisor = bool(es_supervisor)
+    puede_actuar = caso.abierto and (es_duenio or es_supervisor)
+    return {
+        "es_duenio": es_duenio,
+        "es_supervisor": es_supervisor,
+        "puede_actuar": puede_actuar,
+        "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
+        "puede_soltar": puede_actuar and caso.estado in ESTADOS_PARA_SOLTAR,
+        "puede_derivar": puede_actuar and caso.estado in ESTADOS_PARA_DERIVAR,
+        "puede_cerrar": puede_actuar and caso.estado in ESTADOS_PARA_CERRAR,
+        "puede_cancelar_derivacion": puede_actuar and bool(derivacion_pendiente),
+        "puede_reasignar": es_supervisor and caso.abierto,
+        "solo_lectura": caso.abierto and not puede_actuar and caso.estado not in ESTADOS_PARA_TOMAR,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +344,9 @@ def tomar_caso(caso, usuario):
         return caso
     if caso.tomado_por_id is not None and caso.tomado_por_id != usuario.pk:
         raise CasoTomadoPorOtro(caso)
-    _exigir_estado(caso, Estado.NUEVO, mensaje=f"El caso {caso.numero} ya no está para tomar. Recargá la bandeja.")
+    _exigir_estado(
+        caso, *ESTADOS_PARA_TOMAR, mensaje=f"El caso {caso.numero} ya no está para tomar. Recargá la bandeja."
+    )
     ahora = timezone.now()
     caso.estado = Estado.EN_GESTION
     caso.tomado_por = usuario
@@ -317,7 +366,9 @@ def soltar_caso(caso, usuario):
 
     _exigir_mesa(usuario)
     caso = _bloquear_caso(caso)
-    _exigir_estado(caso, Estado.EN_GESTION, mensaje=f"El caso {caso.numero} ya no está en gestión. Recargá la ficha.")
+    _exigir_estado(
+        caso, *ESTADOS_PARA_SOLTAR, mensaje=f"El caso {caso.numero} ya no está en gestión. Recargá la ficha."
+    )
     por_supervisor = _exigir_duenio_o_supervisor(caso, usuario)
     anterior = caso.tomado_por
     caso.estado = Estado.NUEVO
@@ -489,8 +540,8 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
         raise ValidationError({"plazas_pedidas": "Pedí al menos una plaza."})
 
     caso = _bloquear_caso(caso)
-    if caso.estado != Estado.EN_GESTION:
-        _exigir_estado(caso, Estado.EN_GESTION, mensaje=_mensaje_ya_derivado(caso))
+    if caso.estado not in ESTADOS_PARA_DERIVAR:
+        _exigir_estado(caso, *ESTADOS_PARA_DERIVAR, mensaje=_mensaje_ya_derivado(caso))
     por_supervisor = _exigir_duenio_o_supervisor(caso, usuario)
 
     if not dispositivo_elegible(dispositivo):
@@ -555,7 +606,7 @@ def cancelar_derivacion(derivacion, usuario, motivo):
 
     caso = _bloquear_caso(derivacion.caso_id)
     derivacion = Derivacion.objects.select_for_update().get(pk=derivacion.pk)
-    if derivacion.estado != Derivacion.Estado.PENDIENTE or caso.estado != Estado.DERIVADO:
+    if derivacion.estado != Derivacion.Estado.PENDIENTE or caso.estado not in ESTADOS_PARA_CANCELAR_DERIVACION:
         raise EstadoCambio(
             f"La derivación ya no está pendiente ({derivacion.get_estado_display().lower()}). Recargá la ficha.",
             estado_actual=caso.estado,
@@ -714,7 +765,7 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
     mensaje = f"El caso {caso.numero} ya no está en gestión. Recargá la ficha."
     if caso.estado == Estado.DERIVADO:
         mensaje = "El caso está derivado: cancelá la derivación antes de cerrarlo."
-    _exigir_estado(caso, Estado.EN_GESTION, mensaje=mensaje)
+    _exigir_estado(caso, *ESTADOS_PARA_CERRAR, mensaje=mensaje)
     por_supervisor = _exigir_duenio_o_supervisor(caso, usuario)
 
     caso.estado = Estado.CERRADO
