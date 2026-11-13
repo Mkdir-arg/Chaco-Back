@@ -3,9 +3,9 @@
 ``programas.services.emergencia_alta`` (crear el caso), ``programas.services.emergencia``
 (lo que le pasa después) y los módulos de la etapa 3 (``emergencia_alojar`` y los que
 reexporta) usan la misma traza, el mismo permiso de la mesa, el mismo numerador y el
-mismo primer candado (el del caso). Viven acá para que la dependencia vaya en un solo sentido —los dos
-importan de este módulo, y ``emergencia`` reexporta el alta— sin un ciclo de imports
-sostenido por un import diferido (``programas.tests.test_arquitectura``).
+mismo primer candado (el del caso). Viven acá para que la dependencia vaya en un solo
+sentido —todos importan de este módulo, y ``emergencia`` reexporta el alta— sin un ciclo
+de imports sostenido por un import diferido (``programas.tests.test_arquitectura``).
 
 ``emergencia`` las reexporta: quien las importa o las parcha desde ahí sigue andando.
 El numerador es una hoja del orden de los candados que documenta aquel módulo.
