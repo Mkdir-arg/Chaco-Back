@@ -579,7 +579,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 454 | Los formularios de Ingreso y Egreso por tipo se piden, se validan y se guardan con la estadía (PR 1: ingreso y lectura en P7) | Dispositivos · ingreso · estadía | `#ui` `#datos` `#rbac` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** (el egreso entró en el #1118) | `programas.0116` |
 | 455 | El formulario de Egreso por tipo va dentro del modal de egreso (PR 2: P4 y P7) | Dispositivos · egreso · estadía | `#ui` `#datos` `#performance` | PM — formularios por tipo (P17), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 | 456 | Egreso con formulario por tipo: el modal avisa si el formulario cambió, devuelve todos los errores juntos y marca el campo del tipo (seguimiento de la auditoría del #1118) | Dispositivos · egreso · estadía | `#ui` `#datos` | Auditoría del PR #1118 (cinco MINOR), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
-| 457 | Dispositivos: la edición también toma el contacto del primer responsable del Equipo y no pide los campos a mano | Dispositivos · legajo institucional | `#ui` `#datos` | PM — dispositivo 14 de testing no se podía enviar a validación, 13/11/2026 | 13/11/2026 | 🟡 **En curso** | — |
+| 457 | Formularios de Ingreso y Egreso por tipo: la foto del formulario se arma una sola vez (seguimiento de la auditoría del #1119) | Dispositivos · ingreso · egreso · estadía | `#performance` | Auditoría del PR #1119 (un MINOR), vía el PM | 13/11/2026 | 🟢 **Hecho** | — |
+| 459 | Dispositivos: la edición también toma el contacto del primer responsable del Equipo y no pide los campos a mano | Dispositivos · legajo institucional | `#ui` `#datos` | PM — dispositivo 14 de testing no se podía enviar a validación, 13/11/2026 | 13/11/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -53826,7 +53827,7 @@ Revertir el PR; los legajos creados mientras tanto conservan los datos copiados.
 
 - **09/11/2026 — alta del cambio.** La auditoría del PR #1073 pidió normalizar los datos del perfil con las reglas del legajo; resuelto en el mismo PR.
 - **09/11/2026 — MINOR de la auditoría del #1073 (PR siguiente):** el resumen también pide el **nombre** cuando el perfil del primer responsable no trae uno válido (p. ej. username = DNI sin nombre), nombrando a la persona por su etiqueta del listado (`data-persona`, `persona_de_contacto`); y vuelven a «Cambio 448» dos comentarios del #1071 que el merge había renumerado por error.
-- **13/11/2026 — pendiente 1 resuelto en el [Cambio 457](#cambio-457):** la edición también toma el contacto del primer responsable del Equipo, al guardar y antes de enviar a validación.
+- **13/11/2026 — pendiente 1 resuelto en el [Cambio 459](#cambio-459):** la edición también toma el contacto del primer responsable del Equipo, al guardar y antes de enviar a validación.
 
 ---
 
@@ -54362,9 +54363,79 @@ Solo el deploy; sin migración.
 
 ---
 
-# Cambio 457 — Dispositivos: la edición también toma el contacto del primer responsable del Equipo
+# Cambio 457 — Formularios de Ingreso y Egreso por tipo: la foto se arma una sola vez (seguimiento de la auditoría del #1119)
 
-🟡 **EN CURSO — 13/11/2026**
+🟢 **HECHO — 13/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) · modal de egreso (P4 y P7) · detalle de la estadía (P7) · formularios por tipo (P17) |
+| **Etiquetas** | `#performance` |
+| **Solicitante** | Auditoría del PR #1119 (un MINOR de rendimiento), pedido por el PM |
+| **Fecha del pedido** | 13/11/2026 |
+| **Issue / épica** | sin issue · seguimiento de los Cambios 454, 455 y 456 |
+| **Partes afectadas** | Servidor: `programas/forms_dinamicos.py` · Tests: `programas/tests/test_dispositivos_formulario_estadia.py` |
+| **Migración** | No requiere (sin cambios de base) |
+
+## Pedido original
+
+El MINOR que dejó la auditoría del #1119: `formulario_de_momento_para` armaba la foto del formulario
+(`foto_vigente`) para descartar los archivos de lo guardado y `formulario_del_diseno` la volvía a armar: una consulta a
+los ítems y una serialización de más en cada formulario de ingreso o de egreso.
+
+## Alcance acordado
+
+Entra: armar la foto una sola vez. Afuera: cualquier cambio de comportamiento, de pantalla o de reglas.
+
+## Decisiones tomadas
+
+**`formulario_del_diseno` acepta `foto=None`.** Si quien llama ya la armó, la usa; si no, la arma como antes. El alta
+del dispositivo (P3) no pasa la foto y queda igual. `formulario_de_momento_para` la arma una vez y la usa para
+`sin_archivos` y para el form. Sin flag nuevo: es el mismo dato, no un modo.
+
+## Implementación
+
+Al abrir el paso «Confirmar» del ingreso, el modal de egreso o el detalle de la estadía, el formulario del tipo se arma
+con una consulta menos. Nada cambia a la vista.
+
+## Archivos
+
+- `programas/forms_dinamicos.py`
+- `programas/tests/test_dispositivos_formulario_estadia.py` (`FotoUnaSolaVezTests`, nuevo)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` OK · ruff sin hallazgos en los dos archivos.
+- Tests (Py 3.12 + Dj 5.2): `test_dispositivos_formulario_estadia`, `test_dispositivos_formulario_alta` y
+  `test_dispositivos_ingreso` (139 OK) · `--tag performance` (53 OK).
+- Mutación: con `formulario_del_diseno` armando siempre su propia foto, `FotoUnaSolaVezTests` da rojo (`2 != 1`).
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- El título «Formulario de ingreso» de la tarjeta del formulario «Crear dispositivo» en el alta de institución (P3)
+  viene de antes del Cambio 454 y parece un nombre equivocado: decisión del PM.
+
+## Reversión
+
+`git revert` del merge; no hay migración.
+
+## Historial
+
+- **13/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 459 — Dispositivos: la edición también toma el contacto del primer responsable del Equipo
+
+🟢 **HECHO — 13/11/2026**
 
 | | |
 |---|---|

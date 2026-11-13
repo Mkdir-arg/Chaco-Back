@@ -153,6 +153,21 @@ class SinFormularioTests(BaseIngreso):
         self.assertFalse(RespuestasIngresoEstadia.objects.exists())
 
 
+class FotoUnaSolaVezTests(_Base):
+    def test_el_formulario_de_un_momento_arma_la_foto_una_sola_vez(self):
+        # La foto cuesta una consulta a los ítems y una serialización: descartar los archivos de lo guardado
+        # y armar el form usan la misma (MINOR de rendimiento de la auditoría del #1119).
+        from programas import forms_dinamicos
+
+        with patch.object(forms_dinamicos, "foto_vigente", wraps=forms_dinamicos.foto_vigente) as espia:
+            formulario = forms_dinamicos.formulario_de_momento_para(
+                self.tipo.pk, MomentoFormulario.INGRESO, guardadas={"x": "y"}
+            )
+
+        self.assertIsNotNone(formulario)
+        self.assertEqual(espia.call_count, 1)
+
+
 # ── P6: con formulario ───────────────────────────────────────────────────────
 
 
