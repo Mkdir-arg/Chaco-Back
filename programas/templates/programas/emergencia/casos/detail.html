@@ -1,0 +1,378 @@
+{# arquetipo: detalle + apilado #}{# un área sola (el caso): secciones apiladas en surfaces; el split usa la grilla de «Formulario con asistencia lateral» #}
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Emergencia · Caso {{ caso.numero }}{% endblock %}
+
+{% block main-content %}
+{% comment %}E3 · Ficha del caso. Izquierda: lo relevado, personas, integrantes, fotos, contactos y traza.
+Derecha: el panel «Derivar» (solo en gestión y para quien lo tiene tomado o supervisa) o la derivación vigente.
+Qué botón se ofrece lo decide la vista (`puede_*`); el servicio lo vuelve a exigir en cada POST.
+Las acciones con datos (cerrar, cancelar, reasignar, prioridad, derivar) son el arquetipo Modal con POST clásico;
+«Soltar» es una confirmación sí/no (`data-confirm-url` → ModernModal). El modal de derivar lo arma el servidor
+cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la tarjeta del dispositivo solo navega.{% endcomment %}
+<div x-data="{ modalCerrar: false, modalCancelar: false, modalPrioridad: false, modalReasignar: false,
+               modalDerivar: {% if confirmar_derivar %}true{% else %}false{% endif %} }">
+
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
+  <div class="space-y-5">
+
+    {% url 'emergencia:bandeja' as url_volver %}
+    {% url 'emergencia:caso_soltar' caso.pk as url_soltar %}
+    {% page_header titulo=titulo eyebrow="Programa Emergencia" volver_url=url_volver volver_label="casos" estado_texto=estado_texto estado_variante=estado_tono %}
+      {% bajada %}{{ bajada }}{% if tomado %} · {{ tomado }}{% endif %}{% endbajada %}
+      <span class="badge badge-{{ prioridad_tono }}">Prioridad {{ prioridad_texto|lower }}</span>
+      {% if sla %}{% include "components/_semaforo_sla.html" with estado=sla.estado minutos=sla.minutos tramo=sla.tramo texto_tiempo=sla.texto_tiempo variante="reloj" only %}{% endif %}
+      {% if puede_tomar %}
+      <form method="post" action="{% url 'emergencia:caso_tomar' caso.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-nodo btn-brand btn-sm btn-fit"><i class="fas fa-hand" aria-hidden="true"></i> Tomar</button>
+      </form>
+      {% endif %}
+      {# Las acciones secundarias van al menú; si ninguna corresponde al estado o a quien mira, el menú no se dibuja #}
+      {% menu_fila id="acciones-caso" etiqueta="Más acciones del caso "|add:caso.numero texto="Más acciones" %}
+        {% if puede_actuar %}
+        {% include "components/_menu_fila_item.html" with texto="Cambiar prioridad" icono="fa-flag" abre_modal="modalPrioridad" only %}
+        {% endif %}
+        {% if puede_reasignar %}
+        {% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" abre_modal="modalReasignar" only %}
+        {% endif %}
+        {% if puede_soltar %}
+        {% include "components/_menu_fila_item.html" with texto="Soltar" icono="fa-arrow-rotate-left" confirm_url=url_soltar confirm_title="¿Soltar el caso?" confirm_text="Vuelve a la bandeja para que lo tome otra persona. El reloj del tramo sigue corriendo." confirm_ok="Sí, soltar" only %}
+        {% endif %}
+        {% if puede_cerrar %}
+        {% include "components/_menu_fila_item.html" with texto="Cerrar sin alojamiento" icono="fa-lock" abre_modal="modalCerrar" peligro=True only %}
+        {% endif %}
+      {% endmenu_fila %}
+    {% endpage_header %}
+
+    {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
+
+    {% if solo_lectura %}
+      {% include "components/_alerta.html" with tono="info" titulo=tomado texto="Lo ves en solo lectura: solo quien lo tiene tomado, o quien supervisa la mesa, puede derivarlo, cerrarlo o registrar contactos." %}
+    {% elif puede_tomar and not es_supervisor %}
+      {% include "components/_alerta.html" with tono="info" titulo="Nadie tomó este caso todavía" texto="Tomalo para hablar con la familia, derivarla o cerrar el caso." %}
+    {% endif %}
+    {% if motivo_cierre %}
+      {% include "components/_alerta.html" with tono="info" titulo="Caso cerrado: "|add:motivo_cierre texto=caso.observacion_cierre %}
+    {% endif %}
+    {% if duplicado %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Posible duplicado" texto=duplicado.texto accion_url=duplicado.url accion_texto=duplicado.accion %}
+    {% endif %}
+    {% if responsable_alojado %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Responsable alojado en "|add:responsable_alojado.dispositivo texto="Figura con una estadía abierta ahí. No impide derivar, pero el dispositivo que reciba a la familia no le va a poder dar una cama hasta que lo egresen." %}
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div class="lg:col-span-2 min-w-0 space-y-5">
+
+        {# ===== 1. Lo que cargó quien relevó ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-relevamiento-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-relevamiento-titulo" class="text-heading font-bold">Lo que se relevó</h2>
+          </div>
+          <div class="p-5 space-y-5">
+            <dl class="grid gap-5 sm:grid-cols-2">
+              {% for dato in datos %}
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
+                <dd class="mt-1 text-sm text-heading">{% if dato.formato == "dni" %}{{ dato.valor|dni }}{% else %}{{ dato.valor|default:"—" }}{% endif %}</dd>
+              </div>
+              {% endfor %}
+            </dl>
+            {% if observaciones %}
+            <div>
+              <h3 class="text-sm font-bold text-heading">Observaciones</h3>
+              <p class="mt-1 text-sm text-body">{{ observaciones }}</p>
+            </div>
+            {% endif %}
+            <div>
+              <h3 class="text-sm font-bold text-heading mb-2">Posición del GPS</h3>
+              {% include "components/_ubicacion.html" with latitud=caso.latitud longitud=caso.longitud compacto=True %}
+              {% if caso.con_gps and caso.precision_m is not None %}
+              <p class="mt-2 text-xs text-body-subtle">Precisión: {{ caso.precision_m }} m.{% if caso.ubicacion_aproximada %} <span class="badge badge-gray">Ubicación aproximada</span>{% endif %}</p>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+
+        {# ===== 2. Personas declaradas ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-personas-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-personas-titulo" class="text-heading font-bold">Personas que ingresan juntas</h2>
+            <p class="mt-1 text-xs text-body-subtle">Lo declarado al relevar. El responsable está incluido en el total.</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="nodo-thead-row">
+                  <th class="nodo-th">Franja</th>
+                  <th class="nodo-th text-center">Femenino</th>
+                  <th class="nodo-th text-center">Masculino</th>
+                  <th class="nodo-th text-center">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fila in personas.franjas %}
+                <tr class="hover:bg-secondary">
+                  <td class="nodo-td text-heading font-medium">{{ fila.franja }}</td>
+                  <td class="nodo-td text-center">{{ fila.femenino }}</td>
+                  <td class="nodo-td text-center">{{ fila.masculino }}</td>
+                  <td class="nodo-td text-center">{{ fila.total }}</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                  <td class="nodo-td text-heading font-bold">Total</td>
+                  <td class="nodo-td text-center text-heading font-bold">{{ personas.total_femenino }}</td>
+                  <td class="nodo-td text-center text-heading font-bold">{{ personas.total_masculino }}</td>
+                  <td class="nodo-td text-center text-heading font-bold">{{ personas.total }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="p-5 border-t border-light space-y-4">
+            <dl class="grid gap-5 sm:grid-cols-3">
+              {% for dato in personas.asistencia %}
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
+                <dd class="mt-1 text-sm font-semibold text-heading">{{ dato.valor }}</dd>
+              </div>
+              {% endfor %}
+            </dl>
+            <p class="text-sm text-body">
+              {% for necesidad in personas.necesidades %}<span class="badge badge-warning">{{ necesidad }}</span> {% empty %}<span class="text-body-subtle">Sin embarazo, electrodependencia, medicación crítica ni mascotas declaradas.</span>{% endfor %}
+            </p>
+          </div>
+        </section>
+
+        {# ===== 3. Integrantes: se llena cuando el dispositivo confirma las fichas (etapa 3) ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-integrantes-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-integrantes-titulo" class="text-heading font-bold">Integrantes</h2>
+          </div>
+          {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Todavía no hay fichas confirmadas" texto="Se completa cuando el dispositivo confirma las fichas de cada persona." %}
+        </section>
+
+        {# ===== 4. Fotos (media/ va detrás de login y solo para la mesa) ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-fotos-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-fotos-titulo" class="text-heading font-bold">Fotos</h2>
+          </div>
+          <div class="p-5">
+            {% include "components/_galeria_fotos.html" with fotos=fotos %}
+          </div>
+        </section>
+
+        {# ===== 5. Contactos con la familia ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-contactos-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-contactos-titulo" class="text-heading font-bold">Contactos con la familia</h2>
+            <p class="mt-1 text-xs text-body-subtle">Es un registro: el sistema no llama ni envía mensajes.</p>
+          </div>
+          <div class="p-5">
+            {% include "components/_linea_tiempo.html" with eventos=contactos vacio_titulo="Sin contactos registrados" vacio_texto="Cada llamada o mensaje a la familia se anota acá." %}
+            {% if form_contacto %}
+            <form method="post" action="{% url 'emergencia:caso_contacto' caso.pk %}" class="border-t border-light mt-5 pt-4">
+              {% csrf_token %}
+              <h3 class="text-sm font-bold text-heading mb-3">Registrar un contacto</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% with field=form_contacto.canal %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+                {% with field=form_contacto.resultado %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+                {% with field=form_contacto.observacion %}{% include "components/_field.html" with wrapper_class="sm:col-span-2" %}{% endwith %}
+              </div>
+              <div class="flex justify-end gap-3 mt-4">
+                <button type="submit" class="btn-nodo btn-brand btn-sm"><i class="fas fa-check" aria-hidden="true"></i> Registrar contacto</button>
+              </div>
+            </form>
+            {% endif %}
+          </div>
+        </section>
+
+        {# ===== 6. Traza ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-traza-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-traza-titulo" class="text-heading font-bold">Traza</h2>
+            <p class="mt-1 text-xs text-body-subtle">Todo lo que pasó con el caso, lo más reciente arriba.</p>
+          </div>
+          <div class="p-5">
+            {% include "components/_linea_tiempo.html" with eventos=eventos %}
+          </div>
+        </section>
+      </div>
+
+      <aside class="space-y-5 min-w-0" aria-label="Derivación del caso">
+        {% if panel %}
+        {# ===== Panel «Derivar»: solo en gestión y para quien lo tiene tomado o supervisa ===== #}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-derivar-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-derivar-titulo" class="text-heading font-bold">Derivar</h2>
+            <p class="mt-1 text-xs text-body-subtle">Elegí el dispositivo. Las camas las reserva el dispositivo cuando acepta.</p>
+          </div>
+          <div class="p-5 space-y-4">
+            {# GET: solo rearma la lista (no muta, sin csrf) #}
+            <form method="get" action="{{ url_ficha }}" class="space-y-3">
+              {% for field in panel.form.campos_visibles %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+              <div class="flex justify-end">
+                <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Actualizar lista</button>
+              </div>
+            </form>
+            {% if panel.dispositivos %}
+            <p class="text-xs text-body-subtle">{% if panel.mostrados < panel.total %}Mostrando {{ panel.mostrados }} de {{ panel.total }} dispositivos: filtrá por nombre o localidad para ver el resto.{% else %}{{ panel.total }} dispositivo{{ panel.total|pluralize }}, primero los que alcanzan y después por distancia.{% endif %}</p>
+            <div class="space-y-3">
+              {% for dispositivo in panel.dispositivos %}
+              {% include "components/_tarjeta_dispositivo_derivar.html" with dispositivo=dispositivo only %}
+              {% endfor %}
+            </div>
+            {% else %}
+            {% include "components/_estado_vacio.html" with icono="fa-building-circle-xmark" titulo="Ningún dispositivo para derivar" texto="No hay dispositivos activos con camas que coincidan con la búsqueda." %}
+            {% endif %}
+          </div>
+        </section>
+        {% elif derivacion %}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-derivacion-titulo">
+          <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
+            <h2 id="caso-derivacion-titulo" class="text-heading font-bold">Derivación vigente</h2>
+            <span class="badge badge-dot {% if derivacion.pendiente %}badge-warning{% else %}badge-success{% endif %}">{{ derivacion.estado }}</span>
+          </div>
+          <div class="p-5 space-y-4">
+            <dl class="grid gap-4">
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">Dispositivo</dt>
+                <dd class="mt-1 text-sm font-semibold text-heading">{{ derivacion.dispositivo }}{% if derivacion.localidad %} <span class="font-normal text-body-subtle">· {{ derivacion.localidad }}</span>{% endif %}</dd>
+              </div>
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">Plazas pedidas</dt>
+                <dd class="mt-1 text-sm text-heading">{{ derivacion.plazas }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">Derivada por</dt>
+                <dd class="mt-1 text-sm text-heading">{{ derivacion.derivada_por }} · {{ derivacion.derivada_en }}</dd>
+              </div>
+              {% if derivacion.pendiente %}
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">Vence</dt>
+                <dd class="mt-1 text-sm text-heading">{{ derivacion.vence }}</dd>
+              </div>
+              {% endif %}
+            </dl>
+            {% if puede_cancelar_derivacion %}
+            <div class="flex justify-end">
+              <button type="button" @click="modalCancelar=true" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar derivación</button>
+            </div>
+            {% endif %}
+          </div>
+        </section>
+        {% else %}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-sin-derivar-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="caso-sin-derivar-titulo" class="text-heading font-bold">Derivar</h2>
+          </div>
+          {% include "components/_estado_vacio.html" with icono="fa-share" titulo=sin_panel.titulo texto=sin_panel.texto %}
+        </section>
+        {% endif %}
+      </aside>
+    </div>
+  </div>
+
+  {% if confirmar_derivar %}
+  {# Modal: Derivar — lo arma el servidor con el dispositivo que eligió la URL (arquetipo Modal, abierto por parámetro GET) #}
+  <div x-show="modalDerivar" x-cloak x-becas-modal="modalDerivar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalDerivar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-derivar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo=confirmar_derivar.titulo titulo_id="modal-derivar-titulo" subtitulo=confirmar_derivar.subtitulo icono="fa-share" tono=confirmar_derivar.tono cerrar="modalDerivar=false" %}
+      <form method="post" action="{% url 'emergencia:caso_derivar' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {{ confirmar_derivar.form.dispositivo }}{{ confirmar_derivar.form.confirmar_faltantes }}
+          {% with field=confirmar_derivar.form.plazas %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          {% if confirmar_derivar.faltan %}
+          {% include "components/_alerta.html" with tono="warning" titulo=confirmar_derivar.aviso texto="El dispositivo no tiene lugar para toda la familia. Si seguís, el caso se deriva igual con las plazas que pediste y el dispositivo resuelve a quién aloja." %}
+          {% else %}
+          {% include "components/_alerta.html" with tono="info" texto="El dispositivo ve el caso apenas lo derivás. Las camas se reservan cuando lo acepta." %}
+          {% endif %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalDerivar=false" accion_texto=confirmar_derivar.accion %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cierre %}
+  {# Modal: Cerrar sin alojamiento — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalCerrar" x-cloak x-becas-modal="modalCerrar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCerrar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cerrar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cerrar sin alojamiento" titulo_id="modal-cerrar-titulo" icono="fa-lock" tono="danger" cerrar="modalCerrar=false" %}
+      <form method="post" action="{% url 'emergencia:caso_cerrar' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_cierre %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="El caso queda cerrado y no se reabre. Si la familia vuelve a necesitar alojamiento, se carga un caso nuevo." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCerrar=false" accion_texto="Sí, cerrar el caso" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cancelar %}
+  {# Modal: Cancelar derivación — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalCancelar" x-cloak x-becas-modal="modalCancelar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCancelar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cancelar derivación" titulo_id="modal-cancelar-titulo" icono="fa-ban" tono="danger" cerrar="modalCancelar=false" %}
+      <form method="post" action="{% url 'emergencia:caso_cancelar_derivacion' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_cancelar %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="El dispositivo deja de ver el caso y el caso vuelve a gestión, a tu nombre, para derivarlo a otro lado o cerrarlo." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelar=false" cancelar_texto="Volver" accion_texto="Sí, cancelar la derivación" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_prioridad %}
+  {# Modal: Cambiar prioridad (arquetipo Modal) #}
+  <div x-show="modalPrioridad" x-cloak x-becas-modal="modalPrioridad" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPrioridad=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-prioridad-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cambiar prioridad" titulo_id="modal-prioridad-titulo" icono="fa-flag" cerrar="modalPrioridad=false" %}
+      <form method="post" action="{% url 'emergencia:caso_prioridad' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_prioridad %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalPrioridad=false" accion_texto="Guardar prioridad" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_reasignar %}
+  {# Modal: Reasignar — solo quien supervisa (arquetipo Modal) #}
+  <div x-show="modalReasignar" x-cloak x-becas-modal="modalReasignar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalReasignar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-reasignar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Reasignar caso" titulo_id="modal-reasignar-titulo" icono="fa-user-pen" cerrar="modalReasignar=false" %}
+      <form method="post" action="{% url 'emergencia:caso_reasignar' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_reasignar %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="info" texto="El reloj del tramo no se reinicia: el tiempo objetivo mide a la familia, no a quien tiene el caso." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalReasignar=false" accion_texto="Reasignar caso" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

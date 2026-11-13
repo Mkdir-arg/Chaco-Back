@@ -7,6 +7,12 @@ dónde queda, cuántas plazas tiene y si alcanza para lo que se pide.
 **Consumidores previstos:** el panel «Derivar» de la ficha de un caso de Emergencia y la elección de
 dispositivo en el asistente de entrega de kits. Solo usa clases y tokens que ya existen.
 
+**Consumidor de referencia:** el panel «Derivar» de `programas/templates/programas/emergencia/casos/detail.html`
+(dicts armados por `programas/selectors/emergencia_mesa.py`, `panel_de_derivar`, con tope de 20 y filtro por nombre y
+localidad). Derivar es un POST y la acción de la tarjeta solo navega: `accion_url` vuelve a la misma ficha con
+`?derivar=<pk>` y el servidor abre ahí el modal de confirmación (arquetipo Modal, variante «abierto por parámetro
+GET»), que es el que lleva el formulario con las plazas y, si faltan, la pregunta. La tarjeta no cambió para eso.
+
 ## Por qué no es `_tarjeta_edificio` ni `_lista_tarjetas`
 
 `_tarjeta_edificio.html` (`tarjeta_edificio.md`) presenta un inmueble con su estado edilicio y lleva a su

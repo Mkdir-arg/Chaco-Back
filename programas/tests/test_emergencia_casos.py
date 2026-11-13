@@ -1457,6 +1457,155 @@ class TrazaDeCadaTransicionTests(BaseCasos):
 
 
 # ---------------------------------------------------------------------------
+# Lo que la ficha ofrece contra lo que el servicio deja hacer
+# ---------------------------------------------------------------------------
+
+
+class _Deshacer(Exception):
+    """Deshace una acción que pasó: cada celda de la tabla parte del mismo caso."""
+
+
+class AccionesPosiblesTests(BaseCasos):
+    """``acciones_posibles`` ofrece exactamente lo que los servicios dejan hacer (RU-12, RU-13).
+
+    Una tabla: cada estado del caso × quien mira (el dueño, quien supervisa, otro operador) ×
+    cada acción de la ficha. Lo ofrecido no puede terminar en ``PermissionDenied`` ni en
+    ``EstadoCambio``; lo no ofrecido, sí. Cada llamada corre en un savepoint que se deshace.
+
+    La única celda que no ofrece y tampoco falla es la que el servicio define así a propósito:
+    el dueño que vuelve a tomar lo que ya tiene (doble clic, segunda pestaña) no cambia nada.
+    """
+
+    ACCIONES = (
+        "puede_tomar",
+        "puede_soltar",
+        "puede_derivar",
+        "puede_cerrar",
+        "puede_cancelar_derivacion",
+        "puede_reasignar",
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.club = self._dispositivo("Club Sarmiento", camas=10)
+        self.destino = self._persona_de_mesa("lucia", [OPERAR], "Lucía", "Gómez")
+        derivaciones = {}
+        casos = {Estado.NUEVO: self._caso(), Estado.EN_GESTION: self._caso_tomado()}
+        casos[Estado.DERIVADO] = self._caso_tomado()
+        derivaciones[Estado.DERIVADO] = servicio.derivar_caso(casos[Estado.DERIVADO], self.operador, self.club, 2)
+        for estado in (Estado.INGRESO_EN_CURSO, Estado.ALOJADO):
+            caso = self._caso_tomado()
+            derivacion = servicio.derivar_caso(caso, self.operador, self.club, 2)
+            derivacion.estado = Derivacion.Estado.ACEPTADA
+            derivacion.save()
+            marcas = {"aceptado_en": T0, "alojado_en": T0 if estado == Estado.ALOJADO else None}
+            CasoEmergencia.objects.filter(pk=caso.pk).update(estado=estado, **marcas)
+            casos[estado], derivaciones[estado] = caso, derivacion
+        casos[Estado.CERRADO] = servicio.cerrar_sin_alojamiento(
+            self._caso_tomado(), self.operador, CasoEmergencia.MotivoCierre.NO_REQUIERE
+        )
+        self.casos = {estado: CasoEmergencia.objects.get(pk=caso.pk) for estado, caso in casos.items()}
+        self.derivaciones = {estado: Derivacion.objects.get(pk=d.pk) for estado, d in derivaciones.items()}
+        self.roles = {"dueño": self.operador, "supervisor": self.supervisor, "otro operador": self.otro_operador}
+
+    def _ejecutar(self, accion, caso, derivacion, usuario):
+        llamadas = {
+            "puede_tomar": lambda: servicio.tomar_caso(caso, usuario),
+            "puede_soltar": lambda: servicio.soltar_caso(caso, usuario),
+            "puede_derivar": lambda: servicio.derivar_caso(caso, usuario, self.club, 1),
+            "puede_cerrar": lambda: servicio.cerrar_sin_alojamiento(
+                caso, usuario, CasoEmergencia.MotivoCierre.NO_REQUIERE
+            ),
+            "puede_cancelar_derivacion": lambda: servicio.cancelar_derivacion(derivacion, usuario, "Prueba"),
+            "puede_reasignar": lambda: servicio.reasignar_caso(caso, usuario, self.destino),
+        }
+        try:
+            with transaction.atomic():
+                llamadas[accion]()
+                raise _Deshacer
+        except _Deshacer:
+            return None
+        except (PermissionDenied, EstadoCambio) as error:
+            return error
+
+    def test_lo_ofrecido_pasa_y_lo_no_ofrecido_se_rechaza(self):
+        for estado, caso in self.casos.items():
+            derivacion = self.derivaciones.get(estado)
+            pendiente = derivacion is not None and derivacion.estado == Derivacion.Estado.PENDIENTE
+            for rol, usuario in self.roles.items():
+                acciones = servicio.acciones_posibles(
+                    caso,
+                    usuario,
+                    es_supervisor=servicio.puede_supervisar_la_mesa(usuario),
+                    derivacion_pendiente=pendiente,
+                )
+                if acciones["solo_lectura"]:
+                    with self.subTest(estado=estado, rol=rol, clave="solo_lectura"):
+                        self.assertFalse(any(acciones[accion] for accion in self.ACCIONES))
+                for accion in self.ACCIONES:
+                    with self.subTest(estado=estado, rol=rol, accion=accion):
+                        if derivacion is None and accion == "puede_cancelar_derivacion":
+                            # Sin derivación no hay nada que cancelar, ni botón que ofrecerlo.
+                            self.assertFalse(acciones[accion])
+                            continue
+                        error = self._ejecutar(accion, caso, derivacion, usuario)
+                        if acciones[accion]:
+                            self.assertIsNone(error, f"Se ofrece y el servicio contesta: {error!r}")
+                        elif (accion, estado, rol) == ("puede_tomar", Estado.EN_GESTION, "dueño"):
+                            self.assertIsNone(error)
+                            self.assertEqual(self._fila(caso)["tomado_por_id"], usuario.pk)
+                        else:
+                            self.assertIsNotNone(error, "No se ofrece, pero el servicio la deja hacer.")
+
+    def test_la_tabla_de_la_ficha(self):
+        """Lo que se ve, celda por celda: quién tiene qué en cada estado."""
+
+        esperado = {
+            # estado: {rol: acciones ofrecidas}
+            Estado.NUEVO: {
+                r: {"puede_tomar"} | ({"puede_reasignar"} if r == "supervisor" else set()) for r in self.roles
+            },
+            Estado.EN_GESTION: {
+                "dueño": {"puede_soltar", "puede_derivar", "puede_cerrar"},
+                "supervisor": {"puede_soltar", "puede_derivar", "puede_cerrar", "puede_reasignar"},
+                "otro operador": set(),
+            },
+            Estado.DERIVADO: {
+                "dueño": {"puede_cancelar_derivacion"},
+                "supervisor": {"puede_cancelar_derivacion", "puede_reasignar"},
+                "otro operador": set(),
+            },
+            Estado.INGRESO_EN_CURSO: {"dueño": set(), "supervisor": {"puede_reasignar"}, "otro operador": set()},
+            Estado.ALOJADO: {"dueño": set(), "supervisor": {"puede_reasignar"}, "otro operador": set()},
+            Estado.CERRADO: {r: set() for r in self.roles},
+        }
+        solo_lectura = {
+            (Estado.EN_GESTION, "otro operador"),
+            (Estado.DERIVADO, "otro operador"),
+            (Estado.INGRESO_EN_CURSO, "otro operador"),
+            (Estado.ALOJADO, "otro operador"),
+        }
+        for estado, caso in self.casos.items():
+            derivacion = self.derivaciones.get(estado)
+            for rol, usuario in self.roles.items():
+                with self.subTest(estado=estado, rol=rol):
+                    acciones = servicio.acciones_posibles(
+                        caso,
+                        usuario,
+                        es_supervisor=rol == "supervisor",
+                        derivacion_pendiente=bool(derivacion and derivacion.estado == Derivacion.Estado.PENDIENTE),
+                    )
+                    self.assertEqual({a for a in self.ACCIONES if acciones[a]}, esperado[estado][rol])
+                    self.assertEqual(acciones["solo_lectura"], (estado, rol) in solo_lectura)
+                    self.assertEqual(acciones["es_duenio"], rol == "dueño" and estado != Estado.NUEVO)
+
+    def test_no_consulta_la_base(self):
+        caso = self.casos[Estado.EN_GESTION]
+        with self.assertNumQueries(0):
+            servicio.acciones_posibles(caso, self.operador, es_supervisor=False, derivacion_pendiente=False)
+
+
+# ---------------------------------------------------------------------------
 # El orden de los candados
 # ---------------------------------------------------------------------------
 
