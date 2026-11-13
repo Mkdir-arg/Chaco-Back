@@ -97,11 +97,14 @@ class SolapasDeCapacidadesTests(TestCase):
 
     def test_orden_e_ids_de_las_solapas(self):
         ids = [t["id"] for t in rbac.arbol_por_tabs()]
-        self.assertEqual(ids, ["general", "administracion", "becas", "dispositivos"])
+        self.assertEqual(ids, ["general", "administracion", "becas", "dispositivos", "emergencia"])
 
     def test_dispositivos_e_inspecciones_comparten_solapa(self):
+        # `dispositivos_emergencia` (recibir kits) va en esta solapa y no en «Emergencia»:
+        # se tilda en un rol del programa Dispositivos (hallazgo H3 del plan de Emergencia).
         modulos = self._por_id(rbac.arbol_por_tabs())
-        self.assertEqual(modulos["dispositivos"], {"dispositivos", "inspecciones"})
+        self.assertEqual(modulos["dispositivos"], {"dispositivos", "inspecciones", "dispositivos_emergencia"})
+        self.assertEqual(modulos["emergencia"], {"emergencia"})
 
     def test_ambitos_generales_y_de_administracion(self):
         modulos = self._por_id(rbac.arbol_por_tabs())

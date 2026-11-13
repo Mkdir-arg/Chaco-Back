@@ -639,6 +639,8 @@
                             Reportes
                         </a>
                         
+                        
+                        
                     </div>
                 </div>
             </template>
@@ -675,6 +677,8 @@
                        style="width:Npx; text-align:center; color: var(--text-body-subtle);"></i>
                 </a>
             </template>
+            
+
             
         </div>
         
