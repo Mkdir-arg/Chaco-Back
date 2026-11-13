@@ -23,7 +23,13 @@ from core import rbac
 from core.models import Localidad
 from programas.models import AdjuntoCaso, CasoEmergencia, ContactoCaso, Derivacion, GrupoFamiliar, TrazaCaso
 from programas.selectors import emergencia as selectores
-from programas.services.emergencia import NECESIDADES, acciones_posibles, estado_visible_de_caso, prioridad_visible
+from programas.services.emergencia import (
+    ESTADOS_PARA_TOMAR,
+    NECESIDADES,
+    acciones_posibles,
+    estado_visible_de_caso,
+    prioridad_visible,
+)
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_OPERAR,
     CAP_SUPERVISAR,
@@ -177,7 +183,7 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
                 "tomado_por": nombre_de(caso.tomado_por) if caso.tomado_por_id else "",
                 "sla": selectores.estado_sla(caso, sla, ahora),
                 "marcas": _marcas_de_fila(caso, duplicados.get(caso.pk), alojados.get(caso.pk)),
-                "puede_tomar": caso.estado == Estado.NUEVO,
+                "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
             }
         )
     return filas
