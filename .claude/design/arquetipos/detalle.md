@@ -127,7 +127,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   `lg:col-span-2 min-w-0 space-y-5` de la grilla de «Formulario con asistencia lateral»
   (`grid grid-cols-1 lg:grid-cols-3 gap-5`) y el panel que acompaña al registro en un `aside space-y-5 min-w-0`
   con `aria-label`; se apila en móvil. Evidencia: `programas/templates/programas/emergencia/casos/detail.html`
-  (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). Sin panel lateral,
+  (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). Arriba de la ficha, los avisos de la mesa (`avisos_de_la_mesa` de
+  `programas/selectors/emergencia_mesa.py`: «Rechazado por X: motivo», «Derivación vencida», «Dispositivo
+  inactivo», «Llegaron N sobre M declaradas») van uno por `_alerta.html` con `tono`, `titulo` y `texto`, sin
+  variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. Sin panel lateral,
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.

@@ -60,6 +60,9 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
     {% elif alojamiento.directo %}
       {% include "components/_alerta.html" with tono="info" titulo="Ingreso directo" texto="El dispositivo recibió a la familia sin pasar por la mesa: el caso nació con el ingreso en curso." %}
     {% endif %}
+    {% for aviso in avisos %}
+      {% include "components/_alerta.html" with tono=aviso.tono titulo=aviso.texto texto=aviso.detalle only %}
+    {% endfor %}
     {% if alojamiento.parcial %}
       {% include "components/_alerta.html" with tono="warning" titulo=alojamiento.parcial_titulo texto=alojamiento.diferencia.observacion|default:"El dispositivo cerró el ingreso con menos personas que las declaradas." %}
     {% endif %}
