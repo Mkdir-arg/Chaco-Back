@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-13, backend rebasado sobre `development` (ramas `-v2`) y 13 PRs abiertos, apilados. Falta CI, auditoría y merge.
+**Última actualización:** 2026-11-13 19:45. **7 de 13 PRs mergeados a `development`** (PR 0 a PR 6). En auditoría: #1132 (PR 7).
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -36,6 +36,24 @@ apuntar a `development` y recién ahí le corre el CI.
 | 13 | [#1137](https://github.com/Mkdir-arg/Chaco-Back/pull/1137) | PR 12 · manual y Cambios | `feat/emergencia-pr12-docs-v2` | 474 |
 | — | [#1138](https://github.com/Mkdir-arg/Chaco-Back/pull/1138) | **Borrador, NO MERGEAR**: todo junto contra `development`, solo para que el CI corra ya | `feat/emergencia-pr12-docs-v2` | — |
 
+### Avance del merge (se actualiza con cada PR)
+
+| PR | Estado | Merge en `development` | Notas de auditoría |
+|---|---|---|---|
+| #1125 PR 0 | Mergeado | `a03504da` | |
+| #1126 PR 1 | Mergeado | `b75aca8c` | |
+| #1127 PR 2 | Mergeado | `5bc7e8a4` | |
+| #1128 PR 3 | Mergeado | `d0197bca` | |
+| #1129 PR 4 | Mergeado | `86d5c6af` | |
+| #1130 PR 5 | Mergeado | `870998e1` | 2 rondas. Se sacaron del serializer reglas que no tiene el servicio (`max_length=60`, `min_value=0`) y el 409 pasó a reconocerse por tipo (`UuidEnUso`, también en kits del PR 9). |
+| #1131 PR 6 | Mergeado | `413eb813` | 2 rondas. Las reservas de derivación pasaron a `services/reservas_derivacion.py` (`estadias.py` 1316 → 1033 líneas). D2 del Cambio 409 en `consumir_reserva_de_derivacion`. Ficha `turno_bitacora.md` actualizada (la exige `check_design_agent`). |
+| #1132 PR 7 | En auditoría (ronda 1) | | Se espera un MAJOR: `emergencia_alojar.py` tiene 1893 líneas. Falta la ficha de diseño (el diff toca `estadias.py`). Hay que revisar la D2 en `confirmar_integrante` cuando la cama está libre sin reserva. |
+| #1133 a #1137 | Pendientes | | |
+
+**MINOR registrados para PRs siguientes:**
+- **PR 5:** el largo de `traslado_otro` no sale en el primer 400; `test_emergencia_api_contrato.py` tiene 1084 líneas; `_respuesta_400` privado; tercera definición de `CAP_ADMITIR`; doble `EXISTS` en `perfil/`; `validar_foto_de_la_app` duplica a `validar_adjunto`.
+- **PR 6:** el protocolo de candados de D2 está copiado de `confirmar_ingreso` (convendría extraer `_bloquear_plazas` y `_cerrar_reservas_comunes`); tres mensajes literales copiados de `estadias.py`.
+
 Para cada PR: CI en verde → `/auditoria pr <N>` → merge (el hook `guardia_merge` exige el «Aprobado @
 SHA»). Al mergear, si el siguiente no se retargetea solo a `development`, cambiarle la base a mano.
 Verificación local de la punta (`pr12-v2`): 9.051 tests, solo los 30 fallos conocidos del entorno.
@@ -52,8 +70,7 @@ git checkout docs/emergencia-analisis      # plan, análisis y este archivo
 git checkout feat/emergencia-integracion-final  # todo el backend (PRs 0 a 11) junto y verificado
 ```
 
-- **Nada está mergeado a `development` y no hay ningún PR abierto en GitHub.** Todo son ramas
-  `feat/emergencia-*` pusheadas.
+- **PR 0 a PR 6 ya están en `development`** (ver §0). Los PRs 7 a 12 siguen abiertos y apilados.
 - Las ramas van **apiladas**: para abrir los PRs contra `development` hay que hacerlo en orden
   (§2), o mergear primero la base de cada una.
 - Las ramas `feat/emergencia-*` salen de `development` @ `e968b179` y **no** traen los commits de
