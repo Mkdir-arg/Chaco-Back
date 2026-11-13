@@ -66,6 +66,7 @@ from programas.selectors.emergencia import (
     texto_de_minutos,
 )
 from programas.services import emergencia as servicio
+from programas.services import emergencia_alta
 from programas.services.emergencia import (
     CasoTomadoPorOtro,
     EstadoCambio,
@@ -394,6 +395,17 @@ class CrearCasoTests(BaseCasos):
             self._caso(traslado="", dni="", direccion="", adultos_f=0, adultos_m=0)
         self.assertEqual(set(error.exception.message_dict), {"traslado", "dni", "direccion", "total"})
 
+    def test_una_precision_del_gps_enorme_es_un_error_del_campo(self):
+        """La columna es un entero de 32 bits: lo que no entra es un 400 del campo, no un 500."""
+        for precision in (2_147_483_648, "1e30", float("inf")):
+            with self.subTest(precision=precision):
+                with self.assertRaises(ValidationError) as error:
+                    self._caso(latitud=-27.45, longitud=-58.98, precision_m=precision)
+                self.assertIn("precision_m", error.exception.message_dict)
+        self.assertFalse(CasoEmergencia.objects.exists())
+        caso = self._caso(latitud=-27.45, longitud=-58.98, precision_m=2_147_483_647)
+        self.assertEqual(self._fila(caso)["precision_m"], 2_147_483_647)
+
     def test_otra_fuerza_pide_decir_cual(self):
         with self.assertRaises(ValidationError) as error:
             self._caso(traslado=GrupoFamiliar.Traslado.OTRA)
@@ -644,7 +656,8 @@ class IdempotenciaTests(BaseCasos):
             llamadas.append(uuid_cliente)
             return None if len(llamadas) == 1 else busqueda(uuid_cliente, usuario)
 
-        with mock.patch.object(servicio, "_caso_de_ese_envio", no_lo_ve_la_primera_vez):
+        # Se parcha donde se usa: `crear_caso` vive en `emergencia_alta`.
+        with mock.patch.object(emergencia_alta, "_caso_de_ese_envio", no_lo_ve_la_primera_vez):
             segundo = self._caso(uuid_cliente=envio)
 
         self.assertEqual(segundo.pk, ganador.pk)
@@ -685,6 +698,28 @@ class FotosDelCasoTests(BaseCasos):
 
         self.assertFalse(CasoEmergencia.objects.exists())
         self.assertFalse(AdjuntoCaso.objects.exists())
+
+    def test_una_ruta_o_un_archivo_ya_guardado_no_es_una_foto(self):
+        """Solo entra la subida: una ruta colgaría del caso un archivo que ya está en el disco."""
+        guardado = self._foto()
+        guardado._committed = True
+        for foto in ("emergencia/casos/otro/vivienda.jpg", "/etc/passwd", guardado):
+            with self.subTest(foto=foto):
+                with self.assertRaises(ValidationError) as error:
+                    self._caso(fotos={"VIVIENDA": foto})
+                self.assertIn("fotos", error.exception.message_dict)
+
+        self.assertFalse(CasoEmergencia.objects.exists())
+        self.assertFalse(GrupoFamiliar.objects.exists())
+        self.assertFalse(AdjuntoCaso.objects.exists())
+        self.assertFalse(NumeradorEmergencia.objects.filter(ultimo__gt=0).exists())
+
+    def test_una_foto_invalida_llega_junto_con_los_otros_errores(self):
+        with self.assertRaises(ValidationError) as error:
+            self._caso(direccion="", fotos={"ACCESO": self._foto("acta.pdf", b"%PDF-1.4")})
+
+        self.assertEqual(set(error.exception.message_dict), {"direccion", "fotos"})
+        self.assertFalse(NumeradorEmergencia.objects.filter(ultimo__gt=0).exists())
 
     def test_un_tipo_de_foto_que_no_existe_se_rechaza(self):
         with self.assertRaises(ValidationError) as error:
