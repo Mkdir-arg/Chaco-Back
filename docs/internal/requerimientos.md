@@ -581,6 +581,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 456 | Egreso con formulario por tipo: el modal avisa si el formulario cambió, devuelve todos los errores juntos y marca el campo del tipo (seguimiento de la auditoría del #1118) | Dispositivos · egreso · estadía | `#ui` `#datos` | Auditoría del PR #1118 (cinco MINOR), vía el juez | 12/11/2026 | 🟢 **Hecho** | — |
 | 457 | Formularios de Ingreso y Egreso por tipo: la foto del formulario se arma una sola vez (seguimiento de la auditoría del #1119) | Dispositivos · ingreso · egreso · estadía | `#performance` | Auditoría del PR #1119 (un MINOR), vía el PM | 13/11/2026 | 🟢 **Hecho** | — |
 | 459 | Dispositivos: la edición también toma el contacto del primer responsable del Equipo y no pide los campos a mano | Dispositivos · legajo institucional | `#ui` `#datos` | PM — dispositivo 14 de testing no se podía enviar a validación, 13/11/2026 | 13/11/2026 | 🟢 **Hecho** | — |
+| 460 | Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo» | Dispositivos · alta y edición de institución (P3) | `#ui` | PM | 13/11/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -54497,3 +54498,73 @@ Revertir el PR; los legajos conservan lo último copiado y la edición vuelve a 
 
 - **13/11/2026 — alta del cambio.**
 - **13/11/2026 — auditoría del PR #1121:** dos MINOR resueltos en el mismo PR (el contacto sale solo de un responsable vigente; `sincronizar_contacto` devuelve los cambios con la forma de la traza), y la ficha `dominio/becas.md` documenta la sincronización antes de validar.
+
+---
+
+# Cambio 460 — Alta de institución: la tarjeta del formulario «Crear dispositivo» se titula «Formulario del dispositivo»
+
+🟢 **HECHO — 13/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) · formularios por tipo (P17) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM (pendiente registrado en el Cambio 457) |
+| **Fecha del pedido** | 13/11/2026 |
+| **Issue / épica** | sin issue · seguimiento del Cambio 457 |
+| **Partes afectadas** | Template: `programas/templates/programas/dispositivos/legajo/_formulario_tipo.html` · Tests: `programas/tests/test_dispositivos_formulario_alta.py` · Ficha: `.claude/design/arquetipos/formulario.md` |
+| **Migración** | No requiere (sin cambios de base) |
+
+## Pedido original
+
+En el alta y la edición de la institución (P3), la tarjeta con el formulario «Crear dispositivo» del tipo decía
+«Formulario de ingreso», un nombre que se confunde con el formulario del momento INGRESO de la estadía (P6). El PM pidió
+cambiarlo.
+
+## Alcance acordado
+
+Entra: el título de la tarjeta en P3. Afuera: los títulos del paso «Confirmar» del ingreso (P6, «Formulario de
+ingreso»), del modal de egreso y de la lectura en P7, que ya eran correctos.
+
+## Decisiones tomadas
+
+**El default del include pasa a «Formulario del dispositivo».** P3 es el único que usa el título por defecto
+(el alta, la edición y la sección que se recarga al cambiar el tipo); P6 y el egreso pasan su `formulario_titulo`.
+
+## Implementación
+
+En P3 la tarjeta del formulario del tipo se titula «Formulario del dispositivo».
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/_formulario_tipo.html`
+- `programas/tests/test_dispositivos_formulario_alta.py`
+- `.claude/design/arquetipos/formulario.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` OK · `design_audit --ratchet` 0 nuevos · `compile_templates --bloques` 0 · `check_design_agent
+  --base origin/development` OK · ruff sin hallazgos.
+- Tests (Py 3.12 + Dj 5.2): `test_dispositivos_formulario_alta`, `test_dispositivos_formulario_estadia` y
+  `test_dispositivos_ingreso` (139 OK).
+- Mutación: con el título viejo en el include, `SeccionTests` da rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+`git revert` del merge; no hay migración.
+
+## Historial
+
+- **13/11/2026 — alta del cambio.**

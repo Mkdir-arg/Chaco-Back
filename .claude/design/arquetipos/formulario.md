@@ -47,7 +47,7 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
 Un formulario armado por el constructor (P17) también: en P3, `_formulario_tipo.html` dibuja
 el formulario «Crear dispositivo» del tipo con `programas.forms_dinamicos.RespuestasDisenoForm`
 en **su propia tarjeta**, después de «Horario de atención» (surface canónica con encabezado
-`px-5 py-4 border-b border-light`: `h2` «Formulario de ingreso» + bajada `text-xs`, y cuerpo
+`px-5 py-4 border-b border-light`: `h2` «Formulario del dispositivo» + bajada `text-xs`, y cuerpo
 `p-5` con un bloque por grupo —`h3` + bajada `text-xs`, `border-t border-light mt-5 pt-4` desde
 el segundo—, campos con el campo canónico en `sm:grid-cols-2`). Sin formulario del tipo no sale
 ni la tarjeta (el wrapper `data-formulario-tipo` es `contents`). Lo reemplaza `dispositivos:formulario_tipo_seccion` al cambiar el tipo; las condiciones las evalúa
