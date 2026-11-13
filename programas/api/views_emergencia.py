@@ -88,7 +88,7 @@ from programas.selectors.emergencia_campo import casos_relevados_por, localidade
 from programas.services import emergencia_alojar as servicio_alojar
 from programas.services import kits as servicio_kits
 from programas.services.dispositivos import dispositivos_en_alcance
-from programas.services.emergencia import UUID_EN_USO, EstadoCambio, crear_caso
+from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
 from programas.services.emergencia_programa import (
     CAP_ADMITIR,
     CAP_EMERGENCIA_RELEVAR,
@@ -294,10 +294,11 @@ class CasosEmergenciaView(APIView):
             # No debería llegar: el permiso de la vista pregunta lo mismo. Si llega, el
             # mismo cuerpo que da el permiso.
             return Response(EmergenciaRelevarPermission.message, status=status.HTTP_403_FORBIDDEN)
+        except UuidEnUso as error:
+            detalle = error.message_dict["uuid_cliente"][0]
+            return Response({"detail": detalle, "code": CODIGO_UUID_EN_USO}, status=status.HTTP_409_CONFLICT)
         except ValidationError as error:
             errores = error.message_dict if hasattr(error, "error_dict") else error.messages
-            if isinstance(errores, dict) and errores.get("uuid_cliente") == [UUID_EN_USO]:
-                return Response({"detail": UUID_EN_USO, "code": CODIGO_UUID_EN_USO}, status=status.HTTP_409_CONFLICT)
             return _respuesta_de_validacion(errores)
         codigo = status.HTTP_200_OK if caso.ya_existia else status.HTTP_201_CREATED
         return Response(CasoEmergenciaCreadoSerializer(caso).data, status=codigo)
@@ -458,13 +459,13 @@ class RecibirEntregaKitView(_VistaDeKits):
             return Response(
                 {"detail": cambio.mensaje, "estado_actual": cambio.estado_actual}, status=status.HTTP_409_CONFLICT
             )
+        except UuidEnUso as error:
+            return Response(
+                {"detail": error.message_dict["uuid_cliente"][0], "code": CODIGO_UUID_DE_OTRA_RECEPCION},
+                status=status.HTTP_409_CONFLICT,
+            )
         except ValidationError as error:
             errores = error.message_dict if hasattr(error, "error_dict") else error.messages
-            if isinstance(errores, dict) and errores.get("uuid_cliente") == [servicio_kits.UUID_EN_USO]:
-                return Response(
-                    {"detail": servicio_kits.UUID_EN_USO, "code": CODIGO_UUID_DE_OTRA_RECEPCION},
-                    status=status.HTTP_409_CONFLICT,
-                )
             return _respuesta_de_validacion(errores)
         diferencias = selectores_kits.diferencias_de(selectores_kits.lineas_de(recibida))
         cuerpo = {
@@ -618,13 +619,13 @@ class _VistaDeLlegadas(APIView):
             raise NotFound from None
         except EstadoCambio as cambio:
             return None, _respuesta_409(cambio)
+        except UuidEnUso as error:
+            return None, Response(
+                {"detail": error.message_dict["uuid_cliente"][0], "code": CODIGO_UUID_EN_USO},
+                status=status.HTTP_409_CONFLICT,
+            )
         except ValidationError as error:
-            errores = _errores(error)
-            if isinstance(errores, dict) and errores.get("uuid_cliente") == [UUID_EN_USO]:
-                return None, Response(
-                    {"detail": UUID_EN_USO, "code": CODIGO_UUID_EN_USO}, status=status.HTTP_409_CONFLICT
-                )
-            return None, _respuesta_de_validacion(errores)
+            return None, _respuesta_de_validacion(_errores(error))
 
     def _entrada(self, serializer_class, request):
         """El cuerpo validado en su forma, o ``(None, 400)``."""
