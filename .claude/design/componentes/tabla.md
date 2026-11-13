@@ -199,3 +199,6 @@ preparan en la vista (`motivo` vacío = acción disponible).
 - Cuándo: un encabezado con más de una acción secundaria deja visibles la primaria (`btn-brand`) y, a lo sumo, una
   secundaria frecuente; el resto va al menú con `texto="Más acciones"`. Si ninguna aplica, no se dibuja. Referencia:
   P4 (`dispositivos/legajo/detail.html`). Tests: `MenuFilaTest`.
+- Tabla de la solapa «Equipo» de P4: la fila cuya membresía ya no es vigente (la persona perdió el rol) lleva
+  `badge badge-warning badge-sm` «Rol no vigente» junto al rol. Ese responsable tampoco da el contacto del legajo:
+  sale del primer responsable vigente (`responsable_de_contacto`, Cambio 457; ficha `dominio/becas.md`).
