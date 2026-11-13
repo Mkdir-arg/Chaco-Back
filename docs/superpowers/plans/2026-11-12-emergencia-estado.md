@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-13 19:45. **7 de 13 PRs mergeados a `development`** (PR 0 a PR 6). En auditoría: #1132 (PR 7).
+**Última actualización:** 2026-11-13 21:00. **8 de 13 PRs mergeados a `development`** (PR 0 a PR 7). En auditoría: #1133 (PR 9).
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -47,11 +47,13 @@ apuntar a `development` y recién ahí le corre el CI.
 | #1129 PR 4 | Mergeado | `86d5c6af` | |
 | #1130 PR 5 | Mergeado | `870998e1` | 2 rondas. Se sacaron del serializer reglas que no tiene el servicio (`max_length=60`, `min_value=0`) y el 409 pasó a reconocerse por tipo (`UuidEnUso`, también en kits del PR 9). |
 | #1131 PR 6 | Mergeado | `413eb813` | 2 rondas. Las reservas de derivación pasaron a `services/reservas_derivacion.py` (`estadias.py` 1316 → 1033 líneas). D2 del Cambio 409 en `consumir_reserva_de_derivacion`. Ficha `turno_bitacora.md` actualizada (la exige `check_design_agent`). |
-| #1132 PR 7 | En auditoría (ronda 1) | | Se espera un MAJOR: `emergencia_alojar.py` tiene 1893 líneas. Falta la ficha de diseño (el diff toca `estadias.py`). Hay que revisar la D2 en `confirmar_integrante` cuando la cama está libre sin reserva. |
-| #1133 a #1137 | Pendientes | | |
+| #1132 PR 7 | Mergeado | `916aa160` | Pasó por dos rondas y una tercera revisión acotada. `emergencia_alojar.py` (1893 líneas) quedó partido en 6 módulos más una fachada. D2 del Cambio 409 en la cama libre. `acciones_del_ingreso` es la regla única. La cama se bloquea siempre antes que la persona. Ficha `turno_bitacora.md`. |
+| #1133 PR 9 | En auditoría (ronda 1) | | Kits y API M3. Migración `0121`. |
+| #1134 a #1137 | Pendientes | | |
 
 **MINOR registrados para PRs siguientes:**
 - **PR 5:** el largo de `traslado_otro` no sale en el primer 400; `test_emergencia_api_contrato.py` tiene 1084 líneas; `_respuesta_400` privado; tercera definición de `CAP_ADMITIR`; doble `EXISTS` en `perfil/`; `validar_foto_de_la_app` duplica a `validar_adjunto`.
+- **PR 7:** `acciones_del_ingreso` recibe el `total` calculado de dos formas (conviene calcularlo adentro). Quedan los alias `SITUACION_*` y el envoltorio `es_ingreso_directo` sin uso en producción. Hay un ciclo improbable con un egreso simultáneo, documentado en la fachada.
 - **PR 6:** el protocolo de candados de D2 está copiado de `confirmar_ingreso` (convendría extraer `_bloquear_plazas` y `_cerrar_reservas_comunes`); tres mensajes literales copiados de `estadias.py`.
 
 Para cada PR: CI en verde → `/auditoria pr <N>` → merge (el hook `guardia_merge` exige el «Aprobado @
@@ -70,7 +72,7 @@ git checkout docs/emergencia-analisis      # plan, análisis y este archivo
 git checkout feat/emergencia-integracion-final  # todo el backend (PRs 0 a 11) junto y verificado
 ```
 
-- **PR 0 a PR 6 ya están en `development`** (ver §0). Los PRs 7 a 12 siguen abiertos y apilados.
+- **PR 0 a PR 7 ya están en `development`** (ver §0). Los PRs 8 a 12 siguen abiertos y apilados.
 - Las ramas van **apiladas**: para abrir los PRs contra `development` hay que hacerlo en orden
   (§2), o mergear primero la base de cada una.
 - Las ramas `feat/emergencia-*` salen de `development` @ `e968b179` y **no** traen los commits de
