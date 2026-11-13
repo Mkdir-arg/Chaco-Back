@@ -43,7 +43,7 @@ from programas.selectors import emergencia_alojar as selectores
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
 from programas.services import emergencia_alta
-from programas.tests.test_emergencia_alojar import GUARDIA, ficha_minima
+from programas.tests.test_emergencia_alojar_base import GUARDIA, ficha_minima
 from programas.tests.test_emergencia_api_contrato import (
     ADMITIR,
     CLAVES_ACEPTACION,

@@ -179,9 +179,9 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
                 {% for fila in integrantes.filas %}
                 <tr class="hover:bg-secondary">
                   <td class="nodo-td">{{ fila.n }}</td>
-                  <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.persona }}</span>{% if fila.dni %}<span class="block text-xs text-body-subtle">DNI {{ fila.dni|dni }}{% if fila.parentesco %} · {{ fila.parentesco }}{% endif %}</span>{% endif %}</td>
-                  <td class="nodo-td">{{ fila.cama|default:"—" }}</td>
-                  <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>{% if fila.ficha %} <span class="badge badge-{{ fila.ficha_tono }}">{{ fila.ficha }}</span>{% endif %}</td>
+                  <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.rotulo }}</span>{% if fila.persona.dni %}<span class="block text-xs text-body-subtle">DNI {{ fila.persona.dni|dni }}{% if fila.parentesco %} · {{ fila.parentesco }}{% endif %}</span>{% endif %}</td>
+                  <td class="nodo-td">{{ fila.plaza.nombre|default:"—" }}</td>
+                  <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>{% if fila.ficha_texto %} <span class="badge badge-{{ fila.ficha_tono }}">{{ fila.ficha_texto }}</span>{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>

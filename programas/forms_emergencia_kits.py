@@ -9,6 +9,7 @@ remito en JPEG) las decide `programas/services/kits.py`, que es lo mismo que usa
 from django import forms
 
 from programas.forms import INPUT_CLASS
+from programas.forms_emergencia import ErroresDelServicioMixin
 from programas.models import EntregaKit
 from programas.selectors.kits import SOLAPA_ABIERTAS, SOLAPAS
 from programas.services.kits import (
@@ -212,7 +213,7 @@ class ObservarEntregaForm(forms.Form):
     )
 
 
-class RecepcionKitForm(forms.Form):
+class RecepcionKitForm(ErroresDelServicioMixin, forms.Form):
     """La recepción en el dispositivo: lo que llegó de cada ítem, el remito y una observación (HU-4.3).
 
     Un campo `cantidad_<id del ítem>` por línea, precargado con lo enviado: se corrige solo
@@ -264,12 +265,3 @@ class RecepcionKitForm(forms.Form):
         """``{item_id: cantidad}``: lo que recibe ``recibir_entrega``."""
 
         return {linea.item_id: self.cleaned_data[_campo_de(linea.item_id)] for linea in self.lineas}
-
-    def agregar_errores_del_servicio(self, error):
-        """Lleva cada rechazo de ``recibir_entrega`` a su campo; lo que no es de un campo, arriba."""
-
-        if not hasattr(error, "error_dict"):
-            self.add_error(None, error)
-            return
-        for clave, errores in error.error_dict.items():
-            self.add_error(clave if clave in self.fields else None, errores)

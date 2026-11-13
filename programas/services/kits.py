@@ -67,6 +67,7 @@ from programas.models import (
 from programas.services.bitacora import anotar_novedad_automatica
 from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio, UuidEnUso, siguiente_correlativo
+from programas.services.emergencia_comun import _hora
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
 
 Estado = EntregaKit.Estado
@@ -138,10 +139,6 @@ def _nombre_de(usuario):
     if usuario is None:
         return "otra persona"
     return usuario.get_full_name().strip() or usuario.get_username()
-
-
-def _hora(momento):
-    return f"{timezone.localtime(momento):%H:%M}"
 
 
 def estado_visible_de_entrega(entrega):

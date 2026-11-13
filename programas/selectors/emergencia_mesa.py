@@ -58,17 +58,12 @@ ROTULO_DE_NECESIDAD = {
 
 MOTIVO_SIN_PLAZAS = "Sin plazas disponibles"
 
-#: Las claves de ``CasoEmergencia.situacion`` que escribe la etapa 3. Se repiten acá —y no se
-#: importan de ``services.emergencia_alojar``— porque ese servicio importa de la mesa lo que
-#: comparte con ella, y traerlo desde un selector invertiría las capas.
-#: ``test_emergencia_alojar_vistas`` fija que coincidan.
-SITUACION_ALOJAMIENTO = "alojamiento"
-SITUACION_DIFERENCIA = "diferencia"
-SITUACION_EN_LA_PUERTA = "en_la_puerta_de"
-
 #: Desde qué estados la ficha muestra a los integrantes: cuando el dispositivo ya aceptó.
 ESTADOS_CON_INTEGRANTES = (Estado.INGRESO_EN_CURSO, Estado.ALOJADO, Estado.CERRADO)
 
+#: Cómo lee la mesa cada fila de la familia: texto y tono del badge. La guardia tiene su
+#: tabla (``emergencia_llegadas.ESTADOS_DE_INTEGRANTE``): para ella la persona está
+#: «Confirmada»; para la mesa, «Alojada».
 ESTADO_DE_INTEGRANTE = {
     selectores_alojar.INTEGRANTE_SIN_CONFIRMAR: ("Sin confirmar", "gray"),
     selectores_alojar.INTEGRANTE_CONFIRMADA: ("Alojada", "success"),
@@ -155,7 +150,7 @@ def _en_la_puerta(caso):
     familia sigue esperando: el caso está abierto y la mesa todavía no lo derivó nunca.
     """
 
-    en_la_puerta = (caso.situacion or {}).get(SITUACION_EN_LA_PUERTA)
+    en_la_puerta = caso.en_la_puerta
     if not en_la_puerta or not caso.abierto or caso.derivado_en is not None:
         return ""
     return en_la_puerta.get("dispositivo") or "un dispositivo"
@@ -227,7 +222,7 @@ def _marcas_de_fila(caso, duplicados, alojado):
     if en_la_puerta:
         # «Avisar a la mesa» (M2-6): la familia espera en ese dispositivo a que la deriven.
         marcas.append({"texto": f"En la puerta de {en_la_puerta}", "tono": "warning"})
-    elif caso.origen == CasoEmergencia.Origen.DISPOSITIVO and SITUACION_EN_LA_PUERTA not in (caso.situacion or {}):
+    elif caso.es_ingreso_directo:
         marcas.append({"texto": "Ingreso directo", "tono": "info"})
     marcas.extend({"texto": aviso["texto"], "tono": aviso["tono"]} for aviso in avisos_de_la_mesa(caso))
     if caso.ingreso_parcial:
@@ -428,6 +423,38 @@ def _traza(caso):
     return eventos
 
 
+def filas_de_integrantes(datos, url_de=None, estados=ESTADO_DE_INTEGRANTE):
+    """Las filas de la familia desde lo que contesta ``integrantes_de``, con texto y tono. Sin consultas.
+
+    La comparten la ficha de la mesa (E3, en solo lectura) y la guardia (M2-3), cada una con
+    su tabla de ``estados``. ``url_de(n)`` arma el destino de la ficha de la persona; sin él,
+    la fila no lleva ``url``.
+    """
+
+    filas = []
+    for integrante in datos["integrantes"]:
+        texto, tono = estados[integrante["estado"]]
+        confirmada = integrante["estado"] != selectores_alojar.INTEGRANTE_SIN_CONFIRMAR
+        filas.append(
+            {
+                **integrante,
+                "rotulo": integrante["persona"]["nombre"] if integrante["persona"] else f"Persona {integrante['n']}",
+                "estado_texto": texto,
+                "estado_tono": tono,
+                "confirmada": confirmada,
+                "ficha_texto": ("Ficha completa" if integrante["ficha_completa"] else "Ficha incompleta")
+                if confirmada
+                else "",
+                "ficha_tono": "success" if integrante["ficha_completa"] else "warning",
+                "accion": ("Completar ficha" if not integrante["ficha_completa"] else "Ver ficha")
+                if confirmada
+                else "Confirmar",
+                "url": url_de(integrante["n"]) if url_de is not None else "",
+            }
+        )
+    return filas
+
+
 def _integrantes(caso):
     """La sección «Integrantes» de E3, en solo lectura, o ``None`` si el dispositivo todavía no aceptó. **1 consulta.**
 
@@ -440,28 +467,8 @@ def _integrantes(caso):
     datos = selectores_alojar.integrantes_de(caso)
     if not datos["integrantes"]:
         return None
-    filas = []
-    for integrante in datos["integrantes"]:
-        texto, tono = ESTADO_DE_INTEGRANTE[integrante["estado"]]
-        confirmada = integrante["estado"] != selectores_alojar.INTEGRANTE_SIN_CONFIRMAR
-        ficha = ""
-        if confirmada:
-            ficha = "Ficha completa" if integrante["ficha_completa"] else "Ficha incompleta"
-        filas.append(
-            {
-                "n": integrante["n"],
-                "persona": integrante["persona"]["nombre"] if integrante["persona"] else f"Persona {integrante['n']}",
-                "dni": integrante["persona"]["dni"] if integrante["persona"] else "",
-                "parentesco": integrante["parentesco"],
-                "cama": integrante["plaza"]["nombre"] if integrante["plaza"] else "",
-                "estado_texto": texto,
-                "estado_tono": tono,
-                "ficha": ficha,
-                "ficha_tono": "success" if integrante["ficha_completa"] else "warning",
-            }
-        )
     return {
-        "filas": filas,
+        "filas": filas_de_integrantes(datos),
         "confirmadas": datos["confirmadas"],
         "total": datos["total_declarado"],
         "declaradas": datos["declaradas_al_relevar"],
@@ -477,20 +484,19 @@ def _alojamiento(caso):
     del Formulario 1 (sector, aula, tarjeta).
     """
 
-    situacion = caso.situacion or {}
-    diferencia = situacion.get(SITUACION_DIFERENCIA)
+    diferencia = caso.diferencia
     parcial_titulo = ""
     if caso.ingreso_parcial:
         parcial_titulo = f"Ingreso parcial · {caso.total_alojado} de {caso.grupo.total_declarado} personas alojadas"
         if diferencia and diferencia.get("motivo_texto"):
             parcial_titulo = f"{parcial_titulo} · {diferencia['motivo_texto']}"
     return {
-        "directo": caso.origen == CasoEmergencia.Origen.DISPOSITIVO and SITUACION_EN_LA_PUERTA not in situacion,
+        "directo": caso.es_ingreso_directo,
         "en_la_puerta": _en_la_puerta(caso),
         "parcial": caso.ingreso_parcial,
         "parcial_titulo": parcial_titulo,
         "diferencia": diferencia,
-        "donde": situacion.get(SITUACION_ALOJAMIENTO),
+        "donde": caso.alojamiento,
     }
 
 
