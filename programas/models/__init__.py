@@ -5551,7 +5551,7 @@ class CasoEmergencia(TimeStamped):
     total_alojado = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Personas alojadas")
     # App sin conexión: el identificador que generó el teléfono para este envío. Reenviarlo
     # devuelve el mismo caso (RU-16). Único sobre columna anulable y `char(36)` en
-    # MySQL/MariaDB (programas.0118); se busca con `core.db.q_uuid_en_texto`.
+    # MySQL/MariaDB (programas.0119); se busca con `core.db.q_uuid_en_texto`.
     uuid_cliente = models.UUIDField(
         null=True,
         blank=True,

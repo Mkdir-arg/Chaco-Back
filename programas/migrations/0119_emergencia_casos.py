@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("core", "0003_retirar_django_health_check"),
         ("legajos", "0011_indices_redundantes_red83"),
-        ("programas", "0117_programa_emergencia"),
+        ("programas", "0118_programa_emergencia"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
