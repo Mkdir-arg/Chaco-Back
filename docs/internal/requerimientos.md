@@ -55136,6 +55136,9 @@ corrida frecuente en los servidores (ver Puesta en marcha).
    Emergencia van con `False`: un solo `atomic` alrededor de toda la regla retendría el candado de cada caso hasta la última
    fila, con la mesa esperando detrás. No estaba en el plan.
 5. **Se edita una aserción de Becas:** `test_las_reglas_estan_registradas_al_arrancar` espera también las dos reglas nuevas.
+6. **Una fila fallida pone el cron en rojo (OPS-07).** Al terminar el recorrido, si alguna fila falló, la regla levanta
+   `VencimientoConFallas` (fallidas, sus ids y cuántas sí se procesaron); `procesar_vencimientos` la anota como regla fallida,
+   sigue con las demás —las de Becas incluidas— y termina en `CommandError`. Las filas buenas ya quedaron commiteadas.
 
 ## Implementación
 
@@ -55170,7 +55173,10 @@ envoltorio `chaco-cron.sh` (y el CronJob equivalente en ECOM). No está hecho en
 
 ## Pendientes / a definir
 
-1. **La corrida frecuente de arriba** (decisión de infraestructura: frecuencia y si se pide a ECOM).
+1. **Frecuencia del cron — decisión del PM antes de habilitar la mesa en PRD.** `procesar_vencimientos` corre a las 03:10 y al
+   arrancar el contenedor; para Emergencia hace falta `*/5` o un CronJob propio con `--solo emergencia.derivacion` /
+   `--solo emergencia.caso_sin_avance`. Archivos: `docker/cron/procesar_vencimientos.cron` y `docker/k8s/cronjobs.yaml` (no se
+   tocaron en este lote).
 2. Carrera aceptar contra vencer con motor real (CI).
 3. Squash del «wip» `a8f5590d` con `1dc4bd61` antes de abrir el PR.
 
@@ -55181,6 +55187,9 @@ Revertir el PR; sin migraciones. Las derivaciones ya vencidas y los casos devuel
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 4 se cerró en la ola 3, commits `a8f5590d` y `1dc4bd61`).
+- **13/11/2026 — auditoría del PR #1129:** una fila que fallaba no ponía el cron en rojo. Ahora la regla levanta
+  `VencimientoConFallas` al final del recorrido y el comando termina en `CommandError` (OPS-07); tests por regla con
+  `call_command`. Propagado por merge a PR 5…12.
 
 ---
 
