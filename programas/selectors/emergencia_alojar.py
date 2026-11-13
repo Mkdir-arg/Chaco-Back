@@ -119,7 +119,7 @@ def camas_libres(dispositivo, momento=None):
     sectores se resuelven por nombre y por id: el orden es determinista.
 
     Es una **foto sin candado**, igual que la que usa la mesa al derivar: sirve para elegir,
-    no garantiza. La garantía la da ``estadias.reservar_plazas_de_derivacion``, que bloquea
+    no garantiza. La garantía la da ``reservas_derivacion.reservar_plazas_de_derivacion``, que bloquea
     cada plaza y vuelve a mirar. No exige capacidad: la llaman los servicios, que ya la
     exigieron.
 
