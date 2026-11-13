@@ -1,0 +1,212 @@
+{# arquetipo: detalle + apilado #}{# un área sola (la entrega): secciones apiladas en surfaces #}
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Emergencia · {{ titulo }}{% endblock %}
+
+{% block main-content %}
+{% comment %}E5 · Detalle de una entrega de kits. Lo enviado contra lo recibido (tabla densa canónica con
+`_celda_diferencia.html`), las observaciones, el remito y la traza. Qué acción se ofrece lo decide la vista
+(`puede_*`, `url_reponer`); el servicio lo vuelve a exigir en cada POST. «Marcar en camino» y «Cancelar» son el
+arquetipo Modal con POST clásico. Después de la recepción lo único que la mesa puede cambiar es su observación.{% endcomment %}
+<div x-data="{ modalEnCamino: false, modalCancelar: false }">
+
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
+  <div class="space-y-5">
+
+    {% url 'emergencia:entregas' as url_volver %}
+    {% page_header titulo=titulo eyebrow="Programa Emergencia" volver_url=url_volver volver_label="entregas de kits" estado_texto=estado_texto estado_variante=estado_tono %}
+      {% bajada %}{{ bajada }}{% endbajada %}
+      {% if puede_marcar_en_camino %}
+      <button type="button" @click="modalEnCamino=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-truck" aria-hidden="true"></i> Marcar en camino</button>
+      {% endif %}
+      {% if url_reponer %}
+      <a href="{{ url_reponer }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Reponer</a>
+      {% endif %}
+      {% if puede_cancelar %}
+      <button type="button" @click="modalCancelar=true" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar entrega</button>
+      {% endif %}
+    {% endpage_header %}
+
+    {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
+
+    {% if repone_a %}
+      {% include "components/_alerta.html" with tono="info" titulo="Repone a la entrega "|add:repone_a.numero texto="Se armó con lo que faltó en esa entrega." accion_url=repone_a.url accion_texto="Abrir la entrega original" %}
+    {% endif %}
+
+    {# ===== 1. La entrega ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-datos-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-datos-titulo" class="text-heading font-bold">La entrega</h2>
+      </div>
+      <div class="p-5">
+        <dl class="grid gap-5 sm:grid-cols-2">
+          {% for dato in datos %}
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
+            <dd class="mt-1 text-sm text-heading">{{ dato.valor|default:"—" }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </div>
+    </section>
+
+    {# ===== 2. Enviado contra recibido (tabla de conciliación) ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-items-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-items-titulo" class="text-heading font-bold">Ítems</h2>
+        <p class="mt-1 text-xs text-body-subtle">{% if recibida %}Lo que salió contra lo que el dispositivo confirmó. Las cantidades recibidas no se corrigen.{% else %}Lo que sale hacia el dispositivo. Lo recibido se completa cuando confirma la recepción.{% endif %}</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Ítem</th>
+              <th class="nodo-th text-right">Enviado</th>
+              <th class="nodo-th text-right">Recibido</th>
+              <th class="nodo-th">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for linea in lineas %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">
+                {{ linea.item.nombre }}
+                <span class="block text-xs text-body-subtle">{{ linea.unidad }}</span>
+              </td>
+              <td class="nodo-td text-right">{{ linea.cantidad_enviada }}</td>
+              <td class="nodo-td text-right">{{ linea.cantidad_recibida|default_if_none:"—" }}</td>
+              <td class="nodo-td">{% include "components/_celda_diferencia.html" with enviada=linea.cantidad_enviada recibida=linea.cantidad_recibida only %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {# ===== 3. Observaciones ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-observaciones-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-observaciones-titulo" class="text-heading font-bold">Observaciones</h2>
+      </div>
+      <div class="p-5 space-y-5">
+        <div>
+          <h3 class="text-sm font-bold text-heading">De la mesa</h3>
+          <p class="mt-1 text-sm text-body">{{ entrega.observacion_mesa|default:"Sin observación." }}</p>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-heading">Del dispositivo</h3>
+          <p class="mt-1 text-sm text-body">{% if recibida %}{{ entrega.observacion_dispositivo|default:"Sin observación." }}{% else %}La escribe quien confirma la recepción.{% endif %}</p>
+        </div>
+        {% if form_observar %}
+        <form method="post" action="{% url 'emergencia:entrega_observar' entrega.pk %}" class="border-t border-light pt-4">
+          {% csrf_token %}
+          {% for field in form_observar %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          <div class="flex justify-end gap-3 mt-4">
+            <button type="submit" class="btn-nodo btn-brand btn-sm"><i class="fas fa-check" aria-hidden="true"></i> Guardar observación</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ===== 4. Remito (media/ va detrás de login: lo ven la mesa y el Equipo del dispositivo destino) ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-remito-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-remito-titulo" class="text-heading font-bold">Remito</h2>
+      </div>
+      {% if remito %}
+      <div class="p-5">
+        {% include "components/_galeria_fotos.html" with fotos=remito %}
+      </div>
+      {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-file-image" titulo="Todavía no hay remito" texto="La foto la sube el dispositivo al confirmar la recepción." %}
+      {% endif %}
+    </section>
+
+    {% if reposiciones %}
+    {# ===== 5. Reposiciones: las entregas que se armaron con lo que faltó en esta ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-reposiciones-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-reposiciones-titulo" class="text-heading font-bold">Reposiciones</h2>
+        <p class="mt-1 text-xs text-body-subtle">Las entregas que se armaron para reponer lo que faltó en esta.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Entrega</th>
+              <th class="nodo-th">Estado</th>
+              <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for reposicion in reposiciones %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">{{ reposicion.numero }}</td>
+              <td class="nodo-td"><span class="badge badge-dot badge-{{ reposicion.estado_tono }}">{{ reposicion.estado_texto }}</span></td>
+              <td class="nodo-td nodo-col-acciones text-right">
+                <a href="{{ reposicion.url }}" class="nodo-icon-btn" aria-label="Abrir la entrega {{ reposicion.numero }}">
+                  <i class="fas fa-eye" aria-hidden="true"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {# ===== 6. Traza ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-traza-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-traza-titulo" class="text-heading font-bold">Traza</h2>
+        <p class="mt-1 text-xs text-body-subtle">Todo lo que pasó con la entrega, lo más reciente arriba.</p>
+      </div>
+      <div class="p-5">
+        {% include "components/_linea_tiempo.html" with eventos=eventos %}
+      </div>
+    </section>
+  </div>
+
+  {% if form_en_camino %}
+  {# Modal: Marcar en camino — transporte y hora de salida, opcionales (arquetipo Modal) #}
+  <div x-show="modalEnCamino" x-cloak x-becas-modal="modalEnCamino" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEnCamino=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-en-camino-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Marcar en camino" titulo_id="modal-en-camino-titulo" icono="fa-truck" cerrar="modalEnCamino=false" %}
+      <form method="post" action="{% url 'emergencia:entrega_en_camino' entrega.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_en_camino %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="info" texto="El dispositivo la ve como entrega en camino y puede confirmar la recepción." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEnCamino=false" accion_texto="Marcar en camino" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cancelar %}
+  {# Modal: Cancelar entrega — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalCancelar" x-cloak x-becas-modal="modalCancelar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCancelar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cancelar entrega" titulo_id="modal-cancelar-titulo" icono="fa-ban" tono="danger" cerrar="modalCancelar=false" %}
+      <form method="post" action="{% url 'emergencia:entrega_cancelar' entrega.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_cancelar %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="El dispositivo deja de verla entre sus entregas y ya no la puede recibir. Una entrega cancelada no se reabre: se arma otra." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelar=false" cancelar_texto="Volver" accion_texto="Sí, cancelar la entrega" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

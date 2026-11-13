@@ -100,8 +100,8 @@ CAPACIDADES_SIN_USO = {
     # (`docs/superpowers/plans/2026-11-12-emergencia-plan.md`). Cada una sale de acá en el
     # PR que la empieza a evaluar. `emergencia.supervisar` ya se evalúa (E7), y desde el
     # PR 2 también `emergencia.operar` y `emergencia.relevar`: las exigen los servicios del
-    # caso (`programas/services/emergencia.py`).
-    "emergencia.recibir_kit": "la evalúa la recepción de kits en el dispositivo (PR 9 del plan)",
+    # caso (`programas/services/emergencia.py`). `emergencia.recibir_kit` salió en el PR 9:
+    # la exige `recibir_entrega` (`programas/services/kits.py`) sobre el dispositivo destino.
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro

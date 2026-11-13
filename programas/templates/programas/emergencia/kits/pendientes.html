@@ -1,0 +1,51 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Kits · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+{% comment %}«Emergencia · Kits» del dispositivo: las entregas que todavía puede recibir. Molde: golden de Listado
+(becas/revision/personas_list.html), variante sin filtros ni alta. La ve quien tiene `emergencia.recibir_kit` en
+el Equipo de ESTE dispositivo; las de otro no llegan (el recorte es del selector). Recibir es un formulario en
+página propia.{% endcomment %}
+<div class="space-y-6">
+
+  {% page_header titulo="Emergencia · Kits" eyebrow=dispositivo.nombre volver_url=url_dispositivo volver_label="el dispositivo" bajada="Las entregas que la mesa de Emergencia le envió a este dispositivo. Abrí una entrega para confirmar lo que llegó: corregí solo las cantidades distintas y sacale una foto al remito." %}
+  {% endpage_header %}
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if filas %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Entrega</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th">En camino desde</th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">
+              <a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.entrega.numero }}</a>
+              <span class="block text-xs text-body-subtle">{{ fila.items }}</span>
+            </td>
+            <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span></td>
+            <td class="nodo-td text-body">{{ fila.en_camino_desde|default:"Sin marca de salida" }}</td>
+            <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+              <a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Recibir la entrega {{ fila.entrega.numero }}">
+                <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="No hay entregas por recibir" texto="Cuando la mesa de Emergencia arme una entrega para este dispositivo, aparece acá." %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
