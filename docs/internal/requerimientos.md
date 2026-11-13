@@ -55306,7 +55306,7 @@ Dispositivos los tres puntos de extensión que Emergencia necesita sin cambiar n
 
 ## Alcance acordado
 
-**Entra:** `ReservaPlaza.derivacion` (FK anulable a `Derivacion`); `estadias.reservar_plazas_de_derivacion`,
+**Entra:** `ReservaPlaza.derivacion` (FK anulable a `Derivacion`); `reservas_derivacion.reservar_plazas_de_derivacion`,
 `consumir_reserva_de_derivacion` y `liberar_reservas_de_derivacion`; `reserva_propia_vigente`,
 `_exigir_persona_sin_alojamiento_ni_reserva` e `ingreso._reservas_abiertas_de` excluyen las reservas de derivación;
 `bitacora.anotar_novedad_automatica`; la señal `estadia_egresada` enviada dentro de `egresar_persona`;
@@ -55350,8 +55350,8 @@ mostrando como reservadas.
 ## Archivos
 
 `programas/models/__init__.py`, `programas/migrations/0120_reserva_plaza_derivacion.py`,
-`programas/services/{estadias, ingreso, bitacora, ocupacion}.py`, `programas/senales.py` (nuevo),
-`programas/tests/{test_dispositivos_reservas_derivacion, test_emergencia_reservas_concurrencia}.py`.
+`programas/services/{estadias, ingreso, bitacora, ocupacion}.py`, `programas/services/reservas_derivacion.py` (nuevo),
+`programas/senales.py` (nuevo), `programas/tests/{test_dispositivos_reservas_derivacion, test_emergencia_reservas_concurrencia}.py`.
 
 ## Base de datos
 
@@ -55389,6 +55389,13 @@ liberar** en su próximo ingreso. Revertir con familias en ingreso deja sus cama
 ## Historial
 
 - **12/11/2026 — alta del cambio** (PR 12; el PR 6 se cerró en la ola 3, commits `0344a214`, `8d684d7c` y `a5b9e38e`).
+- **13/11/2026 — auditoría del PR #1131 (CHANGES_NEEDED @ `2f06d275`), arreglada en `db664c4f`.** Las reservas de
+  derivación salen de `estadias.py` (1316 → 1033 líneas) a `programas/services/reservas_derivacion.py`, sin cambio de
+  comportamiento ni de candados; `consumir_reserva_de_derivacion` aplica la D2 del Cambio 409 como `confirmar_ingreso`
+  (libera las reservas **comunes** de quien entra, en cualquier dispositivo, con `MOTIVO_RESERVA_CERRADA_POR_INGRESO` y el
+  re-chequeo `RESERVA_NUEVA_DURANTE_EL_INGRESO`); `_exigir_desde_no_futuro`/`_crear_reserva` y
+  `bitacora._escribir_automatica` sacan las altas duplicadas; el recorte del motivo lee el `max_length` del modelo. El
+  PR 7 ya comprobaba `reserva.derivacion_id == derivacion.pk` antes de consumir.
 
 ---
 
