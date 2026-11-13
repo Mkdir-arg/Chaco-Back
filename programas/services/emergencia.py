@@ -5,7 +5,9 @@ derivar, cancelar y cerrar (etapas 1 y 2 del módulo).
 llaman a estas mismas funciones (RU-2): una regla que solo esté en una vista o en un
 serializer es un defecto. Lo que se lee —bandeja, semáforo, panel de derivar— está en
 ``programas.selectors.emergencia``. El alta —el Formulario 1 y ``crear_caso``— vive en
-``programas.services.emergencia_alta`` y se sigue pudiendo importar desde acá.
+``programas.services.emergencia_alta``, y la traza, el permiso de la mesa y el numerador
+que comparten los dos en ``programas.services.emergencia_comun``; todo eso se sigue
+pudiendo importar desde acá.
 
 Cómo está hecha cada función
 ----------------------------
@@ -77,15 +79,33 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from programas.models import (
-    CasoEmergencia,
-    ContactoCaso,
-    Derivacion,
-    NumeradorEmergencia,
-    TrazaCaso,
-)
+from programas.models import CasoEmergencia, ContactoCaso, Derivacion, TrazaCaso
 from programas.selectors.emergencia import dispositivo_elegible
 from programas.services.configuracion_emergencia import sla_vigente
+
+# El alta del caso se mudó a `emergencia_alta`; se reexporta para que los imports de siempre
+# (la API, el ingreso directo, los formularios, los tests) sigan andando.
+from programas.services.emergencia_alta import (  # noqa: F401
+    CAP_ADMITIR,
+    NECESIDADES,
+    NECESIDADES_CRITICAS,
+    PRIMERA_TRAZA,
+    SIN_PERMISO_DE_INGRESO_DIRECTO,
+    SIN_PERMISO_DE_RELEVAR,
+    UUID_EN_USO,
+    _caso_de_ese_envio,
+    _como_uuid,
+    crear_caso,
+    prioridad_sugerida,
+)
+from programas.services.emergencia_comun import (  # noqa: F401
+    SIN_PERMISO_DE_MESA,
+    _bloquear_numerador,
+    _exigir_mesa,
+    _trazar,
+    siguiente_correlativo,
+    siguiente_numero,
+)
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -137,7 +157,6 @@ MOTIVOS_DE_CIERRE_MANUAL = (
     CasoEmergencia.MotivoCierre.OTRO,
 )
 
-SIN_PERMISO_DE_MESA = "No tenés permiso para operar la mesa de Emergencia."
 SIN_PERMISO_DE_SUPERVISAR = "Solo quien supervisa la mesa puede reasignar un caso."
 NO_ES_EL_DUENIO = "Solo quien tiene tomado el caso, o quien supervisa la mesa, puede hacer esto."
 CASO_CERRADO = "El caso está cerrado y no se reabre. Si hace falta, cargá uno nuevo."
@@ -220,11 +239,6 @@ def _hora(momento):
     return f"{timezone.localtime(momento):%H:%M}"
 
 
-def _exigir_mesa(usuario):
-    if not puede_operar_la_mesa(usuario):
-        raise PermissionDenied(SIN_PERMISO_DE_MESA)
-
-
 def _bloquear_caso(caso):
     """La fila del caso con ``FOR UPDATE``, recién leída. **Siempre el primer candado.**
 
@@ -257,60 +271,6 @@ def _exigir_duenio_o_supervisor(caso, usuario):
     if puede_supervisar_la_mesa(usuario):
         return True
     raise PermissionDenied(NO_ES_EL_DUENIO)
-
-
-def _trazar(caso, usuario, accion, *, estado_anterior, detalle="", por_supervisor=False):
-    """Una fila de ``TrazaCaso``: aditiva e inmutable, en la transacción de la acción.
-
-    El detalle nombra a quienes trabajan en la mesa, nunca a la familia: la ficha de la
-    persona vive en su legajo, con su propio control de acceso.
-    """
-
-    if por_supervisor:
-        detalle = f"{detalle} · por supervisor" if detalle else "Por supervisor"
-    return TrazaCaso.objects.create(
-        caso=caso,
-        usuario=usuario,
-        accion=accion,
-        estado_anterior=estado_anterior,
-        estado_nuevo=caso.estado,
-        detalle=detalle,
-        por_supervisor=por_supervisor,
-    )
-
-
-def _bloquear_numerador(serie, anio):
-    """La fila del contador con ``FOR UPDATE``: quien numera espera acá al anterior."""
-
-    return NumeradorEmergencia.objects.select_for_update().get(serie=serie, anio=anio)
-
-
-def siguiente_correlativo(serie, momento=None):
-    """``(año, correlativo)`` del próximo número de ``serie``, bloqueando su contador.
-
-    Una fila por serie y año con ``select_for_update``: quien numera espera al anterior y
-    suma uno sobre lo que aquel dejó. Nunca ``MAX() + 1``. El año es el de la hora local.
-    Tiene que correr dentro de una transacción: el candado se suelta con su commit, y si
-    la transacción vuelve atrás el número también. Cada serie le da su formato: la ``C``
-    acá abajo (:func:`siguiente_numero`) y la ``K`` en ``programas.services.kits``.
-    """
-
-    anio = timezone.localtime(momento or timezone.now()).year
-    NumeradorEmergencia.objects.get_or_create(serie=serie, anio=anio)
-    numerador = _bloquear_numerador(serie, anio)
-    numerador.ultimo += 1
-    numerador.save(update_fields=["ultimo", "modificado"])
-    return anio, numerador.ultimo
-
-
-def siguiente_numero(serie, momento=None):
-    """El próximo número de ``serie`` con el formato de los casos («2026-000184»).
-
-    Es :func:`siguiente_correlativo` más el formato de ``CasoEmergencia``. Las entregas de
-    kits usan el mismo contador (serie ``K``) con su propio formato, «2026-K-000031».
-    """
-
-    return CasoEmergencia.formatear_numero(*siguiente_correlativo(serie, momento))
 
 
 # ---------------------------------------------------------------------------
@@ -771,36 +731,3 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
         por_supervisor=por_supervisor,
     )
     return caso
-
-
-# ---------------------------------------------------------------------------
-# El alta vive en `emergencia_alta`
-# ---------------------------------------------------------------------------
-
-#: Lo que se mudó a ``programas.services.emergencia_alta`` y se sigue importando desde acá
-#: (la mesa, la API, el ingreso directo, los tests). Se resuelve a pedido y no con un
-#: ``import`` arriba: ``emergencia_alta`` importa de este módulo, y un import en los dos
-#: sentidos rompe según cuál se cargue primero.
-_DEL_ALTA = frozenset(
-    {
-        "CAP_ADMITIR",
-        "NECESIDADES",
-        "NECESIDADES_CRITICAS",
-        "PRIMERA_TRAZA",
-        "SIN_PERMISO_DE_INGRESO_DIRECTO",
-        "SIN_PERMISO_DE_RELEVAR",
-        "UUID_EN_USO",
-        "_caso_de_ese_envio",
-        "_como_uuid",
-        "crear_caso",
-        "prioridad_sugerida",
-    }
-)
-
-
-def __getattr__(nombre):
-    if nombre in _DEL_ALTA:
-        from programas.services import emergencia_alta
-
-        return getattr(emergencia_alta, nombre)
-    raise AttributeError(f"module {__name__!r} has no attribute {nombre!r}")
