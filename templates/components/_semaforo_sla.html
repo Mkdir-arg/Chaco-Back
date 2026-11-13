@@ -1,0 +1,16 @@
+{% comment %}
+Semáforo de SLA de un caso de Emergencia: una pieza, dos variantes (fila de la bandeja y reloj de la ficha).
+  {% include "components/_semaforo_sla.html" with estado=sla.estado minutos=sla.minutos tramo=sla.tramo only %}
+  {% include "components/_semaforo_sla.html" with estado=sla.estado minutos=sla.minutos tramo=sla.tramo variante="reloj" only %}
+Contexto:
+  estado    EN_TERMINO | POR_VENCER | FUERA, ya resuelto por el selector (`estado_sla`). La pieza no calcula
+            nada: no conoce objetivos, umbrales ni marcas de tiempo. Cualquier otro valor (o ninguno) dibuja
+            el badge neutro «Sin SLA», sin minutos.
+  minutos   entero ya calculado: en EN_TERMINO y POR_VENCER, los que faltan para que venza el tramo; en FUERA,
+            los que lleva excedido. Sin él (None o vacío) el texto no lleva minutos; un 0 se muestra.
+  tramo     opcional, el tramo en curso («tomar», «derivar», «aceptar», «alojar»). Solo lo usa el reloj.
+  variante  «reloj» (opcional): texto largo para la cabecera de la ficha («Derivar vence en 8 min»), con
+            role="status". Sin ella, o con cualquier otro valor, es el badge corto de la fila.
+El estado va siempre en texto e ícono además del color (RU-19).
+{% endcomment %}
+<span class="badge badge-dot {% if estado == 'EN_TERMINO' %}badge-success{% elif estado == 'POR_VENCER' %}badge-warning{% elif estado == 'FUERA' %}badge-danger{% else %}badge-gray{% endif %}" data-semaforo-sla="{% if estado == 'EN_TERMINO' or estado == 'POR_VENCER' or estado == 'FUERA' %}{{ estado }}{% endif %}"{% if variante == 'reloj' %} role="status"{% endif %}><i class="fas {% if estado == 'EN_TERMINO' %}fa-circle-check{% elif estado == 'POR_VENCER' %}fa-clock{% elif estado == 'FUERA' %}fa-triangle-exclamation{% else %}fa-circle{% endif %}" aria-hidden="true"></i> {% with hay_minutos=minutos|default_if_none:""|stringformat:"s"|length %}{% if estado == 'FUERA' %}{% if variante == 'reloj' and tramo %}{{ tramo|lower|capfirst }} · {% endif %}Fuera de SLA{% if hay_minutos %} · {{ minutos }} min{% endif %}{% elif estado == 'EN_TERMINO' or estado == 'POR_VENCER' %}{% if variante == 'reloj' %}{% if estado == 'POR_VENCER' %}Por vencer{% if hay_minutos or tramo %} · {% endif %}{% endif %}{% if hay_minutos %}{% if tramo %}{{ tramo|lower|capfirst }} vence{% else %}Vence{% endif %} en {{ minutos }} min{% elif tramo %}{{ tramo|lower|capfirst }}{% if estado == 'EN_TERMINO' %} en término{% endif %}{% elif estado == 'EN_TERMINO' %}En término{% endif %}{% else %}{% if estado == 'POR_VENCER' %}Por vencer{% else %}En término{% endif %}{% if hay_minutos %} · {{ minutos }} min{% endif %}{% endif %}{% else %}Sin SLA{% endif %}{% endwith %}</span>
