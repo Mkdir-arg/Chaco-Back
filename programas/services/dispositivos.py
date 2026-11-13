@@ -109,7 +109,7 @@ def membresias_vigentes(user, programa):
 def responsables_vigentes(dispositivo):
     """Responsables del Equipo de ``dispositivo`` cuya membresía todavía vale (``q_membresia_vigente``).
 
-    La usan la gestión del Equipo (no dejarlo sin responsables) y el contacto del legajo (Cambio 457).
+    La usan la gestión del Equipo (no dejarlo sin responsables) y el contacto del legajo (Cambio 459).
     """
 
     from programas.models import MiembroEquipoDispositivo
@@ -119,7 +119,7 @@ def responsables_vigentes(dispositivo):
     )
 
 
-# Contacto del legajo (Cambios 450 y 457). Vive acá y no en `equipo_dispositivo` porque las
+# Contacto del legajo (Cambios 450 y 459). Vive acá y no en `equipo_dispositivo` porque las
 # transiciones de este módulo lo sincronizan antes de exigir los datos: así el import va en
 # un solo sentido (equipo_dispositivo → dispositivos) y no abre un ciclo.
 
@@ -129,7 +129,7 @@ def nombre_de_persona(usuario):
 
 
 def datos_de_contacto(usuario):
-    """Responsable y contacto del legajo tomados de la persona (Cambios 450 y 457).
+    """Responsable y contacto del legajo tomados de la persona (Cambios 450 y 459).
 
     Ni el alta ni la edición los piden a mano: salen del primer responsable (el elegido en el
     alta, después el del Equipo: ``contacto_del_equipo``). Sin perfil, documento y teléfono quedan vacíos.
@@ -184,7 +184,7 @@ def contacto_del_equipo(dispositivo, usuario=None):
     """El contacto que el legajo tiene que tener según su responsable, o ``None`` si no hay de quién tomarlo.
 
     Cada dato sale de la persona; el que su perfil no trae válido conserva el valor guardado en
-    el legajo, así un contacto cargado antes no se borra al sincronizar (Cambio 457).
+    el legajo, así un contacto cargado antes no se borra al sincronizar (Cambio 459).
     """
     usuario = usuario or responsable_de_contacto(dispositivo)
     if usuario is None:
@@ -198,7 +198,7 @@ def sincronizar_contacto(dispositivo):
     Devuelve los cambios con la forma de la traza de edición, ``{campo: {"anterior", "nuevo"}}``.
 
     La llaman la edición y las transiciones que exigen los datos (enviar a validación y validar),
-    así un cambio de perfil o de Equipo llega al legajo antes de chequearlo (Cambio 457).
+    así un cambio de perfil o de Equipo llega al legajo antes de chequearlo (Cambio 459).
     """
     contacto = contacto_del_equipo(dispositivo)
     if contacto is None:
@@ -404,7 +404,7 @@ def _exigir_campos_para_validacion(dispositivo):
 
 
 def _sincronizar_contacto(dispositivo, usuario):
-    """Antes de exigir los datos, el contacto del legajo se pone al día con su responsable (Cambio 457).
+    """Antes de exigir los datos, el contacto del legajo se pone al día con su responsable (Cambio 459).
 
     Si el perfil del responsable o el Equipo cambiaron después del último guardado, el chequeo ve
     lo vigente; lo que se copia queda en la traza como una edición más.

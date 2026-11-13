@@ -1,4 +1,4 @@
-"""Edición de dispositivo: el contacto sale siempre del primer responsable del Equipo (Cambio 457).
+"""Edición de dispositivo: el contacto sale siempre del primer responsable del Equipo (Cambio 459).
 
 El alta ya tomaba «Responsable y contacto» de la persona elegida (Cambio 450), pero la edición
 seguía pidiendo los cuatro campos a mano y era el único lugar donde cargar un teléfono faltante.

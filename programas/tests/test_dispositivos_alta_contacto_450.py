@@ -3,7 +3,7 @@
 «Responsable y contacto» ya no se pide a mano en el alta: «Responsables del dispositivo» es un
 buscador múltiple y el legajo copia nombre, documento, teléfono y email de la primera persona
 elegida (en el orden del listado, que es el de las píldoras). La edición los toma del primer
-responsable del Equipo (Cambio 457); solo un legajo sin responsables los sigue pidiendo a mano.
+responsable del Equipo (Cambio 459); solo un legajo sin responsables los sigue pidiendo a mano.
 """
 
 from django.urls import reverse
@@ -114,7 +114,7 @@ class AltaContactoDelResponsableTests(BaseUI):
         self.assertEqual(con_telefono.faltantes_responsable, [])
 
     def test_la_edicion_sin_responsables_sigue_mostrando_responsable_y_contacto(self):
-        # Con responsables, la edición también toma el contacto de la persona (Cambio 457).
+        # Con responsables, la edición también toma el contacto de la persona (Cambio 459).
         self._entrar(self.admin)
         respuesta = self.client.get(reverse("dispositivos:editar", args=[self.disp_b.pk]))
         for campo in CAMPOS:

@@ -1150,7 +1150,7 @@ class DispositivoForm(forms.ModelForm):
         )
 
     def _contacto_desde_el_equipo(self):
-        """Edición (Cambio 457): con un responsable en el Equipo, el contacto sale de esa persona.
+        """Edición (Cambio 459): con un responsable en el Equipo, el contacto sale de esa persona.
 
         Los cuatro campos dejan de pedirse, igual que en el alta; se corrigen en el perfil de la
         persona o cambiando los responsables en la solapa Equipo. Un legajo sin responsables (anterior
@@ -1171,7 +1171,7 @@ class DispositivoForm(forms.ModelForm):
     @property
     def responsable_de_contacto(self):
         """La persona de la que sale el contacto del legajo: en el alta la primera elegida; en la
-        edición el primer responsable del Equipo (Cambio 457). None si no hay."""
+        edición el primer responsable del Equipo (Cambio 459). None si no hay."""
         if "responsables" not in self.fields:
             return self._responsable_del_equipo
         elegidos = {str(valor) for valor in (self["responsables"].value() or [])}
@@ -1189,7 +1189,7 @@ class DispositivoForm(forms.ModelForm):
 
     @property
     def contacto_del_equipo(self):
-        """Edición: el contacto que el legajo toma de su responsable al guardar (Cambio 457), o None."""
+        """Edición: el contacto que el legajo toma de su responsable al guardar (Cambio 459), o None."""
         from programas.services.dispositivos import contacto_del_equipo
 
         if self._responsable_del_equipo is None:

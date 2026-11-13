@@ -694,7 +694,7 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
             }
             for field in form.changed_data:
                 setattr(dispositivo, field, form.cleaned_data[field])
-            # Cambio 457: el contacto no se edita a mano si hay responsable; sale de esa persona.
+            # Cambio 459: el contacto no se edita a mano si hay responsable; sale de esa persona.
             contacto = sincronizar_contacto(dispositivo)
             cambios.update(contacto)
             if cambios:
