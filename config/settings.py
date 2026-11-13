@@ -604,6 +604,12 @@ REST_FRAMEWORK = {
         # `RenaperRateThrottle` con SEC-04 (#509) y estaba reservada para este
         # throttle (R0-05).
         "personas_campo": "120/hour",
+        # Emergencia M2-1 · `GET /api/emergencia/dispositivos/{id}/buscar/?dni=`
+        # dice si un DNI tiene derivación o está alojado en la red: sin tope, un
+        # token perdido enumera DNIs. Por usuario, como `personas_campo`, y más
+        # holgado: una guardia en plena evacuación busca cientos de familias por
+        # turno, y cada 429 deja a una en la puerta.
+        "emergencia_buscar": "300/hour",
     },
 }
 
