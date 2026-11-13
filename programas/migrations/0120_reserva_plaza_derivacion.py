@@ -20,7 +20,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("legajos", "0011_indices_redundantes_red83"),
-        ("programas", "0118_emergencia_casos"),
+        ("programas", "0119_emergencia_casos"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
