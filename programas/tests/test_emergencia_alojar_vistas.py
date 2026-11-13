@@ -41,7 +41,7 @@ from programas.models import (
 from programas.selectors import emergencia_mesa
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
-from programas.tests.test_emergencia_alojar import BaseAlojar
+from programas.tests.test_emergencia_alojar_base import BaseAlojar
 from programas.tests.test_emergencia_casos import JPEG
 
 Estado = CasoEmergencia.Estado
