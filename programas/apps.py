@@ -13,7 +13,7 @@ class ProgramasConfig(AppConfig):
         # `manage.py procesar_vencimientos`); `vencimientos_emergencia`: las de la mesa de
         # Emergencia, después de las de Becas. `alertas_dispositivos`: las reglas de aviso
         # del detalle del dispositivo, en el mismo registro (las lee P4, no el cron).
-        # `emergencia_alojar`: el receptor de `estadia_egresada` que marca al integrante y cierra
+        # `emergencia_cierre`: el receptor de `estadia_egresada` que marca al integrante y cierra
         # el caso de Emergencia cuando egresa el último (RN-3.12).
         from programas import signals  # noqa: F401
         from programas.services import (  # noqa: F401
@@ -21,6 +21,6 @@ class ProgramasConfig(AppConfig):
             vencimientos,
             vencimientos_emergencia,
         )
-        from programas.services.emergencia_alojar import conectar_receptores
+        from programas.services.emergencia_cierre import conectar_receptores
 
         conectar_receptores()

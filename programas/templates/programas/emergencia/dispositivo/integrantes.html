@@ -5,7 +5,7 @@
 
 {% block main-content %}
 {% comment %}E6 · paso 2 del guion de la guardia (M2-3): las N filas de la familia con el contador «3 de 7».
-Qué botón se ofrece lo decide la vista (`puede_*`, `en_curso`); el servicio lo vuelve a exigir en cada POST.
+Qué botón se ofrece lo decide `services.emergencia_ingreso_comun.acciones_del_ingreso` (`puede_*`); el servicio lo vuelve a exigir en cada POST.
 «Agregar persona» es una confirmación sí/no (`data-confirm-url` → ModernModal); cerrar con diferencia y cancelar
 el ingreso piden motivo y son el arquetipo Modal con POST clásico.{% endcomment %}
 <div x-data="{ modalDiferencia: false, modalCancelar: false }">
@@ -19,7 +19,7 @@ el ingreso piden motivo y son el arquetipo Modal con POST clásico.{% endcomment
       {% endif %}
       {# Las acciones secundarias van al menú; si ninguna corresponde al estado, el menú no se dibuja #}
       {% menu_fila id="acciones-ingreso" etiqueta="Más acciones del ingreso de la "|add:familia texto="Más acciones" %}
-        {% if en_curso %}
+        {% if puede_agregar %}
         {% include "components/_menu_fila_item.html" with texto="Agregar persona" icono="fa-user-plus" confirm_url=url_agregar confirm_title="¿Agregar una persona a la familia?" confirm_text="Suma una fila que no estaba declarada. No tiene cama reservada: se elige entre las libres al confirmarla." confirm_ok="Sí, agregar" only %}
         {% endif %}
         {% if puede_diferencia %}
