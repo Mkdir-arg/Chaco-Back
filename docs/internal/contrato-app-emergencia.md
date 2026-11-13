@@ -13,6 +13,8 @@ Alcance de esta versión: login, perfil y **M1 · Ingreso de familias** (Formula
 territorial, PR 5), **M3 · Recepción de kits** en el dispositivo (PR 9-API, §9 a §12) y **M2 · Llegada de
 familias** (PR 8, §13).
 
+Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del módulo: [`emergencia-manual.md`](emergencia-manual.md).
+
 ## Resumen de extremos
 
 | Método y ruta | Quién | Para qué |
@@ -762,7 +764,7 @@ directo.
 ### 13.11 La ficha individual (Formulario 2)
 
 Esquema **fijo y versionado** (decisión 6 del PM). La única definición es
-`ESQUEMA_FICHA` en `programas/services/emergencia_alojar.py`; lo de abajo es su copia para la app.
+`ESQUEMA_FICHA` en `programas/services/emergencia_ficha.py` (reexportado por `emergencia_alojar`); lo de abajo es su copia para la app.
 Se manda anidada por sección; lo que no es del esquema se ignora. Una pregunta sin responder **no se
 manda** (o se manda `null` o `""`); `false` **es** una respuesta. Lo que se guarda lleva además
 `"version": 1`.
