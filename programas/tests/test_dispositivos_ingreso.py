@@ -215,6 +215,52 @@ class FlujoDeIngresoTests(BaseIngreso):
         self.assertNotContains(self.client.get(self.url_confirmar), "Tiene una reserva vigente")
 
 
+class PlazaSugeridaDesdeElMapaTests(BaseIngreso):
+    """«Ingresar persona» desde una plaza del mapa: el asistente llega con esa plaza marcada en el paso 2."""
+
+    def test_la_plaza_del_mapa_llega_marcada_despues_de_elegir_a_la_persona(self):
+        self.assertRedirects(self.client.get(f"{self.url_persona}?plaza={self.otra_plaza.pk}"), self.url_persona)
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+
+        respuesta = self.client.get(self.url_plaza)
+
+        self.assertEqual(respuesta.context["mostrado"]["plaza"], str(self.otra_plaza.pk))
+
+    def test_un_digito_que_no_es_ascii_se_ignora_sin_500(self):
+        respuesta = self.client.get(f"{self.url_persona}?plaza=²")
+
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_marcarla_no_la_guarda_ni_la_toma(self):
+        self.client.get(f"{self.url_persona}?plaza={self.otra_plaza.pk}")
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+
+        self.client.get(self.url_plaza)
+
+        self.assertRedirects(self.client.get(self.url_confirmar), self.url_plaza)
+        self.assertFalse(Estadia.objects.filter(plaza=self.otra_plaza).exists())
+
+    def test_una_plaza_que_no_se_puede_elegir_no_llega_marcada(self):
+        """La de otro dispositivo, por ejemplo: la sugerencia solo marca lo que el mapa del ingreso ofrece."""
+
+        self.client.get(f"{self.url_persona}?plaza={self.plaza_parador.pk}")
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+
+        respuesta = self.client.get(self.url_plaza)
+
+        self.assertEqual(respuesta.context["mostrado"]["plaza"], "")
+
+    def test_el_ingreso_termina_en_la_plaza_sugerida(self):
+        self.client.get(f"{self.url_persona}?plaza={self.otra_plaza.pk}")
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+        pagina = self.client.get(self.url_plaza)
+        self.client.post(self.url_plaza, self._campos_ocultos(pagina))
+
+        self._confirmar()
+
+        self.assertEqual(Estadia.objects.get(ciudadano=self.persona).plaza, self.otra_plaza)
+
+
 class EyebrowConElTurnoTests(BaseIngreso):
     """El eyebrow de P6 es «CIS N.º 3 · turno Tarde · 08/09/2026 16:48» (carril C3).
 
