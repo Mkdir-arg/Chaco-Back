@@ -93,6 +93,7 @@ from programas.services.emergencia_alta import (  # noqa: F401
     SIN_PERMISO_DE_INGRESO_DIRECTO,
     SIN_PERMISO_DE_RELEVAR,
     UUID_EN_USO,
+    UuidEnUso,
     _caso_de_ese_envio,
     _como_uuid,
     crear_caso,

@@ -20,6 +20,7 @@ este archivo:
 """
 
 import uuid
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.db import connection
@@ -41,6 +42,7 @@ from programas.models import (
 from programas.selectors import emergencia_alojar as selectores
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
+from programas.services import emergencia_alta
 from programas.tests.test_emergencia_alojar import GUARDIA, ficha_minima
 from programas.tests.test_emergencia_api_contrato import (
     ADMITIR,
@@ -889,6 +891,42 @@ class SinDerivacionApiTests(BaseApiLlegadas):
         self.assertEqual(respuesta.status_code, 409)
         self.assertEqual(respuesta.json()["code"], "UUID_EN_USO")
         self.assertEqual(CasoEmergencia.objects.count(), 1)
+
+    def test_el_409_sale_por_tipo_aunque_cambie_el_texto_del_mensaje(self):
+        """``_ejecutar`` atrapa ``UuidEnUso`` por tipo, no compara el texto (PR #1130).
+
+        **Mutación vista en rojo:** con la comparación de ``errores["uuid_cliente"]`` contra
+        ``[UUID_EN_USO]`` de vuelta, el mensaje cambiado sale como 400. Restaurada, verde.
+        """
+        identificador = uuid.uuid4()
+        self._como(self.guardia_escuela).post(
+            _url("dispositivo-ingreso-directo", self.escuela.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+
+        with mock.patch.object(emergencia_alta, "UUID_EN_USO", "Ese identificador ya lo usó otra persona."):
+            respuesta = self._como(self.guardia_centro).post(
+                _url("dispositivo-avisar-mesa", self.centro.pk), self._cuerpo_puerta(identificador), format="multipart"
+            )
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertEqual(
+            respuesta.json(), {"detail": "Ese identificador ya lo usó otra persona.", "code": "UUID_EN_USO"}
+        )
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
+    def test_las_reglas_del_formulario_1_en_la_puerta_son_las_del_servicio(self):
+        """Mismo serializer que M1: ni tope propio de ``traslado_otro`` ni mínimo propio en las cantidades."""
+        cliente = self._como(self.guardia_centro)
+        url = _url("dispositivo-ingreso-directo", self.centro.pk)
+
+        negativa = cliente.post(url, self._cuerpo_puerta(adultos_f=-1, traslado=""), format="multipart")
+        largo = cliente.post(url, self._cuerpo_puerta(traslado="OTRA", traslado_otro="G" * 80), format="multipart")
+
+        self.assertEqual(negativa.status_code, 400, negativa.content)
+        self.assertEqual(negativa.json()["adultos_f"], ["No puede ser negativo."])
+        self.assertIn("traslado", negativa.json())
+        self.assertEqual(largo.status_code, 201, largo.content)
+        self.assertEqual(CasoEmergencia.objects.get().grupo.traslado_otro, "G" * 80)
 
     def test_avisar_a_la_mesa_crea_un_caso_nuevo_e_idempotente(self):
         identificador = uuid.uuid4()
