@@ -132,7 +132,10 @@ class AccesoALlegadasTests(BaseApiLlegadas):
         admin = self._guardia("admin_disp", ["programa.configurar"])
         cliente = self._como(admin)
 
-        self.assertEqual(cliente.get("/api/emergencia/perfil/").json(), {"relevar": False, "dispositivo": False})
+        self.assertEqual(
+            cliente.get("/api/emergencia/perfil/").json(),
+            {"relevar": False, "llegadas": False, "kits": False, "dispositivo": False},
+        )
         respuesta = cliente.get(_url("dispositivo-buscar", self.centro.pk), {"dni": "30111222"})
         self.assertEqual((respuesta.status_code, respuesta.json()), (403, SIN_ADMITIR))
 
@@ -140,7 +143,10 @@ class AccesoALlegadasTests(BaseApiLlegadas):
         admin = self._guardia("admin_disp", ["programa.configurar", *GUARDIA])
         cliente = self._como(admin)
 
-        self.assertEqual(cliente.get("/api/emergencia/perfil/").json(), {"relevar": False, "dispositivo": True})
+        self.assertEqual(
+            cliente.get("/api/emergencia/perfil/").json(),
+            {"relevar": False, "llegadas": True, "kits": False, "dispositivo": True},
+        )
         respuesta = cliente.get(_url("caso-integrantes", self.caso.pk))
         self.assertEqual(respuesta.status_code, 200)
 

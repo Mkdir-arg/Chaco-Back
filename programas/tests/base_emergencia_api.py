@@ -53,7 +53,8 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 # --- El contrato: claves exactas de cada respuesta ---------------------------------------
 
 CLAVES_RAIZ = ["casos", "casos/mios", "localidades", "mis-dispositivos", "perfil", "personas/consultar"]
-CLAVES_PERFIL = ["dispositivo", "relevar"]
+# `llegadas` y `kits` (Cambio 475) son aditivas: `dispositivo` sigue siendo `llegadas or kits`.
+CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "relevar"]
 CLAVES_LOCALIDAD = ["id", "nombre"]
 CLAVES_CASO_CREADO = ["id", "numero", "prioridad", "total_declarado"]
 CLAVES_MI_CASO = ["creado_en", "estado", "numero", "total_declarado"]
@@ -61,7 +62,16 @@ CLAVES_CONSULTA = ["data", "datos_api", "origen", "success"]
 CLAVES_SIN_MODULO = ["code", "detail"]
 CLAVES_UUID_EN_USO = ["code", "detail"]
 # M3 · Recepción de kits (PR 9-API).
-CLAVES_MI_DISPOSITIVO = ["derivaciones_pendientes", "entregas_pendientes", "id", "nombre", "plazas_libres"]
+# `admite` y `recibe_kits` (Cambio 475) son aditivas.
+CLAVES_MI_DISPOSITIVO = [
+    "admite",
+    "derivaciones_pendientes",
+    "entregas_pendientes",
+    "id",
+    "nombre",
+    "plazas_libres",
+    "recibe_kits",
+]
 CLAVES_ENTREGA = [
     "despachada_en",
     "estado",

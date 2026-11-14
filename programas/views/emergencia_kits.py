@@ -53,7 +53,7 @@ from programas.services import kits as servicio
 from programas.services.configuracion_emergencia import catalogo_kits
 from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa
+from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa, recibe_kits
 
 TEMPLATE_LISTADO = "programas/emergencia/kits/list.html"
 TEMPLATE_DETALLE = "programas/emergencia/kits/detail.html"
@@ -539,7 +539,7 @@ class RecepcionKitsMixin(LoginRequiredMixin):
         en_alcance = dispositivos_en_alcance(request.user, CAP_RECIBIR_KIT)
         self.dispositivo = en_alcance.filter(pk=kwargs["dispositivo"]).first()
         if self.dispositivo is None:
-            if not servicio.recibe_kits(request.user):
+            if not recibe_kits(request.user):
                 raise PermissionDenied
             raise Http404("Dispositivo inexistente.")
         return super().dispatch(request, *args, **kwargs)

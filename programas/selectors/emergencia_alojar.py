@@ -146,7 +146,8 @@ def resumen_de_llegadas(dispositivos, momento=None):
     """``{id: {"plazas_libres", "derivaciones_pendientes"}}`` de varios dispositivos de una vez (M2, mis-dispositivos).
 
     ``dispositivos`` es un queryset de ``Dispositivo`` (va como subconsulta, no se evalúa
-    aparte). Un dispositivo sin camas libres ni derivaciones no figura: quien lee usa ``0``.
+    aparte) o una lista de ids (``mis-dispositivos`` le pasa los de la fila donde admite). Un
+    dispositivo sin camas libres ni derivaciones no figura: quien lee usa ``0``.
 
     * ``plazas_libres`` — **la misma cuenta que** :func:`camas_libres`, hecha en la base:
       camas de sectores activos, no fuera de servicio, sin estadía activa y sin una reserva
