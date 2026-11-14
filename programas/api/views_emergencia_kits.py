@@ -1,6 +1,6 @@
 """API de campo de Emergencia, M3: recepción de kits, y «mis dispositivos» de la guardia.
 
-`EmergenciaRecibirKitPermission` es «recibe kits en algún dispositivo» (``kits.recibe_kits``):
+`EmergenciaRecibirKitPermission` es «recibe kits en algún dispositivo» (``emergencia_programa.recibe_kits``):
 sin eso, 403 ``SIN_MODULO``. Con la capacidad pero sin alcance sobre **ese** dispositivo o
 **esa** entrega, **404**, igual que un id inexistente (plan §2, C2). `recibir_entrega` es la
 misma función que usa la recepción web: la vista solo traduce lo que rechaza

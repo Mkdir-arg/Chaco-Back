@@ -597,7 +597,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 472 | Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa | Emergencia · tablero | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
 | 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
 | 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟡 **En curso — PR #1137 abierto, sin mergear** | No requiere |
-| 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟡 **En curso — rama `feat/emergencia-api-perfil-capacidades`, sin PR** | No requiere |
+| 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟡 **En curso — PR #1139 abierto, sin mergear** | No requiere |
 
 **Notas del índice**
 
@@ -56116,7 +56116,7 @@ Revertir el PR; sin migraciones.
 
 # Cambio 475 — Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`)
 
-🟡 **EN CURSO — 14/11/2026** · rama `feat/emergencia-api-perfil-capacidades`, sin PR abierto
+🟡 **EN CURSO — 14/11/2026** · PR #1139 (rama `feat/emergencia-api-perfil-capacidades`), sin mergear
 
 | | |
 |---|---|
@@ -56150,10 +56150,10 @@ cualquier clave renombrada o quitada: `dispositivo` sigue igual.
    funciones de los permisos `EmergenciaAdmitirPermission` y `EmergenciaRecibirKitPermission`—, así que lo que el perfil
    ofrece y lo que la ruta deja pasar no pueden divergir. Por dispositivo, `admite`/`recibe_kits` son
    `dispositivos_en_alcance(user, cap)` —la forma en lote de `puede_operar_dispositivo`—.
-3. **`recibe_kits` se mudó a `emergencia_programa.py`**, junto a `admite_familias`, y `kits.py` la reexporta (`import … as
-   recibe_kits`) para no romper a la web (`views/emergencia_kits.py`). La dependencia va de `kits` hacia
-   `emergencia_programa`, nunca al revés: sin ciclo. `opera_en_algun_dispositivo` queda como `admite_familias(u) or
-   recibe_kits(u)`.
+3. **`recibe_kits` se mudó a `emergencia_programa.py`**, junto a `admite_familias`; la API y la web
+   (`views/emergencia_kits.py`) la importan de ahí. La dependencia va de `kits` hacia `emergencia_programa`, nunca al revés:
+   sin ciclo. `opera_en_algun_dispositivo` se borró: su único llamador era `roles_en_app`, que ahora calcula
+   `dispositivo` como `llegadas or kits`.
 4. **Dos sets de ids, acotados a la lista.** El selector `mis_dispositivos` lee los ids donde admite y donde recibe con dos
    consultas fijas filtradas por los ids de la lista (no trae todos los dispositivos del admin del programa). Con una
    capacidad que no tiene en el programa ese alcance es `none()` y Django no va a la base. `mis-dispositivos` pasa de **8 a
@@ -56170,8 +56170,8 @@ permisos y los códigos de error no cambian.
 
 ## Archivos
 
-`programas/services/emergencia_programa.py` (`roles_en_app`, `opera_en_algun_dispositivo`, `recibe_kits`),
-`programas/services/kits.py` (reexporta), `programas/selectors/kits.py` (`mis_dispositivos`),
+`programas/services/emergencia_programa.py` (`roles_en_app`, `recibe_kits`), `programas/views/emergencia_kits.py` (importa
+`recibe_kits`), `programas/services/kits.py`, `programas/selectors/kits.py` (`mis_dispositivos`),
 `programas/selectors/emergencia_alojar.py` (docstring: acepta lista de ids), `programas/api/serializers_emergencia.py`,
 `programas/api/views_emergencia.py`, `programas/api/views_emergencia_kits.py`, `programas/tests/base_emergencia_api.py`
 (`CLAVES_PERFIL`, `CLAVES_MI_DISPOSITIVO`), `programas/tests/test_emergencia_api_contrato.py`,

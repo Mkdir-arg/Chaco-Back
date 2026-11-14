@@ -56,7 +56,6 @@ from programas.models import (
     TrazaEntrega,
 )
 from programas.selectors import kits as selectores
-from programas.services import emergencia_programa
 from programas.services import kits as servicio
 from programas.services.bitacora import crear_turno
 from programas.services.emergencia import EstadoCambio
@@ -870,8 +869,6 @@ class ObservarRecepcionTests(BaseKits):
                 "siguiente_numero_de_entrega",
             },
         )
-        # `recibe_kits` vive en `emergencia_programa` (Cambio 475) y `kits` la reexporta: no cambia nada.
-        self.assertIs(servicio.recibe_kits, emergencia_programa.recibe_kits)
 
 
 # ---------------------------------------------------------------------------

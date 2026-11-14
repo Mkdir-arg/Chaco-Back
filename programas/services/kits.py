@@ -69,7 +69,6 @@ from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio, UuidEnUso, siguiente_correlativo
 from programas.services.emergencia_comun import _hora
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
-from programas.services.emergencia_programa import recibe_kits as recibe_kits  # reexportada: la usa la recepción web
 
 Estado = EntregaKit.Estado
 Accion = TrazaEntrega.Accion

@@ -94,16 +94,6 @@ def roles_en_app(user):
     }
 
 
-def opera_en_algun_dispositivo(user):
-    """¿``user`` puede admitir familias o recibir kits en **algún** dispositivo? (perfil, PR 8).
-
-    Es la misma regla que aplican los servicios (``puede_operar_dispositivo``) en forma de
-    «existe alguno»: la capacidad en el programa Dispositivos y el alcance —el Equipo, o todo
-    si además administra el programa—.
-    """
-    return admite_familias(user) or recibe_kits(user)
-
-
 def admite_familias(usuario):
     """¿``usuario`` admite familias en **algún** dispositivo? Lo que abre «Llegada de familias» (M2).
 
