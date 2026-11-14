@@ -92,6 +92,11 @@ Estado = CasoEmergencia.Estado
 Prioridad = CasoEmergencia.Prioridad
 
 
+def _accesos(relevar=False, llegadas=False, kits=False):
+    """Lo que contesta ``roles_en_app``: ``dispositivo`` es siempre ``llegadas or kits``."""
+    return {"relevar": relevar, "llegadas": llegadas, "kits": kits, "dispositivo": llegadas or kits}
+
+
 # ---------------------------------------------------------------------------
 # La regla única de acceso (H10)
 # ---------------------------------------------------------------------------
@@ -100,24 +105,24 @@ Prioridad = CasoEmergencia.Prioridad
 class ModuloHabilitadoTests(BaseApiEmergencia):
     def test_el_agente_con_relevar_abre_el_modulo(self):
         self.assertTrue(modulo_habilitado(self.agente))
-        self.assertEqual(roles_en_app(self.agente), {"relevar": True, "dispositivo": False})
+        self.assertEqual(roles_en_app(self.agente), _accesos(relevar=True))
 
     def test_la_guardia_con_admitir_en_su_equipo_abre_el_modulo(self):
         self.assertTrue(modulo_habilitado(self.guardia))
-        self.assertEqual(roles_en_app(self.guardia), {"relevar": False, "dispositivo": True})
+        self.assertEqual(roles_en_app(self.guardia), _accesos(llegadas=True))
 
     def test_recibir_kit_en_el_equipo_tambien_lo_abre(self):
         deposito = self._guardia("deposito", [RECIBIR_KIT], [self.club])
 
         self.assertTrue(modulo_habilitado(deposito))
-        self.assertEqual(roles_en_app(deposito), {"relevar": False, "dispositivo": True})
+        self.assertEqual(roles_en_app(deposito), _accesos(kits=True))
 
     def test_admitir_en_un_rol_sin_equipo_no_lo_abre(self):
         """La capacidad sin un dispositivo sobre el que ejercerla no es un acceso."""
         sin_equipo = self._guardia("sin_equipo", [ADMITIR, RECIBIR_KIT])
 
         self.assertFalse(modulo_habilitado(sin_equipo))
-        self.assertEqual(roles_en_app(sin_equipo), {"relevar": False, "dispositivo": False})
+        self.assertEqual(roles_en_app(sin_equipo), _accesos())
 
     def test_una_fila_del_equipo_dada_de_baja_no_lo_abre(self):
         MiembroEquipoDispositivo.objects.filter(usuario=self.guardia).update(activo=False)
@@ -134,15 +139,15 @@ class ModuloHabilitadoTests(BaseApiEmergencia):
         admin = self._guardia("admin_disp", ["programa.configurar"])
 
         self.assertTrue(modulo_habilitado(admin))
-        self.assertEqual(roles_en_app(admin), {"relevar": False, "dispositivo": False})
+        self.assertEqual(roles_en_app(admin), _accesos())
 
     def test_el_admin_del_programa_con_admitir_opera_todos_sin_equipo(self):
-        for capacidad in (ADMITIR, RECIBIR_KIT):
+        for capacidad, esperado in ((ADMITIR, _accesos(llegadas=True)), (RECIBIR_KIT, _accesos(kits=True))):
             with self.subTest(capacidad=capacidad):
                 admin = self._guardia(f"admin_{capacidad}", ["programa.configurar", capacidad])
 
                 self.assertTrue(modulo_habilitado(admin))
-                self.assertEqual(roles_en_app(admin), {"relevar": False, "dispositivo": True})
+                self.assertEqual(roles_en_app(admin), esperado)
 
     def test_el_admin_de_otro_programa_no_lo_abre(self):
         admin_becas = self._usuario("admin_becas", ["programa.configurar"], programa=self.becas)
@@ -161,12 +166,12 @@ class ModuloHabilitadoTests(BaseApiEmergencia):
         for usuario in (self.territorial_becas, edilicio):
             with self.subTest(usuario=usuario.username):
                 self.assertFalse(modulo_habilitado(usuario))
-                self.assertEqual(roles_en_app(usuario), {"relevar": False, "dispositivo": False})
+                self.assertEqual(roles_en_app(usuario), _accesos())
 
     def test_con_los_dos_roles_ve_los_dos_accesos(self):
         ambos = self._sumar_rol(self._usuario("ambos", [RELEVAR]), [ADMITIR], self.dispositivos, [self.club])
 
-        self.assertEqual(roles_en_app(ambos), {"relevar": True, "dispositivo": True})
+        self.assertEqual(roles_en_app(ambos), _accesos(relevar=True, llegadas=True))
 
     def test_un_anonimo_no_lo_abre(self):
         self.assertFalse(modulo_habilitado(AnonymousUser()))
@@ -345,9 +350,9 @@ class RaizYPerfilTests(BaseApiEmergencia):
     def test_el_perfil_dice_que_accesos_mostrar(self):
         ambos = self._sumar_rol(self._usuario("ambos", [RELEVAR]), [ADMITIR], self.dispositivos, [self.club])
         casos = (
-            (self.agente, {"relevar": True, "dispositivo": False}),
-            (self.guardia, {"relevar": False, "dispositivo": True}),
-            (ambos, {"relevar": True, "dispositivo": True}),
+            (self.agente, _accesos(relevar=True)),
+            (self.guardia, _accesos(llegadas=True)),
+            (ambos, _accesos(relevar=True, llegadas=True)),
         )
 
         for usuario, esperado in casos:
@@ -356,6 +361,34 @@ class RaizYPerfilTests(BaseApiEmergencia):
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertEqual(sorted(respuesta.json()), CLAVES_PERFIL)
                 self.assertEqual(respuesta.json(), esperado)
+
+    def test_el_perfil_separa_llegadas_de_kits(self):
+        """M2 con ``llegadas``, M3 con ``kits``; ``dispositivo`` sigue siendo cualquiera de las dos (Cambio 475).
+
+        Mutaciones vistas en rojo: ``llegadas`` o ``kits`` fijos en ``False``, o intercambiados
+        (``admite_familias`` ↔ ``recibe_kits``), rompen las filas de un solo acceso.
+        """
+        casos = (
+            ("solo_admite", [ADMITIR], [self.club], _accesos(llegadas=True)),
+            ("solo_kits", [RECIBIR_KIT], [self.club], _accesos(kits=True)),
+            ("admite_y_kits", [ADMITIR, RECIBIR_KIT], [self.club], _accesos(llegadas=True, kits=True)),
+            # Abre el módulo (H10) sin ninguna de las dos: el único que ve todo en `false`.
+            ("ninguno", ["programa.configurar"], [], _accesos()),
+        )
+
+        for nombre, capacidades, equipo, esperado in casos:
+            with self.subTest(usuario=nombre):
+                respuesta = self._como(self._guardia(nombre, capacidades, equipo)).get(URL_PERFIL)
+
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertEqual(sorted(respuesta.json()), CLAVES_PERFIL)
+                self.assertEqual(respuesta.json(), esperado)
+
+    def test_llegadas_y_kits_miran_el_alcance_no_solo_la_capacidad(self):
+        """Tildadas en un rol sin Equipo no abren nada, igual que ``dispositivo``."""
+        sin_equipo = self._guardia("sin_equipo_perfil", [ADMITIR, RECIBIR_KIT])
+
+        self.assertEqual(roles_en_app(sin_equipo), _accesos())
 
 
 # ---------------------------------------------------------------------------

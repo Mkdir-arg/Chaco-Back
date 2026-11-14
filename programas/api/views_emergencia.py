@@ -19,7 +19,7 @@ Lo común vive acá:
   (``emergencia_programa.modulo_habilitado``, la misma función que consulta el login):
   agente territorial o guardia de un dispositivo. `EmergenciaRelevarPermission` es
   ``emergencia.relevar`` en el programa EMERGENCIA: solo el agente crea casos.
-  `EmergenciaRecibirKitPermission` (``kits.recibe_kits``) y `EmergenciaAdmitirPermission`
+  `EmergenciaRecibirKitPermission` (``emergencia_programa.recibe_kits``) y `EmergenciaAdmitirPermission`
   (``emergencia_programa.admite_familias``) son «recibe kits» y «admite familias» en **algún**
   dispositivo: sin eso, 403 ``SIN_MODULO``; con eso pero sin alcance sobre **ese**
   dispositivo, entrega, derivación o caso, **404**, igual que un id inexistente (plan §2, C2).
@@ -60,13 +60,13 @@ from programas.api.views import ConsultaPersonasThrottle, responder_consulta_de_
 from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
-from programas.services import kits as servicio_kits
 from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     admite_familias,
     modulo_habilitado,
     puede_en_programa_emergencia,
+    recibe_kits,
     roles_en_app,
 )
 
@@ -138,7 +138,7 @@ class EmergenciaRecibirKitPermission(BasePermission):
     message = {"detail": MENSAJE_SIN_RECIBIR_KIT, "code": CODIGO_SIN_MODULO}
 
     def has_permission(self, request, view):
-        return servicio_kits.recibe_kits(request.user)
+        return recibe_kits(request.user)
 
 
 class EmergenciaAdmitirPermission(BasePermission):
@@ -256,10 +256,11 @@ class PerfilEmergenciaView(_VistaDeCampo):
     @extend_schema(
         responses={200: PerfilEmergenciaSerializer, 401: _SIN_TOKEN, 403: _SIN_MODULO},
         description=(
-            "Qué accesos del módulo abre el usuario, para armar la pantalla inicial (RU-5). `dispositivo` dice si "
-            "puede **operar** en algún dispositivo (admitir familias o recibir kits). Vienen los dos en `false` "
-            "solo para el administrador del programa Dispositivos sin esas capacidades: abre el módulo pero no "
-            "tiene nada que hacer en la app."
+            "Qué accesos del módulo abre el usuario, para armar la pantalla inicial (RU-5): M1 con `relevar`, M2 "
+            "con `llegadas` (admite familias en algún dispositivo) y M3 con `kits` (recibe kits en alguno). "
+            "`dispositivo` es `llegadas` o `kits`, y se mantiene por compatibilidad. Vienen todos en `false` solo "
+            "para el administrador del programa Dispositivos sin esas capacidades: abre el módulo pero no tiene "
+            "nada que hacer en la app."
         ),
     )
     def get(self, request):

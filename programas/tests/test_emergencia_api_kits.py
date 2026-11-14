@@ -49,6 +49,9 @@ from programas.tests.base_emergencia_api import (
 from programas.tests.test_emergencia_base import RECIBIR_KIT
 from programas.tests.test_emergencia_casos import JPEG
 
+#: Lo que cuesta ``GET mis-dispositivos`` con las dos capacidades, haya 2 dispositivos o 20.
+CONSULTAS_MIS_DISPOSITIVOS = 10
+
 # ---------------------------------------------------------------------------
 # M3 · Recepción de kits (PR 9-API)
 # ---------------------------------------------------------------------------
@@ -203,6 +206,8 @@ class MisDispositivosTests(BaseApiKits):
                 {
                     "id": self.club.pk,
                     "nombre": "Club Sarmiento",
+                    "admite": False,
+                    "recibe_kits": True,
                     "entregas_pendientes": 2,
                     "plazas_libres": 0,
                     "derivaciones_pendientes": 0,
@@ -219,6 +224,8 @@ class MisDispositivosTests(BaseApiKits):
                 {
                     "id": self.club.pk,
                     "nombre": "Club Sarmiento",
+                    "admite": True,
+                    "recibe_kits": False,
                     "entregas_pendientes": 0,
                     "plazas_libres": 4,
                     "derivaciones_pendientes": 0,
@@ -236,6 +243,43 @@ class MisDispositivosTests(BaseApiKits):
             [(fila["nombre"], fila["entregas_pendientes"]) for fila in respuesta.json()],
             [("Club Sarmiento", 1), ("Escuela 12", 1)],
         )
+
+    def test_dice_que_hace_el_usuario_en_cada_dispositivo(self):
+        """Admite en el club y recibe kits en la escuela: cada fila lo dice por separado (Cambio 475).
+
+        Mutaciones vistas en rojo: ``admite`` o ``recibe_kits`` fijos, intercambiados, o
+        calculados con la otra capacidad, rompen alguna de las dos filas.
+        """
+        mixto = self._sumar_rol(
+            self._guardia("mixto", [ADMITIR], [self.club]), [RECIBIR_KIT], self.dispositivos, [self.escuela]
+        )
+        self._entrega_en_camino(self.escuela)
+
+        respuesta = self._como(mixto).get(URL_MIS_DISPOSITIVOS)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual([sorted(fila) for fila in respuesta.json()], [CLAVES_MI_DISPOSITIVO] * 2)
+        self.assertEqual(
+            [
+                (
+                    fila["nombre"],
+                    fila["admite"],
+                    fila["recibe_kits"],
+                    fila["entregas_pendientes"],
+                    fila["plazas_libres"],
+                )
+                for fila in respuesta.json()
+            ],
+            # La entrega del club no cuenta: ahí solo admite. Las camas de la escuela tampoco: ahí solo recibe.
+            [("Club Sarmiento", True, False, 0, 4), ("Escuela 12", False, True, 1, 0)],
+        )
+
+    def test_con_las_dos_capacidades_en_el_mismo_dispositivo_vienen_las_dos(self):
+        doble = self._guardia("doble", [ADMITIR, RECIBIR_KIT], [self.club])
+
+        (fila,) = self._como(doble).get(URL_MIS_DISPOSITIVOS).json()
+
+        self.assertEqual((fila["admite"], fila["recibe_kits"], fila["entregas_pendientes"]), (True, True, 1))
 
     def test_el_agente_territorial_no_tiene_dispositivos(self):
         respuesta = self._como(self.agente).get(URL_MIS_DISPOSITIVOS)
@@ -265,16 +309,43 @@ class MisDispositivosTests(BaseApiKits):
         self.assertEqual(len(self._como(de_todos).get(URL_MIS_DISPOSITIVOS).json()), 30)
 
     @tag("performance")
-    def test_el_selector_cuesta_dos_consultas(self):
+    def test_el_endpoint_cuesta_lo_mismo_con_2_y_con_20_dispositivos(self):
+        """Presupuesto fijo de ``mis-dispositivos``: 10 consultas (token incluido), con 2 dispositivos o con 20.
+
+        Eran 8 antes de ``admite`` y ``recibe_kits`` (Cambio 475): los dos sets de ids suman 2
+        consultas fijas, nunca una por fila. Se mide con las dos capacidades, camas y una
+        entrega en cada dispositivo, para que corran todas.
+        """
+
+        def consultas(cuantos):
+            sedes = [self._dispositivo(f"Sede {cuantos}-{n:02d}", camas=2) for n in range(cuantos)]
+            usuario = self._guardia(f"guardia_de_{cuantos}", [RECIBIR_KIT, ADMITIR], sedes)
+            for dispositivo in sedes:
+                self._entrega_en_camino(dispositivo)
+            cliente = self._como(usuario)
+            cliente.get(URL_MIS_DISPOSITIVOS)
+            with CaptureQueriesContext(connection) as capturadas:
+                filas = cliente.get(URL_MIS_DISPOSITIVOS).json()
+            self.assertEqual(len(filas), cuantos)
+            self.assertTrue(all(fila["admite"] and fila["recibe_kits"] for fila in filas))
+            return len(capturadas)
+
+        self.assertEqual((consultas(2), consultas(20)), (CONSULTAS_MIS_DISPOSITIVOS, CONSULTAS_MIS_DISPOSITIVOS))
+
+    @tag("performance")
+    def test_el_selector_cuesta_cuatro_consultas(self):
+        """La lista, los ids donde admite, los ids donde recibe y las entregas agrupadas."""
         muchos = [self._dispositivo(f"Sede {n:02d}") for n in range(30)]
         de_todos = self._guardia("deposito_de_todos", [RECIBIR_KIT, ADMITIR], muchos)
         for dispositivo in muchos:
             self._entrega_en_camino(dispositivo)
         selectores_kits.mis_dispositivos(de_todos)  # memoiza el programa y las capacidades
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(4):
             filas = selectores_kits.mis_dispositivos(de_todos)
-        self.assertEqual({fila["entregas_pendientes"] for fila in filas}, {1})
+        self.assertEqual(
+            {(fila["admite"], fila["recibe_kits"], fila["entregas_pendientes"]) for fila in filas}, {(True, True, 1)}
+        )
 
 
 class EntregasDelDispositivoApiTests(BaseApiKits):

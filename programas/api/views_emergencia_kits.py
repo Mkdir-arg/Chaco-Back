@@ -33,7 +33,7 @@ from programas.selectors import emergencia_alojar as selectores_alojar
 from programas.selectors import kits as selectores_kits
 from programas.services import kits as servicio_kits
 from programas.services.dispositivos import dispositivos_en_alcance
-from programas.services.emergencia_programa import CAP_ADMITIR, CAP_RECIBIR_KIT
+from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 
 #: Tope de lo que devuelve la lista de un dispositivo cuando no se piden solo las pendientes.
 TOPE_ENTREGAS = 50
@@ -58,16 +58,18 @@ class MisDispositivosEmergenciaView(_VistaDeCampo):
         description=(
             "Los dispositivos donde el usuario es de la guardia de Emergencia (`dispositivo.admitir` o "
             "`emergencia.recibir_kit` con alcance), por nombre y sin paginar: con más de uno, la app pide elegir "
-            "primero. `entregas_pendientes` cuenta lo que ese usuario puede recibir ahí; `plazas_libres` y "
-            "`derivaciones_pendientes`, lo de «Llegada de familias» donde admite (0 donde solo recibe kits)."
+            "primero. `admite` y `recibe_kits` dicen qué hace el usuario en cada uno: la app ofrece «Llegada de "
+            "familias» (M2) donde `admite` y «Recepción de kits» (M3) donde `recibe_kits`. `entregas_pendientes` "
+            "cuenta lo que ese usuario puede recibir ahí; `plazas_libres` y `derivaciones_pendientes`, lo de "
+            "«Llegada de familias» donde admite (0 donde solo recibe kits)."
         ),
     )
     def get(self, request):
         filas = selectores_kits.mis_dispositivos(request.user)
-        if filas:
-            resumen = selectores_alojar.resumen_de_llegadas(dispositivos_en_alcance(request.user, CAP_ADMITIR))
-            for fila in filas:
-                fila.update(resumen.get(fila["id"], {"plazas_libres": 0, "derivaciones_pendientes": 0}))
+        donde_admite = [fila["id"] for fila in filas if fila["admite"]]
+        resumen = selectores_alojar.resumen_de_llegadas(donde_admite) if donde_admite else {}
+        for fila in filas:
+            fila.update(resumen.get(fila["id"], {"plazas_libres": 0, "derivaciones_pendientes": 0}))
         return Response(MiDispositivoEmergenciaSerializer(filas, many=True).data)
 
 
