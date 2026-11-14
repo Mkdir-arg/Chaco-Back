@@ -865,7 +865,6 @@ class ObservarRecepcionTests(BaseKits):
                 "validar_remito",
                 "mensaje_de_estado",
                 "puede_recibir",
-                "recibe_kits",
                 "estado_visible_de_entrega",
                 "siguiente_numero_de_entrega",
             },
@@ -1111,9 +1110,21 @@ class SelectoresDeKitsTests(BaseKits):
         self.assertEqual(
             selectores.mis_dispositivos(doble),
             [
-                {"id": self.club.pk, "nombre": "Club Sarmiento", "entregas_pendientes": 2},
+                {
+                    "id": self.club.pk,
+                    "nombre": "Club Sarmiento",
+                    "admite": False,
+                    "recibe_kits": True,
+                    "entregas_pendientes": 2,
+                },
                 # En la Escuela solo admite: sus entregas no son suyas para recibir.
-                {"id": self.escuela.pk, "nombre": "Escuela 12", "entregas_pendientes": 0},
+                {
+                    "id": self.escuela.pk,
+                    "nombre": "Escuela 12",
+                    "admite": True,
+                    "recibe_kits": False,
+                    "entregas_pendientes": 0,
+                },
             ],
         )
         self.assertEqual(selectores.mis_dispositivos(self.operador), [])
@@ -1174,9 +1185,13 @@ class PresupuestosDeKitsTests(BaseKits):
             self.assertTrue(all(resumen["ultima_entrega"] for resumen in resumenes.values()))
 
     def test_mis_dispositivos_cuesta_lo_mismo_con_1_o_con_30_dispositivos(self):
-        """Las dos del selector más las del alcance (programa, capacidades y Equipo), que no crecen."""
+        """Las cuatro del selector más las del alcance (programa, capacidades y Equipo), que no crecen.
+
+        Se mide con las dos capacidades en los dos lados: con una sola, el set de ids de la otra
+        sale de un alcance vacío y no va a la base (Cambio 475).
+        """
         cache.clear()
-        base = self._medir(self.guardia)
+        base = self._medir(self._sumar_rol(self.guardia, [ADMITIR], self.dispositivos, [self.club]))
         muchos = [self._dispositivo(f"Sede {n:02d}") for n in range(30)]
         para_todos = self._guardia("guardia_de_todos", [RECIBIR_KIT, ADMITIR], muchos)
         for dispositivo in muchos:

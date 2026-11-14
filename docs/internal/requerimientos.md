@@ -597,6 +597,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 472 | Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa | Emergencia · tablero | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
 | 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
 | 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟡 **En curso — PR #1137 abierto, sin mergear** | No requiere |
+| 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟡 **En curso — PR #1139 abierto, sin mergear** | No requiere |
 
 **Notas del índice**
 
@@ -55652,9 +55653,10 @@ Nada especial.
 
 1. PWA (PR 8-P) bloqueada, igual que el 5-P (Cambio 467).
 2. Si se quiere idempotencia en aceptar/alojar/cerrar, hace falta una columna (migración aparte).
-3. **`opera_en_algun_dispositivo` repite en línea `kits.recibe_kits`** (`services/emergencia_programa.py`). Solución: mover
+3. ~~**`opera_en_algun_dispositivo` repite en línea `kits.recibe_kits`** (`services/emergencia_programa.py`). Solución: mover
    `recibe_kits` a `emergencia_programa.py`, junto a `admite_familias`; la dependencia ya va de `kits` hacia
-   `emergencia_programa`, así que no se forma un ciclo. (MINOR de #1134.)
+   `emergencia_programa`, así que no se forma un ciclo. (MINOR de #1134.)~~ Resuelto en el Cambio 475: `recibe_kits` vive en
+   `emergencia_programa.py` (`kits` la reexporta) y `opera_en_algun_dispositivo` es `admite_familias or recibe_kits`.
 
 ## Reversión
 
@@ -56109,5 +56111,104 @@ Revertir el PR; sin migraciones.
   aviso de rechazo también se van con la devolución automática por inactividad (manual §6 y decisión 1 del 473); un
   ingreso cancelado no es rechazo (decisión 9 del 472); el idempotente de «Avisar a la mesa» es de la API (caso 38), y en
   E6 queda como Pendiente 9 del 469; el DNI de un integrante sin confirmar no encuentra a la familia aunque tenga legajo.
+
+---
+
+# Cambio 475 — Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`)
+
+🟡 **EN CURSO — 14/11/2026** · PR #1139 (rama `feat/emergencia-api-perfil-capacidades`), sin mergear
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · API de campo (`/api/emergencia/`) |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` `#rbac` |
+| **Solicitante** | PM — necesidad de la app de campo (`Chaco-mobile`): saber qué ofrecer a cada usuario sin probar y recibir 403/404 |
+| **Fecha del pedido** | 14/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Mobile (la app lo consume; el cambio es aditivo y la versión actual sigue andando) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La app necesita saber qué puede hacer cada usuario en Emergencia sin probar y recibir 403/404. `perfil` traía
+`dispositivo`, que junta «admite familias» y «recibe kits»: a quien tenía una sola, la app le ofrecía M2 y M3 y una de las
+dos contestaba 403. `mis-dispositivos` no decía qué hace el usuario en cada dispositivo.
+
+## Alcance acordado
+
+**Entra:** `perfil` suma `llegadas` y `kits`; cada fila de `mis-dispositivos` suma `admite` y `recibe_kits`, calculados en
+lote; el contrato (`contrato-app-emergencia.md` §3 y §9) y las `CLAVES_*` del test de contrato; el MINOR del Cambio 470
+(Pendiente 3: `recibe_kits` duplicado en línea). **Queda afuera:** la app (la toma `Chaco-mobile` en su propio cambio) y
+cualquier clave renombrada o quitada: `dispositivo` sigue igual.
+
+## Decisiones tomadas
+
+1. **Aditivo, sin tocar `dispositivo`.** `dispositivo` sigue siendo `llegadas or kits`: la app publicada lo lee y renombrarlo
+   sería un release coordinado (regla del contrato). La app nueva ofrece M1 con `relevar`, M2 con `llegadas` (y, por
+   dispositivo, `admite`) y M3 con `kits` (y `recibe_kits`).
+2. **La misma regla que los servicios, no una nueva.** `llegadas` es `admite_familias` y `kits` es `recibe_kits` —las
+   funciones de los permisos `EmergenciaAdmitirPermission` y `EmergenciaRecibirKitPermission`—, así que lo que el perfil
+   ofrece y lo que la ruta deja pasar no pueden divergir. Por dispositivo, `admite`/`recibe_kits` son
+   `dispositivos_en_alcance(user, cap)` —la forma en lote de `puede_operar_dispositivo`—.
+3. **`recibe_kits` se mudó a `emergencia_programa.py`**, junto a `admite_familias`; la API y la web
+   (`views/emergencia_kits.py`) la importan de ahí. La dependencia va de `kits` hacia `emergencia_programa`, nunca al revés:
+   sin ciclo. `opera_en_algun_dispositivo` se borró: su único llamador era `roles_en_app`, que ahora calcula
+   `dispositivo` como `llegadas or kits`.
+4. **Dos sets de ids, acotados a la lista.** El selector `mis_dispositivos` lee los ids donde admite y donde recibe con dos
+   consultas fijas filtradas por los ids de la lista (no trae todos los dispositivos del admin del programa). Con una
+   capacidad que no tiene en el programa ese alcance es `none()` y Django no va a la base. `mis-dispositivos` pasa de **8 a
+   10 consultas** (token incluido), iguales con 2 y con 20 dispositivos.
+5. **El resumen de llegadas usa la fila.** La vista le pasa a `resumen_de_llegadas` los ids de las filas con `admite`, en vez
+   de volver a armar el alcance de `dispositivo.admitir`: el mismo conjunto, y si no admite en ninguno no corre sus tres
+   consultas.
+
+## Implementación
+
+`GET /api/emergencia/perfil/` contesta `{"relevar", "llegadas", "kits", "dispositivo"}`. `GET
+/api/emergencia/mis-dispositivos/` trae en cada fila `admite` y `recibe_kits` además de lo que ya traía. Las rutas, los
+permisos y los códigos de error no cambian.
+
+## Archivos
+
+`programas/services/emergencia_programa.py` (`roles_en_app`, `recibe_kits`), `programas/views/emergencia_kits.py` (importa
+`recibe_kits`), `programas/services/kits.py`, `programas/selectors/kits.py` (`mis_dispositivos`),
+`programas/selectors/emergencia_alojar.py` (docstring: acepta lista de ids), `programas/api/serializers_emergencia.py`,
+`programas/api/views_emergencia.py`, `programas/api/views_emergencia_kits.py`, `programas/tests/base_emergencia_api.py`
+(`CLAVES_PERFIL`, `CLAVES_MI_DISPOSITIVO`), `programas/tests/test_emergencia_api_contrato.py`,
+`programas/tests/test_emergencia_api_kits.py`, `programas/tests/test_emergencia_api_m2.py`,
+`programas/tests/test_emergencia_kits.py`, `docs/internal/contrato-app-emergencia.md`.
+
+## Base de datos
+
+No aplica.
+
+## Validación
+
+Perfil con solo admitir, solo kits, ambos y ninguno (el admin del programa Dispositivos sin las dos); las capacidades en un
+rol sin Equipo no abren nada. `mis-dispositivos` con un usuario que admite en A y recibe kits en B (cada fila lo dice, la
+entrega de A no cuenta y las camas de B tampoco) y con las dos en el mismo. Presupuesto: 10 consultas con 2 y con 20
+dispositivos; el selector, 4. Mutaciones vistas en rojo: `llegadas`/`kits` fijos en `false` o intercambiados, `admite`/
+`recibe_kits` fijos en `true` o calculados con la otra capacidad, y `admite` resuelto por fila (12 y 30 consultas).
+`manage.py check`, `makemigrations --check`, `ruff`, `spectacular --fail-on-warn`, `requerimientos.py --check` y
+`check_design_agent.py --limites` en verde; `test_emergencia_*`, `test_*api*` y `test_arquitectura` en verde.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+1. Al mergear, pasar esta entrada a 🟢 con el PR y el SHA del merge (en el historial).
+2. La app (`Chaco-mobile`) tiene que empezar a leer `llegadas`/`kits` y `admite`/`recibe_kits`; mientras no lo haga sigue
+   con `dispositivo`, como hasta ahora.
+
+## Reversión
+
+Revertir el PR; sin migraciones. Una app que ya lea las claves nuevas las recibiría ausentes: si faltan, tiene que volver al
+comportamiento anterior (ofrecer M2 y M3 según `dispositivo`), o revertirse antes.
+
+## Historial
+
+- **14/11/2026 — alta del cambio.**
 
 ---

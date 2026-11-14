@@ -295,10 +295,16 @@ def entregas_de(dispositivo):
 def mis_dispositivos(usuario):
     """Los dispositivos donde ``usuario`` es de la guardia de Emergencia, con sus entregas pendientes.
 
-    ``[{"id", "nombre", "entregas_pendientes"}]``, por nombre. Entran los dispositivos donde
-    tiene ``dispositivo.admitir`` **o** ``emergencia.recibir_kit`` con alcance (el Equipo, o
-    todo si administra el programa Dispositivos). ``entregas_pendientes`` cuenta solo donde
-    puede recibir kits: en uno donde solo admite, es 0. **2 consultas**, sin N+1.
+    ``[{"id", "nombre", "admite", "recibe_kits", "entregas_pendientes"}]``, por nombre. Entran
+    los dispositivos donde tiene ``dispositivo.admitir`` **o** ``emergencia.recibir_kit`` con
+    alcance (el Equipo, o todo si administra el programa Dispositivos). ``admite`` y
+    ``recibe_kits`` dicen cuál de las dos tiene en cada uno —la regla de
+    ``puede_operar_dispositivo``, resuelta en lote—. ``entregas_pendientes`` cuenta solo donde
+    puede recibir kits: en uno donde solo admite, es 0.
+
+    **4 consultas fijas**, sin N+1: la lista, los ids donde admite y donde recibe (acotados a
+    la lista; con una capacidad que no tiene en el programa, ese alcance es vacío y no va a la
+    base) y las entregas agrupadas.
     """
 
     recibe = dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT)
@@ -310,15 +316,28 @@ def mis_dispositivos(usuario):
     )
     if not dispositivos:
         return []
-    pendientes = dict(
-        EntregaKit.objects.filter(dispositivo__in=recibe, estado__in=EntregaKit.ESTADOS_ABIERTOS)
-        .order_by()
-        .values("dispositivo_id")
-        .annotate(n=Count("id"))
-        .values_list("dispositivo_id", "n")
+    ids = [dispositivo["id"] for dispositivo in dispositivos]
+    ids_admite = set(admite.filter(pk__in=ids).values_list("pk", flat=True))
+    ids_recibe = set(recibe.filter(pk__in=ids).values_list("pk", flat=True))
+    pendientes = (
+        dict(
+            EntregaKit.objects.filter(dispositivo_id__in=ids_recibe, estado__in=EntregaKit.ESTADOS_ABIERTOS)
+            .order_by()
+            .values("dispositivo_id")
+            .annotate(n=Count("id"))
+            .values_list("dispositivo_id", "n")
+        )
+        if ids_recibe
+        else {}
     )
     return [
-        {**dispositivo, "entregas_pendientes": pendientes.get(dispositivo["id"], 0)} for dispositivo in dispositivos
+        {
+            **dispositivo,
+            "admite": dispositivo["id"] in ids_admite,
+            "recibe_kits": dispositivo["id"] in ids_recibe,
+            "entregas_pendientes": pendientes.get(dispositivo["id"], 0),
+        }
+        for dispositivo in dispositivos
     ]
 
 

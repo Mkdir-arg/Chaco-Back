@@ -194,8 +194,14 @@ class PerfilEmergenciaSerializer(serializers.Serializer):
     """Qué accesos muestra la pantalla inicial del módulo (RU-5)."""
 
     relevar = serializers.BooleanField(help_text="Agente territorial: «Ingreso de familias» (M1).")
+    llegadas = serializers.BooleanField(
+        help_text="Admite familias (`dispositivo.admitir`) en algún dispositivo: «Llegada de familias» (M2)."
+    )
+    kits = serializers.BooleanField(
+        help_text="Recibe kits (`emergencia.recibir_kit`) en algún dispositivo: «Recepción de kits» (M3)."
+    )
     dispositivo = serializers.BooleanField(
-        help_text="Guardia de un dispositivo: «Llegada de familias» (M2) y «Recepción de kits» (M3)."
+        help_text="`llegadas` o `kits`: opera en algún dispositivo. Se mantiene por compatibilidad."
     )
 
 
@@ -222,6 +228,12 @@ class MiDispositivoEmergenciaSerializer(serializers.Serializer):
     )
     derivaciones_pendientes = serializers.IntegerField(
         help_text="Derivaciones por aceptar o rechazar (PR 8). 0 donde el usuario solo recibe kits."
+    )
+    admite = serializers.BooleanField(
+        help_text="El usuario admite familias (`dispositivo.admitir`) en este dispositivo: ofrecer M2 acá."
+    )
+    recibe_kits = serializers.BooleanField(
+        help_text="El usuario recibe kits (`emergencia.recibir_kit`) en este dispositivo: ofrecer M3 acá."
     )
 
 

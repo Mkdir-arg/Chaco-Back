@@ -21,12 +21,12 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 |---|---|---|
 | `POST /api/becas/auth/token/` | cualquiera con usuario y clave | Login de la app; `modulos` puede traer `"emergencia"` |
 | `GET /api/emergencia/` | módulo | Índice del namespace |
-| `GET /api/emergencia/perfil/` | módulo | Qué accesos mostrar en la pantalla inicial |
+| `GET /api/emergencia/perfil/` | módulo | Qué accesos mostrar en la pantalla inicial: M1 con `relevar`, M2 con `llegadas`, M3 con `kits` |
 | `POST /api/emergencia/personas/consultar/` | módulo | Nombre y edad a partir del DNI |
 | `GET /api/emergencia/localidades/` | módulo | Lista de localidades para el Formulario 1 |
 | `POST /api/emergencia/casos/` | agente | Enviar una familia (multipart, idempotente) |
 | `GET /api/emergencia/casos/mios/` | agente | «Mis envíos» |
-| `GET /api/emergencia/mis-dispositivos/` | módulo | Dispositivos donde el usuario es de la guardia, con sus entregas pendientes |
+| `GET /api/emergencia/mis-dispositivos/` | módulo | Dispositivos donde el usuario es de la guardia, qué hace en cada uno (`admite`, `recibe_kits`) y sus pendientes |
 | `GET /api/emergencia/dispositivos/{id}/entregas/` | kits | Entregas de kits de un dispositivo (`?pendientes=1`: las que esperan recepción) |
 | `GET /api/emergencia/entregas/{id}/` | kits | Una entrega con sus líneas |
 | `POST /api/emergencia/entregas/{id}/recibir/` | kits | Confirmar la recepción (multipart, idempotente, con conexión) |
@@ -122,18 +122,31 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 `GET /api/emergencia/perfil/` — qué accesos muestra la pantalla inicial del módulo.
 
 ```json
-{"relevar": true, "dispositivo": false}
+{"relevar": true, "llegadas": false, "kits": true, "dispositivo": true}
 ```
 
-- `relevar`: agente territorial → «Ingreso de familias» (M1).
-- `dispositivo`: **opera** en algún dispositivo —tiene `dispositivo.admitir` o `emergencia.recibir_kit`
-  en su Equipo, o administra el programa Dispositivos **con** alguna de las dos— → «Llegada de familias»
-  (M2) y «Recepción de kits» (M3). Qué dispositivos y qué ofrece cada uno, en «mis dispositivos» (§9).
+**Qué ofrece la app, una clave por módulo:**
 
-Con los dos en `true` se muestran los tres accesos. Los dos en `false` solo le pasa al administrador del
-programa Dispositivos que no tiene `dispositivo.admitir` ni `emergencia.recibir_kit` (PR 8): entra al
-módulo (§1, el login no cambió) pero no tiene nada que hacer en la app; mostrar «No tenés tareas en la
-app. Pedí que te sumen al equipo de un dispositivo».
+| Clave | Abre | Cuándo es `true` |
+|---|---|---|
+| `relevar` | M1 · «Ingreso de familias» | agente territorial: `emergencia.relevar` en el programa Emergencia |
+| `llegadas` | M2 · «Llegada de familias» | admite familias en **algún** dispositivo: `dispositivo.admitir` en su Equipo, o administra el programa Dispositivos **con** esa capacidad |
+| `kits` | M3 · «Recepción de kits» | recibe kits en **algún** dispositivo: `emergencia.recibir_kit` en su Equipo, o administra el programa Dispositivos **con** esa capacidad |
+| `dispositivo` | — | `llegadas` **o** `kits`: opera en algún dispositivo |
+
+- `llegadas` y `kits` son **aditivas** (Cambio 475): la app que no las lee sigue andando con
+  `dispositivo`, que no cambió de significado. La app nueva ofrece M2 solo con `llegadas` y M3 solo con
+  `kits`: con `dispositivo` sola le ofrecía las dos a quien tenía una, y la otra contestaba 403
+  `SIN_MODULO`.
+- La capacidad tildada en un rol **sin** Equipo no cuenta para ninguna de las dos: no hay dispositivo
+  sobre el que ejercerla.
+- Qué dispositivos y qué hace el usuario en cada uno, en «mis dispositivos» (§9: `admite` y
+  `recibe_kits`).
+
+Todas en `false` solo le pasa al administrador del programa Dispositivos que no tiene
+`dispositivo.admitir` ni `emergencia.recibir_kit` (PR 8): entra al módulo (§1, el login no cambió) pero
+no tiene nada que hacer en la app; mostrar «No tenés tareas en la app. Pedí que te sumen al equipo de un
+dispositivo».
 
 ## 4. Consulta de identidad
 
@@ -311,15 +324,25 @@ programa Dispositivos los ve todos). Por nombre, **sin paginar**. Con más de un
 dispositivo primero (RU-5).
 
 ```json
-[{"id": 7, "nombre": "Club Sarmiento", "entregas_pendientes": 2, "plazas_libres": 9, "derivaciones_pendientes": 1},
- {"id": 9, "nombre": "Escuela 12", "entregas_pendientes": 0, "plazas_libres": 3, "derivaciones_pendientes": 0}]
+[{"id": 7, "nombre": "Club Sarmiento", "admite": true, "recibe_kits": true,
+  "entregas_pendientes": 2, "plazas_libres": 9, "derivaciones_pendientes": 1},
+ {"id": 9, "nombre": "Escuela 12", "admite": true, "recibe_kits": false,
+  "entregas_pendientes": 0, "plazas_libres": 3, "derivaciones_pendientes": 0}]
 ```
 
+- `admite` (Cambio 475): el usuario admite familias **en este** dispositivo (`dispositivo.admitir` con
+  alcance). La app ofrece M2 («Llegada de familias») en ese dispositivo solo si es `true`.
+- `recibe_kits` (Cambio 475): el usuario recibe kits **en este** dispositivo (`emergencia.recibir_kit`
+  con alcance). La app ofrece M3 («Recepción de kits») en ese dispositivo solo si es `true`.
+- Las dos son **aditivas**, y al menos una es `true` en cada fila (si no, el dispositivo no aparece).
+  Son la misma regla que aplica el back en cada ruta del dispositivo: con `admite: false`, las de §13
+  contestan 404 para ese dispositivo (o 403 si no admite en ninguno); con `recibe_kits: false`, las de
+  §10 a §12, igual.
 - `entregas_pendientes`: cuántas entregas de kits puede recibir el usuario en ese dispositivo (en camino
-  o preparadas). Es `0` donde solo admite familias y no recibe kits.
+  o preparadas). Es `0` donde solo admite familias y no recibe kits (`recibe_kits: false`).
 - El agente territorial, que abre el módulo pero no es de ninguna guardia, recibe `[]`.
 - `plazas_libres` (PR 8): camas libres ahora —la misma cuenta que `buscar` (§13.2)—. `0` donde el
-  usuario solo recibe kits.
+  usuario solo recibe kits (`admite: false`).
 - `derivaciones_pendientes` (PR 8): derivaciones por aceptar o rechazar. `0` donde solo recibe kits.
 
 ## 10. Entregas de un dispositivo
