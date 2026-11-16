@@ -223,7 +223,7 @@ servidor.
 Respuesta **201** (creado) o **200** (ya existía), con el mismo cuerpo:
 
 ```json
-{"id": 184, "numero": "2026-000184", "prioridad": "MEDIA", "total_declarado": 5}
+{"id": 184, "numero": "2026-C-000184", "prioridad": "MEDIA", "total_declarado": 5}
 ```
 
 `prioridad` es `ALTA`, `MEDIA` o `BAJA`. El caso nace `NUEVO`, sin tomar.
@@ -291,9 +291,9 @@ pasa de 5 MB; `relevado_en` ilegible o adelantada más de un día.
 más nuevo al más viejo, sin paginar.
 
 ```json
-[{"numero": "2026-000185", "estado": "EN_GESTION", "total_declarado": 2,
+[{"numero": "2026-C-000185", "estado": "EN_GESTION", "total_declarado": 2,
   "creado_en": "2026-11-12T10:05:00-03:00"},
- {"numero": "2026-000184", "estado": "NUEVO", "total_declarado": 5,
+ {"numero": "2026-C-000184", "estado": "NUEVO", "total_declarado": 5,
   "creado_en": "2026-11-12T10:00:00-03:00"}]
 ```
 
@@ -503,7 +503,7 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
    "id": 55, "estado": "PENDIENTE", "plazas_pedidas": 7,
    "vence_en": "2026-11-12T12:00:00-03:00", "vencida": false,
    "derivada_en": "2026-11-12T10:00:00-03:00", "derivada_por": "Ana López",
-   "caso": {"id": 184, "numero": "2026-000184", "estado": "DERIVADO", "prioridad": "ALTA", "total_declarado": 7},
+   "caso": {"id": 184, "numero": "2026-C-000184", "estado": "DERIVADO", "prioridad": "ALTA", "total_declarado": 7},
    "responsable": {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222"},
    "grupo": {"menores_f": 2, "menores_m": 3, "adultos_f": 1, "adultos_m": 1, "mayores_f": 0, "mayores_m": 0,
              "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1},
@@ -542,7 +542,7 @@ mismo que habría hecho con el 200.
 Respuesta **200**:
 
 ```json
-{"caso": {"id": 184, "numero": "2026-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
+{"caso": {"id": 184, "numero": "2026-C-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
  "reservadas": 5, "faltantes": 2, "mensaje": "Reservé 5 de 7 · faltan 2 camas",
  "integrantes": [{"n": 1, "estado": "SIN_CONFIRMAR", …}, …]}
 ```
@@ -572,7 +572,7 @@ u `observacion`; 409 si ya no estaba pendiente.
 `GET /api/emergencia/casos/{id}/integrantes/` — `{id}` es `caso.id`.
 
 ```json
-{"caso": {"id": 184, "numero": "2026-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
+{"caso": {"id": 184, "numero": "2026-C-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
  "derivacion": {"id": 55},
  "integrantes": [
    {"n": 1, "estado": "CONFIRMADA", "ficha_completa": false,
@@ -605,11 +605,11 @@ cualquier acción sobre el caso (`POST`/`PATCH` de §13.5 a §13.9): lo arma el 
 
 | Qué pasó | `detail` | `estado_actual` |
 |---|---|---|
-| La derivación sigue pendiente: todavía no se aceptó (§13.3) | «El caso 2026-000184 ya no está para esto. Buscá a la familia de nuevo.» | `DERIVADO` |
+| La derivación sigue pendiente: todavía no se aceptó (§13.3) | «El caso 2026-C-000184 ya no está para esto. Buscá a la familia de nuevo.» | `DERIVADO` |
 | El cron la venció | «La derivación venció a las 12:00. Pedile a la mesa que vuelva a derivar o ingresala igual si tenés plazas.» | `EN_GESTION` |
 | La mesa la canceló | «La mesa canceló la derivación. Si la familia está en la puerta, avisale a la mesa.» | `EN_GESTION` |
 | La guardia la rechazó o canceló el ingreso | «La derivación ya fue rechazada o el ingreso se canceló. Buscá a la familia de nuevo.» | `EN_GESTION` o `NUEVO` |
-| Un cierre de §13.9 trajo una `derivacion` que ya no es la del caso (solo en esos `POST`) | «El ingreso del caso 2026-000184 cambió: la derivación que viste ya no es la vigente. Recargá la pantalla.» | El de hoy |
+| Un cierre de §13.9 trajo una `derivacion` que ya no es la del caso (solo en esos `POST`) | «El ingreso del caso 2026-C-000184 cambió: la derivación que viste ya no es la vigente. Recargá la pantalla.» | El de hoy |
 
 La app no compara `detail`: lo muestra, y recarga con `estado_actual` (§13.1).
 
@@ -791,7 +791,7 @@ el **mismo Formulario 1 de §6** con dos diferencias: **no** lleva `relevado_en`
 Respuesta **201**:
 
 ```json
-{"caso": {"id": 190, "numero": "2026-000190", "estado": "INGRESO_EN_CURSO", "prioridad": "MEDIA", "total_declarado": 3},
+{"caso": {"id": 190, "numero": "2026-C-000190", "estado": "INGRESO_EN_CURSO", "prioridad": "MEDIA", "total_declarado": 3},
  "reservadas": 3, "faltantes": 0, "integrantes": [{"n": 1, "estado": "SIN_CONFIRMAR", …}, …]}
 ```
 

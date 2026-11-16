@@ -300,7 +300,7 @@ class CrearEntregaTests(BaseKits):
         caso = self._caso()
 
         self.assertEqual(entrega.numero, "2026-K-000001")
-        self.assertEqual(caso.numero, "2026-000002")
+        self.assertEqual(caso.numero, "2026-C-000002")
 
     def test_una_entrega_rechazada_no_gasta_numero(self):
         with self.assertRaises(ValidationError):

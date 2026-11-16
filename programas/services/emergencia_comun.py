@@ -70,7 +70,7 @@ def siguiente_correlativo(serie, momento=None):
 
 
 def siguiente_numero(serie, momento=None):
-    """El próximo número de ``serie`` con el formato de los casos («2026-000184»).
+    """El próximo número de ``serie`` con el formato de los casos («2026-C-000184»).
 
     Es :func:`siguiente_correlativo` más el formato de ``CasoEmergencia``. Las entregas de
     kits usan el mismo contador (serie ``K``) con su propio formato, «2026-K-000031».
