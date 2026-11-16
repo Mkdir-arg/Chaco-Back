@@ -127,15 +127,17 @@ class _VistaDeLlegadas(_VistaDeCampo):
         except PermissionDenied:
             raise NotFound from None
 
-    def _caso_para_leer(self, request, pk):
-        """El caso de :meth:`_ingreso` si su ingreso se aceptó: ``(caso, None)``; si no, ``(None, 409)``.
+    def _ingreso_para_leer(self, request, pk):
+        """:meth:`_ingreso` si se aceptó: ``((caso, derivacion), None)``; si no, ``(None, 409)``.
 
         Se lee en ``ESTADOS_CON_INTEGRANTES``, los mismos que la ficha de la mesa: el ingreso en
         curso, la familia alojada y el caso cerrado (la app vuelve a M2-3 después de cerrar).
         """
-        ingreso, respuesta = self._ejecutar(
-            lambda: servicio_alojar.ingreso_sin_candado(pk, request.user, *ESTADOS_CON_INTEGRANTES)
-        )
+        return self._ejecutar(lambda: servicio_alojar.ingreso_sin_candado(pk, request.user, *ESTADOS_CON_INTEGRANTES))
+
+    def _caso_para_leer(self, request, pk):
+        """El caso de :meth:`_ingreso_para_leer`: ``(caso, None)``; si no, ``(None, 409)``."""
+        ingreso, respuesta = self._ingreso_para_leer(request, pk)
         return (ingreso[0] if ingreso else None), respuesta
 
 
@@ -253,11 +255,12 @@ class IntegrantesView(_VistaDeLlegadas):
         ),
     )
     def get(self, request, pk):
-        caso, respuesta = self._caso_para_leer(request, pk)
+        ingreso, respuesta = self._ingreso_para_leer(request, pk)
         if respuesta is not None:
             return respuesta
+        caso, derivacion = ingreso
         datos = selectores_alojar.integrantes_de(caso)
-        return Response(IntegrantesDelCasoSerializer({"caso": caso, **datos}).data)
+        return Response(IntegrantesDelCasoSerializer({"caso": caso, "derivacion": derivacion, **datos}).data)
 
     @extend_schema(
         request=AgregarIntegranteEnvioSerializer,
@@ -473,7 +476,9 @@ class CancelarIngresoView(_VistaDeLlegadas):
         },
         description=(
             "Cancela un ingreso aceptado sin nadie confirmado: libera las camas y el caso vuelve a la mesa "
-            "(`EN_GESTION`, o `NUEVO` si era un ingreso directo)."
+            "(`EN_GESTION`, o `NUEVO` si era un ingreso directo). No es idempotente: la app manda `derivacion` "
+            "(la de `…/integrantes/`) para que un reintento no cancele un ingreso posterior; si ya no es la del "
+            "caso, 409."
         ),
     )
     def post(self, request, pk):

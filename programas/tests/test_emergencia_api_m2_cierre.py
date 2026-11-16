@@ -11,19 +11,23 @@ from unittest import mock
 
 from programas.models import (
     CasoEmergencia,
+    Derivacion,
     ReservaPlaza,
     Sector,
 )
+from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
 from programas.services import emergencia_alta
 from programas.tests.base_emergencia_api import (
     CLAVES_AVISO_A_LA_MESA,
     CLAVES_CASO_RESUMEN,
     CLAVES_CIERRE_DE_INGRESO,
+    CLAVES_DERIVACION_DEL_INGRESO,
     CLAVES_INGRESO_DIRECTO,
     BaseApiLlegadas,
     _url,
 )
+from programas.tests.test_emergencia_alojar_base import GUARDIA
 
 Estado = CasoEmergencia.Estado
 
@@ -107,6 +111,163 @@ class CerrarIngresoApiTests(BaseApiLlegadas):
 
     def _estado(self, caso):
         return CasoEmergencia.objects.values_list("estado", flat=True).get(pk=caso.pk)
+
+
+# ---------------------------------------------------------------------------
+# Cerrar con la derivación vista (Cambio 477)
+# ---------------------------------------------------------------------------
+
+MOTIVO = {"motivo": "La familia se fue con parientes."}
+
+
+class CerrarConLaDerivacionVistaApiTests(BaseApiLlegadas):
+    """`derivacion` en los tres cierres: un reintento no actúa sobre un ingreso que la pantalla no vio.
+
+    Tabla de casos de ``…/cancelar-ingreso/`` (contrato §13.9):
+
+    (a) primer envío con la derivación de ``…/integrantes/`` → 200;
+    (b) reintento de un cancelar que llegó, sin re-derivación → el 409 de estado (``EN_GESTION``/``NUEVO``):
+        la app infiere que se hizo;
+    (c) reintento después de que la mesa volvió a derivar y otra guardia aceptó → 409 «cambió», sin cancelar;
+    (d) una derivación que no existe o de otro caso → el mismo 409; un valor que no es un id → 400;
+    (e) sin el campo (o ``null``) → como antes del Cambio 477.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.caso, self.derivacion = self._aceptado()
+        self.otra_guardia = self._guardia("otra_guardia_centro", list(GUARDIA), [self.centro])
+
+    def _cancelar(self, cuerpo, usuario=None):
+        return self._como(usuario or self.guardia_centro).post(
+            _url("caso-cancelar-ingreso", self.caso.pk), cuerpo, format="json"
+        )
+
+    def _volver_a_derivar_y_aceptar(self, aceptar=True):
+        """La mesa deriva otra vez al mismo centro y otra guardia acepta: el ingreso nuevo."""
+        nueva = mesa.derivar_caso(CasoEmergencia.objects.get(pk=self.caso.pk), self.operador, self.centro, 7, True)
+        if aceptar:
+            servicio.aceptar_derivacion(derivacion=nueva, usuario=self.otra_guardia)
+        return Derivacion.objects.get(pk=nueva.pk)
+
+    def test_integrantes_dice_que_derivacion_se_mira(self):
+        respuesta = self._como(self.guardia_centro).get(_url("caso-integrantes", self.caso.pk))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(sorted(respuesta.json()["derivacion"]), CLAVES_DERIVACION_DEL_INGRESO)
+        self.assertEqual(respuesta.json()["derivacion"], {"id": self.derivacion.pk})
+
+    def test_integrantes_trae_la_derivacion_nueva_despues_de_volver_a_derivar(self):
+        servicio.cancelar_ingreso(caso=self.caso, usuario=self.guardia_centro, motivo="Se fueron.")
+        nueva = self._volver_a_derivar_y_aceptar()
+
+        respuesta = self._como(self.guardia_centro).get(_url("caso-integrantes", self.caso.pk))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["derivacion"], {"id": nueva.pk})
+        self.assertNotEqual(nueva.pk, self.derivacion.pk)
+
+    def test_a_primer_envio_con_la_derivacion_vista_cancela(self):
+        respuesta = self._cancelar({**MOTIVO, "derivacion": self.derivacion.pk})
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json(), {"estado": Estado.EN_GESTION, "total_alojado": None, "liberadas": 7})
+        self.assertEqual(Derivacion.objects.get(pk=self.derivacion.pk).estado, Derivacion.Estado.RECHAZADA)
+
+    def test_b_reintento_de_un_cancelar_que_llego_es_el_409_de_estado(self):
+        self.assertEqual(self._cancelar({**MOTIVO, "derivacion": self.derivacion.pk}).status_code, 200)
+        antes = self._foto_del_caso(self.caso)
+
+        reintento = self._cancelar({**MOTIVO, "derivacion": self.derivacion.pk})
+
+        self.assertEqual(reintento.status_code, 409)
+        self.assertEqual(reintento.json()["estado_actual"], Estado.EN_GESTION)
+        self.assertNotIn("cambió", reintento.json()["detail"])
+        self.assertIn("se canceló", reintento.json()["detail"])
+        self.assertEqual(self._foto_del_caso(self.caso), antes)
+
+    def test_c_reintento_despues_de_volver_a_derivar_y_aceptar_no_cancela_el_ingreso_nuevo(self):
+        servicio.cancelar_ingreso(caso=self.caso, usuario=self.guardia_centro, motivo="Se fueron.")
+        nueva = self._volver_a_derivar_y_aceptar()
+        antes = self._foto_del_caso(self.caso)
+
+        reintento = self._cancelar({**MOTIVO, "derivacion": self.derivacion.pk})
+
+        self.assertEqual(reintento.status_code, 409)
+        self.assertEqual(reintento.json()["estado_actual"], Estado.INGRESO_EN_CURSO)
+        self.assertIn("la derivación que viste ya no es la vigente", reintento.json()["detail"])
+        self.assertEqual(self._foto_del_caso(self.caso), antes)
+        self.assertEqual(Derivacion.objects.get(pk=nueva.pk).estado, Derivacion.Estado.ACEPTADA)
+
+    def test_c_con_la_derivacion_nueva_pendiente_tambien_dice_que_cambio(self):
+        """El chequeo va antes del de estado: sin aceptar todavía, el 409 es el de la derivación."""
+        servicio.cancelar_ingreso(caso=self.caso, usuario=self.guardia_centro, motivo="Se fueron.")
+        self._volver_a_derivar_y_aceptar(aceptar=False)
+
+        reintento = self._cancelar({**MOTIVO, "derivacion": self.derivacion.pk})
+
+        self.assertEqual(reintento.status_code, 409)
+        self.assertEqual(reintento.json()["estado_actual"], Estado.DERIVADO)
+        self.assertIn("la derivación que viste ya no es la vigente", reintento.json()["detail"])
+
+    def test_e_sin_el_campo_el_reintento_cancela_el_ingreso_nuevo_como_antes(self):
+        """Lo que el campo evita: la app publicada, que no lo manda, sigue con el comportamiento de antes."""
+        servicio.cancelar_ingreso(caso=self.caso, usuario=self.guardia_centro, motivo="Se fueron.")
+        nueva = self._volver_a_derivar_y_aceptar()
+
+        reintento = self._cancelar(MOTIVO)
+
+        self.assertEqual(reintento.status_code, 200, reintento.content)
+        self.assertEqual(Derivacion.objects.get(pk=nueva.pk).estado, Derivacion.Estado.RECHAZADA)
+
+    def test_e_con_null_es_como_sin_el_campo(self):
+        respuesta = self._cancelar({**MOTIVO, "derivacion": None})
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+
+    def test_d_una_derivacion_inexistente_o_de_otro_caso_es_409_y_no_escribe(self):
+        _otro, de_otro_caso = self._aceptado(dni="30999888", menores_f=0, menores_m=0)
+        antes = self._foto_del_caso(self.caso)
+
+        for vista in (de_otro_caso.pk, de_otro_caso.pk + 1000):
+            with self.subTest(derivacion=vista):
+                respuesta = self._cancelar({**MOTIVO, "derivacion": vista})
+                self.assertEqual(respuesta.status_code, 409)
+                self.assertEqual(respuesta.json()["estado_actual"], Estado.INGRESO_EN_CURSO)
+        self.assertEqual(self._foto_del_caso(self.caso), antes)
+
+    def test_d_un_valor_que_no_es_un_id_es_400(self):
+        for vista in ("abc", 0, -3):
+            with self.subTest(derivacion=vista):
+                respuesta = self._cancelar({**MOTIVO, "derivacion": vista})
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertIn("derivacion", respuesta.json())
+        self.assertEqual(self._estado(), Estado.INGRESO_EN_CURSO)
+
+    def test_alojar_y_diferencia_con_una_derivacion_vieja_son_409_y_con_la_vigente_cierran(self):
+        self._confirmar(self.caso, 1, "30111222")
+        antes = self._foto_del_caso(self.caso)
+        cliente = self._como(self.guardia_centro)
+
+        for ruta, cuerpo in (("caso-alojar", {}), ("caso-cerrar-diferencia", {"motivo": "NO_LLEGO"})):
+            with self.subTest(ruta=ruta):
+                vieja = cliente.post(
+                    _url(ruta, self.caso.pk), {**cuerpo, "derivacion": self.derivacion.pk + 1000}, format="json"
+                )
+                self.assertEqual(vieja.status_code, 409)
+                self.assertIn("la derivación que viste ya no es la vigente", vieja.json()["detail"])
+        self.assertEqual(self._foto_del_caso(self.caso), antes)
+
+        cerrada = cliente.post(
+            _url("caso-cerrar-diferencia", self.caso.pk),
+            {"motivo": "NO_LLEGO", "derivacion": self.derivacion.pk},
+            format="json",
+        )
+        self.assertEqual(cerrada.status_code, 200, cerrada.content)
+        self.assertEqual(cerrada.json()["estado"], Estado.ALOJADO)
+
+    def _estado(self):
+        return CasoEmergencia.objects.values_list("estado", flat=True).get(pk=self.caso.pk)
 
 
 # ---------------------------------------------------------------------------

@@ -106,9 +106,11 @@ CLAVES_INTEGRANTES = [
     "con_ficha_incompleta",
     "confirmadas",
     "declaradas_al_relevar",
+    "derivacion",
     "integrantes",
     "total_declarado",
 ]
+CLAVES_DERIVACION_DEL_INGRESO = ["id"]
 CLAVES_BUSQUEDA = [
     "alojada_aca",
     "alojada_desde",

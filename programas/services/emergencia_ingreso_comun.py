@@ -91,6 +91,12 @@ def _bloquear_derivacion(pk, caso, dispositivo):
     return derivacion
 
 
+#: El 409 de quien manda la derivación que vio y ya no es la del caso (Cambio 477).
+MENSAJE_OTRA_DERIVACION = (
+    "El ingreso del caso {numero} cambió: la derivación que viste ya no es la vigente. Recargá la pantalla."
+)
+
+
 def ingreso_sin_candado(caso, usuario, *estados):
     """El ingreso del caso **sin candado**: la guarda de quien lo lee y el paso 1 de quien lo toca.
 
@@ -118,13 +124,18 @@ def ingreso_sin_candado(caso, usuario, *estados):
     return caso, derivacion
 
 
-def _abrir_ingreso(caso, usuario, *estados):
+def _abrir_ingreso(caso, usuario, *estados, derivacion_vista=None):
     """Alcance, candados y estado de toda acción sobre un ingreso ya aceptado.
 
     1. :func:`ingreso_sin_candado` sin estados: la última derivación del caso y el alcance
        sobre su dispositivo, o ``PermissionDenied``.
     2. Bloquea caso → derivación.
-    3. Exige que la derivación siga ``ACEPTADA`` y el caso en uno de ``estados``; si no,
+    3. Con ``derivacion_vista`` (el id de la derivación que la pantalla mostraba), exige que sea
+       la bloqueada; si no, :class:`EstadoCambio` con :data:`MENSAJE_OTRA_DERIVACION` (Cambio 477).
+       Va **antes** del estado: si es la misma, el reintento de una acción que ya llegó sigue
+       dando el 409 de estado y la app infiere que se hizo; si no, la acción iría contra un
+       ingreso que la pantalla no vio (la mesa volvió a derivar y otra guardia aceptó).
+    4. Exige que la derivación siga ``ACEPTADA`` y el caso en uno de ``estados``; si no,
        :class:`EstadoCambio`. Quien llega acá opera el dispositivo al que el caso estuvo
        derivado, así que se le puede decir cómo quedó.
 
@@ -134,6 +145,8 @@ def _abrir_ingreso(caso, usuario, *estados):
     _caso, previa = ingreso_sin_candado(caso, usuario)
     caso = _bloquear_caso(previa.caso_id)
     derivacion = _bloquear_derivacion(previa.pk, caso, previa.dispositivo)
+    if derivacion_vista is not None and getattr(derivacion_vista, "pk", derivacion_vista) != derivacion.pk:
+        raise EstadoCambio(MENSAJE_OTRA_DERIVACION.format(numero=caso.numero), estado_actual=caso.estado, caso=caso)
     if derivacion.estado != Derivacion.Estado.ACEPTADA or caso.estado not in estados:
         raise EstadoCambio(_por_que_ya_no(caso, derivacion), estado_actual=caso.estado, caso=caso)
     return caso, derivacion
