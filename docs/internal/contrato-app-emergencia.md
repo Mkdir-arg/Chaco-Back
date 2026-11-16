@@ -573,6 +573,7 @@ u `observacion`; 409 si ya no estaba pendiente.
 
 ```json
 {"caso": {"id": 184, "numero": "2026-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
+ "derivacion": {"id": 55},
  "integrantes": [
    {"n": 1, "estado": "CONFIRMADA", "ficha_completa": false,
     "persona": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
@@ -586,6 +587,7 @@ u `observacion`; 409 si ya no estaba pendiente.
 
 | Clave | Qué es |
 |---|---|
+| `derivacion.id` | La derivación aceptada de **este** ingreso. Si la mesa vuelve a derivar el caso al mismo dispositivo y se acepta de nuevo, cambia. La app la guarda con la pantalla y la manda como `derivacion` en los cierres de §13.9 |
 | `integrantes[].n` | Número de la persona en la familia (1 a `total_declarado`): va en las rutas de §13.6 a §13.8 |
 | `integrantes[].estado` | `SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA` (confirmada que ya se fue) |
 | `integrantes[].ficha_completa` | Secciones 4 a 8 con algún dato o «sin datos». `false` → «ficha incompleta» |
@@ -607,6 +609,7 @@ cualquier acción sobre el caso (`POST`/`PATCH` de §13.5 a §13.9): lo arma el 
 | El cron la venció | «La derivación venció a las 12:00. Pedile a la mesa que vuelva a derivar o ingresala igual si tenés plazas.» | `EN_GESTION` |
 | La mesa la canceló | «La mesa canceló la derivación. Si la familia está en la puerta, avisale a la mesa.» | `EN_GESTION` |
 | La guardia la rechazó o canceló el ingreso | «La derivación ya fue rechazada o el ingreso se canceló. Buscá a la familia de nuevo.» | `EN_GESTION` o `NUEVO` |
+| Un cierre de §13.9 trajo una `derivacion` que ya no es la del caso (solo en esos `POST`) | «El ingreso del caso 2026-000184 cambió: la derivación que viste ya no es la vigente. Recargá la pantalla.» | El de hoy |
 
 La app no compara `detail`: lo muestra, y recarga con `estado_actual` (§13.1).
 
@@ -733,14 +736,34 @@ Errores 400 (`code: "VALIDACION"`, una clave por campo, **con el nombre plano de
 | `tarjeta_entregada` | no | Booleano |
 | `tarjeta_numero` | con la tarjeta entregada | Hasta 40 caracteres |
 | `encargado` | no | Quién recibe; vacío vale el usuario |
+| `derivacion` | no | `derivacion.id` de §13.5 (ver «La derivación vista», abajo) |
 
 **Cerrar con diferencia** (RN-3.9, llegaron menos, con al menos una confirmada):
-`POST /api/emergencia/casos/{id}/cerrar-diferencia/` con `{"motivo", "observacion"}`. `motivo`:
+`POST /api/emergencia/casos/{id}/cerrar-diferencia/` con `{"motivo", "observacion", "derivacion"}`. `motivo`:
 `QUEDO_CON_FAMILIARES`, `NO_LLEGO` (No llegó al centro), `DERIVADO_A_SALUD`, `OTRO` (con `observacion`
 obligatoria). Es también el cierre para quien no sabe su número de DNI: `OTRO` y contarlo.
 
 **Cancelar el ingreso** (sin nadie confirmado; el caso vuelve a la mesa):
-`POST /api/emergencia/casos/{id}/cancelar-ingreso/` con `{"motivo"}` (texto obligatorio, hasta 200).
+`POST /api/emergencia/casos/{id}/cancelar-ingreso/` con `{"motivo", "derivacion"}` (`motivo`: texto
+obligatorio, hasta 200).
+
+**La derivación vista** (Cambio 477): los tres aceptan `derivacion`, **opcional**, con el `derivacion.id`
+de §13.5. Ninguno de los tres es idempotente y los tres actúan sobre la **última** derivación del caso:
+si la respuesta de un cancelar se pierde y, antes del reintento, la mesa vuelve a derivar al mismo
+dispositivo y otra guardia acepta, el reintento sin `derivacion` cancelaría ese ingreso **nuevo** con el
+motivo viejo. Con `derivacion`, el servidor lo compara (con el caso bloqueado) **antes** de mirar el estado:
+
+| Caso (cancelar-ingreso) | Respuesta |
+|---|---|
+| (a) Primer envío, `derivacion` es la del ingreso | **200** como siempre |
+| (b) Reintento de un cancelar que **sí llegó**, sin nueva derivación | **409** de estado, `estado_actual: EN_GESTION` (o `NUEVO`): **se hizo**, la app sigue a M2-1 |
+| (c) Reintento después de que la mesa volvió a derivar al mismo dispositivo (aceptada o todavía pendiente) | **409** «El ingreso del caso … cambió: la derivación que viste ya no es la vigente. Recargá la pantalla.», `estado_actual` el de hoy (`INGRESO_EN_CURSO`, `DERIVADO`…). No cancela nada |
+| (d) `derivacion` que no existe o es de otro caso | El mismo **409** de (c): no se dice si existe. Un valor que no es un entero ≥ 1 es **400** `derivacion` |
+| (e) Sin `derivacion` (o `null`) | Como antes del Cambio 477 (la app publicada sigue andando) |
+
+Si la mesa volvió a derivar a **otro** dispositivo, el caso deja de ser de esta guardia y la respuesta es
+**404**, con o sin `derivacion`. `alojar` y `cerrar-diferencia` siguen la misma regla: `derivacion` vieja
+→ el 409 de (c) sin escribir nada.
 
 Las tres responden **200** con la misma forma:
 

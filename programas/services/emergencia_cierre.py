@@ -92,7 +92,17 @@ def _sector_del_dispositivo(sector, dispositivo):
 
 
 @transaction.atomic
-def alojar_familia(*, caso, usuario, sector=None, aula="", tarjeta_entregada=False, tarjeta_numero="", encargado=""):
+def alojar_familia(
+    *,
+    caso,
+    usuario,
+    sector=None,
+    aula="",
+    tarjeta_entregada=False,
+    tarjeta_numero="",
+    encargado="",
+    derivacion_vista=None,
+):
     """«Familia alojada»: cierra el ingreso con **N de N** confirmadas (M2-5).
 
     Exige que **todas** las filas de la familia estén confirmadas; con una sola sin
@@ -104,6 +114,8 @@ def alojar_familia(*, caso, usuario, sector=None, aula="", tarjeta_entregada=Fal
 
     ``sector`` es un ``Sector`` del dispositivo o su id (opcional); con la tarjeta entregada,
     su número es obligatorio; ``encargado`` es quien recibe (por omisión, quien aloja).
+    ``derivacion_vista``: el id de la derivación que mostraba la pantalla; si ya no es la del
+    caso, :class:`EstadoCambio` sin escribir nada (``_abrir_ingreso``, Cambio 477).
 
     El caso pasa a ``ALOJADO`` con ``alojado_en`` y ``total_alojado``; las reservas de la
     derivación que hubieran sobrado se liberan (la mesa pudo pedir más camas que personas);
@@ -112,7 +124,7 @@ def alojar_familia(*, caso, usuario, sector=None, aula="", tarjeta_entregada=Fal
     Devuelve el ``CasoEmergencia``, con ``caso.reservas_liberadas``.
     """
 
-    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO)
+    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO, derivacion_vista=derivacion_vista)
     dispositivo = derivacion.dispositivo
     grupo = caso.grupo
     filas = _filas_de(grupo)
@@ -169,7 +181,7 @@ def alojar_familia(*, caso, usuario, sector=None, aula="", tarjeta_entregada=Fal
 
 
 @transaction.atomic
-def cerrar_con_diferencia(*, caso, usuario, motivo, observacion=""):
+def cerrar_con_diferencia(*, caso, usuario, motivo, observacion="", derivacion_vista=None):
     """Cierra el ingreso con **menos personas que las declaradas** (HU-3.4, RN-3.9, RU-22).
 
     Requiere al menos una confirmada y un ``motivo`` de :class:`MotivoDiferencia`; con «Otro»
@@ -184,7 +196,8 @@ def cerrar_con_diferencia(*, caso, usuario, motivo, observacion=""):
         {"motivo": "NO_LLEGO", "motivo_texto": "No llegó al centro", "observacion": "…",
          "confirmadas": 5, "declaradas": 7}
 
-    Deja la novedad ``GENERAL`` de la bitácora con el motivo.
+    Deja la novedad ``GENERAL`` de la bitácora con el motivo. ``derivacion_vista``, como en
+    :func:`alojar_familia`.
 
     Devuelve el ``CasoEmergencia``, con ``caso.reservas_liberadas``.
     """
@@ -195,7 +208,7 @@ def cerrar_con_diferencia(*, caso, usuario, motivo, observacion=""):
     if motivo == MotivoDiferencia.OTRO and not observacion:
         raise ValidationError({"observacion": "Con el motivo «Otro», contá qué pasó."})
 
-    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO)
+    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO, derivacion_vista=derivacion_vista)
     dispositivo = derivacion.dispositivo
     grupo = caso.grupo
     confirmadas = IntegranteGrupo.objects.filter(grupo_id=grupo.pk, confirmada_en__isnull=False).count()
@@ -250,7 +263,7 @@ def cerrar_con_diferencia(*, caso, usuario, motivo, observacion=""):
 
 
 @transaction.atomic
-def cancelar_ingreso(*, caso, usuario, motivo):
+def cancelar_ingreso(*, caso, usuario, motivo, derivacion_vista=None):
     """Cancela un ingreso aceptado en el que **no se confirmó a nadie** (03 §5).
 
     ``motivo`` es un texto obligatorio (hasta 200 caracteres). Las reservas de la derivación
@@ -259,6 +272,13 @@ def cancelar_ingreso(*, caso, usuario, motivo):
     tomado —un ingreso directo—. Las filas de la familia quedan, sin confirmar.
 
     Con una sola persona confirmada no se cancela: se cierra con diferencia.
+
+    ``derivacion_vista`` es el id de la derivación que mostraba la pantalla. Cancelar no es
+    idempotente y actúa sobre la **última** derivación: sin él, el reintento de un cancelar que
+    ya llegó, después de que la mesa volviera a derivar al mismo dispositivo y otra guardia
+    aceptara, cancelaría ese ingreso nuevo con el motivo viejo. Con él, :class:`EstadoCambio`
+    si ya no es la del caso; si es la misma y el cancelar ya llegó, el 409 de estado
+    (``EN_GESTION``/``NUEVO``) de siempre (Cambio 477).
 
     Devuelve el ``CasoEmergencia``, con ``caso.reservas_liberadas``.
     """
@@ -269,7 +289,7 @@ def cancelar_ingreso(*, caso, usuario, motivo):
     if len(motivo) > 200:
         raise ValidationError({"motivo": "El motivo no puede tener más de 200 caracteres."})
 
-    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO)
+    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO, derivacion_vista=derivacion_vista)
     dispositivo = derivacion.dispositivo
     confirmadas = IntegranteGrupo.objects.filter(grupo_id=caso.grupo_id, confirmada_en__isnull=False).count()
     if not acciones_del_ingreso(estado=caso.estado, confirmadas=confirmadas, total=caso.grupo.total_declarado)[

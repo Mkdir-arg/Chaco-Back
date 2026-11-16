@@ -598,7 +598,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
 | 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟢 **Hecho** | No requiere |
 | 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟢 **Hecho** | No requiere |
-| 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟡 **En curso** | No requiere |
+| 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟢 **Hecho** | No requiere |
+| 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟡 **En curso — PR abierto, sin mergear** | No requiere |
 
 **Notas del índice**
 
@@ -56216,7 +56217,7 @@ comportamiento anterior (ofrecer M2 y M3 según `dispositivo`), o revertirse ant
 
 # Cambio 476 — Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas»
 
-🟡 **EN CURSO — 16/11/2026** · rama `fix/sidebar-emergencia`
+🟢 **HECHO — 16/11/2026** · PR #1141 (rama `fix/sidebar-emergencia`), mergeado en `f3ad5ad2`
 
 | | |
 |---|---|
@@ -56284,5 +56285,107 @@ Ninguno.
 ## Historial
 
 - **16/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 477 — Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior
+
+🟡 **EN CURSO — 16/11/2026** · PR abierto (rama `feat/emergencia-cancelar-derivacion`), sin mergear
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · API de campo (`/api/emergencia/`, M2) |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` |
+| **Solicitante** | PM — riesgo detectado en la app de campo (`Chaco-mobile`): reintento de un cancelar cuya respuesta se perdió |
+| **Fecha del pedido** | 16/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Mobile (aditivo: la app publicada sigue andando sin mandar el campo nuevo) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+`POST …/cancelar-ingreso/` no es idempotente (decisión 3 del Cambio 470) y actúa sobre la **última** derivación del caso.
+Si la respuesta de un cancelar se pierde y, antes del reintento, la mesa vuelve a derivar al mismo dispositivo y otra
+guardia acepta, el reintento cancela ese ingreso **nuevo** con un motivo viejo. La app no lo puede evitar porque
+`GET …/integrantes/` no dice qué derivación está mirando.
+
+## Alcance acordado
+
+**Entra:** `GET …/integrantes/` suma `derivacion: {id}`; `cancelar-ingreso`, `alojar` y `cerrar-diferencia` aceptan
+`derivacion` opcional y, si ya no es la del caso, contestan 409 sin escribir; contrato §13.5 y §13.9; `CLAVES_*` y test de
+contrato. **Queda afuera:** la app (la toma `Chaco-mobile`), la idempotencia real por `uuid_cliente` (Pendiente 2 del
+Cambio 470, necesita columna) y sumar la derivación a las respuestas de aceptar y del ingreso directo.
+
+## Decisiones tomadas
+
+1. **`derivacion: {"id": …}` en el `GET` y `derivacion: <id>` en el `POST`.** Objeto en la respuesta, como `caso`, y la misma
+   clave que la tarjeta de `buscar` (`derivacion.id`, §13.2), sin repetir esa tarjeta entera (`derivada_por` cuesta
+   consultas). En el cuerpo, un entero como `sector` en `alojar`. El valor es el de la derivación que
+   `ingreso_sin_candado` ya leyó: **+0 consultas** (el presupuesto de `integrantes` midió 7 antes y después).
+2. **El chequeo vive en `_abrir_ingreso` (`derivacion_vista=`), con el caso y la derivación bloqueados, y va antes del de
+   estado.** Si la derivación es la misma, el reintento de un cancelar que ya llegó sigue dando el 409 de estado
+   (`EN_GESTION`/`NUEVO`) y la app infiere que se hizo; si es otra, el 409 dice «El ingreso del caso N cambió: la derivación
+   que viste ya no es la vigente. Recargá la pantalla.» con el `estado_actual` de hoy, también cuando la nueva derivación
+   está todavía pendiente (`DERIVADO`).
+3. **Tabla de casos de `cancelar-ingreso`:** (a) primer envío con la derivación correcta → 200; (b) reintento de un cancelar
+   que llegó, sin re-derivación → 409 de estado `EN_GESTION`/`NUEVO`; (c) reintento después de re-derivar al mismo
+   dispositivo (aceptada o pendiente) → 409 «cambió», no cancela; (d) derivación inexistente o de otro caso → **el mismo
+   409** que (c) —no se dice si existe ni se gasta una consulta en averiguarlo—, y un valor que no es un entero ≥ 1 →
+   400 `derivacion`; (e) sin el campo o `null` → como antes. Re-derivado a **otro** dispositivo: 404, con o sin el campo,
+   como ya era (el caso dejó de ser de esa guardia).
+4. **También en `alojar` y `cerrar-diferencia`**: es el mismo `_abrir_ingreso` y el mismo riesgo (cerrar un ingreso que
+   la pantalla no vio); agregarlo fue un campo opcional y un argumento. La web (E6) no lo manda y no cambia.
+5. **Opcional y sin fecha de corte**: la app publicada no lo manda y sigue con el comportamiento de antes (caso e). Volverlo
+   obligatorio sería un release coordinado con la app.
+
+## Implementación
+
+`GET /api/emergencia/casos/{id}/integrantes/` contesta además `"derivacion": {"id": 55}`. Los tres cierres de §13.9 aceptan
+`"derivacion": 55`. Servicio: `_abrir_ingreso(caso, usuario, *estados, derivacion_vista=None)` y el mismo argumento en
+`alojar_familia`, `cerrar_con_diferencia` y `cancelar_ingreso`; el serializer de entrada lo mapea con `source`.
+
+## Archivos
+
+`programas/services/emergencia_ingreso_comun.py` (`_abrir_ingreso`, `MENSAJE_OTRA_DERIVACION`),
+`programas/services/emergencia_cierre.py`, `programas/api/serializers_emergencia.py` (`DerivacionDelIngresoSerializer`,
+`_derivacion_vista`), `programas/api/views_emergencia_llegadas.py` (`_ingreso_para_leer`),
+`programas/tests/base_emergencia_api.py` (`CLAVES_INTEGRANTES`, `CLAVES_DERIVACION_DEL_INGRESO`),
+`programas/tests/test_emergencia_api_contrato.py`, `programas/tests/test_emergencia_api_m2_cierre.py`,
+`docs/internal/contrato-app-emergencia.md` (§13.5 y §13.9).
+
+## Base de datos
+
+No aplica.
+
+## Validación
+
+`CerrarConLaDerivacionVistaApiTests` (11 tests): cada caso de la tabla (a–e, con la re-derivación aceptada y pendiente, de
+otro caso, inexistente, `"abc"`/`0`/`-3`, `null`), que no se escribe nada en los 409 (`_foto_del_caso`), que `integrantes`
+trae la derivación nueva después de re-derivar, y alojar/diferencia con una derivación vieja (409) y con la vigente (200).
+El esquema publica `derivacion` en `integrantes` (requerida) y opcional en los tres cuerpos. Mutaciones vistas en rojo: sin
+el chequeo (8 fallas), el chequeo después del de estado (falla el caso c con la derivación pendiente) y `cancelar_ingreso`
+sin pasar el argumento (5). Presupuesto de `integrantes`: 7 consultas antes y después. `manage.py check`,
+`makemigrations --check`, `ruff`, `spectacular --fail-on-warn` y `requerimientos.py --check` en verde.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+1. Al mergear, pasar esta entrada a 🟢 con el PR y el SHA del merge (en el historial).
+2. La app (`Chaco-mobile`) tiene que guardar `derivacion.id` de `integrantes` y mandarlo en los tres cierres; mientras no lo
+   haga, el riesgo del pedido sigue (caso e).
+3. Aceptar y el ingreso directo no devuelven la derivación: la app la toma del `GET …/integrantes/` que hace después. Si
+   se quiere evitar ese `GET`, sumarla a `AceptacionSerializer` e `IngresoDirectoSerializer` (aditivo).
+
+## Reversión
+
+Revertir el PR; sin migraciones. Una app que ya mande `derivacion` contra un servidor sin este cambio: DRF ignora el campo
+desconocido y se vuelve al comportamiento de antes (caso e).
+
+## Historial
+
+- **16/11/2026 — alta del cambio.** El número 476 lo usa el PR #1141.
 
 ---

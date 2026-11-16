@@ -52,6 +52,7 @@ from programas.tests.base_emergencia_api import (
     CLAVES_CIERRE_DE_INGRESO,
     CLAVES_CONFIRMACION,
     CLAVES_CONSULTA,
+    CLAVES_DERIVACION_DEL_INGRESO,
     CLAVES_ENTREGA,
     CLAVES_ESTADO_CAMBIO,
     CLAVES_FICHA_COMPLETADA,
@@ -646,6 +647,23 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
         for operacion, codigo, claves in casos:
             with self.subTest(operacion=operacion["operationId"], codigo=codigo):
                 self.assertEqual(sorted(self._componente(operacion, codigo)["properties"]), claves)
+
+    def test_integrantes_publica_la_derivacion_y_los_cierres_la_aceptan_opcional(self):
+        """Cambio 477: el `GET` dice qué derivación se mira y los tres cierres la reciben sin exigirla."""
+        rutas = self.esquema["paths"]
+        componentes = self.esquema["components"]["schemas"]
+
+        integrantes = self._componente(rutas["/api/emergencia/casos/{id}/integrantes/"]["get"])
+        propiedad = integrantes["properties"]["derivacion"]
+        derivacion = componentes[(propiedad.get("allOf") or [propiedad])[0]["$ref"].split("/")[-1]]
+        self.assertEqual(sorted(derivacion["properties"]), CLAVES_DERIVACION_DEL_INGRESO)
+        self.assertIn("derivacion", integrantes["required"])
+        for ruta in ("alojar", "cerrar-diferencia", "cancelar-ingreso"):
+            with self.subTest(ruta=ruta):
+                cuerpo = rutas[f"/api/emergencia/casos/{{id}}/{ruta}/"]["post"]["requestBody"]["content"]
+                envio = componentes[cuerpo["application/json"]["schema"]["$ref"].split("/")[-1]]
+                self.assertEqual(envio["properties"]["derivacion"]["type"], "integer")
+                self.assertNotIn("derivacion", envio.get("required", []))
 
     def test_las_dos_consultas_con_tope_publican_el_429(self):
         """La identidad (SEC-25) y la búsqueda por DNI (M2-1): la app sabe que pueden contestar 429."""

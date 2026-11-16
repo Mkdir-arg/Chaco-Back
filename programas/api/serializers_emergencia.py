@@ -412,10 +412,20 @@ class IntegranteDetalleSerializer(IntegranteSerializer):
     )
 
 
+class DerivacionDelIngresoSerializer(serializers.Serializer):
+    id = serializers.IntegerField(
+        help_text=(
+            "La derivación del ingreso que se está mirando. Va como `derivacion` en `…/alojar/`, "
+            "`…/cerrar-diferencia/` y `…/cancelar-ingreso/`."
+        )
+    )
+
+
 class IntegrantesDelCasoSerializer(serializers.Serializer):
     """M2-3: las N filas de la familia con el contador."""
 
     caso = CasoResumenSerializer()
+    derivacion = DerivacionDelIngresoSerializer(help_text="La derivación aceptada de este ingreso (Cambio 477).")
     integrantes = IntegranteSerializer(many=True)
     confirmadas = serializers.IntegerField(help_text="El «3» de «3 de 7 confirmadas».")
     total_declarado = serializers.IntegerField(help_text="Filas de la familia: crece con «Agregar persona».")
@@ -591,9 +601,24 @@ class IntegranteAgregadoSerializer(serializers.Serializer):
     total_declarado = serializers.IntegerField()
 
 
+def _derivacion_vista():
+    return serializers.IntegerField(
+        source="derivacion_vista",
+        required=False,
+        allow_null=True,
+        default=None,
+        min_value=1,
+        help_text=(
+            "Opcional: `derivacion.id` de `…/integrantes/`. Si ya no es la derivación del caso (la mesa volvió a "
+            "derivar y otra guardia aceptó), 409 sin tocar nada. Sin él, actúa sobre la última derivación."
+        ),
+    )
+
+
 class AlojarFamiliaEnvioSerializer(serializers.Serializer):
     """La sección 4 del Formulario 1 (M2-5)."""
 
+    derivacion = _derivacion_vista()
     sector = serializers.IntegerField(
         required=False, allow_null=True, default=None, help_text="`id` de un sector del dispositivo (`…/plazas/`)."
     )
@@ -604,11 +629,13 @@ class AlojarFamiliaEnvioSerializer(serializers.Serializer):
 
 
 class CerrarConDiferenciaEnvioSerializer(serializers.Serializer):
+    derivacion = _derivacion_vista()
     motivo = _texto(help_text="Obligatorio: `QUEDO_CON_FAMILIARES`, `NO_LLEGO`, `DERIVADO_A_SALUD` u `OTRO`.")
     observacion = _texto(help_text="Obligatoria con `OTRO`.")
 
 
 class CancelarIngresoEnvioSerializer(serializers.Serializer):
+    derivacion = _derivacion_vista()
     motivo = _texto(help_text="Obligatorio, hasta 200 caracteres.")
 
 
