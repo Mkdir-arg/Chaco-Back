@@ -599,8 +599,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟢 **Hecho** | No requiere |
 | 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟢 **Hecho** | No requiere |
 | 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟢 **Hecho** | No requiere |
-| 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟡 **En curso — PR abierto, sin mergear** | No requiere |
-| 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟡 **En curso — PR abierto, sin mergear** | No requiere |
+| 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟢 **Hecho** | No requiere |
+| 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -56291,7 +56291,7 @@ Ninguno.
 
 # Cambio 477 — Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior
 
-🟡 **EN CURSO — 16/11/2026** · PR abierto (rama `feat/emergencia-cancelar-derivacion`), sin mergear
+🟢 **HECHO — 16/11/2026** · PR #1142 (rama `feat/emergencia-cancelar-derivacion`), mergeado en `ce1526e0`
 
 | | |
 |---|---|
@@ -56388,12 +56388,13 @@ desconocido y se vuelve al comportamiento de antes (caso e).
 ## Historial
 
 - **16/11/2026 — alta del cambio.** El número 476 lo usa el PR #1141.
+- **16/11/2026 — mergeado** en `ce1526e0` (PR #1142). El QA local de punta a punta de Emergencia del mismo día encontró la carrera equivalente en la web: «Cancelar derivación» de la mesa actúa sobre la derivación pendiente al confirmar, no sobre la que se ve (issue #1144).
 
 ---
 
 # Cambio 478 — Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K»
 
-🟡 **En curso — PR abierto, sin mergear**
+🟢 **HECHO — 16/11/2026** · PR #1156 (rama `fix/emergencia-numero-caso-c`), mergeado en `9a44f7fc`
 
 | | |
 |---|---|
@@ -56457,5 +56458,7 @@ Ninguno.
 ## Historial
 
 - **16/11/2026 — alta del cambio.**
+- **16/11/2026 — mergeado** en `9a44f7fc` (PR #1156).
+- **Origen: QA local de punta a punta de Emergencia (16/11/2026).** App Chaco-mobile v1.2.20 (`origin/test` `52cc238`, PWA) contra el back de `development` `ce1526e0` (SQLite). Recorrido: M1 relevamiento → mesa toma y deriva → M2 la guardia acepta, confirma una persona y cierra con diferencia → E4 entrega de kits en camino → M3 recepción con faltante y foto del remito → E5 observación y reposición → E1 tablero del supervisor → cancelar derivación → vencimiento de una derivación con `procesar_vencimientos`. Anduvieron bien: alcance por rol (403 del tablero al operador), `/media/` protegido, cuentas del tablero contra la base, reposición precargada con el faltante. Hallazgos registrados como issues #1143–#1155 (1 alto: #1143; medios: #1144–#1147; bajos: #1148–#1155). De esos, este cambio resuelve la numeración de #1152.
 
 ---
