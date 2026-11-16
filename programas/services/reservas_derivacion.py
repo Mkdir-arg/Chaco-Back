@@ -100,7 +100,7 @@ DERIVACION_NO_VIGENTE = "La derivación ya no está vigente: no se le pueden gua
 
 
 def motivo_de_reserva_de_derivacion(derivacion):
-    """«Emergencia caso N.° 2026-000184»: lo que dice la reserva sobre por qué existe."""
+    """«Emergencia caso N.° 2026-C-000184»: lo que dice la reserva sobre por qué existe."""
 
     return f"Emergencia caso N.° {derivacion.caso.numero}"
 

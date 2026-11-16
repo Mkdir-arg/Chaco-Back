@@ -877,7 +877,7 @@ class BitacoraAutomaticaSinMovimientoTests(BaseDerivacion):
         datos = {
             "dispositivo": self.cis,
             "tipo": EntradaBitacora.Tipo.GENERAL,
-            "texto": "Derivación aceptada · caso 2026-000001 · 7 plazas",
+            "texto": "Derivación aceptada · caso 2026-C-000001 · 7 plazas",
             "usuario": self.operador_cis,
         }
         datos.update(cambios)
@@ -891,7 +891,7 @@ class BitacoraAutomaticaSinMovimientoTests(BaseDerivacion):
         entrada = EntradaBitacora.objects.get(pk=entrada.pk)
         self.assertEqual(entrada.origen, EntradaBitacora.Origen.AUTOMATICA)
         self.assertEqual(entrada.tipo, EntradaBitacora.Tipo.GENERAL)
-        self.assertEqual(entrada.texto, "Derivación aceptada · caso 2026-000001 · 7 plazas")
+        self.assertEqual(entrada.texto, "Derivación aceptada · caso 2026-C-000001 · 7 plazas")
         self.assertIsNone(entrada.movimiento_id)
         self.assertEqual(entrada.turno_id, turno.pk)
         self.assertEqual(entrada.fecha_operativa, timezone.localtime(RELOJ).date())

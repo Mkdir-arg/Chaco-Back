@@ -206,13 +206,13 @@ class ModelosTests(BaseCasos):
         numerador = NumeradorEmergencia.objects.get(serie="C", anio=2026)
 
         self.assertEqual(str(caso.grupo), "Familia de Benítez, Rosa · 3 personas")
-        self.assertEqual(str(caso), "Caso 2026-000001")
-        self.assertEqual(str(derivacion), "Derivación del caso 2026-000001 a Club Sarmiento")
-        self.assertEqual(str(contacto), "Llamada · Atendió · caso 2026-000001")
+        self.assertEqual(str(caso), "Caso 2026-C-000001")
+        self.assertEqual(str(derivacion), "Derivación del caso 2026-C-000001 a Club Sarmiento")
+        self.assertEqual(str(contacto), "Llamada · Atendió · caso 2026-C-000001")
         self.assertEqual(str(integrante), "Integrante 1 · sin confirmar")
         self.assertEqual(str(confirmado), "Integrante 2 · Benítez, Rosa")
-        self.assertEqual(str(adjunto), "Foto de la vivienda · caso 2026-000001")
-        self.assertEqual(str(self._trazas(caso)[0]), "Caso 2026-000001 · Caso creado")
+        self.assertEqual(str(adjunto), "Foto de la vivienda · caso 2026-C-000001")
+        self.assertEqual(str(self._trazas(caso)[0]), "Caso 2026-C-000001 · Caso creado")
         self.assertEqual(str(numerador), "Serie C · 2026: 1")
 
     def test_el_grupo_de_una_persona_se_lee_en_singular(self):
@@ -537,10 +537,10 @@ class CrearCasoTests(BaseCasos):
 
     def test_el_numero_sale_del_numerador_del_anio(self):
         primero, segundo = self._caso(), self._caso()
-        self.assertEqual((primero.numero, segundo.numero), ("2026-000001", "2026-000002"))
+        self.assertEqual((primero.numero, segundo.numero), ("2026-C-000001", "2026-C-000002"))
 
         self.reloj.ahora = timezone.make_aware(datetime(2027, 1, 1, 0, 30))
-        self.assertEqual(self._caso().numero, "2027-000001")
+        self.assertEqual(self._caso().numero, "2027-C-000001")
         self.assertEqual(
             list(NumeradorEmergencia.objects.values_list("serie", "anio", "ultimo")), [("C", 2026, 2), ("C", 2027, 1)]
         )
@@ -549,13 +549,13 @@ class CrearCasoTests(BaseCasos):
         self._caso()
         with transaction.atomic():
             numero = servicio.siguiente_numero(NumeradorEmergencia.Serie.KITS)
-        self.assertEqual(numero, "2026-000001")
+        self.assertEqual(numero, "2026-C-000001")
         self.assertEqual(NumeradorEmergencia.objects.get(serie="C").ultimo, 1)
 
     def test_un_caso_rechazado_no_gasta_numero(self):
         with self.assertRaises(ValidationError):
             self._caso(direccion="")
-        self.assertEqual(self._caso().numero, "2026-000001")
+        self.assertEqual(self._caso().numero, "2026-C-000001")
 
     def test_la_hora_del_telefono_se_guarda_aparte_de_la_del_servidor(self):
         """RN-1.8 / RU-18: ``relevado_en`` es del cliente; ``creado`` es del servidor."""
@@ -1337,8 +1337,8 @@ class CerrarSinAlojamientoTests(BaseCasos):
                 self.assertIn(campo, error.exception.message_dict)
         self.assertEqual(self._fila(caso)["estado"], Estado.EN_GESTION)
 
-        servicio.cerrar_sin_alojamiento(caso, self.operador, "OTRO", "Duplicado de N.° 2026-000007")
-        self.assertEqual(self._fila(caso)["observacion_cierre"], "Duplicado de N.° 2026-000007")
+        servicio.cerrar_sin_alojamiento(caso, self.operador, "OTRO", "Duplicado de N.° 2026-C-000007")
+        self.assertEqual(self._fila(caso)["observacion_cierre"], "Duplicado de N.° 2026-C-000007")
 
     def test_un_caso_derivado_no_se_cierra_sin_cancelar_antes(self):
         """RN-2.6."""

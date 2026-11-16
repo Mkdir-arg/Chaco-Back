@@ -5619,9 +5619,9 @@ class CasoEmergencia(TimeStamped):
 
     @staticmethod
     def formatear_numero(anio, correlativo):
-        """«2026-000184»: el año y el correlativo de la serie, con seis dígitos."""
+        """«2026-C-000184»: el año, la serie de casos y el correlativo con seis dígitos."""
 
-        return f"{anio}-{correlativo:06d}"
+        return f"{anio}-C-{correlativo:06d}"
 
     @property
     def abierto(self):
