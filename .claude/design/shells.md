@@ -34,16 +34,16 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
   `aria-current="page"` y lo pinta `.ds-snav`. Si su ruta cuelga del prefijo del grupo, el hermano que
   se marca por prefijo la excluye. Cada ítem se condiciona con la **misma capacidad** que exige su
   vista, y el grupo se muestra si alguno de sus ítems se muestra. Evidencia: «Relevamientos» en
-  Dispositivos (`inspeccion.asignar`) y las dos entradas de Emergencia en el grupo «Programas», con el
-  filtro `|puede:`, como las de Becas (el alcance lo exige la vista): «Emergencia» lleva a la bandeja de
-  casos y la ve quien tiene `emergencia.operar` **o** `emergencia.supervisar`; «Configuración de Emergencia»
-  (E7) y «Tablero de Emergencia» (E1) los ve solo quien supervisa; «Entregas de kits» (E4) va con la misma
-  condición que la bandeja, así que no suma una consulta por página. «Emergencia» se marca con `emergencia`
-  en la ruta salvo en `emergencia/config`, `emergencia/entregas` y `emergencia/tablero`, que son de las
-  otras, y en `emergencia/dispositivos` (la recepción de kits vive dentro del dispositivo: se marca
-  «Instituciones»). El grupo se abre también con `emergencia` en la ruta, y colapsado
-  tiene su propio link a la bandeja, como «Reportes». El ícono es Font Awesome con `w-4 text-center`
-  (`w-5` colapsado), sin `style=`.
+  Dispositivos (`inspeccion.asignar`).
+- **Grupo «Emergencia»:** es un grupo propio, separado de «Programas» (que es de Becas), escrito como
+  «Notificaciones» (utilidades, Heroicons outline, sin `style=`). Ícono del grupo `exclamation-triangle`.
+  Subítems, con el filtro `|puede:` (el alcance lo exige la vista): «Casos» (bandeja, ícono `inbox`) y
+  «Entregas de kits» (E4, `truck`) para quien tiene `emergencia.operar` **o** `emergencia.supervisar`;
+  «Tablero» (E1, `chart-bar`) y «Configuración» (E7, `adjustments-horizontal`) solo para quien supervisa.
+  El grupo se muestra con cualquiera de las dos capacidades y se abre con `emergencia` en la ruta.
+  «Casos» se marca con `emergencia` en la ruta salvo en `emergencia/config`, `emergencia/entregas`,
+  `emergencia/tablero` y `emergencia/dispositivos` (la recepción de kits vive dentro del dispositivo).
+  Colapsado tiene su propio link a la bandeja.
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`
   con `tailwind.config.js`. **No** se usa el CDN de Play.
 - La fuente de íconos se precarga con
