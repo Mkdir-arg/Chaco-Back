@@ -247,7 +247,7 @@ class CarreraDelNumeradorTests(_BaseCarreraEmergencia):
         )
 
         self.assertEqual(errores, [])
-        self.assertEqual(sorted(caso.numero for caso in resultados), ["2026-000002", "2026-000003"])
+        self.assertEqual(sorted(caso.numero for caso in resultados), ["2026-C-000002", "2026-C-000003"])
         self.assertEqual(CasoEmergencia.objects.count(), 3)
         self.assertEqual(NumeradorEmergencia.objects.get(serie="C", anio=2026).ultimo, 3)
 

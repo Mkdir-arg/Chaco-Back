@@ -163,7 +163,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
 
 
 class CasoEmergenciaCreadoSerializer(serializers.ModelSerializer):
-    """Lo que la app necesita para mostrar «Enviado · 7 personas · Caso N.° 2026-000184»."""
+    """Lo que la app necesita para mostrar «Enviado · 7 personas · Caso N.° 2026-C-000184»."""
 
     total_declarado = serializers.IntegerField(source="grupo.total_declarado", read_only=True)
 

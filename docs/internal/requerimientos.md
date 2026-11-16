@@ -600,6 +600,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟢 **Hecho** | No requiere |
 | 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟡 **En curso — PR abierto, sin mergear** | No requiere |
+| 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟡 **En curso — PR abierto, sin mergear** | No requiere |
 
 **Notas del índice**
 
@@ -56387,5 +56388,74 @@ desconocido y se vuelve al comportamiento de antes (caso e).
 ## Historial
 
 - **16/11/2026 — alta del cambio.** El número 476 lo usa el PR #1141.
+
+---
+
+# Cambio 478 — Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K»
+
+🟡 **En curso — PR abierto, sin mergear**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · casos |
+| **Etiquetas** | `#emergencia` |
+| **Solicitante** | PM — decisión sobre el hallazgo del QA local de punta a punta (16/11/2026) |
+| **Fecha del pedido** | 16/11/2026 |
+| **Issue / épica** | #1152 (la parte de numeración) |
+| **Partes afectadas** | Backend (formato del número) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Agregale la C a los números nuevos.» El QA vio que los casos salían `2026-000001`, mientras el manual dice
+`2026-C-000031` y las entregas de kits ya salen `2026-K-000001`.
+
+## Alcance acordado
+
+**Entra:** el formato de los números que se asignen desde el deploy: `<año>-C-<correlativo de 6 dígitos>`.
+**Queda afuera:** los casos ya creados conservan su número (no se renumera nada); el resto de #1152 (textos de «vence»
+y de la bandeja) sigue pendiente en ese issue.
+
+## Decisiones tomadas
+
+1. **Solo números nuevos.** El número se guarda en `CasoEmergencia.numero` al crear el caso; cambiar el formato no toca
+   las filas existentes. Un caso viejo `2026-000184` y uno nuevo `2026-C-000185` conviven sin chocar: el correlativo
+   sale del mismo contador (`NumeradorEmergencia`) y la unicidad se mantiene.
+2. **Sin migración.** `numero` es `CharField(max_length=16)` y `2026-C-000185` ocupa 13.
+3. **La app no cambia.** Chaco-mobile solo muestra el número que devuelve la API; no lo interpreta.
+4. **La búsqueda de la bandeja sigue igual** (`numero__icontains`): «000185» encuentra los dos formatos.
+
+## Implementación
+
+`CasoEmergencia.formatear_numero` (`programas/models/__init__.py`) devuelve `f"{anio}-C-{correlativo:06d}"`.
+
+## Archivos
+
+`programas/models/__init__.py`; docstrings de `programas/services/emergencia_comun.py`,
+`programas/services/reservas_derivacion.py` y `programas/api/serializers_emergencia.py`; ejemplos de
+`docs/internal/contrato-app-emergencia.md`; tests con números fijos (`test_emergencia_casos.py`,
+`test_emergencia_concurrencia.py`, `test_emergencia_kits.py`, `test_dispositivos_reservas_derivacion.py`).
+
+## Base de datos
+
+No aplica.
+
+## Validación
+
+Tests de Emergencia y de reservas de derivación (993) en verde salvo 4 que fallan igual en `development` sin este cambio
+(presupuesto de consultas de E2 y `SinProgramaEmergenciaTests`, propios del entorno local); `ruff check` y
+`ruff format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial. El primer caso que se cree después del deploy ya sale con la «C».
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Historial
+
+- **16/11/2026 — alta del cambio.**
 
 ---
