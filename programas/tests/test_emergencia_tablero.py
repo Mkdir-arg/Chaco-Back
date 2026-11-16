@@ -723,9 +723,9 @@ class TableroVistaTests(EscenarioTablero):
 
     def test_el_sidebar_ofrece_el_tablero_solo_a_quien_supervisa(self):
         self.client.force_login(self.supervisor)
-        self.assertContains(self.client.get(URL_TABLERO), "Tablero de Emergencia")
+        self.assertContains(self.client.get(URL_TABLERO), f'href="{URL_TABLERO}"')
         self.client.force_login(self.operador)
-        self.assertNotContains(self.client.get("/emergencia/casos/"), "Tablero de Emergencia")
+        self.assertNotContains(self.client.get("/emergencia/casos/"), f'href="{URL_TABLERO}"')
 
     def test_el_nombre_del_evento_sale_de_e7(self):
         self.sla.nombre_evento = "Crecida del río"
