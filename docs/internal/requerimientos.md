@@ -596,8 +596,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 471 | Emergencia, PR 9 y 9-API: entregas de kits — E4, E5, recepción en el dispositivo y API M3 | Emergencia · kits · Dispositivos (recepción) | `#emergencia` `#ui` `#api` `#datos` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | `programas.0121` |
 | 472 | Emergencia, PR 10: tablero E1 del supervisor y avisos de la mesa | Emergencia · tablero | `#emergencia` `#ui` `#performance` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
 | 473 | Emergencia, PR 11: marcas de la bandeja y la ficha que dependen de las etapas 3 y 4 | Emergencia · mesa | `#emergencia` `#ui` | PM — análisis funcional y plan del módulo Emergencia | 04/11/2026 | 🟢 **Hecho** | No requiere |
-| 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟡 **En curso — PR #1137 abierto, sin mergear** | No requiere |
-| 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟡 **En curso — PR #1139 abierto, sin mergear** | No requiere |
+| 474 | Emergencia, PR 12: manual del módulo y registro del lote en este archivo | Emergencia · documentación interna | `#emergencia` `#gestion` | PM — plan del módulo Emergencia (PR 12) | 12/11/2026 | 🟢 **Hecho** | No requiere |
+| 475 | Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`) | Emergencia · API de campo | `#emergencia` `#api` `#mobile` `#rbac` | PM — necesidad de la app (Chaco-mobile) de saber qué ofrecer sin probar y recibir 403/404 | 14/11/2026 | 🟢 **Hecho** | No requiere |
+| 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟡 **En curso — PR abierto, sin mergear** | No requiere |
 
 **Notas del índice**
@@ -56022,7 +56023,7 @@ Revertir el PR; sin migraciones.
 
 # Cambio 474 — Emergencia, PR 12: manual del módulo y registro del lote en este archivo
 
-🟡 **EN CURSO — 13/11/2026** · PR #1137 (rama `feat/emergencia-pr12-docs-v2`), sin mergear a `development`
+🟢 **HECHO — 14/11/2026** · PR #1137 (rama `feat/emergencia-pr12-docs-v2`), mergeado en `f6aecbb8`
 
 | | |
 |---|---|
@@ -56117,7 +56118,7 @@ Revertir el PR; sin migraciones.
 
 # Cambio 475 — Emergencia, API de campo: el perfil separa `llegadas` (M2) de `kits` (M3) y `mis-dispositivos` dice qué hace el usuario en cada dispositivo (`admite`, `recibe_kits`)
 
-🟡 **EN CURSO — 14/11/2026** · PR #1139 (rama `feat/emergencia-api-perfil-capacidades`), sin mergear
+🟢 **HECHO — 14/11/2026** · PR #1139 (rama `feat/emergencia-api-perfil-capacidades`), mergeado en `1eeb0a15`
 
 | | |
 |---|---|
@@ -56211,6 +56212,79 @@ comportamiento anterior (ofrecer M2 y M3 según `dispositivo`), o revertirse ant
 ## Historial
 
 - **14/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 476 — Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas»
+
+🟢 **HECHO — 16/11/2026** · PR #1141 (rama `fix/sidebar-emergencia`), mergeado en `f3ad5ad2`
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · navegación del backoffice (sidebar) |
+| **Etiquetas** | `#emergencia` `#ui` |
+| **Solicitante** | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas |
+| **Fecha del pedido** | 16/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Frontend (sidebar del backoffice) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Subiste las opciones de emergencia (Emergencia, Entregas de kits, Tablero de Emergencia, Configuración de Emergencia)
+dentro de Programas; eso está mal porque es otra cosa. Agregá otra opción en el menú que se llame Emergencia y que tenga
+los mismos tipos de íconos.»
+
+## Alcance acordado
+
+**Entra:** un grupo colapsable «Emergencia» en el sidebar, con sus cuatro entradas, y sacarlas de «Programas».
+**Queda afuera:** permisos, rutas y vistas (no cambian); el menú de cada dispositivo («Emergencia · Llegadas» y
+«Emergencia · Kits»), que sigue donde estaba.
+
+## Decisiones tomadas
+
+1. **Grupo propio, con la misma condición de antes.** Se muestra con `emergencia.operar` o `emergencia.supervisar`; «Casos»
+   y «Entregas de kits» con cualquiera de las dos, «Tablero» y «Configuración» solo con `emergencia.supervisar`. Sin
+   consultas de más: el filtro `|puede:` sale del cache de capacidades, como antes.
+2. **Íconos Heroicons outline, como los demás grupos** (antes eran Font Awesome): grupo `exclamation-triangle`; «Casos»
+   `inbox`, «Entregas de kits» `truck`, «Tablero» `chart-bar`, «Configuración» `adjustments-horizontal`.
+3. **Nombres cortos dentro del grupo:** «Emergencia» (la bandeja) pasa a «Casos», «Tablero de Emergencia» a «Tablero» y
+   «Configuración de Emergencia» a «Configuración»: el grupo ya dice que son de Emergencia.
+4. **Escrito como «Notificaciones»** (utilidades, sin `style=`), según la regla de grupo nuevo de `.claude/design/shells.md`.
+   «Programas» vuelve a mostrarse y abrirse solo con capacidades y rutas de Becas.
+
+## Implementación
+
+`templates/includes/sidebar/opciones.html`: se quitan del grupo «Programas» las cuatro entradas y el link colapsado de
+Emergencia, y se agrega el grupo «Emergencia» entre «Programas» y «Dispositivos», con su link colapsado a la bandeja.
+
+## Archivos
+
+`templates/includes/sidebar/opciones.html`, `.claude/design/shells.md` (ficha del shell),
+`docs/internal/emergencia-manual.md` (las rutas «Sidebar → …» de E1, E2, E4 y E7),
+`programas/tests/test_emergencia_tablero.py` (el test del tablero en el sidebar busca el link, no el texto viejo).
+
+## Base de datos
+
+No aplica.
+
+## Validación
+
+`manage.py check`; `design_audit.py --ratchet` con 0 hallazgos nuevos; `compile_templates.py --bloques` en 0;
+`check_design_agent.py --changed` OK; tests de Emergencia (tablero, base/E7 y sidebar), Dispositivos, inicio de Becas y
+shell en verde.
+
+## Puesta en marcha en el servidor
+
+Nada especial (el CSS compilado no cambia: las utilidades ya existían en el grupo «Notificaciones»).
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Historial
+
+- **16/11/2026 — alta del cambio.**
 
 ---
 
