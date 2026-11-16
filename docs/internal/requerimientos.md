@@ -56260,6 +56260,7 @@ Emergencia, y se agrega el grupo «Emergencia» entre «Programas» y «Disposit
 ## Archivos
 
 `templates/includes/sidebar/opciones.html`, `.claude/design/shells.md` (ficha del shell),
+`docs/internal/emergencia-manual.md` (las rutas «Sidebar → …» de E1, E2, E4 y E7),
 `programas/tests/test_emergencia_tablero.py` (el test del tablero en el sidebar busca el link, no el texto viejo).
 
 ## Base de datos

@@ -66,11 +66,11 @@ dispositivo (una derivación, una entrega, una llegada), **404**, igual que un i
 
 | Pantalla | URL | Quién | Cómo se llega |
 |---|---|---|---|
-| **E1 · Tablero** | `/emergencia/tablero/` | supervisar | Sidebar → Programas → «Tablero de Emergencia» |
-| **E2 · Bandeja de casos** | `/emergencia/casos/` | operar o supervisar | Sidebar → Programas → «Emergencia» |
+| **E1 · Tablero** | `/emergencia/tablero/` | supervisar | Sidebar → Emergencia → «Tablero» |
+| **E2 · Bandeja de casos** | `/emergencia/casos/` | operar o supervisar | Sidebar → Emergencia → «Casos» |
 | «Nuevo caso» (Formulario 1 de la mesa) | `/emergencia/casos/nuevo/` | operar o supervisar | Botón de E2 |
 | **E3 · Ficha del caso** | `/emergencia/casos/<id>/` | operar o supervisar (actuar: quien lo tomó, o supervisar) | Fila de E2 |
-| **E4 · Entregas de kits** | `/emergencia/entregas/` | operar o supervisar | Sidebar → Programas → «Entregas de kits» |
+| **E4 · Entregas de kits** | `/emergencia/entregas/` | operar o supervisar | Sidebar → Emergencia → «Entregas de kits» |
 | Nueva entrega (3 pasos) | `/emergencia/entregas/nueva/` → `…/nueva/<dispositivo>/` → `…/confirmar/` | operar o supervisar | Botón de E4 |
 | **E5 · Detalle de la entrega** | `/emergencia/entregas/<id>/` | operar o supervisar | Fila de E4 |
 | **E6 · Emergencia · Llegadas** | `/dispositivos/<id>/emergencia/llegadas/` | `dispositivo.admitir` en el Equipo de ese dispositivo | Detalle del dispositivo → menú → «Emergencia · Llegadas» |
@@ -81,7 +81,7 @@ dispositivo (una derivación, una entrega, una llegada), **404**, igual que un i
 | E6 · Ingresar igual (sin derivación) | `/dispositivos/<id>/emergencia/llegadas/ingreso-directo/` | ídem | Llegadas, cuando el DNI no tiene derivación y hay camas |
 | E6 · Avisar a la mesa | `/dispositivos/<id>/emergencia/llegadas/avisar/` | ídem | Llegadas, cuando el DNI no tiene derivación |
 | **Kits del dispositivo** (recepción web) | `/emergencia/dispositivos/<id>/kits/` y `…/kits/<entrega>/recibir/` | `emergencia.recibir_kit` en el Equipo de ese dispositivo | Detalle del dispositivo → menú → «Emergencia · Kits» |
-| **E7 · Configuración** | `/emergencia/config/` | supervisar | Sidebar → Programas → «Configuración de Emergencia» |
+| **E7 · Configuración** | `/emergencia/config/` | supervisar | Sidebar → Emergencia → «Configuración» |
 
 ### E7 · Configuración (valores de fábrica)
 
