@@ -25,8 +25,10 @@ Un sector con historia **se da de baja** (`activo=False`), no se elimina: sus pl
 siguen colgando de estadías cerradas y de movimientos, que son inmutables. Y no se da de
 baja si alguna de sus plazas está tomada —estadía activa, reserva o préstamo sin
 liberar—: primero se reubica a la persona, que es exactamente lo que ya exige
-`estadias.sacar_plaza_de_servicio`. Las plazas no tienen baja propia: la forma de retirar
-una de la capacidad operativa es sacarla de servicio, con su motivo.
+`estadias.sacar_plaza_de_servicio`. Una plaza se retira de la capacidad operativa por un
+tiempo sacándola de servicio, con su motivo; si se desmanteló para siempre o se cargó de más,
+**se da de baja** (`Plaza.activa=False`, Cambio 479): sale del mapa y del total, conserva su
+historia y su código (que no se reusa) y se puede reactivar. Tampoco se borra.
 """
 
 import re
@@ -37,8 +39,9 @@ from django.db import transaction
 from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import codigos_del_sector, plazas_tomadas_del_sector
 from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.estadias import _plaza_tomada_por
+from programas.services.estadias import _plaza_tomada_por, reserva_abierta_de
 from programas.services.nombre_plaza import plaza_con_sector
+from programas.services.ocupacion import ESTADO_OCUPADA
 
 #: Configurar la capacidad instalada es edición del legajo, no operación diaria. La misma
 #: capacidad con la que se saca una plaza de servicio.
@@ -491,8 +494,9 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
     tomada = _plaza_tomada_por(plaza)
     if tomada:
         raise ValidationError({"__all__": f"La plaza tiene {tomada}: reubicá o liberá antes de editarla."})
-    if Plaza.objects.filter(sector=plaza.sector_id, codigo__iexact=codigo).exclude(pk=plaza.pk).exists():
-        raise ValidationError({"codigo": "Ya hay una plaza con ese código en el sector."})
+    # `todas`: el código de una plaza dada de baja sigue tomado (lo pide el UNIQUE y su reactivación).
+    if Plaza.todas.filter(sector=plaza.sector_id, codigo__iexact=codigo).exclude(pk=plaza.pk).exists():
+        raise ValidationError({"codigo": "Ya hay una plaza con ese código en el sector, activa o dada de baja."})
 
     anterior = plaza.codigo
     plaza.codigo = codigo
@@ -505,4 +509,78 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
         "PLAZA_EDITADA",
         detalle=f"Plaza {anterior} → {plaza_con_sector(plaza, sector_nombre)} · {Plaza.Tipo(plaza.tipo).label}",
     )
+    return plaza
+
+
+#: Por qué una plaza no se da de baja. La salida es la misma que la de sacarla de servicio.
+PLAZA_TOMADA_NO_SE_DA_DE_BAJA = "La plaza tiene {tomada}: reubicá o liberá antes de darla de baja."
+
+
+def motivo_para_no_dar_de_baja(estado, con_reserva_abierta):
+    """Por qué la plaza dibujada en el mapa no se puede dar de baja, o ``""``. Sin consultas.
+
+    Lo mismo que va a rechazar `dar_de_baja_plaza`, dicho antes de intentarlo: la ocupada y la
+    que tiene una reserva o un préstamo sin liberar (también vencidos) primero se liberan.
+    """
+
+    if estado.estado == ESTADO_OCUPADA:
+        return PLAZA_TOMADA_NO_SE_DA_DE_BAJA.format(tomada="una estadía activa")
+    if con_reserva_abierta:
+        return PLAZA_TOMADA_NO_SE_DA_DE_BAJA.format(tomada="una reserva o un préstamo sin liberar")
+    return ""
+
+
+@transaction.atomic
+def dar_de_baja_plaza(*, plaza, usuario):
+    """Saca la plaza de la capacidad instalada para siempre: deja de dibujarse, contarse y ofrecerse.
+
+    Para una cama desmantelada o cargada de más. No se borra —las estadías y los movimientos la
+    apuntan con `PROTECT`— y se puede reactivar. Tiene la misma regla que sacarla de servicio
+    (una plaza tomada primero se reubica o se libera) y además rechaza la reserva o el préstamo
+    vencidos sin liberar, como la baja de un sector: si no, quedarían abiertos sobre una plaza
+    que nadie ve. Se bloquea el dispositivo antes que la plaza, el orden de `editar_plaza`.
+    """
+
+    dispositivo = plaza.sector.dispositivo
+    sector_nombre = plaza.sector.nombre
+    _exigir_alcance(dispositivo, usuario)
+
+    _bloquear_dispositivo(dispositivo)
+    plaza = Plaza.todas.select_for_update().get(pk=plaza.pk)
+    if not plaza.activa:
+        raise ValidationError({"__all__": "La plaza ya está dada de baja."})
+    tomada = _plaza_tomada_por(plaza)
+    if not tomada and reserva_abierta_de(plaza) is not None:
+        tomada = "una reserva o un préstamo sin liberar"
+    if tomada:
+        raise ValidationError({"__all__": PLAZA_TOMADA_NO_SE_DA_DE_BAJA.format(tomada=tomada)})
+
+    plaza.activa = False
+    plaza.save(update_fields=["activa", "modificado"])
+    _trazar(dispositivo, usuario, "PLAZA_BAJA", detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}")
+    return plaza
+
+
+@transaction.atomic
+def reactivar_plaza(*, plaza, usuario):
+    """Devuelve al mapa una plaza dada de baja, con el estado operativo que tenía.
+
+    Su código nunca se liberó (el UNIQUE `(sector, codigo)` incluye las bajas), así que no puede
+    chocar. El sector tiene que estar activo: la plaza vuelve a ofrecerse para alojar.
+    """
+
+    dispositivo = plaza.sector.dispositivo
+    sector_nombre = plaza.sector.nombre
+    _exigir_alcance(dispositivo, usuario)
+
+    _bloquear_dispositivo(dispositivo)
+    plaza = Plaza.todas.select_for_update().get(pk=plaza.pk)
+    if plaza.activa:
+        raise ValidationError({"__all__": "Esa plaza ya está activa."})
+    if not Sector.objects.filter(pk=plaza.sector_id, activo=True).exists():
+        raise ValidationError({"__all__": "El sector de la plaza está dado de baja: reactivalo primero."})
+
+    plaza.activa = True
+    plaza.save(update_fields=["activa", "modificado"])
+    _trazar(dispositivo, usuario, "PLAZA_REACTIVADA", detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}")
     return plaza

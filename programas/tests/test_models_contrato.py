@@ -143,6 +143,7 @@ OTROS_NOMBRES_PUBLICOS = {
     "PadronHabilitadoQuerySet",
     "Path",
     "PausableMixin",
+    "PlazaActivaManager",
     "PresentacionCampo",
     "ReservaPlazaQuerySet",
     "RespuestasDeFormulario",

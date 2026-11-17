@@ -734,7 +734,8 @@ class PlazaDisponibleSinRecargaTests(BaseMapa):
 
         self.assertContains(respuesta, 'id="plazas-modal-datos"')
         self.assertEqual(
-            set(respuesta.context["urls_plaza"]), {"reservar", "prestar", "liberar", "fuera_servicio", "volver"}
+            set(respuesta.context["urls_plaza"]),
+            {"reservar", "prestar", "liberar", "fuera_servicio", "volver", "baja"},
         )
         self.assertIn("/plazas/__pk__/reservar/", respuesta.context["urls_plaza"]["reservar"])
 

@@ -486,9 +486,13 @@ class SectorAdmin(CapacidadSoloLecturaMixin, admin.ModelAdmin):
 class PlazaAdmin(CapacidadSoloLecturaMixin, admin.ModelAdmin):
     """Consulta de identidad y estado operativo; la ocupación se deriva en los servicios."""
 
-    list_display = ("codigo", "sector", "tipo", "estado")
-    list_filter = ("estado", "tipo")
+    list_display = ("codigo", "sector", "tipo", "estado", "activa")
+    list_filter = ("activa", "estado", "tipo")
     search_fields = ("codigo", "sector__nombre", "sector__dispositivo__codigo")
     raw_id_fields = ("sector",)
     # G1c-11: `Plaza.__str__` abre el sector y el sector abre el dispositivo.
     list_select_related = ("sector__dispositivo",)
+
+    def get_queryset(self, request):
+        # El manager por defecto esconde las dadas de baja (Cambio 479); la consulta las muestra.
+        return Plaza.todas.select_related(*self.list_select_related)

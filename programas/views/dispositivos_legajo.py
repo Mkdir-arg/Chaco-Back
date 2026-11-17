@@ -58,7 +58,7 @@ from programas.models import (
     Sector,
     TipoDispositivo,
 )
-from programas.selectors.capacidad_dispositivo import edificios_vinculables, sectores_inactivos
+from programas.selectors.capacidad_dispositivo import edificios_vinculables, plazas_dadas_de_baja, sectores_inactivos
 from programas.selectors.estadia_detalle import (
     detalle_de_estadia,
     novedades_de_estadia,
@@ -145,6 +145,7 @@ from programas.services.respuestas_dispositivo import (
     guardar_respuestas_egreso,
 )
 from programas.services.sectores_plazas import (
+    ACCION_BAJA,
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
     ACCION_PRESTAR,
@@ -940,6 +941,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         context["ver_inactivos"] = self.request.GET.get("inactivos") == "1"
         if context["ver_inactivos"]:
             context["sectores_inactivos"] = sectores_inactivos(dispositivo)
+            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo)
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
@@ -1075,7 +1077,14 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # Una plaza más allá del tope de la grilla no está en `plazas_modal`: se suma acá.
         context["plazas_modal"].setdefault(
             plaza.pk,
-            datos_para_el_modal(plaza, accion["estado"], accion["acciones"], accion["bloqueo"], accion["enlaces"]),
+            datos_para_el_modal(
+                plaza,
+                accion["estado"],
+                accion["acciones"],
+                accion["bloqueo"],
+                accion["enlaces"],
+                con_reserva_abierta=accion["reserva"] is not None,
+            ),
         )
         context["plaza_inicial"] = plaza.pk
 
@@ -1129,6 +1138,7 @@ URL_DE_ACCION = {
     ACCION_LIBERAR: "dispositivos:plaza_liberar",
     ACCION_FUERA_SERVICIO: "dispositivos:plaza_fuera_servicio",
     ACCION_VOLVER: "dispositivos:plaza_volver_servicio",
+    ACCION_BAJA: "dispositivos:plaza_baja",
 }
 
 
