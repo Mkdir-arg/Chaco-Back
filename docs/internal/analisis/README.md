@@ -13,6 +13,7 @@ Se genera cuando el `functional-analyst` cierra el alcance de un requerimiento.
 |---|---|---|---|
 | [001](001-registro-de-ciudadano.md) | Registro de ciudadano | Completado | [Sprint 001](../sprints/2026-05-12-sprint-001.md) |
 | [002](002-derivacion-de-ciudadano-a-programa.md) | Derivación de ciudadano a programa | En desarrollo | [Sprint 001](../sprints/2026-05-12-sprint-001.md) |
+| [008](008-dispositivos-v2-segunda-etapa.md) | Dispositivos v2: segunda etapa (lo que quedó afuera del MVP) | En análisis | Sin asignar |
 
 ## Estados posibles
 

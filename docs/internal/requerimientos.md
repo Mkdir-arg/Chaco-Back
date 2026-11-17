@@ -601,6 +601,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟢 **Hecho** | No requiere |
+| 479 | Dispositivos, Versión 2: punteo de lo que quedó afuera del MVP y análisis funcional de la segunda etapa | Dispositivos · análisis funcional | `#gestion` `#metodo` | Usuario — pedido en sesión de trabajo: «punteo de todo lo que quedó afuera y análisis funcional de una segunda versión» | 17/11/2026 | 🟡 **En curso** (análisis en revisión, sin issues) | No requiere |
 
 **Notas del índice**
 
@@ -56460,5 +56461,67 @@ Ninguno.
 - **16/11/2026 — alta del cambio.**
 - **16/11/2026 — mergeado** en `9a44f7fc` (PR #1156).
 - **Origen: QA local de punta a punta de Emergencia (16/11/2026).** App Chaco-mobile v1.2.20 (`origin/test` `52cc238`, PWA) contra el back de `development` `ce1526e0` (SQLite). Recorrido: M1 relevamiento → mesa toma y deriva → M2 la guardia acepta, confirma una persona y cierra con diferencia → E4 entrega de kits en camino → M3 recepción con faltante y foto del remito → E5 observación y reposición → E1 tablero del supervisor → cancelar derivación → vencimiento de una derivación con `procesar_vencimientos`. Anduvieron bien: alcance por rol (403 del tablero al operador), `/media/` protegido, cuentas del tablero contra la base, reposición precargada con el faltante. Hallazgos registrados como issues #1143–#1155 (1 alto: #1143; medios: #1144–#1147; bajos: #1148–#1155). De esos, este cambio resuelve la numeración de #1152.
+
+---
+
+# Cambio 479 — Dispositivos, Versión 2: punteo de lo que quedó afuera del MVP y análisis funcional de la segunda etapa
+
+🟡 **EN CURSO — 17/11/2026** · análisis en revisión, sin issues creados
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · análisis funcional |
+| **Etiquetas** | `#gestion` `#metodo` |
+| **Solicitante** | Usuario — pedido en sesión de trabajo |
+| **Fecha del pedido** | 17/11/2026 |
+| **Issue / épica** | sin issue (la épica se crea al cerrar las preguntas abiertas) |
+| **Partes afectadas** | Documentación interna (`docs/internal/analisis/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Agarrá el documento de la versión 2 de Dispositivos y lo que se hizo en el MVP. Hacé un punteo de todo lo que quedó afuera y hagamos el análisis funcional de una segunda versión, la continuación de lo que quedó afuera.»
+
+## Alcance acordado
+
+**Entra:** el inventario de lo excluido por la §3 del MVP (Cambio 183) **contrastado con el código actual**, no con el documento, y el análisis funcional de la segunda etapa en cuatro bloques (A circuito de la persona, B ficha/sensibilidad/turno, C red y conducción, D institución y edificio), con requerimientos, reglas, criterios, dependencias, preguntas abiertas y un orden de magnitud. **Queda afuera:** crear issues en GitHub, publicar en `docs/client/` y la cotización formal.
+
+## Decisiones tomadas
+
+1. **El punteo se hace contra el código del 17/11, no contra la §3 del MVP.** Entre la auditoría del MVP (17/10) y hoy entraron unos 60 Cambios que cierran ítems de esa lista: formularios por tipo (344/345/454/455/388), encuadre jurídico y área del Ministerio (368), reservas y préstamos desde P5 (389/406/409), reactivación de INACTIVO (409), alcance por Equipo (410/411/446), tipos de plaza (372), edificio con sectores y tarjetas (429/439). Copiar la §3 tal cual habría vuelto a pedir cosas hechas.
+2. **Merenderos queda fuera de la segunda etapa** porque el Cambio 452 lo borró; se deja como pregunta abierta n.º 1 por si el Ministerio lo reclama, no como alcance asumido.
+3. **Las derivaciones de Dispositivos no duplican las de Emergencia** (RN-008-15): se decide en la pregunta 3 si se generaliza `Derivacion` o se crea una entidad hermana, para no tener dos caminos que reservan plazas.
+4. **Los avisos proactivos (correo, cron) entran como propuesta** que revierte la decisión PM n.º 13 del MVP; queda sujeto a la pregunta 5.
+5. **Las horas son orden de magnitud** derivado de la estimación por módulo (§11.3 de la estimación), no una cotización: ~350 h de desarrollo, ~450–500 h totales, sin Merenderos.
+
+## Implementación
+
+Documento nuevo [`docs/internal/analisis/008-dispositivos-v2-segunda-etapa.md`](analisis/008-dispositivos-v2-segunda-etapa.md) con la plantilla de análisis, y su fila en el registro de `docs/internal/analisis/README.md`. No hay cambios de código.
+
+## Archivos
+
+`docs/internal/analisis/008-dispositivos-v2-segunda-etapa.md` (nuevo), `docs/internal/analisis/README.md`, este archivo.
+
+## Base de datos
+
+No aplica.
+
+## Validación
+
+`scripts/requerimientos.py --check` OK. Las afirmaciones de «hecho / pendiente» del punteo se verificaron contra `programas/models/__init__.py`, `programas/services/` (`alertas_dispositivos`, `bitacora`, `formularios_tipo`, `edificios`, `detalle_dispositivo`, `estadias`, `dispositivos`) y el comando `import_padron_dispositivos`.
+
+## Puesta en marcha en el servidor
+
+No aplica.
+
+## Pendientes / a definir
+
+- Las 15 preguntas abiertas de la §11 del análisis (6 nuevas y 9 heredadas de la §8.2 de la propuesta).
+- Con las preguntas del bloque elegido cerradas: épica, análisis por bloque y sub-issues en GitHub (método de `AGENTS.md`), y versión cliente en `docs/client/funcionalidades/`.
+- Deuda de cierre del MVP registrada en la §3.11 del análisis: verificación real de la app móvil, suite sobre MySQL 8, `DeleteModel` de `AsignacionDispositivo`.
+
+## Reversión
+
+Borrar el documento y las dos filas. No hay datos involucrados.
 
 ---
