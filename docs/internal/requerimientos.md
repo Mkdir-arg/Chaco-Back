@@ -602,6 +602,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 479 | Dispositivos: dar de baja una plaza (cama) del mapa y reactivarla, sin borrar su historia | Dispositivos · sectores y plazas | `#datos` `#ui` | Usuario — «no tengo forma de eliminar una cama» | 17/11/2026 | 🟡 **En curso** | `programas.0122` |
+| 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 
 **Notas del índice**
 
@@ -56573,5 +56574,136 @@ No requiere.
    `SELECT id, sector_id, codigo FROM programas_plaza WHERE activa = 0;`.
 2. Desplegar el código anterior (no lee la columna).
 3. `migrate programas 0121` (borra `activa`).
+
+---
+
+# Cambio 480 — Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app
+
+🟡 **EN CURSO — 17/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · constructor de formularios (Becas, Dispositivos, relevamiento edilicio, portal, app) |
+| **Etiquetas** | `#datos` `#ui` `#mobile` `#api` |
+| **Solicitante** | Usuario — «quiero agregar un campo a los módulos de crear formulario, un campo del tipo firma» |
+| **Fecha del pedido** | 17/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice, portal ciudadano, Servidor/API, Mobile (Chaco-mobile, PR aparte) |
+| **Migración** | `programas.0123_tipo_campo_firma` |
+
+## Pedido original
+
+«Quiero agregar un campo a los módulos de crear formulario que tenemos, un campo del tipo firma.» Definiciones
+del usuario: (1) se usa en todo el sistema —app, Becas y Dispositivos—; (2) se configura el campo y su título,
+y así se pueden poner dos firmas y decir para quién es cada una; (3) además del trazo, se guardan el DNI y el
+nombre de quien firma; (4) si se puede rehacer, «como lo definas».
+
+## Alcance acordado
+
+**Entra:** el tipo `FIRMA` en el catálogo de tipos (`TipoCampo`), disponible en todos los constructores (catálogo
+de Becas, diseño de la convocatoria, formulario del tipo de dispositivo, relevamiento edilicio); el recuadro para
+firmar en el backoffice (formularios de Dispositivos) y en el link público de Becas; la visualización en la
+revisión de Becas, el formulario respondido de Dispositivos y el informe del relevamiento; el contrato con la app
+y su implementación en Chaco-mobile (PR propio).
+
+**Queda afuera:** firma digital con certificado (Ley 25.506); un firmante distinto del que escribe la persona
+(no se cruza el DNI contra el padrón ni RENAPER); exportar la firma en planillas.
+
+## Decisiones tomadas
+
+1. **La firma es un adjunto más.** La imagen del trazo (PNG) se guarda en la misma tabla de adjuntos que un
+   `ARCHIVO` de esa pantalla, con su subida, reemplazo, reintento offline y bloqueo al resolver el caso. No hay
+   tablas ni columnas nuevas.
+2. **Quién firmó va en la respuesta del campo**: `{"nombre", "dni", "firmado"}`. El nombre y el DNI los carga
+   quien firma (DNI con la regla única de `core.dni`); **la fecha la pone el servidor**, nunca el cliente.
+   Volver a guardar con la misma persona y sin trazo nuevo conserva la fecha original.
+3. **Una sola regla para «se responde con archivo»:** `TipoCampo.con_adjunto()` (ARCHIVO y FIRMA). Los ~20
+   `tipo == "ARCHIVO"` del backend pasaron a usarla: uno olvidado dejaría la firma afuera de esa pantalla sin
+   error.
+4. **Configuración (punto 2):** un campo FIRMA se configura como cualquiera —título y obligatorio—; dos firmas
+   son dos campos («Firma del titular», «Firma del operador»). En una convocatoria de Becas rige la regla del
+   archivo: va como requisito del catálogo, no como campo propio (los adjuntos del caso se cuelgan de una
+   pregunta o un requisito). En Dispositivos sí puede ser campo propio.
+5. **Rehacer (punto 4, definido acá):** se puede firmar de nuevo mientras el caso no esté resuelto; reemplaza
+   la imagen y vuelve a pedir nombre y DNI. Después rige el bloqueo de los adjuntos (`CASO_RESUELTO`).
+6. **Condiciones:** la firma usa los operadores del archivo («fue adjuntado» / «no fue adjuntado»); se sumó su
+   caso a la tabla de paridad navegador–servidor.
+7. **En la web, el trazo viaja como PNG en base64 en un campo oculto** que `nodo-firma.js` escribe al terminar
+   cada trazo. No intercepta el envío: anda en los formularios que llegan por AJAX. El servidor decodifica,
+   limita a 1 MB y verifica la firma de bytes PNG. Sin librería nueva ni cambios de CSP.
+8. **La app manda lo mismo que para un archivo:** en Becas, `data[<bucket>][<id>] = {nombre, dni}` en el alta y
+   el PNG por `…/adjuntos/`; en el relevamiento edilicio, `respuestas[<clave>] = {nombre, dni}` y el PNG en
+   `archivos`. En la app de campo un firmante incompleto **se observa, no se rechaza** (G1-05); en el
+   relevamiento edilicio es error del campo, como cualquier valor inválido de ese flujo.
+9. **Orden de despliegue: primero la app.** La app 1.2.20 dibuja un tipo desconocido como caja de texto; un
+   formulario con firma servido antes de la app nueva dejaría escribir texto donde va la firma.
+10. **Es firma electrónica, no digital:** constancia del trazo con los datos de quien dice haberlo hecho.
+
+## Implementación
+
+En los constructores aparece el tipo «Firma». Quien completa el formulario ve un recuadro para firmar con el dedo
+o el mouse, un botón «Limpiar» y los campos «Nombre y apellido de quien firma» y «DNI». En la revisión y en los
+formularios respondidos se ve la imagen de la firma con «Firmó: nombre · DNI · fecha y hora».
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0123_tipo_campo_firma.py`, `programas/services/firma.py`
+(nuevo), `programas/forms_dinamicos.py`, `programas/forms.py`, `portal/forms/inscripcion.py`,
+`programas/services/campo.py`, `programas/services/condiciones.py`, `programas/services/respuestas.py`,
+`programas/services/respuestas_dispositivo.py`, `programas/services/validacion_relevamiento.py`,
+`programas/selectors/revision.py`, `programas/api/serializers.py`,
+`programas/templates/programas/widgets/firma.html` (nuevo), `templates/components/_firma_respondida.html` (nuevo),
+`programas/templates/programas/becas/_respuesta_valor.html`,
+`programas/templates/programas/becas/formulario/_constructor_items.html`,
+`programas/templates/programas/dispositivos/_formulario_respondido.html`,
+`programas/templates/programas/dispositivos/relevamientos/informe.html`, las cuatro pantallas de Dispositivos que
+cargan `nodo-formulario-tipo.js`, `static/custom/js/nodo-firma.js` (nuevo), `static/custom/js/nodo-formulario.js`,
+`static/custom/js/nodo-formulario-tipo.js`, `static/custom/js/nodo-constructor.js`,
+`static/custom/css/nodo-forms.css`, `.claude/agents/chaco-design-system.md`, `.claude/design/componentes/firma.md`
+(nuevo), `programas/tests/test_campo_firma.py` (nuevo), `programas/tests/test_becas_api_contrato.py`,
+`programas/tests/condiciones_paridad.json`.
+
+## Base de datos
+
+`programas.0123`: `AlterField` de `tipo` en `PreguntaGlobal` y `RequisitoNativo` para sumar la opción. Solo
+estado: no genera SQL. Las respuestas y adjuntos usan columnas que ya existen.
+
+## Validación
+
+- `programas.tests.test_campo_firma` (22 tests): regla del firmante, PNG del recuadro (formato, base64 inválido,
+  bytes que no son PNG, tamaño), firmar a medias, formulario del diseño (respuestas, archivos, firma guardada,
+  render), condiciones, regla de campos propios, carga de la app en Becas (normaliza / observa) y en el
+  relevamiento (valida / exige), visualización.
+- `test_becas_api_contrato`: la definición trae `FIRMA`, el alta guarda el firmante con fecha del servidor y el
+  PNG entra por `…/adjuntos/`.
+- Tabla de paridad de condiciones con el caso FIRMA (navegador y servidor).
+- Navegador (Chromium headless): el recuadro dibuja, deja el PNG en el oculto y «Limpiar» lo vacía, sin errores.
+- `manage.py check`, `ruff`, `check_migraciones.py`, `design_audit.py --ratchet` (0 nuevos),
+  `compile_templates.py --bloques` (0), `check_design_agent.py --changed` (OK).
+
+## Puesta en marcha en el servidor
+
+Desplegar **primero** la versión de Chaco-mobile que conoce `FIRMA` y después este backend. No requiere comandos.
+
+## Pendientes / a definir
+
+- No se cruza el DNI de quien firma contra el legajo ni RENAPER.
+- Las planillas de exportación de Becas no incluyen la firma.
+
+## Reversión
+
+1. Antes de revertir, cambiar a otro tipo (o desactivar) los campos FIRMA del catálogo y de los diseños:
+   `SELECT id, texto FROM programas_preguntaglobal WHERE tipo = 'FIRMA';` (ídem `programas_requisitonativo`).
+   Con el código anterior una firma se lee como un valor desconocido.
+2. Desplegar el código anterior y `migrate programas 0122` (solo estado).
+3. Las imágenes y los firmantes ya guardados quedan en adjuntos y respuestas; no se pierden.
+
+## Historial
+
+- **17/11/2026 — auditoría de #1159 (CHANGES NEEDED @ `ac6907a`):** una firma rehecha por la misma persona
+  guardaba la fecha de la anterior (la regla «misma persona conserva la fecha» se aplicaba justo con trazo
+  nuevo); ahora toda firma nueva lleva la fecha del servidor y sin trazo nuevo se conserva lo guardado tal cual.
+  Además: un firmante observado de la app se guarda sin la fecha que mande el teléfono, una firma guardada ya no
+  muestra el aviso «Ya cargado» de los archivos, y se borró una rama sin uso de `serializar_valor`.
 
 ---

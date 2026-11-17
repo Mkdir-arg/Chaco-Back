@@ -10,7 +10,9 @@ from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_date
 
 from programas.forms_dinamicos import _field_para_campo
+from programas.models import TipoCampo
 from programas.services.condiciones import esta_vacio
+from programas.services.firma import errores_del_firmante, normalizar_firmante
 from programas.services.respuestas import aplicar, campos_de
 from programas.services.respuestas_dispositivo import faltantes_de
 
@@ -28,6 +30,12 @@ def _valor_de_campo(campo, valor):
     guarda como llegó, salvo la fecha, que queda en ISO. Una fecha solo se acepta ``AAAA-MM-DD``: es
     el formato del contrato."""
     etiqueta = campo.get("texto") or campo["clave"]
+    if campo.get("tipo") == TipoCampo.FIRMA:
+        # De la firma llega quién firmó; la imagen viaja como un archivo. La fecha la pone el servidor.
+        errores = errores_del_firmante(valor)
+        if errores:
+            return valor, f"«{etiqueta}»: {errores[0]}"
+        return normalizar_firmante(valor), None
     if campo.get("tipo") == "DATE" and not _es_fecha_iso(valor):
         return valor, f"«{etiqueta}» tiene que ser una fecha válida (AAAA-MM-DD)."
     campo_django = _field_para_campo({**campo, "obligatorio": False, "opciones": campo.get("opciones") or []})

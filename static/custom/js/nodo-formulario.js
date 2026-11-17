@@ -49,6 +49,12 @@
         // El <select> va primero: el buscador con píldoras (nodo-buscador.js)
         // monta su input de búsqueda antes del select nativo y lo vacía al
         // elegir; leer el primer control diría «vacío» con una opción elegida.
+        // Una firma (Cambio 480): respondida si el recuadro tiene trazo.
+        var trazo = caja.querySelector('[data-firma-trazo]');
+        if (trazo) {
+          if (trazo.value) { out[item.clave] = 'firmado'; }
+          return;
+        }
         var control = caja.querySelector('select') ||
           caja.querySelector('textarea, input:not([type="hidden"]):not(.nodo-buscador__input)');
         if (!control) {

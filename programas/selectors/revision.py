@@ -34,6 +34,7 @@ from programas.forms import CiudadanoGeneroRevisionForm, DatosSiisForm, ForzarId
 from programas.models import Formulario, PreguntaGlobal, RequisitoNativo, TipoCampo
 from programas.services.autorizacion import puede_validar_identidad
 from programas.services.cupo import advertencia_aprobacion, motivo_bloqueo_aprobacion
+from programas.services.firma import texto_del_firmante
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import padron_de
 from programas.services.respuestas import respuestas_legibles
@@ -150,14 +151,17 @@ def respuestas_resueltas(formulario):
     def _fila(campo_map, adjuntos_map, k, v):
         campo = campo_map.get(str(k))
         label = campo.texto if campo else f"Campo #{k}"
-        es_archivo = campo is not None and campo.tipo == TipoCampo.ARCHIVO
+        es_archivo = campo is not None and campo.tipo in TipoCampo.con_adjunto()
+        es_firma = campo is not None and campo.tipo == TipoCampo.FIRMA
         adjunto = adjuntos_map.get(int(k)) if es_archivo and str(k).isdigit() else None
         es_imagen = bool(adjunto and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN)
         return {
             "label": label,
-            "valor": v,
+            "valor": "" if es_firma else v,
             "es_multiple": isinstance(v, list),
             "es_archivo": es_archivo,
+            "es_firma": es_firma,
+            "firmante": texto_del_firmante(v) if es_firma else "",
             "adjunto": adjunto,
             "es_imagen": es_imagen,
             "es_subsegmento": bool(getattr(campo, "subsegmento_id", None)),

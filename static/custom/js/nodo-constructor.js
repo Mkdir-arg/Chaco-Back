@@ -403,6 +403,8 @@
         return '<input type="date" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '">';
       case 'ARCHIVO':
         return '<label class="pv-archivo"><input type="checkbox" data-clave="' + clave + '" ' + (v ? 'checked' : '') + '> <span>Simular archivo adjuntado</span></label>';
+      case 'FIRMA':
+        return '<label class="pv-archivo"><input type="checkbox" data-clave="' + clave + '" ' + (v ? 'checked' : '') + '> <span>Simular firma (recuadro, nombre y DNI)</span></label>';
       case 'SELECTOR': {
         if (solo_lectura) {
           return '<input type="text" class="nodo-field" data-clave="' + clave + '" value="' + esc(v) + '" readonly placeholder="Se toma de la identificación del paso 1">';

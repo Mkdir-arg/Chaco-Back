@@ -26,6 +26,12 @@
   }
 
   function valorDe(caja, archivoGuardado) {
+    // Una firma (Cambio 480) está respondida si hay trazo nuevo o una ya guardada.
+    var trazo = caja.querySelector('[data-firma-trazo]');
+    if (trazo) {
+      if (trazo.value) { return 'firmado'; }
+      return archivoGuardado ? (caja.dataset.valor || null) : null;
+    }
     var marcas = caja.querySelectorAll('input[type="checkbox"]');
     if (marcas.length) {
       var marcadas = Array.prototype.filter.call(marcas, function (marca) { return marca.checked; })

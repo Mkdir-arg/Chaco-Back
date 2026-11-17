@@ -137,6 +137,20 @@
       ]
     },
     {
+      "caso": "FIRMA: firmado y sin firmar (Cambio 480)",
+      "items": [
+        {"clave": "a", "tipo": "campo", "tipo_campo": "FIRMA"},
+        {"clave": "x_adjuntado", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "a", "op": "adjuntado"}]}},
+        {"clave": "x_no_adjuntado", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "a", "op": "no_adjuntado"}]}}
+      ],
+      "variantes": [
+        {"nota": "la app y el servidor guardan quién firmó", "respuestas": {"a": {"nombre": "Ana Gómez", "dni": "30111222"}}, "ocultos": ["x_no_adjuntado"]},
+        {"nota": "el navegador marca el recuadro con trazo", "respuestas": {"a": "firmado"}, "ocultos": ["x_no_adjuntado"]},
+        {"respuestas": {"a": ""}, "ocultos": ["x_adjuntado"]},
+        {"respuestas": {}, "ocultos": ["x_adjuntado"]}
+      ]
+    },
+    {
       "caso": "Modos «todas» y «alguna»",
       "items": [
         {"clave": "s", "tipo": "campo", "tipo_campo": "SELECTOR"},
