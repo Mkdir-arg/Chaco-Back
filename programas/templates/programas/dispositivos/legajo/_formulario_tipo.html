@@ -33,7 +33,7 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
     {% else %}
     <div data-item="{{ fila.clave }}" data-campo{% if fila.obligatorio %} data-obligatorio data-texto="{{ fila.bound.label }}"{% endif %}{% if fila.archivo_guardado %} data-valor="{{ fila.archivo_guardado }}"{% endif %} class="break-words{% if fila.es_checks %} nodo-checks sm:col-span-2{% endif %}">
       {% include "components/_field.html" with field=fila.bound wrapper_class="" %}
-      {% if fila.archivo_guardado %}<p class="mt-1 text-xs text-body-subtle">Ya cargado: {{ fila.archivo_guardado }}. Subí otro solo si lo querés reemplazar.</p>{% endif %}
+      {% if fila.archivo_guardado and not fila.es_firma %}<p class="mt-1 text-xs text-body-subtle">Ya cargado: {{ fila.archivo_guardado }}. Subí otro solo si lo querés reemplazar.</p>{% endif %}
     </div>
     {% endif %}
     {% endfor %}

@@ -2443,12 +2443,14 @@ class ItemCampoPropioForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         tipo = cleaned.get("tipo")
-        if tipo == TipoCampo.ARCHIVO and not self.permite_archivo:
+        if tipo in TipoCampo.con_adjunto() and not self.permite_archivo:
             # Los adjuntos del caso referencian una pregunta global o un
             # requisito nativo; un archivo tiene que ser un requisito del catálogo.
             # El formulario de un tipo de dispositivo (P17) no tiene catálogo: guarda
             # sus archivos por clave (`AdjuntoRespuestaAlta`) y sí lo permite.
-            self.add_error("tipo", "Un campo propio no puede ser un archivo: cargalo como requisito del catálogo.")
+            self.add_error(
+                "tipo", "Un campo propio no puede ser un archivo ni una firma: cargalo como requisito del catálogo."
+            )
         texto = (cleaned.get("opciones_texto") or "").strip()
         opciones = []
         presentacion = PresentacionCampo.LISTA

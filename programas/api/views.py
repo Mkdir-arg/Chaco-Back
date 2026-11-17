@@ -54,7 +54,13 @@ from programas.services.becas import (
 )
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia_programa import modulo_habilitado
-from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identificar
+from programas.services.identidad import (
+    ORIGEN_LEGAJO,
+    ORIGEN_PADRON,
+    ORIGEN_PERSONAS,
+    identificar,
+    identificar_en_legajo,
+)
 from programas.services.inspecciones import CAP_RELEVAR
 from programas.services.padron import datos_de_fila, fila_padron, normalizar_dni, objetivo_con_identidad
 from programas.services.respuestas import sincronizar_desde_legacy
@@ -515,7 +521,7 @@ def consultar_persona_becas(request):
     )
 
 
-def responder_consulta_de_persona(datos, relevamientos_de=None):
+def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajos=False):
     """La consulta de identidad de la app de campo: valida, identifica y arma la respuesta.
 
     La comparten ``POST /api/becas/personas/consultar/`` y
@@ -527,6 +533,10 @@ def responder_consulta_de_persona(datos, relevamientos_de=None):
       (Becas: los del territorial).
     * Sin ``relevamientos_de`` no hay padrón: se consulta solo Base de Personas (Emergencia,
       que no tiene convocatorias). Un ``relevamiento`` que venga en el cuerpo se ignora.
+
+    * ``buscar_en_legajos`` (solo Emergencia): si Base de Personas no la encuentra, falla o
+      está apagada, se busca un ``Ciudadano`` activo con ese DNI (``origen: "legajo"``). Una
+      persona fallecida no cae al legajo. Becas no lo activa y no cambia.
 
     El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.
     """
@@ -555,6 +565,11 @@ def responder_consulta_de_persona(datos, relevamientos_de=None):
             {"success": False, "fallecido": True, "error": "Base de Personas informa que la persona falleció."},
             status=status.HTTP_404_NOT_FOUND,
         )
+    if not resultado["validado"] and buscar_en_legajos:
+        del_legajo = identificar_en_legajo(dni, sexo)
+        if del_legajo is not None:
+            del_legajo.update(dni=dni, sexo=sexo)
+            return Response({"success": True, "origen": ORIGEN_LEGAJO, "data": del_legajo, "datos_api": {}})
     if not resultado["validado"]:
         if resultado["error"] and not resultado["no_encontrado"]:
             # La Gran Base falló (no "no la encontró"): 502, como antes.

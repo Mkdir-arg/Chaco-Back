@@ -460,6 +460,43 @@ class ContratoAppDeCampoTests(_BaseApiTest):
                 self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(len(self.client.get(url).json()), len(subidas))
 
+    def test_una_firma_viaja_como_firmante_en_data_y_png_como_adjunto(self):
+        """Cambio 480, contrato con Chaco-mobile: la definición trae `tipo: "FIRMA"`; en el alta la app
+        manda `data.globales[<id>] = {nombre, dni}` y después sube el PNG por el mismo endpoint que un
+        ARCHIVO. El servidor guarda quién firmó con la fecha del servidor y no observa nada."""
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        firma = PreguntaGlobal.objects.create(texto="Firma del titular", tipo=TipoCampo.FIRMA, activo=True, orden=900)
+        definicion = self.client.get(reverse("becas_api:relevamiento-detail", args=[self.rel.pk])).json()[
+            "definicion_formulario"
+        ]
+        self.assertIn(("FIRMA", firma.pk), [(campo["tipo"], campo["id"]) for campo in definicion["globales"]])
+
+        alta = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[self.rel.pk]),
+            {
+                "celular": "3624111222",
+                "email_contacto": "x@y.com",
+                "datos_identificacion": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez"},
+                "data": {"globales": {str(firma.pk): {"nombre": "Juan Perez", "dni": "40.400.400"}}, "requisitos": {}},
+            },
+            format="json",
+        )
+        self.assertEqual(alta.status_code, 201, alta.data)
+        formulario = Formulario.objects.get(pk=alta.json()["id"])
+        guardado = formulario.respuestas[f"pg-{firma.pk}"]
+        self.assertEqual((guardado["nombre"], guardado["dni"]), ("Juan Perez", "40400400"))
+        self.assertIn("firmado", guardado)
+        self.assertNotIn("Firma del titular", formulario.observaciones_carga or "")
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+        resp = self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[formulario.pk]),
+            {"pregunta_global": str(firma.pk), "archivo": SimpleUploadedFile("firma-pg.png", png, "image/png")},
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+
     def test_el_400_del_adjunto_trae_el_motivo_en_non_field_errors(self):
         """`buildResponseError` (`becasApi.js`) arma el mensaje con
         `detail || error || non_field_errors[0]`: el motivo tiene que estar en

@@ -40,9 +40,11 @@ from programas.models import (
     RespuestasEgresoEstadia,
     RespuestasIngresoEstadia,
     RespuestasRelevamiento,
+    TipoCampo,
 )
 from programas.services.condiciones import esta_vacio
 from programas.services.diseno import items_vigentes, serializar
+from programas.services.firma import texto_del_firmante
 from programas.services.respuestas import EXTENSIONES_IMAGEN, aplicar, campos_de, foto_definicion, legible
 
 #: Un modelo de respuestas por momento. El que sume un momento lo agrega acá y la baja
@@ -260,7 +262,8 @@ def _secciones(foto, respuestas, adjuntos, hoy):
             if item.get("tipo_item") != "campo" or item["clave"] in ocultos:
                 continue
             valor = respuestas.get(item["clave"])
-            es_archivo = item.get("tipo") == "ARCHIVO"
+            es_archivo = item.get("tipo") in TipoCampo.con_adjunto()
+            es_firma = item.get("tipo") == TipoCampo.FIRMA
             adjunto = adjuntos.get(item["clave"]) if es_archivo else None
             campos.append(
                 {
@@ -272,6 +275,8 @@ def _secciones(foto, respuestas, adjuntos, hoy):
                         adjunto and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN
                     ),
                     "es_archivo": es_archivo,
+                    "es_firma": es_firma,
+                    "firmante": texto_del_firmante(valor) if es_firma else "",
                     "obligatorio": bool(item.get("obligatorio")),
                     "falta": bool(es_archivo and item.get("obligatorio") and adjunto is None),
                 }
@@ -442,7 +447,9 @@ def clave_de_archivo_valida(inspeccion, clave):
     if guardadas is not None:
         fotos.append(guardadas.definicion or {})
     return any(
-        campo["clave"] == clave and campo.get("tipo") == "ARCHIVO" for foto in fotos for campo in campos_de(foto)
+        campo["clave"] == clave and campo.get("tipo") in TipoCampo.con_adjunto()
+        for foto in fotos
+        for campo in campos_de(foto)
     )
 
 

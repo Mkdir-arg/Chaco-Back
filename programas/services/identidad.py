@@ -29,6 +29,7 @@ from programas.services.personas import consultar_persona
 
 ORIGEN_PADRON = "padron"
 ORIGEN_PERSONAS = "personas"
+ORIGEN_LEGAJO = "legajo"
 ORIGEN_MANUAL = "manual"
 #: Los dos orígenes que acreditan identidad: el resto es lo que la persona dijo.
 ORIGENES_ACREDITADOS = (ORIGEN_PADRON, ORIGEN_PERSONAS)
@@ -166,3 +167,30 @@ def identificar(objetivo, dni, sexo, fila=_SIN_BUSCAR):
             oficiales["fecha_nacimiento"] = del_padron.get("fecha_nacimiento") or ""
     resultado.update(origen=ORIGEN_PERSONAS, validado=True, datos=oficiales)
     return resultado
+
+
+def identificar_en_legajo(dni, sexo):
+    """Los datos de identidad del ``Ciudadano`` activo con ese DNI, o ``None``.
+
+    Es el último recurso de la consulta de Emergencia, cuando Base de Personas no
+    la encontró, falló o está apagada. Reusa `buscar_ciudadano_por_dni`. Si el
+    ``genero`` del legajo está cargado y no coincide con el ``sexo`` pedido no
+    cuenta como hallada (no se confirma a otra persona); vacío se acepta.
+    """
+    from programas.services.ingreso import buscar_ciudadano_por_dni
+
+    dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
+    if not dni or not sexo:
+        return None
+    # Mismo criterio que el resto del sistema: el DNI exacto y, si no, los legajos viejos
+    # cargados con separadores («30.111.222»). Con el exacto inactivo no se sigue buscando.
+    ciudadano = buscar_ciudadano_por_dni(dni)
+    if ciudadano is None or not ciudadano.activo or (ciudadano.genero and ciudadano.genero != sexo):
+        return None
+    return {
+        "nombre": ciudadano.nombre,
+        "apellido": ciudadano.apellido,
+        "fecha_nacimiento": ciudadano.fecha_nacimiento.isoformat() if ciudadano.fecha_nacimiento else "",
+        "localidad_id": ciudadano.localidad_id,
+        "localidad_texto": ciudadano.localidad.nombre if ciudadano.localidad_id else "",
+    }

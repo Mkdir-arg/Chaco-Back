@@ -8,11 +8,27 @@ en el portal; se mudó acá sin cambiar su comportamiento para que el backoffice
 sin importar del portal.
 """
 
+import base64
+import binascii
 from pathlib import Path
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 
 from core.validators import validar_firma
+from programas.models import TipoCampo
+from programas.services.firma import (
+    FIRMA_MAX_BYTES,
+    MENSAJE_FIRMA_FORMATO,
+    MENSAJE_FIRMA_TAMANIO,
+    MENSAJE_SIN_TRAZO,
+    errores_del_firmante,
+    es_firmante,
+    normalizar_firmante,
+    texto_del_firmante,
+    validar_imagen_de_firma,
+)
 from programas.services.respuestas import aplicar, campos_de, planos_de
 from programas.services.respuestas_dispositivo import faltantes_de, formulario_vigente, foto_vigente
 
@@ -35,6 +51,105 @@ def _validar_archivo(archivo):
     # `media/` y después lo abría un coordinador desde el backoffice. La firma
     # de los primeros bytes es del archivo, no de su nombre.
     validar_firma(archivo, Path(nombre).suffix, "El archivo no es un JPG, PNG o PDF válido.")
+
+
+_PREFIJO_PNG = "data:image/png;base64,"
+
+
+def imagen_desde_trazo(trazo, nombre="firma.png"):
+    """El PNG que el recuadro de firma deja en su campo oculto (``data:image/png;base64,…``) como archivo.
+
+    El navegador escribe el trazo en un campo oculto en vez de un ``<input type=file>``: así no
+    hace falta interceptar el envío, y anda igual en los formularios que llegan por AJAX.
+    """
+
+    if not trazo:
+        return None
+    if not trazo.startswith(_PREFIJO_PNG):
+        raise ValidationError(MENSAJE_FIRMA_FORMATO)
+    datos = trazo[len(_PREFIJO_PNG) :]
+    # El base64 ocupa 4/3 del binario: se corta antes de decodificar algo enorme.
+    if len(datos) > FIRMA_MAX_BYTES * 4 // 3 + 4:
+        raise ValidationError(MENSAJE_FIRMA_TAMANIO)
+    try:
+        contenido = base64.b64decode(datos, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise ValidationError(MENSAJE_FIRMA_FORMATO) from error
+    archivo = ContentFile(contenido, name=nombre)
+    validar_imagen_de_firma(archivo)
+    return archivo
+
+
+class FirmaWidget(forms.MultiWidget):
+    """El recuadro de firma: el trazo (oculto, lo escribe ``nodo-firma.js``), el nombre y el DNI."""
+
+    template_name = "programas/widgets/firma.html"
+
+    def __init__(self, attrs=None):
+        clase = (attrs or {}).get("class", INPUT_CLASS)
+        super().__init__(
+            [
+                forms.HiddenInput(attrs={"data-firma-trazo": "1"}),
+                forms.TextInput(
+                    attrs={"class": clase, "autocomplete": "name", "placeholder": "Nombre y apellido de quien firma"}
+                ),
+                forms.TextInput(
+                    attrs={"class": clase, "inputmode": "numeric", "maxlength": "11", "placeholder": "DNI"}
+                ),
+            ],
+            attrs,
+        )
+
+    def decompress(self, value):
+        # No se precarga: una firma guardada se muestra aparte («Ya firmó…») y se rehace entera.
+        return [None, None, None]
+
+    def get_context(self, name, value, attrs):
+        contexto = super().get_context(name, value, attrs)
+        contexto["widget"]["firmante_guardado"] = getattr(self, "firmante_guardado", "")
+        return contexto
+
+
+class FirmaField(forms.MultiValueField):
+    """Un campo «Firma» (Cambio 480): limpio vale ``{"archivo", "nombre", "dni"}`` o ``None`` si no se firmó.
+
+    Firmar a medias es error: un trazo sin nombre o DNI, o nombre y DNI sin trazo.
+    """
+
+    widget = FirmaWidget
+
+    def __init__(self, *, required=False, **kwargs):
+        campos = (forms.CharField(required=False), forms.CharField(required=False), forms.CharField(required=False))
+        super().__init__(campos, required=required, require_all_fields=False, **kwargs)
+
+    def compress(self, data_list):
+        trazo, nombre, dni = (list(data_list or []) + [None, None, None])[:3]
+        if not (trazo or nombre or dni):
+            return None
+        if not trazo:
+            raise ValidationError(MENSAJE_SIN_TRAZO)
+        errores = errores_del_firmante({"nombre": nombre, "dni": dni})
+        if errores:
+            raise ValidationError(errores)
+        return {"archivo": imagen_desde_trazo(trazo), "nombre": nombre, "dni": dni}
+
+
+def es_firma(item):
+    return item.get("tipo") == TipoCampo.FIRMA
+
+
+def es_adjunto(item):
+    """¿El campo se responde con un archivo que viaja aparte? (``TipoCampo.con_adjunto``)."""
+    return item.get("tipo") in TipoCampo.con_adjunto()
+
+
+def valor_de_firma(valor, *, clave):
+    """Lo que se guarda en las respuestas de un campo FIRMA recién firmado: el firmante con la fecha
+    del servidor y el nombre del archivo. ``valor`` es lo que devolvió :class:`FirmaField`."""
+
+    firmante = normalizar_firmante(valor)
+    valor["archivo"].name = f"firma-{clave}.png"
+    return {**firmante, "archivo": valor["archivo"].name}
 
 
 def _es_buscador(campo):
@@ -123,6 +238,8 @@ def _field_para_campo(campo, catalogos=None):
             required=requerido,
             widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
         )
+    if tipo == "FIRMA":
+        return FirmaField(label=etiqueta, required=requerido)
     if tipo == "ARCHIVO":
         return forms.FileField(
             label=etiqueta,
@@ -191,10 +308,13 @@ class RespuestasDisenoForm(forms.Form):
         clave = item["clave"]
         field = _field_para_campo(item)
         obligatorio = bool(item.get("obligatorio"))
-        es_archivo = item.get("tipo") == "ARCHIVO"
+        es_archivo = es_adjunto(item)
         field.required = False  # lo exige «Enviar a validación», con las condiciones aplicadas
         field.marca_requerido = obligatorio
-        if es_archivo:
+        guardada = self.guardadas.get(clave)
+        if es_firma(item):
+            field.widget.firmante_guardado = texto_del_firmante(guardada)
+        elif es_archivo:
             field.help_text = AYUDA_ARCHIVO
         elif clave in self.guardadas:
             self.initial[clave] = self.guardadas[clave]
@@ -206,8 +326,9 @@ class RespuestasDisenoForm(forms.Form):
             "clave": clave,
             "obligatorio": obligatorio,
             "es_archivo": es_archivo,
+            "es_firma": es_firma(item),
             "es_checks": item.get("tipo") == "SELECTOR_MULTIPLE" and not _es_buscador(item),
-            "archivo_guardado": self.guardadas.get(clave) if es_archivo else None,
+            "archivo_guardado": _nombre_guardado(guardada) if es_archivo else None,
             "bound": self[clave],
         }
 
@@ -223,8 +344,13 @@ class RespuestasDisenoForm(forms.Form):
     def _respuestas_de(self, cleaned):
         respuestas = {}
         for clave, item in self._campos:
-            valor = serializar_valor(cleaned.get(clave))
-            if valor is None and item.get("tipo") == "ARCHIVO":
+            nuevo = cleaned.get(clave)
+            if es_firma(item) and nuevo:
+                # Una firma nueva lleva la fecha de hoy, aunque firme la misma persona que la guardada.
+                valor = valor_de_firma(nuevo, clave=clave)
+            else:
+                valor = serializar_valor(nuevo)
+            if valor is None and es_adjunto(item):
                 # Sin archivo nuevo vale el que ya estaba: también para las condiciones.
                 valor = self.guardadas.get(clave)
             if valor is not None:
@@ -255,12 +381,14 @@ class RespuestasDisenoForm(forms.Form):
         return sin_archivos(self.foto, self.respuestas())
 
     def archivos(self):
-        """``[(clave, archivo)]`` de los ARCHIVO visibles con un archivo nuevo."""
+        """``[(clave, archivo)]`` de los ARCHIVO y FIRMA visibles con un archivo nuevo."""
         subidos = []
         for clave, item in self._campos:
-            if item.get("tipo") != "ARCHIVO" or clave in self._ocultos:
+            if not es_adjunto(item) or clave in self._ocultos:
                 continue
             archivo = self.cleaned_data.get(clave)
+            if isinstance(archivo, dict):
+                archivo = archivo.get("archivo")
             if archivo:
                 subidos.append((clave, archivo))
         return subidos
@@ -282,11 +410,18 @@ class RespuestasDisenoForm(forms.Form):
                 self.add_error(campo["clave"], "Este dato es obligatorio.")
 
 
+def _nombre_guardado(guardada):
+    """El nombre del archivo ya cargado: el de un ARCHIVO es el valor; el de una FIRMA, su ``archivo``."""
+    if isinstance(guardada, dict):
+        return guardada.get("archivo") if es_firmante(guardada) else None
+    return guardada
+
+
 def sin_archivos(foto, valores):
     """``valores`` sin las claves de tipo ARCHIVO de la ``foto``: el único punto que las descarta. Un
     archivo **nunca** se conserva entre un intento y el siguiente (un nombre guardado valdría como «ya
     cargado» sin que haya ningún archivo): se vuelve a elegir."""
-    archivos = {campo["clave"] for campo in campos_de(foto) if campo.get("tipo") == "ARCHIVO"}
+    archivos = {campo["clave"] for campo in campos_de(foto) if es_adjunto(campo)}
     return {clave: valor for clave, valor in (valores or {}).items() if clave not in archivos}
 
 

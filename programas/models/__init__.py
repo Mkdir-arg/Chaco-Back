@@ -2312,11 +2312,22 @@ class TipoCampo(models.TextChoices):
     SELECTOR_MULTIPLE = "SELECTOR_MULTIPLE", "Selector múltiple"
     DATE = "DATE", "Fecha"
     ARCHIVO = "ARCHIVO", "Archivo adjunto"
+    FIRMA = "FIRMA", "Firma"
 
     @classmethod
     def selectores(cls):
         """Los tipos que ofrecen opciones para elegir."""
         return (cls.SELECTOR, cls.SELECTOR_MULTIPLE)
+
+    @classmethod
+    def con_adjunto(cls):
+        """Los tipos cuya respuesta es un archivo que viaja aparte de los datos (Cambio 480).
+
+        La firma es una imagen PNG del trazo: se sube, guarda, reemplaza y muestra como un
+        archivo adjunto. Es la **única** regla para decidirlo; preguntar ``tipo == "ARCHIVO"``
+        en otro lado dejaría la firma afuera en esa pantalla sin que nada falle.
+        """
+        return (cls.ARCHIVO, cls.FIRMA)
 
 
 class PresentacionCampo(models.TextChoices):

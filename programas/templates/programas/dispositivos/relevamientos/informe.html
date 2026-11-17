@@ -80,7 +80,7 @@
       <h3 class="text-sm font-semibold text-heading{% if not forloop.first %} mt-5{% endif %}">{{ seccion.titulo }}</h3>
       <dl class="grid gap-5 sm:grid-cols-2 break-words">
         {% for campo in seccion.campos %}
-        <div><dt class="text-xs font-semibold uppercase text-body-subtle">{{ campo.label }}</dt><dd class="mt-1 text-body">{% if campo.adjunto %}<a href="{{ campo.adjunto.archivo.url }}" target="_blank" rel="noopener" class="text-fg-brand hover:underline"><i class="fas fa-paperclip" aria-hidden="true"></i> Ver archivo</a>{% elif campo.falta %}<span class="badge badge-warning">Falta el archivo</span>{% elif campo.es_multiple %}{{ campo.valor|join:", " }}{% else %}{{ campo.valor|default:"—" }}{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">{{ campo.label }}</dt><dd class="mt-1 text-body">{% if campo.es_firma %}{% include "components/_firma_respondida.html" with adjunto=campo.adjunto firmante=campo.firmante etiqueta=campo.label only %}{% elif campo.adjunto %}<a href="{{ campo.adjunto.archivo.url }}" target="_blank" rel="noopener" class="text-fg-brand hover:underline"><i class="fas fa-paperclip" aria-hidden="true"></i> Ver archivo</a>{% elif campo.falta %}<span class="badge badge-warning">Falta el archivo</span>{% elif campo.es_multiple %}{{ campo.valor|join:", " }}{% else %}{{ campo.valor|default:"—" }}{% endif %}</dd></div>
         {% endfor %}
       </dl>
       {% empty %}
