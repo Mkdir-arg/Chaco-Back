@@ -13,6 +13,9 @@ from programas.forms_dinamicos import (  # noqa: F401
     _es_buscador,
     _field_para_campo,
     _validar_archivo,
+    es_adjunto,
+    es_firma,
+    valor_de_firma,
 )
 from programas.services.catalogo_geografico import localidad_pertenece
 from programas.services.personas import fecha_iso
@@ -125,7 +128,7 @@ class InscripcionPaso2Form(forms.Form):
             "clave": clave,
             "label": item.get("texto", ""),
             "obligatorio": bool(item.get("obligatorio")),
-            "es_archivo": item.get("tipo") == "ARCHIVO",
+            "es_archivo": es_adjunto(item) and not es_firma(item),
             # Múltiple apilado (checkboxes): el template marca el contenedor
             # con .nodo-checks y el estilo vive en nodo-forms.css.
             "es_checks": item.get("tipo") == "SELECTOR_MULTIPLE" and not _es_buscador(item),
@@ -230,8 +233,9 @@ class InscripcionPaso2Form(forms.Form):
 
     def _respuestas_de(self, cleaned):
         respuestas = dict(self.fijas)
-        for clave, _item in self._campos:
-            valor = self._serializar(cleaned.get(clave))
+        for clave, item in self._campos:
+            nuevo = cleaned.get(clave)
+            valor = valor_de_firma(nuevo, clave=clave) if es_firma(item) and nuevo else self._serializar(nuevo)
             if valor is not None:
                 respuestas[clave] = valor
         return respuestas
@@ -288,7 +292,8 @@ class InscripcionPaso2Form(forms.Form):
         for clave, _item in self._campos:
             if clave in self._ocultos:
                 continue
-            valor = self._serializar(self.cleaned_data.get(clave))
+            nuevo = self.cleaned_data.get(clave)
+            valor = valor_de_firma(nuevo, clave=clave) if es_firma(_item) and nuevo else self._serializar(nuevo)
             if valor is not None:
                 respuestas[clave] = valor
         return respuestas
@@ -297,9 +302,11 @@ class InscripcionPaso2Form(forms.Form):
         """``[(clave, item, archivo)]`` de los ARCHIVO visibles con archivo."""
         subidos = []
         for clave, item in self._campos:
-            if item.get("tipo") != "ARCHIVO" or clave in self._ocultos:
+            if not es_adjunto(item) or clave in self._ocultos:
                 continue
             archivo = self.cleaned_data.get(clave)
+            if isinstance(archivo, dict):
+                archivo = archivo.get("archivo")
             if archivo:
                 subidos.append((clave, item, archivo))
         return subidos

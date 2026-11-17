@@ -47,6 +47,8 @@ OPERADORES_POR_TIPO = {
     TipoCampo.SELECTOR_MULTIPLE: _COMUNES | {"incluye", "no_incluye", "incluye_alguno"},
     TipoCampo.DATE: _COMUNES | {"edad_menor", "edad_mayor", "edad_igual", "edad_entre", "anterior", "posterior"},
     TipoCampo.ARCHIVO: {"adjuntado", "no_adjuntado"},
+    # La firma se evalúa como un archivo: está o no está (Cambio 480).
+    TipoCampo.FIRMA: {"adjuntado", "no_adjuntado"},
 }
 
 # Lo que el editor **no ofrece** aunque el motor lo acepte (#341: para una fecha,

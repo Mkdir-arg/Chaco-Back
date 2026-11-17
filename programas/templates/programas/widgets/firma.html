@@ -1,0 +1,30 @@
+{% comment %}Recuadro de firma (Cambio 480): `programas.forms_dinamicos.FirmaWidget`. Se firma con el dedo o el
+mouse sobre el `<canvas>`; `nodo-firma.js` escribe el PNG del trazo en el campo oculto `data-firma-trazo` al
+terminar cada trazo, así que no intercepta el envío y anda en los formularios que llegan por AJAX. Sin JS
+el recuadro no dibuja y el campo queda sin firmar: el servidor lo trata como no respondido.
+`firmante_guardado` es «Ana Gómez · DNI … · fecha» de una firma ya cargada: firmar de nuevo la reemplaza.{% endcomment %}
+{% load static %}<div class="nodo-firma space-y-3" data-firma>
+  {% if widget.firmante_guardado %}<p class="text-xs text-body-subtle"><i class="fas fa-signature" aria-hidden="true"></i> Ya firmó: {{ widget.firmante_guardado }}. Firmá de nuevo solo si la querés reemplazar.</p>{% endif %}
+  {% with trazo=widget.subwidgets.0 nombre=widget.subwidgets.1 dni=widget.subwidgets.2 %}
+  <div class="nodo-firma__lienzo rounded-lg border border-base bg-white">
+    <canvas class="nodo-firma__canvas" width="600" height="200" role="img" aria-label="Recuadro para firmar con el dedo o el mouse" data-firma-canvas></canvas>
+  </div>
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <p class="text-xs text-body-subtle">Firmá dentro del recuadro.</p>
+    <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit" data-firma-limpiar><i class="fas fa-eraser" aria-hidden="true"></i> Limpiar</button>
+  </div>
+  {% include trazo.template_name with widget=trazo %}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="sm:col-span-2">
+      <label for="{{ nombre.attrs.id }}" class="block text-xs font-medium text-heading mb-1">Nombre y apellido de quien firma</label>
+      {% include nombre.template_name with widget=nombre %}
+    </div>
+    <div>
+      <label for="{{ dni.attrs.id }}" class="block text-xs font-medium text-heading mb-1">DNI</label>
+      {% include dni.template_name with widget=dni %}
+    </div>
+  </div>
+  {% endwith %}
+</div>
+{# El backoffice ya lo carga en su base; el portal de inscripción no tiene base común con él. Se carga una sola vez. #}
+<script src="{% static 'custom/js/nodo-firma.js' %}"></script>

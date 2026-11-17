@@ -201,3 +201,17 @@ input[type="checkbox"].nodo-switch:disabled {
     background: var(--bg-disabled);
     cursor: not-allowed;
 }
+
+/* Recuadro de firma (Cambio 480, `programas/widgets/firma.html`): el canvas guarda 600x200 y se
+   escala al ancho del contenedor; `touch-action: none` evita que el dedo desplace la página. */
+.nodo-firma__lienzo {
+    overflow: hidden;
+}
+.nodo-firma__canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 1;
+    touch-action: none;
+    cursor: crosshair;
+}

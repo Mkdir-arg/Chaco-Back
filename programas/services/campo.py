@@ -47,6 +47,7 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, OrigenRequisito, Relevamiento, TipoCampo
+from programas.services.firma import errores_del_firmante, normalizar_firmante
 from programas.services.respuestas import aplicar, campos_de, fecha_de_referencia
 
 #: Lo que el legajo acepta como sexo: F, M y X (no binario).
@@ -242,7 +243,11 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
             if campo.get("obligatorio") and _se_responde_en_el_alta(campo):
                 observaciones.append(f"Falta la respuesta obligatoria «{campo.get('texto') or clave}».")
             continue
-        observaciones.extend(_problemas_de_valor(campo, valor))
+        problemas = _problemas_de_valor(campo, valor)
+        observaciones.extend(problemas)
+        if campo.get("tipo") == TipoCampo.FIRMA and not problemas:
+            # La fecha de la firma la pone el servidor, nunca el teléfono (Cambio 480).
+            efectivas[clave] = normalizar_firmante(valor)
     observaciones.extend(_observaciones_de_catalogo(definicion, efectivas))
 
     sexo = str((identidad or {}).get("sexo") or (identidad or {}).get("genero") or "").strip().upper()
@@ -399,10 +404,11 @@ def claves_de_archivo(definicion):
     la API trae las dos.
     """
     definicion = definicion or {}
-    claves = {campo.get("clave") for campo in campos_de(definicion) if campo.get("tipo") == TipoCampo.ARCHIVO}
+    con_adjunto = TipoCampo.con_adjunto()
+    claves = {campo.get("clave") for campo in campos_de(definicion) if campo.get("tipo") in con_adjunto}
     for lista, prefijo in (("globales", "pg"), ("requisitos", "rn")):
         for campo in definicion.get(lista) or []:
-            if isinstance(campo, dict) and campo.get("tipo") == TipoCampo.ARCHIVO and campo.get("id") is not None:
+            if isinstance(campo, dict) and campo.get("tipo") in con_adjunto and campo.get("id") is not None:
                 claves.add(f"{prefijo}-{campo['id']}")
     return claves
 
@@ -439,7 +445,7 @@ def pertenencia_del_adjunto(formulario, pregunta_global=None, requisito_nativo=N
       se rechaza: el documento no es de este caso, o no tiene dónde colgarse.
     """
     referencia = pregunta_global if pregunta_global is not None else requisito_nativo
-    if referencia is None or getattr(referencia, "tipo", None) != TipoCampo.ARCHIVO:
+    if referencia is None or getattr(referencia, "tipo", None) not in TipoCampo.con_adjunto():
         return ADJUNTO_AJENO
     clave = f"pg-{referencia.pk}" if pregunta_global is not None else f"rn-{referencia.pk}"
     if clave in claves_de_archivo(definicion_del_caso(formulario)):
@@ -609,7 +615,8 @@ def _vacio(valor):
 
 def _se_responde_en_el_alta(campo):
     """Los archivos llegan por multipart después del alta; el resto se valida
-    contra los campos visibles de la foto, incluido el apoderado."""
+    contra los campos visibles de la foto, incluido el apoderado. De una firma, en el
+    alta llega quién firmó (``{nombre, dni}``); la imagen, después, como un archivo."""
     return campo.get("tipo") != TipoCampo.ARCHIVO
 
 
@@ -649,6 +656,9 @@ def _problemas_de_valor(campo, valor):
     etiqueta = campo.get("texto") or campo.get("clave")
     opciones = campo.get("opciones") or []
 
+    if tipo == TipoCampo.FIRMA:
+        # La captura se acepta igual (G1-05): lo que falte del firmante se le muestra al revisor.
+        return [f"«{etiqueta}»: {error}" for error in errores_del_firmante(valor)]
     if tipo == TipoCampo.INT and not _es_entero(valor):
         return [f"«{etiqueta}» esperaba un número y llegó «{valor}»."]
     if tipo == TipoCampo.SELECTOR and opciones and str(valor) not in [str(o) for o in opciones]:

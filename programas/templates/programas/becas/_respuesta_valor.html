@@ -1,4 +1,6 @@
-{% if item.es_archivo %}
+{% if item.es_firma %}
+  {% include "components/_firma_respondida.html" with adjunto=item.adjunto firmante=item.firmante etiqueta=item.label only %}
+{% elif item.es_archivo %}
   {% if item.adjunto %}
     {% if item.es_imagen %}
     <button type="button"

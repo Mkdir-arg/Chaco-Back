@@ -1,0 +1,16 @@
+{% comment %}Una firma ya cargada (Cambio 480): la imagen del trazo y quién firmó. La usan la revisión de Becas
+(`_respuesta_valor.html`), el formulario respondido de Dispositivos y el informe del relevamiento.
+Contexto:
+  adjunto    el adjunto con la imagen (`.archivo.url`), o nada si todavía no llegó.
+  firmante   «Ana Gómez · DNI 30111222 · 17/11/2026 15:20» (`programas.services.firma.texto_del_firmante`).
+  etiqueta   el texto del campo, para el `alt`.{% endcomment %}
+<span class="inline-flex flex-col gap-1.5">
+  {% if adjunto %}
+  <a href="{{ adjunto.archivo.url }}" target="_blank" rel="noopener" class="block">
+    <img src="{{ adjunto.archivo.url }}" alt="Firma: {{ etiqueta }}" loading="lazy" class="h-16 w-40 rounded-lg border border-base bg-white object-contain">
+  </a>
+  {% else %}
+  <span class="badge badge-warning">Falta la imagen de la firma</span>
+  {% endif %}
+  {% if firmante %}<span class="text-xs text-body-subtle"><i class="fas fa-signature" aria-hidden="true"></i> Firmó: {{ firmante }}</span>{% endif %}
+</span>

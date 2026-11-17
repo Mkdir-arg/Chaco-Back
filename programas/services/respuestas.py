@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from core.utils_fechas import fecha_local
-from programas.models import OrigenRequisito
+from programas.models import OrigenRequisito, TipoCampo
 from programas.services import condiciones
 from programas.services.foto_campos import _es_campo, campos_de, recorrer  # noqa: F401  (campos_de se reexporta)
 
@@ -319,6 +319,8 @@ def respuestas_legibles(formulario, definicion=None, adjuntos=None):
     camino viejo por pk."""
     from pathlib import Path
 
+    from programas.services.firma import texto_del_firmante
+
     definicion = definicion or formulario.definicion
     if not definicion:
         return None
@@ -334,13 +336,16 @@ def respuestas_legibles(formulario, definicion=None, adjuntos=None):
             if _es_campo(item):
                 valor = respuestas.get(item["clave"])
                 adjunto = adjuntos.get(item["clave"])
+                es_firma = item.get("tipo") == TipoCampo.FIRMA
                 fila.update(
                     {
                         "tipo": "campo",
                         "label": item.get("texto", ""),
-                        "valor": legible(item, valor),
+                        "valor": "" if es_firma else legible(item, valor),
                         "es_multiple": isinstance(valor, list),
-                        "es_archivo": item.get("tipo") == "ARCHIVO",
+                        "es_archivo": item.get("tipo") in TipoCampo.con_adjunto(),
+                        "es_firma": es_firma,
+                        "firmante": texto_del_firmante(valor) if es_firma else "",
                         "adjunto": adjunto,
                         "es_imagen": bool(
                             adjunto and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN

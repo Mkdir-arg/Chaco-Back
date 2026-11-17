@@ -15,7 +15,7 @@ from core.validators import (
     MENSAJE_ADJUNTO_TAMANIO,
 )
 from legajos.models import Ciudadano
-from programas.models import AdjuntoFormulario, Formulario, OrigenRequisito, Relevamiento
+from programas.models import AdjuntoFormulario, Formulario, OrigenRequisito, Relevamiento, TipoCampo
 from programas.services import campo as servicio_campo
 from programas.services import respuestas as respuestas_servicio
 from programas.services.becas import CAPACIDAD_CATALOGOS, definicion_formulario, definicion_para_cliente
@@ -470,7 +470,7 @@ class AdjuntoFormularioSerializer(serializers.ModelSerializer):
                 for campo in respuestas_servicio.campos_de(servicio_campo.definicion_del_caso(formulario))
             }
             campo = campos.get(clave)
-            if campo is None or campo.get("tipo") != "ARCHIVO":
+            if campo is None or campo.get("tipo") not in TipoCampo.con_adjunto():
                 raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
             if clave.startswith("pg-"):
                 from programas.models import PreguntaGlobal
