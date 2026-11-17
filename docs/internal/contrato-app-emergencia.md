@@ -158,7 +158,11 @@ que `POST /api/becas/personas/consultar/`; existe aparte porque aquella exige `b
 ```
 
 `dni` se queda con los dígitos; `sexo` es `F` o `M` (admite minúscula). `relevamiento`, si viene, se
-ignora: Emergencia no tiene padrones y consulta solo Base de Personas.
+ignora: Emergencia no tiene padrones. Busca primero en Base de Personas (`origen: "personas"`); si no la
+encuentra, falla o está apagada, busca en los legajos un ciudadano activo con ese DNI (`origen: "legajo"`,
+con `localidad_id` y `localidad_texto` del legajo). Si el género del legajo está cargado y difiere del `sexo`
+pedido no cuenta como hallada; vacío se acepta. Una persona fallecida según Base de Personas no se busca en
+legajos. La consulta de Becas no busca en legajos.
 
 ```json
 {"success": true, "origen": "personas",
@@ -170,10 +174,10 @@ ignora: Emergencia no tiene padrones y consulta solo Base de Personas.
 | Código | Cuerpo | Cuándo |
 |---|---|---|
 | 400 | `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` | Falta el DNI o el sexo |
-| 404 | `{"success": false, "error": "…"}` | La persona no figura: pedir nombre y apellido (alta mínima) |
+| 404 | `{"success": false, "error": "…"}` | No figura en Base de Personas ni en legajos: pedir nombre y apellido (alta mínima) |
 | 404 | `{"success": false, "fallecido": true, "error": "…"}` | Base de Personas la informa fallecida |
 | 429 | cuerpo estándar de DRF, con `Retry-After` | Se pasó el tope |
-| 502 | `{"success": false, "error": "…"}` | Base de Personas no respondió |
+| 502 | `{"success": false, "error": "…"}` | Base de Personas no respondió y no está en legajos |
 
 El tope es **por usuario** (120 por hora) y la cubeta es **la misma** que la de la consulta de Becas:
 quien tiene los dos módulos no suma dos cuotas.

@@ -408,7 +408,7 @@ class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
     """La respuesta 200 de la consulta de identidad (Cambio 57)."""
 
     success = serializers.BooleanField()
-    origen = serializers.CharField(help_text="`padron`, `personas` o `manual`.")
+    origen = serializers.CharField(help_text="`padron`, `personas`, `legajo` (solo Emergencia) o `manual`.")
     data = serializers.DictField()
     datos_api = serializers.DictField()
 

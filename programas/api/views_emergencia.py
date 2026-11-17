@@ -285,12 +285,13 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
         },
         description=(
             "La misma consulta de identidad que `POST /api/becas/personas/consultar/`, con el mismo cuerpo y la "
-            "misma respuesta, para quien abre Emergencia y no Becas. Consulta solo Base de Personas: `relevamiento` "
-            "se ignora."
+            "misma respuesta, para quien abre Emergencia y no Becas. Consulta Base de Personas y, si no la "
+            "encuentra, falla o está apagada, el legajo (`origen: legajo`; un género cargado que no coincide no "
+            "cuenta). Una persona fallecida no cae al legajo. `relevamiento` se ignora."
         ),
     )
     def post(self, request):
-        return responder_consulta_de_persona(request.data)
+        return responder_consulta_de_persona(request.data, buscar_en_legajos=True)
 
 
 class LocalidadesEmergenciaView(_VistaDeCampo):
