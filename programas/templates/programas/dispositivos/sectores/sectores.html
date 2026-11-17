@@ -49,7 +49,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                urlDe(accion) { return (this.urlsPlaza[accion] || '').replace('__pk__', this.plazaSel); },
                tituloPlaza() {
                  const p = this.plazasModal[this.plazaSel];
-                 const t = { reservar: 'Reservar la plaza ', prestar: 'Prestar la plaza ', fuera_servicio: 'Sacar de servicio la plaza ', liberar: 'Liberar la plaza ', volver: 'Volver a servicio la plaza ' }[this.accion];
+                 const t = { reservar: 'Reservar la plaza ', prestar: 'Prestar la plaza ', fuera_servicio: 'Sacar de servicio la plaza ', liberar: 'Liberar la plaza ', volver: 'Volver a servicio la plaza ', baja: 'Dar de baja la plaza ' }[this.accion];
                  return p ? (t || 'Plaza ') + p.codigo : 'Plaza';
                },
                abrirReubicar(pk) {
@@ -86,9 +86,9 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     {% page_header titulo="Sectores y plazas" eyebrow=dispositivo.nombre volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
       {% bajada %}{{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.prestadas }} prestada{{ totales.prestadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
       {% if ver_inactivos %}
-      <a href="?" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-eye-slash" aria-hidden="true"></i> Ocultar sectores inactivos</a>
+      <a href="?" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-eye-slash" aria-hidden="true"></i> Ocultar inactivos</a>
       {% else %}
-      <a href="?inactivos=1" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-eye" aria-hidden="true"></i> Ver sectores inactivos</a>
+      <a href="?inactivos=1" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-eye" aria-hidden="true"></i> Ver inactivos</a>
       {% endif %}
       {% if puede_ampliar_capacidad %}
       <button type="button" @click="modalSectorNuevo=true" class="btn-nodo btn-tertiary btn-sm btn-fit">
@@ -177,6 +177,39 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       </ul>
       {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-layer-group" titulo="No hay sectores inactivos" texto="Los sectores que se den de baja aparecen acá." %}
+      {% endif %}
+    </section>
+
+    {# ===== Plazas dadas de baja (mismo filtro): se reactivan con su confirmación ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="plazas-baja-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="plazas-baja-titulo" class="text-heading font-bold">Plazas dadas de baja</h2>
+        <p class="text-xs text-body-subtle mt-1">No se dibujan en el mapa ni cuentan en el total. Al reactivarlas vuelven a su sector con su código y su historia. Las de un sector inactivo vuelven con el sector.</p>
+      </div>
+      {% if plazas_dadas_de_baja %}
+      <ul class="divide-y divide-light">
+        {% for baja in plazas_dadas_de_baja %}
+        <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-heading">{{ baja.codigo }}</p>
+            <p class="text-xs text-body-subtle mt-1">{{ baja.sector.nombre }} · {{ baja.get_tipo_display }}</p>
+          </div>
+          {% if puede_configurar_plazas %}
+          <button type="button"
+                  class="btn-nodo btn-secondary btn-sm btn-fit"
+                  data-confirm-url="{% url 'dispositivos:plaza_reactivar' dispositivo.pk baja.pk %}"
+                  data-confirm-title="Reactivar plaza"
+                  data-confirm-text="La plaza {{ baja.codigo }} vuelve al mapa de «{{ baja.sector.nombre }}»."
+                  data-confirm-ok="Sí, reactivar"
+                  data-confirm-danger="false">
+            <i class="fas fa-rotate-left" aria-hidden="true"></i> Reactivar
+          </button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="No hay plazas dadas de baja" texto="Las plazas que se den de baja aparecen acá." %}
       {% endif %}
     </section>
     {% endif %}
@@ -319,7 +352,26 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% endif %}
 
       {% if puede_configurar_plazas %}
-      <div x-show="plazaSel !== null" class="px-6 py-4 border-t border-light bg-secondary flex justify-end">
+      {# Dar de baja (Cambio 479): la plaza tomada no sale, el aviso reemplaza al formulario #}
+      <div x-show="accion === 'baja' && plazasModal[plazaSel]?.bloqueo_baja" class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede dar de baja" texto="Una plaza ocupada, reservada o prestada primero se reubica o se libera." %}
+        <p class="text-sm text-body" x-text="plazasModal[plazaSel]?.bloqueo_baja"></p>
+      </div>
+      <form method="post" :action="urlDe('baja')" data-ajax x-show="accion === 'baja' && !plazasModal[plazaSel]?.bloqueo_baja" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <p class="text-sm text-body">La plaza <strong class="text-heading" x-text="plazasModal[plazaSel]?.codigo"></strong> sale del mapa y del total de plazas. Su historia se conserva y su código no se vuelve a usar.</p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="Es para una plaza desmantelada o cargada de más. Si es algo temporal, sacala de servicio. Se puede reactivar desde «Ver inactivos»." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="opcion=''" cancelar_texto="Volver" accion_texto="Sí, dar de baja" accion_tono="danger" %}
+      </form>
+      <div x-show="plazaSel !== null && accion !== 'baja'" class="px-6 py-4 border-t border-light bg-secondary flex justify-end gap-2 flex-wrap">
+        <button type="button" @click="opcion='baja'" class="btn-nodo btn-secondary btn-sm">
+          <i class="fas fa-trash-can" aria-hidden="true"></i> Dar de baja
+        </button>
         <a :href="'?editar_plaza=' + plazaSel" class="btn-nodo btn-secondary btn-sm">
           <i class="fas fa-pen" aria-hidden="true"></i> Editar plaza
         </a>

@@ -9,7 +9,7 @@ que el recorte de ``Plaza.estado`` evita en la base: la plaza guarda su estado
 Las cifras
 ----------
 
-* ``totales`` — las plazas cargadas en los sectores activos.
+* ``totales`` — las plazas activas (no dadas de baja) de los sectores activos.
 * ``fuera_de_servicio`` — las que están en ``Plaza.Estado.FUERA_SERVICIO``.
 * ``operativas`` — ``totales - fuera_de_servicio``.
 * ``ocupadas`` — las plazas operativas con una estadía activa.
@@ -394,9 +394,12 @@ def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
             # motor recorre las plazas una vez y agrupa. Contar sector por sector sería
             # una consulta por sector, que es justo lo que los índices
             # `(dispositivo, activo)` y `(sector, estado)` están puestos para evitar.
+            # El JOIN de `Count` no pasa por el manager de `Plaza`: las dadas de baja se filtran acá.
             .annotate(
-                plazas_totales=Count("plazas"),
-                plazas_fuera_de_servicio=Count("plazas", filter=Q(plazas__estado=Plaza.Estado.FUERA_SERVICIO)),
+                plazas_totales=Count("plazas", filter=Q(plazas__activa=True)),
+                plazas_fuera_de_servicio=Count(
+                    "plazas", filter=Q(plazas__activa=True, plazas__estado=Plaza.Estado.FUERA_SERVICIO)
+                ),
             )
             # Explícito y no por `Meta.ordering`: este queryset agrupa, y el orden tiene
             # que salir de columnas que ya están en el `values()` para no encadenar un
