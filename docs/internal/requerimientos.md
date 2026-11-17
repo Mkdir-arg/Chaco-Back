@@ -603,6 +603,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 479 | Dispositivos: dar de baja una plaza (cama) del mapa y reactivarla, sin borrar su historia | Dispositivos · sectores y plazas | `#datos` `#ui` | Usuario — «no tengo forma de eliminar una cama» | 17/11/2026 | 🟡 **En curso** | `programas.0122` |
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
+| 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -56705,5 +56706,81 @@ Desplegar **primero** la versión de Chaco-mobile que conoce `FIRMA` y después 
   nuevo); ahora toda firma nueva lleva la fecha del servidor y sin trazo nuevo se conserva lo guardado tal cual.
   Además: un firmante observado de la app se guarda sin la fecha que mande el teléfono, una firma guardada ya no
   muestra el aviso «Ya cargado» de los archivos, y se borró una rama sin uso de `serializar_valor`.
+
+---
+
+# Cambio 481 — Emergencia: la consulta de identidad busca también en los legajos
+
+🟡 **EN CURSO — 17/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Emergencia (app de campo) |
+| **Etiquetas** | `#api` `#datos` |
+| **Solicitante** | Usuario (PM) |
+| **Fecha del pedido** | 17/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API, Mobile (sin cambios: lee `origen` como texto) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La consulta de identidad de la app de Emergencia (`POST /api/emergencia/personas/consultar/`) buscaba solo en Base
+de Personas: quien ya tenía legajo pero no figuraba ahí obligaba a cargarlo a mano. Tiene que buscar también en los
+legajos.
+
+## Alcance acordado
+
+**Entra:** solo la consulta de Emergencia. **Queda afuera:** la consulta de Becas y el servicio `identificar`, que
+no cambian.
+
+## Decisiones tomadas
+
+1. **Orden:** primero Base de Personas, como hoy. Si la encuentra, `origen: "personas"` y no se toca el legajo.
+2. **Fallecida:** 404 con `fallecido: true`; no se busca en legajos.
+3. **Legajo como último recurso:** si Base de Personas no la encuentra, falla (hoy 502) o está apagada
+   (`PERSONAS_API_ACTIVA=False`), se busca el `Ciudadano` con ese DNI y `activo=True`, en una sola consulta con la
+   localidad. Respuesta 200 con `origen: "legajo"` y los mismos campos de siempre; la localidad sale del legajo.
+4. **Género:** si el del legajo está cargado y difiere del `sexo` pedido, no cuenta como hallada; vacío se acepta.
+5. **Sin legajo** la respuesta es la de antes (404, o 502 si Base de Personas falló).
+6. **Implementación:** `responder_consulta_de_persona(..., buscar_en_legajos=False)`; solo la vista de Emergencia
+   lo pone en `True`. La búsqueda vive en `identidad.identificar_en_legajo`.
+
+## Implementación
+
+La app de Emergencia encuentra por DNI a las personas con legajo aunque Base de Personas no las tenga o no responda.
+
+## Archivos
+
+`programas/services/identidad.py`, `programas/api/views.py`, `programas/api/views_emergencia.py`,
+`programas/api/serializers.py`, `docs/internal/contrato-app-emergencia.md`,
+`programas/tests/test_emergencia_api_contrato.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `ConsultaDePersonaTests`: legajo hallado con Base de Personas sin hallar, caída y apagada; fallecida sin caer al
+  legajo; género distinto (404) y vacío (200); legajo inactivo; Base de Personas la encuentra sin tocar el legajo;
+  Becas con el mismo DNI en legajo sigue en 404.
+- Mutación: sin la regla del género y sin el corte «solo Emergencia», los tests correspondientes se ponen rojos.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Un legajo no confirma identidad con Base de Personas: `origen: "legajo"` lo informa para que la app lo muestre.
+
+## Reversión
+
+Desplegar el código anterior. No hay datos ni columnas.
+
+## Historial
+
+- **17/11/2026:** alta del cambio.
 
 ---

@@ -28,7 +28,7 @@ from unittest import mock
 
 from django.contrib.auth.models import AnonymousUser, User
 from django.db import connection
-from django.test import tag
+from django.test import override_settings, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.authtoken.models import Token
@@ -450,6 +450,128 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertEqual(sorted(no_figura.json()), ["error", "success"])
         self.assertEqual(caida.status_code, 502)
         self.assertEqual(caida.json(), {"success": False, "error": "Timeout"})
+
+    def _legajo(self, **campos):
+        from core.models import Localidad
+        from legajos.models import Ciudadano
+
+        localidad = Localidad.objects.create(nombre="Resistencia")
+        base = dict(
+            dni="30111222",
+            nombre="Rosa",
+            apellido="Benitez",
+            fecha_nacimiento="1984-03-02",
+            genero="F",
+            localidad=localidad,
+        )
+        return Ciudadano.objects.create(**{**base, **campos})
+
+    def _gran_base_no_la_encuentra(self):
+        self.gran_base.return_value = {"success": False, "error": "No se encontró", "not_found": True}
+
+    def test_el_legajo_responde_si_base_de_personas_no_la_encuentra(self):
+        legajo = self._legajo()
+        self._gran_base_no_la_encuentra()
+
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(
+            respuesta.json(),
+            {
+                "success": True,
+                "origen": "legajo",
+                "data": {
+                    "nombre": "Rosa",
+                    "apellido": "Benitez",
+                    "fecha_nacimiento": "1984-03-02",
+                    "localidad_id": legajo.localidad_id,
+                    "localidad_texto": "Resistencia",
+                    "dni": "30111222",
+                    "sexo": "F",
+                },
+                "datos_api": {},
+            },
+        )
+
+    def test_el_legajo_responde_si_base_de_personas_falla(self):
+        self._legajo(fecha_nacimiento=None, localidad=None)
+        self.gran_base.return_value = {"success": False, "error": "Timeout"}
+
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        cuerpo = respuesta.json()
+        self.assertEqual(cuerpo["origen"], "legajo")
+        self.assertEqual(cuerpo["data"]["fecha_nacimiento"], "")
+        self.assertIsNone(cuerpo["data"]["localidad_id"])
+        self.assertEqual(cuerpo["data"]["localidad_texto"], "")
+
+    def test_el_legajo_responde_si_base_de_personas_esta_apagada(self):
+        self._legajo()
+
+        with override_settings(PERSONAS_API_ACTIVA=False):
+            respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["origen"], "legajo")
+        self.gran_base.assert_not_called()
+
+    def test_si_base_de_personas_la_encuentra_no_se_toca_el_legajo(self):
+        self._legajo(nombre="Otro")
+
+        with mock.patch("programas.api.views.identificar_en_legajo") as legajo:
+            respuesta = self._consultar(self.agente)
+
+        legajo.assert_not_called()
+        self.assertEqual(respuesta.json()["origen"], "personas")
+        self.assertEqual(respuesta.json()["data"]["nombre"], "Rosa")
+
+    def test_la_fallecida_no_cae_al_legajo(self):
+        self._legajo()
+        self.gran_base.return_value = {"success": False, "fallecido": True, "error": "Fallecida"}
+
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertIs(respuesta.json()["fallecido"], True)
+
+    def test_un_genero_distinto_en_el_legajo_no_cuenta(self):
+        self._legajo(genero="M")
+        self._gran_base_no_la_encuentra()
+
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_un_genero_vacio_en_el_legajo_se_acepta(self):
+        self._legajo(genero="")
+        self._gran_base_no_la_encuentra()
+
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["origen"], "legajo")
+
+    def test_un_legajo_inactivo_no_cuenta(self):
+        self._legajo(activo=False)
+        self._gran_base_no_la_encuentra()
+
+        self.assertEqual(self._consultar(self.agente).status_code, 404)
+
+    def test_sin_legajo_la_falla_de_base_de_personas_sigue_siendo_502(self):
+        self.gran_base.return_value = {"success": False, "error": "Timeout"}
+
+        self.assertEqual(self._consultar(self.agente).status_code, 502)
+
+    def test_becas_no_busca_en_el_legajo(self):
+        self._legajo()
+        self._gran_base_no_la_encuentra()
+        ambos = self._sumar_rol(self.territorial_becas, [RELEVAR], self.programa)
+
+        respuesta = self._consultar(ambos, url=reverse("becas_api:personas-consultar"))
+
+        self.assertEqual(respuesta.status_code, 404)
 
     def test_un_relevamiento_en_el_cuerpo_se_ignora(self):
         """Emergencia no tiene padrones: la clave de Becas no rompe ni cambia la respuesta."""
