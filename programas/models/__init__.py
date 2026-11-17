@@ -949,6 +949,21 @@ class Sector(TimeStamped):
         return f"{self.dispositivo.codigo} · {self.nombre}"
 
 
+class PlazaActivaManager(models.Manager):
+    """El manager por defecto de `Plaza`: solo las plazas activas (Cambio 479).
+
+    Una plaza dada de baja no existe para la operación —mapa, censo, ingreso, reservas,
+    Emergencia—, así que se la saca en el manager y no en cada consulta: una lectura que se
+    olvidara del filtro la volvería a ofrecer para alojar. Lo que sí la necesita (la unicidad
+    del código, la lista de bajas, la reactivación, el admin) usa `Plaza.todas`. Las relaciones
+    hacia la plaza (`estadia.plaza`, `movimiento.plaza_origen`) van por el manager base, que no
+    filtra: la historia sigue viendo la plaza dada de baja.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(activa=True)
+
+
 class Plaza(TimeStamped):
     """La unidad de capacidad dentro del sector: una cama, un cupo o un turno.
 
@@ -993,6 +1008,12 @@ class Plaza(TimeStamped):
         blank=True,
         verbose_name="Motivo del fuera de servicio",
     )
+    # Baja lógica (Cambio 479): la plaza desmantelada sale del mapa y del total sin perder su
+    # historia. Con estadías y movimientos que la apuntan con `PROTECT`, borrarla no es opción.
+    activa = models.BooleanField(default=True, db_default=True, verbose_name="Activa")
+
+    objects = PlazaActivaManager()
+    todas = models.Manager()
 
     class Meta:
         verbose_name = "Plaza"

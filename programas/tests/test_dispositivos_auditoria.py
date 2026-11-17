@@ -283,6 +283,8 @@ class LegibleTests(BaseAuditoria):
             "SECTOR_REACTIVADO",
             "PLAZAS_AGREGADAS",
             "PLAZA_EDITADA",
+            "PLAZA_BAJA",
+            "PLAZA_REACTIVADA",
         }
         acciones |= {"EDIFICIO_CREADO", "EDIFICIO_EDITADO", "EDIFICIO_VINCULADO", "EDIFICIO_DESVINCULADO"}
         self.assertEqual(set(TITULOS_TRAZA), acciones)

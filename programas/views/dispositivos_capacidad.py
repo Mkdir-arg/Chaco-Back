@@ -40,7 +40,15 @@ from programas.services.edificios import (
     editar_edificio,
     vincular_edificio,
 )
-from programas.services.plazas import agregar_plazas, crear_sector, editar_plaza, editar_sector, reactivar_sector
+from programas.services.plazas import (
+    agregar_plazas,
+    crear_sector,
+    dar_de_baja_plaza,
+    editar_plaza,
+    editar_sector,
+    reactivar_plaza,
+    reactivar_sector,
+)
 from programas.views.ajax_utils import ajax_redirect, errores_del_servicio, is_ajax, rechazar
 
 #: Adónde vuelve cada familia de acciones. Las de sectores y plazas, al mapa (P5); las del
@@ -218,6 +226,41 @@ class PlazaEditarView(_AccionDeSectorView):
 
     def mensaje(self, resultado):
         return f"Plaza {resultado.codigo} actualizada."
+
+
+class PlazaBajaView(_AccionDeSectorView):
+    """«Dar de baja» del modal de una plaza (Cambio 479): sin formulario, la confirmación es el modal.
+
+    Una plaza ajena, inexistente o ya dada de baja da el mismo 404. La plaza tomada la rechaza el
+    servicio, con el motivo en el modal.
+    """
+
+    def ejecutar(self, request, dispositivo, datos):
+        plaza = get_object_or_404(
+            Plaza.objects.select_related("sector__dispositivo"),
+            pk=self.kwargs["plaza_pk"],
+            sector__dispositivo=dispositivo,
+        )
+        return dar_de_baja_plaza(plaza=plaza, usuario=request.user)
+
+    def mensaje(self, resultado):
+        return f"Plaza {resultado.codigo} dada de baja."
+
+
+class PlazaReactivarView(_AccionDeSectorView):
+    """«Reactivar» de una plaza dada de baja (filtro «Ver inactivos» de P5). Solo POST, sin formulario."""
+
+    def ejecutar(self, request, dispositivo, datos):
+        plaza = get_object_or_404(
+            Plaza.todas.select_related("sector__dispositivo"),
+            pk=self.kwargs["plaza_pk"],
+            sector__dispositivo=dispositivo,
+            activa=False,
+        )
+        return reactivar_plaza(plaza=plaza, usuario=request.user)
+
+    def mensaje(self, resultado):
+        return f"Plaza {resultado.codigo} reactivada."
 
 
 # --------------------------------------------------------------------------- #

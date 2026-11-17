@@ -71,9 +71,9 @@ def plazas_tomadas_del_sector(sector):
 
 
 def codigos_del_sector(sector):
-    """Los códigos de TODAS las plazas del sector, también las fuera de servicio."""
+    """Los códigos de TODAS las plazas del sector, también las fuera de servicio y las dadas de baja."""
 
-    return set(Plaza.objects.filter(sector=sector).values_list("codigo", flat=True))
+    return set(Plaza.todas.filter(sector=sector).values_list("codigo", flat=True))
 
 
 def sectores_por_edificio(dispositivo):
@@ -86,7 +86,7 @@ def sectores_por_edificio(dispositivo):
 
     sectores = (
         Sector.objects.filter(dispositivo=dispositivo, activo=True)
-        .annotate(cantidad_plazas=Count("plazas"))
+        .annotate(cantidad_plazas=Count("plazas", filter=Q(plazas__activa=True)))
         .order_by("nombre", "pk")
         .values("pk", "nombre", "tipo", "edificio_id", "cantidad_plazas")
     )
@@ -134,7 +134,7 @@ def sectores_inactivos(dispositivo):
     return (
         Sector.objects.filter(dispositivo=dispositivo, activo=False)
         .select_related("edificio")
-        .annotate(cantidad_plazas=Count("plazas"), edificio_vinculado=Exists(vinculado))
+        .annotate(cantidad_plazas=Count("plazas", filter=Q(plazas__activa=True)), edificio_vinculado=Exists(vinculado))
         .annotate(
             edificio_nombre=Case(
                 When(edificio_vinculado=True, edificio__isnull=False, then=F("edificio__nombre")),
@@ -142,4 +142,18 @@ def sectores_inactivos(dispositivo):
             )
         )
         .order_by("nombre")
+    )
+
+
+def plazas_dadas_de_baja(dispositivo):
+    """Las plazas dadas de baja de los sectores activos del dispositivo, por sector y código (una consulta).
+
+    Las de un sector inactivo no se listan: vuelven con su sector, y reactivar una sola no tendría
+    dónde dibujarse.
+    """
+
+    return (
+        Plaza.todas.filter(sector__dispositivo=dispositivo, sector__activo=True, activa=False)
+        .select_related("sector")
+        .order_by("sector__nombre", "codigo")
     )

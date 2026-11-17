@@ -67,6 +67,7 @@ El modal de la plaza ocupada de ese mapa es un menú de enlaces y botones (`btn-
 El menú de la plaza disponible abre con «Ingresar persona», un enlace (`btn-secondary`, `fa-user-plus`) al asistente de ingreso con `?plaza=<id>`, igual que «Ver estadía»; sin pieza nueva (Cambio 461).
 El modal «Liberar» de ese mismo mapa distingue préstamo de reserva por el dato `es_prestamo` de `plazasModal`, no por el texto del estado.
 El filtro `?inactivos=1` de ese mapa suma una surface «Sectores inactivos» con su vacío de lectura (`icono="fa-layer-group"`, sin acción) y un «Reactivar» por fila con `data-confirm-url` (confirmación `_confirm_js.html`, POST sin modal propio) y un «Editar» (enlace `?inactivos=1&sector=<id>` al mismo modal «Editar sector», con el edificio y el switch «Sector activo»), sin pieza nueva (Cambio 435). El encabezado de cada sector y cada fila de inactivos nombran su edificio («Sin edificio» si no tiene).
+El mismo filtro (botón «Ver inactivos») suma una surface «Plazas dadas de baja» con el mismo esqueleto: filas con «Reactivar» por `data-confirm-url` y vacío de lectura `icono="fa-bed"`. «Dar de baja» vive al pie del modal de la plaza junto a «Editar plaza» (`btn-secondary`, `fa-trash-can`) y abre su panel dentro del mismo modal: aviso `_alerta` warning y pie con `accion_tono="danger"`, o el bloqueo (`bloqueo_baja` de `plazasModal`) en lugar del formulario; sin pieza nueva (Cambio 479).
 
 ## Dentro de un modal
 

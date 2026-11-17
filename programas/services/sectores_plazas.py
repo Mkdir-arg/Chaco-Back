@@ -82,6 +82,7 @@ from programas.services.ocupacion import (
     ocupacion_de_plazas,
     tension_de_ocupacion,
 )
+from programas.services.plazas import motivo_para_no_dar_de_baja
 
 # Tope por sector: el componente dibuja hasta 200 y avisa «Mostrando 200 de N»; la vista
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.
@@ -99,6 +100,9 @@ ACCION_VER_LEGAJO = "ver_legajo"
 ACCION_EGRESAR = "egresar"
 #: Abre el asistente de ingreso con la plaza ya marcada: es un enlace, no un formulario del modal.
 ACCION_INGRESAR = "ingresar"
+#: Dar de baja la plaza (Cambio 479). No entra en `acciones`: es configuración, como «Editar plaza»,
+#: y el modal la ofrece al pie a quien puede configurar las plazas, con su bloqueo propio.
+ACCION_BAJA = "baja"
 
 # Las acciones cuyo formulario arma el navegador: con una sola, el modal abre directo en él.
 ACCIONES_CON_FORMULARIO = (ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO, ACCION_LIBERAR, ACCION_VOLVER)
@@ -272,11 +276,12 @@ def plaza_para_accion(
     }
 
 
-def datos_para_el_modal(plaza, estado, acciones, bloqueo="", enlaces=None):
+def datos_para_el_modal(plaza, estado, acciones, bloqueo="", enlaces=None, con_reserva_abierta=False):
     """Lo que el modal Alpine necesita de una plaza, serializable con `json_script`.
 
     Sale de lo que el mapa ya calculó: ni una consulta más por plaza. `detalle` es el de
-    `estado_de_plazas`, así que respeta `ciudadano.ver` igual que la celda.
+    `estado_de_plazas`, así que respeta `ciudadano.ver` igual que la celda. `bloqueo_baja` es por
+    qué «Dar de baja» no va a proceder (plaza ocupada o con una reserva sin liberar), o vacío.
     """
 
     return {
@@ -291,6 +296,7 @@ def datos_para_el_modal(plaza, estado, acciones, bloqueo="", enlaces=None):
         "bloqueo": bloqueo,
         # Los destinos de las acciones que son enlaces (plaza ocupada), por nombre de acción.
         "enlaces": enlaces or {},
+        "bloqueo_baja": motivo_para_no_dar_de_baja(estado, con_reserva_abierta),
     }
 
 
@@ -444,6 +450,7 @@ def sectores_con_plazas(
                     acciones,
                     bloqueo_del_modal(estado, acciones),
                     enlaces_de_plaza(dispositivo, estado, acciones, plaza.pk),
+                    con_reserva_abierta=plaza.pk in reservas,
                 )
             if not url and puede_configurar_plazas:
                 # Editar la identidad no libera la reserva ni exige dispositivo.admitir.

@@ -601,6 +601,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 476 | Sidebar: Emergencia pasa a ser un grupo propio del menú, fuera de «Programas» | Emergencia · navegación | `#emergencia` `#ui` | Usuario — las opciones de Emergencia aparecían dentro de «Programas», que es Becas | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 477 | Emergencia, API de campo: cancelar el ingreso (y alojar y cerrar con diferencia) con la derivación vista, para que un reintento no actúe sobre un ingreso posterior | Emergencia · API de campo | `#emergencia` `#api` `#mobile` | PM — riesgo de la app de campo (Chaco-mobile): reintento de un cancelar cuya respuesta se perdió | 16/11/2026 | 🟢 **Hecho** | No requiere |
 | 478 | Emergencia: el número de caso lleva la serie «C» (`2026-C-000185`), como los kits llevan la «K» | Emergencia · casos | `#emergencia` | PM — decisión sobre el hallazgo del QA local de punta a punta | 16/11/2026 | 🟢 **Hecho** | No requiere |
+| 479 | Dispositivos: dar de baja una plaza (cama) del mapa y reactivarla, sin borrar su historia | Dispositivos · sectores y plazas | `#datos` `#ui` | Usuario — «no tengo forma de eliminar una cama» | 17/11/2026 | 🟡 **En curso** | `programas.0122` |
 
 **Notas del índice**
 
@@ -56460,5 +56461,117 @@ Ninguno.
 - **16/11/2026 — alta del cambio.**
 - **16/11/2026 — mergeado** en `9a44f7fc` (PR #1156).
 - **Origen: QA local de punta a punta de Emergencia (16/11/2026).** App Chaco-mobile v1.2.20 (`origin/test` `52cc238`, PWA) contra el back de `development` `ce1526e0` (SQLite). Recorrido: M1 relevamiento → mesa toma y deriva → M2 la guardia acepta, confirma una persona y cierra con diferencia → E4 entrega de kits en camino → M3 recepción con faltante y foto del remito → E5 observación y reposición → E1 tablero del supervisor → cancelar derivación → vencimiento de una derivación con `procesar_vencimientos`. Anduvieron bien: alcance por rol (403 del tablero al operador), `/media/` protegido, cuentas del tablero contra la base, reposición precargada con el faltante. Hallazgos registrados como issues #1143–#1155 (1 alto: #1143; medios: #1144–#1147; bajos: #1148–#1155). De esos, este cambio resuelve la numeración de #1152.
+
+---
+
+# Cambio 479 — Dispositivos: dar de baja una plaza (cama) del mapa y reactivarla, sin borrar su historia
+
+🟡 **EN CURSO — 17/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | Usuario — «no tengo forma de eliminar una cama» (P5 de un sector con 15 plazas y capacidad declarada 10) |
+| **Fecha del pedido** | 17/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modelo, servicio, vistas, URLs, template de `/dispositivos/<id>/sectores/`, admin de consulta) |
+| **Migración** | `programas.0122_plaza_activa` |
+
+## Pedido original
+
+«No tengo forma de eliminar una cama, es decir si yo quiero eliminar una de estas no puedo», sobre el mapa de un
+pabellón con plazas cargadas de más.
+
+## Alcance acordado
+
+**Entra:** baja lógica de una plaza (`Plaza.activa`) desde el modal de la plaza («Dar de baja», con confirmación y
+bloqueo si está tomada); la plaza dada de baja sale del mapa, del total, del censo, de los indicadores y de toda
+oferta de alojamiento (ingreso, reservas, préstamos, Emergencia); lista «Plazas dadas de baja» en el filtro
+`?inactivos=1` (el botón pasa a decir «Ver inactivos») con «Reactivar».
+
+**Queda afuera:** borrado físico (las estadías, reservas y movimientos apuntan a la plaza con `PROTECT`; nada con
+historia se borra, como en el Cambio 424); un motivo guardado de la baja (queda la traza con actor y plaza); reusar
+el código de una plaza dada de baja.
+
+## Decisiones tomadas
+
+1. **Revierte en parte el Cambio 291** («no se introduce borrado físico; la baja de plaza sigue "Sacar de
+   servicio"») y resuelve el pendiente del Cambio 239 («`Plaza` no tiene baja definitiva: una cama desmantelada
+   infla el total para siempre»). Se le presentaron al usuario tres opciones —borrar solo sin historia, baja
+   lógica, o las dos— y eligió **baja lógica** (17/11/2026). Sigue sin haber borrado físico.
+2. **Fuera de servicio y baja son cosas distintas.** Fuera de servicio es temporal, con motivo, y **cuenta** en el
+   total («56 fuera de servicio»). La baja es para una plaza que ya no existe (desmantelada o cargada de más) y
+   **no cuenta**. Una plaza fuera de servicio se puede dar de baja; al reactivarla vuelve con el estado operativo
+   que tenía.
+3. **El filtro vive en el manager por defecto.** `Plaza.objects` (`PlazaActivaManager`) solo devuelve plazas
+   activas; `Plaza.todas` las ve a todas. Motivo: son ~30 lecturas de `Plaza.objects` en mapa, ingreso, reservas,
+   estadías, Emergencia y alertas, y una que se olvidara de filtrar volvería a ofrecer para alojar una cama que no
+   existe. Las relaciones hacia la plaza (`estadia.plaza`, `movimiento.plaza_origen`) usan el manager base, que no
+   filtra: la historia sigue mostrando la plaza dada de baja. Usan `Plaza.todas` explícitamente: la unicidad del
+   código (`editar_plaza`, `codigos_del_sector`), la lista de bajas, la reactivación y el admin.
+4. **Los `Count("plazas")` no pasan por el manager** (es un JOIN): `ocupacion_de_plazas`, `sectores_por_edificio`
+   y `sectores_inactivos` filtran `plazas__activa=True` a mano. Es el único lugar donde el filtro es explícito.
+5. **El código de una plaza dada de baja sigue tomado** (el UNIQUE `(sector, codigo)` la incluye) y el lote no lo
+   reusa (Cambio 430), así que reactivarla nunca choca.
+6. **Misma regla que sacar de servicio, más la reserva vencida:** no se da de baja con estadía activa, reserva o
+   préstamo vigente, ni con una reserva/préstamo vencido sin liberar (como la baja de sector del Cambio 291): si no,
+   quedaría abierta sobre una plaza invisible. Bajo el bloqueo del dispositivo y de la plaza (orden de `editar_plaza`).
+7. **No se reactiva en un sector inactivo**; las bajas de un sector inactivo no se listan: vuelven con su sector.
+8. **Permiso y alcance de la configuración:** `dispositivo.editar` con alcance (403 sin la capacidad, 404 fuera de
+   alcance, plaza ajena o inexistente), dispositivo no cerrado, solo POST. Trazas propias `PLAZA_BAJA` (tono
+   `warning`) y `PLAZA_REACTIVADA` (`success`) en el historial del legajo.
+9. **UI sin piezas nuevas:** «Dar de baja» va al pie del modal de la plaza junto a «Editar plaza» y abre su panel
+   dentro del mismo modal (aviso `_alerta` y pie `danger`, o el bloqueo `bloqueo_baja` en lugar del formulario,
+   como «Sacar de servicio»); la lista de bajas copia la surface de «Sectores inactivos». Ficha actualizada:
+   `.claude/design/componentes/estado_vacio.md`.
+
+## Implementación
+
+Desde el mapa de plazas, quien configura las plazas toca una plaza y elige «Dar de baja»: confirma y la plaza
+desaparece del mapa y de las cifras del encabezado y del sector. Si está ocupada, reservada o prestada, el modal
+explica por qué no se puede. Con «Ver inactivos» aparece la lista «Plazas dadas de baja», cada una con «Reactivar».
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0122_plaza_activa.py`, `programas/services/plazas.py`,
+`programas/services/ocupacion.py`, `programas/services/sectores_plazas.py`,
+`programas/selectors/capacidad_dispositivo.py`, `programas/selectors/auditoria_dispositivo.py`,
+`programas/views/dispositivos_capacidad.py`, `programas/views/dispositivos_legajo.py`,
+`programas/dispositivos_urls.py`, `programas/admin.py`,
+`programas/templates/programas/dispositivos/sectores/sectores.html`,
+`.claude/design/componentes/estado_vacio.md`, `programas/tests/test_dispositivos_plaza_baja.py`.
+
+## Base de datos
+
+`programas.0122`: `AddField plaza.activa` `BOOLEAN NOT NULL` con `db_default=True` (el DEFAULT queda en el
+esquema). Expand puro: las filas existentes quedan activas y el código anterior sigue dando altas activas sin
+nombrar la columna. Sin índice nuevo (las plazas se leen por sector).
+
+## Validación
+
+- `programas.tests.test_dispositivos_plaza_baja`: 22 tests (baja y salida del total/mapa/modal, plaza ocupada,
+  reserva vencida sin liberar, historia cerrada visible, no se aloja en una baja, código no reusado ni chocado,
+  sector inactivo, admin, reactivar, vistas 302/400/403/404/405, filtro de inactivos, datos del modal).
+- `manage.py check`, `ruff check`, `scripts/check_migraciones.py` (0 problemas), `design_audit.py --ratchet`
+  (0 nuevos), `compile_templates.py --bloques` (0 errores), `check_design_agent.py --changed` (OK).
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Una plaza dada de baja **entre** que la vista la resolvió y el servicio la bloquea da `DoesNotExist` en vez de un
+  aviso (carrera; el camino normal da 404). No hay test de carrera: SQLite no lo permite.
+- No se guarda el motivo de la baja; si hiciera falta, es un campo `motivo_baja` anulable (expand).
+
+## Reversión
+
+1. Al borrar la columna, **todas las plazas dadas de baja vuelven a estar activas** y a contar en el total. Si
+   tienen que seguir fuera de la operación, antes sacarlas de servicio con un motivo. Para encontrarlas:
+   `SELECT id, sector_id, codigo FROM programas_plaza WHERE activa = 0;`.
+2. Desplegar el código anterior (no lee la columna).
+3. `migrate programas 0121` (borra `activa`).
 
 ---
