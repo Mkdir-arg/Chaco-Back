@@ -507,6 +507,18 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertIsNone(cuerpo["data"]["localidad_id"])
         self.assertEqual(cuerpo["data"]["localidad_texto"], "")
 
+    def test_el_legajo_cargado_con_separadores_tambien_se_encuentra(self):
+        legajo = self._legajo()
+        # `save()` normaliza el DNI: el legajo viejo con puntos se simula con un UPDATE.
+        type(legajo).objects.filter(pk=legajo.pk).update(dni="30.111.222")
+        self._gran_base_no_la_encuentra()
+
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["origen"], "legajo")
+        self.assertEqual(respuesta.json()["data"]["dni"], "30111222")
+
     def test_el_legajo_responde_si_base_de_personas_esta_apagada(self):
         self._legajo()
 

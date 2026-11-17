@@ -173,17 +173,19 @@ def identificar_en_legajo(dni, sexo):
     """Los datos de identidad del ``Ciudadano`` activo con ese DNI, o ``None``.
 
     Es el último recurso de la consulta de Emergencia, cuando Base de Personas no
-    la encontró, falló o está apagada. Una sola consulta, con la localidad. Si el
+    la encontró, falló o está apagada. Reusa `buscar_ciudadano_por_dni`. Si el
     ``genero`` del legajo está cargado y no coincide con el ``sexo`` pedido no
     cuenta como hallada (no se confirma a otra persona); vacío se acepta.
     """
-    from legajos.models import Ciudadano
+    from programas.services.ingreso import buscar_ciudadano_por_dni
 
     dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
     if not dni or not sexo:
         return None
-    ciudadano = Ciudadano.objects.select_related("localidad").filter(dni=dni, activo=True).first()
-    if ciudadano is None or (ciudadano.genero and ciudadano.genero != sexo):
+    # Mismo criterio que el resto del sistema: el DNI exacto y, si no, los legajos viejos
+    # cargados con separadores («30.111.222»). Con el exacto inactivo no se sigue buscando.
+    ciudadano = buscar_ciudadano_por_dni(dni)
+    if ciudadano is None or not ciudadano.activo or (ciudadano.genero and ciudadano.genero != sexo):
         return None
     return {
         "nombre": ciudadano.nombre,
