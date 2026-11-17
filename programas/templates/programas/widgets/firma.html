@@ -26,5 +26,5 @@ el recuadro no dibuja y el campo queda sin firmar: el servidor lo trata como no 
   </div>
   {% endwith %}
 </div>
-{# El backoffice ya lo carga en su base; el portal de inscripción no tiene base común con él. Se carga una sola vez. #}
+{# Para el portal de inscripción, que no comparte base con el backoffice. Las pantallas de Dispositivos lo cargan aparte: el formulario del tipo llega por AJAX (`innerHTML`) y ahí este `<script>` no corre. El guard del script evita iniciarlo dos veces. #}
 <script src="{% static 'custom/js/nodo-firma.js' %}"></script>

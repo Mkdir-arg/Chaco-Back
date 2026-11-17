@@ -67,27 +67,20 @@ def _solo_digitos(dni):
     return normalizar_dni(dni)
 
 
-def normalizar_firmante(valor, *, momento=None, anterior=None):
+def normalizar_firmante(valor, *, momento=None):
     """``{"nombre", "dni", "firmado"}`` limpio, o ``ValidationError`` con los textos de :func:`errores_del_firmante`.
 
-    ``firmado`` lo pone el servidor. Si quien firmó es el mismo que ya estaba guardado
-    (``anterior``) y no llegó una imagen nueva, se conserva la fecha original: volver a guardar
-    un borrador no «re-firma».
+    ``firmado`` lo pone el servidor: se llama **solo cuando llegó una firma nueva**, así que es
+    la fecha de ese trazo. Guardar de nuevo sin firmar no pasa por acá: conserva lo guardado
+    tal cual, fecha incluida.
     """
 
     errores = errores_del_firmante(valor)
     if errores:
         raise ValidationError(errores)
     limpio = {"nombre": " ".join(str(valor["nombre"]).split()), "dni": _solo_digitos(valor["dni"])}
-    if isinstance(anterior, dict) and anterior.get("firmado") and _mismo_firmante(anterior, limpio):
-        limpio["firmado"] = anterior["firmado"]
-    else:
-        limpio["firmado"] = (momento or timezone.now()).isoformat()
+    limpio["firmado"] = (momento or timezone.now()).isoformat()
     return limpio
-
-
-def _mismo_firmante(a, b):
-    return str(a.get("nombre")) == b["nombre"] and _solo_digitos(a.get("dni")) == b["dni"]
 
 
 def es_firmante(valor):

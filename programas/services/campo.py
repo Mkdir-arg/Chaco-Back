@@ -245,9 +245,13 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
             continue
         problemas = _problemas_de_valor(campo, valor)
         observaciones.extend(problemas)
-        if campo.get("tipo") == TipoCampo.FIRMA and not problemas:
-            # La fecha de la firma la pone el servidor, nunca el teléfono (Cambio 480).
-            efectivas[clave] = normalizar_firmante(valor)
+        if campo.get("tipo") == TipoCampo.FIRMA:
+            # La fecha de la firma la pone el servidor, nunca el teléfono. Un firmante observado
+            # se guarda igual (G1-05), pero solo con lo que cargó la persona: sin fecha del cliente.
+            if not problemas:
+                efectivas[clave] = normalizar_firmante(valor)
+            elif isinstance(valor, dict):
+                efectivas[clave] = {k: valor[k] for k in ("nombre", "dni") if k in valor}
     observaciones.extend(_observaciones_de_catalogo(definicion, efectivas))
 
     sexo = str((identidad or {}).get("sexo") or (identidad or {}).get("genero") or "").strip().upper()

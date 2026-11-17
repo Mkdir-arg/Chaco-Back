@@ -143,11 +143,11 @@ def es_adjunto(item):
     return item.get("tipo") in TipoCampo.con_adjunto()
 
 
-def valor_de_firma(valor, *, clave, anterior=None):
+def valor_de_firma(valor, *, clave):
     """Lo que se guarda en las respuestas de un campo FIRMA recién firmado: el firmante con la fecha
     del servidor y el nombre del archivo. ``valor`` es lo que devolvió :class:`FirmaField`."""
 
-    firmante = normalizar_firmante(valor, anterior=anterior)
+    firmante = normalizar_firmante(valor)
     valor["archivo"].name = f"firma-{clave}.png"
     return {**firmante, "archivo": valor["archivo"].name}
 
@@ -257,9 +257,6 @@ def serializar_valor(valor):
     de un archivo, el nombre (el archivo real va aparte)."""
     if valor in (None, "", []):
         return None
-    if isinstance(valor, dict) and "archivo" in valor:
-        # Una firma: el nombre del archivo y quién firmó (``valor_de_firma`` le suma la fecha).
-        return {**{k: v for k, v in valor.items() if k != "archivo"}, "archivo": valor["archivo"].name}
     if hasattr(valor, "name") and hasattr(valor, "size"):
         return valor.name
     if isinstance(valor, (list, tuple)):
@@ -329,6 +326,7 @@ class RespuestasDisenoForm(forms.Form):
             "clave": clave,
             "obligatorio": obligatorio,
             "es_archivo": es_archivo,
+            "es_firma": es_firma(item),
             "es_checks": item.get("tipo") == "SELECTOR_MULTIPLE" and not _es_buscador(item),
             "archivo_guardado": _nombre_guardado(guardada) if es_archivo else None,
             "bound": self[clave],
@@ -348,7 +346,8 @@ class RespuestasDisenoForm(forms.Form):
         for clave, item in self._campos:
             nuevo = cleaned.get(clave)
             if es_firma(item) and nuevo:
-                valor = valor_de_firma(nuevo, clave=clave, anterior=self.guardadas.get(clave))
+                # Una firma nueva lleva la fecha de hoy, aunque firme la misma persona que la guardada.
+                valor = valor_de_firma(nuevo, clave=clave)
             else:
                 valor = serializar_valor(nuevo)
             if valor is None and es_adjunto(item):

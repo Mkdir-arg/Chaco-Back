@@ -56698,4 +56698,12 @@ Desplegar **primero** la versión de Chaco-mobile que conoce `FIRMA` y después 
 2. Desplegar el código anterior y `migrate programas 0122` (solo estado).
 3. Las imágenes y los firmantes ya guardados quedan en adjuntos y respuestas; no se pierden.
 
+## Historial
+
+- **17/11/2026 — auditoría de #1159 (CHANGES NEEDED @ `ac6907a`):** una firma rehecha por la misma persona
+  guardaba la fecha de la anterior (la regla «misma persona conserva la fecha» se aplicaba justo con trazo
+  nuevo); ahora toda firma nueva lleva la fecha del servidor y sin trazo nuevo se conserva lo guardado tal cual.
+  Además: un firmante observado de la app se guarda sin la fecha que mande el teléfono, una firma guardada ya no
+  muestra el aviso «Ya cargado» de los archivos, y se borró una rama sin uso de `serializar_valor`.
+
 ---

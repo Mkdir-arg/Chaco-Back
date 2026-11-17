@@ -96,15 +96,10 @@ class FirmanteTests(SimpleTestCase):
         with self.assertRaises(ValidationError):
             normalizar_firmante({"nombre": "Ana", "dni": "abc"})
 
-    def test_la_fecha_del_cliente_no_vale_y_la_misma_persona_conserva_la_original(self):
+    def test_la_fecha_del_cliente_no_vale(self):
         primera = normalizar_firmante({**FIRMANTE, "firmado": "2000-01-01T00:00:00+00:00"})
+
         self.assertNotEqual(primera["firmado"], "2000-01-01T00:00:00+00:00")
-
-        otra_vez = normalizar_firmante(FIRMANTE, anterior=primera)
-        otra_persona = normalizar_firmante({"nombre": "Juan Pérez", "dni": "30333444"}, anterior=primera)
-
-        self.assertEqual(otra_vez["firmado"], primera["firmado"])
-        self.assertNotEqual(otra_persona["firmado"], primera["firmado"])
 
     def test_texto_para_mostrar(self):
         texto = texto_del_firmante({"nombre": "Ana Gómez", "dni": "30111222", "firmado": "2026-11-17T18:30:00+00:00"})
@@ -178,6 +173,43 @@ class FormularioDelDisenoTests(SimpleTestCase):
         self.assertEqual(form.archivos(), [])
         self.assertEqual(form._grupos[0]["items"][0]["archivo_guardado"], "x.png")
 
+    def test_la_misma_persona_firma_de_nuevo_y_la_fecha_es_la_de_hoy(self):
+        """Auditoría de #1159: la firma rehecha guardaba la fecha de la anterior."""
+        guardada = {
+            "nombre": "Ana Gómez",
+            "dni": "30111222",
+            "firmado": "2026-01-01T10:00:00+00:00",
+            "archivo": "x.png",
+        }
+        form = self._form(
+            {"f-cp-firma_0": trazo(), "f-cp-firma_1": "Ana Gómez", "f-cp-firma_2": "30111222"},
+            guardadas={"cp-firma": guardada},
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotEqual(form.respuestas()["cp-firma"]["firmado"], guardada["firmado"])
+        self.assertEqual(len(form.archivos()), 1)
+
+    def test_una_firma_guardada_no_muestra_el_aviso_de_archivo(self):
+        guardada = {
+            "nombre": "Ana Gómez",
+            "dni": "30111222",
+            "firmado": "2026-01-01T10:00:00+00:00",
+            "archivo": "x.png",
+        }
+        form = self._form(None, guardadas={"cp-firma": guardada})
+        html = render_to_string(
+            "programas/dispositivos/legajo/_formulario_tipo.html",
+            {
+                "formulario_tipo": SimpleNamespace(
+                    grupos=form.grupos, planos=[], diseno=SimpleNamespace(pk=1, version=1)
+                )
+            },
+        )
+
+        self.assertIn("Ya firmó: Ana Gómez", html)
+        self.assertNotIn("Ya cargado", html)
+
     def test_firmar_a_medias_marca_el_campo(self):
         form = self._form({"f-cp-firma_0": "", "f-cp-firma_1": "Ana Gómez", "f-cp-firma_2": "30111222"})
 
@@ -236,6 +268,8 @@ class CargaDeLaAppTests(TestCase):
         sin_firma = self._revisar({})
 
         self.assertIn(f"«Firma del titular»: {MENSAJE_DNI}", sin_dni.observaciones)
+        con_fecha_del_telefono = self._revisar({"cp-firma": {"nombre": "Ana", "dni": "1", "firmado": "2020-01-01"}})
+        self.assertEqual(con_fecha_del_telefono.respuestas["cp-firma"], {"nombre": "Ana", "dni": "1"})
         self.assertIn("Falta la respuesta obligatoria «Firma del titular».", sin_firma.observaciones)
 
     def test_relevamiento_valida_el_firmante_y_exige_la_obligatoria(self):
