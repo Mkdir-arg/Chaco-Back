@@ -56500,7 +56500,7 @@ Documento nuevo [`docs/internal/analisis/008-dispositivos-v2-segunda-etapa.md`](
 
 ## Archivos
 
-`docs/internal/analisis/008-dispositivos-v2-segunda-etapa.md` (nuevo), `docs/internal/analisis/README.md`, este archivo.
+`docs/internal/analisis/008-dispositivos-v2-segunda-etapa.md` (nuevo), `docs/internal/analisis/README.md`, este archivo; y en el historial, `docs/client/funcionalidades/segunda-etapa-dispositivos-v2.md` (nuevo), `docs/client/funcionalidades/index.md` y `mkdocs.yml`.
 
 ## Base de datos
 
@@ -56523,5 +56523,10 @@ No aplica.
 ## Reversión
 
 Borrar el documento y las dos filas. No hay datos involucrados.
+
+## Historial
+
+- **17/11/2026 — Merenderos queda afuera** (decisión del PM): se cierra la pregunta 1 del análisis.
+- **17/11/2026 — versión cliente** en [`docs/client/funcionalidades/segunda-etapa-dispositivos-v2.md`](../client/funcionalidades/segunda-etapa-dispositivos-v2.md), con su fila en `funcionalidades/index.md` y su entrada en el `nav:` de `mkdocs.yml`. Se publicó sin horas («Esfuerzo: a confirmar») porque el orden de magnitud del análisis no es una cotización acordada, y sin las preguntas internas (modelo de derivaciones, avisos por cron): solo las definiciones que le tocan al Ministerio. `mkdocs build --strict` sin advertencias y `check_docs_client.py` en 0. El sitio se actualiza cuando el cambio llegue a `development` (`docs-auto-deploy.yml`, aprobación del environment `publicacion-docs`).
 
 ---

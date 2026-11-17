@@ -429,7 +429,7 @@ Las 1 a 6 son nuevas; las 7 a 15 vienen de la §8.2 de la propuesta y siguen sin
 
 | # | Pregunta | Responsable | Estado |
 |---|---|---|---|
-| 1 | ¿Merenderos vuelve en la Versión 2 o queda definitivamente fuera tras el Cambio 452? | PM / Ministerio | Abierta |
+| 1 | ¿Merenderos vuelve en la Versión 2 o queda definitivamente fuera tras el Cambio 452? | PM / Ministerio | **Cerrada (PM, 17/11/2026): queda afuera** |
 | 2 | ¿Qué presupuesto y qué bloques (A–D) aprueba el Ministerio para esta segunda etapa, y en qué orden? | PM / Ministerio | Abierta |
 | 3 | Derivaciones: ¿se generaliza la `Derivacion` de Emergencia o se crea una entidad propia de Dispositivos? | PM + desarrollo | Abierta |
 | 4 | Ambulatoria: ¿una persona puede tener dos seguimientos ambulatorios en dispositivos distintos a la vez? | Ministerio (Abordaje Psicosocial) | Abierta |
@@ -476,3 +476,4 @@ A eso se suman, con la proporción de la estimación original, QA (~12 %), dise�
 | Fecha | Cambio | Motivo |
 |---|---|---|
 | 2026-11-17 | Versión inicial | Pedido de punteo de lo que quedó afuera del MVP y análisis de la segunda etapa |
+| 2026-11-17 | Pregunta 1 cerrada: Merenderos queda afuera. Versión cliente en `docs/client/funcionalidades/segunda-etapa-dispositivos-v2.md` | Decisión del PM y pedido de publicación |
