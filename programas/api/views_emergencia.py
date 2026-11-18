@@ -28,7 +28,8 @@ Lo común vive acá:
 * **La vista no decide reglas** (RU-2): llama a la función del servicio —la misma que usa la
   pantalla web— y traduce lo que rechace con :meth:`_VistaDeCampo._ejecutar`:
   ``PermissionDenied`` → 404, :class:`EstadoCambio` → 409 ``{detail, estado_actual}``,
-  :class:`UuidEnUso` → 409 ``UUID_EN_USO`` y ``ValidationError`` → 400 por campo.
+  :class:`UuidEnUso` → 409 ``UUID_EN_USO``, :class:`DniRegistrado` → 400 con ``persona_registrada``
+  y ``ValidationError`` → 400 por campo.
 * **M1.** `crear_caso` es la única función que crea casos y es la que usa la mesa: valida el
   Formulario 1, calcula el total y la prioridad, resuelve al responsable y es idempotente
   por ``uuid_cliente`` (RU-2, RU-16).
@@ -41,7 +42,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, Throttled
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
@@ -56,11 +57,13 @@ from programas.api.serializers_emergencia import (
     MiCasoEmergenciaSerializer,
     PerfilEmergenciaSerializer,
 )
-from programas.api.views import ConsultaPersonasThrottle, responder_consulta_de_persona
+from programas.api.throttles import ConsultaPersonasThrottle, descontar_consulta_de_identidad
+from programas.api.views import responder_consulta_de_persona
 from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
 from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
+from programas.services.emergencia_alta import DniRegistrado
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     admite_familias,
@@ -90,6 +93,17 @@ CODIGO_UUID_EN_USO = "UUID_EN_USO"
 _AUTENTICACION = [TokenAuthentication, SessionAuthentication]
 
 _SIN_TOKEN = OpenApiResponse(description="Sin token o token inválido.")
+#: El 400 del DNI ya registrado y el 429 de su tope: los publican los tres extremos que crean casos (Cambio 486).
+_DNI_REGISTRADO = (
+    "DNI ya registrado como otra persona: el mensaje en `dni` y `persona_registrada: {apellido, nombre}`; "
+    "se reenvía sin nombre ni apellido, con el DNI corregido o con `identidad_en_conflicto`."
+)
+_DNI_REGISTRADO_SIN_CUPO = OpenApiResponse(
+    description=(
+        "El DNI ya es de otra persona y el usuario agotó el tope de consultas de identidad (`personas_campo`, "
+        "compartido con `personas/consultar/`). Sin el nombre; trae `Retry-After`. No se creó nada."
+    )
+)
 _SIN_MODULO = OpenApiResponse(description="El usuario no abre el módulo Emergencia: `code: SIN_MODULO`.")
 _SIN_RELEVAR = OpenApiResponse(
     description="El usuario no tiene `emergencia.relevar` en el programa Emergencia: `code: SIN_MODULO`."
@@ -185,6 +199,18 @@ def _respuesta_uuid_en_uso(error):
     )
 
 
+def _respuesta_dni_registrado(error):
+    """:class:`DniRegistrado` → el 400 ``VALIDACION`` de siempre, más ``persona_registrada``.
+
+    La app en producción lo muestra como cualquier error de campo; la nueva lee
+    ``persona_registrada`` para preguntar «¿Es esa persona?» sin parsear el texto (Cambio 486).
+    """
+
+    respuesta = _respuesta_de_validacion(_errores(error))
+    respuesta.data["persona_registrada"] = error.persona
+    return respuesta
+
+
 def _creado_o_reenvio(repetido):
     return status.HTTP_200_OK if repetido else status.HTTP_201_CREATED
 
@@ -243,6 +269,12 @@ class _VistaDeCampo(APIView):
             return None, _respuesta_409(cambio)
         except UuidEnUso as error:
             return None, _respuesta_uuid_en_uso(error)
+        except DniRegistrado as error:
+            # El nombre de la persona sale de la cubeta de la consulta de identidad (SEC-25).
+            espera = descontar_consulta_de_identidad(self.request)
+            if espera is not None:
+                raise Throttled(wait=espera) from None
+            return None, _respuesta_dni_registrado(error)
         except ValidationError as error:
             return None, _respuesta_de_validacion(_errores(error))
 
@@ -285,9 +317,10 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
         },
         description=(
             "La misma consulta de identidad que `POST /api/becas/personas/consultar/`, con el mismo cuerpo y la "
-            "misma respuesta, para quien abre Emergencia y no Becas. Consulta Base de Personas y, si no la "
-            "encuentra, falla o está apagada, el legajo (`origen: legajo`; un género cargado que no coincide no "
-            "cuenta). Una persona fallecida no cae al legajo. `relevamiento` se ignora."
+            "misma respuesta, para quien abre Emergencia y no Becas. Si hay un legajo con ese DNI (activo o no, de "
+            "cualquier género) responde el legajo (`origen: legajo`), aunque Base de Personas la encuentre con "
+            "otros datos: es la persona de la que se va a colgar el caso. Sin legajo, lo de Base de Personas. "
+            "Una persona que Base de Personas informa fallecida es 404. `relevamiento` se ignora."
         ),
     )
     def post(self, request):
@@ -329,7 +362,7 @@ class CasosEmergenciaView(_VistaDeCampo):
                 description=(
                     "El envío no es válido. Trae `code: VALIDACION`, `detail` legible y el detalle por campo: "
                     "falta `uuid_cliente`, total en cero (`total`), RN-1.3, sin dirección, foto que no es JPEG "
-                    "o que pasa de 5 MB, `relevado_en` adelantada más de un día."
+                    "o que pasa de 5 MB, `relevado_en` adelantada más de un día. " + _DNI_REGISTRADO
                 )
             ),
             401: _SIN_TOKEN,
@@ -340,6 +373,7 @@ class CasosEmergenciaView(_VistaDeCampo):
                     "con el mismo identificador."
                 )
             ),
+            429: _DNI_REGISTRADO_SIN_CUPO,
         },
         description=(
             "Crea un caso de origen territorio con su grupo familiar y hasta dos fotos. Idempotente por "

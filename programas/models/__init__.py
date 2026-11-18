@@ -5579,6 +5579,10 @@ class CasoEmergencia(TimeStamped):
     SITUACION_ALOJAMIENTO = "alojamiento"  # sección 4 del Formulario 1 (M2-5)
     SITUACION_DIFERENCIA = "diferencia"  # motivo del cierre con diferencia (RN-3.9)
     SITUACION_EN_LA_PUERTA = "en_la_puerta_de"  # «Avisar a la mesa» (M2-6)
+    #: Lo que declaró quien cargó cuando el DNI ya era de otra persona registrada (Cambio 486).
+    SITUACION_IDENTIDAD_A_REVISAR = "identidad_a_revisar"
+    #: Quién, cuándo y con qué observación la mesa revisó esa identidad (Cambio 486).
+    SITUACION_IDENTIDAD_REVISADA = "identidad_revisada"
 
     numero = models.CharField(max_length=16, unique=True, editable=False, verbose_name="N.° de caso")
     grupo = models.OneToOneField(
@@ -5719,6 +5723,43 @@ class CasoEmergencia(TimeStamped):
 
         return ~models.Q(estado=cls.Estado.CERRADO) & models.Q(
             derivado_en__isnull=True, situacion__has_key=cls.SITUACION_EN_LA_PUERTA
+        )
+
+    @property
+    def identidad_a_revisar(self):
+        """``{"nombre", "apellido"}`` tal como los declaró quien cargó, o ``None`` (Cambio 486).
+
+        Nace en ``crear_caso`` cuando el DNI ya era de una persona registrada con otro nombre
+        y quien cargaba sostuvo que es otra persona. Queda guardado para siempre: revisarla
+        no lo borra.
+        """
+
+        return (self.situacion or {}).get(self.SITUACION_IDENTIDAD_A_REVISAR) or None
+
+    @property
+    def identidad_revisada(self):
+        """``{"por_id", "en", "observacion"}`` de la revisión de la mesa, o ``None``."""
+
+        return (self.situacion or {}).get(self.SITUACION_IDENTIDAD_REVISADA) or None
+
+    @property
+    def identidad_pendiente(self):
+        """Lo declarado mientras la mesa no lo revisó, o ``None``. Sin consultas.
+
+        Es la regla única de la marca: en SQL, :meth:`q_identidad_pendiente`. No depende del
+        estado: un caso cerrado con la identidad sin revisar sigue pendiente.
+        """
+
+        if self.identidad_revisada is not None:
+            return None
+        return self.identidad_a_revisar
+
+    @classmethod
+    def q_identidad_pendiente(cls):
+        """El filtro de :attr:`identidad_pendiente` en SQL (``has_key`` anda en SQLite, MySQL y MariaDB)."""
+
+        return models.Q(situacion__has_key=cls.SITUACION_IDENTIDAD_A_REVISAR) & ~models.Q(
+            situacion__has_key=cls.SITUACION_IDENTIDAD_REVISADA
         )
 
     @property
