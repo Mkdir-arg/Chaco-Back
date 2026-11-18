@@ -29,6 +29,19 @@
     if (typeof authAnterior === 'function') { authAnterior(); }
   };
 
+  // Django responde `Referrer-Policy: same-origin`: sin `Referer`, Google rechaza la key
+  // restringida por referente (docs/mapa.md §1). Solo en la pantalla que pide el mapa, y
+  // recién cuando lo pide, se pasa a `strict-origin-when-cross-origin`: a Google le llega el
+  // origen del sitio, nunca la ruta. El resto del sitio sigue con `same-origin`.
+  function mandarSoloElOrigen() {
+    if (document.querySelector('meta[name="referrer"][data-nodo-mapa]')) { return; }
+    var meta = document.createElement('meta');
+    meta.name = 'referrer';
+    meta.content = 'strict-origin-when-cross-origin';
+    meta.setAttribute('data-nodo-mapa', '');
+    document.head.appendChild(meta);
+  }
+
   function cargar() {
     if (!config.key) { return Promise.reject(new Error('Google Maps no está configurado en este ambiente.')); }
     if (falloDeClave) { return Promise.reject(falloDeClave); }
@@ -50,7 +63,9 @@
         language: config.idioma || 'es',
         region: config.region || 'AR'
       });
+      mandarSoloElOrigen();
       var script = document.createElement('script');
+      script.referrerPolicy = 'strict-origin-when-cross-origin';
       script.src = 'https://maps.googleapis.com/maps/api/js?' + parametros.toString();
       script.async = true;
       script.onerror = function () {

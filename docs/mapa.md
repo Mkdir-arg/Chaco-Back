@@ -57,6 +57,12 @@ Con `GOOGLE_MAPS_API_KEY` configurada, `SecurityHeadersMiddleware` suma los host
 *allowlist* de la [guía de CSP de Google](https://developers.google.com/maps/documentation/javascript/content-security-policy)).
 Sin key no se agrega nada.
 
+**Referente.** Django responde con `Referrer-Policy: same-origin`, y con esa política el navegador no le
+manda `Referer` a Google, que entonces rechaza la key restringida por referente. Por eso `nodo-mapa.js`,
+recién cuando la pantalla pide el mapa, pasa la política de **esa página** a
+`strict-origin-when-cross-origin`: a Google le llega el origen del sitio (`https://mi-entorno.ejemplo.ar`),
+nunca la ruta ni el legajo abierto. El resto del sitio no cambia.
+
 ## 5. Permisos
 
 Dos capacidades en el módulo **Mapa** del ABM de Roles (pestaña General):

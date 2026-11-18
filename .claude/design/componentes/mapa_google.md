@@ -38,6 +38,9 @@ Una sola vez, en el bloque `customJS` de la pantalla que dibuja un mapa:
   (deprecado). Por eso el Map ID es obligatorio; `DEMO_MAP_ID` solo en `dev` y `core.W005` avisa en
   `qa`/`prd`.
 - La CSP se abre a Google **solo con key configurada** (`GOOGLE_MAPS_SOURCES`), como GTM.
+- Al cargar, la página pasa a `Referrer-Policy: strict-origin-when-cross-origin` (meta `referrer` +
+  `script.referrerPolicy`): sin `Referer`, Google rechaza la key restringida por referente. Solo viaja el
+  origen; antes de pedir el mapa la página sigue con el `same-origin` de Django.
 - El script de Google se carga desde JS (`maps.googleapis.com/maps/api/js?…&loading=async&callback=`):
   ninguna plantilla escribe un `<script src="https://…">` (`SinRecursosDeTercerosTests`).
 

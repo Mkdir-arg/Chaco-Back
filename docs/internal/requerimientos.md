@@ -57476,6 +57476,13 @@ Afuera: el formulario público de inscripción del portal **no** geocodifica el 
 - **Capacidades globales `mapa.ver` y `mapa.editar`**, sembradas al Administrador. Las capas tienen que
   filtrarse además por la capacidad de lectura de cada módulo.
 - **Marcadores con `AdvancedMarkerElement`**, nunca `google.maps.Marker` (deprecado).
+- **Referente solo para el mapa** (auditoría del PR #1197): Django manda `Referrer-Policy: same-origin` y
+  sin `Referer` Google rechaza la key restringida por referente. En vez de cambiar la política de todo el
+  sitio, `nodo-mapa.js` la pasa a `strict-origin-when-cross-origin` en la página que pide el mapa y recién
+  cuando lo pide: viaja el origen, nunca la ruta.
+- **Un solo rango y una sola regla de par** para las coordenadas cargadas a mano (`core/coordenadas.py`):
+  ±90 / ±180 y «las dos o ninguna», en Ciudadano (validadores del modelo + `clean()`) y en el Formulario 1
+  de Emergencia.
 
 ## Implementación
 
@@ -57581,6 +57588,7 @@ Sin ellas no cambia nada.
 
 - Fases 3 y 4.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
+- `Dispositivo.latitud/longitud` siguen sin rango ni par (previo a este cambio): aplicarle `core/coordenadas.py`.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
 - `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
@@ -57599,6 +57607,9 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
 - **18/11/2026:** fase 2 en Dispositivo, después de aprobar el mockup sobre la pantalla real.
 - **18/11/2026:** fase 2 en Ciudadano, con `legajos.0012` y el mapa a pedido.
 - **18/11/2026:** fase 2 en Emergencia (mesa y puerta del dispositivo). Cierra la fase 2.
+- **18/11/2026:** auditoría del PR #1197 (CHANGES NEEDED): política de referente para el mapa, rango y par
+  de coordenadas en Ciudadano y Emergencia, `CAMPOS_DE_UBICACION` sin uso borrado y Enter sin búsquedas
+  repetidas. Corregido en el mismo PR.
 - **18/11/2026:** al traer `development` para abrir el PR, el número 483 ya era de Edificios: esta entrada pasa a ser el **Cambio 489** y la migración de capacidades, `users.0049`.
 
 ---

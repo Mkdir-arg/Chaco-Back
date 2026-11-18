@@ -1,5 +1,6 @@
 from django import forms
 
+from core.coordenadas import exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 
 from ..models import Ciudadano
@@ -171,6 +172,12 @@ class CiudadanoForm(forms.ModelForm):
         if not dni_valido(dni) and dni != normalizar_dni(getattr(self.instance, "dni", "")):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
+
+    def clean(self):
+        datos = super().clean()
+        # Cambio 489: el rango lo validan los campos del modelo; acá, que vengan las dos.
+        exigir_par(self)
+        return datos
 
 
 class CiudadanoManualForm(CiudadanoForm):

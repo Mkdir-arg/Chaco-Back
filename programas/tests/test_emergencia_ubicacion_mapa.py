@@ -58,6 +58,15 @@ class MesaConMapaTests(BaseMesa):
         self.assertContains(respuesta, "data-manual-abierto", status_code=400)
         self.assertFalse(CasoEmergencia.objects.exists())
 
+    def test_una_sola_coordenada_vuelve_al_campo(self):
+        respuesta = self.client.post(URL_NUEVO, self._formulario1(latitud="-27.45"))
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            respuesta.context["form"].errors["latitud"], ["Cargá latitud y longitud, o ninguna de las dos."]
+        )
+        self.assertFalse(CasoEmergencia.objects.exists())
+
     def test_las_coordenadas_son_opcionales(self):
         form = NuevoCasoMesaForm()
         self.assertFalse(form.fields["latitud"].required)

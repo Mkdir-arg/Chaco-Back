@@ -17,6 +17,7 @@ RN-1.3, quién puede y en qué estado) las decide `programas/services/emergencia
 from django import forms
 from django.contrib.auth.models import User
 
+from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.models import Localidad
 from core.validators import validar_foto
@@ -357,8 +358,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         required=False,
         max_digits=9,
         decimal_places=6,
-        min_value=-90,
-        max_value=90,
+        validators=VALIDADORES_LATITUD,
         widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
     )
     longitud = forms.DecimalField(
@@ -366,8 +366,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         required=False,
         max_digits=9,
         decimal_places=6,
-        min_value=-180,
-        max_value=180,
+        validators=VALIDADORES_LONGITUD,
         widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
     )
     foto_vivienda = _foto("Foto de la vivienda")
@@ -380,7 +379,6 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
 
     CAMPOS_DE_TRASLADO = ("traslado", "traslado_otro", "dni", "telefono", "nombre", "apellido")
     CAMPOS_DE_ASISTENCIA = ("dependientes", "mayores_dependientes", "lactantes")
-    CAMPOS_DE_UBICACION = ("direccion", "localidad", "latitud", "longitud", "foto_vivienda", "foto_acceso")
     FOTOS = {"foto_vivienda": AdjuntoCaso.Tipo.VIVIENDA, "foto_acceso": AdjuntoCaso.Tipo.ACCESO}
 
     def clean_traslado_otro(self):
@@ -394,6 +392,11 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         if not dni_valido(dni):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
+
+    def clean(self):
+        datos = super().clean()
+        exigir_par(self)
+        return datos
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -422,9 +425,6 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
 
     def campos_de_necesidades(self):
         return self._campos(NECESIDADES)
-
-    def campos_de_ubicacion(self):
-        return self._campos(self.CAMPOS_DE_UBICACION)
 
     def campos_de_fotos(self):
         return self._campos(self.FOTOS)

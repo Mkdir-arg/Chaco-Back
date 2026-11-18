@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD
 from core.dni import normalizar_dni
 from core.models import LegajoBase, TimeStamped
 from core.rutas_media import ruta_adjunto_legajo, ruta_foto_ciudadano
@@ -36,8 +37,12 @@ class Ciudadano(TimeStamped):
     domicilio = models.CharField(max_length=240, blank=True)
     # Cambio 489: punto del domicilio, del Geocoder de Google o marcado a mano en el mapa del
     # backoffice. Mismo tipo que `Dispositivo.latitud`. Nunca lo completa el portal.
-    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Latitud")
-    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Longitud")
+    latitud = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True, validators=VALIDADORES_LATITUD, verbose_name="Latitud"
+    )
+    longitud = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True, validators=VALIDADORES_LONGITUD, verbose_name="Longitud"
+    )
 
     # Datos territoriales
     provincia = models.ForeignKey(

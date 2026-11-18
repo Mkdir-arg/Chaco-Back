@@ -39,6 +39,28 @@ class CoordenadasDelCiudadanoTests(TestCase):
             self.assertFalse(campos["latitud"].required)
         self.assertNotIn("latitud", CiudadanoEditarDatosForm.Meta.fields)
 
+    def _form(self, **coordenadas):
+        return CiudadanoManualForm(data={"dni": "30555666", "nombre": "Ana", "apellido": "Paz", **coordenadas})
+
+    def test_fuera_de_rango_vuelve_al_campo(self):
+        form = self._form(latitud="500", longitud="-58.9")
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["latitud"], ["La latitud va de -90 a 90."])
+
+        form = self._form(latitud="-27.4", longitud="-181")
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["longitud"], ["La longitud va de -180 a 180."])
+
+    def test_una_sola_coordenada_no_se_guarda(self):
+        for coordenadas in ({"latitud": "-27.4"}, {"longitud": "-58.9"}):
+            form = self._form(**coordenadas)
+            self.assertFalse(form.is_valid(), coordenadas)
+            self.assertEqual(form.errors["latitud"], ["Cargá latitud y longitud, o ninguna de las dos."])
+
+    def test_las_dos_o_ninguna_pasan(self):
+        self.assertTrue(self._form(latitud="-27.451198", longitud="-58.986695").is_valid())
+        self.assertTrue(self._form().is_valid())
+
 
 @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba", GOOGLE_MAPS_MAP_ID="mapa-chaco")
 class PantallasConMapaTests(TestCase):

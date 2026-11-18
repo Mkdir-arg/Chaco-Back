@@ -281,7 +281,8 @@
     boton.addEventListener('click', pedirUbicacion);
     ver.addEventListener('click', function () { cargarMapa().catch(function () {}); });
     campoDomicilio.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); if (!boton.hidden) { pedirUbicacion(); } }
+      // Con una búsqueda en curso el botón está deshabilitado: Enter tampoco pide otra (cada una se cobra).
+      if (e.key === 'Enter') { e.preventDefault(); if (!boton.hidden && !boton.disabled) { pedirUbicacion(); } }
     });
     function revisarCambio() {
       if (consultaUbicada && marcador) { estado(consulta() === consultaUbicada ? 'google' : 'cambio'); }
