@@ -57428,6 +57428,8 @@ Revertir el commit.
   calculados (fondo, color, peso, tamaño, fuente, padding, radio, subrayado, color del ícono) antes y después, en
   `/dispositivos/` (activo) y `/dispositivos/edificios/` (inactivo). `.claude/design/shells.md` lo registra.
 
+---
+
 # Cambio 489 — Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada)
 
 🟢 **HECHO — 18/11/2026**
@@ -57554,6 +57556,8 @@ Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita l
   ignora segmentos eliminados, orden de locks invertido y mensaje del subsegmento protegido.
 - **18/11/2026:** el usuario confirma bloquear también los relevamientos en curso (`EN_CURSO`/`FINALIZANDO`);
   la verificación del nombre eliminado queda solo en `validate_constraints` (MINOR de la ronda 2).
+
+---
 
 # Cambio 490 — Mapa con Google Maps y domicilio → coordenadas
 
@@ -57747,5 +57751,3 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
   repetidas. Corregido en el mismo PR.
 - **18/11/2026:** al traer `development` para abrir el PR, el número 483 ya era de Edificios: esta entrada pasó a ser el Cambio 489 y la migración de capacidades, `users.0049`.
 - **18/11/2026:** al volver a traer `development`, el 489 y `users.0049` ya eran de Becas (baja lógica): esta entrada pasa a ser el **Cambio 490** y la migración, `users.0050`.
-
----
