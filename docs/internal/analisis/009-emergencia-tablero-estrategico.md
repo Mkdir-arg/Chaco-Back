@@ -153,7 +153,8 @@ variantes propias), y Dispositivos las reusa. En ningún caso E8 clona a E1 ni a
    mosaicos. Se ven las localidades con demanda (círculos) y los dispositivos (círculos de color por tensión), la
    leyenda, el panel **«Localidad seleccionada»** y la lista **«Localidades con más presión»**. Tocar un círculo
    o un ítem de la lista selecciona la localidad, centra el mapa y llena el panel: familias y personas esperando,
-   fuera de SLA, personas de ahí ya alojadas, camas libres cercanas y los tres dispositivos más cercanos. Con
+   fuera de SLA, personas de ahí ya alojadas, camas libres cercanas y los tres dispositivos más cercanos (nunca uno
+   de ubicación reservada: sus camas se suman aparte, sin nombre). Con
    `supervisar`, el panel trae «Ver los N casos en la bandeja» (E2 con `?localidad=`). Tocar un dispositivo
    muestra su ficha corta con «Ver dispositivo» si el usuario lo puede ver por Dispositivos.
 
@@ -167,8 +168,8 @@ análisis la adopta y no propone otra; la tabla queda para dejar registrado por 
 |---|---|---|---|
 | Estado | Aprobada para Dispositivos (T9) | Propuesta de la versión inicial de este análisis | Salida de emergencia-design §7.1 si la ubicación vista fuera sensible |
 | Qué es | Leaflet (BSD) en `static/vendor/leaflet/`; mosaicos de `tile.openstreetmap.org`; puntos del conjunto filtrado en `json_script` | Contorno y círculos proyectados en Python | Servir las teselas de Chaco desde nuestro servidor |
-| CSP | `script-src` y `connect-src` no cambian; el host de mosaicos entra **solo en `img-src`** en una tupla propia **`MAPA_TILES_HOSTS`**: si se suma a `MAPA_HOSTS`, que hoy también alimenta `frame-src` (iframe de Becas), se abre `frame-src` a los mosaicos sin necesidad (MINOR conocido) | Sin cambios | Sin terceros |
-| Privacidad | Nada sale hasta «Ver el mapa» (patrón SEC-33, `referrerpolicy="no-referrer"`); al abrir, OSM ve el recorte mirado y la IP, no los puntos. Los puntos son de **localidades** (centroide oficial) y de **instituciones** | Nada sale | Nada sale |
+| CSP | `script-src` y `connect-src` no cambian; el host de mosaicos entra **solo en `img-src`** en una tupla propia **`MAPA_TILES_HOSTS`**: si se suma a `MAPA_HOSTS`, que hoy también alimenta `frame-src` (iframe de Becas), se abre `frame-src` a los mosaicos sin necesidad (`security_headers.py`: `MAPA_HOSTS` entra en `img-src` y en `frame-src`). Diferencia con el T9 de Dispositivos, §3.7 | Sin cambios | Sin terceros |
+| Privacidad | Nada sale hasta «Ver el mapa» (patrón SEC-33: el botón como barrera); al abrir, OSM ve el recorte mirado, la IP y **solo el origen** del sitio como Referer (`referrerPolicy: 'strict-origin-when-cross-origin'` en `L.tileLayer`), no los puntos ni la ruta. Los puntos son de **localidades** (centroide oficial) y de **instituciones** | Nada sale | Nada sale |
 | Una sola pieza en el proyecto | **Sí** | No: segunda técnica de mapa | No |
 | Costo para E8 | Solo las capas (la infraestructura la hace T9) | Asset + proyección + pieza propia | ~150 MB de teselas o un pipeline |
 | Interacción | Zoom, centrar, seleccionar; `scrollWheelZoom` apagado | Recarga por GET | — |
@@ -218,11 +219,19 @@ variante en E8).
 
 - Nunca viajan al template coordenadas de una familia: el `json_script` solo lleva centroides de localidad y
   coordenadas de dispositivos.
-- **`TipoDispositivo.ubicacion_reservada`** (respuesta del PM del 08-nov, T9b): los dispositivos de un tipo
-  marcado **no se dibujan**, sus coordenadas no llegan al template y no entran en «Localidades con más presión»
-  como «cercano» con distancia (figuran como «ubicación reservada», sin distancia). **Siguen contando** en la
-  franja de métricas, en capacidad de la red, en camas cercanas (la suma se hace en el servidor) y en las alertas.
+- **`TipoDispositivo.ubicacion_reservada`** (respuesta del PM a la decisión 8 del 08-nov, T9b), alineado con
+  el spec de Dispositivos: los dispositivos de un tipo marcado **no se dibujan** y sus coordenadas no llegan al
+  template (se filtran en el selector). **No entran** en ningún listado ni orden que los nombre junto a una
+  ubicación o una distancia: ni en «los tres más cercanos» del panel «Localidad seleccionada», ni en «más
+  tensionados» de B9, ni en la alerta AE-5. En el panel, sus camas se suman como una línea aparte, «N camas en
+  dispositivos de ubicación reservada», sin nombre ni orden. **Siguen sumando** en los agregados: franja de
+  métricas (B3, B4), barra provincial de B9, camas cercanas (la suma se hace en el servidor) y AE-1.
 - El mapa no se carga hasta «Ver el mapa» (SEC-33): ni Leaflet ni un mosaico salen antes.
+- **Referer hacia OSM:** `referrerPolicy: 'strict-origin-when-cross-origin'` en `L.tileLayer` (OSM recibe solo el
+  origen). **No** `no-referrer`: la política de uso de mosaicos de OSM (operations.osmfoundation.org/policies/tiles)
+  exige un Referer válido y prohíbe una Referrer-Policy que lo suprima, y puede bloquear sin aviso; el sitio ya
+  manda `same-origin` por defecto, que hacia OSM tampoco manda Referer, así que hay que fijarlo en la capa. El T9
+  del spec de Dispositivos parte de la misma premisa (`no-referrer`) y hay que enmendarlo (pregunta 12).
 
 **Interacción y accesibilidad** (las de la pieza, spec de Dispositivos §2.15): clic en un círculo o en un ítem de
 la lista selecciona y centra; `scrollWheelZoom` apagado; `role="region"` con `aria-label`; estados cerrado /
@@ -240,6 +249,8 @@ localidad» del Resumen tiene todos los números.
 | Plazas que cuentan | Todas (`Conteo` del dispositivo) | Solo **`CAMA`** | Emergencia aloja familias en camas (RN-2.3); se resuelve con el mismo parámetro `tipos` que la T7 de Dispositivos necesita para «Encontrar plaza libre» (§8.2) |
 | Caché | Patrón de Becas, 60–120 s | Sin caché en este lote | La foto es barata (RNF-009-03) y la mesa necesita el dato fresco; si se proyecta, se revisa (pregunta 6) |
 | Mapa impreso | — | La tabla reemplaza al mapa | §3.8 |
+| Host de mosaicos en la CSP | T9: sumarlo a `MAPA_HOSTS` | Tupla propia **`MAPA_TILES_HOSTS`**, solo en `img-src` | `MAPA_HOSTS` alimenta `img-src` **y** `frame-src` (`config/middlewares/security_headers.py`, l.30, 40 y 46): sumar ahí el host de mosaicos abre `frame-src` sin necesidad. Se propone enmendar el T9 en el mismo lote (pregunta 12) |
+| Referer de los mosaicos | T9: `referrerpolicy="no-referrer"` (patrón del iframe SEC-33) | `strict-origin-when-cross-origin` en `L.tileLayer` | La política de mosaicos de OSM exige Referer; el iframe de Becas no pide mosaicos sueltos. Misma enmienda del T9 |
 
 Todo lo demás —vocabulario Crítica / Exigida / Normal / Sin plazas, umbrales del tipo, `disponibles`, solapas,
 filtros, estados vacíos, carga a pedido del mapa— es igual.
@@ -268,7 +279,9 @@ filtros, estados vacíos, carga a pedido del mapa— es igual.
 **Dispositivo sin coordenadas**
 - Condición: dispositivo elegible con `latitud`/`longitud` nulas.
 - Comportamiento: no se dibuja; el mapa dice «N dispositivos sin ubicación» (como Dispositivos). Cuenta en la red;
-  para «camas cercanas» se asigna por el nombre normalizado de su localidad (regla actual de E1).
+  para «camas cercanas» se asigna por el nombre normalizado de su localidad (regla actual de E1) **solo si ese
+  nombre identifica una única `core.Localidad` del Chaco**. Si es ambiguo (62 nombres repetidos; «La Esperanza»
+  está en tres municipios), cuenta en la red provincial y en «N sin ubicación», nunca en cercanas.
 
 **El mapa no carga**
 - Condición: sin salida a internet o error de mosaicos.
@@ -320,28 +333,36 @@ filtros, estados vacíos, carga a pedido del mapa— es igual.
 | ID | Requerimiento | Categoría |
 |---|---|---|
 | RNF-009-01 | E8 es **no nominal** para todos los usuarios: ni nombres, ni DNI, ni direcciones, ni números de caso, ni coordenadas de familias en el HTML ni en el `json_script` (test sobre la respuesta) | Privacidad |
-| RNF-009-02 | El mapa es la pieza única `_mapa.html` (Leaflet vendorizado); el host de mosaicos va en `MAPA_TILES_HOSTS`, solo en `img-src`; nada sale a OSM antes de «Ver el mapa»; `referrerpolicy="no-referrer"` | Seguridad / Privacidad |
-| RNF-009-03 | Presupuesto: selectores y alertas de E8 en **≤ 12 consultas**, la vista completa en **≤ 18** (con SLA y shell), constantes con 5.000 casos en la ventana, 3.000 personas alojadas, 50 dispositivos y 500 entregas; < 2 s. El panel Mapa no agrega consultas (usa la misma foto). Test `@tag("performance")` | Performance |
+| RNF-009-02 | El mapa es la pieza única `_mapa.html` (Leaflet vendorizado); el host de mosaicos va en `MAPA_TILES_HOSTS`, solo en `img-src`; nada sale a OSM antes de «Ver el mapa»; `referrerPolicy: 'strict-origin-when-cross-origin'` en `L.tileLayer` (nunca `no-referrer`, que viola la política de mosaicos de OSM) | Seguridad / Privacidad |
+| RNF-009-03 | Presupuesto: selectores y alertas de E8 en **≤ 15 consultas**, la vista completa en **≤ 21** (con SLA y shell; justificación en §4.1), constantes con 5.000 casos en la ventana, 3.000 personas alojadas, 50 dispositivos y 500 entregas; < 2 s. El panel Mapa no agrega consultas (usa la misma foto). Test `@tag("performance")` | Performance |
 | RNF-009-04 | Todo se calcula al leer (espíritu de RN-5.1): sin tabla de métricas, snapshot ni job | Arquitectura |
-| RNF-009-05 | Sin `Trunc*` ni `CONVERT_TZ`: días operativos y bloques de 6 h se arman en Python con `dia_operativo()` y se filtra por rango (RN-5.2; gotcha de ECOM). Test que captura el SQL | Compatibilidad |
+| RNF-009-05 | Sin `Trunc*` ni `CONVERT_TZ`: días operativos y bloques de 6 h se arman en Python con `dia_operativo()` y se filtra por rango (RN-5.2; gotcha de ECOM). Test que captura el SQL y afirma que no contiene `convert_tz`, `trunc` ni `cast(… as date)` (sin distinguir mayúsculas), marcado **`@tag("mysql")`** para que corra en el job de motor real (MariaDB sin tablas de zona horaria): en SQLite esas funciones no aparecen y el test pasaría por el motivo equivocado | Compatibilidad |
 | RNF-009-06 | Funciona igual en MySQL 8 y MariaDB: lecturas de JSON con transformaciones de clave probadas en los dos motores o, si no, la sección traída entera y contada en Python | Compatibilidad |
 | RNF-009-07 | Selectores puros respecto de `ahora` (lo reciben por parámetro), como `selectors/emergencia_tablero.py` | Testabilidad |
 | RNF-009-08 | El Resumen funciona sin JS; el Mapa necesita JS y tiene su alternativa en la lista y la tabla | Accesibilidad / Robustez |
 | RNF-009-09 | Colores y vocabulario de tensión del sistema y del spec de Dispositivos (Crítica / Exigida / Normal / Sin plazas; badges con ícono + texto) | Diseño / Accesibilidad |
-| RNF-009-10 | Índices a medir con `EXPLAIN` en `scripts/perf_mysql/` antes de mergear el selector (§4.1) | Performance |
+| RNF-009-10 | Índices a medir con `EXPLAIN` en `scripts/perf_mysql/` antes de mergear el selector: casos de la ventana, integrantes alojados, ritmo de `Estadia`, **derivaciones por estado y fecha** y **entregas por estado y fecha** (§4.1) | Performance |
 
 ### 4.1 Rendimiento: qué es caro y cómo se lee
 
 | Lectura | Consulta | Riesgo | Mitigación |
 |---|---|---|---|
-| Casos de la ventana ampliada (abiertos + creados, alojados o cerrados desde el inicio de la ventana) | 1 `values_list` sin JSON salvo las cuatro claves de `necesidades` | El `OR` sobre `creado`, `alojado_en` y `cerrado_en` (ninguna tiene índice) recorre la tabla. Es el mismo problema del pendiente 10 del Cambio 472 | Medir. Si pesa: índices simples (una migración `AddIndex`, aparte) y, si el optimizador no hace *index merge*, tres consultas por índice unidas en Python (+2, dentro del presupuesto) |
+| Casos de la ventana ampliada (abiertos + creados, alojados o cerrados desde el inicio de la ventana; la de **creados** cubre siempre ≥ 96 h, para AE-3, sea cual sea la ventana elegida) | 1 `values_list` sin JSON salvo las cuatro claves de `necesidades` | El `OR` sobre `creado`, `alojado_en` y `cerrado_en` (ninguna tiene índice) recorre la tabla. Es el mismo problema del pendiente 10 del Cambio 472 | Medir. Si pesa: índices simples (una migración `AddIndex`, aparte) y, si el optimizador no hace *index merge*, tres consultas por índice unidas en Python (+2, dentro del presupuesto) |
 | Red de dispositivos (camas) | 4 (`red_de_dispositivos`: candidatos con tipo + 3 de `ocupacion_de_plazas` en lote) | Ninguno nuevo | Reusar; parámetro `tipos=(CAMA,)` (§8.2); `ubicacion_reservada` viaja en el `select_related("tipo")` |
 | Personas alojadas por la emergencia (perfil + evolución) | 1: `IntegranteGrupo` con `estadia` no nula y (`egresado_en` nula o ≥ inicio de la ventana): `confirmada_en`, `egresado_en`, `ciudadano__fecha_nacimiento` y la sección `ficha__avisos_salud` | Leer la ficha entera serían MB | Traer **solo** `avisos_salud` y contar en Python. Medir índices de `confirmada_en`/`egresado_en` |
 | Ritmo de ingresos y egresos en camas | 1 agregado sobre `Estadia` de los elegibles con plaza `CAMA`, últimas 6 h | `fecha_ingreso`/`fecha_egreso` sin índice (el spec de Dispositivos tiene la misma duda para sus 14 días) | Medir una vez para los dos tableros; un índice sirve a ambos |
-| Derivaciones de la ventana (rechazadas, vencidas, pendientes por dispositivo) | 1 | Ninguno: `(dispositivo, estado)` | — |
-| Logística | 2: agregado de `LineaEntrega` por ítem; última recepción por dispositivo | Ninguno | `(dispositivo, estado)` existe |
+| Derivaciones de la ventana (rechazadas, vencidas, pendientes por dispositivo) | 1 | `Derivacion` solo tiene `(dispositivo, estado)`, que no sirve para filtrar por estado y fecha sin dispositivo: **recorre la tabla** (chica hoy) | Medir con `EXPLAIN` (RNF-009-10) |
+| Logística | **3**: entregas de la ventana por estado; agregado de `LineaEntrega` por ítem; última recepción por dispositivo | `EntregaKit` solo tiene `(dispositivo, estado)`: el filtro por estado y `despachada_en` **recorre la tabla** (chica hoy) | Medir con `EXPLAIN` (RNF-009-10) |
 | Ubicaciones de localidad | 1, solo de los ids presentes | Ninguno (PK) | — |
-| **Total dominio** | **11** (+2 si se parte la de casos) | | Presupuesto 12 |
+| Dispositivos que el usuario puede abrir | 1: `dispositivos_visibles(user).values_list("pk")`, una vez, para decidir el enlace «Ver dispositivo» (nunca una consulta por punto) | Ninguno | — |
+| **Total dominio** | **13** (+2 si se parte la de casos = **15**) | | Presupuesto **15** |
+
+**Por qué sube el tope** (era 12 dominio / 18 vista): logística necesita una consulta más de la que se había
+contado y el enlace «Ver dispositivo» una de alcance. Las 13–15 son **fijas** —no crecen con casos, personas,
+dispositivos ni entregas— y cada una es una lectura acotada; la vista queda en ≤ 21 (15 + SLA + 5 del shell),
+del orden de E1 (16). Lo que **no** entra en el presupuesto: E8 **no cuenta** los avisos operativos de E1
+(RN-009-10), porque haría falta la `foto_del_tablero` de E1 (7 consultas, `selectors/emergencia_tablero.py`)
+más los avisos (≤ 1).
 
 La evolución histórica **rompe la ventana de 24 h** de RN-5.1 (hasta 7 días), pero no el principio: sigue siendo
 una lectura acotada, nunca el histórico completo. Se **agrega por período en Python**; no hay snapshot diario.
@@ -397,15 +418,15 @@ general 60/80 de `ocupacion.py`.
 | RN-009-02 | «Hoy» y los períodos de la evolución son días operativos de 06:00 a 06:00 hora Argentina (`dia_operativo()`) o bloques de 6 h alineados a las 06:00, armados en Python; nunca `Trunc*` | `CONVERT_TZ` devuelve `NULL` en ECOM |
 | RN-009-03 | Capacidad = plazas **`CAMA`** `OPERATIVA` de elegibles, con la cuenta única de `services/ocupacion.py`; libres = `disponibles`; nivel = `tension_de_ocupacion(conteo, tipo=…)` (agregado sin tipo: 60/80); vocabulario **Crítica / Exigida / Normal / Sin plazas**; sin plazas operativas el porcentaje es «—», nunca 0 | Cupos y turnos inflan las camas libres; dos tableros con semáforos distintos para el mismo dispositivo |
 | RN-009-04 | Casos por localidad se agrupan por `localidad_id`, nunca por nombre | 62 nombres repetidos en Chaco (pendiente 3 del Cambio 472) |
-| RN-009-05 | **Camas libres cercanas** de una localidad = `disponibles` (camas) de los elegibles a ≤ **25 km** (`distancia_km`) de su centroide; un dispositivo sin coordenadas cuenta si el nombre normalizado de su localidad coincide. Las de ubicación reservada cuentan (se suman en el servidor). Las cercanas **no son exclusivas**; el total real es B3 | Presión engañosa en aglomerados |
-| RN-009-06 | Presión = personas esperando / camas libres cercanas. **Crítica**: > 1, o esperando > 0 y 0 camas cercanas. **Exigida**: ≥ 0,5. **Normal**: < 0,5. **Sin demanda**: 0 esperando. Mismos tonos e íconos que la tensión de ocupación | Semáforo sin regla |
-| RN-009-07 | Horas hasta saturar = `disponibles / ritmo_neto` con ritmo de las últimas **6 h**; ritmo ≤ 0 → «No se satura al ritmo actual»; con 0 libres → «Red saturada». Rotulado «proyección al ritmo actual, no es un pronóstico» | Un número que se lee como pronóstico |
+| RN-009-05 | **Camas libres cercanas** de una localidad = `disponibles` (camas) de los elegibles a ≤ **25 km** (`distancia_km`) de su centroide; un dispositivo sin coordenadas cuenta si el nombre normalizado de su localidad coincide **y ese nombre es de una sola `core.Localidad` del Chaco** (si es ambiguo, cuenta solo en la red provincial y en «N sin ubicación»). Las de ubicación reservada suman en el total de cercanas (en el servidor) sin aparecer nombradas. Las cercanas **no son exclusivas**; el total real es B3 | Presión engañosa en aglomerados |
+| RN-009-06 | Presión = personas esperando / camas libres cercanas. **Crítica**: > 1, o esperando > 0 y 0 camas cercanas. **Exigida**: ≥ 0,5. **Normal**: < 0,5. **Sin demanda**: 0 esperando. Mismos tonos e íconos que la tensión de ocupación. Es una función pura de servicio, `nivel_de_presion(esperando, camas_cercanas)` (§8.1); el selector solo lee y agrega | Semáforo sin regla |
+| RN-009-07 | Horas hasta saturar = `disponibles / ritmo_neto` con ritmo de las últimas **6 h**; ritmo ≤ 0 → «No se satura al ritmo actual»; con 0 libres → «Red saturada». Rotulado «proyección al ritmo actual, no es un pronóstico». Función pura de servicio `horas_hasta_saturar(disponibles, ingresos, egresos, horas)` (§8.1) | Un número que se lee como pronóstico |
 | RN-009-08 | El embudo es de cohorte (casos creados en la ventana) y excluye ingresos directos, que se muestran aparte | Conversiones mayores al 100 % |
-| RN-009-09 | **Alertas de «Necesita atención»** (sin estado, al leer, a lo sumo 6 con «Mostrando N de M», alta antes que media; nombran el dato, no enlazan a casos): **AE-1** saturación: horas hasta saturar < 12 o red en nivel **Crítica** (≥ 80 %) (alta). **AE-2** localidad crítica: presión crítica con ≥ 10 personas esperando (alta; nombra hasta 3 y «y N más»). **AE-3** demanda en alza: casos nuevos de las últimas 24 h ≥ 1,3 × el promedio de los tres períodos anteriores, con al menos 20 (media). **AE-4** tramo trabado: p90 de un tramo en 24 h > 2 × su objetivo (media). **AE-5** dispositivo en nivel Crítica **de su tipo** con derivaciones pendientes hacia él (alta). **AE-6** dispositivos con personas alojadas y sin entrega recibida en 48 h (media). **AE-7** personas alojadas con medicación crítica sin dosis ≥ 1 (alta; solo el número) | — |
-| RN-009-10 | Las alertas de E8 son distintas de los siete avisos operativos de E1 (`services/avisos_emergencia.py`), que no se mueven ni se repiten. Con `supervisar`, E8 muestra «N avisos operativos en el tablero de la mesa» | Dos pantallas diciendo lo mismo con reglas distintas |
-| RN-009-11 | **Supresión de números chicos**: los conteos del perfil (B11) se muestran como «menos de 5» entre 1 y 4 cuando el filtro activo es una localidad o un departamento. A nivel provincial, exactos. Los conteos operativos no se suprimen | Con un filtro fino, «1 embarazo en Lote 18» identifica a una persona |
+| RN-009-09 | **Alertas de «Necesita atención»** (sin estado, al leer, a lo sumo 6 con «Mostrando N de M», alta antes que media; nombran el dato, no enlazan a casos): **AE-1** saturación: horas hasta saturar < 12 o red en nivel **Crítica** (≥ 80 %) (alta). **AE-2** localidad crítica: presión crítica con ≥ 10 personas esperando (alta; nombra hasta 3 y «y N más»). **AE-3** demanda en alza: casos creados en la ventana móvil `[ahora − 24 h, ahora)` ≥ 1,3 × el promedio de las **tres ventanas de 24 h anteriores, contiguas y sin solaparse** (`[ahora − 48 h, ahora − 24 h)`, `[−72, −48)`, `[−96, −72)`), con al menos 20 casos en la actual (media). La lectura de casos creados cubre siempre ≥ 96 h, aunque el filtro de ventana sea 72 h. **AE-4** tramo trabado: p90 de un tramo en 24 h > 2 × su objetivo (media). **AE-5** dispositivo en nivel Crítica **de su tipo** con derivaciones pendientes hacia él, **salvo los de ubicación reservada** (alta). **AE-6** dispositivos con personas alojadas y sin entrega recibida en 48 h (media). **AE-7** personas alojadas con medicación crítica sin dosis ≥ 1 (alta; solo el número). Tono e ícono por severidad: los de `services/avisos_emergencia.py` (`TONOS`, `ICONOS`), sin copia | — |
+| RN-009-10 | Las alertas de E8 son distintas de los siete avisos operativos de E1 (`services/avisos_emergencia.py`), que no se mueven ni se repiten. Con `supervisar`, E8 muestra el enlace **sin cifra** «Ver los avisos operativos en el tablero de la mesa →» (0 consultas): contarlos exigiría la foto de E1 y rompería RNF-009-03 | Dos pantallas diciendo lo mismo con reglas distintas, o un presupuesto que se pasa |
+| RN-009-11 | **Supresión de números chicos**: los conteos del perfil (B11) se muestran como «menos de 5» entre 1 y 4 cuando el filtro activo es una localidad o un departamento. A nivel provincial, exactos. Los conteos operativos no se suprimen. **Límite conocido:** restando filtros (provincia − resto de las localidades) se deduce el valor oculto; mientras el cliente no decida la pregunta 7, la supresión es **solo visual**. Propuesta por defecto: supresión complementaria (con filtro activo, además del valor suprimido se suprime el siguiente valor más chico del mismo indicador); alternativa: redondear a múltiplos de 5 | Con un filtro fino, «1 embarazo en Lote 18» identifica a una persona |
 | RN-009-12 | Los filtros acotan solo la demanda; la capacidad es siempre provincial y lo dice. El filtro se aplica con «Filtrar» y no cambia de solapa | El usuario cree que «no hay camas en el departamento» |
-| RN-009-13 | E8 no muestra datos personales (RNF-009-01); enlaces a E1/E2 solo con `supervisar`; a la ficha de un dispositivo solo si Dispositivos lo permite; las coordenadas de dispositivos con `TipoDispositivo.ubicacion_reservada` no llegan al template | Exposición de familias o de dispositivos de protección |
+| RN-009-13 | E8 no muestra datos personales (RNF-009-01); enlaces a E1/E2 solo con `supervisar`; a la ficha de un dispositivo solo si Dispositivos lo permite; los dispositivos con `TipoDispositivo.ubicacion_reservada` no llegan al template con coordenadas ni aparecen nombrados en listados ordenados por distancia o tensión (§3.6) | Exposición de familias o de dispositivos de protección |
 | RN-009-14 | Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla (decisión 6 del Cambio 472) | — |
 
 ---
@@ -445,17 +466,22 @@ general 60/80 de `ocupacion.py`.
 - [ ] Dado un supervisor que selecciona Barranqueras, cuando mira el panel, entonces tiene «Ver los 38 casos en la
   bandeja» hacia E2 con `?localidad=<id>`; con solo `ver_situacion`, no.
 - [ ] Dado un tipo con `ubicacion_reservada` y un dispositivo de ese tipo con coordenadas, cuando pido E8,
-  entonces sus coordenadas no están en la respuesta, no se dibuja, figura como «ubicación reservada» sin distancia
-  entre los cercanos, y sus camas cuentan en B3 y en las cercanas.
+  entonces sus coordenadas no están en la respuesta, no se dibuja, no figura entre los tres cercanos del panel ni
+  en «más tensionados» ni en AE-5, sus camas suman en B3 y en las cercanas, y el panel dice «N camas en
+  dispositivos de ubicación reservada».
+- [ ] Dado un dispositivo sin coordenadas en «La Esperanza» (nombre de tres `core.Localidad` del Chaco), cuando
+  abro E8, entonces sus camas no suman en las cercanas de ninguna y cuenta en «N sin ubicación».
 - [ ] Dado un caso cuya localidad no tiene ubicación, cuando abro el mapa, entonces aparece «1 caso de localidades
   sin ubicación» y el caso está en la tabla.
 
 **HU-9.4** Como coordinador quiero saber si estamos mejorando o empeorando.
 - [ ] Dado casos creados a las 05:30 y a las 06:30 del 18/11, cuando miro la evolución de 7 días, entonces el
   primero cuenta en el día operativo del 17/11 y el segundo en el del 18/11.
-- [ ] Dado 96 casos nuevos en las últimas 24 h y 70, 68 y 71 en los tres períodos anteriores, cuando abro E8,
-  entonces aparece AE-3 con «38 % más que el promedio de los tres días anteriores».
-- [ ] Dado la consulta de la evolución, cuando capturo el SQL, entonces no contiene `CONVERT_TZ`.
+- [ ] Dado 96 casos creados en las últimas 24 h y 70, 68 y 71 en las tres ventanas de 24 h anteriores
+  (contiguas, sin solaparse), cuando abro E8 con la ventana de 72 h, entonces aparece AE-3 con «38 % más que el
+  promedio de las tres 24 h anteriores» (la lectura cubrió 96 h aunque la ventana sea 72 h).
+- [ ] Dado el job de motor real (MariaDB sin tablas de zona horaria), cuando corre el test `@tag("mysql")` de la
+  evolución, entonces el SQL capturado no contiene `convert_tz`, `trunc` ni `cast(… as date)`.
 
 **HU-9.5** Como coordinador quiero ver dónde se traba el circuito.
 - [ ] Dado 212 casos creados en las últimas 72 h (sin ingresos directos), 204 tomados, 181 derivados, 163
@@ -470,6 +496,8 @@ general 60/80 de `ocupacion.py`.
 - [ ] Dado 54 personas alojadas con medicación crítica, 9 sin dosis, cuando abro E8 sin filtro, entonces el perfil
   dice 54 y «9 sin dosis», y aparece AE-7.
 - [ ] Dado el filtro en una localidad con 2 embarazos entre los alojados, cuando abro E8, entonces dice «menos de 5».
+- [ ] Dado un supervisor, cuando abre E8, entonces ve «Ver los avisos operativos en el tablero de la mesa →» sin
+  número, y el presupuesto de consultas de la vista no cambia respecto de un usuario con solo `ver_situacion`.
 
 **HU-9.7** Como coordinador quiero saber si llegan los insumos.
 - [ ] Dado 70 entregas recibidas en la ventana con 1.240 colchones enviados y 1.226 recibidos, cuando abro E8,
@@ -535,10 +563,15 @@ programas/
   selectors/emergencia_situacion.py foto_de_situacion(sla, ahora, filtros) + resumen, presion_por_localidad,
                                     evolucion, capacidad, embudo, perfil, logistica y puntos_del_mapa
                                     (0 consultas con foto; puntos sin ubicación reservada ni familias)
-  services/alertas_situacion_emergencia.py   AE-1 a AE-7 (puras sobre la foto)
-  forms/emergencia_situacion.py     FiltrosSituacionForm (departamento, localidad, ventana, tab)
+  services/situacion_emergencia.py  reglas puras: nivel_de_presion(esperando, camas_cercanas),
+                                    horas_hasta_saturar(disponibles, ingresos, egresos, horas)
+  services/alertas_situacion_emergencia.py   AE-1 a AE-7 (puras sobre la foto; tono/ícono de
+                                    avisos_emergencia.TONOS/ICONOS)
+  forms_emergencia_situacion.py     FiltrosSituacionForm (departamento, localidad, ventana, tab)
+                                    (o la clase en forms_emergencia.py; nunca un paquete programas/forms/)
   views/emergencia_situacion.py     SituacionView
-  templates/programas/emergencia/situacion/   esqueleto del arquetipo + _resumen.html + _mapa.html (capas)
+  templates/programas/emergencia/situacion/   esqueleto del arquetipo + _resumen.html + _capas_mapa.html
+                                    (hace include de components/_mapa.html)
 ```
 
 ### 8.2 Pendientes del Cambio 472 que entran en el mismo lote
@@ -584,7 +617,7 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 
 | Tarea | Equivale a | Contenido | Horas (spec de Dispositivos) |
 |---|---|---|---|
-| C1 | T9 | Mapa: Leaflet en `static/vendor/leaflet/`, **`MAPA_TILES_HOSTS` solo en `img-src`**, `components/_mapa.html` y ficha, `componentes/ubicacion.md`, `SinRecursosDeTercerosTests` | 6 |
+| C1 | T9 (enmendado) | Mapa: Leaflet en `static/vendor/leaflet/`, **`MAPA_TILES_HOSTS` solo en `img-src`** (no en `MAPA_HOSTS`), `referrerPolicy: 'strict-origin-when-cross-origin'` en `L.tileLayer` (no `no-referrer`), `components/_mapa.html` y ficha, `componentes/ubicacion.md`, `SinRecursosDeTercerosTests`. Las dos enmiendas se proponen para el T9 de Dispositivos en el mismo lote | 6 |
 | C2 | T9b | `TipoDispositivo.ubicacion_reservada` (migración con `DEFAULT` real), configuración y filtro en el servicio | 2 |
 | C3 | T4 | Barra con marcas de umbral + ficha | 3 |
 | C4 | T5 (solo la pieza) | Gráfico de barras pareadas + ficha | ~2 de las 4 |
@@ -599,7 +632,7 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 | E-1 | Deuda de E1 del §8.2 (camas con C7, `localidad_id`, estado vacío, ingreso directo único, entregas recortadas, copias, `q_entrega_sin_revisar`, comentario) + `EXPLAIN` de la ventana | Solo si el `EXPLAIN` pide índices (aparte) | C7 | 6 |
 | E-2 | `core.UbicacionLocalidad` + comando + CSV; reporte de conciliación revisado por el PM | `core.00NN` (tabla nueva) | — | 5 |
 | E-3 | `emergencia.ver_situacion` (catálogo, helper, mixin, sidebar), migración para Administrador | `users.00NN` | — | 2 |
-| E-4 | Selectores de E8 (incluidos los puntos del mapa con el filtro de `ubicacion_reservada`), alertas AE-1 a AE-7, tests de cada número, presupuesto `--tag performance`, SQL sin `CONVERT_TZ`, motores | Índices de §4.1 si hacen falta (aparte) | E-1, E-2, C2 | 8 |
+| E-4 | Selectores de E8 (incluidos los puntos del mapa con el filtro de `ubicacion_reservada`), reglas puras de `services/situacion_emergencia.py`, alertas AE-1 a AE-7, tests de cada número, presupuesto `--tag performance`, test `@tag("mysql")` del SQL sin `convert_tz`/`trunc`/`cast_date`, `EXPLAIN` de RNF-009-10 | Índices de §4.1 si hacen falta (aparte) | E-1, E-2, C2 | 8 |
 | E-5 | Vista, form de filtros, esqueleto del arquetipo, **solapa Resumen** completa, impresión, enlaces E1 ↔ E8, tests de permisos y de no nominalidad | — | E-3, E-4, C3, C4, C6 | 8 |
 | E-6 | **Solapa Mapa**: capas de localidades y dispositivos sobre `_mapa.html`, panel «Localidad seleccionada», «Localidades con más presión», estados, test de mutación de `ubicacion_reservada` | — | E-5, C1, C2, C5 | 5 |
 
@@ -643,11 +676,12 @@ Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja
 | 4 | ¿Hace falta filtrar la **capacidad** por departamento? Requiere FK de `Dispositivo` a localidad | PM | Abierta |
 | 5 | ¿El evento tiene fecha de inicio? Con `inicio_evento` en `SLAEmergencia` habría acumulados «desde el inicio» | PM | Abierta (propuesta: no en este lote) |
 | 6 | ¿Se proyecta en una pantalla de la mesa? Si sí, entra el «modo sala de situación» que Dispositivos también dejó afuera, y la caché | PM / mesa | Abierta |
-| 7 | Mínimo de supresión del perfil: ¿5, también con filtro de departamento? | PM / área legal o de datos | Abierta (propuesta: 5) |
+| 7 | Supresión del perfil: ¿mínimo 5, también con filtro de departamento? Y como restando filtros se deduce el valor oculto: ¿supresión complementaria (con filtro activo, además del valor de 1 a 4 se suprime el siguiente valor más chico del mismo indicador) o redondeo a múltiplos de 5? Mientras no se decida, la supresión es solo visual | Cliente (PM / área legal o de datos) | Abierta (propuesta: mínimo 5 y supresión complementaria) |
 | 8 | ¿Se acepta la atribución BAHRA/Georef de las localidades (además de la de OSM del mapa)? | PM | Abierta |
 | 9 | ¿Qué se hace con las localidades del fixture que no concilian con Georef? | PM | Abierta |
 | 10 | ¿Quién construye primero las piezas compartidas (C1–C7): el tablero de Dispositivos o E8? | PM | Abierta |
 | 11 | ¿Dispositivos adopta `UbicacionLocalidad` para «Cerca de» cuando la localidad no tiene dispositivos con coordenadas? | PM | Abierta (propuesta: sí, opcional) |
+| 12 | ¿Se enmienda el T9 del spec de Dispositivos en el mismo lote? (a) host de mosaicos en `MAPA_TILES_HOSTS`, solo `img-src`, y no en `MAPA_HOSTS`, que abre `frame-src`; (b) `strict-origin-when-cross-origin` en lugar de `no-referrer`, que viola la política de mosaicos de OSM y puede hacer que bloqueen el sitio | PM | Abierta (propuesta: sí, las dos) |
 
 ---
 
@@ -657,6 +691,7 @@ Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja
 |---|---|---|
 | 2026-11-18 | Versión inicial | Pedido del PM: «análisis funcional del mapa, no solo del mapa: un tablero estratégico con información útil» |
 | 2026-11-18 | Alineado con el diseño aprobado del tablero de Dispositivos y con emergencia-design §7.1: molde «Dashboard de programa» con solapas Resumen / Mapa; mapa = pieza única `_mapa.html` (Leaflet vendorizado, OSM a pedido, `MAPA_TILES_HOSTS` solo en `img-src`) en lugar del SVG propio; `ubicacion_reservada`; capacidad con `disponibles` y `tension_de_ocupacion` del tipo; `UbicacionLocalidad` como diferencia justificada; piezas compartidas y plan de PRs con las tareas de Dispositivos; impresión sin mapa | La versión inicial no había tenido en cuenta ese diseño |
+| 2026-11-18 | Correcciones de la auditoría del PR #1161 (1 MAJOR, 12 MINOR): sin cifra de avisos operativos de E1 (enlace, 0 consultas); `ubicacion_reservada` fuera de cercanos, «más tensionados» y AE-5; Referer `strict-origin-when-cross-origin` hacia OSM; test de SQL `@tag("mysql")` con `convert_tz`/`trunc`/`cast_date`; nombres de localidad ambiguos fuera de cercanas; rutas `forms_emergencia_situacion.py` y `_capas_mapa.html`; supresión complementaria como decisión del cliente; AE-3 con ventanas contiguas y lectura de 96 h; logística en 3 consultas + alcance, tope 15/21; índices de `Derivacion` y `EntregaKit` a medir; `MAPA_TILES_HOSTS` en §3.7 con enmienda del T9; reglas puras en `services/situacion_emergencia.py` | Auditoría del PR #1161 |
 
 ---
 
@@ -697,11 +732,11 @@ la provincia.»
    Fontana y Puerto Vilelas.»
 3. Alta · «Club Atlético Sarmiento (Resistencia) está lleno y tiene 2 derivaciones pendientes.»
 4. Alta · «9 personas alojadas con medicación crítica no tienen dosis.»
-5. Media · «Casos nuevos en alza: 96 en las últimas 24 h, 38 % más que el promedio de los tres días anteriores.»
+5. Media · «Casos nuevos en alza: 96 en las últimas 24 h, 38 % más que el promedio de las tres 24 h anteriores.»
 6. Media · «El tramo “aceptar” está trabado: el p90 es 4 h 10 min contra un objetivo de 2 h.»
 
 (La 7.ª, «3 dispositivos con gente y sin entrega en 48 h», queda fuera por el tope y está en R7.) Con
-`supervisar`, al pie: «Hay 11 avisos operativos en el tablero de la mesa →».
+`supervisar`, al pie, sin cifra: «Ver los avisos operativos en el tablero de la mesa →».
 
 **R2 · Presión por localidad** (tabla `.tabla`, ancho completo; badge con ícono + texto)
 
@@ -806,7 +841,8 @@ con el botón **Ver el mapa**. La lista «Localidades con más presión» ya est
 - **Localidad seleccionada: Barranqueras · Dpto. San Fernando** — badge Crítica 3,2× · 38 familias, 133 personas
   esperando, 14 fuera de SLA · 402 personas de Barranqueras ya alojadas · 41 camas libres a ≤ 25 km en 9
   dispositivos · más cercanos: EES N.° 9 (1,2 km) 4 libres de 90 · Club Atlético Sarmiento (6,8 km) 0 de 120 ·
-  Refugio Municipal (ubicación reservada) 6 libres · (con `supervisar`) «Ver los 38 casos en la bandeja».
+  Polideportivo Municipal Fontana (11,4 km) 8 de 80 · además, 6 camas en dispositivos de ubicación reservada ·
+  (con `supervisar`) «Ver los 38 casos en la bandeja».
 - **Localidades con más presión** (`item-lista`, 8): Juan José Castelli 6,5× · Barranqueras 3,2× · Resistencia
   2,5× · Machagai 2,3× · Puerto Vilelas 1,3× · Las Breñas (sin camas a 25 km) · Fontana 0,8× · Libertador General
   San Martín 0,7×.
