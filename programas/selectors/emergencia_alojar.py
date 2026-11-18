@@ -364,7 +364,7 @@ def integrante_de(caso, n):
     * ``secciones_incompletas`` — los rótulos de las secciones 4 a 8 que faltan.
 
     * ``identidad_a_revisar`` — en la persona 1, el responsable, la marca pendiente del caso
-      (``caso.identidad_pendiente``, Cambio 484); en las demás, ``None``.
+      (``caso.identidad_pendiente``, Cambio 486); en las demás, ``None``.
 
     ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id`` y ``caso.situacion``. **1 consulta.**
     """

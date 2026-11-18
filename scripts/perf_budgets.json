@@ -172,7 +172,7 @@
       "consultas_fijas": 2,
       "nota": "C5: plazas con estadías activas y reservas/préstamos abiertos; dos consultas incluso con 200 plazas. test_dispositivos_capacidad.CapacidadPresupuestoTests."
     },
-    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_alertas.py, programas/tests/test_dispositivos_auditoria.py y programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance.",
+    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_edificios_listado.py, programas/tests/test_dispositivos_alertas.py, programas/tests/test_dispositivos_auditoria.py y programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance.",
     "becas_respuestas_por_persona": {
       "servicio": "programas.services.dashboard_becas.respuestas_por_persona",
       "consultas_fijas": 12,
@@ -248,6 +248,11 @@
       "servicio": "programas.services.detalle_dispositivo.infraestructura_del_dispositivo",
       "consultas_fijas": 8,
       "motivo": "MVP v2 etapa 4, #702, solapa Infraestructura (Cambio 429: ocho, con la consulta de sectores por edificio). Usuario fresco y capacidades RBAC preparados antes de CaptureQueriesContext en ambas mediciones: se excluyen usuario (1) y autorizacion (1), no las consultas del predio. Siete del servicio: edificios con ultima realizada y cantidad de instituciones (1), instituciones visibles del predio con tipo y estado (1, dispositivos_predio_instituciones), ultimas realizadas con quien relevo (1), totales de la franja (1), COUNT y pagina del registro fotografico con cantidad de fotos (2), fotos de la pagina (1). Medido con 1 y 8 relevamientos en dos edificios; no crece por institucion, edificio o relevamiento. Fotos en una consulta para la pagina de 10. Sin edificio, solo edificios (1)."
+    },
+    "dispositivos_edificios_listado": {
+      "servicio": "programas.views.dispositivos_edificios.EdificioListView",
+      "consultas_fijas": 12,
+      "motivo": "Seccion Edificios de Dispositivos (#1167, analisis #1164): la pagina entera, medida con el cliente ya logueado y la cache del programa caliente. Cinco del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); siete del listado: COUNT del paginador (1), pagina de edificios con ultima realizada, instituciones y vencimiento anotados (1), ultimas realizadas (1), instituciones del predio que el usuario alcanza (1), cuales puede abrir (1), edificios donde puede crear un relevamiento (1) y localidades del filtro (1). Medido con 2 y 20 edificios: 12 en los dos casos. No crece por edificio, institucion ni relevamiento."
     },
     "dispositivos_bitacora_turno": {
       "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",

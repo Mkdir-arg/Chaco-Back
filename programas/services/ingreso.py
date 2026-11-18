@@ -67,7 +67,7 @@ def buscar_ciudadano_por_dni(dni):
     Es la regla única de «este DNI ya tiene persona registrada»: cuenta el legajo
     **activo o no y con cualquier género**, porque ``Ciudadano.dni`` es único. La usan,
     entre otros, la consulta de identidad de Emergencia y el alta del caso, para que
-    nunca digan cosas distintas (Cambio 484).
+    nunca digan cosas distintas (Cambio 486).
     """
 
     dni = normalizar_dni(dni)

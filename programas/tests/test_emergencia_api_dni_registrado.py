@@ -1,4 +1,4 @@
-"""Cambio 484: el DNI ya registrado con otro nombre en la API de la app de campo.
+"""Cambio 486: el DNI ya registrado con otro nombre en la API de la app de campo.
 
 Fija el 400 con ``persona_registrada`` en los tres extremos que crean casos (M1, ingreso directo
 y aviso a la mesa), el envío con ``identidad_en_conflicto`` y la marca que ve la guardia en la

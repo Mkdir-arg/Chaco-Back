@@ -530,7 +530,7 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.gran_base.assert_not_called()
 
     def test_si_hay_legajo_responde_el_legajo_aunque_base_de_personas_la_encuentre(self):
-        """Cambio 484: se muestra la persona de la que ``crear_caso`` va a colgar el caso."""
+        """Cambio 486: se muestra la persona de la que ``crear_caso`` va a colgar el caso."""
         self._legajo(nombre="Joaquin", apellido="FARIÑA")
 
         respuesta = self._consultar(self.agente)
@@ -560,7 +560,7 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertIs(respuesta.json()["fallecido"], True)
 
     def test_un_genero_distinto_en_el_legajo_igual_cuenta(self):
-        """El DNI es único: el alta usaría ese legajo igual (Cambio 484)."""
+        """El DNI es único: el alta usaría ese legajo igual (Cambio 486)."""
         self._legajo(genero="M")
         self._gran_base_no_la_encuentra()
 
@@ -817,7 +817,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
 
     def test_las_consultas_con_tope_publican_el_429(self):
         """La identidad (SEC-25), la búsqueda por DNI (M2-1) y los tres extremos que crean casos, cuyo rechazo
-        «DNI ya registrado» descuenta de la cubeta de la identidad (Cambio 484): la app sabe que pueden contestar 429."""
+        «DNI ya registrado» descuenta de la cubeta de la identidad (Cambio 486): la app sabe que pueden contestar 429."""
         rutas = self.esquema["paths"]
 
         for operacion in (

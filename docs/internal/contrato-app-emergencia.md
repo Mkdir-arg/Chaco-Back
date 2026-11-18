@@ -164,7 +164,7 @@ género**— responde el legajo (`origen: "legajo"`, con `localidad_id` y `local
 **aunque Base de Personas la encuentre con otros datos**: es la persona de la que el envío (§6) va a colgar
 el caso, porque el DNI es único. Sin legajo, responde Base de Personas (`origen: "personas"`). Una persona
 que Base de Personas informa fallecida es 404 aunque tenga legajo. La consulta de Becas no busca en
-legajos (Cambio 484).
+legajos (Cambio 486).
 
 ```json
 {"success": true, "origen": "personas",
@@ -559,7 +559,7 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
 - `responsable.identidad_a_revisar`: `{"nombre", "apellido"}` tal como los cargó quien relevó, cuando el
   DNI ya era de otra persona registrada y se envió con `identidad_en_conflicto` (§6). Viene **solo
   mientras la mesa no lo revisó**; si no, `null`. Es un aviso: la app lo muestra («Identidad a revisar: se
-  cargó como Gómez, Pedro») y no bloquea nada (Cambio 484).
+  cargó como Gómez, Pedro») y no bloquea nada (Cambio 486).
 - `vencida: true` es una derivación pendiente con `vence_en` pasado que la mesa todavía no marcó: **se
   puede aceptar igual** (RN-3.3; la familia está en la puerta).
 - `necesidades`: los avisos del Formulario 1 marcados en `true` (`embarazo`, `electrodependiente`,

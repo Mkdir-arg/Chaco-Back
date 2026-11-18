@@ -85,7 +85,7 @@ class UuidEnUso(ValidationError):
 
 
 class DniRegistrado(ValidationError):
-    """El DNI ya es de una persona registrada con otro nombre y no se pidió revisar (Cambio 484).
+    """El DNI ya es de una persona registrada con otro nombre y no se pidió revisar (Cambio 486).
 
     Es un ``ValidationError`` con la clave ``dni`` —la mesa lo muestra bajo el DNI—, con tipo
     propio para que la API sume ``persona_registrada`` sin parsear el texto. ``persona`` lleva
@@ -304,7 +304,7 @@ def _responsable(datos, limpio):
     vino, o ``None``.
 
     * La persona registrada con ese DNI es la de :func:`buscar_ciudadano_por_dni`, la misma
-      regla que usa la consulta de identidad de la app (Cambio 484). Si no hay, se le da el alta
+      regla que usa la consulta de identidad de la app (Cambio 486). Si no hay, se le da el alta
       mínima del asistente de ingreso de Dispositivos (RN-1.5).
     * Si el envío trae nombre o apellido que contradicen al legajo, sin
       ``identidad_en_conflicto`` es un :class:`DniRegistrado`; con él, el caso se cuelga del
@@ -435,7 +435,7 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
       opcionales ``fecha_nacimiento``, ``telefono`` y ``documento_extraviado``. Si el DNI ya
       está registrado y el nombre o el apellido no coinciden, :class:`DniRegistrado`, salvo
       que venga ``identidad_en_conflicto``: entonces el caso nace marcado con identidad a
-      revisar y el legajo no se toca (Cambio 484).
+      revisar y el legajo no se toca (Cambio 486).
     * las seis cantidades (``menores_f``, ``menores_m``, ``adultos_f``, ``adultos_m``,
       ``mayores_f``, ``mayores_m``), ``dependientes``, ``mayores_dependientes``, ``lactantes``.
     * ``responsable_aparte``: ``True`` si las cantidades son los acompañantes y el total

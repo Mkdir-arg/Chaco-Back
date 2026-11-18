@@ -424,7 +424,7 @@ def _plural(cantidad, singular, plural):
     return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
-def _clave_estado(ultima):
+def clave_estado_edilicio(ultima):
     """El estado del filtro de un edificio: sale de la criticidad de la última realizada."""
 
     if ultima is None:
@@ -435,7 +435,7 @@ def _clave_estado(ultima):
     return ""
 
 
-def _aviso_de_vencimiento(vencido, vence_el, hoy):
+def aviso_de_vencimiento(vencido, vence_el, hoy):
     """«Vencido» o «Vence en N días» de un edificio, o ``None``.
 
     Vencido es la regla del selector compartido (relevamiento en curso con fecha pasada); «por vencer»
@@ -566,9 +566,13 @@ def _fila_de_edificio(
         "longitud": edificio.longitud,
         "instituciones": del_predio,
         # El estado de la tarjeta es el de la última realizada; «Vencido» y «Vence en N días» van aparte.
-        "estado": {"clave": _clave_estado(ultima), "texto": semaforo_estado.texto, "tono": semaforo_estado.tono},
+        "estado": {
+            "clave": clave_estado_edilicio(ultima),
+            "texto": semaforo_estado.texto,
+            "tono": semaforo_estado.tono,
+        },
         "vencido": bool(edificio.vencido),
-        "aviso": _aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
+        "aviso": aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
         "ultima": ultima,
         "ve_detalle": ve_detalle,
         "relevo": _nombre(ultima.realizada_por) if ultima and ve_detalle else "",

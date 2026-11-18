@@ -418,7 +418,7 @@ class IdentidadDeclaradaSerializer(serializers.Serializer):
     apellido = serializers.CharField()
 
 
-#: La marca «Identidad a revisar» para la guardia (Cambio 484): lo que declaró quien cargó, solo
+#: La marca «Identidad a revisar» para la guardia (Cambio 486): lo que declaró quien cargó, solo
 #: mientras la mesa no la revisó; si no, ``null``.
 _IDENTIDAD_A_REVISAR_HELP = (
     "`{nombre, apellido}` tal como los cargó quien relevó cuando el DNI ya era de otra persona registrada, "

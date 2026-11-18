@@ -1,7 +1,7 @@
 """Los topes por usuario de la API de campo que se comparten con el backoffice.
 
 Viven acá, y no en ``programas.api.views``, porque el backoffice de Emergencia también
-descuenta de la cubeta de la consulta de identidad (Cambio 484) y no tiene por qué cargar
+descuenta de la cubeta de la consulta de identidad (Cambio 486) y no tiene por qué cargar
 las vistas de la API para hacerlo. :func:`rechazo_para_mostrar` es la mitad del backoffice:
 la usan dos vistas, y un helper compartido entre vistas no vive en ``programas/views/``.
 """
@@ -36,7 +36,7 @@ def descontar_consulta_de_identidad(request):
 
     El rechazo «DNI ya registrado» de ``crear_caso`` devuelve el nombre de la persona: es
     una consulta de identidad por otra puerta y cuenta igual, en la API y en el backoffice
-    (Cambio 484). Devuelve ``None`` si quedaba cupo; si no, los segundos a esperar.
+    (Cambio 486). Devuelve ``None`` si quedaba cupo; si no, los segundos a esperar.
     """
 
     throttle = ConsultaPersonasThrottle()

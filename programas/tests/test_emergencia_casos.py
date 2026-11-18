@@ -504,7 +504,7 @@ class CrearCasoTests(BaseCasos):
         self.assertTrue(caso.situacion["documento_extraviado"])
 
     def test_el_mismo_nombre_escrito_distinto_no_es_conflicto(self):
-        """Cambio 484: se compara sin acentos, mayúsculas ni espacios de más."""
+        """Cambio 486: se compara sin acentos, mayúsculas ni espacios de más."""
         persona = Ciudadano.objects.create(dni="28123456", nombre="Joaquin", apellido="FARIÑA")
 
         caso = self._caso(dni="28123456", nombre=" joaquín ", apellido="Fariña")
@@ -520,7 +520,7 @@ class CrearCasoTests(BaseCasos):
         self.assertEqual(caso.grupo.responsable_id, persona.pk)
 
     def test_un_dni_registrado_con_otro_nombre_se_rechaza_sin_crear_nada(self):
-        """Cambio 484: antes el nombre cargado se descartaba en silencio."""
+        """Cambio 486: antes el nombre cargado se descartaba en silencio."""
         persona = Ciudadano.objects.create(dni="40732122", nombre="Joaquin", apellido="FARIÑA", genero="M")
         antes = (GrupoFamiliar.objects.count(), CasoEmergencia.objects.count(), NumeradorEmergencia.objects.count())
 

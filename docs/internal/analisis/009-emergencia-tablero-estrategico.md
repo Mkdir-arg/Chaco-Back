@@ -154,7 +154,7 @@ variantes propias), y Dispositivos las reusa. En ningún caso E8 clona a E1 ni a
 1. El usuario entra a **Emergencia › Situación**.
 2. Ve el **hero** con el nombre del evento (`SLAEmergencia.nombre_evento`) y una frase con personas alojadas,
    personas esperando lugar y camas libres con la ocupación de la red.
-3. Debajo, la **barra de filtros en píldora**: Departamento, Localidad, Ventana (72 h / 7 días), botón **Filtrar**,
+3. Debajo, la **barra de filtros en píldora**: Departamento, Localidad, Ventana (72 h / 7 días; **por defecto 72 h**), botón **Filtrar**,
    «Limpiar», «Actualizado a las HH:MM» e **Imprimir**. Lo elegido queda pendiente hasta «Filtrar».
 4. La **franja de cuatro indicadores**: personas alojadas, personas esperando, camas libres, horas hasta saturar.
 5. Las **solapas Resumen / Mapa / Abastecimiento**. Abre en Resumen (o en la que diga `?tab=`).
@@ -376,7 +376,7 @@ Configuración de la mesa», con el enlace solo con `supervisar`).
 | RF-009-01 | Pantalla E8 «Situación» en `/emergencia/situacion/`, ítem del grupo Emergencia del sidebar, visible con `ver_situacion` o `supervisar` | Alta | §3.1 |
 | RF-009-02 | Capacidad `emergencia.ver_situacion` en el `CATALOGO`; supervisar la implica; migración para Administrador | Alta | §3.2 |
 | RF-009-03 | Arquetipo Dashboard de programa (golden: tablero de Dispositivos), con hero, filtros en píldora, franja de métricas y solapas Resumen / Mapa / Abastecimiento | Alta | §3.3 |
-| RF-009-04 | Filtros: departamento, localidad (dependiente del departamento) y ventana 72 h / 7 días; por GET, aplicados con «Filtrar» | Alta | RN-009-12 |
+| RF-009-04 | Filtros: departamento, localidad (dependiente del departamento) y ventana 72 h / 7 días (**por defecto 72 h**, decisión del PM); por GET, aplicados con «Filtrar» | Alta | RN-009-12 |
 | RF-009-05 | Cuatro indicadores: personas alojadas, personas esperando, camas libres, horas hasta saturar | Alta | §5.1 |
 | RF-009-06 | «Necesita atención»: alertas estratégicas calculadas al leer, sin estado, ordenadas por severidad, a lo sumo seis, con «Mostrando N de M» | Alta | RN-009-09 |
 | RF-009-07 | Solapa Mapa sobre `components/_mapa.html` con las capas de presión por localidad y de dispositivos, panel «Localidad seleccionada» y lista «Localidades con más presión» | Alta | §3.5–3.6 |
@@ -516,7 +516,7 @@ general 60/80 de `ocupacion.py`.
 | RN-009-06 | Presión = personas esperando / camas libres cercanas. **Crítica**: > 1, o esperando > 0 y 0 camas cercanas. **Exigida**: ≥ 0,5. **Normal**: < 0,5. **Sin demanda**: 0 esperando. Mismos tonos e íconos que la tensión de ocupación. Es una función pura de servicio, `nivel_de_presion(esperando, camas_cercanas)` (§8.1); el selector solo lee y agrega | Semáforo sin regla |
 | RN-009-07 | Horas hasta saturar = `disponibles / ritmo_neto` con ritmo de las últimas **6 h**; ritmo ≤ 0 → «No se satura al ritmo actual»; con 0 libres → «Red saturada». Rotulado «proyección al ritmo actual, no es un pronóstico». Función pura de servicio `horas_hasta_saturar(disponibles, ingresos, egresos, horas)` (§8.1) | Un número que se lee como pronóstico |
 | RN-009-08 | El embudo es de cohorte (casos creados en la ventana) y excluye ingresos directos, que se muestran aparte | Conversiones mayores al 100 % |
-| RN-009-09 | **Alertas de «Necesita atención»** (sin estado, al leer, a lo sumo 6 con «Mostrando N de M», alta antes que media; nombran el dato, no enlazan a casos): **AE-1** saturación: horas hasta saturar < 12 o red en nivel **Crítica** (≥ 80 %) (alta). **AE-2** localidad crítica: presión crítica con ≥ 10 personas esperando (alta; nombra hasta 3 y «y N más»). **AE-3** demanda en alza: casos creados en la ventana móvil `[ahora − 24 h, ahora)` ≥ 1,3 × el promedio de las **tres ventanas de 24 h anteriores, contiguas y sin solaparse** (`[ahora − 48 h, ahora − 24 h)`, `[−72, −48)`, `[−96, −72)`), con al menos 20 casos en la actual (media). La lectura de casos creados cubre siempre ≥ 96 h, aunque el filtro de ventana sea 72 h. **AE-4** tramo trabado: p90 de un tramo en 24 h > 2 × su objetivo (media). **AE-5** dispositivo en nivel Crítica **de su tipo** con derivaciones pendientes hacia él, **salvo los de ubicación reservada** (alta). **AE-6** dispositivos con personas alojadas y sin entrega recibida en 48 h (media). **AE-7** personas alojadas con medicación crítica sin dosis ≥ 1 (alta; solo el número). Tono e ícono por severidad: los de `services/avisos_emergencia.py` (`TONOS`, `ICONOS`), sin copia | — |
+| RN-009-09 | **Alertas de «Necesita atención»** (sin estado, al leer, a lo sumo 6 con «Mostrando N de M», alta antes que media; nombran el dato, no enlazan a casos): **AE-1** saturación: horas hasta saturar < 12 o red en nivel **Crítica** (≥ 80 %) (alta). **AE-2** localidad crítica: presión crítica con ≥ 10 personas esperando (alta; nombra hasta 3 y «y N más»). **AE-3** demanda en alza: casos creados en la ventana móvil `[ahora − 24 h, ahora)` ≥ 1,3 × el promedio de las **tres ventanas de 24 h anteriores, contiguas y sin solaparse** (`[ahora − 48 h, ahora − 24 h)`, `[−72, −48)`, `[−96, −72)`), con al menos 20 casos en la actual (media). La lectura de casos creados cubre siempre ≥ 96 h, aunque el filtro de ventana sea 72 h. **AE-4** tramo trabado: p90 de un tramo en 24 h > 2 × su objetivo (media). **AE-5** dispositivo en nivel Crítica **de su tipo** con derivaciones pendientes hacia él, **salvo los de ubicación reservada** (alta; **una alerta por dispositivo**, que lo nombra con su localidad, decisión del PM del 18/11/2026; el tope de 6 y «Mostrando N de M» las acotan). **Orden dentro de cada severidad** (decisión del PM): primero las alertas de la red en orden de catálogo —altas: AE-1, AE-2, AE-7; medias: AE-3, AE-4, AE-6— y después las AE-5, entre sí por `porcentaje − umbral rojo` de su tipo (como B9), así AE-7 (salud) no queda fuera del tope por muchos dispositivos críticos. **AE-6** dispositivos con personas alojadas y sin entrega recibida en 48 h (media). **AE-7** personas alojadas con medicación crítica sin dosis ≥ 1 (alta; solo el número). Tono e ícono por severidad: los de `services/avisos_emergencia.py` (`TONOS`, `ICONOS`), sin copia | — |
 | RN-009-10 | Las alertas de E8 son distintas de los siete avisos operativos de E1 (`services/avisos_emergencia.py`), que no se mueven ni se repiten. Con `supervisar`, E8 muestra el enlace **sin cifra** «Ver los avisos operativos en el tablero de la mesa →» (0 consultas): contarlos exigiría la foto de E1 y rompería RNF-009-03 | Dos pantallas diciendo lo mismo con reglas distintas, o un presupuesto que se pasa |
 | RN-009-11 | **Perfil con filtro: salud solo provincial** (perfil B11; decisión del PM del 18/11/2026, pregunta 7). Los **indicadores de salud** —alojados: embarazo, discapacidad, electrodependiente, medicación crítica y sin dosis; esperando: dependientes, mayores dependientes, familias con embarazo, con electrodependencia y con medicación crítica— se muestran **solo a nivel provincial**: con un filtro de localidad o departamento no se muestran (el bloque dice «Los datos de salud se muestran solo para toda la provincia»), así que ninguna resta entre filtros los puede despejar. Los **indicadores no sensibles** —menores, mayores, lactantes, mascotas— se muestran con el filtro y un valor de 1 a 4 dice «menos de 5», **sin porcentaje** (con el total operativo visible lo despejaría). **Límite conocido y aceptado:** restando filtros se puede deducir un conteo de edad, lactantes o mascotas, que no es dato de salud. A nivel provincial, todo exacto; los conteos operativos no se suprimen. **AE-7 es siempre provincial** (no se acota por el filtro). Función pura de servicio `presentar_perfil(perfil, filtrado)` (§8.1): con filtro, quita los indicadores de salud y aplica el «menos de 5»; el selector solo agrega | Con un filtro fino, «1 embarazo en Lote 18» identifica a una persona |
 | RN-009-12 | Los filtros acotan solo la demanda; la capacidad es siempre provincial y lo dice. El filtro se aplica con «Filtrar» y no cambia de solapa | El usuario cree que «no hay camas en el departamento» |
@@ -871,9 +871,8 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 |---|---|---|---|---|
 | E-1 | Deuda de E1 del §8.2 (camas con C7, `localidad_id`, estado vacío, ingreso directo único, entregas recortadas, copias, `q_entrega_sin_revisar`, comentario) + `EXPLAIN` de la ventana | Solo si el `EXPLAIN` pide índices (aparte) | C7 | 6 |
 | E-2 | `core.UbicacionLocalidad` + comando + CSV; reporte de conciliación revisado por el PM | `core.00NN` (tabla nueva) | — | 5 |
-| E-3 | `emergencia.ver_situacion` (catálogo, helper, mixin, sidebar), migración para Administrador | `users.00NN` | — | 2 |
 | E-4 | Selectores de E8 (incluidos los puntos del mapa con el filtro de `ubicacion_reservada`), reglas puras de `services/situacion_emergencia.py`, alertas AE-1 a AE-7, tests de cada número, presupuesto `--tag performance`, test `@tag("mysql")` del SQL sin `convert_tz`/`trunc`/`cast_date`, `EXPLAIN` de RNF-009-10 | Índices de §4.1 si hacen falta (aparte) | E-1, E-2, C2 | 8 |
-| E-5 | Vista, form de filtros, esqueleto del arquetipo, **solapa Resumen** completa, impresión, enlaces E1 ↔ E8, tests de permisos y de no nominalidad | — | E-3, E-4, C3, C4, C6 | 8 |
+| E-5 | **Capacidad `emergencia.ver_situacion`** (catálogo, helper, mixin, ítem del sidebar, migración para Administrador; antes E-3, fusionada por decisión del PM para que el ítem del menú y la URL lleguen juntos) + vista, form de filtros (ventana por defecto 72 h), esqueleto del arquetipo, **solapa Resumen** completa, impresión, enlaces E1 ↔ E8, tests de permisos y de no nominalidad | `users.00NN` | E-4, C3, C4, C6 | 10 |
 | E-6 | **Solapa Mapa**: capas de localidades y dispositivos sobre `_mapa.html`, panel «Localidad seleccionada», «Localidades con más presión», estados, test de mutación de `ubicacion_reservada` | — | E-5, C1, C2, C5 | 5 |
 | E-7a | **Regla de consumo y evento en E7**: los 4 campos de `TipoKit` y `SLAEmergencia.inicio_evento` + migración, `crear_tipo_kit` con los kwargs de la regla y traza del alta, form y template de E7, tests (alta con regla, edición de un ítem sin regla, validación cruzada, trazas) | `programas.01NN` (5 `AddField`, solo expand) | — (adelantable: la mesa (con `supervisar`) carga reglas y fecha antes de que exista la solapa) | 2,5 |
 | E-7b | **Solapa Abastecimiento**: reglas puras con tests de cada fórmula (2 h); selector A1–A5, presupuesto `--tag performance` (≤ 5 / ≤ 26) con evento anterior sembrado y `EXPLAIN` de líneas por estado y de `egresado_en` (2,5 h); `armar_abastecimiento`, AE-8 a AE-10, `presentar_salud`, panel, «Calcular el abastecimiento», estado sin `inicio_evento`, «Preparar entrega», ubicación reservada y supresión con tests sobre la respuesta (2,5 h); casos de QA y Cambio (1 h) | Índice en `IntegranteGrupo.egresado_en` si el `EXPLAIN` lo pide (aparte) | E-5, C2, E-7a (con `inicio_evento`) | 8 |
@@ -882,7 +881,7 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 (C1–C7, **~17 h**, con C5 en 1 h y C6 en 2 h) y Dispositivos las descuenta después. Cada PR con su Cambio en `requerimientos.md` al mergearse,
 `/auditoria pr`, casos de QA, `design_audit.py --ratchet` en 0 nuevos y `check_design_agent.py`.
 
-**Orden.** E-1, E-2 y E-3 son independientes y pueden ir en paralelo. E-4 después de E-1 y E-2. E-5 espera las
+**Orden.** E-1 y E-2 son independientes y pueden ir en paralelo. E-4 después de E-1 y E-2. E-5 espera las
 piezas C3, C4, C6. E-6 espera el mapa (C1) y el indicador de ubicación reservada (C2). E-7a no depende de nada y
 conviene adelantarlo, para que la mesa (con `supervisar`) cargue las reglas y la fecha de inicio antes de que exista la solapa.
 E-7b espera E-5 (la vista y las solapas), C2 y E-7a; es independiente de E-6. Si el tablero de
@@ -897,9 +896,9 @@ Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja
 |---|---|---|---|---|---|
 | C1 | #1173 | 6 | E-1 | #1180 | 6 |
 | C2 | #1174 | 2 | E-2 | #1181 | 5 |
-| C3 | #1175 | 3 | E-3 | #1182 | 2 |
+| C3 | #1175 | 3 | (E-3) | #1182 → fusionada en #1184 | — |
 | C4 | #1176 | 2 | E-4 | #1183 | 8 |
-| C5 | #1177 | 1 | E-5 | #1184 | 8 |
+| C5 | #1177 | 1 | E-5 | #1184 | 10 |
 | C6 | #1178 | 2 | E-6 | #1185 | 5 |
 | C7 | #1179 | 1 | E-7a | #1186 | 2,5 |
 | | | | E-7b | #1187 | 8 |
@@ -965,6 +964,7 @@ se cerraron con lo que el análisis ya daba por alcance.
 | 2026-11-18 | Tercera solapa **«Abastecimiento»** (§3.9): reglas de consumo por ítem en `TipoKit`/E7 (dotación o reposición), necesario, en camino, preparadas y faltan para 48 h, dispositivos sin cobertura por urgencia con «Preparar entrega» hacia E4 (solo `operar`), salud logística con supresión por dispositivo (RN-009-21), AE-8 a AE-10 dentro de la solapa, presupuesto propio ≤ 5 / vista ≤ 26 calculado solo con `?tab=abastecimiento`, PR E-7 (10 h), preguntas 13 y 14 | Pedido del PM: «qué le falta a cada dispositivo y qué conviene mandar en las próximas 48 h» |
 | 2026-11-18 | Correcciones de las dos auditorías del PR #1163: acumulados desde `SLAEmergencia.inicio_evento` (nuevo, solo expand, decisión cliente en la pregunta 5; sin fecha, estado vacío), límite de A4 sin recepciones, evento anterior en el dataset de performance y `EXPLAIN` de `egresado_en`; selector solo con lecturas A1–A5 y el armado, la urgencia y la presentación de salud en services (`armar_abastecimiento`, `presentar_salud`, `sin_dosis` única con AE-7), AE-8 a AE-10 en `alertas_situacion_emergencia.py`; última recepción y «sin entrega en 48 h» desde la foto; `crear_tipo_kit` con la regla y traza del alta, campos `blank=True`; AE-9 exacto como AE-7 sin filtro; sin nombres de salud cuando el conteo es deducible; dotación faltante = cobertura 0 h; «Preparar entrega» ⇔ operar y `ACTIVO`; sin la justificación errónea de `_paginacion`; E-7 partido en E-7a (2,5 h) y E-7b (8 h); ejemplo de la §12 rehecho por dispositivo para que AB1, AB3 y AB4 cierren | Auditorías del PR #1163 |
 | 2026-11-18 | **Definido.** Las 14 preguntas resueltas (§10: el PM aceptó las propuestas y las que no tenían se cerraron con el alcance del análisis); RN-009-11: salud solo provincial con filtro (la supresión complementaria se descartó tras seis rondas de auditoría porque cada versión dejaba despejar un valor por resta, cotas de las etiquetas, cruce de niveles o indicadores anidados; decisión del PM); dependencias de E-7a/E-7b sin «decisión cliente» pendiente; piezas compartidas en ~17 h (C5 1 h, C6 2 h); issues #1171–#1187 (§8.5) | Pedido del PM: «aceptamos todas las propuestas, armá los issues» |
+| 2026-11-18 | Decisiones del PM sobre lo que encontró QA: AE-5 una alerta por dispositivo, después de las alertas de la red y entre sí por tensión, con AE-7 antes (R1 rehecho: «Mostrando 6 de 8»); ventana por defecto 72 h; E-3 (`ver_situacion`) fusionada en E-5 (#1182 → #1184, 10 h) para que el ítem del menú llegue con la URL | Casos de QA del #1172 |
 
 ---
 
@@ -997,18 +997,19 @@ la provincia.»
 
 ### Solapa Resumen (bloques apilados, en este orden)
 
-**R1 · Necesita atención** (`_alerta`, «Mostrando 6 de 7»)
+**R1 · Necesita atención** (`_alerta`, «Mostrando 6 de 8»)
 1. Alta · «La red se satura en ≈ 11 h al ritmo actual» — «En las últimas 6 h ingresaron 132 personas y egresaron
    41. Quedan 163 camas libres.»
 2. Alta · «Presión crítica en 4 localidades: Juan José Castelli, Barranqueras y Resistencia, y 1 más» —
    «Barranqueras: 133 personas esperan y hay 41 camas libres a menos de 25 km, que comparte con Resistencia,
    Fontana y Puerto Vilelas.»
-3. Alta · «Club Atlético Sarmiento (Resistencia) está lleno y tiene 2 derivaciones pendientes.»
-4. Alta · «9 personas alojadas con medicación crítica no tienen dosis.»
-5. Media · «Casos nuevos en alza: 96 en las últimas 24 h, 38 % más que el promedio de las tres 24 h anteriores.»
-6. Media · «El tramo “aceptar” está trabado: el p90 es 4 h 10 min contra un objetivo de 2 h.»
+3. Alta · «9 personas alojadas con medicación crítica no tienen dosis.»
+4. Alta · «Club Atlético Sarmiento (Resistencia) está lleno y tiene 2 derivaciones pendientes.»
+5. Alta · «EES N.° 9 (Barranqueras) está en nivel Crítica (96 %) y tiene 1 derivación pendiente.»
+6. Media · «Casos nuevos en alza: 96 en las últimas 24 h, 38 % más que el promedio de las tres 24 h anteriores.»
 
-(La 7.ª, «3 dispositivos con gente y sin entrega en 48 h», queda fuera por el tope y está en R7.) Con
+(Quedan fuera por el tope el tramo «aceptar» trabado (AE-4), que se ve en R5, y «3 dispositivos con gente y sin
+entrega en 48 h» (AE-6), que está en R7. AE-5 es una alerta por dispositivo y va después de las alertas de la red.) Con
 `supervisar`, al pie, sin cifra: «Ver los avisos operativos en el tablero de la mesa →».
 
 **R2 · Presión por localidad** (tabla `.tabla`, ancho completo; badge con ícono + texto)

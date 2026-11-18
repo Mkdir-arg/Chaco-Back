@@ -1,4 +1,4 @@
-"""Cambio 484: el DNI ya registrado con otro nombre en el backoffice.
+"""Cambio 486: el DNI ya registrado con otro nombre en el backoffice.
 
 «Nuevo caso» de la mesa y «Ingresar igual» / «Avisar a la mesa» del dispositivo muestran el
 rechazo de ``crear_caso`` bajo el DNI, conservan lo cargado y ofrecen la casilla de identidad
