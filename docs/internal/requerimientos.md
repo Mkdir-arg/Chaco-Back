@@ -612,7 +612,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
-| 490 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟡 **En curso** | Sí — `programas.0126` (5 `AddField`, solo expand) |
+| 490 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 
 **Notas del índice**
 
@@ -56976,7 +56976,6 @@ en un rol sin `dispositivo.ver`) y revertir el commit.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
-- **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 
 ---
 
@@ -57059,7 +57058,6 @@ Revertir el commit; no hay datos ni migración.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
-- **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 
 ---
 
@@ -57561,7 +57559,7 @@ Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita l
 
 # Cambio 490 — Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento
 
-🟡 **EN CURSO — 18/11/2026**
+🟢 **HECHO — 18/11/2026**
 
 | | |
 |---|---|
@@ -57591,9 +57589,9 @@ valores iniciales de las reglas (pregunta 13: los carga la mesa desde E7, no hay
   `regla_cantidad` (decimal 7,2, > 0), `regla_por` (persona, familia, lactante) y `regla_cada_dias` (≥ 1). Completa o
   vacía: `TipoKit.clean()` la valida, así que la rechazan el formulario y el servicio (`full_clean`).
 - **Los cuatro son `blank=True`:** los ítems que ya existen nacen «sin regla» y E7 los sigue editando.
-- **Lo que no aplica se vacía solo en el formulario:** pasar a «Sin regla» borra cantidad, por y días; pasar a
-  «Dotación» borra los días. El servicio, en cambio, rechaza una regla a medias (una API futura no pasa por el form).
-  Responde la asunción 14 de QA del #1183/#1186.
+- **Pasar a «Sin regla» vacía la regla sola en el formulario** (cantidad, por y días): responde la asunción de QA
+  del #1186. Una **dotación con días se rechaza**, no se borra en silencio (TC-1186-08). El servicio rechaza toda
+  regla a medias (una API futura no pasa por el form).
 - **`inicio_evento`** (`DateTimeField`, `null=True`): opcional, en el bloque del evento de E7, `datetime-local`. No
   puede ser futuro (`SLAEmergencia.clean()`; MINOR arrastrado de la auditoría del PR #1163).
 - **Traza:** `CAMPOS_TIPO_KIT` y `CAMPOS_SLA` suman los campos nuevos, así que cada cambio deja su fila. El alta de un
@@ -57655,5 +57653,6 @@ cargadas).
 
 - **18/11/2026:** alta del cambio.
 - **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
+- **18/11/2026:** auditoría del PR #1199: la dotación con días se rechaza en E7 en vez de vaciarse (TC-1186-08); `CAMPOS_TIPO_KIT` se arma con `CAMPOS_REGLA`.
 
 ---
