@@ -605,7 +605,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
-| 483 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2 en Dispositivo y Ciudadano) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048`, `legajos.0012` |
+| 483 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048`, `legajos.0012` |
 
 **Notas del índice**
 
@@ -56889,7 +56889,7 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 
 # Cambio 483 — Mapa con Google Maps y domicilio → coordenadas
 
-🟡 **EN CURSO — fase 1 y fase 2 en Dispositivo y Ciudadano hechas el 18/11/2026**
+🟡 **EN CURSO — fases 1 y 2 (Dispositivo, Ciudadano y Emergencia) hechas el 18/11/2026**
 
 | | |
 |---|---|
@@ -56976,6 +56976,13 @@ debajo de provincia, municipio y localidad, y la búsqueda usa las elegidas. Sie
 legajo no le pide nada a Google; el mapa carga con «Ubicar en el mapa» o, si ya hay coordenadas, con «Ver en
 el mapa». El portal no las pide ni las toca, y la API no las expone (sus serializadores listan campos).
 
+Fase 2, en Emergencia: la dirección del Formulario 1 usa la misma pieza, a pedido, en «Nuevo caso» de la mesa
+y en el Formulario 1 de la puerta del dispositivo (los dos comparten `_formulario1_bloques.html`). El form suma
+`latitud` y `longitud` opcionales, con rango validado, que llegan a `crear_caso` como la posición del GPS de la
+app y sin `precision_m`. Con ese punto, el panel «Derivar» de la ficha ya calcula la distancia a cada
+dispositivo (`selectors.emergencia.distancia_km`), que en los casos de la mesa hasta ahora quedaba
+«desconocida». La app de campo no cambia: sigue mandando su GPS.
+
 ## Archivos
 
 `config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
@@ -56994,6 +57001,10 @@ Fase 2, Ciudadano: `legajos/models/base.py`, `legajos/migrations/0012_ciudadano_
 `legajos/forms/ciudadanos.py`, `legajos/templates/legajos/ciudadano_manual_form.html`,
 `ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`, `legajos/tests/test_ciudadano_ubicacion_mapa.py`;
 la pieza suma `provincia_id` y `a_pedido` (`_ubicacion_domicilio.html`, `nodo-ubicacion.js`, su ficha y su fila).
+
+Fase 2, Emergencia: `programas/forms_emergencia.py`, `programas/templates/programas/emergencia/_formulario1_bloques.html`,
+`casos/form.html`, `dispositivo/formulario1.html`, `programas/tests/test_emergencia_ubicacion_mapa.py`,
+`.claude/design/componentes/ubicacion_domicilio.md`.
 
 ## Base de datos
 
@@ -57023,6 +57034,10 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   pantallas y el guardado) OK; prueba de punta a punta sobre la edición real: 16 de 16 (no carga Google al
   abrir, «Ver en el mapa», búsqueda con provincia y localidad elegidas, carga a mano antes de abrir el mapa).
   Suites de `legajos`, `core`, `portal`, `users` y Dispositivos sin fallas nuevas.
+- Fase 2, Emergencia: `test_emergencia_ubicacion_mapa` (pieza a pedido en las dos pantallas, el punto llega al
+  caso sin precisión, coordenada fuera de rango vuelve al campo, aviso a la mesa desde la puerta) y los 990 tests
+  de Emergencia OK; punta a punta sobre «Nuevo caso» real: 5 de 5 (no carga Google al abrir, busca con la
+  localidad elegida, Enter no envía).
 
 ## Puesta en marcha en el servidor
 
@@ -57031,7 +57046,7 @@ Sin ellas no cambia nada.
 
 ## Pendientes / a definir
 
-- Fase 2 en Caso de Emergencia; fases 3 y 4.
+- Fases 3 y 4.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
@@ -57050,5 +57065,6 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
 - **18/11/2026:** alta del cambio con la fase 1.
 - **18/11/2026:** fase 2 en Dispositivo, después de aprobar el mockup sobre la pantalla real.
 - **18/11/2026:** fase 2 en Ciudadano, con `legajos.0012` y el mapa a pedido.
+- **18/11/2026:** fase 2 en Emergencia (mesa y puerta del dispositivo). Cierra la fase 2.
 
 ---

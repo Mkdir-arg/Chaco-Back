@@ -6,7 +6,8 @@
 **Consumidor de referencia:** alta y edición del legajo de Dispositivos
 (`programas/templates/programas/dispositivos/legajo/form.html`). **A pedido:** alta manual, confirmación con
 RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_form.html`,
-`ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`). Próximo: Caso de Emergencia.
+`ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`) y la dirección del Formulario 1 de Emergencia, en
+«Nuevo caso» de la mesa y en la puerta del dispositivo (`programas/templates/programas/emergencia/_formulario1_bloques.html`).
 **Depende de:** el cargador de Google Maps (`.claude/design/componentes/mapa_google.md`).
 
 ## Invocación
