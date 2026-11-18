@@ -6,7 +6,10 @@ Contexto:
   domicilio, latitud, longitud  BoundField (obligatorios). Se dibujan con el mismo label, ayuda y error que
                                 components/_field.html.
   localidad_id   opcional: id del control de localidad; su texto se suma a la búsqueda.
+  provincia_id   opcional: id del control de provincia; si tiene una elegida, reemplaza a `provincia`.
   provincia      opcional, por defecto «Chaco».
+  a_pedido       opcional. Con True no se le pide nada a Google al abrir la pantalla: el mapa carga recién con
+                 «Ubicar en el mapa» o «Ver en el mapa» (SEC-33). Va en todo domicilio de una persona.
   wrapper_class  clases del contenedor; por defecto «sm:col-span-2» (ocupa la fila en una grilla de dos).
 La pantalla carga, una sola vez y en este orden, `components/_google_maps.html` y
 `static/custom/js/nodo-ubicacion.js` en `customJS`, y `static/custom/css/nodo-ubicacion.css` en `page_css`.
@@ -14,7 +17,7 @@ Sin JS o sin GOOGLE_MAPS_API_KEY se ve como antes: domicilio, latitud y longitud
 se renderizan visibles y el JS los pliega cuando el mapa carga). Con errores en latitud o longitud quedan abiertos.
 Ficha: .claude/design/componentes/ubicacion_domicilio.md
 {% endcomment %}{% load nodo_ui %}
-<div class="{{ wrapper_class|default:'sm:col-span-2' }} nodo-ubicacion" data-nodo-ubicacion data-localidad="{{ localidad_id|default:'' }}" data-provincia="{{ provincia|default:'Chaco' }}" data-latitud="{{ latitud.auto_id }}" data-longitud="{{ longitud.auto_id }}" data-domicilio="{{ domicilio.auto_id }}"{% if latitud.errors or longitud.errors %} data-manual-abierto{% endif %}>
+<div class="{{ wrapper_class|default:'sm:col-span-2' }} nodo-ubicacion" data-nodo-ubicacion data-localidad="{{ localidad_id|default:'' }}" data-provincia="{{ provincia|default:'Chaco' }}" data-provincia-id="{{ provincia_id|default:'' }}"{% if a_pedido %} data-a-pedido{% endif %} data-latitud="{{ latitud.auto_id }}" data-longitud="{{ longitud.auto_id }}" data-domicilio="{{ domicilio.auto_id }}"{% if latitud.errors or longitud.errors %} data-manual-abierto{% endif %}>
   <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
     <label id="{{ domicilio.auto_id }}-etiqueta" class="block text-sm font-medium text-heading"{% if domicilio.id_for_label %} for="{{ domicilio.id_for_label }}"{% endif %}>
       {{ domicilio.label }}{% if domicilio.field.required or domicilio.field.marca_requerido %} <span class="text-fg-danger">*</span>{% endif %}
@@ -45,7 +48,10 @@ Ficha: .claude/design/componentes/ubicacion_domicilio.md
       <div><dt>Latitud</dt><dd data-ubicacion-lat>—</dd></div>
       <div><dt>Longitud</dt><dd data-ubicacion-lng>—</dd></div>
     </dl>
+    <div class="flex flex-wrap gap-2">
+    <button type="button" class="btn-nodo btn-secondary btn-sm" data-ubicacion-ver hidden><i class="fas fa-map-location-dot" aria-hidden="true"></i> Ver en el mapa</button>
     <button type="button" class="btn-nodo btn-tertiary btn-sm" data-ubicacion-manual-toggle aria-expanded="false" aria-controls="{{ latitud.auto_id }}-manual"><i class="fas fa-keyboard" aria-hidden="true"></i> Cargar coordenadas a mano</button>
+    </div>
   </div>
 
   <div id="{{ latitud.auto_id }}-manual" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3" data-ubicacion-manual>

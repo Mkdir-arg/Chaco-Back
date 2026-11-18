@@ -88,10 +88,6 @@
                                     {{ form.email }}
                                 </div>
                             </div>
-                            <div>
-                                <label for="{{ form.domicilio.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.domicilio.label }}</label>
-                                {{ form.domicilio }}
-                            </div>
                             <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                                 <div>
                                     <label for="{{ form.provincia.id_for_label }}" class="mb-2 block text-sm font-medium text-gray-900">{{ form.provincia.label }}</label>
@@ -106,6 +102,8 @@
                                     {{ form.localidad }}
                                 </div>
                             </div>
+                            {% comment %}Cambio 483: domicilio con mapa, debajo de la localidad para que la búsqueda la use. A pedido (SEC-33).{% endcomment %}
+                            {% include "components/_ubicacion_domicilio.html" with domicilio=form.domicilio latitud=form.latitud longitud=form.longitud localidad_id=form.localidad.id_for_label provincia_id=form.provincia.id_for_label a_pedido=True wrapper_class="" %}
                         </div>
                     </section>
 
@@ -343,4 +341,10 @@
         </form>
 </div>
 </div>
+{% endblock %}
+
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-ubicacion.css' %}">{% endblock %}
+{% block customJS %}
+{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-ubicacion.js' %}"></script>
 {% endblock %}

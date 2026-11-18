@@ -6,6 +6,8 @@
  *   - «Ubicar en el mapa» (o Enter en el domicilio) geocodifica «domicilio, localidad, provincia, Argentina».
  *   - Un resultado: pone el marcador. Varios: lista para elegir. Ninguno: aviso y se marca tocando el mapa.
  *   - El marcador se arrastra y un clic en el mapa lo mueve; latitud y longitud se escriben en los campos.
+ * Con `data-a-pedido` (domicilio de una persona, SEC-33) no se le pide nada a Google al abrir la
+ * pantalla: el mapa carga recién con «Ubicar en el mapa» o «Ver en el mapa».
  * Requiere window.NodoMapa (components/_google_maps.html), cargado antes que este archivo.
  */
 (function () {
@@ -42,6 +44,9 @@
     var campoLat = document.getElementById(raiz.dataset.latitud);
     var campoLng = document.getElementById(raiz.dataset.longitud);
     var campoLocalidad = raiz.dataset.localidad ? document.getElementById(raiz.dataset.localidad) : null;
+    var campoProvincia = raiz.dataset.provinciaId ? document.getElementById(raiz.dataset.provinciaId) : null;
+    var aPedido = raiz.hasAttribute('data-a-pedido');
+    var ver = q('ubicacion-ver');
     var boton = q('ubicacion-buscar');
     var badge = q('ubicacion-estado');
     var aviso = q('ubicacion-aviso');
@@ -72,14 +77,17 @@
       manual.hidden = !abrir;
       toggle.setAttribute('aria-expanded', String(abrir));
     }
+    function textoDe(campo) {
+      if (!campo) { return ''; }
+      if (!campo.options) { return campo.value.trim(); }
+      var opcion = campo.options[campo.selectedIndex];
+      return opcion && opcion.value ? opcion.text.trim() : '';
+    }
     function consulta() {
       var partes = [campoDomicilio.value.trim()];
-      if (campoLocalidad) {
-        var opcion = campoLocalidad.options ? campoLocalidad.options[campoLocalidad.selectedIndex] : null;
-        var texto = opcion && opcion.value ? opcion.text : (campoLocalidad.options ? '' : campoLocalidad.value);
-        if (texto && texto.trim()) { partes.push(texto.trim()); }
-      }
-      partes.push(raiz.dataset.provincia || 'Chaco', 'Argentina');
+      var localidad = textoDe(campoLocalidad);
+      if (localidad) { partes.push(localidad); }
+      partes.push(textoDe(campoProvincia) || raiz.dataset.provincia || 'Chaco', 'Argentina');
       return partes.join(', ');
     }
     function escribir(lat, lng) {
@@ -195,6 +203,7 @@
     function sinMapa(clave) {
       marco.hidden = true;
       boton.hidden = true;
+      ver.hidden = true;
       resumen.hidden = true;
       candidatos.hidden = true;
       badge.hidden = true;
@@ -211,8 +220,8 @@
 
     var lat0 = numero(campoLat.value), lng0 = numero(campoLng.value);
     var conPunto = valida(lat0, lng0);
+    var carga = null;
     boton.hidden = false;
-    marco.hidden = false;
     resumen.hidden = false;
     q('ubicacion-ayuda-mapa').hidden = false;
     abrirManual(raiz.hasAttribute('data-manual-abierto'));
@@ -222,30 +231,57 @@
       q('ubicacion-lng').textContent = lng0.toFixed(6);
     }
 
-    window.NodoMapa.importar('marker', 'geocoding')
-      .then(function (librerias) {
-        Marcador = librerias[0].AdvancedMarkerElement;
-        Pin = librerias[0].PinElement;
-        geocoder = new librerias[1].Geocoder();
-        var opciones = conPunto ? { center: { lat: lat0, lng: lng0 }, zoom: ZOOM_PUNTO } : {};
-        return window.NodoMapa.crearMapa(q('ubicacion-mapa'), opciones);
-      })
-      .then(function (m) {
-        mapa = m;
-        if (conPunto) { ponerMarcador(lat0, lng0); }
-        mapa.addListener('click', function (evento) {
-          var p = comoLiteral(evento.latLng);
-          if (!p) { return; }
-          candidatos.hidden = true;
-          mostrarAviso(null);
-          fijar(p.lat, p.lng, consultaUbicada || conPunto ? 'ajustado' : 'manual', false);
+    function cargarMapa() {
+      if (carga) { return carga; }
+      marco.hidden = false;
+      ver.hidden = true;
+      carga = window.NodoMapa.importar('marker', 'geocoding')
+        .then(function (librerias) {
+          Marcador = librerias[0].AdvancedMarkerElement;
+          Pin = librerias[0].PinElement;
+          geocoder = new librerias[1].Geocoder();
+          // El punto vigente al cargar: en un mapa a pedido pudo cambiar a mano antes de abrirlo.
+          var lat = numero(campoLat.value), lng = numero(campoLng.value);
+          var opciones = valida(lat, lng) ? { center: { lat: lat, lng: lng }, zoom: ZOOM_PUNTO } : {};
+          return window.NodoMapa.crearMapa(q('ubicacion-mapa'), opciones).then(function (m) {
+            mapa = m;
+            if (valida(lat, lng)) { ponerMarcador(lat, lng); }
+            mapa.addListener('click', function (evento) {
+              var p = comoLiteral(evento.latLng);
+              if (!p) { return; }
+              candidatos.hidden = true;
+              mostrarAviso(null);
+              fijar(p.lat, p.lng, consultaUbicada || conPunto ? 'ajustado' : 'manual', false);
+            });
+            return m;
+          });
+        })
+        .catch(function (error) {
+          sinMapa('error');
+          throw error;
         });
-      })
-      .catch(function () { sinMapa('error'); });
+      return carga;
+    }
+    function pedirUbicacion() {
+      if (!campoDomicilio.value.trim()) {
+        errorDomicilio('Escribí calle y número para buscar.');
+        campoDomicilio.focus();
+        return;
+      }
+      cargarMapa().then(ubicar, function () {});
+    }
 
-    boton.addEventListener('click', function () { if (geocoder) { ubicar(); } });
+    if (aPedido) {
+      marco.hidden = true;
+      ver.hidden = !conPunto;
+    } else {
+      cargarMapa().catch(function () {});
+    }
+
+    boton.addEventListener('click', pedirUbicacion);
+    ver.addEventListener('click', function () { cargarMapa().catch(function () {}); });
     campoDomicilio.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); if (geocoder && !boton.hidden) { ubicar(); } }
+      if (e.key === 'Enter') { e.preventDefault(); if (!boton.hidden) { pedirUbicacion(); } }
     });
     function revisarCambio() {
       if (consultaUbicada && marcador) { estado(consulta() === consultaUbicada ? 'google' : 'cambio'); }
@@ -255,12 +291,13 @@
     toggle.addEventListener('click', function () { abrirManual(manual.hidden); });
     function desdeCampos() {
       var lat = numero(campoLat.value), lng = numero(campoLng.value);
-      if (!mapa || !valida(lat, lng)) { return; }
-      ponerMarcador(lat, lng);
-      mapa.panTo({ lat: lat, lng: lng });
+      if (!valida(lat, lng)) { return; }
       q('ubicacion-lat').textContent = lat.toFixed(6);
       q('ubicacion-lng').textContent = lng.toFixed(6);
       estado('manual');
+      if (!mapa) { ver.hidden = !aPedido || Boolean(carga); return; }
+      ponerMarcador(lat, lng);
+      mapa.panTo({ lat: lat, lng: lng });
     }
     // `change` lo dispara también `escribir`: solo se atiende el que viene del operador.
     [campoLat, campoLng].forEach(function (c) {

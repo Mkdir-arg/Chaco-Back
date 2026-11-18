@@ -34,6 +34,10 @@ class Ciudadano(TimeStamped):
     telefono = models.CharField(max_length=40, blank=True, db_index=True)
     email = models.EmailField(blank=True, db_index=True)
     domicilio = models.CharField(max_length=240, blank=True)
+    # Cambio 483: punto del domicilio, del Geocoder de Google o marcado a mano en el mapa del
+    # backoffice. Mismo tipo que `Dispositivo.latitud`. Nunca lo completa el portal.
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Latitud")
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Longitud")
 
     # Datos territoriales
     provincia = models.ForeignKey(

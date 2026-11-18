@@ -1001,6 +1001,14 @@ class UbicacionDomicilioTest(SimpleTestCase):
             self.assertIn(f'data-ubicacion-alerta="{clave}"', html)
         self.assertIn("No encontramos ese domicilio.", html)
 
+    def test_a_pedido_marca_la_pieza_y_trae_ver_en_el_mapa(self):
+        html = self.render(self.Form(), a_pedido=True, provincia_id="id_provincia")
+
+        self.assertIn("data-a-pedido", html)
+        self.assertIn('data-provincia-id="id_provincia"', html)
+        self.assertRegex(html, r"<button[^>]*data-ubicacion-ver hidden")
+        self.assertNotIn("data-a-pedido", self.render(self.Form()))
+
     def test_con_error_en_las_coordenadas_los_campos_manuales_quedan_abiertos(self):
         form = self.Form(data={"latitud": "no-es-numero", "longitud": ""})
         form.is_valid()

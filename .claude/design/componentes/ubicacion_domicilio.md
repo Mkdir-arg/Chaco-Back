@@ -4,7 +4,9 @@
 **Evidencia:** `templates/components/_ubicacion_domicilio.html`, `static/custom/js/nodo-ubicacion.js`,
 `static/custom/css/nodo-ubicacion.css`, `core/tests/test_nodo_ui_piezas.py` (`UbicacionDomicilioTest`).
 **Consumidor de referencia:** alta y edición del legajo de Dispositivos
-(`programas/templates/programas/dispositivos/legajo/form.html`). Próximos: Ciudadano y Caso de Emergencia.
+(`programas/templates/programas/dispositivos/legajo/form.html`). **A pedido:** alta manual, confirmación con
+RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_form.html`,
+`ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`). Próximo: Caso de Emergencia.
 **Depende de:** el cargador de Google Maps (`.claude/design/componentes/mapa_google.md`).
 
 ## Invocación
@@ -27,7 +29,9 @@
 |---|---|
 | `domicilio`, `latitud`, `longitud` | BoundField. Label, ayuda y error con el mismo marcado que `_field.html` |
 | `localidad_id` | Opcional. El texto de la opción elegida se suma a la búsqueda |
+| `provincia_id` | Opcional. Id del control de provincia; si tiene una elegida, reemplaza a `provincia` |
 | `provincia` | Opcional, «Chaco» por defecto |
+| `a_pedido` | Opcional. Con `True` la pantalla no le pide nada a Google al abrirse: el mapa carga con «Ubicar en el mapa» o, si ya hay coordenadas, con «Ver en el mapa». **Obligatorio en el domicilio de una persona** (SEC-33) |
 | `wrapper_class` | Opcional, `sm:col-span-2` por defecto |
 
 ## Comportamiento
@@ -47,8 +51,13 @@
   domicilio, latitud y longitud a mano, con alerta `info` o `danger`. Con errores de validación en latitud o
   longitud los campos manuales quedan abiertos.
 
+- **A pedido:** hasta que el operador lo pide, el bloque muestra el domicilio, el botón, las coordenadas y
+  «Ver en el mapa» (solo con coordenadas guardadas); el recuadro del mapa no existe. Así abrir un legajo no le
+  manda a Google la ubicación de la persona.
+
 ## Prohibido
 
 - Geocodificar en `input`/`blur` (gasta cuota).
 - Borrar coordenadas cuando cambia el domicilio.
 - Usarla en el portal ciudadano: la inscripción pública no geocodifica (Cambio 483).
+- Usarla sin `a_pedido=True` en el domicilio de una persona.

@@ -605,7 +605,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
-| 483 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2 en Dispositivo) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048` |
+| 483 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2 en Dispositivo y Ciudadano) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048`, `legajos.0012` |
 
 **Notas del índice**
 
@@ -56889,7 +56889,7 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 
 # Cambio 483 — Mapa con Google Maps y domicilio → coordenadas
 
-🟡 **EN CURSO — fases 1 y 2 (Dispositivo) hechas el 18/11/2026**
+🟡 **EN CURSO — fase 1 y fase 2 en Dispositivo y Ciudadano hechas el 18/11/2026**
 
 | | |
 |---|---|
@@ -56899,7 +56899,7 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 | **Fecha del pedido** | 18/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Backoffice · Servidor/API · Infra/ECOM |
-| **Migración** | `users.0048` (fase 1) |
+| **Migración** | `users.0048` (fase 1), `legajos.0012` (fase 2, Ciudadano) |
 
 ## Pedido original
 
@@ -56970,6 +56970,12 @@ Fase 2, en Dispositivo (alta y edición del legajo), con el diseño aprobado en 
 - Sin JS, sin key, con la key rechazada o si falla la búsqueda, quedan domicilio, latitud y longitud a mano,
   como antes, con una alerta.
 
+Fase 2, en Ciudadano: `Ciudadano` suma `latitud` y `longitud` (opcionales, 6 decimales) y la misma pieza
+reemplaza al domicilio en el alta manual, en la confirmación con RENAPER y en la edición. En la edición va
+debajo de provincia, municipio y localidad, y la búsqueda usa las elegidas. Siempre **a pedido**: abrir el
+legajo no le pide nada a Google; el mapa carga con «Ubicar en el mapa» o, si ya hay coordenadas, con «Ver en
+el mapa». El portal no las pide ni las toca, y la API no las expone (sus serializadores listan campos).
+
 ## Archivos
 
 `config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
@@ -56984,7 +56990,17 @@ Fase 2: `templates/components/_ubicacion_domicilio.html`, `static/custom/js/nodo
 `.claude/design/arquetipos/formulario.md`, `core/tests/test_nodo_ui_piezas.py` (`UbicacionDomicilioTest`),
 `programas/tests/test_dispositivos_ubicacion_mapa.py`.
 
+Fase 2, Ciudadano: `legajos/models/base.py`, `legajos/migrations/0012_ciudadano_coordenadas.py`,
+`legajos/forms/ciudadanos.py`, `legajos/templates/legajos/ciudadano_manual_form.html`,
+`ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`, `legajos/tests/test_ciudadano_ubicacion_mapa.py`;
+la pieza suma `provincia_id` y `a_pedido` (`_ubicacion_domicilio.html`, `nodo-ubicacion.js`, su ficha y su fila).
+
 ## Base de datos
+
+`legajos.0012`: `latitud` y `longitud` en `legajos_ciudadano`, `DECIMAL(9,6) NULL` sin default. Los legajos
+existentes quedan sin punto; el código viejo no las nombra y sigue dando de alta. `ADD COLUMN` instantáneo en
+MySQL 8 y MariaDB 10.3+. Reversa: `migrate legajos 0011` borra las dos columnas y lo que se haya cargado.
+
 
 `users.0048`: declara las dos capacidades (`AlterModelOptions` sobre el modelo ancla `managed = False`,
 no toca el esquema) y se las da al Administrador. Segura sobre datos existentes; reversa real.
@@ -57003,6 +57019,10 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   punta con Playwright sobre la pantalla real de alta, con Google Maps reemplazado por un doble: 26 de 26
   escenarios (búsqueda, coincidencias, sin resultados, arrastre, clic, carga a mano, sin key, key rechazada,
   error de Google, edición con punto guardado). `design_audit.py --ratchet` y `--goldens`: 0.
+- Fase 2, Ciudadano: `test_ciudadano_ubicacion_mapa` (modelo, formularios, portal sin coordenadas, las tres
+  pantallas y el guardado) OK; prueba de punta a punta sobre la edición real: 16 de 16 (no carga Google al
+  abrir, «Ver en el mapa», búsqueda con provincia y localidad elegidas, carga a mano antes de abrir el mapa).
+  Suites de `legajos`, `core`, `portal`, `users` y Dispositivos sin fallas nuevas.
 
 ## Puesta en marcha en el servidor
 
@@ -57011,7 +57031,8 @@ Sin ellas no cambia nada.
 
 ## Pendientes / a definir
 
-- Fase 2 en Ciudadano (con migración de latitud y longitud) y en Caso de Emergencia; fases 3 y 4.
+- Fase 2 en Caso de Emergencia; fases 3 y 4.
+- El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
 - `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
@@ -57021,10 +57042,13 @@ Sin ellas no cambia nada.
 
 Revertir el commit y desaplicar `users.0048` (`migrate users 0047`). No se pierden datos: solo salen las
 dos capacidades del Administrador.
+Fase 2: revertir sus commits; en Ciudadano, además, `migrate legajos 0011`, que borra las dos columnas y las
+coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coordenadas ya existían.
 
 ## Historial
 
 - **18/11/2026:** alta del cambio con la fase 1.
 - **18/11/2026:** fase 2 en Dispositivo, después de aprobar el mockup sobre la pantalla real.
+- **18/11/2026:** fase 2 en Ciudadano, con `legajos.0012` y el mapa a pedido.
 
 ---
