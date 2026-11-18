@@ -363,14 +363,22 @@ def integrante_de(caso, n):
       (``CLAVES_DE_ENVIO``), que no son del formulario. ``{}`` sin confirmar.
     * ``secciones_incompletas`` — los rótulos de las secciones 4 a 8 que faltan.
 
-    ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id``. **1 consulta.**
+    * ``identidad_a_revisar`` — en la persona 1, el responsable, la marca pendiente del caso
+      (``caso.identidad_pendiente``, Cambio 486); en las demás, ``None``.
+
+    ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id`` y ``caso.situacion``. **1 consulta.**
     """
 
     fila = _filas_de_la_familia(caso.grupo_id).filter(orden=n).first()
     if fila is None:
         return None
     ficha = {clave: valor for clave, valor in (fila.ficha or {}).items() if clave not in CLAVES_DE_ENVIO}
-    return {**_fila_de_integrante(fila), "ficha": ficha, "secciones_incompletas": secciones_incompletas(ficha)}
+    return {
+        **_fila_de_integrante(fila),
+        "ficha": ficha,
+        "secciones_incompletas": secciones_incompletas(ficha),
+        "identidad_a_revisar": caso.identidad_pendiente if fila.orden == 1 else None,
+    }
 
 
 def _filas_de_la_familia(grupo_pk):

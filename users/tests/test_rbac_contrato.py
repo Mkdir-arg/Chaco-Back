@@ -102,6 +102,8 @@ CAPACIDADES_SIN_USO = {
     # PR 2 también `emergencia.operar` y `emergencia.relevar`: las exigen los servicios del
     # caso (`programas/services/emergencia.py`). `emergencia.recibir_kit` salió en el PR 9:
     # la exige `recibir_entrega` (`programas/services/kits.py`) sobre el dispositivo destino.
+    # `edificio.ver` estuvo acá entre #1165 y #1167: la capacidad fue primero para que la migración
+    # la sembrara, y salió cuando el listado de Edificios la empezó a evaluar.
     # Mapa de Google Maps, fase 1 (`docs/mapa.md`): el catálogo va primero para que el PM pueda
     # armar los roles; `/mapa/` y su API las empiezan a evaluar en la fase 3, y cada una sale
     # de acá en ese PR.

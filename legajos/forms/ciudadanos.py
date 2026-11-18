@@ -146,7 +146,7 @@ class CiudadanoForm(forms.ModelForm):
                     "class": _FLOWBITE_INPUT_CSS,
                 }
             ),
-            # Cambio 483: los completa el mapa de `components/_ubicacion_domicilio.html`;
+            # Cambio 489: los completa el mapa de `components/_ubicacion_domicilio.html`;
             # quedan a mano sin JS o sin Google Maps.
             "latitud": forms.NumberInput(attrs={"class": _FLOWBITE_INPUT_CSS, "step": "0.000001"}),
             "longitud": forms.NumberInput(attrs={"class": _FLOWBITE_INPUT_CSS, "step": "0.000001"}),

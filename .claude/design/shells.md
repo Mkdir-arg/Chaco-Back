@@ -14,6 +14,8 @@ Las cuatro superficies tienen herencia y assets distintos. **No se mezclan.**
 Se hereda; no se recrean el sidebar ni sus offsets.
 
 El enlace al listado del grupo Dispositivos se llama «Instituciones» (`dispositivos:lista`).
+Le sigue «Edificios» (`dispositivos:edificios`, capacidad `edificio.ver`, subítem con utilidades y
+`aria-current` para `dispositivos/edificios`); «Instituciones» queda inactivo en esa sección.
 El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto y destino.
 
 - El sidebar es un **único panel responsivo**: overlay en móvil y fijo/colapsable en escritorio,
@@ -25,7 +27,7 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
   colapsado `px-3.5 py-2.5 rounded-full` (+ `text-[13.5px] border-0 cursor-pointer text-left` en el
   botón); subítem `px-3 py-2 rounded-full text-[13px]`; chevron `transition-transform` con
   `:class="open ? 'rotate-180' : ''"`. Colores, hover y activo (`aria-current="page"`) los pone
-  `.ds-snav` del `<style>` de `sidebar/base.html`, que gana con `!important`. Evidencia: el grupo
+  `.ds-snav` del `<style>` de `sidebar/base.html`, que gana con `!important`. Evidencia: los grupos Dispositivos (subítems) y
   «Notificaciones». `text-[13.5px]` y `text-[13px]` son una **excepción de shell**: reproducen los
   tamaños que los demás grupos fijan en línea y no amplían la lista blanca de arbitrarios del
   contenido.

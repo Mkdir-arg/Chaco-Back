@@ -65,7 +65,10 @@ class BuscarFamiliaApiTests(BaseApiLlegadas):
         self.assertEqual(sorted(tarjeta["grupo"]), CLAVES_GRUPO_DE_LA_DERIVACION)
         self.assertEqual((tarjeta["id"], tarjeta["estado"], tarjeta["plazas_pedidas"]), (derivacion.pk, "PENDIENTE", 7))
         self.assertEqual(tarjeta["caso"]["id"], caso.pk)
-        self.assertEqual(tarjeta["responsable"], {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222"})
+        self.assertEqual(
+            tarjeta["responsable"],
+            {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222", "identidad_a_revisar": None},
+        )
         self.assertEqual(tarjeta["necesidades"], ["embarazo"])
         self.assertEqual(tarjeta["derivada_por"], "Ana López")
         self.assertIs(tarjeta["vencida"], False)

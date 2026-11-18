@@ -495,13 +495,112 @@ class CrearCasoTests(BaseCasos):
     def test_el_responsable_que_ya_esta_en_el_legajo_se_reusa(self):
         """RN-1.5: por DNI, y sin tocarle nada."""
         persona = Ciudadano.objects.create(dni="28123456", nombre="Marta", apellido="Sosa")
-        caso = self._caso(dni="28.123.456", nombre="Otro", apellido="Nombre", documento_extraviado=True)
+        caso = self._caso(dni="28.123.456", nombre="", apellido="", documento_extraviado=True)
 
         self.assertEqual(caso.grupo.responsable_id, persona.pk)
         persona.refresh_from_db()
         self.assertEqual((persona.nombre, persona.apellido, persona.dni_fisico), ("Marta", "Sosa", ""))
         self.assertEqual(Ciudadano.objects.filter(dni="28123456").count(), 1)
         self.assertTrue(caso.situacion["documento_extraviado"])
+
+    def test_el_mismo_nombre_escrito_distinto_no_es_conflicto(self):
+        """Cambio 486: se compara sin acentos, mayúsculas ni espacios de más."""
+        persona = Ciudadano.objects.create(dni="28123456", nombre="Joaquin", apellido="FARIÑA")
+
+        caso = self._caso(dni="28123456", nombre=" joaquín ", apellido="Fariña")
+
+        self.assertEqual(caso.grupo.responsable_id, persona.pk)
+        self.assertIsNone(caso.identidad_a_revisar)
+
+    def test_solo_el_apellido_que_coincide_no_es_conflicto(self):
+        persona = Ciudadano.objects.create(dni="28123456", nombre="Joaquin", apellido="FARIÑA")
+
+        caso = self._caso(dni="28123456", nombre="", apellido="fariña")
+
+        self.assertEqual(caso.grupo.responsable_id, persona.pk)
+
+    def test_un_dni_registrado_con_otro_nombre_se_rechaza_sin_crear_nada(self):
+        """Cambio 486: antes el nombre cargado se descartaba en silencio."""
+        persona = Ciudadano.objects.create(dni="40732122", nombre="Joaquin", apellido="FARIÑA", genero="M")
+        antes = (GrupoFamiliar.objects.count(), CasoEmergencia.objects.count(), NumeradorEmergencia.objects.count())
+
+        with self.assertRaises(emergencia_alta.DniRegistrado) as error:
+            self._caso(dni="40.732.122", nombre="Pedro", apellido="Gómez", uuid_cliente=uuid.uuid4())
+
+        self.assertEqual(error.exception.persona, {"apellido": "FARIÑA", "nombre": "Joaquin"})
+        self.assertIn("Ese DNI ya está registrado como FARIÑA, Joaquin.", error.exception.message_dict["dni"][0])
+        self.assertEqual(
+            (GrupoFamiliar.objects.count(), CasoEmergencia.objects.count(), NumeradorEmergencia.objects.count()), antes
+        )
+        persona.refresh_from_db()
+        self.assertEqual((persona.nombre, persona.apellido, persona.genero), ("Joaquin", "FARIÑA", "M"))
+
+    def test_el_legajo_inactivo_o_de_otro_genero_tambien_es_conflicto(self):
+        Ciudadano.objects.create(dni="40732122", nombre="Joaquin", apellido="FARIÑA", genero="F", activo=False)
+
+        with self.assertRaises(emergencia_alta.DniRegistrado):
+            self._caso(dni="40732122", nombre="Pedro", apellido="Gómez")
+
+    def test_reenviar_sin_nombre_tras_el_rechazo_crea_el_caso_con_la_persona_registrada(self):
+        persona = Ciudadano.objects.create(dni="40732122", nombre="Joaquin", apellido="FARIÑA")
+        envio = uuid.uuid4()
+        with self.assertRaises(emergencia_alta.DniRegistrado):
+            self._caso(dni="40732122", nombre="Pedro", apellido="Gómez", uuid_cliente=envio)
+
+        caso = self._caso(dni="40732122", nombre="", apellido="", uuid_cliente=envio)
+
+        self.assertEqual(caso.grupo.responsable_id, persona.pk)
+        self.assertIsNone(caso.identidad_a_revisar)
+
+    def test_con_identidad_en_conflicto_el_caso_nace_marcado_y_el_legajo_no_se_toca(self):
+        persona = Ciudadano.objects.create(
+            dni="40732122", nombre="Joaquin", apellido="FARIÑA", genero="M", fecha_nacimiento="2026-01-01"
+        )
+
+        caso = self._caso(
+            dni="40732122", nombre="Pedro", apellido="Gómez", fecha_nacimiento="1980-05-05", identidad_en_conflicto=True
+        )
+
+        caso.refresh_from_db()
+        self.assertEqual(caso.grupo.responsable_id, persona.pk)
+        self.assertEqual(caso.situacion["identidad_a_revisar"], {"nombre": "Pedro", "apellido": "Gómez"})
+        self.assertEqual(caso.identidad_pendiente, {"nombre": "Pedro", "apellido": "Gómez"})
+        self.assertTrue(CasoEmergencia.objects.filter(CasoEmergencia.q_identidad_pendiente(), pk=caso.pk).exists())
+        persona.refresh_from_db()
+        self.assertEqual(
+            (persona.nombre, persona.apellido, persona.genero, str(persona.fecha_nacimiento)),
+            ("Joaquin", "FARIÑA", "M", "2026-01-01"),
+        )
+        traza = self._trazas(caso)[0]
+        self.assertEqual(traza.detalle, "Relevado en territorio · Identidad a revisar")
+        self.assertNotIn("Pedro", traza.detalle)
+
+    def test_identidad_en_conflicto_sin_conflicto_se_ignora(self):
+        sin_legajo = self._caso(dni="31222333", nombre="Rosa", apellido="Benítez", identidad_en_conflicto=True)
+        Ciudadano.objects.create(dni="28123456", nombre="Marta", apellido="Sosa")
+        mismo_nombre = self._caso(dni="28123456", nombre="Marta", apellido="Sosa", identidad_en_conflicto=True)
+
+        for caso in (sin_legajo, mismo_nombre):
+            self.assertIsNone(caso.identidad_a_revisar)
+            self.assertFalse(CasoEmergencia.objects.filter(CasoEmergencia.q_identidad_pendiente(), pk=caso.pk).exists())
+
+    def test_un_envio_ya_creado_se_devuelve_sin_evaluar_el_conflicto(self):
+        envio = uuid.uuid4()
+        primero = self._caso(dni="40732122", nombre="Pedro", apellido="Gómez", uuid_cliente=envio)
+
+        reenvio = self._caso(dni="40732122", nombre="Otro", apellido="Nombre", uuid_cliente=envio)
+
+        self.assertEqual(reenvio.pk, primero.pk)
+        self.assertTrue(reenvio.ya_existia)
+
+    def test_la_carrera_del_alta_tambien_compara_el_nombre(self):
+        """Otro dio de alta el DNI mientras tanto: ``alta_minima_de_persona`` devuelve ese legajo."""
+        ajena = Ciudadano.objects.create(dni="40732122", nombre="Joaquin", apellido="FARIÑA")
+
+        with mock.patch.object(emergencia_alta, "buscar_ciudadano_por_dni", return_value=None):
+            with mock.patch.object(emergencia_alta, "alta_minima_de_persona", return_value=ajena):
+                with self.assertRaises(emergencia_alta.DniRegistrado):
+                    self._caso(dni="40732122", nombre="Pedro", apellido="Gómez")
 
     def test_el_responsable_que_no_esta_se_da_de_alta_con_lo_minimo(self):
         caso = self._caso(dni="31222333", nombre="Rosa", apellido="Benítez")

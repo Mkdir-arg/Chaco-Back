@@ -18,6 +18,7 @@ nunca de ``emergencia``, y ``emergencia`` reexporta lo de acá: los imports de s
 (``from programas.services.emergencia import crear_caso``) siguen andando.
 """
 
+import logging
 import uuid as _uuid
 
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -41,7 +42,10 @@ from programas.models import (
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia_comun import _exigir_mesa, _trazar, siguiente_numero
 from programas.services.emergencia_programa import CAP_EMERGENCIA_RELEVAR, puede_en_programa_emergencia
+from programas.services.identidad import texto_comparable
 from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
+
+logger = logging.getLogger(__name__)
 
 Estado = CasoEmergencia.Estado
 Origen = CasoEmergencia.Origen
@@ -78,6 +82,45 @@ class UuidEnUso(ValidationError):
 
     def __init__(self, mensaje=None):
         super().__init__({"uuid_cliente": mensaje or UUID_EN_USO})
+
+
+class DniRegistrado(ValidationError):
+    """El DNI ya es de una persona registrada con otro nombre y no se pidió revisar (Cambio 486).
+
+    Es un ``ValidationError`` con la clave ``dni`` —la mesa lo muestra bajo el DNI—, con tipo
+    propio para que la API sume ``persona_registrada`` sin parsear el texto. ``persona`` lleva
+    **solo** apellido y nombre: lo mismo que la consulta de identidad ya le da a ese usuario.
+    """
+
+    def __init__(self, ciudadano):
+        self.persona = {"apellido": ciudadano.apellido or "", "nombre": ciudadano.nombre or ""}
+        super().__init__({"dni": mensaje_dni_registrado(ciudadano)})
+
+
+#: El rechazo cuando la cubeta de consultas de identidad del usuario está agotada: sin el nombre.
+MENSAJE_DNI_REGISTRADO_SIN_CUPO = (
+    "Ese DNI ya está registrado como otra persona, y llegaste al tope de consultas de identidad de la hora. "
+    "Probá de nuevo más tarde."
+)
+
+
+def mensaje_dni_registrado(ciudadano):
+    """El mensaje único del rechazo (RN-8 del análisis)."""
+
+    quien = ", ".join(parte for parte in (ciudadano.apellido, ciudadano.nombre) if parte) or "otra persona"
+    return (
+        f"Ese DNI ya está registrado como {quien}. Si es esa persona, enviá sin nombre ni apellido; "
+        "si el DNI está mal, corregilo; si el DNI es correcto y es otra persona, envialo con identidad a revisar."
+    )
+
+
+def _nombre_en_conflicto(ciudadano, nombre, apellido):
+    """¿Lo declarado contradice al legajo? Un campo vacío, de un lado o del otro, no se compara."""
+
+    for declarado, registrado in ((nombre, ciudadano.nombre), (apellido, ciudadano.apellido)):
+        if declarado and registrado and texto_comparable(declarado) != texto_comparable(registrado):
+            return True
+    return False
 
 
 #: El tope de ``CasoEmergencia.precision_m`` (``PositiveIntegerField``) en MySQL y MariaDB.
@@ -255,47 +298,62 @@ def _validar_formulario1(datos):
 
 
 def _responsable(datos, limpio):
-    """El ``Ciudadano`` del responsable: el que ya está en el legajo, o su alta mínima (RN-1.5).
+    """El ``Ciudadano`` del responsable y, si quedó con identidad a revisar, lo declarado.
 
-    El alta es la del asistente de ingreso de Dispositivos (``ingreso.alta_minima_de_persona``),
-    no una copia. El sexo se infiere **solo** si la familia es de una persona; si no, queda
-    sin dato y lo completa la ficha de la etapa 3. «Perdió el documento pero sabe el
-    número» se guarda como ``dni_fisico = NO_TIENE`` en la persona que se da de alta acá
-    (hallazgo H5); a quien ya tenía legajo no se le toca nada.
+    Devuelve ``(ciudadano, declarado)``. ``declarado`` es ``{"nombre", "apellido"}`` tal como
+    vino, o ``None``.
+
+    * La persona registrada con ese DNI es la de :func:`buscar_ciudadano_por_dni`, la misma
+      regla que usa la consulta de identidad de la app (Cambio 486). Si no hay, se le da el alta
+      mínima del asistente de ingreso de Dispositivos (RN-1.5).
+    * Si el envío trae nombre o apellido que contradicen al legajo, sin
+      ``identidad_en_conflicto`` es un :class:`DniRegistrado`; con él, el caso se cuelga del
+      legajo igual y queda marcado para que la mesa lo revise. **El legajo nunca se toca.**
+    * La carrera —otro dio de alta ese DNI mientras tanto y ``alta_minima_de_persona``
+      devuelve ese legajo— pasa por la misma comparación.
+
+    El sexo se infiere **solo** si la familia es de una persona; si no, queda sin dato y lo
+    completa la ficha de la etapa 3. «Perdió el documento pero sabe el número» se guarda como
+    ``dni_fisico = NO_TIENE`` en la persona que se da de alta acá (hallazgo H5); a quien ya
+    tenía legajo no se le toca nada.
     """
 
-    existente = buscar_ciudadano_por_dni(limpio["dni"])
-    if existente is not None:
-        return existente
-    if not dni_valido(limpio["dni"]):
-        raise ValidationError({"dni": MENSAJE_DNI_INVALIDO})
     nombre, apellido = _texto(datos, "nombre"), _texto(datos, "apellido")
-    if not nombre or not apellido:
-        raise ValidationError(
-            {"nombre": "La persona no está en el legajo: cargá su nombre y su apellido para darla de alta."}
-        )
-    genero = ""
-    # Solo con el responsable dentro de las cantidades una familia de uno dice su sexo.
-    if limpio["total_declarado"] == 1 and not limpio["responsable_aparte"]:
-        femenino = limpio["menores_f"] + limpio["adultos_f"] + limpio["mayores_f"]
-        genero = Ciudadano.Genero.FEMENINO if femenino == 1 else Ciudadano.Genero.MASCULINO
-    fecha = datos.get("fecha_nacimiento")
-    try:
-        ciudadano = alta_minima_de_persona(
-            {
-                "dni": limpio["dni"],
-                "nombre": nombre,
-                "apellido": apellido,
-                "fecha_nacimiento": fecha.isoformat() if hasattr(fecha, "isoformat") else (fecha or None),
-                "genero": genero,
-            }
-        )
-    except ValidationError as error:
-        raise ValidationError({"nombre": error.messages}) from error
-    if datos.get("documento_extraviado") and not ciudadano.dni_fisico:
-        ciudadano.dni_fisico = Ciudadano.DniFisico.NO_TIENE
-        ciudadano.save(update_fields=["dni_fisico", "modificado"])
-    return ciudadano
+    ciudadano = buscar_ciudadano_por_dni(limpio["dni"])
+    if ciudadano is None:
+        if not dni_valido(limpio["dni"]):
+            raise ValidationError({"dni": MENSAJE_DNI_INVALIDO})
+        if not nombre or not apellido:
+            raise ValidationError(
+                {"nombre": "La persona no está en el legajo: cargá su nombre y su apellido para darla de alta."}
+            )
+        genero = ""
+        # Solo con el responsable dentro de las cantidades una familia de uno dice su sexo.
+        if limpio["total_declarado"] == 1 and not limpio["responsable_aparte"]:
+            femenino = limpio["menores_f"] + limpio["adultos_f"] + limpio["mayores_f"]
+            genero = Ciudadano.Genero.FEMENINO if femenino == 1 else Ciudadano.Genero.MASCULINO
+        fecha = datos.get("fecha_nacimiento")
+        try:
+            ciudadano = alta_minima_de_persona(
+                {
+                    "dni": limpio["dni"],
+                    "nombre": nombre,
+                    "apellido": apellido,
+                    "fecha_nacimiento": fecha.isoformat() if hasattr(fecha, "isoformat") else (fecha or None),
+                    "genero": genero,
+                }
+            )
+        except ValidationError as error:
+            raise ValidationError({"nombre": error.messages}) from error
+        if datos.get("documento_extraviado") and not ciudadano.dni_fisico:
+            ciudadano.dni_fisico = Ciudadano.DniFisico.NO_TIENE
+            ciudadano.save(update_fields=["dni_fisico", "modificado"])
+
+    if not _nombre_en_conflicto(ciudadano, nombre, apellido):
+        return ciudadano, None
+    if not datos.get("identidad_en_conflicto"):
+        raise DniRegistrado(ciudadano)
+    return ciudadano, {"nombre": nombre, "apellido": apellido}
 
 
 def _caso_de_ese_envio(uuid_cliente, usuario):
@@ -374,7 +432,10 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
 
     * ``traslado`` (código de ``GrupoFamiliar.Traslado``) y ``traslado_otro`` si es «Otra».
     * ``dni`` del responsable; ``nombre`` y ``apellido`` si no está en el legajo;
-      opcionales ``fecha_nacimiento``, ``telefono`` y ``documento_extraviado``.
+      opcionales ``fecha_nacimiento``, ``telefono`` y ``documento_extraviado``. Si el DNI ya
+      está registrado y el nombre o el apellido no coinciden, :class:`DniRegistrado`, salvo
+      que venga ``identidad_en_conflicto``: entonces el caso nace marcado con identidad a
+      revisar y el legajo no se toca (Cambio 486).
     * las seis cantidades (``menores_f``, ``menores_m``, ``adultos_f``, ``adultos_m``,
       ``mayores_f``, ``mayores_m``), ``dependientes``, ``mayores_dependientes``, ``lactantes``.
     * ``responsable_aparte``: ``True`` si las cantidades son los acompañantes y el total
@@ -403,7 +464,15 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
 
     limpio = _validar_formulario1(datos_formulario1)
     ahora = timezone.now()
-    responsable = _responsable(datos_formulario1, limpio)
+    try:
+        responsable, identidad_declarada = _responsable(datos_formulario1, limpio)
+    except DniRegistrado:
+        logger.info(
+            "Emergencia: DNI registrado con otro nombre, envío rechazado (usuario=%s, origen=%s)", usuario.pk, origen
+        )
+        raise
+    if identidad_declarada is not None:
+        limpio["situacion"][CasoEmergencia.SITUACION_IDENTIDAD_A_REVISAR] = identidad_declarada
     prioridad = prioridad_sugerida(
         menores=limpio["menores_f"] + limpio["menores_m"],
         mayores=limpio["mayores_f"] + limpio["mayores_m"],
@@ -463,6 +532,16 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
         adjunto.save()
         anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
 
-    _trazar(caso, usuario, Accion.CREADO, estado_anterior="", detalle=PRIMERA_TRAZA[origen])
+    detalle = PRIMERA_TRAZA[origen]
+    if identidad_declarada is not None:
+        # Sin nombres: el detalle de la traza nunca nombra a la familia.
+        detalle += " · Identidad a revisar"
+        logger.info(
+            "Emergencia: caso %s creado con identidad a revisar (usuario=%s, origen=%s)",
+            caso.numero,
+            usuario.pk,
+            origen,
+        )
+    _trazar(caso, usuario, Accion.CREADO, estado_anterior="", detalle=detalle)
     caso.ya_existia = False
     return caso
