@@ -9,14 +9,22 @@ Reglas que viven en este módulo:
 * **RN-5.5** — cada campo del SLA que cambia deja una fila de ``TrazaConfiguracion``
   (quién, cuándo, campo, antes, después). Un guardado que no cambia nada no deja traza.
 * **RN-4.7** — un ``TipoKit`` se crea, se edita y se activa o desactiva. No se borra.
+* **RN-009-15** — la regla de consumo de un ítem (dotación o reposición, cantidad, por
+  persona/familia/lactante, cada cuántos días) va completa o vacía; cada campo que cambia
+  deja traza, y el alta traza también la regla con la que nació. ``inicio_evento`` del SLA
+  es desde cuándo cuenta la solapa «Abastecimiento» de E8 y no puede ser futuro.
 * El guardado de E7 es **una sola transacción**: o entran el SLA y el catálogo, o no
   entra nada. Con dos supervisores guardando a la vez gana el último y la traza tiene
   los dos cambios (la fila del SLA se toma con ``select_for_update``, así que cada uno
   compara contra lo que dejó el anterior y no contra lo que tenía en pantalla).
 """
 
+from datetime import datetime
+from decimal import Decimal
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from programas.models import SLAEmergencia, TipoKit, TrazaConfiguracion
 from programas.services.emergencia_programa import CAP_SUPERVISAR, programa_emergencia, puede_en_programa_emergencia
@@ -31,10 +39,23 @@ CAMPOS_SLA = (
     "vigencia_derivacion_min",
     "sin_avance_min",
     "umbral_por_vencer_pct",
+    "inicio_evento",
 )
 
 #: Los campos de un tipo de kit que E7 deja editar.
-CAMPOS_TIPO_KIT = ("nombre", "unidad", "orden", "activo")
+CAMPOS_TIPO_KIT = (
+    "nombre",
+    "unidad",
+    "orden",
+    "activo",
+    "regla_modo",
+    "regla_cantidad",
+    "regla_por",
+    "regla_cada_dias",
+)
+
+#: Los campos de la regla de consumo (RN-009-15), en el orden en que se trazan en el alta.
+CAMPOS_REGLA = ("regla_modo", "regla_cantidad", "regla_por", "regla_cada_dias")
 
 #: «Campo» de la traza del alta de un tipo de kit: no es una columna, es el hecho.
 CAMPO_ALTA = "alta"
@@ -65,7 +86,20 @@ def _texto(valor):
     """Cómo se guarda un valor en la traza: lo que leería una persona."""
     if isinstance(valor, bool):
         return "Sí" if valor else "No"
+    if isinstance(valor, datetime):
+        return timezone.localtime(valor).strftime("%d/%m/%Y %H:%M")
+    if isinstance(valor, Decimal):
+        return format(valor.normalize(), "f").replace(".", ",")
     return "" if valor is None else str(valor)
+
+
+def _con_etiquetas(modelo, cambios):
+    """Los valores de un campo con opciones se trazan con su etiqueta («Reposición…», no «REPOSICION»)."""
+    legibles = []
+    for campo, anterior, nuevo in cambios:
+        opciones = dict(modelo._meta.get_field(campo).flatchoices) if campo != CAMPO_ALTA else {}
+        legibles.append((campo, opciones.get(anterior, anterior), opciones.get(nuevo, nuevo)))
+    return legibles
 
 
 def _trazar(programa, usuario, objeto, objeto_id, cambios):
@@ -164,25 +198,46 @@ def _validar_tipo_kit(tipo):
 
 
 @transaction.atomic
-def crear_tipo_kit(usuario, *, nombre, unidad, orden=0, activo=True):
-    """Agrega un ítem al catálogo. Deja una traza de alta."""
+def crear_tipo_kit(
+    usuario,
+    *,
+    nombre,
+    unidad,
+    orden=0,
+    activo=True,
+    regla_modo="",
+    regla_cantidad=None,
+    regla_por="",
+    regla_cada_dias=None,
+):
+    """Agrega un ítem al catálogo. Deja la traza del alta y, si nace con regla, la de cada dato de la regla."""
     _exigir_supervisar(usuario)
-    tipo = TipoKit(nombre=normalizar_nombre(nombre), unidad=(unidad or "").strip(), orden=orden, activo=activo)
+    tipo = TipoKit(
+        nombre=normalizar_nombre(nombre),
+        unidad=(unidad or "").strip(),
+        orden=orden,
+        activo=activo,
+        regla_modo=regla_modo or "",
+        regla_cantidad=regla_cantidad,
+        regla_por=regla_por or "",
+        regla_cada_dias=regla_cada_dias,
+    )
     _validar_tipo_kit(tipo)
     tipo.save()
+    regla = [(campo, "", getattr(tipo, campo)) for campo in CAMPOS_REGLA if getattr(tipo, campo) not in (None, "")]
     _trazar(
         _programa(),
         usuario,
         TrazaConfiguracion.Objeto.TIPO_KIT,
         tipo.pk,
-        [(CAMPO_ALTA, "", str(tipo))],
+        [(CAMPO_ALTA, "", str(tipo)), *_con_etiquetas(TipoKit, regla)],
     )
     return tipo
 
 
 @transaction.atomic
 def editar_tipo_kit(usuario, tipo, **campos):
-    """Cambia nombre, unidad, orden o estado de un ítem. Una traza por campo que cambió."""
+    """Cambia nombre, unidad, orden, estado o regla de un ítem. Una traza por campo que cambió."""
     _exigir_supervisar(usuario)
     return _editar_bloqueado(usuario, TipoKit.objects.select_for_update().get(pk=tipo.pk), campos)
 
@@ -199,7 +254,7 @@ def _editar_bloqueado(usuario, tipo, campos):
         return tipo
     _validar_tipo_kit(tipo)
     tipo.save(update_fields=[campo for campo, _anterior, _nuevo in cambios] + ["modificado"])
-    _trazar(_programa(), usuario, TrazaConfiguracion.Objeto.TIPO_KIT, tipo.pk, cambios)
+    _trazar(_programa(), usuario, TrazaConfiguracion.Objeto.TIPO_KIT, tipo.pk, _con_etiquetas(TipoKit, cambios))
     return tipo
 
 

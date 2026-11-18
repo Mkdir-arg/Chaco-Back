@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth.models import Group, User
@@ -5250,6 +5251,12 @@ class SLAEmergencia(TimeStamped):
         verbose_name="Umbral «por vencer» (%)",
         help_text="Entre 50 y 95. Porcentaje del objetivo desde el que el caso se marca por vencer.",
     )
+    inicio_evento = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Inicio del evento",
+        help_text="Desde cuándo se cuenta lo recibido y lo consumido en Abastecimiento. Sin fecha, no se calcula.",
+    )
 
     class Meta:
         verbose_name = "SLA de Emergencia"
@@ -5257,6 +5264,11 @@ class SLAEmergencia(TimeStamped):
 
     def __str__(self):
         return f"SLA de {self.nombre_evento}"
+
+    def clean(self):
+        super().clean()
+        if self.inicio_evento is not None and self.inicio_evento > timezone.now():
+            raise ValidationError({"inicio_evento": "El inicio del evento no puede ser una fecha futura."})
 
 
 class TipoKit(TimeStamped):
@@ -5275,6 +5287,54 @@ class TipoKit(TimeStamped):
     activo = models.BooleanField(default=True, db_default=True, verbose_name="Activo")
     orden = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Orden")
 
+    class ModoRegla(models.TextChoices):
+        SIN_REGLA = "", "Sin regla"
+        DOTACION = "DOTACION", "Dotación (una vez)"
+        REPOSICION = "REPOSICION", "Reposición (cada N días)"
+
+    class PorRegla(models.TextChoices):
+        PERSONA = "PERSONA", "Persona"
+        FAMILIA = "FAMILIA", "Familia"
+        LACTANTE = "LACTANTE", "Lactante"
+
+    # Regla de consumo (análisis 009, RN-009-15): con qué estima la solapa «Abastecimiento»
+    # de E8 lo que necesita cada dispositivo. «Sin regla» = el ítem no se calcula. Los cuatro
+    # son ``blank=True``: si no, el ``full_clean`` del servicio rechazaría los ítems que ya
+    # existen (nacen sin regla) y E7 dejaría de poder editarlos.
+    regla_modo = models.CharField(
+        max_length=12,
+        choices=ModoRegla.choices,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Regla de consumo",
+        help_text="Dotación: una vez por unidad. Reposición: se consume cada N días.",
+    )
+    regla_cantidad = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        verbose_name="Cantidad",
+        help_text="Cuántas unidades por persona, familia o lactante. Ej.: 0,5 bidón por persona.",
+    )
+    regla_por = models.CharField(
+        max_length=10,
+        choices=PorRegla.choices,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Por",
+    )
+    regla_cada_dias = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name="Cada (días)",
+        help_text="Solo en reposición: cada cuántos días se consume esa cantidad.",
+    )
+
     class Meta:
         verbose_name = "Tipo de kit"
         verbose_name_plural = "Tipos de kit"
@@ -5282,6 +5342,31 @@ class TipoKit(TimeStamped):
 
     def __str__(self):
         return f"{self.nombre} ({self.unidad})"
+
+    def clean(self):
+        """La regla completa o vacía (RN-009-15): una regla a medias daría un consumo infinito o cero."""
+        super().clean()
+        errores = {}
+        obligatorio = "Obligatorio con esta regla."
+        if self.regla_modo == self.ModoRegla.SIN_REGLA:
+            for campo, valor in (
+                ("regla_cantidad", self.regla_cantidad),
+                ("regla_por", self.regla_por),
+                ("regla_cada_dias", self.regla_cada_dias),
+            ):
+                if valor not in (None, ""):
+                    errores[campo] = "Sin regla de consumo, este dato va vacío."
+        else:
+            if self.regla_cantidad is None:
+                errores["regla_cantidad"] = obligatorio
+            if not self.regla_por:
+                errores["regla_por"] = obligatorio
+            if self.regla_modo == self.ModoRegla.REPOSICION and self.regla_cada_dias is None:
+                errores["regla_cada_dias"] = "En reposición hay que decir cada cuántos días."
+            if self.regla_modo == self.ModoRegla.DOTACION and self.regla_cada_dias is not None:
+                errores["regla_cada_dias"] = "La dotación se entrega una vez: va sin días."
+        if errores:
+            raise ValidationError(errores)
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Los tipos de kit no se eliminan: se desactivan.")
