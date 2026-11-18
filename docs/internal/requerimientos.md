@@ -612,6 +612,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
+| 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57548,3 +57549,75 @@ Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita l
   ignora segmentos eliminados, orden de locks invertido y mensaje del subsegmento protegido.
 - **18/11/2026:** el usuario confirma bloquear también los relevamientos en curso (`EN_CURSO`/`FINALIZANDO`);
   la verificación del nombre eliminado queda solo en `validate_constraints` (MINOR de la ronda 2).
+
+# Cambio 490 — Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h)
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#relevamientos` `#datos` `#mobile` |
+| **Solicitante** | Usuario — «hacé el PR con las dos cosas» (los dos MINOR de la ronda 3 de la auditoría del PR #1194) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Seguimiento del Cambio 489: bloquear también la eliminación de relevamientos cerrados que todavía están dentro de
+la gracia de sincronización, y corregir el texto del aviso cuando el bloqueado es el propio relevamiento.
+
+## Alcance acordado
+
+- La regla «en campo» del borrado lógico suma los relevamientos en `campo.ESTADOS_CON_GRACIA` (`FINALIZANDO`,
+  `FINALIZADO`, `EN_REVISION`) mientras dure la gracia (`fecha_hasta` + 24 h).
+- El aviso dice «está en campo» cuando se elimina el propio relevamiento.
+- Afuera: cambiar la gracia o el cierre automático.
+
+## Decisiones tomadas
+
+- **Se reusa la regla de la app, no una propia**: `en_campo_q` traduce a SQL `campo.en_gracia` con
+  `campo.ESTADOS_CON_GRACIA` y `campo.GRACIA_SINCRONIZACION`. Si la gracia cambia, el borrado la sigue.
+- `TERMINADO` no tiene gracia (sus reportes ya salieron) y se sigue pudiendo eliminar sin casos.
+- Cubre los dos caminos que vio la auditoría: el cierre automático por vencimiento y el «Finalizar» manual que
+  alguien aprieta después de que el bloqueo frenó la eliminación.
+
+## Implementación
+
+Un relevamiento está «en campo» mientras está en curso y durante las 24 h siguientes a su cierre. Mientras haya
+uno así en la cascada, no se elimina nada y el mensaje lo explica.
+
+## Archivos
+
+- `programas/services/eliminacion.py` (`en_campo_q`, `EliminacionBloqueada.propio`, `mensaje_bloqueo`)
+- Los cuatro templates de listado (texto del modal)
+- `programas/tests/test_becas_eliminacion.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `programas.tests.test_becas_eliminacion`: cerrado dentro de la gracia bloquea (FINALIZADO y EN_REVISION, sobre
+  programa, convocatoria y relevamiento), vencida la gracia se elimina, TERMINADO sin gracia, y el texto propio
+  del relevamiento.
+- `manage.py check`, ruff, `design_audit --ratchet`, `compile_templates --bloques`.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+No quedan.
+
+## Reversión
+
+Desplegar el código anterior. No hay datos ni columnas.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.

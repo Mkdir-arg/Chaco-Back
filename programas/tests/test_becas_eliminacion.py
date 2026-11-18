@@ -1,6 +1,6 @@
 """Baja lógica en cascada de Programas, Segmentos, Convocatorias y Relevamientos de Becas."""
 
-from datetime import date
+from datetime import date, timedelta
 from io import StringIO
 
 from django.contrib.auth.models import Group, Permission, User
@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from core import rbac
 from programas.forms import SegmentoForm
@@ -23,6 +24,7 @@ from programas.models import (
     Subsegmento,
 )
 from programas.services.autorizacion import segmento_dueno_id
+from programas.services.campo import GRACIA_SINCRONIZACION
 from programas.services.eliminacion import (
     CAP_CONVOCATORIA_ELIMINAR,
     CAP_PROGRAMA_ELIMINAR,
@@ -292,5 +294,40 @@ class RelevamientoEnCampoTests(_Base):
         Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=Relevamiento.Estado.EN_CURSO)
         self.client.force_login(self.eliminador)
         resp = self.client.post(reverse("becas:convocatoria_eliminar", args=[self.convocatoria.pk]), follow=True)
-        self.assertContains(resp, "tiene 1 relevamiento en curso en campo")
+        self.assertContains(resp, "tiene 1 relevamiento en campo")
         self.assertTrue(Convocatoria.objects.filter(pk=self.convocatoria.pk).exists())
+
+    def test_la_vista_del_relevamiento_dice_que_el_esta_en_campo(self):
+        Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=Relevamiento.Estado.EN_CURSO)
+        self.client.force_login(self.eliminador)
+        resp = self.client.post(reverse("becas:relevamiento_eliminar", args=[self.relevamiento.pk]), follow=True)
+        self.assertContains(resp, "No se puede eliminar el relevamiento: está en campo.")
+
+
+class GraciaDeSincronizacionTests(_Base):
+    """Un relevamiento cerrado todavía acepta capturas atrasadas durante la gracia (``campo.en_gracia``)."""
+
+    def _cerrado(self, estado, cerro_hace):
+        Relevamiento.objects.filter(pk=self.relevamiento.pk).update(
+            estado=estado, fecha_hasta=timezone.now() - cerro_hace
+        )
+
+    def test_cerrado_dentro_de_la_gracia_bloquea(self):
+        for estado in (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION):
+            with self.subTest(estado=estado):
+                self._cerrado(estado, timedelta(hours=2))
+                for objeto in (self.programa, self.convocatoria, self.relevamiento):
+                    with self.assertRaises(EliminacionBloqueada) as ctx:
+                        eliminar(objeto, self.eliminador)
+                    self.assertEqual(ctx.exception.en_campo, 1)
+        self.assertFalse(Relevamiento.todos.filter(eliminado_en__isnull=False).exists())
+
+    def test_vencida_la_gracia_se_elimina(self):
+        self._cerrado(Relevamiento.Estado.EN_REVISION, GRACIA_SINCRONIZACION + timedelta(minutes=1))
+        eliminar(self.convocatoria, self.eliminador)
+        self.assertFalse(Relevamiento.objects.filter(pk=self.relevamiento.pk).exists())
+
+    def test_terminado_no_tiene_gracia(self):
+        self._cerrado(Relevamiento.Estado.TERMINADO, timedelta(hours=2))
+        eliminar(self.relevamiento, self.eliminador)
+        self.assertFalse(Relevamiento.objects.filter(pk=self.relevamiento.pk).exists())
