@@ -115,7 +115,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
 
     # Paso 3 · necesitan asistencia
     dependientes = _cantidad(help_text="No puede superar el total.")
-    mayores_dependientes = _cantidad(help_text="No puede superar los mayores.")
+    mayores_dependientes = _cantidad(help_text="No puede superar los mayores (más el responsable, si va aparte).")
     lactantes = _cantidad(help_text="No puede superar los menores.")
     embarazo = _aviso()
     electrodependiente = _aviso()
