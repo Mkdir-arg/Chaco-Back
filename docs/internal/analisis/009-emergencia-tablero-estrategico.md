@@ -1,6 +1,7 @@
 # Análisis funcional 009 — Emergencia: tablero estratégico «Situación» con mapa y abastecimiento (E8)
 
-**Estado:** En análisis
+**Estado:** Definido (preguntas resueltas por el PM el 18/11/2026, §10)
+**Issues:** Épica #1171 → Análisis #1172 → tasks #1173 a #1187 (§8.5)
 **Fecha de análisis:** 2026-11-18
 **Analista:** functional-analyst (sesión con el PM)
 **Sprint asociado:** Sin asignar
@@ -333,7 +334,7 @@ principio, qué está en camino o preparado para él, y cuándo fue su última r
 | De dónde sale el consumo | Una **regla de consumo por ítem** en el catálogo de E7 (campos nuevos de `TipoKit`, §8.1): `modo` dotación o reposición, `cantidad`, `por` persona / familia / lactante y, en reposición, `cada_dias` | El catálogo es libre (`TipoKit.nombre` es texto): el sistema no puede adivinar qué es «agua» |
 | Ítem sin regla | No se calcula faltante: la fila dice «Sin regla de consumo» y enlaza a E7 (solo con `supervisar`) | Inventar un consumo sería peor que no mostrarlo |
 | Cuándo se calcula | **Solo con `?tab=abastecimiento`** (deep link de `tabs.md`, «no calcular el contenido de todas las solapas»). Desde otra solapa, el panel trae «Calcular el abastecimiento», un enlace GET a la misma URL con `tab=abastecimiento` | Presupuesto propio (RNF-009-11): sin la solapa, E8 sigue en 15 / 21 |
-| Desde cuándo | Todo acumulado (recibido, en camino, preparadas, persona-días) cuenta **desde `SLAEmergencia.inicio_evento`**, campo nuevo (`DateTimeField`, `null=True`, editable en E7 con traza, solo expand). **Sin fecha cargada, la solapa no calcula**: estado vacío «Para estimar el abastecimiento falta la fecha de inicio del evento» (con `supervisar`, enlace a E7). Decisión propuesta por defecto, confirmable por el cliente en la pregunta 5 | Sin cota, desde el segundo evento lo recibido el año anterior anula la dotación de hoy y A4 arrastra todos los egresados de la historia |
+| Desde cuándo | Todo acumulado (recibido, en camino, preparadas, persona-días) cuenta **desde `SLAEmergencia.inicio_evento`**, campo nuevo (`DateTimeField`, `null=True`, editable en E7 con traza, solo expand). **Sin fecha cargada, la solapa no calcula**: estado vacío «Para estimar el abastecimiento falta la fecha de inicio del evento» (con `supervisar`, enlace a E7). Decidido en la pregunta 5 | Sin cota, desde el segundo evento lo recibido el año anterior anula la dotación de hoy y A4 arrastra todos los egresados de la historia |
 | Filtros | Departamento y localidad **no** la acotan (`Dispositivo.localidad` es texto libre, como la capacidad, RN-009-12); la ventana tampoco (mira «ahora + 48 h»). Lo dice: «Red provincial · próximas 48 h» | El usuario no tiene que creer que filtró lo que no se filtra |
 | Quién la ve | Todo el que ve E8 (`ver_situacion` o `supervisar`) | Es agregado e institucional |
 | Quién actúa | «Preparar entrega» por fila **solo con `emergencia.operar`** (o `supervisar`, que la implica: `puede_operar_la_mesa`). Sin ella, solo lectura y el enlace no viaja en el HTML | E4 exige lo mismo (`MesaPermissionMixin`); un botón que el servidor rechaza no se dibuja |
@@ -517,7 +518,7 @@ general 60/80 de `ocupacion.py`.
 | RN-009-08 | El embudo es de cohorte (casos creados en la ventana) y excluye ingresos directos, que se muestran aparte | Conversiones mayores al 100 % |
 | RN-009-09 | **Alertas de «Necesita atención»** (sin estado, al leer, a lo sumo 6 con «Mostrando N de M», alta antes que media; nombran el dato, no enlazan a casos): **AE-1** saturación: horas hasta saturar < 12 o red en nivel **Crítica** (≥ 80 %) (alta). **AE-2** localidad crítica: presión crítica con ≥ 10 personas esperando (alta; nombra hasta 3 y «y N más»). **AE-3** demanda en alza: casos creados en la ventana móvil `[ahora − 24 h, ahora)` ≥ 1,3 × el promedio de las **tres ventanas de 24 h anteriores, contiguas y sin solaparse** (`[ahora − 48 h, ahora − 24 h)`, `[−72, −48)`, `[−96, −72)`), con al menos 20 casos en la actual (media). La lectura de casos creados cubre siempre ≥ 96 h, aunque el filtro de ventana sea 72 h. **AE-4** tramo trabado: p90 de un tramo en 24 h > 2 × su objetivo (media). **AE-5** dispositivo en nivel Crítica **de su tipo** con derivaciones pendientes hacia él, **salvo los de ubicación reservada** (alta). **AE-6** dispositivos con personas alojadas y sin entrega recibida en 48 h (media). **AE-7** personas alojadas con medicación crítica sin dosis ≥ 1 (alta; solo el número). Tono e ícono por severidad: los de `services/avisos_emergencia.py` (`TONOS`, `ICONOS`), sin copia | — |
 | RN-009-10 | Las alertas de E8 son distintas de los siete avisos operativos de E1 (`services/avisos_emergencia.py`), que no se mueven ni se repiten. Con `supervisar`, E8 muestra el enlace **sin cifra** «Ver los avisos operativos en el tablero de la mesa →» (0 consultas): contarlos exigiría la foto de E1 y rompería RNF-009-03 | Dos pantallas diciendo lo mismo con reglas distintas, o un presupuesto que se pasa |
-| RN-009-11 | **Supresión de números chicos**: los conteos del perfil (B11) se muestran como «menos de 5» entre 1 y 4 cuando el filtro activo es una localidad o un departamento. A nivel provincial, exactos. Los conteos operativos no se suprimen. **Límite conocido:** restando filtros (provincia − resto de las localidades) se deduce el valor oculto; mientras el cliente no decida la pregunta 7, la supresión es **solo visual**. Propuesta por defecto: supresión complementaria (con filtro activo, además del valor suprimido se suprime el siguiente valor más chico del mismo indicador); alternativa: redondear a múltiplos de 5 | Con un filtro fino, «1 embarazo en Lote 18» identifica a una persona |
+| RN-009-11 | **Supresión de números chicos**: los conteos del perfil (B11) se muestran como «menos de 5» entre 1 y 4 cuando el filtro activo es una localidad o un departamento. A nivel provincial, exactos. Los conteos operativos no se suprimen. Como restando filtros (provincia − resto de las localidades) se deduciría el valor oculto, se aplica **supresión complementaria** (pregunta 7, resuelta): con filtro activo, además del valor suprimido se suprime el siguiente valor más chico del mismo indicador | Con un filtro fino, «1 embarazo en Lote 18» identifica a una persona |
 | RN-009-12 | Los filtros acotan solo la demanda; la capacidad es siempre provincial y lo dice. El filtro se aplica con «Filtrar» y no cambia de solapa | El usuario cree que «no hay camas en el departamento» |
 | RN-009-13 | E8 no muestra datos personales (RNF-009-01); enlaces a E1/E2 solo con `supervisar`; a la ficha de un dispositivo solo si Dispositivos lo permite; los dispositivos con `TipoDispositivo.ubicacion_reservada` no llegan al template con coordenadas ni aparecen nombrados en listados ordenados por distancia o tensión (§3.6) | Exposición de familias o de dispositivos de protección |
 | RN-009-14 | Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla (decisión 6 del Cambio 472) | — |
@@ -527,7 +528,7 @@ general 60/80 de `ocupacion.py`.
 | RN-009-18 | **Faltan** (a mandar) en un dispositivo = `max(0, necesario − en camino − preparadas)` de ese dispositivo e ítem; en la tabla por ítem se suma por dispositivo (lo preparado para uno no tapa el faltante de otro). En camino = entregas `EN_CAMINO`; preparadas = `PREPARADA` (las dos con `cantidad_enviada`); canceladas no cuentan | Una red «cubierta» con dispositivos vacíos |
 | RN-009-19 | **Sin cobertura 48 h** = dispositivo con alojados > 0 y algún ítem con regla con **faltan > 0** (o sea: ni lo recibido, ni lo en camino, ni lo preparado alcanza para 48 h, o falta dotación). **Nunca recibió** = alojados > 0 y ninguna entrega recibida desde `inicio_evento`. **Sin entrega en 48 h** = alojados > 0 y última recepción hace > 48 h o nunca (incluye a los que nunca recibieron). Las dos salen de la última recepción por dispositivo **de la foto** (la de B12 y AE-6), no de A2. Un ítem sin regla nunca vuelve «sin cobertura» a un dispositivo | Un dispositivo con la entrega ya preparada contado como descubierto; dos cifras distintas para «sin entrega en 48 h» |
 | RN-009-20 | **Urgencia** en B15. **Crítica**: nunca recibió; o algún ítem de reposición **sin cubrir ahora** aun contando lo en camino (o con lactantes y nunca recibió el ítem «por lactante»); o algún ítem de **dotación** con faltan > 0. **Exigida**: el resto de los sin cobertura 48 h (cubre algo, menos de 48 h). Orden: Crítica antes que Exigida; dentro de cada una, primero los que nunca recibieron, después por menor cobertura en horas (un ítem nunca recibido cuenta como la menor; **un faltante de dotación cuenta como cobertura 0 h**; un ítem sin cubrir cuenta en negativo, «hace ≈ N h»), y a igual cobertura por más personas. Vocabulario y tonos de la tensión (`Tension.tono`, ícono + texto), **con el rótulo «Abastecimiento»** para no confundirlo con la ocupación. Sin paginar: son a lo sumo los dispositivos con gente de la red (decenas). Si alguna vez hace falta, `_paginacion.html` con `param="abastecimiento_page"` | Una lista sin orden explicable |
-| RN-009-21 | **Salud por dispositivo** (B16, AE-9, AE-10). (a) La **línea agregada** («9 personas con medicación crítica sin dosis en 4 dispositivos») la ve todo el que ve E8, con el total provincial **exacto, con la misma regla que AE-7 sin filtro** (la solapa es siempre provincial); suprimir 1 a 4 en las dos es una opción de la pregunta 14, no la regla vigente. (b) Un conteo de **salud** (medicación crítica sin dosis) **nunca** se muestra por dispositivo junto a su nombre: con `operar` o `supervisar` se listan los **nombres sin número**; con solo `ver_situacion`, ni nombres (solo la línea agregada). **Tampoco se listan nombres cuando el conteo es deducible** —un solo dispositivo, o total igual a la cantidad de dispositivos (uno por cada uno)—: queda solo la línea agregada, igual que en (d). (c) **Lactantes** (dato declarado de la familia, no de salud): nombres para todos; el número por dispositivo solo si es **≥ 5**, si no, el nombre solo. (d) Un dispositivo de ubicación reservada nunca se nombra (RN-009-13): suma en la línea agregada y, si es el único, la línea no dice «en 1 dispositivo». (e) Supresión **visual**, con el mismo límite conocido de RN-009-11 | Con 12 personas en un salón, «2 personas sin insulina en el Salón Parroquial» casi identifica a alguien; impreso o proyectado, sale de la mesa |
+| RN-009-21 | **Salud por dispositivo** (B16, AE-9, AE-10). (a) La **línea agregada** («9 personas con medicación crítica sin dosis en 4 dispositivos») la ve todo el que ve E8, con el total provincial **exacto, con la misma regla que AE-7 sin filtro** (la solapa es siempre provincial); suprimir 1 a 4 en las dos fue la opción descartada en la pregunta 14. (b) Un conteo de **salud** (medicación crítica sin dosis) **nunca** se muestra por dispositivo junto a su nombre: con `operar` o `supervisar` se listan los **nombres sin número**; con solo `ver_situacion`, ni nombres (solo la línea agregada). **Tampoco se listan nombres cuando el conteo es deducible** —un solo dispositivo, o total igual a la cantidad de dispositivos (uno por cada uno)—: queda solo la línea agregada, igual que en (d). (c) **Lactantes** (dato declarado de la familia, no de salud): nombres para todos; el número por dispositivo solo si es **≥ 5**, si no, el nombre solo. (d) Un dispositivo de ubicación reservada nunca se nombra (RN-009-13): suma en la línea agregada y, si es el único, la línea no dice «en 1 dispositivo». (e) Supresión **visual** (confirmada en la pregunta 14); la complementaria de RN-009-11 es solo del perfil B11 | Con 12 personas en un salón, «2 personas sin insulina en el Salón Parroquial» casi identifica a alguien; impreso o proyectado, sale de la mesa |
 | RN-009-22 | **Alertas de Abastecimiento** (al leer, sin estado, en la solapa y **no** en B5 —calcularlas en el Resumen costaría las consultas de la solapa en cada carga—; B5 conserva AE-6 y su texto enlaza a `?tab=abastecimiento`): **AE-8** dispositivos sin cobertura 48 h ≥ 1, con las personas que tienen (alta); **AE-9** medicación crítica sin dosis en dispositivos (alta; **mismo número que AE-7 sin filtro**, calculado con la misma `sin_dosis(avisos)`; nombres según RN-009-21); **AE-10** lactantes en dispositivos que nunca recibieron el ítem «por lactante» o lo tienen sin cubrir ahora (alta; RN-009-21 c). Tono e ícono de `services/avisos_emergencia.py`, sin copia | La misma alerta en dos lugares con números distintos |
 
 ---
@@ -728,8 +729,8 @@ general 60/80 de `ocupacion.py`.
 - `services/ocupacion.py` con el filtro por tipo de plaza (§8.2).
 - `scripts/perf_mysql/` para los `EXPLAIN` (RNF-009-10).
 - Abastecimiento: el asistente de E4 (`emergencia:entrega_nueva_items`, paso 2 con el dispositivo en la URL) y E7
-  (`TipoKitFormSet`, `services/configuracion_emergencia.py`), los dos ya en `development`; la respuesta del
-  Ministerio a la pregunta 13 para cargar las reglas y la confirmación de `inicio_evento` (pregunta 5).
+  (`TipoKitFormSet`, `services/configuracion_emergencia.py`), los dos ya en `development`; la carga en E7
+  de las reglas con los valores de la pregunta 13 y de `inicio_evento` (pregunta 5), que hace la mesa.
 
 ### 8.1 Diseño técnico propuesto (para las tasks)
 
@@ -873,7 +874,7 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 | E-7b | **Solapa Abastecimiento**: reglas puras con tests de cada fórmula (2 h); selector A1–A5, presupuesto `--tag performance` (≤ 5 / ≤ 26) con evento anterior sembrado y `EXPLAIN` de líneas por estado y de `egresado_en` (2,5 h); `armar_abastecimiento`, AE-8 a AE-10, `presentar_salud`, panel, «Calcular el abastecimiento», estado sin `inicio_evento`, «Preparar entrega», ubicación reservada y supresión con tests sobre la respuesta (2,5 h); casos de QA y Cambio (1 h) | Índice en `IntegranteGrupo.egresado_en` si el `EXPLAIN` lo pide (aparte) | E-5, C2, E-7a (con `inicio_evento`) | 8 |
 
 **Total propio de E8: ~44,5 h** (34 h de Resumen y Mapa + 10,5 h de Abastecimiento). Si Dispositivos no construyó antes las tareas compartidas, E8 suma las que use
-(C1–C7, **~14 h**) y Dispositivos las descuenta después. Cada PR con su Cambio en `requerimientos.md` al mergearse,
+(C1–C7, **~17 h**, con C5 en 1 h y C6 en 2 h) y Dispositivos las descuenta después. Cada PR con su Cambio en `requerimientos.md` al mergearse,
 `/auditoria pr`, casos de QA, `design_audit.py --ratchet` en 0 nuevos y `check_design_agent.py`.
 
 **Orden.** E-1, E-2 y E-3 son independientes y pueden ir en paralelo. E-4 después de E-1 y E-2. E-5 espera las
@@ -881,6 +882,22 @@ piezas C3, C4, C6. E-6 espera el mapa (C1) y el indicador de ubicación reservad
 conviene adelantarlo, para que el Ministerio cargue las reglas y la fecha de inicio antes de que exista la solapa.
 E-7b espera E-5 (la vista y las solapas), C2 y E-7a; es independiente de E-6. Si el tablero de
 Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja a ~3 h.
+
+### 8.5 Issues
+
+Épica [#1171](https://github.com/Mkdir-arg/Chaco-Back/issues/1171) → Análisis
+[#1172](https://github.com/Mkdir-arg/Chaco-Back/issues/1172) → tasks:
+
+| Tarea | Issue | Horas | Tarea | Issue | Horas |
+|---|---|---|---|---|---|
+| C1 | #1173 | 6 | E-1 | #1180 | 6 |
+| C2 | #1174 | 2 | E-2 | #1181 | 5 |
+| C3 | #1175 | 3 | E-3 | #1182 | 2 |
+| C4 | #1176 | 2 | E-4 | #1183 | 8 |
+| C5 | #1177 | 1 | E-5 | #1184 | 8 |
+| C6 | #1178 | 2 | E-6 | #1185 | 5 |
+| C7 | #1179 | 1 | E-7a | #1186 | 2,5 |
+| | | | E-7b | #1187 | 8 |
 
 ---
 
@@ -911,22 +928,25 @@ Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja
 
 ## 10. Preguntas abiertas
 
-| # | Pregunta | Responsable de responder | Estado |
-|---|---|---|---|
-| 1 | ¿Quiénes reciben `ver_situacion`? ¿Se arma un rol «Autoridades»? | PM / Ministerio | Abierta |
-| 2 | Radio de «camas cercanas»: ¿25 km para todos? | PM / mesa | Abierta (propuesta: 25 km) |
-| 3 | Umbrales de las alertas (12 h, nivel Crítica de la red, alza ≥ 30 % con 20 casos, p90 > 2× objetivo, 48 h sin entrega): ¿fijos o en E7? | PM | Abierta (propuesta: fijos en este lote) |
-| 4 | ¿Hace falta filtrar la **capacidad** por departamento? Requiere FK de `Dispositivo` a localidad | PM | Abierta |
-| 5 | ¿El evento tiene fecha de inicio? **DECISIÓN CLIENTE (confirmable):** se propone `SLAEmergencia.inicio_evento` (`null=True`, editable en E7, solo expand), **obligatorio para la solapa Abastecimiento** (sin él, estado vacío) y dependencia de E-7b (§3.9). El Resumen no lo usa en este lote (los acumulados «desde el inicio» en B1–B12 siguen fuera) | Cliente / PM | Abierta (propuesta por defecto: el campo entra con E-7a y lo carga la mesa con `supervisar`) |
-| 6 | ¿Se proyecta en una pantalla de la mesa? Si sí, entra el «modo sala de situación» que Dispositivos también dejó afuera, y la caché | PM / mesa | Abierta |
-| 7 | Supresión del perfil: ¿mínimo 5, también con filtro de departamento? Y como restando filtros se deduce el valor oculto: ¿supresión complementaria (con filtro activo, además del valor de 1 a 4 se suprime el siguiente valor más chico del mismo indicador) o redondeo a múltiplos de 5? Mientras no se decida, la supresión es solo visual | Cliente (PM / área legal o de datos) | Abierta (propuesta: mínimo 5 y supresión complementaria) |
-| 8 | ¿Se acepta la atribución BAHRA/Georef de las localidades (además de la de OSM del mapa)? | PM | Abierta |
-| 9 | ¿Qué se hace con las localidades del fixture que no concilian con Georef? | PM | Abierta |
-| 10 | ¿Quién construye primero las piezas compartidas (C1–C7): el tablero de Dispositivos o E8? | PM | Abierta |
-| 11 | ¿Dispositivos adopta `UbicacionLocalidad` para «Cerca de» cuando la localidad no tiene dispositivos con coordenadas? | PM | Abierta (propuesta: sí, opcional) |
-| 12 | ¿Se enmienda el T9 del spec de Dispositivos en el mismo lote? (a) host de mosaicos en `MAPA_TILES_HOSTS`, solo `img-src`, y no en `MAPA_HOSTS`, que abre `frame-src`; (b) `strict-origin-when-cross-origin` en lugar de `no-referrer`, que viola la política de mosaicos de OSM y puede hacer que bloqueen el sitio | PM | Abierta (propuesta: sí, las dos) |
-| 13 | **Reglas de consumo por ítem**: ¿qué cantidad, por quién y cada cuántos días para cada ítem del catálogo, y quién las fija y las mantiene (la mesa con `supervisar` en E7, Salud, Desarrollo Social)? Valores propuestos para validar: colchón 1 por persona (dotación); frazadas 2 por persona (dotación); kit de higiene 1 por familia cada 3 días; agua (bidón 6 l) 1 cada 2 personas por día; módulo alimentario 1 por familia por día; pañales 1 paquete por lactante cada 2 días | Ministerio (área de logística / Salud) + PM | Abierta (propuesta: esos valores, cargados en E7 por la mesa) |
-| 14 | Salud por dispositivo en Abastecimiento: ¿se confirma RN-009-21, vigente como propuesta (nombres sin número y solo para la mesa; **sin nombres cuando el conteo es deducible**: un solo dispositivo o total igual a la cantidad de dispositivos; autoridades solo el agregado; lactantes con número solo desde 5)? Y, como opción: ¿suprimir 1 a 4 («menos de 5») en el total provincial de AE-7 y AE-9 a la vez? | Cliente (PM / área legal o de datos), junto con la pregunta 7 | Abierta (propuesta: RN-009-21 tal como está y AE-7 / AE-9 exactos, como hoy) |
+Ninguna. El PM aceptó las propuestas el 18/11/2026 («aceptamos todas las propuestas»); las que no tenían propuesta
+se cerraron con lo que el análisis ya daba por alcance.
+
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Quiénes reciben `ver_situacion`? ¿Rol «Autoridades»? | La migración la da solo a **Administrador**; `supervisar` la implica. Un rol «Autoridades» lo arma el PM desde el ABM de Roles, sin código |
+| 2 | Radio de «camas cercanas» | **25 km** para todos |
+| 3 | Umbrales de las alertas | **Fijos** en este lote |
+| 4 | ¿Filtrar la capacidad por departamento? | **No**: la FK de `Dispositivo` a localidad sigue fuera de alcance (§9); la capacidad es provincial (RN-009-12) |
+| 5 | ¿Fecha de inicio del evento? | Entra `SLAEmergencia.inicio_evento` (`null=True`, E7, solo expand) con E-7a; la carga la mesa con `supervisar`; sin fecha, Abastecimiento muestra estado vacío |
+| 6 | ¿Se proyecta en una pantalla de la mesa? | **No** en este lote: sin «modo sala» ni caché (§9) |
+| 7 | Supresión del perfil | **Mínimo 5**, también con filtro de departamento, y **supresión complementaria** (RN-009-11) |
+| 8 | Atribución BAHRA/Georef | **Se acepta** |
+| 9 | Localidades del fixture que no concilian | Quedan **sin punto** en el mapa (cuentan en «N sin ubicación») y salen en el reporte de conciliación que revisa el PM (E-2) |
+| 10 | ¿Quién construye primero C1–C7? | **Quien llegue primero** (tablero de Dispositivos o E8); el otro las reusa y descuenta las horas |
+| 11 | ¿Dispositivos adopta `UbicacionLocalidad` para «Cerca de»? | **Sí, opcional**, en otro cambio |
+| 12 | ¿Se enmienda el T9 de Dispositivos? | **Sí, las dos**: `MAPA_TILES_HOSTS` solo en `img-src` y `strict-origin-when-cross-origin` |
+| 13 | Reglas de consumo por ítem | Los valores propuestos, que la mesa carga en E7: colchón 1 por persona (dotación); frazadas 2 por persona (dotación); kit de higiene 1 por familia cada 3 días; agua (bidón 6 l) 0,5 por persona cada 1 día; módulo alimentario 1 por familia por día; pañales 1 paquete por lactante cada 2 días |
+| 14 | Salud por dispositivo en Abastecimiento | **RN-009-21 tal como está**; AE-7 y AE-9 exactos (sin suprimir 1 a 4 en el total provincial) |
 
 ---
 
@@ -939,6 +959,7 @@ Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja
 | 2026-11-18 | Correcciones de la auditoría del PR #1161 (1 MAJOR, 12 MINOR): sin cifra de avisos operativos de E1 (enlace, 0 consultas); `ubicacion_reservada` fuera de cercanos, «más tensionados» y AE-5; Referer `strict-origin-when-cross-origin` hacia OSM; test de SQL `@tag("mysql")` con `convert_tz`/`trunc`/`cast_date`; nombres de localidad ambiguos fuera de cercanas; rutas `forms_emergencia_situacion.py` y `_capas_mapa.html`; supresión complementaria como decisión del cliente; AE-3 con ventanas contiguas y lectura de 96 h; logística en 3 consultas + alcance, tope 15/21; índices de `Derivacion` y `EntregaKit` a medir; `MAPA_TILES_HOSTS` en §3.7 con enmienda del T9; reglas puras en `services/situacion_emergencia.py` | Auditoría del PR #1161 |
 | 2026-11-18 | Tercera solapa **«Abastecimiento»** (§3.9): reglas de consumo por ítem en `TipoKit`/E7 (dotación o reposición), necesario, en camino, preparadas y faltan para 48 h, dispositivos sin cobertura por urgencia con «Preparar entrega» hacia E4 (solo `operar`), salud logística con supresión por dispositivo (RN-009-21), AE-8 a AE-10 dentro de la solapa, presupuesto propio ≤ 5 / vista ≤ 26 calculado solo con `?tab=abastecimiento`, PR E-7 (10 h), preguntas 13 y 14 | Pedido del PM: «qué le falta a cada dispositivo y qué conviene mandar en las próximas 48 h» |
 | 2026-11-18 | Correcciones de las dos auditorías del PR #1163: acumulados desde `SLAEmergencia.inicio_evento` (nuevo, solo expand, decisión cliente en la pregunta 5; sin fecha, estado vacío), límite de A4 sin recepciones, evento anterior en el dataset de performance y `EXPLAIN` de `egresado_en`; selector solo con lecturas A1–A5 y el armado, la urgencia y la presentación de salud en services (`armar_abastecimiento`, `presentar_salud`, `sin_dosis` única con AE-7), AE-8 a AE-10 en `alertas_situacion_emergencia.py`; última recepción y «sin entrega en 48 h» desde la foto; `crear_tipo_kit` con la regla y traza del alta, campos `blank=True`; AE-9 exacto como AE-7 sin filtro; sin nombres de salud cuando el conteo es deducible; dotación faltante = cobertura 0 h; «Preparar entrega» ⇔ operar y `ACTIVO`; sin la justificación errónea de `_paginacion`; E-7 partido en E-7a (2,5 h) y E-7b (8 h); ejemplo de la §12 rehecho por dispositivo para que AB1, AB3 y AB4 cierren | Auditorías del PR #1163 |
+| 2026-11-18 | **Definido.** Las 14 preguntas resueltas (§10: el PM aceptó las propuestas y las que no tenían se cerraron con el alcance del análisis); RN-009-11 con supresión complementaria; dependencias de E-7a/E-7b sin «decisión cliente» pendiente; piezas compartidas en ~17 h (C5 1 h, C6 2 h); issues #1171–#1187 (§8.5) | Pedido del PM: «aceptamos todas las propuestas, armá los issues» |
 
 ---
 
