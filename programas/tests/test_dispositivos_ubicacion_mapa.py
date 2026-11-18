@@ -1,4 +1,4 @@
-"""Legajo de Dispositivos: el bloque «Ubicación» usa el domicilio con mapa (Cambio 489, fase 2)."""
+"""Legajo de Dispositivos: el bloque «Ubicación» usa el domicilio con mapa (Cambio 490, fase 2)."""
 
 from decimal import Decimal
 

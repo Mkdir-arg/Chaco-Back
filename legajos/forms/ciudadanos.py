@@ -147,7 +147,7 @@ class CiudadanoForm(forms.ModelForm):
                     "class": _FLOWBITE_INPUT_CSS,
                 }
             ),
-            # Cambio 489: los completa el mapa de `components/_ubicacion_domicilio.html`;
+            # Cambio 490: los completa el mapa de `components/_ubicacion_domicilio.html`;
             # quedan a mano sin JS o sin Google Maps.
             "latitud": forms.NumberInput(attrs={"class": _FLOWBITE_INPUT_CSS, "step": "0.000001"}),
             "longitud": forms.NumberInput(attrs={"class": _FLOWBITE_INPUT_CSS, "step": "0.000001"}),
@@ -175,7 +175,7 @@ class CiudadanoForm(forms.ModelForm):
 
     def clean(self):
         datos = super().clean()
-        # Cambio 489: el rango lo validan los campos del modelo; acá, que vengan las dos.
+        # Cambio 490: el rango lo validan los campos del modelo; acá, que vengan las dos.
         exigir_par(self)
         return datos
 

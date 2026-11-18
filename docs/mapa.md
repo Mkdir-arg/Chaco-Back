@@ -72,7 +72,7 @@ Dos capacidades en el módulo **Mapa** del ABM de Roles (pestaña General):
 | `mapa.ver` | Ver `/mapa/` |
 | `mapa.editar` | Agregar, mover y eliminar puntos del mapa |
 
-La migración `users.0049` se las da al rol Administrador. Al resto de los roles se las asigna el PM.
+La migración `users.0050` se las da al rol Administrador. Al resto de los roles se las asigna el PM.
 
 ## 6. Costos
 

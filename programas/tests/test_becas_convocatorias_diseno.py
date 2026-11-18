@@ -220,7 +220,9 @@ class ConvocatoriaListadoAccionesTests(_BaseConvocatoriasDiseno):
         conv = self._convocatoria("Conv vencida", activo=False, vencida=True)
         atributos = self._atributos()
 
-        self.assertEqual([a for a in atributos if "data-confirm-url" in a], [])
+        # El tacho de eliminar (Cambio 489) también confirma por `data-confirm-url`: no cuenta.
+        toggle = reverse("becas:convocatoria_toggle", args=[conv.pk])
+        self.assertEqual([a for a in atributos if a.get("data-confirm-url") == toggle], [])
         (boton,) = [a for a in atributos if "data-reactivar-url" in a]
         self.assertEqual(boton["data-nombre"], conv.nombre)
         self.assertIn("nodo-icon-btn", boton["class"].split())

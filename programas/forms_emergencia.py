@@ -350,7 +350,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         empty_label="Elegí una localidad",
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
-    # Cambio 489: el punto de la dirección, del Geocoder de Google o marcado en el mapa
+    # Cambio 490: el punto de la dirección, del Geocoder de Google o marcado en el mapa
     # (`components/_ubicacion_domicilio.html`). Sin JS o sin Google Maps, a mano. Llegan a
     # ``crear_caso`` como la posición del GPS de la app, sin ``precision_m``.
     latitud = forms.DecimalField(
