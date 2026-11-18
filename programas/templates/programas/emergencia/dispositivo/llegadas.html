@@ -97,8 +97,8 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
               {% for fila in tarjeta.franjas %}
               <tr class="hover:bg-secondary">
                 <td class="nodo-td text-heading font-medium">{{ fila.franja }}</td>
-                <td class="nodo-td text-center">{{ fila.femenino }}</td>
-                <td class="nodo-td text-center">{{ fila.masculino }}</td>
+                <td class="nodo-td text-center">{{ fila.femenino|default_if_none:"—" }}</td>
+                <td class="nodo-td text-center">{{ fila.masculino|default_if_none:"—" }}</td>
               </tr>
               {% endfor %}
             </tbody>

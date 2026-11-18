@@ -304,6 +304,20 @@ class NuevoCasoTests(BaseMesa):
         ficha = self._ficha(caso)
         self.assertContains(ficha, "el responsable suma aparte al total")
         self.assertEqual(ficha.context["personas"]["total"], 1)
+        self.assertEqual(ficha.context["personas"]["franjas"][-1]["franja"], "Responsable")
+
+    def test_el_responsable_solo_puede_ser_el_mayor_dependiente(self):
+        """No tiene franja en las cantidades: el tope de mayores dependientes lo cuenta igual."""
+        self.client.post(URL_NUEVO, self._formulario1(adultos_f="0", adultos_m="0", mayores_dependientes="1"))
+
+        caso = CasoEmergencia.objects.get()
+        self.assertEqual((caso.grupo.mayores_dependientes, caso.prioridad), (1, Prioridad.ALTA))
+
+        de_mas = self.client.post(URL_NUEVO, self._formulario1(adultos_f="0", adultos_m="0", mayores_dependientes="2"))
+        self.assertEqual(
+            de_mas.context["form"].errors["mayores_dependientes"],
+            ["No puede haber más mayores dependientes que mayores."],
+        )
 
     def test_la_localidad_es_obligatoria_en_la_mesa(self):
         respuesta = self.client.post(URL_NUEVO, self._formulario1(localidad=""))

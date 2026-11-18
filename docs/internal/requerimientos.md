@@ -56825,6 +56825,12 @@ caso y los textos de ayuda. **Queda afuera:** la franja de edad y el sexo del re
    cuando va aparte, para que un caso nuevo no figure como «llegaron más».
 6. **Sexo en el alta mínima:** solo se deduce de las cantidades cuando el responsable va adentro y la familia es de
    uno; con la marca y sin acompañantes no se adivina.
+7. **El responsable puede ser el mayor dependiente** (auditoría del PR #1162): con la marca, el tope es
+   `mayores_dependientes ≤ mayores + 1`. Si no, una persona mayor y dependiente que llega sola no se puede marcar y
+   pierde la prioridad ALTA. Mismo tope en `validarCaso` de la app.
+8. **Una sola fuente para la regla del total y las filas:** `GrupoFamiliar.personas_declaradas` (la usan el alta y
+   `suma_de_cantidades`) y `franjas_del_grupo` (la ficha de la mesa y la tarjeta de «Llegadas», que también muestra la
+   fila «Responsable»). La API de M2-2 expone `grupo.responsable_aparte`.
 
 ## Implementación
 
@@ -56863,9 +56869,9 @@ persona menos en los envíos de la app 1.2.23.
 
 ## Pendientes / a definir
 
-- El responsable no tiene franja de edad ni sexo en las cantidades: no cuenta para «mayores» ni «menores» en la
-  prioridad sugerida ni en los topes (`mayores_dependientes ≤ mayores`). Un responsable mayor y dependiente que llega
-  solo hoy no se puede marcar como «mayor dependiente». Se podría derivar de su fecha de nacimiento: a definir.
+- El responsable no tiene franja de edad ni sexo en las cantidades: no cuenta como «mayor» ni «menor» para la
+  prioridad sugerida (un responsable mayor no dependiente que llega solo sale BAJA y no MEDIA). Se podría derivar de
+  su fecha de nacimiento: a definir.
 
 ## Reversión
 
@@ -56875,5 +56881,7 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** la auditoría del PR #1162 pidió el tope de mayores dependientes con el responsable, la fila
+  «Responsable» en la tarjeta de «Llegadas» y la regla del total en un solo lugar (decisiones 7 y 8).
 
 ---

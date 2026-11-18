@@ -282,6 +282,17 @@ class LlegadasTests(BaseLlegadas):
         self.assertContains(respuesta, 'role="dialog"')
         self.assertContains(respuesta, "csrfmiddlewaretoken")
 
+    def test_la_tarjeta_suma_la_fila_del_responsable_cuando_va_aparte(self):
+        """Las franjas son los acompañantes: la fila «Responsable» explica el total declarado."""
+        self._derivado(responsable_aparte=True)
+
+        respuesta = self.client.get(self._url("llegadas"), {"dni": "30.111.222"})
+
+        self.assertContains(respuesta, "Familia Benítez · 8 personas declaradas")
+        franjas = respuesta.context["tarjeta"]["franjas"]
+        self.assertEqual(franjas[-1], {"franja": "Responsable", "femenino": None, "masculino": None, "total": 1})
+        self.assertContains(respuesta, "Responsable</td>")
+
     def test_un_dni_mal_escrito_vuelve_con_el_error_en_el_campo(self):
         respuesta = self.client.get(self._url("llegadas"), {"dni": "abc"})
         self.assertEqual(respuesta.status_code, 200)

@@ -126,19 +126,11 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
                 {% for fila in personas.franjas %}
                 <tr class="hover:bg-secondary">
                   <td class="nodo-td text-heading font-medium">{{ fila.franja }}</td>
-                  <td class="nodo-td text-center">{{ fila.femenino }}</td>
-                  <td class="nodo-td text-center">{{ fila.masculino }}</td>
+                  <td class="nodo-td text-center">{{ fila.femenino|default_if_none:"—" }}</td>
+                  <td class="nodo-td text-center">{{ fila.masculino|default_if_none:"—" }}</td>
                   <td class="nodo-td text-center">{{ fila.total }}</td>
                 </tr>
                 {% endfor %}
-                {% if personas.responsable_aparte %}
-                <tr class="hover:bg-secondary">
-                  <td class="nodo-td text-heading font-medium">Responsable</td>
-                  <td class="nodo-td text-center">—</td>
-                  <td class="nodo-td text-center">—</td>
-                  <td class="nodo-td text-center">1</td>
-                </tr>
-                {% endif %}
                 <tr>
                   <td class="nodo-td text-heading font-bold">Total</td>
                   <td class="nodo-td text-center text-heading font-bold">{{ personas.total_femenino }}</td>

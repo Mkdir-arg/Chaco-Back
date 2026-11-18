@@ -174,7 +174,7 @@ def _validar_formulario1(datos):
     # viene contado en las cantidades y sumarlo de nuevo inflaría la familia.
     limpio["responsable_aparte"] = datos.get("responsable_aparte") is True
     # RN-1.2: el total es del servidor. Lo que mande el cliente como total ni se mira.
-    total = sum(limpio[campo] for campo in GrupoFamiliar.CANTIDADES) + int(limpio["responsable_aparte"])
+    total = GrupoFamiliar.personas_declaradas(limpio, limpio["responsable_aparte"])
     limpio["total_declarado"] = total
     if not any(campo in errores for campo in GrupoFamiliar.CANTIDADES):
         if total < 1:
@@ -183,7 +183,8 @@ def _validar_formulario1(datos):
             # RN-1.3
             if limpio["dependientes"] > total:
                 errores.setdefault("dependientes", "No puede haber más personas con dependencia que personas.")
-            if limpio["mayores_dependientes"] > mayores:
+            # El responsable que va aparte puede ser ese mayor: no tiene franja en las cantidades.
+            if limpio["mayores_dependientes"] > mayores + int(limpio["responsable_aparte"]):
                 errores.setdefault("mayores_dependientes", "No puede haber más mayores dependientes que mayores.")
             if limpio["lactantes"] > menores:
                 errores.setdefault("lactantes", "No puede haber más lactantes que menores.")

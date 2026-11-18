@@ -5436,13 +5436,17 @@ class GrupoFamiliar(TimeStamped):
     def mayores(self):
         return self.mayores_f + self.mayores_m
 
+    @classmethod
+    def personas_declaradas(cls, cantidades, responsable_aparte):
+        """La regla del total (RN-1.2): las seis cantidades, más el responsable si va aparte de ellas."""
+
+        return sum(cantidades[campo] for campo in cls.CANTIDADES) + int(responsable_aparte)
+
     def suma_de_cantidades(self):
-        """Las personas declaradas al relevar: lo que ``total_declarado`` vale al crear el caso.
+        """Las personas declaradas al relevar: lo que ``total_declarado`` vale al crear el caso."""
 
-        La suma de las seis cantidades, más el responsable si va aparte de ellas.
-        """
-
-        return sum(getattr(self, campo) for campo in self.CANTIDADES) + int(self.responsable_aparte)
+        cantidades = {campo: getattr(self, campo) for campo in self.CANTIDADES}
+        return self.personas_declaradas(cantidades, self.responsable_aparte)
 
     @property
     def llegaron_mas(self):

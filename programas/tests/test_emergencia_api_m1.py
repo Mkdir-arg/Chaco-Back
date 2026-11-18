@@ -289,6 +289,16 @@ class EnviarCasoTests(BaseApiEmergencia):
         # Sin acompañantes las cantidades no dicen el sexo del responsable: no se adivina.
         self.assertEqual(Ciudadano.objects.get(dni="30555777").genero, "")
 
+    def test_con_responsable_aparte_el_responsable_puede_ser_el_mayor_dependiente(self):
+        con_marca = self._enviar(responsable_aparte="true", adultos_f=0, adultos_m=0, mayores_dependientes=1)
+        sin_marca = self._enviar(adultos_f=1, adultos_m=0, mayores_dependientes=1)
+
+        self.assertEqual(con_marca.status_code, 201, con_marca.content)
+        self.assertEqual(con_marca.json()["prioridad"], "ALTA")
+        # Sin la marca el responsable ya está en las franjas: el tope es el de siempre.
+        self.assertEqual(sin_marca.status_code, 400)
+        self.assertIn("mayores_dependientes", sin_marca.json())
+
     def test_sin_la_marca_el_responsable_va_en_las_cantidades(self):
         """Un envío de una app anterior (o que quedó en su cola) se lee como antes: no suma de más."""
         for valor in (None, "false"):

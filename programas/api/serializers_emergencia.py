@@ -446,7 +446,10 @@ class ResponsableSerializer(serializers.Serializer):
 
 
 class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
-    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia."""
+    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia.
+
+    ``responsable_aparte``: si es ``true``, las franjas son los acompañantes y el responsable suma uno más.
+    """
 
     class Meta:
         model = GrupoFamiliar
@@ -460,6 +463,7 @@ class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
             "dependientes",
             "mayores_dependientes",
             "lactantes",
+            "responsable_aparte",
         ]
         read_only_fields = fields
 
