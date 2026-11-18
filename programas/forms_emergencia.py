@@ -41,7 +41,7 @@ from programas.services.configuracion_emergencia import (
     normalizar_nombre,
 )
 from programas.services.emergencia import MOTIVOS_DE_CIERRE_MANUAL, NECESIDADES
-from programas.services.emergencia_alta import DniRegistrado
+from programas.services.emergencia_alta import MENSAJE_DNI_REGISTRADO_SIN_CUPO, DniRegistrado
 
 PREFIJO_KITS = "kits"
 #: Tope de filas que un POST armado a mano puede pedir que se instancien.
@@ -256,6 +256,20 @@ AYUDA_NOMBRE_DEL_RESPONSABLE = (
     "Solo si la persona todavía no está en el legajo. Si el DNI ya está registrado como otra persona, "
     "ver la casilla de abajo."
 )
+
+
+def rechazo_para_mostrar(request, error):
+    """El rechazo de ``crear_caso`` tal como se le muestra a quien carga desde el backoffice.
+
+    Un :class:`DniRegistrado` trae el nombre de la persona: descuenta de la cubeta de
+    consultas de identidad del usuario, y agotada se reemplaza por un error sin el nombre
+    (SEC-25, Cambio 482). El resto pasa igual.
+    """
+    from programas.api.views import descontar_consulta_de_identidad
+
+    if isinstance(error, DniRegistrado) and descontar_consulta_de_identidad(request) is not None:
+        return forms.ValidationError({"dni": MENSAJE_DNI_REGISTRADO_SIN_CUPO})
+    return error
 
 
 def aviso_identidad_a_revisar(caso):

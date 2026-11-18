@@ -56818,7 +56818,7 @@ Formulario 2.
 ## Decisiones tomadas
 
 1. **Regla única:** un DNI está registrado si existe un `Ciudadano` con ese DNI (exacto o cargado con
-   separadores), **activo o no y de cualquier género** (`ingreso.persona_registrada_con_dni`). La usan la
+   separadores), **activo o no y de cualquier género** (`ingreso.buscar_ciudadano_por_dni`). La usan la
    consulta de Emergencia y `crear_caso`. Revierte las decisiones 3 y 4 del Cambio 481.
 2. **La consulta de Emergencia muestra el legajo** cuando existe, aunque Base de Personas la encuentre con
    otros datos (decisión del PM; revierte la decisión 1 del Cambio 481 solo para Emergencia). La fallecida
@@ -56834,6 +56834,10 @@ Formulario 2.
    (§13.2) y en la persona 1 (§13.6); si no, `null`.
 7. Si la mesa confirma que es otra persona, se corrige el legajo (`ciudadano.editar`); no hay «cambiar el
    responsable del caso».
+8. **El rechazo cuenta como consulta de identidad** (hallazgo MAJOR de la auditoría del PR #1170): cada
+   `DniRegistrado` descuenta de la cubeta `personas_campo` del usuario (SEC-25), en la API y en el
+   backoffice. Agotada, la API responde 429 y el backoffice un error sin el nombre. Sin esto, los tres
+   extremos que crean casos enumeraban nombres por DNI sin tope.
 
 ## Implementación
 
@@ -56883,5 +56887,7 @@ código anterior ignora.
 ## Historial
 
 - **18/11/2026:** alta del cambio (T1, T2, T3 y T5).
+- **18/11/2026:** auditoría del PR #1170: el rechazo descuenta de la cubeta de identidad, y limpieza (sin
+  alias de la regla, `texto_comparable` pública, `identificar_en_legajo` sin `sexo`).
 
 ---

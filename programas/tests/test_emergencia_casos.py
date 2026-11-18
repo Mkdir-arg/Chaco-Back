@@ -597,7 +597,7 @@ class CrearCasoTests(BaseCasos):
         """Otro dio de alta el DNI mientras tanto: ``alta_minima_de_persona`` devuelve ese legajo."""
         ajena = Ciudadano.objects.create(dni="40732122", nombre="Joaquin", apellido="FARIÑA")
 
-        with mock.patch.object(emergencia_alta, "persona_registrada_con_dni", return_value=None):
+        with mock.patch.object(emergencia_alta, "buscar_ciudadano_por_dni", return_value=None):
             with mock.patch.object(emergencia_alta, "alta_minima_de_persona", return_value=ajena):
                 with self.assertRaises(emergencia_alta.DniRegistrado):
                     self._caso(dni="40732122", nombre="Pedro", apellido="Gómez")

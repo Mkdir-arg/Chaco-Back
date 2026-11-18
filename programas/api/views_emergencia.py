@@ -42,7 +42,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, Throttled
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
@@ -57,7 +57,11 @@ from programas.api.serializers_emergencia import (
     MiCasoEmergenciaSerializer,
     PerfilEmergenciaSerializer,
 )
-from programas.api.views import ConsultaPersonasThrottle, responder_consulta_de_persona
+from programas.api.views import (
+    ConsultaPersonasThrottle,
+    descontar_consulta_de_identidad,
+    responder_consulta_de_persona,
+)
 from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
@@ -258,6 +262,10 @@ class _VistaDeCampo(APIView):
         except UuidEnUso as error:
             return None, _respuesta_uuid_en_uso(error)
         except DniRegistrado as error:
+            # El nombre de la persona sale de la cubeta de la consulta de identidad (SEC-25).
+            espera = descontar_consulta_de_identidad(self.request)
+            if espera is not None:
+                raise Throttled(wait=espera) from None
             return None, _respuesta_dni_registrado(error)
         except ValidationError as error:
             return None, _respuesta_de_validacion(_errores(error))

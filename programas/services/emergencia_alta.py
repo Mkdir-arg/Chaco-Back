@@ -42,8 +42,8 @@ from programas.models import (
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia_comun import _exigir_mesa, _trazar, siguiente_numero
 from programas.services.emergencia_programa import CAP_EMERGENCIA_RELEVAR, puede_en_programa_emergencia
-from programas.services.identidad import _texto_comparable
-from programas.services.ingreso import alta_minima_de_persona, persona_registrada_con_dni
+from programas.services.identidad import texto_comparable
+from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,13 @@ class DniRegistrado(ValidationError):
         super().__init__({"dni": mensaje_dni_registrado(ciudadano)})
 
 
+#: El rechazo cuando la cubeta de consultas de identidad del usuario está agotada: sin el nombre.
+MENSAJE_DNI_REGISTRADO_SIN_CUPO = (
+    "Ese DNI ya está registrado como otra persona, y llegaste al tope de consultas de identidad de la hora. "
+    "Probá de nuevo más tarde."
+)
+
+
 def mensaje_dni_registrado(ciudadano):
     """El mensaje único del rechazo (RN-8 del análisis)."""
 
@@ -111,7 +118,7 @@ def _nombre_en_conflicto(ciudadano, nombre, apellido):
     """¿Lo declarado contradice al legajo? Un campo vacío, de un lado o del otro, no se compara."""
 
     for declarado, registrado in ((nombre, ciudadano.nombre), (apellido, ciudadano.apellido)):
-        if declarado and registrado and _texto_comparable(declarado) != _texto_comparable(registrado):
+        if declarado and registrado and texto_comparable(declarado) != texto_comparable(registrado):
             return True
     return False
 
@@ -292,7 +299,7 @@ def _responsable(datos, limpio):
     Devuelve ``(ciudadano, declarado)``. ``declarado`` es ``{"nombre", "apellido"}`` tal como
     vino, o ``None``.
 
-    * La persona registrada con ese DNI es la de :func:`persona_registrada_con_dni`, la misma
+    * La persona registrada con ese DNI es la de :func:`buscar_ciudadano_por_dni`, la misma
       regla que usa la consulta de identidad de la app (Cambio 482). Si no hay, se le da el alta
       mínima del asistente de ingreso de Dispositivos (RN-1.5).
     * Si el envío trae nombre o apellido que contradicen al legajo, sin
@@ -308,7 +315,7 @@ def _responsable(datos, limpio):
     """
 
     nombre, apellido = _texto(datos, "nombre"), _texto(datos, "apellido")
-    ciudadano = persona_registrada_con_dni(limpio["dni"])
+    ciudadano = buscar_ciudadano_por_dni(limpio["dni"])
     if ciudadano is None:
         if not dni_valido(limpio["dni"]):
             raise ValidationError({"dni": MENSAJE_DNI_INVALIDO})

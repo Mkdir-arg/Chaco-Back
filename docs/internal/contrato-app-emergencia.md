@@ -116,7 +116,7 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
 | 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12); el caso ya no está como la acción necesita: otra guardia actuó desde su teléfono o el backoffice, la mesa canceló, el cron venció (§13) | Mostrar `detail` y recargar con `estado_actual` (§13.1) |
 | 404 | — | El dispositivo, la entrega, la derivación o el caso no existen, o no son del usuario | Recargar «mis dispositivos» |
-| 429 | — | Tope de consultas de identidad (§4) o de búsquedas por DNI (§13.2). Trae `Retry-After` | Identidad: seguir con carga manual del nombre. Búsqueda: esperar `Retry-After` y volver a buscar |
+| 429 | — | Tope de consultas de identidad (§4, que también cuenta cada rechazo «DNI ya registrado» de §6) o de búsquedas por DNI (§13.2). Trae `Retry-After` | Identidad: seguir con carga manual del nombre. Búsqueda: esperar `Retry-After` y volver a buscar |
 
 ## 3. Perfil
 
@@ -275,6 +275,11 @@ La app pregunta «¿Es esa persona?» y reenvía con el **mismo** `uuid_cliente`
 Un 400 con `persona_registrada` que llega desde la cola sin señal queda entre los pendientes y **no** se
 reintenta solo: necesita que el agente elija. Ningún otro 400 trae `persona_registrada`. La app que no
 conoce la clave lo muestra como cualquier error de campo.
+
+Cada rechazo con `persona_registrada` **descuenta de la misma cubeta que la consulta de identidad** (§4,
+120 por hora por usuario): el nombre de la persona es una consulta de identidad por otra puerta. Con la
+cubeta agotada, el envío en conflicto responde **429** con `Retry-After` y sin el nombre; no se creó nada
+y se reenvía con el mismo `uuid_cliente` después de esperar.
 
 ### Fotos
 

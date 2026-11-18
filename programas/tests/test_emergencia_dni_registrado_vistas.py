@@ -5,7 +5,12 @@ rechazo de ``crear_caso`` bajo el DNI, conservan lo cargado y ofrecen la casilla
 a revisar, que antes del rechazo no aparece.
 """
 
+from unittest import mock
+
+from django.core.cache import cache
+
 from legajos.models import Ciudadano
+from programas.api.views import ConsultaPersonasThrottle
 from programas.models import CasoEmergencia
 from programas.tests.test_emergencia_alojar_vistas import BaseLlegadas
 from programas.tests.test_emergencia_mesa import URL_NUEVO, BaseMesa
@@ -36,6 +41,21 @@ class _Conflicto:
         self.assertTrue(form.errors["dni"][0].startswith("Ese DNI ya está registrado como FARIÑA, Joaquin."))
         self.assertContains(respuesta, CASILLA, status_code=400)
         self.assertContains(respuesta, 'value="Pedro"', status_code=400)
+        self.assertFalse(CasoEmergencia.objects.exists())
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_agotado_el_tope_de_identidad_el_rechazo_no_dice_el_nombre(self, _rate):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self._legajo()
+
+        primera = self.client.post(self._url_formulario(), self._en_conflicto())
+        segunda = self.client.post(self._url_formulario(), self._en_conflicto())
+
+        self.assertContains(primera, "FARIÑA", status_code=400)
+        self.assertEqual(segunda.status_code, 400)
+        self.assertNotContains(segunda, "FARIÑA", status_code=400)
+        self.assertIn("tope de consultas de identidad", segunda.context["form"].errors["dni"][0])
         self.assertFalse(CasoEmergencia.objects.exists())
 
     def test_sin_nombre_ni_apellido_crea_el_caso_con_la_persona_registrada(self):

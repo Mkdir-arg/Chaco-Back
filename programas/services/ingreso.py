@@ -63,6 +63,11 @@ def buscar_ciudadano_por_dni(dni):
 
     El DNI exacto primero; si no, las fichas cargadas con separadores, que la regla de
     `CiudadanosService.existe_con_dni` también cuenta como la misma persona.
+
+    Es la regla única de «este DNI ya tiene persona registrada»: cuenta el legajo
+    **activo o no y con cualquier género**, porque ``Ciudadano.dni`` es único. La usan,
+    entre otros, la consulta de identidad de Emergencia y el alta del caso, para que
+    nunca digan cosas distintas (Cambio 482).
     """
 
     dni = normalizar_dni(dni)
@@ -76,18 +81,6 @@ def buscar_ciudadano_por_dni(dni):
         if normalizar_dni(candidato_dni) == dni:
             return Ciudadano.objects.get(pk=candidato_id)
     return None
-
-
-def persona_registrada_con_dni(dni):
-    """La regla única de «este DNI ya tiene persona registrada» (Cambio 482).
-
-    Es el ``Ciudadano`` con ese DNI —exacto o de una ficha vieja cargada con
-    separadores—, **activo o no y con cualquier género**: ``Ciudadano.dni`` es único,
-    así que no puede haber otra persona con ese número. La usan la consulta de
-    identidad de Emergencia y el alta del caso, para que nunca digan cosas distintas.
-    """
-
-    return buscar_ciudadano_por_dni(dni)
 
 
 class RespuestaRegistro(NamedTuple):

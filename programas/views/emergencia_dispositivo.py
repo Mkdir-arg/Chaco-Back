@@ -40,7 +40,7 @@ from django.utils import timezone
 from django.views import View
 
 from core.rbac import puede
-from programas.forms_emergencia import aviso_identidad_a_revisar
+from programas.forms_emergencia import aviso_identidad_a_revisar, rechazo_para_mostrar
 from programas.forms_emergencia_dispositivo import (
     BuscarFamiliaForm,
     CancelarIngresoForm,
@@ -671,7 +671,7 @@ class _Formulario1View(GuardiaView):
         try:
             caso = self.ejecutar(request, form.datos_formulario1())
         except ValidationError as error:
-            form.agregar_errores_del_servicio(error)
+            form.agregar_errores_del_servicio(rechazo_para_mostrar(request, error))
             return self._render(request, form, status=400)
         return self.despues(request, caso)
 

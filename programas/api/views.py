@@ -500,6 +500,20 @@ class ConsultaPersonasThrottle(UserRateThrottle):
     scope = "personas_campo"
 
 
+def descontar_consulta_de_identidad(request):
+    """Descuenta una consulta de la cubeta ``personas_campo`` del usuario (SEC-25).
+
+    El rechazo «DNI ya registrado» de ``crear_caso`` devuelve el nombre de la persona: es
+    una consulta de identidad por otra puerta y cuenta igual, en la API y en el backoffice
+    (Cambio 482). Devuelve ``None`` si quedaba cupo; si no, los segundos a esperar.
+    """
+
+    throttle = ConsultaPersonasThrottle()
+    if throttle.allow_request(request, None):
+        return None
+    return throttle.wait() or 0
+
+
 @extend_schema(
     request=ConsultaPersonaSerializer,
     responses={
@@ -568,7 +582,7 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
             status=status.HTTP_404_NOT_FOUND,
         )
     if buscar_en_legajos:
-        del_legajo = identificar_en_legajo(dni, sexo)
+        del_legajo = identificar_en_legajo(dni)
         if del_legajo is not None:
             del_legajo.update(dni=dni, sexo=sexo)
             return Response({"success": True, "origen": ORIGEN_LEGAJO, "data": del_legajo, "datos_api": {}})

@@ -6,8 +6,13 @@ búsqueda de llegada (§13.2) y en la ficha de la persona 1 (§13.6).
 """
 
 import uuid
+from unittest import mock
+
+from django.core.cache import cache
+from django.urls import reverse
 
 from legajos.models import Ciudadano
+from programas.api.views import ConsultaPersonasThrottle
 from programas.models import CasoEmergencia, GrupoFamiliar
 from programas.tests.base_emergencia_api import (
     CLAVES_DNI_REGISTRADO,
@@ -77,6 +82,33 @@ class DniRegistradoApiTests(BaseApiLlegadas):
         caso = CasoEmergencia.objects.select_related("grupo").get()
         self.assertEqual(caso.grupo.responsable_id, self.legajo.pk)
         self.assertIsNone(caso.identidad_a_revisar)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_el_rechazo_cuenta_como_consulta_de_identidad_y_agotada_es_429_sin_el_nombre(self, _rate):
+        """SEC-25: el nombre de la persona no se puede enumerar por el envío salteando el tope."""
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+        primera = self._enviar(dni="40732122", nombre="Pedro", apellido="Gómez")
+        segunda = self._enviar(dni="40732122", nombre="Pedro", apellido="Gómez")
+
+        self.assertEqual(primera.status_code, 400)
+        self.assertEqual(segunda.status_code, 429, segunda.content)
+        self.assertNotIn("FARIÑA", segunda.content.decode())
+        self.assertIn("Retry-After", segunda.headers)
+        self.assertEqual(CasoEmergencia.objects.count(), 0)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_la_cubeta_es_la_misma_que_la_de_la_consulta_de_identidad(self, _rate):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self._como(self.agente).post(
+            reverse("emergencia_api:personas-consultar"), {"dni": "30111222", "sexo": "F"}, format="json"
+        )
+
+        respuesta = self._enviar(dni="40732122", nombre="Pedro", apellido="Gómez")
+
+        self.assertEqual(respuesta.status_code, 429)
 
     def test_ningun_otro_400_trae_persona_registrada(self):
         respuesta = self._enviar(direccion="", adultos_f=0, adultos_m=0)

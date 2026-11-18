@@ -43,7 +43,7 @@ _CAMPOS_COMPARADOS = ("nombre", "apellido", "fecha_nacimiento")
 CLAVE_IDENTIDAD_ACREDITADA = "_identidad_acreditada"
 
 
-def _texto_comparable(valor):
+def texto_comparable(valor):
     """Sin acentos, sin mayúsculas y con un solo espacio: «Peréz» == «PEREZ»."""
     plano = unicodedata.normalize("NFKD", str(valor or "")).encode("ascii", "ignore").decode().casefold()
     return " ".join(plano.split())
@@ -71,7 +71,7 @@ def diferencias_con_el_legajo(ciudadano, acreditada):
             del_legajo, acreditado = _fecha_comparable(del_legajo), _fecha_comparable(acreditado)
             iguales = del_legajo == acreditado
         else:
-            iguales = _texto_comparable(del_legajo) == _texto_comparable(acreditado)
+            iguales = texto_comparable(del_legajo) == texto_comparable(acreditado)
         if not del_legajo or not acreditado:
             continue
         if not iguales:
@@ -169,21 +169,21 @@ def identificar(objetivo, dni, sexo, fila=_SIN_BUSCAR):
     return resultado
 
 
-def identificar_en_legajo(dni, sexo):
+def identificar_en_legajo(dni):
     """Los datos de identidad del legajo registrado con ese DNI, o ``None``.
 
     Es la parte de legajos de la consulta de Emergencia. Usa la regla única de
-    :func:`programas.services.ingreso.persona_registrada_con_dni` —la misma que usa
+    :func:`programas.services.ingreso.buscar_ciudadano_por_dni` —la misma que usa
     ``crear_caso`` para el responsable—: cuenta el legajo **activo o no y con
     cualquier género** (Cambio 482). Si la consulta lo ocultara, la app ofrecería
     cargar a mano un nombre que el alta después descartaría, porque el DNI es único.
     """
-    from programas.services.ingreso import persona_registrada_con_dni
+    from programas.services.ingreso import buscar_ciudadano_por_dni
 
-    dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
-    if not dni or not sexo:
+    dni = normalizar_dni(dni)
+    if not dni:
         return None
-    ciudadano = persona_registrada_con_dni(dni)
+    ciudadano = buscar_ciudadano_por_dni(dni)
     if ciudadano is None:
         return None
     return {
