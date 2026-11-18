@@ -170,8 +170,11 @@ def _validar_formulario1(datos):
         limpio[campo] = _entero(datos, campo, errores)
     menores = limpio["menores_f"] + limpio["menores_m"]
     mayores = limpio["mayores_f"] + limpio["mayores_m"]
+    # Sin la marca, el envío es de una app anterior (o quedó en su cola): el responsable ya
+    # viene contado en las cantidades y sumarlo de nuevo inflaría la familia.
+    limpio["responsable_aparte"] = datos.get("responsable_aparte") is True
     # RN-1.2: el total es del servidor. Lo que mande el cliente como total ni se mira.
-    total = sum(limpio[campo] for campo in GrupoFamiliar.CANTIDADES)
+    total = GrupoFamiliar.personas_declaradas(limpio, limpio["responsable_aparte"])
     limpio["total_declarado"] = total
     if not any(campo in errores for campo in GrupoFamiliar.CANTIDADES):
         if total < 1:
@@ -180,7 +183,8 @@ def _validar_formulario1(datos):
             # RN-1.3
             if limpio["dependientes"] > total:
                 errores.setdefault("dependientes", "No puede haber más personas con dependencia que personas.")
-            if limpio["mayores_dependientes"] > mayores:
+            # El responsable que va aparte puede ser ese mayor: no tiene franja en las cantidades.
+            if limpio["mayores_dependientes"] > mayores + int(limpio["responsable_aparte"]):
                 errores.setdefault("mayores_dependientes", "No puede haber más mayores dependientes que mayores.")
             if limpio["lactantes"] > menores:
                 errores.setdefault("lactantes", "No puede haber más lactantes que menores.")
@@ -271,7 +275,8 @@ def _responsable(datos, limpio):
             {"nombre": "La persona no está en el legajo: cargá su nombre y su apellido para darla de alta."}
         )
     genero = ""
-    if limpio["total_declarado"] == 1:
+    # Solo con el responsable dentro de las cantidades una familia de uno dice su sexo.
+    if limpio["total_declarado"] == 1 and not limpio["responsable_aparte"]:
         femenino = limpio["menores_f"] + limpio["adultos_f"] + limpio["mayores_f"]
         genero = Ciudadano.Genero.FEMENINO if femenino == 1 else Ciudadano.Genero.MASCULINO
     fecha = datos.get("fecha_nacimiento")
@@ -372,6 +377,8 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
       opcionales ``fecha_nacimiento``, ``telefono`` y ``documento_extraviado``.
     * las seis cantidades (``menores_f``, ``menores_m``, ``adultos_f``, ``adultos_m``,
       ``mayores_f``, ``mayores_m``), ``dependientes``, ``mayores_dependientes``, ``lactantes``.
+    * ``responsable_aparte``: ``True`` si las cantidades son los acompañantes y el total
+      suma al responsable. Sin él (envíos de una app anterior), el responsable va adentro.
     * los avisos ``embarazo``, ``electrodependiente``, ``medicacion_critica``, ``mascotas``.
     * ``direccion`` (obligatoria); opcionales ``localidad`` (id o instancia de
       ``core.Localidad``), ``latitud``, ``longitud``, ``precision_m`` y ``observaciones``.
@@ -419,6 +426,7 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
                 mayores_dependientes=limpio["mayores_dependientes"],
                 lactantes=limpio["lactantes"],
                 total_declarado=limpio["total_declarado"],
+                responsable_aparte=limpio["responsable_aparte"],
                 **{campo: limpio[campo] for campo in GrupoFamiliar.CANTIDADES},
             )
             grupo.full_clean()

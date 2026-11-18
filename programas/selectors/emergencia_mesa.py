@@ -333,8 +333,12 @@ def _datos_del_relevamiento(caso):
     ]
 
 
-def _personas_del_grupo(caso):
-    grupo = caso.grupo
+def franjas_del_grupo(grupo):
+    """Las filas de «Personas que ingresan juntas», con la del responsable si va aparte.
+
+    La del responsable no tiene sexo (``None``): el Formulario 1 no lo pide para él.
+    """
+
     franjas = [
         {"franja": "Menores de 16", "femenino": grupo.menores_f, "masculino": grupo.menores_m, "total": grupo.menores},
         {
@@ -345,11 +349,20 @@ def _personas_del_grupo(caso):
         },
         {"franja": "Mayores (60+)", "femenino": grupo.mayores_f, "masculino": grupo.mayores_m, "total": grupo.mayores},
     ]
+    if grupo.responsable_aparte:
+        franjas.append({"franja": "Responsable", "femenino": None, "masculino": None, "total": 1})
+    return franjas
+
+
+def _personas_del_grupo(caso):
+    grupo = caso.grupo
+    franjas = franjas_del_grupo(grupo)
     return {
         "franjas": franjas,
-        "total_femenino": sum(fila["femenino"] for fila in franjas),
-        "total_masculino": sum(fila["masculino"] for fila in franjas),
+        "total_femenino": sum(fila["femenino"] or 0 for fila in franjas),
+        "total_masculino": sum(fila["masculino"] or 0 for fila in franjas),
         "total": grupo.total_declarado,
+        "responsable_aparte": grupo.responsable_aparte,
         "asistencia": [
             {"etiqueta": "Personas con dependencia", "valor": grupo.dependientes},
             {"etiqueta": "Mayores dependientes", "valor": grupo.mayores_dependientes},

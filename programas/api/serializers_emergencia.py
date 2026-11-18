@@ -99,7 +99,13 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     telefono = _texto()
     documento_extraviado = _aviso(help_text="Perdió el documento pero sabe el número.")
 
-    # Paso 2 · personas que ingresan juntas (el responsable está incluido)
+    # Paso 2 · personas que ingresan juntas
+    responsable_aparte = _aviso(
+        help_text=(
+            "`true`: las cantidades son los acompañantes y el total suma al responsable. Sin él (o "
+            "`false`, lo que manda una app anterior), el responsable ya está contado en las cantidades."
+        )
+    )
     menores_f = _cantidad()
     menores_m = _cantidad()
     adultos_f = _cantidad()
@@ -109,7 +115,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
 
     # Paso 3 · necesitan asistencia
     dependientes = _cantidad(help_text="No puede superar el total.")
-    mayores_dependientes = _cantidad(help_text="No puede superar los mayores.")
+    mayores_dependientes = _cantidad(help_text="No puede superar los mayores (más el responsable, si va aparte).")
     lactantes = _cantidad(help_text="No puede superar los menores.")
     embarazo = _aviso()
     electrodependiente = _aviso()
@@ -440,7 +446,10 @@ class ResponsableSerializer(serializers.Serializer):
 
 
 class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
-    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia."""
+    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia.
+
+    ``responsable_aparte``: si es ``true``, las franjas son los acompañantes y el responsable suma uno más.
+    """
 
     class Meta:
         model = GrupoFamiliar
@@ -454,6 +463,7 @@ class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
             "dependientes",
             "mayores_dependientes",
             "lactantes",
+            "responsable_aparte",
         ]
         read_only_fields = fields
 

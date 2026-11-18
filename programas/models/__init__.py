@@ -5370,6 +5370,10 @@ class GrupoFamiliar(TimeStamped):
     integrantes se vuelven ``IntegranteGrupo`` recién cuando el dispositivo confirma cada
     ficha (etapa 3). ``total_declarado`` lo calcula el servidor (RN-1.2) y es el tamaño del
     grupo para toda la vida del caso: plazas a pedir y fichas a confirmar.
+
+    ``responsable_aparte`` dice cómo se leen las cantidades: con ``True`` son los
+    acompañantes y el responsable suma uno más; con ``False`` (los casos anteriores y los
+    envíos de una app vieja) el responsable ya está contado adentro.
     """
 
     class Traslado(models.TextChoices):
@@ -5404,6 +5408,12 @@ class GrupoFamiliar(TimeStamped):
     )
     lactantes = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Lactantes")
     total_declarado = models.PositiveSmallIntegerField(verbose_name="Total de personas declarado")
+    responsable_aparte = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="Responsable fuera de las cantidades",
+        help_text="Las cantidades son los acompañantes: el total suma al responsable.",
+    )
 
     class Meta:
         verbose_name = "Grupo familiar de Emergencia"
@@ -5426,10 +5436,17 @@ class GrupoFamiliar(TimeStamped):
     def mayores(self):
         return self.mayores_f + self.mayores_m
 
-    def suma_de_cantidades(self):
-        """La suma de las seis cantidades: lo que ``total_declarado`` vale al crear el caso."""
+    @classmethod
+    def personas_declaradas(cls, cantidades, responsable_aparte):
+        """La regla del total (RN-1.2): las seis cantidades, más el responsable si va aparte de ellas."""
 
-        return sum(getattr(self, campo) for campo in self.CANTIDADES)
+        return sum(cantidades[campo] for campo in cls.CANTIDADES) + int(responsable_aparte)
+
+    def suma_de_cantidades(self):
+        """Las personas declaradas al relevar: lo que ``total_declarado`` vale al crear el caso."""
+
+        cantidades = {campo: getattr(self, campo) for campo in self.CANTIDADES}
+        return self.personas_declaradas(cantidades, self.responsable_aparte)
 
     @property
     def llegaron_mas(self):
