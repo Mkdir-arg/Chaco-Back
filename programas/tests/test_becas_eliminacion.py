@@ -184,6 +184,7 @@ class VistasTests(_Base):
         self.client.force_login(self.eliminador)
         resp = self.client.post(reverse("becas:segmento_eliminar", args=[self.segmento.pk]), follow=True)
         self.assertContains(resp, "No se puede eliminar el segmento: tiene 1 caso cargado")
+        self.assertNotContains(resp, "Un relevamiento está en campo")
         self.assertTrue(Segmento.objects.filter(pk=self.segmento.pk).exists())
 
 
@@ -302,6 +303,7 @@ class RelevamientoEnCampoTests(_Base):
         self.client.force_login(self.eliminador)
         resp = self.client.post(reverse("becas:relevamiento_eliminar", args=[self.relevamiento.pk]), follow=True)
         self.assertContains(resp, "No se puede eliminar el relevamiento: está en campo.")
+        self.assertContains(resp, "hasta 24 h después de la fecha de fin de su período")
 
 
 class GraciaDeSincronizacionTests(_Base):

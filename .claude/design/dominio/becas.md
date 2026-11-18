@@ -473,8 +473,8 @@ Evidencia: `programas/templates/programas/becas/config/_programas_table.html`,
 botón de tacho que «Eliminar subsegmento» (`_subsegmentos_panel.html`) —`nodo-icon-btn nodo-icon-btn--danger` +
 `fa-trash`, último de la columna de acciones— con la confirmación de `_confirm_js.html`
 (`data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, eliminar"`). El cuerpo dice qué
-arrastra la cascada y que con casos cargados o un relevamiento en campo (en curso o cerrado hace menos de 24 h,
-la gracia de sincronización) no se elimina nada. El botón se dibuja solo con `becas.<nivel>.eliminar` (en
+arrastra la cascada y que con casos cargados o un relevamiento en campo (en curso, o hasta 24 h después de la
+fecha de fin de su período: la gracia de sincronización) no se elimina nada. El botón se dibuja solo con `becas.<nivel>.eliminar` (en
 relevamientos, el flag `puede_eliminar` de la vista); el bloqueo lo avisa el toast de error después del POST,
 no se anticipa en la tabla. `relevamiento_list.html` incluye
 `_confirm_js.html` porque no carga `_ajax_js.html`.

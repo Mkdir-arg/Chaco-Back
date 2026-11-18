@@ -119,7 +119,7 @@
               <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Eliminar {{ rel.nombre }}"
                       data-confirm-url="{% url 'becas:relevamiento_eliminar' rel.pk %}"
                       data-confirm-title="¿Eliminar el relevamiento?"
-                      data-confirm-text="«{{ rel.nombre }}» deja de verse. Solo se puede eliminar si no tiene casos cargados y no está en campo (en curso o cerrado hace menos de 24 h)."
+                      data-confirm-text="«{{ rel.nombre }}» deja de verse. Solo se puede eliminar si no tiene casos cargados y no está en campo (en curso, o hasta 24 h después de la fecha de fin de su período)."
                       data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, eliminar">
                 <i class="fas fa-trash" aria-hidden="true"></i>
               </button>

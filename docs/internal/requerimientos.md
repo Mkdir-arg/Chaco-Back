@@ -57586,7 +57586,7 @@ la gracia de sincronización, y corregir el texto del aviso cuando el bloqueado 
 
 ## Implementación
 
-Un relevamiento está «en campo» mientras está en curso y durante las 24 h siguientes a su cierre. Mientras haya
+Un relevamiento está «en campo» mientras está en curso y hasta 24 h después de la fecha de fin de su período. Mientras haya
 uno así en la cascada, no se elimina nada y el mensaje lo explica.
 
 ## Archivos
@@ -57621,3 +57621,6 @@ Desplegar el código anterior. No hay datos ni columnas.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1200 (APPROVE con un MINOR): el texto decía «24 h desde el cierre», pero la
+  gracia se cuenta desde la fecha de fin del período (`fecha_hasta`), no desde el «Finalizar». Se corrigió el
+  texto del aviso y de los modales; la frase sobre «en campo» sale solo si hay relevamientos en campo.

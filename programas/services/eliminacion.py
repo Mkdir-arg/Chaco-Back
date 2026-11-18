@@ -164,7 +164,11 @@ def mensaje_bloqueo(error, que):
             motivos.append("tiene 1 relevamiento en campo")
         else:
             motivos.append(f"tiene {error.en_campo} relevamientos en campo")
-    return (
-        f"No se puede eliminar {que}: {' y '.join(motivos)}. Un relevamiento está en campo mientras está en curso "
-        "y durante las 24 h siguientes a su cierre, en las que la app todavía puede sincronizar capturas."
-    )
+    texto = f"No se puede eliminar {que}: {' y '.join(motivos)}."
+    if error.en_campo:
+        # La gracia se cuenta desde ``fecha_hasta`` (``campo.en_gracia``), no desde el «Finalizar».
+        texto += (
+            " Un relevamiento está en campo mientras está en curso y hasta 24 h después de la fecha de fin de "
+            "su período, porque hasta entonces la app todavía puede sincronizar capturas."
+        )
+    return texto

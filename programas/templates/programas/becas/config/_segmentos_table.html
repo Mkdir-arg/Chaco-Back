@@ -87,7 +87,7 @@
             <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Eliminar el segmento {{ s.nombre }}"
                     data-confirm-url="{% url 'becas:segmento_eliminar' s.pk %}"
                     data-confirm-title="¿Eliminar el segmento?"
-                    data-confirm-text="«{{ s.nombre }}» deja de verse junto con sus subsegmentos, convocatorias y relevamientos. Si alguno tiene casos cargados o un relevamiento en campo (en curso o cerrado hace menos de 24 h), no se elimina nada."
+                    data-confirm-text="«{{ s.nombre }}» deja de verse junto con sus subsegmentos, convocatorias y relevamientos. Si alguno tiene casos cargados o un relevamiento en campo (en curso, o hasta 24 h después de la fecha de fin de su período), no se elimina nada."
                     data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, eliminar">
               <i class="fas fa-trash" aria-hidden="true"></i>
             </button>
