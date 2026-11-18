@@ -80,6 +80,10 @@ CATALOGO = [
             # Cambio 410: ver TODOS los dispositivos sin ser parte del Equipo. Solo lectura:
             # opera únicamente quien integra el Equipo del dispositivo o administra el programa.
             ("dispositivo.ver_todos", "Ver todos los dispositivos (solo lectura)"),
+            # Sección «Edificios» del menú de Dispositivos (#1164). Separada de
+            # `dispositivo.ver` para darla o quitarla por rol; `users.0048` la siembra en los
+            # roles que ya ven dispositivos. `ver_todos` también la amplía a toda la red.
+            ("edificio.ver", "Ver edificios"),
         ],
     },
     {

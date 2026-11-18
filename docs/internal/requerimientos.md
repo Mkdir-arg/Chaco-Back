@@ -604,7 +604,14 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 479 | Dispositivos: dar de baja una plaza (cama) del mapa y reactivarla, sin borrar su historia | Dispositivos · sectores y plazas | `#datos` `#ui` | Usuario — «no tengo forma de eliminar una cama» | 17/11/2026 | 🟡 **En curso** | `programas.0122` |
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
-| 482 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0124`, `users.0048` |
+| 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
+| 483 | Dispositivos · Edificios: capacidad `edificio.ver` | Dispositivos · edificios / RBAC | `#rbac` | PM — en sesión: «crea las capacidades edificio.ver» | 18/11/2026 | 🟢 **Hecho** | `users.0048` |
+| 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 485 | Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1167 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 486 | Emergencia: un DNI ya registrado no se reemplaza en silencio por otro nombre (consulta y alta con la misma regla, rechazo o «identidad a revisar») | Emergencia · app de campo, alta del caso y backoffice | `#emergencia` `#api` `#mobile` `#datos` | Usuario (PM) — en testing de ECOM la app dijo que el DNI no figuraba y el caso llegó a nombre de otra persona | 18/11/2026 | 🟡 **En curso** | No requiere |
+| 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
 
 **Notas del índice**
 
@@ -56786,7 +56793,631 @@ Desplegar el código anterior. No hay datos ni columnas.
 
 ---
 
-# Cambio 482 — Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada)
+# Cambio 482 — Emergencia: el total de «Personas que ingresan juntas» suma al responsable
+
+🟡 **EN CURSO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia (app de campo, «Nuevo caso» de la mesa y Formulario 1 de la puerta del dispositivo) |
+| **Etiquetas** | `#api` `#datos` `#ui` |
+| **Solicitante** | Usuario (PM) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API, Backoffice, Mobile (Chaco-mobile 1.2.23) |
+| **Migración** | `programas.0124` |
+
+## Pedido original
+
+«En la app de campo, cuando ingreso una persona me pide el responsable, eso está bien. Lo que está mal es que en la
+tabla de abajo, "Personas que ingresan juntas", ingreso por ejemplo 1 persona y el cálculo me dice que es solo una
+persona: no está contabilizando el responsable.»
+
+## Alcance acordado
+
+**Entra:** la regla del total del Formulario 1 en los tres orígenes (app, mesa y puerta del dispositivo), la ficha del
+caso y los textos de ayuda. **Queda afuera:** la franja de edad y el sexo del responsable (ver Pendientes).
+
+## Decisiones tomadas
+
+1. **Las seis cantidades pasan a ser los acompañantes** y el total suma uno por el responsable (antes la regla era
+   «el responsable está incluido»). Decisión del PM, elegida entre esto y solo aclarar el texto.
+2. **Marca explícita por envío, no cambio de golpe:** `GrupoFamiliar.responsable_aparte` y el campo
+   `responsable_aparte` del §6 del contrato. La app tiene cola sin señal y borradores guardados: un envío cargado con la
+   regla vieja que sale después del deploy se contaría con una persona de más. Sin la marca (`false` por defecto) el
+   back lee como antes; la app nueva la manda en `true`, y lo guardado en el teléfono antes de 1.2.23 sale sin ella.
+3. **Los casos anteriores no se tocan:** la columna nace en `False` y su total sigue siendo el que era.
+4. **La mesa y la puerta web** usan la regla nueva siempre (`NuevoCasoMesaForm.datos_formulario1`).
+5. **Lo declarado al relevar** (`suma_de_cantidades`, base de «Llegaron N sobre M declaradas») suma al responsable
+   cuando va aparte, para que un caso nuevo no figure como «llegaron más».
+6. **Sexo en el alta mínima:** solo se deduce de las cantidades cuando el responsable va adentro y la familia es de
+   uno; con la marca y sin acompañantes no se adivina.
+7. **El responsable puede ser el mayor dependiente** (auditoría del PR #1162): con la marca, el tope es
+   `mayores_dependientes ≤ mayores + 1`. Si no, una persona mayor y dependiente que llega sola no se puede marcar y
+   pierde la prioridad ALTA. Mismo tope en `validarCaso` de la app.
+8. **Una sola fuente para la regla del total y las filas:** `GrupoFamiliar.personas_declaradas` (la usan el alta y
+   `suma_de_cantidades`) y `franjas_del_grupo` (la ficha de la mesa y la tarjeta de «Llegadas», que también muestra la
+   fila «Responsable»). La API de M2-2 expone `grupo.responsable_aparte`.
+
+## Implementación
+
+Cargar 1 persona en «Personas que ingresan juntas» da un total de 2: esa persona más el responsable. Sin acompañantes
+el caso es de una persona. La ficha del caso muestra una fila «Responsable» en la tabla de personas cuando el caso se
+cargó con la regla nueva. Los textos de ayuda dicen que al responsable no se lo cuenta en la tabla.
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0124_grupo_responsable_aparte.py`,
+`programas/services/emergencia_alta.py`, `programas/api/serializers_emergencia.py`, `programas/forms_emergencia.py`,
+`programas/selectors/emergencia_mesa.py`, `programas/templates/programas/emergencia/_formulario1_bloques.html`,
+`programas/templates/programas/emergencia/casos/detail.html`, `.claude/design/arquetipos/detalle.md`,
+`docs/internal/contrato-app-emergencia.md`; tests `test_emergencia_api_m1`, `test_emergencia_mesa`,
+`test_emergencia_alojar_vistas`. En Chaco-mobile: `src/utils/emergencia.js`, `src/services/emergenciaApi.js`,
+`src/services/emergenciaCola.js`, las pantallas del Formulario 1 y de la puerta, y sus tests.
+
+## Base de datos
+
+`programas.0124`: `grupofamiliar.responsable_aparte` booleano `NOT NULL` con `DEFAULT 0` real en la base
+(`db_default`), así el código anterior puede seguir dando de alta durante el rolling. Segura sobre datos existentes.
+
+## Validación
+
+- Suite de Emergencia del back: 987 tests, OK (SQLite, Django 5.2.17). Nuevos: con la marca el total suma al
+  responsable, sin acompañantes es 1 y no se adivina el sexo; sin la marca o en `false` se lee como antes; la mesa
+  sin acompañantes crea el caso de 1 y la ficha lo dice.
+- `manage.py check`, `ruff`, `check_migraciones.py` (0 problemas), `makemigrations --check`,
+  `design_audit.py --ratchet` (0 nuevos), `compile_templates.py --bloques` (0), `check_design_agent.py --changed` OK.
+- Chaco-mobile: `npm test`, 949 OK.
+
+## Puesta en marcha en el servidor
+
+**Orden de deploy: primero el back, después la app.** Un back viejo ignora `responsable_aparte` y contaría una
+persona menos en los envíos de la app 1.2.23.
+
+## Pendientes / a definir
+
+- El responsable no tiene franja de edad ni sexo en las cantidades: no cuenta como «mayor» ni «menor» para la
+  prioridad sugerida (un responsable mayor no dependiente que llega solo sale BAJA y no MEDIA). Se podría derivar de
+  su fecha de nacimiento: a definir.
+
+## Reversión
+
+Desplegar el código anterior del back y de la app. La columna puede quedar (tiene `DEFAULT`); los casos creados con
+la marca guardan el total con el responsable sumado, que el código viejo muestra igual.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+- **18/11/2026:** la auditoría del PR #1162 pidió el tope de mayores dependientes con el responsable, la fila
+  «Responsable» en la tarjeta de «Llegadas» y la regla del total en un solo lugar (decisiones 7 y 8).
+
+---
+
+# Cambio 483 — Dispositivos · Edificios: capacidad `edificio.ver`
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios / RBAC |
+| **Etiquetas** | `#rbac` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: «crea las capacidades edificio.ver», para la sección «Edificios» del menú de Dispositivos |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1165 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Servidor (RBAC) |
+| **Migración** | `users.0048` |
+
+## Pedido original
+
+«En dispositivos tenemos Instituciones, Relevamientos y Configuración, pero falta uno para edificios.» Al
+cerrar el análisis (#1164) el PM pidió una capacidad propia: «crea las capacidades edificio.ver».
+
+## Alcance acordado
+
+Entra: la capacidad `edificio.ver` en el catálogo, su siembra y su alcance. Queda afuera (tasks siguientes
+del análisis #1164): el selector de edificios (#1166), el listado (#1167), la ficha (#1168) y el ítem del
+sidebar (#1169). Ninguna pantalla la evalúa todavía.
+
+## Decisiones tomadas
+
+- **Capacidad propia y no `dispositivo.ver`** (decisión del PM): Edificios se puede dar o quitar por rol,
+  independiente de Instituciones.
+- **Siembra en todo rol que ya tenga `dispositivo.ver`**: nadie que hoy ve Instituciones se queda sin la
+  sección nueva cuando llegue. De ahí en adelante se reparte desde el ABM de Roles, sin deploy (mismo
+  criterio que `users.0036` con `dispositivo.bitacora`).
+- **`dispositivo.ver_todos` amplía también `edificio.ver`** a toda la red: es lectura, igual que
+  `dispositivo.ver`. No se amplía ninguna capacidad de escritura (`_CAPS_LECTURA_RED` en
+  `programas/services/dispositivos.py`).
+- Mientras ninguna pantalla la evalúe, queda declarada en `CAPACIDADES_SIN_USO` del contrato de RBAC
+  (`users/tests/test_rbac_contrato.py`); sale de ahí en el PR que la empiece a evaluar.
+
+## Implementación
+
+`edificio.ver` («Ver edificios») aparece en el árbol de Dispositivos del ABM de Roles. Con
+`dispositivo.ver_todos`, `dispositivos_en_alcance(user, "edificio.ver")` y
+`edificios_en_alcance(user, "edificio.ver")` devuelven toda la red; sin ella, solo los dispositivos del
+Equipo donde la persona tiene un rol con la capacidad.
+
+## Archivos
+
+- `core/rbac.py` (`CATALOGO`)
+- `programas/services/dispositivos.py` (`CAP_VER_EDIFICIOS`, `_CAPS_LECTURA_RED`, `_ve_todos`)
+- `users/migrations/0048_capacidad_edificio_ver.py`
+- `users/tests/test_rbac_contrato.py`, `users/tests/test_migracion_edificio_ver.py`,
+  `programas/tests/test_dispositivos_edificio_ver.py`
+
+## Base de datos
+
+`users.0048`: `AlterModelOptions` de `Capacidad` (no toca el esquema) + `RunPython` que agrega filas en
+`auth_group_permissions`. Idempotente; segura sobre datos existentes.
+
+## Validación
+
+- Tests nuevos de siembra (roles con y sin `dispositivo.ver`, idempotencia, reversa) y de alcance
+  (`ver_todos` amplía lectura y no escritura; Equipo con y sin la capacidad), en verde.
+- Mutaciones: volver `_ve_todos` a `== CAP_VER` y sumar `dispositivo.editar` a `_CAPS_LECTURA_RED`
+  dejan rojo un test cada una.
+- `manage.py check`, `makemigrations --check`, `scripts/check_migraciones.py` (0 problemas) y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy: la migración siembra la capacidad.
+
+## Pendientes / a definir
+
+- Las pantallas que la evalúan: #1166 a #1169.
+
+## Reversión
+
+Desaplicar `users.0048` (la reversa quita la capacidad de todos los roles; se pierde un tilde hecho a mano
+en un rol sin `dispositivo.ver`) y revertir el commit.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+
+---
+
+# Cambio 484 — Dispositivos · Edificios: selector de edificios visibles con alcance y filtros
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026, sección «Edificios» del menú de Dispositivos |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1166 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1166 del análisis #1164: un selector de lectura con los edificios que el usuario puede ver, sus filtros y lo
+que la fila del listado necesita, en consultas fijas. Es la base del listado (#1167) y de la ficha (#1168).
+
+## Alcance acordado
+
+Entra: `programas/selectors/edificios.py`. Queda afuera: las pantallas y el sidebar (#1167 a #1169); hasta
+entonces `edificio.ver` sigue en `CAPACIDADES_SIN_USO`.
+
+## Decisiones tomadas
+
+- **Vigentes por defecto** (R3 del análisis): activos y con al menos una institución. Inactivos y sin institución
+  solo para el admin del programa, con `situacion`; para el resto se ignora el parámetro. Por eso `ver_todos`
+  ve «la red» de edificios vigentes, no los huérfanos (lo marcó la auditoría del PR #1188 y se descartó por R3).
+- **El estado edilicio se filtra en SQL** con la misma «última realizada» que el semáforo
+  (`subconsulta_ultima_realizada`): el listado pagina la red, no se puede filtrar en Python como las tarjetas de
+  Infraestructura (tope de 60).
+- **Instituciones del predio:** se nombran las del alcance de `edificio.ver` o de `dispositivo.ver`; el enlace a la
+  institución va solo si puede abrir su detalle (`dispositivos_visibles`). El resto se cuenta sin nombre.
+- **«Crear relevamiento»** lleva al modal de asignar de Relevamientos (`?asignar=<pk>`) solo si el edificio está en
+  `edificios_para_asignar(user)`.
+- `clave_estado_edilicio` y `aviso_de_vencimiento` de `services/detalle_dispositivo.py` pasan a ser públicas (antes
+  `_clave_estado` y `_aviso_de_vencimiento`), sin cambiar su comportamiento: las usan la solapa y el selector.
+
+## Implementación
+
+`edificios_visibles(user, situacion)`, `filtrar_edificios(qs, q, localidad, estado, compartido)`,
+`localidades_visibles(user)`, `para_el_listado(qs)` (anota la última, instituciones y vencimiento en la consulta
+de la página) y `filas_del_listado(user, edificios)` (cuatro consultas fijas por página).
+
+## Archivos
+
+- `programas/selectors/edificios.py` (nuevo)
+- `programas/services/detalle_dispositivo.py` (dos helpers pasan a públicos)
+- `programas/tests/test_dispositivos_edificios_selector.py` (nuevo)
+- `programas/tests/test_dispositivos_edificio_ver.py` (MINOR de la auditoría del PR #1188: el test compara la
+  constante contra el catálogo y no contra un literal)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 19 tests nuevos (alcance, situación, cada filtro solo y combinado, instituciones fuera de alcance, enlace,
+  `url_asignar`, consultas fijas con 2 y 20 edificios) y los de Infraestructura: 85 en verde.
+- Mutaciones: sacar `activo=True` de los vigentes deja 14 en rojo; dejar pedir `situacion` a quien no es admin, 4.
+- `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Las pantallas que lo consumen: #1167 (listado), #1168 (ficha), #1169 (sidebar).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+
+---
+
+# Cambio 485 — Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026, sección «Edificios» del menú de Dispositivos |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1167 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1167: la pantalla Dispositivos → Edificios, tabla paginada de los edificios del alcance, con filtros y la
+acción «Crear relevamiento». Solo lectura.
+
+## Alcance acordado
+
+Entra: la ruta `dispositivos:edificios`, la vista y el template. Queda afuera: la ficha del edificio (#1168, por eso
+la fila todavía no tiene «Ver») y el ítem del sidebar (#1169). La ruta se abre por URL hasta que llegue el ítem.
+
+## Decisiones tomadas
+
+- **Permiso `edificio.ver`** (Cambio 483): sin ella, 403 aunque tenga `dispositivo.ver`. Con este PR la capacidad
+  sale de `CAPACIDADES_SIN_USO`: la vista la evalúa.
+- **Todo sale del selector del Cambio 484**: la vista solo orquesta. El filtro «Situación» se muestra y se aplica
+  solo al admin del programa.
+- **Una sola acción de fila** («Crear relevamiento», al modal de asignar de Relevamientos): `nodo-icon-btn`, no
+  `menu_fila`. «Ver» se suma con la ficha.
+- **Sin tarjetas en móvil**: la variante canónica (`_lista_tarjetas.html`) pide `tarjetas` armadas en la vista; la
+  tabla queda con `overflow-x-auto` como el resto de los listados. Si hiciera falta, se suma en el selector.
+- **Presupuesto nuevo `dispositivos_edificios_listado`: 12 consultas** por página (5 del request autenticado y 7 del
+  listado), iguales con 2 y con 20 edificios.
+
+## Implementación
+
+`/dispositivos/edificios/` muestra Código, Nombre (con domicilio), Localidad, Instituciones del predio (con enlace
+solo si puede abrirlas; «y N más» por las que no ve), Estado edilicio (más «Vencido»/«Vence en N días» e «Inactivo»
+como badges aparte) y Último relevamiento. Filtros: búsqueda, localidad, estado, compartido y, solo admin, situación.
+Tres estados vacíos: sin alcance, con filtros (limpiar) y sin edificios.
+
+## Archivos
+
+- `programas/views/dispositivos_edificios.py` (nuevo), `programas/dispositivos_urls.py`
+- `programas/templates/programas/dispositivos/edificios/list.html` (nuevo, arquetipo Listado)
+- `scripts/perf_budgets.json` (servicio `dispositivos_edificios_listado`)
+- `users/tests/test_rbac_contrato.py` (`edificio.ver` sale de `CAPACIDADES_SIN_USO`)
+- `programas/tests/test_dispositivos_edificios_listado.py` (nuevo)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 15 tests nuevos (permiso, login, alcance, situación, instituciones fuera de alcance, vacío por alcance, Crear
+  relevamiento, ninguna acción de escritura, filtros, paginación con filtros, presupuesto con 2 y 20 edificios).
+- Mutación: pedir `dispositivo.ver` en lugar de `edificio.ver` deja 8 en rojo.
+- `design_audit.py --arquetipo listado` OK, `--ratchet` 0 nuevos, `compile_templates.py --bloques` 0,
+  `check_design_agent.py --changed` OK, `check_perf_budgets.py`, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- «Ver» en la fila cuando exista la ficha (#1168); el ítem del sidebar (#1169).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1190 (dos MINOR) y CI. El selector de localidad sigue la «Situación» del admin
+  (`localidades_visibles(user, situacion)`); las últimas realizadas se leen sin el `con_detalle` que nadie usaba. El
+  contrato del agente de diseño pidió registrar en `.claude/design/arquetipos/detalle.md` que el estado edilicio
+  (`clave_estado_edilicio`, `aviso_de_vencimiento`) es compartido con el listado de Edificios.
+
+---
+
+# Cambio 486 — Emergencia: un DNI ya registrado no se reemplaza en silencio por otro nombre
+
+🟡 **EN CURSO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · app de campo (M1, M2-6), alta del caso, mesa y dispositivo por backoffice |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` `#datos` |
+| **Solicitante** | Usuario (PM) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue (análisis funcional en borrador: tareas T1, T2, T3 y T5) |
+| **Partes afectadas** | Servidor/API, backoffice (mesa y dispositivo), Mobile (T4, repo Chaco-mobile, pendiente) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En testing de ECOM, al cargar el responsable del grupo familiar en la app de campo, «Buscar» dijo que el DNI
+no figuraba en la base de personas; el agente cargó otro nombre y apellido y el caso llegó a la mesa como
+FARIÑA, Joaquin (DNI 40.732.122). La consulta y el alta buscaban a la persona con criterios distintos, y el
+alta descartaba sin aviso el nombre cargado.
+
+## Alcance acordado
+
+**Entra:** la regla única de «DNI ya registrado», la consulta de Emergencia, `crear_caso` (los tres
+orígenes), la API (M1, ingreso directo, aviso a la mesa, §13.2 y §13.6) y los formularios del backoffice.
+**Queda afuera:** la app (T4, Chaco-mobile), la ficha y la bandeja de la mesa para revisar la marca (T6 y
+T7, segunda entrega), sanear el legajo del DNI 40.732.122 (edad 0), «cambiar el responsable del caso» y el
+Formulario 2.
+
+## Decisiones tomadas
+
+1. **Regla única:** un DNI está registrado si existe un `Ciudadano` con ese DNI (exacto o cargado con
+   separadores), **activo o no y de cualquier género** (`ingreso.buscar_ciudadano_por_dni`). La usan la
+   consulta de Emergencia y `crear_caso`. Revierte las decisiones 3 y 4 del Cambio 481.
+2. **La consulta de Emergencia muestra el legajo** cuando existe, aunque Base de Personas la encuentre con
+   otros datos (decisión del PM; revierte la decisión 1 del Cambio 481 solo para Emergencia). La fallecida
+   sigue siendo 404. Becas no cambia.
+3. **Conflicto:** `nombre` o `apellido` con texto que no coincide con el legajo (sin acentos, mayúsculas ni
+   espacios de más). Un campo vacío no se compara; la fecha de nacimiento no genera conflicto.
+4. **Opción a del PM:** sin `identidad_en_conflicto`, `crear_caso` rechaza (`DniRegistrado`, en `dni`) sin
+   crear nada. La API suma `persona_registrada: {apellido, nombre}` al 400 `VALIDACION`.
+5. **Tercera salida «identidad a revisar»:** con `identidad_en_conflicto` y conflicto, el caso se cuelga del
+   legajo existente, que **no se toca**, y `situacion["identidad_a_revisar"]` guarda lo declarado. La traza
+   `CREADO` suma «· Identidad a revisar», sin nombres. Sin conflicto, el flag se ignora.
+6. **La guardia ve la marca** mientras esté pendiente: `identidad_a_revisar` en `derivacion.responsable`
+   (§13.2) y en la persona 1 (§13.6); si no, `null`.
+7. Si la mesa confirma que es otra persona, se corrige el legajo (`ciudadano.editar`); no hay «cambiar el
+   responsable del caso».
+8. **El rechazo cuenta como consulta de identidad** (hallazgo MAJOR de la auditoría del PR #1170): cada
+   `DniRegistrado` descuenta de la cubeta `personas_campo` del usuario (SEC-25), en la API y en el
+   backoffice. Agotada, la API responde 429 y el backoffice un error sin el nombre. Sin esto, los tres
+   extremos que crean casos enumeraban nombres por DNI sin tope.
+
+## Implementación
+
+La consulta y el alta deciden con la misma función si el DNI ya tiene persona. Si el nombre cargado no
+coincide, el envío se rechaza diciendo con quién está registrado, o —si quien carga lo pide— se crea
+marcado para que la mesa lo revise. El backoffice muestra el error bajo el DNI y la casilla «El DNI es
+correcto y es otra persona» solo después del rechazo.
+
+## Archivos
+
+`programas/services/ingreso.py`, `programas/services/identidad.py`, `programas/services/emergencia_alta.py`,
+`programas/models/__init__.py` (constantes, propiedades y filtro de `CasoEmergencia`, sin campos),
+`programas/api/views.py`, `programas/api/views_emergencia.py`, `programas/api/serializers_emergencia.py`,
+`programas/selectors/emergencia_alojar.py`, `programas/forms_emergencia.py`, `programas/views/emergencia.py`,
+`programas/views/emergencia_dispositivo.py`, `docs/internal/contrato-app-emergencia.md` y los tests
+(`test_emergencia_api_contrato`, `test_emergencia_casos`, `test_emergencia_api_m2_busqueda`,
+`test_emergencia_api_dni_registrado`, `test_emergencia_dni_registrado_vistas`, `base_emergencia_api`).
+
+## Base de datos
+
+No requiere: la marca vive en `CasoEmergencia.situacion` (JSON) y se filtra con `has_key`.
+
+## Validación
+
+- `ConsultaDePersonaTests`: legajo inactivo y de otro género → 200 `legajo`; con Base de Personas
+  encontrándola, responde el legajo; Becas sigue con Base de Personas.
+- `CrearCasoTests`: rechazo sin crear nada, legajo intacto, comparación sin acentos, reenvío sin nombre,
+  marca con el flag, flag ignorado sin conflicto, idempotencia y la carrera del alta.
+- API: los tres extremos con claves exactas del 400, el envío marcado, y la marca en §13.2 y §13.6.
+- Backoffice: «Nuevo caso», «Ingresar igual» y «Avisar a la mesa» (error, casilla, alta y aviso).
+
+## Puesta en marcha en el servidor
+
+No requiere. **Release coordinado:** primero el back (la app actual ve un 400 de campo común y no manda el
+flag), después la app (T4). Confirmar que `ecom/test` tenga el release del Cambio 481 o uno posterior.
+
+## Pendientes / a definir
+
+- T4 (Chaco-mobile): diálogo con las tres salidas, la cola sin reintento automático y la marca para la guardia.
+- T6 y T7: aviso y «Marcar identidad revisada» en la ficha, y la solapa «Identidad a revisar» en la bandeja.
+
+## Reversión
+
+Desplegar el código anterior. Los casos creados con la marca quedan con la clave en `situacion`, que el
+código anterior ignora.
+
+## Historial
+
+- **18/11/2026:** alta del cambio (T1, T2, T3 y T5).
+- **18/11/2026:** auditoría del PR #1170: el rechazo descuenta de la cubeta de identidad, y limpieza (sin
+  alias de la regla, `texto_comparable` pública, `identificar_en_legajo` sin `sexo`).
+
+---
+
+# Cambio 487 — Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/`
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: ficha propia del edificio (decisión 4 del análisis #1164) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1168 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1168: la ficha propia del edificio en `/dispositivos/edificios/<pk>/`, con el contenido de la ficha de
+Infraestructura pero a nivel edificio. Solo lectura + «Crear relevamiento».
+
+## Alcance acordado
+
+Entra: la ruta `dispositivos:edificio_detalle`, la vista, el servicio de lectura y el template; «Ver» en la fila del
+listado. Queda afuera: el ítem del sidebar (#1169) y la ocupación por sector (sigue en la ficha de cada institución).
+
+## Decisiones tomadas
+
+- **404 por alcance** (Cambio 432): el edificio se busca en `edificios_visibles(user, situacion="todos")`, que para
+  quien no es admin deja solo los vigentes. Fuera de alcance, huérfano, inactivo o inexistente dan lo mismo.
+- **Sectores:** los activos de las instituciones que el usuario alcanza, con su cantidad de plazas, agrupados por
+  institución. Sin ocupación (exigiría el censo de cada institución).
+- **Cambio 428:** quién relevó, observaciones y el registro fotográfico solo por `inspecciones_visibles`; sin ese
+  alcance, estado y fecha del último relevamiento.
+- **El enlace al informe** va sin `?dispositivo=`: desde la ficha del edificio no hay institución de origen, así que
+  el «Volver» del informe cae en Relevamientos o en Dispositivos según la capacidad (regla de `_volver`).
+- `estado_edilicio(ultima)` y `evento_de_relevamiento` de `detalle_dispositivo.py` pasan a públicas: la tarjeta, la
+  ficha de Infraestructura, la fila del listado y esta ficha arman el estado en un solo lugar (sugerencia opcional
+  de la auditoría del PR #1190). La ficha del arquetipo Detalle lo registra.
+- **Presupuesto nuevo `dispositivos_edificio_ficha`: 15** (14 medidas con 1 y con 7 relevamientos, más la de un
+  relevamiento en curso).
+
+## Implementación
+
+`ficha_de_edificio(user, edificio, pagina)` en `programas/selectors/edificios.py` y `EdificioDetailView`. Template
+`edificios/detail.html` del arquetipo Detalle, variante apilada: Datos, Instituciones del predio, Sectores, Último
+relevamiento y Registro fotográfico (línea de tiempo plegable, paginada). El listado suma «Ver» y el nombre enlaza.
+
+## Archivos
+
+- `programas/selectors/edificios.py`, `programas/services/detalle_dispositivo.py`
+- `programas/views/dispositivos_edificios.py`, `programas/dispositivos_urls.py`
+- `programas/templates/programas/dispositivos/edificios/detail.html` (nuevo), `edificios/list.html`
+- `.claude/design/arquetipos/detalle.md`, `scripts/perf_budgets.json`
+- `programas/tests/test_dispositivos_edificios_ficha.py` (nuevo)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 14 tests nuevos (permiso, 404 por alcance, admin con huérfanos e inactivos, instituciones y sectores fuera de
+  alcance, Cambio 428, Crear relevamiento, sin escritura, enlace desde el listado, presupuesto). Con listado,
+  selector, Infraestructura, informe y contrato RBAC: 150 en verde.
+- Mutaciones: buscar en `edificios_en_alcance` (sin vigentes) deja 2 en rojo; mostrar el informe sin alcance, 1.
+- `design_audit.py --arquetipo detalle` OK (detalle + apilado), `--ratchet` 0 nuevos, `compile_templates.py
+  --bloques` 0, `check_design_agent.py --changed` OK, `check_perf_budgets.py`, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- El ítem del sidebar (#1169).
+- Que el «Volver» del informe regrese a la ficha del edificio (hoy vuelve a Relevamientos o Dispositivos).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1192 (MAJOR): el registro fotográfico de la ficha copiaba la orquestación de
+  `infraestructura_del_dispositivo`. Ahora las dos usan `registro_de_relevamientos` (`detalle_dispositivo.py`): misma
+  salida y mismas consultas, y el mismo edificio muestra el mismo registro en las dos fichas. El MINOR del sidebar
+  (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; la
+  segunda ronda encontró la salida: el estilo activo ya lo pone `aria-current` (CSS de `sidebar/base.html`), así que
+  la condición puede quedar escrita una sola vez. Va al próximo PR, con captura antes/después.
+
+---
+
+# Cambio 488 — Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: «en dispositivos tenemos Instituciones, Relevamientos, Configuración, pero falta uno para edificios» |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1169 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El menú lateral de Dispositivos tenía Instituciones, Relevamientos y Configuración, y faltaba Edificios. Task #1169:
+el ítem, con su estado activo.
+
+## Alcance acordado
+
+Entra: el ítem en el submenú expandido y el destino del ícono colapsado. Queda afuera: cualquier otro grupo del sidebar.
+
+## Decisiones tomadas
+
+- **Visible con `edificio.ver`** (Cambio 483), independiente de `dispositivo.ver`: el grupo Dispositivos se muestra
+  también para quien solo ve edificios.
+- **Orden:** Instituciones · Edificios · Relevamientos · Configuración. Ícono `home-modern` (heroicons outline),
+  distinto del de Instituciones; clases como «Relevamientos», sin `style=` nuevos.
+- **Activo** en `dispositivos/edificios/` y en la ficha; «Instituciones» suma la exclusión de esa ruta.
+- **Colapsado:** sigue siendo un solo ícono. El destino no cambia para nadie que hoy lo use; solo quien tiene
+  `edificio.ver` y ninguna de las otras (ni `inspeccion.asignar`) va a Edificios.
+- `.claude/design/shells.md` lo registra (lo exige el contrato del agente de diseño al tocar el sidebar).
+
+## Implementación
+
+`templates/includes/sidebar/opciones.html`: flag `puede_ver_edificios`, el ítem y las condiciones de activo.
+
+## Archivos
+
+- `templates/includes/sidebar/opciones.html`, `.claude/design/shells.md`
+- `programas/tests/test_dispositivos_edificios_listado.py` (`SidebarTests`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 4 tests nuevos (aparece y queda activo en listado y ficha con Instituciones inactivo; en Instituciones no cambia;
+  sin `edificio.ver` no aparece; con solo `edificio.ver` el grupo aparece y lleva a Edificios).
+- Mutación: sacar la exclusión de «Instituciones» deja 2 en rojo.
+- `design_audit.py --ratchet` 0 nuevos, `compile_templates.py --bloques` 0, `check_design_agent.py --changed` OK;
+  `test_dispositivos_config` y `test_dispositivos_header` en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno de esta task. Del análisis #1164 queda el «Volver» del informe a la ficha del edificio (Cambio 487).
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+
+---
+
+# Cambio 489 — Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada)
 
 🟢 **HECHO — 18/11/2026**
 
@@ -56798,7 +57429,7 @@ Desplegar el código anterior. No hay datos ni columnas.
 | **Fecha del pedido** | 18/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Backoffice · Servidor/API (lo eliminado deja de verse también en la API de campo y en el link público) |
-| **Migración** | `programas.0124`, `users.0048` |
+| **Migración** | `programas.0125`, `users.0049` |
 
 ## Pedido original
 
@@ -56824,7 +57455,7 @@ capacidad en el rol pueden hacerlo y solo se ve el botón de borrar si tienen la
 - **Cuatro capacidades nuevas**: `becas.programa.eliminar`, `becas.segmento.eliminar`,
   `becas.convocatoria.eliminar`, `becas.relevamiento.eliminar`. Son opt-in (`CAPACIDADES_OPT_IN` de
   `seed_becas`): ningún rol de Becas las recibe por seed y el arranque conserva el tilde manual (decisión del
-  usuario). Solo el rol protegido «Administrador» las recibe (`users.0048`), como todo el catálogo.
+  usuario). Solo el rol protegido «Administrador» las recibe (`users.0049`), como todo el catálogo.
 - **La cascada no pide la capacidad de cada nivel**: quien puede eliminar un segmento elimina sus convocatorias y
   relevamientos aunque no tenga `becas.convocatoria.eliminar`. Es lo que significa «en cascada».
 - **Alcance**: las capacidades se evalúan con el alcance del Programa Becas (SEC-06). Además, el segmento exige
@@ -56862,9 +57493,9 @@ nada.
 
 ## Base de datos
 
-`programas.0124`: `eliminado_en` (datetime, nulo, indexado) y `eliminado_por` (FK a usuario, nula) en
+`programas.0125`: `eliminado_en` (datetime, nulo, indexado) y `eliminado_por` (FK a usuario, nula) en
 `ProgramaSiis`, `Segmento`, `Subsegmento`, `Convocatoria` y `Relevamiento`. Columnas nulas: seguras sobre datos
-existentes y con el código viejo. `users.0048`: declara las capacidades y se las da al Administrador (reversa real).
+existentes y con el código viejo. `users.0049`: declara las capacidades y se las da al Administrador (reversa real).
 
 ## Validación
 
@@ -56890,7 +57521,7 @@ No requiere. Para que alguien elimine hay que tildarle la capacidad en Roles.
 ## Reversión
 
 Desplegar el código anterior: lo eliminado vuelve a verse (las columnas quedan y el código viejo las ignora).
-Desaplicar `programas.0124` borra la marca de eliminación; `users.0048` quita las capacidades del Administrador.
+Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita las capacidades del Administrador.
 
 ## Historial
 

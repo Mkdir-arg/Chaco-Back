@@ -17,7 +17,14 @@ from programas.api.serializers_emergencia import (
     IngresoDirectoEnvioSerializer,
     IngresoDirectoSerializer,
 )
-from programas.api.views_emergencia import _SIN_TOKEN, _400, _creado_o_reenvio, _respuesta_de_validacion
+from programas.api.views_emergencia import (
+    _DNI_REGISTRADO,
+    _DNI_REGISTRADO_SIN_CUPO,
+    _SIN_TOKEN,
+    _400,
+    _creado_o_reenvio,
+    _respuesta_de_validacion,
+)
 from programas.api.views_emergencia_llegadas import _AJENO, _SIN_ADMITIR, _filas, _VistaDeLlegadas
 from programas.models import CasoEmergencia
 from programas.services import emergencia_alojar as servicio_alojar
@@ -36,7 +43,7 @@ class IngresoDirectoView(_VistaDeLlegadas):
             ),
             400: _400(
                 "Lo mismo que el envío de M1 (§6) salvo la dirección, que es opcional; `plazas`: no hay camas "
-                "libres; `dispositivo`: no recibe familias."
+                "libres; `dispositivo`: no recibe familias. " + _DNI_REGISTRADO
             ),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
@@ -44,6 +51,7 @@ class IngresoDirectoView(_VistaDeLlegadas):
             409: OpenApiResponse(
                 description="`code: UUID_EN_USO`: ese `uuid_cliente` ya creó un caso de otro usuario."
             ),
+            429: _DNI_REGISTRADO_SIN_CUPO,
         },
         description=(
             "M2-6 «Ingresar igual»: la familia llegó sin derivación. Crea el caso de origen dispositivo con el "
@@ -87,13 +95,14 @@ class AvisarALaMesaView(_VistaDeLlegadas):
                 response=AvisoALaMesaSerializer,
                 description="Reenvío: ese `uuid_cliente` ya había creado el caso y se devuelve el mismo.",
             ),
-            400: _400("Lo mismo que el envío de M1 (§6) salvo la dirección, que es opcional."),
+            400: _400("Lo mismo que el envío de M1 (§6) salvo la dirección, que es opcional. " + _DNI_REGISTRADO),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
             404: _AJENO,
             409: OpenApiResponse(
                 description="`code: UUID_EN_USO`: ese `uuid_cliente` ya creó un caso de otro usuario."
             ),
+            429: _DNI_REGISTRADO_SIN_CUPO,
         },
         description=(
             "M2-6 «Avisar a la mesa»: la familia está en la puerta y no hay derivación. Crea el caso `NUEVO` con la "

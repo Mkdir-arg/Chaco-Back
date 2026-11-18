@@ -41,6 +41,7 @@ from programas.services.configuracion_emergencia import (
     normalizar_nombre,
 )
 from programas.services.emergencia import MOTIVOS_DE_CIERRE_MANUAL, NECESIDADES
+from programas.services.emergencia_alta import DniRegistrado
 
 PREFIJO_KITS = "kits"
 #: Tope de filas que un POST armado a mano puede pedir que se instancien.
@@ -251,6 +252,20 @@ class ErroresDelServicioMixin:
             self.add_error(clave if clave in self.fields and clave not in self.CAMPOS_ARRIBA else None, errores)
 
 
+AYUDA_NOMBRE_DEL_RESPONSABLE = (
+    "Solo si la persona todavía no está en el legajo. Si el DNI ya está registrado como otra persona, "
+    "ver la casilla de abajo."
+)
+
+
+def aviso_identidad_a_revisar(caso):
+    """El final del mensaje de éxito cuando el caso nació con identidad a revisar, o ``""``."""
+
+    if caso.identidad_a_revisar is None:
+        return ""
+    return " Quedó con identidad a revisar: la mesa tiene que verificar quién es el responsable."
+
+
 class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
     """El Formulario 1 cargado desde la mesa (HU-1.4): lo que llega por teléfono.
 
@@ -281,14 +296,14 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         label="Nombre",
         required=False,
         max_length=120,
-        help_text="Solo si la persona todavía no está en el legajo.",
+        help_text=AYUDA_NOMBRE_DEL_RESPONSABLE,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
     apellido = forms.CharField(
         label="Apellido",
         required=False,
         max_length=120,
-        help_text="Solo si la persona todavía no está en el legajo.",
+        help_text=AYUDA_NOMBRE_DEL_RESPONSABLE,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
     telefono = forms.CharField(
@@ -312,6 +327,15 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
     electrodependiente = forms.BooleanField(label="Electrodependiente", required=False, widget=SwitchInput())
     medicacion_critica = forms.BooleanField(label="Medicación crítica", required=False, widget=SwitchInput())
     mascotas = forms.BooleanField(label="Mascotas", required=False, widget=SwitchInput())
+    identidad_en_conflicto = forms.BooleanField(
+        label="El DNI es correcto y es otra persona: cargar con identidad a revisar",
+        required=False,
+        help_text=(
+            "El caso queda con la persona registrada, sin tocarla, y la mesa ve lo que cargaste para revisarlo. "
+            "Si es esa persona, borrá nombre y apellido; si el DNI está mal, corregilo."
+        ),
+        widget=SwitchInput(),
+    )
 
     direccion = forms.CharField(
         label="Dirección",
@@ -350,11 +374,24 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # La casilla solo aparece después del rechazo por DNI registrado, o si ya vino tildada.
+        self.muestra_identidad_en_conflicto = bool(self.is_bound and self.data.get("identidad_en_conflicto"))
+
+    def agregar_errores_del_servicio(self, error):
+        if isinstance(error, DniRegistrado):
+            self.muestra_identidad_en_conflicto = True
+        super().agregar_errores_del_servicio(error)
+
     def _campos(self, nombres):
         return [self[nombre] for nombre in nombres]
 
     def campos_de_traslado(self):
-        return self._campos(self.CAMPOS_DE_TRASLADO)
+        campos = self._campos(self.CAMPOS_DE_TRASLADO)
+        if self.muestra_identidad_en_conflicto:
+            campos.append(self["identidad_en_conflicto"])
+        return campos
 
     def campos_de_personas(self):
         return self._campos(GrupoFamiliar.CANTIDADES)
@@ -382,6 +419,8 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         datos["fotos"] = {
             tipo: self.cleaned_data[campo] for campo, tipo in self.FOTOS.items() if self.cleaned_data.get(campo)
         }
+        # Las cantidades de este formulario son los acompañantes: el responsable suma aparte.
+        datos["responsable_aparte"] = True
         return datos
 
 

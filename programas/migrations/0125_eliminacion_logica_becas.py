@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0123_tipo_campo_firma"),
+        ("programas", "0124_grupo_responsable_aparte"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

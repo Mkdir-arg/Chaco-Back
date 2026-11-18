@@ -130,7 +130,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). Arriba de la ficha, los avisos de la mesa (`avisos_de_la_mesa` de
   `programas/selectors/emergencia_mesa.py`: «Rechazado por X: motivo», «Derivación vencida», «Dispositivo
   inactivo», «Llegaron N sobre M declaradas») van uno por `_alerta.html` con `tono`, `titulo` y `texto`, sin
-  variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. Sin panel lateral,
+  variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. La tabla «Personas que ingresan
+  juntas» agrega una fila «Responsable» (sexo en «—», total 1) antes de la de totales cuando el grupo tiene
+  `responsable_aparte`; misma `nodo-td`, sin clases nuevas. Las filas las arma `franjas_del_grupo` (selector de la
+  mesa), la misma fuente que la tarjeta de «Llegadas» del dispositivo. Sin panel lateral,
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.
@@ -172,6 +175,12 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   curso vencido) o «Vence en N días» (`warning`, dentro de `DIAS_POR_VENCER`). El semáforo agregado conserva
   «Crítico» aunque haya vencidos; sin inmuebles, «Sin edificio cargado». Los sectores sin edificio van en una
   `_alerta` warning; «Asignar edificio» solo con `puede_asignar_edificio`. P2 usa el mismo servicio.
+- Ficha propia del edificio (`programas/templates/programas/dispositivos/edificios/detail.html`, `{# arquetipo: detalle + apilado #}`):
+  solo lectura, sin métricas, desde la sección Edificios (`EdificioDetailView`, `ficha_de_edificio` de
+  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo» y «Crear relevamiento» solo con `url_asignar`;
+  secciones Datos (`_ubicacion.html` compacto), Instituciones del predio, Sectores por institución, Último relevamiento y Registro
+  fotográfico (`_linea_tiempo` plegable + `_paginacion`). Quién relevó, observaciones y el registro solo con `ve_detalle` (Cambio 428). La fila
+  del listado abre la ficha con el nombre enlazado y un `nodo-icon-btn` «Ver», junto al de «Crear relevamiento».
 - En P4, la columna Persona muestra «Apellido, Nombre» y DNI sin avatar solo con `ciudadano.ver`.
   Sin esa capacidad, fila, etiqueta del menú y modales de cambio/egreso muestran «Persona alojada»
   sin identidad en texto ni atributos; tampoco los movimientos del Historial precargado nombran
@@ -205,6 +214,13 @@ El badge del registro es siempre la criticidad; la revisión agrega «Revisado»
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
 Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y la ficha de
 Infraestructura solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
+El estado edilicio de cada edificio (clave del filtro, rótulo y tono del semáforo, y el aviso «Vencido» / «Vence en
+N días») sale de `clave_estado_edilicio` y `aviso_de_vencimiento` de `programas/services/detalle_dispositivo.py`, las
+mismas que usa el listado de la sección Edificios (`programas/selectors/edificios.py`): una sola definición para la
+tarjeta, la ficha y la fila.
+El registro fotográfico (página de relevamientos, fotos y quién ve la asignación) sale de
+`registro_de_relevamientos` del mismo servicio: la ficha de Infraestructura y la ficha propia del edificio
+muestran el mismo registro del mismo edificio.
 
 ## Prohibido
 

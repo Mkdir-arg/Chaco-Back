@@ -1,0 +1,142 @@
+{# arquetipo: detalle + apilado #}{# Ficha propia del edificio, solo lectura. Secciones apiladas: molde golden becas/cupo/segmento_detail.html. #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Edificios · {{ ficha.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5">
+
+  {# ===== PageHeader ===== #}
+  {% page_header titulo=ficha.nombre eyebrow="Edificio" volver_url=ficha.url_listado volver_label="Edificios" %}
+    {% bajada %}{{ ficha.codigo }}{% if ficha.localidad %} · {{ ficha.localidad }}{% endif %}{% endbajada %}
+    <span class="badge badge-dot badge-{{ ficha.estado.tono }}">{{ ficha.estado.texto }}</span>
+    {% if ficha.aviso %}<span class="badge badge-{{ ficha.aviso.tono }}">{{ ficha.aviso.texto }}</span>{% endif %}
+    {% if not ficha.activo %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+    {% if ficha.url_asignar %}
+    <a href="{{ ficha.url_asignar }}" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-clipboard-list" aria-hidden="true"></i> Crear relevamiento
+    </a>
+    {% endif %}
+  {% endpage_header %}
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="datos-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="datos-titulo" class="text-sm font-bold text-heading">Datos</h2>
+    </div>
+    <div class="p-5 space-y-4">
+      <dl class="grid gap-5 sm:grid-cols-2">
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Código</dt><dd class="mt-1 text-body">{{ ficha.codigo }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nombre</dt><dd class="mt-1 text-body">{{ ficha.nombre }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ ficha.domicilio|default:"Sin domicilio cargado" }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ ficha.localidad|default:"—" }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Situación</dt><dd class="mt-1 text-body">{% if ficha.activo %}Activo{% else %}Inactivo{% endif %}</dd></div>
+      </dl>
+      {% include "components/_ubicacion.html" with latitud=ficha.latitud longitud=ficha.longitud compacto=True only %}
+    </div>
+  </section>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="instituciones-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="instituciones-titulo" class="text-sm font-bold text-heading">Instituciones del predio</h2>
+      <p class="text-xs text-body-subtle mt-1">{% if ficha.compartido %}Predio compartido por {{ ficha.n_instituciones }} instituciones.{% else %}Una sola institución en el predio.{% endif %}</p>
+    </div>
+    {% if ficha.instituciones or ficha.otras %}
+    <ul class="p-5 space-y-2 text-sm">
+      {% for inst in ficha.instituciones %}
+      <li class="flex flex-wrap items-center gap-2">
+        {% if inst.url %}<a href="{{ inst.url }}" class="font-medium text-fg-brand hover:underline">{{ inst.nombre }}</a>{% else %}<span class="font-medium text-heading">{{ inst.nombre }}</span>{% endif %}
+        <span class="text-xs text-body-subtle">{{ inst.tipo }} · {{ inst.get_estado_display }}</span>
+      </li>
+      {% endfor %}
+      {% if ficha.otras %}<li class="text-xs text-body-subtle">y {{ ficha.otras }} más</li>{% endif %}
+    </ul>
+    {% else %}
+    <p class="p-5 text-sm text-body-subtle">Ninguna institución de tu alcance funciona en este edificio.</p>
+    {% endif %}
+  </section>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sectores-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="sectores-titulo" class="text-sm font-bold text-heading">Sectores</h2>
+      <p class="text-xs text-body-subtle mt-1">Los de las instituciones de tu alcance en este edificio.</p>
+    </div>
+    {% if ficha.sectores %}
+    <div class="divide-y divide-light">
+      {% for grupo in ficha.sectores %}
+      <div>
+        <h3 class="px-5 pt-4 text-sm font-bold text-heading">{{ grupo.institucion }}</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Sector</th>
+                <th class="nodo-th">Perfil</th>
+                <th class="nodo-th text-right">Plazas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sector in grupo.sectores %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td font-medium text-heading">{{ sector.nombre }}</td>
+                <td class="nodo-td">{{ sector.tipo }}</td>
+                <td class="nodo-td text-right">{{ sector.plazas }}</td>
+              </tr>
+              {% endfor %}
+              <tr>
+                <td class="nodo-td font-bold text-heading">Total</td>
+                <td class="nodo-td"></td>
+                <td class="nodo-td text-right font-bold text-heading">{{ grupo.n_plazas }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="p-5 text-sm text-body-subtle">Sin sectores en este edificio.</p>
+    {% endif %}
+  </section>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="ultimo-relevamiento-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="ultimo-relevamiento-titulo" class="text-sm font-bold text-heading">Último relevamiento</h2>
+    </div>
+    <div class="p-5 space-y-4">
+      <dl class="grid gap-5 sm:grid-cols-3">
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{% if ficha.ultima_fecha %}{{ ficha.ultima_fecha|date:"d/m/Y" }}{% else %}Sin relevar{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Estado</dt><dd class="mt-1 text-body">{{ ficha.estado.texto }}</dd></div>
+        {% if ficha.ve_detalle %}
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevó</dt><dd class="mt-1 text-body">{{ ficha.relevo|default:"—" }}</dd></div>
+        {% endif %}
+      </dl>
+      {% if ficha.ve_detalle %}
+        {% if ficha.observaciones %}
+        {% include "components/_alerta.html" with tono="warning" icono="screwdriver-wrench" titulo="Observaciones" texto=ficha.observaciones role="status" %}
+        {% else %}
+        <p class="text-sm text-body-subtle">El último relevamiento no dejó observaciones.</p>
+        {% endif %}
+      {% elif ficha.ultima_fecha %}
+      <p class="text-sm text-body-subtle">El detalle del relevamiento lo ve quien opera o coordina la institución del edificio.</p>
+      {% else %}
+      <p class="text-sm text-body-subtle">Todavía no se relevó este edificio: el estado aparece con el primer relevamiento realizado.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="registro-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="registro-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h2>
+      <p class="text-xs text-body-subtle mt-1">Histórico: cada relevamiento agrega su tanda, no pisa la anterior.</p>
+    </div>
+    <div class="p-5">
+      {% if ficha.ultima_fecha and not ficha.ve_detalle and not ficha.eventos %}
+      <p class="text-sm text-body-subtle">El registro fotográfico y el informe de cada relevamiento los ve quien opera o coordina la institución del edificio.</p>
+      {% else %}
+      {% include "components/_linea_tiempo.html" with eventos=ficha.eventos plegable=True vacio_titulo="Todavía no hay relevamientos" vacio_texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus fotos." %}
+      {% endif %}
+    </div>
+    {% include "components/_paginacion.html" with page_obj=ficha.relevamientos entidad="relevamiento" %}
+  </section>
+</div>
+{% endblock %}
