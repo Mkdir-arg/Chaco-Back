@@ -102,6 +102,10 @@ CAPACIDADES_SIN_USO = {
     # PR 2 también `emergencia.operar` y `emergencia.relevar`: las exigen los servicios del
     # caso (`programas/services/emergencia.py`). `emergencia.recibir_kit` salió en el PR 9:
     # la exige `recibir_entrega` (`programas/services/kits.py`) sobre el dispositivo destino.
+    # Sección «Edificios» (#1164): la capacidad va primero (#1165) para que la migración la
+    # siembre y el PM la reparta; la evalúan el listado, la ficha y el sidebar (#1167-#1169).
+    # Sale de acá en el PR que la empiece a evaluar por su nombre.
+    "edificio.ver": "la evalúan las pantallas de Edificios, que llegan en #1167-#1169",
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro
