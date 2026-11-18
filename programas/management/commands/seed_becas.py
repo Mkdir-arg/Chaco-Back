@@ -67,7 +67,17 @@ CLAVES_ROLES_BECAS = {
 # tildándolas en la pantalla de Roles, y el seed las **conserva** en los roles que
 # ya las tienen. Antes cada arranque las borraba (``permissions.set``).
 # becas.relevamiento.publico: RN-P13, análisis #289 (Cambios 41 y 91).
-CAPACIDADES_OPT_IN = frozenset({"becas.relevamiento.publico"})
+# Las cuatro ``*.eliminar`` (baja lógica en cascada) tampoco las siembra nadie: se tildan
+# a mano desde Roles y el arranque las conserva (decisión del usuario, 18/11/2026).
+CAPACIDADES_OPT_IN = frozenset(
+    {
+        "becas.relevamiento.publico",
+        "becas.programa.eliminar",
+        "becas.segmento.eliminar",
+        "becas.convocatoria.eliminar",
+        "becas.relevamiento.eliminar",
+    }
+)
 
 
 def _capacidades_admin_becas():

@@ -114,19 +114,33 @@ def reporte_avance(user, *, segmento_id=None, desde=None, hasta=None, estado=Non
         .select_related("segmento", "subsegmento")
         .annotate(
             rel_asignados=Count(
-                "relevamientos", filter=Q(relevamientos__estado=Relevamiento.Estado.ASIGNADO), distinct=True
+                "relevamientos",
+                filter=Q(relevamientos__eliminado_en__isnull=True, relevamientos__estado=Relevamiento.Estado.ASIGNADO),
+                distinct=True,
             ),
             rel_en_curso=Count(
-                "relevamientos", filter=Q(relevamientos__estado=Relevamiento.Estado.EN_CURSO), distinct=True
+                "relevamientos",
+                filter=Q(relevamientos__eliminado_en__isnull=True, relevamientos__estado=Relevamiento.Estado.EN_CURSO),
+                distinct=True,
             ),
             rel_finalizados=Count(
-                "relevamientos", filter=Q(relevamientos__estado=Relevamiento.Estado.FINALIZADO), distinct=True
+                "relevamientos",
+                filter=Q(
+                    relevamientos__eliminado_en__isnull=True, relevamientos__estado=Relevamiento.Estado.FINALIZADO
+                ),
+                distinct=True,
             ),
             rel_en_revision=Count(
-                "relevamientos", filter=Q(relevamientos__estado=Relevamiento.Estado.EN_REVISION), distinct=True
+                "relevamientos",
+                filter=Q(
+                    relevamientos__eliminado_en__isnull=True, relevamientos__estado=Relevamiento.Estado.EN_REVISION
+                ),
+                distinct=True,
             ),
             rel_terminados=Count(
-                "relevamientos", filter=Q(relevamientos__estado=Relevamiento.Estado.TERMINADO), distinct=True
+                "relevamientos",
+                filter=Q(relevamientos__eliminado_en__isnull=True, relevamientos__estado=Relevamiento.Estado.TERMINADO),
+                distinct=True,
             ),
         )
     )

@@ -167,6 +167,10 @@ CATALOGO = [
                 "becas.programa.proceso_masivo",
                 "Ejecutar el proceso masivo a SIIS (aprueba e informa altas en lote)",
             ),
+            (
+                "becas.programa.eliminar",
+                "Eliminar programas (baja lógica en cascada: segmentos, convocatorias y relevamientos)",
+            ),
         ],
     },
     {
@@ -179,6 +183,7 @@ CATALOGO = [
             ("becas.segmento.ver", "Ver segmentos"),
             ("becas.segmento.crear", "Crear segmentos"),
             ("becas.segmento.editar", "Editar segmentos (incluye activar/desactivar)"),
+            ("becas.segmento.eliminar", "Eliminar segmentos (baja lógica en cascada: convocatorias y relevamientos)"),
         ],
     },
     {
@@ -242,6 +247,7 @@ CATALOGO = [
             ("becas.convocatoria.ver", "Ver convocatorias"),
             ("becas.convocatoria.crear", "Crear convocatorias"),
             ("becas.convocatoria.editar", "Editar convocatorias (incluye activar/desactivar)"),
+            ("becas.convocatoria.eliminar", "Eliminar convocatorias (baja lógica en cascada: relevamientos)"),
         ],
     },
     {
@@ -255,6 +261,7 @@ CATALOGO = [
             ("becas.relevamiento.crear", "Crear relevamientos de Becas"),
             ("becas.relevamiento.editar", "Editar relevamientos (reasignar territorial, reprogramar)"),
             ("becas.relevamiento.publico", "Crear y ver relevamientos de formulario público (link de inscripción)"),
+            ("becas.relevamiento.eliminar", "Eliminar relevamientos sin casos cargados (baja lógica)"),
         ],
     },
     {

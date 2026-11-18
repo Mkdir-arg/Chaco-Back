@@ -611,7 +611,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 486 | Emergencia: un DNI ya registrado no se reemplaza en silencio por otro nombre (consulta y alta con la misma regla, rechazo o «identidad a revisar») | Emergencia · app de campo, alta del caso y backoffice | `#emergencia` `#api` `#mobile` `#datos` | Usuario (PM) — en testing de ECOM la app dijo que el DNI no figuraba y el caso llegó a nombre de otra persona | 18/11/2026 | 🟡 **En curso** | No requiere |
 | 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
-| 490 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟡 **En curso** | Sí — `programas.0125` (5 `AddField`, solo expand) |
+| 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
+| 490 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟡 **En curso** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 
 **Notas del índice**
 
@@ -56975,6 +56976,7 @@ en un rol sin `dispositivo.ver`) y revertir el commit.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 
 ---
 
@@ -57057,6 +57059,7 @@ Revertir el commit; no hay datos ni migración.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 
 ---
 
@@ -57326,7 +57329,7 @@ Nada.
 ## Pendientes / a definir
 
 - El ítem del sidebar (#1169).
-- Que el «Volver» del informe regrese a la ficha del edificio (hoy vuelve a Relevamientos o Dispositivos).
+- ~~Que el «Volver» del informe regrese a la ficha del edificio~~: resuelto el 18/11/2026 (ver Historial).
 
 ## Reversión
 
@@ -57341,6 +57344,13 @@ Revertir el commit; no hay datos ni migración.
   (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; la
   segunda ronda encontró la salida: el estilo activo ya lo pone `aria-current` (CSS de `sidebar/base.html`), así que
   la condición puede quedar escrita una sola vez. Va al próximo PR, con captura antes/después.
+- **18/11/2026:** el «Volver» del informe abierto desde la ficha del edificio regresa a la ficha. El registro de la
+  ficha enlaza al informe con `?edificio=<pk>` (`registro_de_relevamientos(..., sufijo_enlace=...)`), y
+  `RelevamientoInformeView._volver` lo acepta solo si el edificio está en `edificios_visibles(user, «todos»)`, la
+  misma regla que abre la ficha: sin `edificio.ver` o fuera de alcance se sigue de largo a Relevamientos o
+  Dispositivos, como antes (nunca a una pantalla que daría 403 o 404). «Revisado» conserva el origen
+  (`PARAMETROS_DE_ORIGEN` suma `edificio`). 6 tests nuevos en `test_dispositivos_edificios_ficha.py`; mutación
+  (aceptar cualquier edificio de la URL) deja 1 en rojo.
 
 ---
 
@@ -57422,6 +57432,133 @@ Revertir el commit.
 
 ---
 
+# Cambio 489 — Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada)
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` |
+| **Solicitante** | Usuario — pedido directo en sesión de trabajo |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API (lo eliminado deja de verse también en la API de campo y en el link público) |
+| **Migración** | `programas.0125`, `users.0049` |
+
+## Pedido original
+
+«Quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos, y si eliminamos algo tiene que ser en
+cascada; además es un borrado lógico, no físico; lo que se borra de forma lógica no se ve; solo los que tienen la
+capacidad en el rol pueden hacerlo y solo se ve el botón de borrar si tienen la capacidad.»
+
+## Alcance acordado
+
+- Botón de eliminar en los cuatro listados: `/becas/config/programas/`, `/becas/config/segmentos/`,
+  `/becas/convocatorias/` y `/becas/relevamientos/`.
+- Cascada hacia abajo: Programa → Segmentos (y sus subsegmentos) → Convocatorias → Relevamientos. Nunca sube.
+- Afuera: restaurar lo eliminado desde pantalla (los datos quedan en la base) y el botón en las pantallas de
+  detalle.
+
+## Decisiones tomadas
+
+- **Con casos cargados no se elimina nada** (decisión del usuario, 18/11/2026). Si en la cascada hay algún
+  `Formulario`, en cualquier estado, la operación se rechaza entera y se avisa cuántos casos hay. Motivo: ocultar
+  casos descuadraría el cupo, la lista de espera y lo ya informado a SIIS; dejarlos visibles colgando de una
+  convocatoria invisible tampoco sirve. Por eso los listados de casos, el cupo, los reportes y el dashboard no
+  necesitan filtrar nada: debajo de lo eliminado no hay casos.
+- **Tampoco se elimina nada con relevamientos en campo** (`EN_CURSO` o `FINALIZANDO`; decisión del usuario,
+  18/11/2026, a partir de la auditoría del PR #1194): la app puede tener capturas offline sin sincronizar, que al
+  subir encontrarían el relevamiento eliminado (404). El mensaje dice cuántos casos y cuántos relevamientos en
+  curso frenan la operación.
+- **Cuatro capacidades nuevas**: `becas.programa.eliminar`, `becas.segmento.eliminar`,
+  `becas.convocatoria.eliminar`, `becas.relevamiento.eliminar`. Son opt-in (`CAPACIDADES_OPT_IN` de
+  `seed_becas`): ningún rol de Becas las recibe por seed y el arranque conserva el tilde manual (decisión del
+  usuario). Solo el rol protegido «Administrador» las recibe (`users.0049`), como todo el catálogo.
+- **La cascada no pide la capacidad de cada nivel**: quien puede eliminar un segmento elimina sus convocatorias y
+  relevamientos aunque no tenga `becas.convocatoria.eliminar`. Es lo que significa «en cascada».
+- **Alcance**: las capacidades se evalúan con el alcance del Programa Becas (SEC-06). Además, el segmento exige
+  `puede_configurar_segmento` (el coordinador regional no elimina segmentos), la convocatoria
+  `convocatorias_visibles`, el relevamiento `assert_alcance_relevamiento`, y el programa exige
+  `puede_configurar_segmento` sobre **cada uno** de sus segmentos (si no, 403): eliminarlo arrastra segmentos de
+  otros coordinadores, y `segmentos_visibles` no alcanza porque para el coordinador regional incluye el segmento de
+  un subsegmento suyo.
+- **El segmento dueño de un territorial es la asignación viva más antigua**: un segmento eliminado deja de serlo
+  (`segmento_dueno_id`, sus versiones en lote y el aviso del ABM de Usuarios).
+- **Un subsegmento protegido por una convocatoria eliminada** sigue sin poder borrarse (la fila existe), y el
+  mensaje lo dice: «lo usa una convocatoria eliminada».
+- **Ocultamiento por manager por defecto** (`EliminableMixin`): `objects` excluye lo eliminado y `todos` lo ve.
+  Así desaparece de todas las pantallas, la API de campo, el link público del portal y los procesos sin tocar
+  cada consulta, y los detalles responden 404. El filtro no viaja en los joins: se corrigieron a mano los
+  `Count` de segmentos por programa, de relevamientos por convocatoria y del reporte de avance.
+- **Unicidad con filas eliminadas**: el número de relevamiento sigue ocupado (`proximo_numero` usa `todos`); un
+  segmento nuevo no puede repetir el nombre de uno eliminado del mismo programa, y un programa SIIS vinculado a un
+  programa eliminado no se puede volver a vincular (la columna es UNIQUE). Ambos casos dan error de formulario,
+  no 500, también al **renombrar** un segmento (`Segmento.nombre_de_eliminado`, única fuente de la regla).
+- **Locks de abajo hacia arriba** (relevamientos → convocatorias → subsegmentos → segmentos → programa), el mismo
+  orden que el link público y el alta de oficio, para no abrir un deadlock con una inscripción en curso.
+
+## Implementación
+
+Cada listado muestra un tacho rojo solo a quien tiene la capacidad del nivel. Confirma con el modal del sistema
+explicando qué arrastra la cascada. Al confirmar, marca con fecha y usuario el elemento y todo lo que cuelga
+de él, y vuelve al listado con un mensaje que dice qué más se eliminó. Si hay casos cargados, avisa y no toca
+nada.
+
+## Archivos
+
+- `programas/models/__init__.py` (`EliminableMixin`, unicidad de `Segmento`, `Relevamiento.proximo_numero`)
+- `programas/services/eliminacion.py` (nuevo: cascada, bloqueo por casos, alcance)
+- `programas/views/eliminacion.py` (nuevo) y `programas/urls.py`
+- `core/rbac.py` (catálogo), `programas/management/commands/seed_becas.py` (opt-in)
+- `programas/forms.py`, `programas/services/autorizacion.py`, `programas/selectors/convocatorias.py`,
+  `programas/services/reportes_becas.py`, `programas/views/relevamientos.py`
+- Templates: `config/_programas_table.html`, `config/_segmentos_table.html`,
+  `relevamientos/_convocatorias_table.html`, `relevamientos/relevamiento_list.html`
+- `.claude/design/dominio/becas.md` y su fila en `.claude/agents/chaco-design-system.md`
+- `programas/tests/test_becas_eliminacion.py` (nuevo)
+
+## Base de datos
+
+`programas.0125`: `eliminado_en` (datetime, nulo, indexado) y `eliminado_por` (FK a usuario, nula) en
+`ProgramaSiis`, `Segmento`, `Subsegmento`, `Convocatoria` y `Relevamiento`. Columnas nulas: seguras sobre datos
+existentes y con el código viejo. `users.0049`: declara las capacidades y se las da al Administrador (reversa real).
+
+## Validación
+
+- `programas.tests.test_becas_eliminacion` (23 tests): cascada por nivel, bloqueo por casos sin marcar nada,
+  numeración y nombre con filas eliminadas, conteo de segmentos, 302 sin login, 403 sin capacidad, 405 por GET,
+  404 en el detalle de lo eliminado, botón visible solo con la capacidad y listados sin lo eliminado.
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `design_audit.py --ratchet` (0 nuevos),
+  `compile_templates.py --bloques` (0) y `check_design_agent.py --changed` (OK).
+- Suite completa (9180 tests) y `--tag performance` (87): verdes salvo los 30 de `test_sql_motor_real`,
+  `test_settings_entorno_y_timeouts` y los `like_binary` de Dispositivos, que fallan igual sobre `development`
+  en una máquina sin `mysqlclient`. Se ajustaron `test_models_contrato` (nombres públicos nuevos) y
+  `test_becas_convocatorias_diseno` (el tacho también usa `data-confirm-url`).
+
+## Puesta en marcha en el servidor
+
+No requiere. Para que alguien elimine hay que tildarle la capacidad en Roles.
+
+## Pendientes / a definir
+
+- Restaurar lo eliminado (hoy solo por base: `eliminado_en = NULL` en el elemento y su cascada).
+- Botón de eliminar en las pantallas de detalle, si se pide.
+
+## Reversión
+
+Desplegar el código anterior: lo eliminado vuelve a verse (las columnas quedan y el código viejo las ignora).
+Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita las capacidades del Administrador.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1194 (CHANGES NEEDED): el programa exige poder eliminar cada segmento
+  (el regional lo eliminaba entero), el renombre de segmento con nombre eliminado daba 500, el dueño del territorial
+  ignora segmentos eliminados, orden de locks invertido y mensaje del subsegmento protegido.
+- **18/11/2026:** el usuario confirma bloquear también los relevamientos en curso (`EN_CURSO`/`FINALIZANDO`);
+  la verificación del nombre eliminado queda solo en `validate_constraints` (MINOR de la ronda 2).
+
 # Cambio 490 — Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento
 
 🟡 **EN CURSO — 18/11/2026**
@@ -57434,7 +57571,7 @@ Revertir el commit.
 | **Fecha del pedido** | 18/11/2026 |
 | **Issue / épica** | #1186 · análisis #1172 · Épica #1171 |
 | **Partes afectadas** | Backoffice |
-| **Migración** | Sí — `programas.0125_regla_consumo_e_inicio_evento` (5 `AddField`, solo expand) |
+| **Migración** | Sí — `programas.0126_regla_consumo_e_inicio_evento` (5 `AddField`, solo expand) |
 
 ## Pedido original
 
@@ -57469,7 +57606,7 @@ valores iniciales de las reglas (pregunta 13: los carga la mesa desde E7, no hay
 
 - `programas/models/__init__.py`: `TipoKit.ModoRegla`, `TipoKit.PorRegla`, los cuatro campos y `clean()`;
   `SLAEmergencia.inicio_evento` y `clean()`.
-- `programas/migrations/0125_regla_consumo_e_inicio_evento.py`: 5 `AddField`; `regla_modo` y `regla_por` con
+- `programas/migrations/0126_regla_consumo_e_inicio_evento.py`: 5 `AddField`; `regla_modo` y `regla_por` con
   `db_default=""` (DEFAULT real: el alta de la release vieja sigue andando); el resto `null=True`.
 - `programas/services/configuracion_emergencia.py`: campos, `CAMPOS_REGLA`, `crear_tipo_kit` con la regla,
   `_texto` para fecha y decimal, `_con_etiquetas` para las opciones.
@@ -57480,7 +57617,7 @@ valores iniciales de las reglas (pregunta 13: los carga la mesa desde E7, no hay
 
 ## Archivos
 
-- `programas/models/__init__.py`, `programas/migrations/0125_regla_consumo_e_inicio_evento.py`
+- `programas/models/__init__.py`, `programas/migrations/0126_regla_consumo_e_inicio_evento.py`
 - `programas/services/configuracion_emergencia.py`, `programas/forms_emergencia.py`
 - `programas/templates/programas/emergencia/configuracion.html`
 - `programas/tests/test_emergencia_regla_consumo.py` (nuevo), `programas/tests/test_emergencia_base.py` (los valores de
@@ -57488,7 +57625,7 @@ valores iniciales de las reglas (pregunta 13: los carga la mesa desde E7, no hay
 
 ## Base de datos
 
-`programas.0125_regla_consumo_e_inicio_evento`: cinco columnas nuevas, solo expand: `programas_tipokit.regla_modo` y `regla_por` (`varchar`, `NOT NULL DEFAULT ''`),
+`programas.0126_regla_consumo_e_inicio_evento`: cinco columnas nuevas, solo expand: `programas_tipokit.regla_modo` y `regla_por` (`varchar`, `NOT NULL DEFAULT ''`),
 `regla_cantidad` (`decimal(7,2) NULL`), `regla_cada_dias` (`smallint unsigned NULL`) y
 `programas_slaemergencia.inicio_evento` (`datetime NULL`). Sin migración de datos.
 
@@ -57511,11 +57648,12 @@ Migrar. Después, la mesa carga en E7 las reglas (valores de la pregunta 13 del 
 
 ## Reversión
 
-Revertir el commit y desaplicar `programas.0125` (las cinco columnas se borran; se pierden las reglas y la fecha
+Revertir el commit y desaplicar `programas.0126` (las cinco columnas se borran; se pierden las reglas y la fecha
 cargadas).
 
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 
 ---
