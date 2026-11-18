@@ -26,6 +26,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
+from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import (
     CancelarDerivacionForm,
     CierreCasoForm,
@@ -46,7 +47,6 @@ from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import EstadoCambio, FaltanPlazas
 from programas.services.emergencia_programa import puede_supervisar_la_mesa
-from programas.views.emergencia_rechazos import rechazo_para_mostrar
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
 TEMPLATE_FICHA = "programas/emergencia/casos/detail.html"

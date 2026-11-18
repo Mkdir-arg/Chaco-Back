@@ -2,10 +2,14 @@
 
 Viven acá, y no en ``programas.api.views``, porque el backoffice de Emergencia también
 descuenta de la cubeta de la consulta de identidad (Cambio 484) y no tiene por qué cargar
-las vistas de la API para hacerlo.
+las vistas de la API para hacerlo. :func:`rechazo_para_mostrar` es la mitad del backoffice:
+la usan dos vistas, y un helper compartido entre vistas no vive en ``programas/views/``.
 """
 
+from django.core.exceptions import ValidationError
 from rest_framework.throttling import UserRateThrottle
+
+from programas.services.emergencia_alta import MENSAJE_DNI_REGISTRADO_SIN_CUPO, DniRegistrado
 
 
 class ConsultaPersonasThrottle(UserRateThrottle):
@@ -39,3 +43,17 @@ def descontar_consulta_de_identidad(request):
     if throttle.allow_request(request, None):
         return None
     return throttle.wait() or 0
+
+
+def rechazo_para_mostrar(request, error):
+    """El rechazo de ``crear_caso`` tal como se le muestra a quien carga desde el backoffice.
+
+    Un :class:`DniRegistrado` trae el nombre de la persona: descuenta de la cubeta de
+    consultas de identidad del usuario, y agotada se reemplaza por un error sin el nombre
+    (SEC-25). El resto pasa igual. Lo usan «Nuevo caso» de la mesa y el Formulario 1 de la
+    puerta del dispositivo.
+    """
+
+    if isinstance(error, DniRegistrado) and descontar_consulta_de_identidad(request) is not None:
+        return ValidationError({"dni": MENSAJE_DNI_REGISTRADO_SIN_CUPO})
+    return error

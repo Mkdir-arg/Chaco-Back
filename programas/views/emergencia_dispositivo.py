@@ -40,6 +40,7 @@ from django.utils import timezone
 from django.views import View
 
 from core.rbac import puede
+from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import aviso_identidad_a_revisar
 from programas.forms_emergencia_dispositivo import (
     BuscarFamiliaForm,
@@ -58,7 +59,6 @@ from programas.selectors.emergencia_mesa import nombre_de
 from programas.services import emergencia_alojar as servicio
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia import EstadoCambio
-from programas.views.emergencia_rechazos import rechazo_para_mostrar
 
 CAP_ADMITIR = "dispositivo.admitir"
 CAP_VER_CIUDADANO = "ciudadano.ver"
