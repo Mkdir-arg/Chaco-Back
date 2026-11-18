@@ -606,6 +606,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
 | 483 | Dispositivos · Edificios: capacidad `edificio.ver` | Dispositivos · edificios / RBAC | `#rbac` | PM — en sesión: «crea las capacidades edificio.ver» | 18/11/2026 | 🟢 **Hecho** | `users.0048` |
+| 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -56965,6 +56966,88 @@ Nada más que el deploy: la migración siembra la capacidad.
 
 Desaplicar `users.0048` (la reversa quita la capacidad de todos los roles; se pierde un tilde hecho a mano
 en un rol sin `dispositivo.ver`) y revertir el commit.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+
+---
+
+# Cambio 484 — Dispositivos · Edificios: selector de edificios visibles con alcance y filtros
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026, sección «Edificios» del menú de Dispositivos |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1166 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1166 del análisis #1164: un selector de lectura con los edificios que el usuario puede ver, sus filtros y lo
+que la fila del listado necesita, en consultas fijas. Es la base del listado (#1167) y de la ficha (#1168).
+
+## Alcance acordado
+
+Entra: `programas/selectors/edificios.py`. Queda afuera: las pantallas y el sidebar (#1167 a #1169); hasta
+entonces `edificio.ver` sigue en `CAPACIDADES_SIN_USO`.
+
+## Decisiones tomadas
+
+- **Vigentes por defecto** (R3 del análisis): activos y con al menos una institución. Inactivos y sin institución
+  solo para el admin del programa, con `situacion`; para el resto se ignora el parámetro. Por eso `ver_todos`
+  ve «la red» de edificios vigentes, no los huérfanos (lo marcó la auditoría del PR #1188 y se descartó por R3).
+- **El estado edilicio se filtra en SQL** con la misma «última realizada» que el semáforo
+  (`subconsulta_ultima_realizada`): el listado pagina la red, no se puede filtrar en Python como las tarjetas de
+  Infraestructura (tope de 60).
+- **Instituciones del predio:** se nombran las del alcance de `edificio.ver` o de `dispositivo.ver`; el enlace a la
+  institución va solo si puede abrir su detalle (`dispositivos_visibles`). El resto se cuenta sin nombre.
+- **«Crear relevamiento»** lleva al modal de asignar de Relevamientos (`?asignar=<pk>`) solo si el edificio está en
+  `edificios_para_asignar(user)`.
+- `clave_estado_edilicio` y `aviso_de_vencimiento` de `services/detalle_dispositivo.py` pasan a ser públicas (antes
+  `_clave_estado` y `_aviso_de_vencimiento`), sin cambiar su comportamiento: las usan la solapa y el selector.
+
+## Implementación
+
+`edificios_visibles(user, situacion)`, `filtrar_edificios(qs, q, localidad, estado, compartido)`,
+`localidades_visibles(user)`, `para_el_listado(qs)` (anota la última, instituciones y vencimiento en la consulta
+de la página) y `filas_del_listado(user, edificios)` (cuatro consultas fijas por página).
+
+## Archivos
+
+- `programas/selectors/edificios.py` (nuevo)
+- `programas/services/detalle_dispositivo.py` (dos helpers pasan a públicos)
+- `programas/tests/test_dispositivos_edificios_selector.py` (nuevo)
+- `programas/tests/test_dispositivos_edificio_ver.py` (MINOR de la auditoría del PR #1188: el test compara la
+  constante contra el catálogo y no contra un literal)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 19 tests nuevos (alcance, situación, cada filtro solo y combinado, instituciones fuera de alcance, enlace,
+  `url_asignar`, consultas fijas con 2 y 20 edificios) y los de Infraestructura: 85 en verde.
+- Mutaciones: sacar `activo=True` de los vigentes deja 14 en rojo; dejar pedir `situacion` a quien no es admin, 4.
+- `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Las pantallas que lo consumen: #1167 (listado), #1168 (ficha), #1169 (sidebar).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
 
 ## Historial
 
