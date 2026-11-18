@@ -421,7 +421,7 @@ def programas_siis_visibles(user, programa=None):
     diferido entre vistas (RED-79). ``programas/`` no tiene paquete ``selectors/``
     —el resto de los querysets de alcance de Becas vive acá—, así que queda acá.
     """
-    from django.db.models import Count
+    from django.db.models import Count, Q
 
     from programas.models import ProgramaSiis
 
@@ -429,7 +429,10 @@ def programas_siis_visibles(user, programa=None):
         base = ProgramaSiis.objects.all()
     else:
         base = ProgramaSiis.objects.filter(segmentos__in=segmentos_visibles(user, programa=programa)).distinct()
-    return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
+    # El filtro del manager no viaja en el join: los segmentos eliminados se excluyen acá.
+    return base.annotate(
+        n_segmentos=Count("segmentos", filter=Q(segmentos__eliminado_en__isnull=True), distinct=True)
+    ).order_by("nombre")
 
 
 def segmentos_para_gestion_territoriales(user):
@@ -462,7 +465,9 @@ def segmento_dueno_id(territorial):
     from programas.models import AsignacionTerritorial
 
     return (
-        AsignacionTerritorial.objects.filter(territorial=territorial)
+        # Un segmento eliminado (baja lógica, Cambio 489) deja de ser dueño: manda la
+        # asignación viva más antigua.
+        AsignacionTerritorial.objects.filter(territorial=territorial, segmento__eliminado_en__isnull=True)
         .order_by("pk")
         .values_list("segmento_id", flat=True)
         .first()
@@ -475,7 +480,9 @@ def segmentos_duenos_en_lote(territoriales_ids):
 
     duenos = {}
     filas = (
-        AsignacionTerritorial.objects.filter(territorial_id__in=list(territoriales_ids))
+        AsignacionTerritorial.objects.filter(
+            territorial_id__in=list(territoriales_ids), segmento__eliminado_en__isnull=True
+        )
         .order_by("pk")
         .values_list("territorial_id", "segmento_id")
     )
@@ -490,7 +497,9 @@ def segmentos_de_territoriales_en_lote(territoriales_ids):
 
     por_territorial = {}
     filas = (
-        AsignacionTerritorial.objects.filter(territorial_id__in=list(territoriales_ids))
+        AsignacionTerritorial.objects.filter(
+            territorial_id__in=list(territoriales_ids), segmento__eliminado_en__isnull=True
+        )
         .order_by("pk")
         .values_list("territorial_id", "segmento_id")
     )

@@ -653,6 +653,10 @@ def _motivo_subsegmento_protegido(error):
             "No se puede eliminar el subsegmento: está en uso por una convocatoria y alguno de sus "
             "requisitos ya tiene documentos subidos en casos cargados."
         )
+    convocatorias = [obj for obj in error.protected_objects if type(obj).__name__ == "Convocatoria"]
+    if convocatorias and all(c.eliminado for c in convocatorias):
+        # Baja lógica (Cambio 489): la fila sigue en la base y la protege, pero no se ve.
+        return "No se puede eliminar el subsegmento: lo usa una convocatoria eliminada."
     return "No se puede eliminar el subsegmento porque está utilizado por una convocatoria."
 
 
