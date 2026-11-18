@@ -529,13 +529,24 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertEqual(respuesta.json()["origen"], "legajo")
         self.gran_base.assert_not_called()
 
-    def test_si_base_de_personas_la_encuentra_no_se_toca_el_legajo(self):
-        self._legajo(nombre="Otro")
+    def test_si_hay_legajo_responde_el_legajo_aunque_base_de_personas_la_encuentre(self):
+        """Cambio 482: se muestra la persona de la que ``crear_caso`` va a colgar el caso."""
+        self._legajo(nombre="Joaquin", apellido="FARIÑA")
 
-        with mock.patch("programas.api.views.identificar_en_legajo") as legajo:
-            respuesta = self._consultar(self.agente)
+        respuesta = self._consultar(self.agente)
 
-        legajo.assert_not_called()
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["origen"], "legajo")
+        self.assertEqual(respuesta.json()["data"]["nombre"], "Joaquin")
+        self.assertEqual(respuesta.json()["data"]["apellido"], "FARIÑA")
+
+    def test_becas_con_legajo_sigue_respondiendo_lo_de_base_de_personas(self):
+        self._legajo(nombre="Joaquin", apellido="FARIÑA")
+        ambos = self._sumar_rol(self.territorial_becas, [RELEVAR], self.programa)
+
+        respuesta = self._consultar(ambos, url=reverse("becas_api:personas-consultar"))
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
         self.assertEqual(respuesta.json()["origen"], "personas")
         self.assertEqual(respuesta.json()["data"]["nombre"], "Rosa")
 
@@ -548,13 +559,15 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertEqual(respuesta.status_code, 404)
         self.assertIs(respuesta.json()["fallecido"], True)
 
-    def test_un_genero_distinto_en_el_legajo_no_cuenta(self):
+    def test_un_genero_distinto_en_el_legajo_igual_cuenta(self):
+        """El DNI es único: el alta usaría ese legajo igual (Cambio 482)."""
         self._legajo(genero="M")
         self._gran_base_no_la_encuentra()
 
         respuesta = self._consultar(self.agente)
 
-        self.assertEqual(respuesta.status_code, 404)
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["origen"], "legajo")
 
     def test_un_genero_vacio_en_el_legajo_se_acepta(self):
         self._legajo(genero="")
@@ -565,11 +578,14 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.json()["origen"], "legajo")
 
-    def test_un_legajo_inactivo_no_cuenta(self):
+    def test_un_legajo_inactivo_igual_cuenta(self):
         self._legajo(activo=False)
         self._gran_base_no_la_encuentra()
 
-        self.assertEqual(self._consultar(self.agente).status_code, 404)
+        respuesta = self._consultar(self.agente)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["origen"], "legajo")
 
     def test_sin_legajo_la_falla_de_base_de_personas_sigue_siendo_502(self):
         self.gran_base.return_value = {"success": False, "error": "Timeout"}

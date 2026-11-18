@@ -61,6 +61,8 @@ CLAVES_MI_CASO = ["creado_en", "estado", "numero", "total_declarado"]
 CLAVES_CONSULTA = ["data", "datos_api", "origen", "success"]
 CLAVES_SIN_MODULO = ["code", "detail"]
 CLAVES_UUID_EN_USO = ["code", "detail"]
+#: El 400 del DNI ya registrado con otro nombre (Cambio 482): el de validación más `persona_registrada`.
+CLAVES_DNI_REGISTRADO = ["code", "detail", "dni", "non_field_errors", "persona_registrada"]
 # M3 · Recepción de kits (PR 9-API).
 # `admite` y `recibe_kits` (Cambio 475) son aditivas.
 CLAVES_MI_DISPOSITIVO = [
@@ -100,7 +102,7 @@ CLAVES_INTEGRANTE = [
 ]
 CLAVES_PERSONA_DEL_INTEGRANTE = ["dni", "id", "nombre"]
 CLAVES_PLAZA_DEL_INTEGRANTE = ["codigo", "id", "nombre"]
-CLAVES_INTEGRANTE_DETALLE = sorted([*CLAVES_INTEGRANTE, "ficha", "secciones_incompletas"])
+CLAVES_INTEGRANTE_DETALLE = sorted([*CLAVES_INTEGRANTE, "ficha", "identidad_a_revisar", "secciones_incompletas"])
 CLAVES_INTEGRANTES = [
     "caso",
     "con_ficha_incompleta",
@@ -136,7 +138,8 @@ CLAVES_DERIVACION_LLEGADA = [
     "vence_en",
     "vencida",
 ]
-CLAVES_RESPONSABLE = ["apellido", "dni", "nombre"]
+CLAVES_RESPONSABLE = ["apellido", "dni", "identidad_a_revisar", "nombre"]
+CLAVES_IDENTIDAD_DECLARADA = ["apellido", "nombre"]
 CLAVES_GRUPO_DE_LA_DERIVACION = [
     "adultos_f",
     "adultos_m",

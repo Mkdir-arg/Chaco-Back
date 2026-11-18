@@ -534,9 +534,11 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
     * Sin ``relevamientos_de`` no hay padrón: se consulta solo Base de Personas (Emergencia,
       que no tiene convocatorias). Un ``relevamiento`` que venga en el cuerpo se ignora.
 
-    * ``buscar_en_legajos`` (solo Emergencia): si Base de Personas no la encuentra, falla o
-      está apagada, se busca un ``Ciudadano`` activo con ese DNI (``origen: "legajo"``). Una
-      persona fallecida no cae al legajo. Becas no lo activa y no cambia.
+    * ``buscar_en_legajos`` (solo Emergencia): si hay un legajo registrado con ese DNI
+      (activo o no, de cualquier género), responde **el legajo** (``origen: "legajo"``),
+      aunque Base de Personas la haya encontrado con otros datos: es la persona de la que
+      ``crear_caso`` va a colgar el caso (Cambio 482). Una persona que Base de Personas
+      informa fallecida sigue siendo 404. Becas no lo activa y no cambia.
 
     El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.
     """
@@ -565,7 +567,7 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
             {"success": False, "fallecido": True, "error": "Base de Personas informa que la persona falleció."},
             status=status.HTTP_404_NOT_FOUND,
         )
-    if not resultado["validado"] and buscar_en_legajos:
+    if buscar_en_legajos:
         del_legajo = identificar_en_legajo(dni, sexo)
         if del_legajo is not None:
             del_legajo.update(dni=dni, sexo=sexo)

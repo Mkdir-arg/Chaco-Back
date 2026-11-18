@@ -112,6 +112,7 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | 401 | — | Sin token o token inválido | Volver al login |
 | 403 | `SIN_MODULO` | El usuario no tiene el permiso de la ruta | Mostrar `detail`; no reintentar |
 | 400 | `VALIDACION` | El envío no es válido (§6) | Mostrar el detalle por campo; el agente corrige y reenvía con el **mismo** `uuid_cliente` |
+| 400 | `VALIDACION` + `persona_registrada` | El DNI ya está registrado como otra persona (§6, «DNI ya registrado») | Preguntar «¿Es esa persona?» con las tres salidas; **no** reintentar solo desde la cola |
 | 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
 | 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12); el caso ya no está como la acción necesita: otra guardia actuó desde su teléfono o el backoffice, la mesa canceló, el cron venció (§13) | Mostrar `detail` y recargar con `estado_actual` (§13.1) |
 | 404 | — | El dispositivo, la entrega, la derivación o el caso no existen, o no son del usuario | Recargar «mis dispositivos» |
@@ -158,11 +159,12 @@ que `POST /api/becas/personas/consultar/`; existe aparte porque aquella exige `b
 ```
 
 `dni` se queda con los dígitos; `sexo` es `F` o `M` (admite minúscula). `relevamiento`, si viene, se
-ignora: Emergencia no tiene padrones. Busca primero en Base de Personas (`origen: "personas"`); si no la
-encuentra, falla o está apagada, busca en los legajos un ciudadano activo con ese DNI (`origen: "legajo"`,
-con `localidad_id` y `localidad_texto` del legajo). Si el género del legajo está cargado y difiere del `sexo`
-pedido no cuenta como hallada; vacío se acepta. Una persona fallecida según Base de Personas no se busca en
-legajos. La consulta de Becas no busca en legajos.
+ignora: Emergencia no tiene padrones. Si hay un legajo con ese DNI —**activo o no y de cualquier
+género**— responde el legajo (`origen: "legajo"`, con `localidad_id` y `localidad_texto` del legajo),
+**aunque Base de Personas la encuentre con otros datos**: es la persona de la que el envío (§6) va a colgar
+el caso, porque el DNI es único. Sin legajo, responde Base de Personas (`origen: "personas"`). Una persona
+que Base de Personas informa fallecida es 404 aunque tenga legajo. La consulta de Becas no busca en
+legajos (Cambio 482).
 
 ```json
 {"success": true, "origen": "personas",
@@ -205,10 +207,11 @@ No trae coordenadas: no se puede preseleccionar «la más cercana al GPS». El `
 | `traslado` | texto | **sí** | `BOMBEROS`, `EJERCITO`, `DEFENSA_CIVIL`, `POLICIA`, `MUNICIPIO`, `AUTOEVACUADO`, `OTRA` |
 | `traslado_otro` | texto | si `traslado` es `OTRA` | Hasta 120 caracteres |
 | `dni` | texto | **sí** | DNI del responsable, 7 u 8 dígitos |
-| `nombre`, `apellido` | texto | si la persona no está en el legajo | Alta mínima del responsable |
+| `nombre`, `apellido` | texto | si la persona no está en el legajo | Alta mínima del responsable. Si está, se omiten, coinciden con el legajo (sin importar acentos ni mayúsculas) o van con `identidad_en_conflicto`; si no, 400 (ver «DNI ya registrado») |
 | `fecha_nacimiento` | `AAAA-MM-DD` | no | Solo se usa en el alta mínima |
 | `telefono` | texto | no | Contacto para la mesa |
 | `documento_extraviado` | booleano | no | Perdió el documento pero sabe el número |
+| `identidad_en_conflicto` | booleano | no | Tras el 400 de «DNI ya registrado», el agente sostiene que el DNI es correcto y es otra persona. En multipart: `true` / `false`. Sin conflicto se ignora |
 | `menores_f`, `menores_m`, `adultos_f`, `adultos_m`, `mayores_f`, `mayores_m` | entero ≥ 0 | no (valen 0) | La suma tiene que ser ≥ 1. El responsable está incluido |
 | `dependientes` | entero ≥ 0 | no | ≤ total |
 | `mayores_dependientes` | entero ≥ 0 | no | ≤ mayores |
@@ -246,6 +249,32 @@ Respuesta **201** (creado) o **200** (ya existía), con el mismo cuerpo:
 ```json
 {"detail": "Ese identificador de envío ya se usó en otro caso.", "code": "UUID_EN_USO"}
 ```
+
+### DNI ya registrado
+
+Si el DNI ya es de una persona registrada (la misma regla de §4) y `nombre` o `apellido` vienen con
+texto que no coincide con el legajo, el envío no crea nada y responde **400** `VALIDACION` con el mensaje
+en `dni` y la clave `persona_registrada`, que trae **solo** apellido y nombre:
+
+```json
+{"dni": ["Ese DNI ya está registrado como FARIÑA, Joaquin. Si es esa persona, enviá sin nombre ni apellido; si el DNI está mal, corregilo; si el DNI es correcto y es otra persona, envialo con identidad a revisar."],
+ "detail": "Ese DNI ya está registrado como FARIÑA, Joaquin. …",
+ "non_field_errors": ["…"],
+ "persona_registrada": {"apellido": "FARIÑA", "nombre": "Joaquin"},
+ "code": "VALIDACION"}
+```
+
+La app pregunta «¿Es esa persona?» y reenvía con el **mismo** `uuid_cliente`:
+
+| Salida | Reenvío | Resultado |
+|---|---|---|
+| Sí, es esa persona | Sin `nombre` ni `apellido` | 201 con la persona registrada |
+| Corregir DNI | Con el DNI corregido | Lo de siempre |
+| El DNI es correcto, es otra persona | Con lo cargado e `identidad_en_conflicto=true` | 201: el caso queda con la persona registrada, **que no se modifica**, y marcado «Identidad a revisar» para la mesa |
+
+Un 400 con `persona_registrada` que llega desde la cola sin señal queda entre los pendientes y **no** se
+reintenta solo: necesita que el agente elija. Ningún otro 400 trae `persona_registrada`. La app que no
+conoce la clave lo muestra como cualquier error de campo.
 
 ### Fotos
 
@@ -508,7 +537,7 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
    "vence_en": "2026-11-12T12:00:00-03:00", "vencida": false,
    "derivada_en": "2026-11-12T10:00:00-03:00", "derivada_por": "Ana López",
    "caso": {"id": 184, "numero": "2026-C-000184", "estado": "DERIVADO", "prioridad": "ALTA", "total_declarado": 7},
-   "responsable": {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222"},
+   "responsable": {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222", "identidad_a_revisar": null},
    "grupo": {"menores_f": 2, "menores_m": 3, "adultos_f": 1, "adultos_m": 1, "mayores_f": 0, "mayores_m": 0,
              "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1},
    "necesidades": ["embarazo"], "telefono": "3624000000", "observaciones": "Vienen con un perro."},
@@ -521,6 +550,10 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
 | `SIN_DERIVACION` | No hay nada para este dispositivo. **Incluye** una derivación a otro: no se dice cuál ni que existe (RU-9) | M2-6: «Ingresar igual» si `plazas_libres ≥ 1`, y «Avisar a la mesa». Mostrar `mensaje` (si la derivación de acá venció, lo dice) |
 | `ALOJADA` | La persona tiene una estadía abierta en la red | Mostrar `mensaje` y nada más. `alojada_aca`: si es en este dispositivo. `alojada_en` y `alojada_desde`, solo si el usuario puede ver ese dispositivo; si no, vacíos |
 
+- `responsable.identidad_a_revisar`: `{"nombre", "apellido"}` tal como los cargó quien relevó, cuando el
+  DNI ya era de otra persona registrada y se envió con `identidad_en_conflicto` (§6). Viene **solo
+  mientras la mesa no lo revisó**; si no, `null`. Es un aviso: la app lo muestra («Identidad a revisar: se
+  cargó como Gómez, Pedro») y no bloquea nada (Cambio 482).
 - `vencida: true` es una derivación pendiente con `vence_en` pasado que la mesa todavía no marcó: **se
   puede aceptar igual** (RN-3.3; la familia está en la puerta).
 - `necesidades`: los avisos del Formulario 1 marcados en `true` (`embarazo`, `electrodependiente`,
@@ -628,6 +661,8 @@ reservada: se elige una libre al confirmarla.
 
 - `ficha`: el Formulario 2 guardado (§13.11), para precargar la pantalla. `{}` sin confirmar.
 - `secciones_incompletas`: los rótulos de las secciones 4 a 8 que faltan, en orden («Educación», …).
+- `identidad_a_revisar`: en la persona 1 (el responsable), la misma marca que `responsable` de §13.2;
+  en las demás personas, y cuando no hay marca o ya se revisó, `null`.
 
 404 si `n` no es de la familia.
 
@@ -803,7 +838,8 @@ El caso nace con origen dispositivo y el ingreso ya en curso (sin pasar por la m
 alcanzaron reservadas: se sigue en §13.5. **Es lo único de M2 que se encola sin señal** (RU-3): la
 cola reintenta con el **mismo** `uuid_cliente` hasta recibir 200 o 201; el reenvío devuelve **200** con
 el mismo caso y lo que reservó la primera vez, sin volver a mirar las camas. 409 `UUID_EN_USO` si ese
-identificador ya creó un caso de otro usuario. 400 como §6, más `plazas` (no hay camas libres; mostrar
+identificador ya creó un caso de otro usuario. 400 como §6 —incluido el de «DNI ya registrado» con
+`persona_registrada`, y `identidad_en_conflicto` para enviar con identidad a revisar—, más `plazas` (no hay camas libres; mostrar
 «Avisar a la mesa») y `dispositivo` (no recibe familias).
 
 **Avisar a la mesa**: `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` — el mismo cuerpo. Crea el

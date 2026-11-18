@@ -28,7 +28,8 @@ Lo común vive acá:
 * **La vista no decide reglas** (RU-2): llama a la función del servicio —la misma que usa la
   pantalla web— y traduce lo que rechace con :meth:`_VistaDeCampo._ejecutar`:
   ``PermissionDenied`` → 404, :class:`EstadoCambio` → 409 ``{detail, estado_actual}``,
-  :class:`UuidEnUso` → 409 ``UUID_EN_USO`` y ``ValidationError`` → 400 por campo.
+  :class:`UuidEnUso` → 409 ``UUID_EN_USO``, :class:`DniRegistrado` → 400 con ``persona_registrada``
+  y ``ValidationError`` → 400 por campo.
 * **M1.** `crear_caso` es la única función que crea casos y es la que usa la mesa: valida el
   Formulario 1, calcula el total y la prioridad, resuelve al responsable y es idempotente
   por ``uuid_cliente`` (RU-2, RU-16).
@@ -61,6 +62,7 @@ from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
 from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
+from programas.services.emergencia_alta import DniRegistrado
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     admite_familias,
@@ -185,6 +187,18 @@ def _respuesta_uuid_en_uso(error):
     )
 
 
+def _respuesta_dni_registrado(error):
+    """:class:`DniRegistrado` → el 400 ``VALIDACION`` de siempre, más ``persona_registrada``.
+
+    La app en producción lo muestra como cualquier error de campo; la nueva lee
+    ``persona_registrada`` para preguntar «¿Es esa persona?» sin parsear el texto (Cambio 482).
+    """
+
+    respuesta = _respuesta_de_validacion(_errores(error))
+    respuesta.data["persona_registrada"] = error.persona
+    return respuesta
+
+
 def _creado_o_reenvio(repetido):
     return status.HTTP_200_OK if repetido else status.HTTP_201_CREATED
 
@@ -243,6 +257,8 @@ class _VistaDeCampo(APIView):
             return None, _respuesta_409(cambio)
         except UuidEnUso as error:
             return None, _respuesta_uuid_en_uso(error)
+        except DniRegistrado as error:
+            return None, _respuesta_dni_registrado(error)
         except ValidationError as error:
             return None, _respuesta_de_validacion(_errores(error))
 
@@ -285,9 +301,10 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
         },
         description=(
             "La misma consulta de identidad que `POST /api/becas/personas/consultar/`, con el mismo cuerpo y la "
-            "misma respuesta, para quien abre Emergencia y no Becas. Consulta Base de Personas y, si no la "
-            "encuentra, falla o está apagada, el legajo (`origen: legajo`; un género cargado que no coincide no "
-            "cuenta). Una persona fallecida no cae al legajo. `relevamiento` se ignora."
+            "misma respuesta, para quien abre Emergencia y no Becas. Si hay un legajo con ese DNI (activo o no, de "
+            "cualquier género) responde el legajo (`origen: legajo`), aunque Base de Personas la encuentre con "
+            "otros datos: es la persona de la que se va a colgar el caso. Sin legajo, lo de Base de Personas. "
+            "Una persona que Base de Personas informa fallecida es 404. `relevamiento` se ignora."
         ),
     )
     def post(self, request):

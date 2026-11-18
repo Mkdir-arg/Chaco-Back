@@ -36,6 +36,7 @@ from programas.forms_emergencia import (
     PanelDerivarForm,
     PrioridadCasoForm,
     ReasignarCasoForm,
+    aviso_identidad_a_revisar,
 )
 from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
@@ -158,7 +159,9 @@ class NuevoCasoView(MesaPermissionMixin, View):
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
             return self._render(request, form, status=400)
-        messages.success(request, f"Caso {caso.numero} cargado. Quedó en gestión, tomado por vos.")
+        messages.success(
+            request, f"Caso {caso.numero} cargado. Quedó en gestión, tomado por vos.{aviso_identidad_a_revisar(caso)}"
+        )
         return redirect(_url_ficha(caso))
 
 

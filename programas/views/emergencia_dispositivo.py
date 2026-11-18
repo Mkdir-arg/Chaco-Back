@@ -40,6 +40,7 @@ from django.utils import timezone
 from django.views import View
 
 from core.rbac import puede
+from programas.forms_emergencia import aviso_identidad_a_revisar
 from programas.forms_emergencia_dispositivo import (
     BuscarFamiliaForm,
     CancelarIngresoForm,
@@ -689,7 +690,9 @@ class AvisarALaMesaView(_Formulario1View):
 
     def despues(self, request, caso):
         messages.success(
-            request, f"Caso {caso.numero} enviado a la mesa. Cuando lo deriven acá, buscá a la familia de nuevo."
+            request,
+            f"Caso {caso.numero} enviado a la mesa. Cuando lo deriven acá, buscá a la familia de nuevo."
+            f"{aviso_identidad_a_revisar(caso)}",
         )
         return redirect(self.url("llegadas"))
 
@@ -710,8 +713,13 @@ class IngresoDirectoView(_Formulario1View):
             messages.warning(
                 request,
                 f"Caso {caso.numero} creado. Reservé {caso.reservadas} camas y faltan {caso.faltantes}: "
-                "confirmá a las personas que entren y cerrá con diferencia si no alcanza.",
+                "confirmá a las personas que entren y cerrá con diferencia si no alcanza."
+                f"{aviso_identidad_a_revisar(caso)}",
             )
         else:
-            messages.success(request, f"Caso {caso.numero} creado. Reservé {caso.reservadas} camas para la familia.")
+            messages.success(
+                request,
+                f"Caso {caso.numero} creado. Reservé {caso.reservadas} camas para la familia."
+                f"{aviso_identidad_a_revisar(caso)}",
+            )
         return redirect(self.url("integrantes", caso.pk))

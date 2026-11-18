@@ -78,6 +78,18 @@ def buscar_ciudadano_por_dni(dni):
     return None
 
 
+def persona_registrada_con_dni(dni):
+    """La regla única de «este DNI ya tiene persona registrada» (Cambio 482).
+
+    Es el ``Ciudadano`` con ese DNI —exacto o de una ficha vieja cargada con
+    separadores—, **activo o no y con cualquier género**: ``Ciudadano.dni`` es único,
+    así que no puede haber otra persona con ese número. La usan la consulta de
+    identidad de Emergencia y el alta del caso, para que nunca digan cosas distintas.
+    """
+
+    return buscar_ciudadano_por_dni(dni)
+
+
 class RespuestaRegistro(NamedTuple):
     """Lo que respondió el Registro de Personas, con el motivo de la falla por separado."""
 

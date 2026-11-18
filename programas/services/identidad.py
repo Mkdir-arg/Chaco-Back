@@ -170,22 +170,21 @@ def identificar(objetivo, dni, sexo, fila=_SIN_BUSCAR):
 
 
 def identificar_en_legajo(dni, sexo):
-    """Los datos de identidad del ``Ciudadano`` activo con ese DNI, o ``None``.
+    """Los datos de identidad del legajo registrado con ese DNI, o ``None``.
 
-    Es el último recurso de la consulta de Emergencia, cuando Base de Personas no
-    la encontró, falló o está apagada. Reusa `buscar_ciudadano_por_dni`. Si el
-    ``genero`` del legajo está cargado y no coincide con el ``sexo`` pedido no
-    cuenta como hallada (no se confirma a otra persona); vacío se acepta.
+    Es la parte de legajos de la consulta de Emergencia. Usa la regla única de
+    :func:`programas.services.ingreso.persona_registrada_con_dni` —la misma que usa
+    ``crear_caso`` para el responsable—: cuenta el legajo **activo o no y con
+    cualquier género** (Cambio 482). Si la consulta lo ocultara, la app ofrecería
+    cargar a mano un nombre que el alta después descartaría, porque el DNI es único.
     """
-    from programas.services.ingreso import buscar_ciudadano_por_dni
+    from programas.services.ingreso import persona_registrada_con_dni
 
     dni, sexo = normalizar_dni(dni), normalizar_sexo(sexo)
     if not dni or not sexo:
         return None
-    # Mismo criterio que el resto del sistema: el DNI exacto y, si no, los legajos viejos
-    # cargados con separadores («30.111.222»). Con el exacto inactivo no se sigue buscando.
-    ciudadano = buscar_ciudadano_por_dni(dni)
-    if ciudadano is None or not ciudadano.activo or (ciudadano.genero and ciudadano.genero != sexo):
+    ciudadano = persona_registrada_con_dni(dni)
+    if ciudadano is None:
         return None
     return {
         "nombre": ciudadano.nombre,
