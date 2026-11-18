@@ -1,5 +1,5 @@
 ---
-description: Auditoría de salud del Project: trazabilidad, campos, cobertura QA, estancados
+description: "Auditoría de salud del Project: trazabilidad, campos, cobertura QA, estancados"
 ---
 
 # Salud del proyecto
