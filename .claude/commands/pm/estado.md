@@ -1,5 +1,5 @@
 ---
-description: Foto del sprint: tablero del Project #1, esfuerzo estimado y horas reales
+description: "Foto del sprint: tablero del Project #1, esfuerzo estimado y horas reales"
 argument-hint: "[sprint o foco, opcional]"
 ---
 

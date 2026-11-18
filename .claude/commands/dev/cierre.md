@@ -1,6 +1,6 @@
 ---
-description: Cierre tecnico de desarrollo antes de merge/QA: revisa cambios, performance, diseno, seguridad y validaciones focalizadas.
-allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(rg:*), Bash(python:*), Bash(./.venv/Scripts/python.exe:*), Bash(.\\.venv\\Scripts\\python.exe:*), Bash(git show:*), Bash(git rev-parse:*)
+description: "Cierre tecnico de desarrollo antes de merge/QA: revisa cambios, performance, diseno, seguridad y validaciones focalizadas."
+allowed-tools: "Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(rg:*), Bash(python:*), Bash(./.venv/Scripts/python.exe:*), Bash(.\\\\.venv\\\\Scripts\\\\python.exe:*), Bash(git show:*), Bash(git rev-parse:*)"
 ---
 
 Actua como operador de cierre tecnico de desarrollo de Chaco. Tu objetivo es decidir
