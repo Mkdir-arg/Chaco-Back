@@ -605,6 +605,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
+| 483 | Dispositivos · Edificios: capacidad `edificio.ver` | Dispositivos · edificios / RBAC | `#rbac` | PM — en sesión: «crea las capacidades edificio.ver» | 18/11/2026 | 🟢 **Hecho** | `users.0048` |
 
 **Notas del índice**
 
@@ -56883,5 +56884,90 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 - **18/11/2026:** alta del cambio.
 - **18/11/2026:** la auditoría del PR #1162 pidió el tope de mayores dependientes con el responsable, la fila
   «Responsable» en la tarjeta de «Llegadas» y la regla del total en un solo lugar (decisiones 7 y 8).
+
+---
+
+# Cambio 483 — Dispositivos · Edificios: capacidad `edificio.ver`
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios / RBAC |
+| **Etiquetas** | `#rbac` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: «crea las capacidades edificio.ver», para la sección «Edificios» del menú de Dispositivos |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1165 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Servidor (RBAC) |
+| **Migración** | `users.0048` |
+
+## Pedido original
+
+«En dispositivos tenemos Instituciones, Relevamientos y Configuración, pero falta uno para edificios.» Al
+cerrar el análisis (#1164) el PM pidió una capacidad propia: «crea las capacidades edificio.ver».
+
+## Alcance acordado
+
+Entra: la capacidad `edificio.ver` en el catálogo, su siembra y su alcance. Queda afuera (tasks siguientes
+del análisis #1164): el selector de edificios (#1166), el listado (#1167), la ficha (#1168) y el ítem del
+sidebar (#1169). Ninguna pantalla la evalúa todavía.
+
+## Decisiones tomadas
+
+- **Capacidad propia y no `dispositivo.ver`** (decisión del PM): Edificios se puede dar o quitar por rol,
+  independiente de Instituciones.
+- **Siembra en todo rol que ya tenga `dispositivo.ver`**: nadie que hoy ve Instituciones se queda sin la
+  sección nueva cuando llegue. De ahí en adelante se reparte desde el ABM de Roles, sin deploy (mismo
+  criterio que `users.0036` con `dispositivo.bitacora`).
+- **`dispositivo.ver_todos` amplía también `edificio.ver`** a toda la red: es lectura, igual que
+  `dispositivo.ver`. No se amplía ninguna capacidad de escritura (`_CAPS_LECTURA_RED` en
+  `programas/services/dispositivos.py`).
+- Mientras ninguna pantalla la evalúe, queda declarada en `CAPACIDADES_SIN_USO` del contrato de RBAC
+  (`users/tests/test_rbac_contrato.py`); sale de ahí en el PR que la empiece a evaluar.
+
+## Implementación
+
+`edificio.ver` («Ver edificios») aparece en el árbol de Dispositivos del ABM de Roles. Con
+`dispositivo.ver_todos`, `dispositivos_en_alcance(user, "edificio.ver")` y
+`edificios_en_alcance(user, "edificio.ver")` devuelven toda la red; sin ella, solo los dispositivos del
+Equipo donde la persona tiene un rol con la capacidad.
+
+## Archivos
+
+- `core/rbac.py` (`CATALOGO`)
+- `programas/services/dispositivos.py` (`CAP_VER_EDIFICIOS`, `_CAPS_LECTURA_RED`, `_ve_todos`)
+- `users/migrations/0048_capacidad_edificio_ver.py`
+- `users/tests/test_rbac_contrato.py`, `users/tests/test_migracion_edificio_ver.py`,
+  `programas/tests/test_dispositivos_edificio_ver.py`
+
+## Base de datos
+
+`users.0048`: `AlterModelOptions` de `Capacidad` (no toca el esquema) + `RunPython` que agrega filas en
+`auth_group_permissions`. Idempotente; segura sobre datos existentes.
+
+## Validación
+
+- Tests nuevos de siembra (roles con y sin `dispositivo.ver`, idempotencia, reversa) y de alcance
+  (`ver_todos` amplía lectura y no escritura; Equipo con y sin la capacidad), en verde.
+- Mutaciones: volver `_ve_todos` a `== CAP_VER` y sumar `dispositivo.editar` a `_CAPS_LECTURA_RED`
+  dejan rojo un test cada una.
+- `manage.py check`, `makemigrations --check`, `scripts/check_migraciones.py` (0 problemas) y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy: la migración siembra la capacidad.
+
+## Pendientes / a definir
+
+- Las pantallas que la evalúan: #1166 a #1169.
+
+## Reversión
+
+Desaplicar `users.0048` (la reversa quita la capacidad de todos los roles; se pierde un tilde hecho a mano
+en un rol sin `dispositivo.ver`) y revertir el commit.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
 
 ---

@@ -13,6 +13,10 @@ PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
 CAP_VER = "dispositivo.ver"
 CAP_VER_TODOS = "dispositivo.ver_todos"
+#: La sección «Edificios» (#1164). Es de lectura: `ver_todos` la amplía como a `CAP_VER`.
+CAP_VER_EDIFICIOS = "edificio.ver"
+#: Las capacidades de lectura que `dispositivo.ver_todos` amplía a toda la red.
+_CAPS_LECTURA_RED = frozenset({CAP_VER, CAP_VER_EDIFICIOS})
 # `CAP_ADMITIR` vivía acá para que `core.views.media` dejara al admisor bajar el F-00
 # que él mismo había subido. Se fue con la admisión vieja (MVP v2, release A); la
 # capacidad sigue en el catálogo y la repone la E2 con el ingreso contra `Estadia`.
@@ -227,9 +231,9 @@ def _del_equipo(user, capacidad, programa):
 
 
 def _ve_todos(user, capacidad, programa):
-    """``dispositivo.ver_todos`` da lectura total y **solo** lectura (``CAP_VER``)."""
+    """``dispositivo.ver_todos`` da lectura total y **solo** lectura (``CAP_VER`` y ``CAP_VER_EDIFICIOS``)."""
 
-    return capacidad == CAP_VER and rbac.puede(user, CAP_VER_TODOS, programa=programa)
+    return capacidad in _CAPS_LECTURA_RED and rbac.puede(user, CAP_VER_TODOS, programa=programa)
 
 
 def puede_operar_dispositivo(user, dispositivo, capacidad):
