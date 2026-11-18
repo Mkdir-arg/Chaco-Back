@@ -18,17 +18,22 @@ El estado edilicio es el de la tarjeta de Infraestructura (Cambio 439): la criti
 listado pagina la red entera.
 """
 
-from django.db.models import Count, Exists, OuterRef, Q, Subquery
+from collections import defaultdict
+
+from django.core.paginator import Paginator
+from django.db.models import Count, Exists, F, OuterRef, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Edificio, InspeccionEdificio
+from programas.models import Edificio, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.detalle_dispositivo import (
     ESTADOS_EDILICIOS,
+    POR_PAGINA_RELEVAMIENTOS,
     aviso_de_vencimiento,
-    clave_estado_edilicio,
+    estado_edilicio,
+    evento_de_relevamiento,
 )
 from programas.services.dispositivos import (
     CAP_VER_EDIFICIOS,
@@ -37,9 +42,10 @@ from programas.services.dispositivos import (
     puede_configurar_dispositivos,
 )
 from programas.services.inspecciones import (
+    edificios_con_asignacion_visible,
     edificios_en_alcance,
     edificios_para_asignar,
-    semaforo_de_inspeccion,
+    inspecciones_visibles,
     subconsulta_ultima_realizada,
 )
 
@@ -163,17 +169,69 @@ def para_el_listado(queryset):
     ).order_by("nombre", "pk")
 
 
+def _instituciones_por_edificio(user, ids):
+    """Las instituciones que el usuario alcanza en cada edificio de ``ids``, con su enlace (dos consultas).
+
+    Se **nombran** si están en el alcance de ``edificio.ver`` o de ``dispositivo.ver``; llevan ``url`` solo
+    si además puede abrir su detalle. Las demás no aparecen: el llamador las cuenta (``otras``).
+    """
+
+    del_predio = instituciones_del_predio(user, ids, tambien=dispositivos_en_alcance(user, CAP_VER_EDIFICIOS))
+    pks = {institucion["pk"] for lista in del_predio.values() for institucion in lista}
+    abribles = set(dispositivos_visibles(user).filter(pk__in=pks).values_list("pk", flat=True) if pks else ())
+    return {
+        edificio_id: [
+            {
+                **institucion,
+                "url": reverse("dispositivos:detalle", args=[institucion["pk"]])
+                if institucion["pk"] in abribles
+                else "",
+            }
+            for institucion in lista
+        ]
+        for edificio_id, lista in del_predio.items()
+    }
+
+
+def _quien(usuario):
+    return (usuario.get_full_name() or usuario.username) if usuario else "sin responsable"
+
+
+def _url_asignar(edificio_pk):
+    return f"{reverse('dispositivos:relevamientos')}?asignar={edificio_pk}"
+
+
+def _base_de_fila(edificio, ultima, instituciones, *, hoy, asignable):
+    """Lo que la fila del listado y el encabezado de la ficha dicen igual de un edificio."""
+
+    return {
+        "pk": edificio.pk,
+        "codigo": edificio.codigo,
+        "nombre": edificio.nombre,
+        "domicilio": edificio.domicilio_completo,
+        "localidad": edificio.localidad,
+        "activo": edificio.activo,
+        "estado": estado_edilicio(ultima),
+        "aviso": aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
+        "ultima_fecha": ultima.realizada_en if ultima else None,
+        "instituciones": instituciones,
+        "n_instituciones": edificio.n_instituciones,
+        "otras": max(edificio.n_instituciones - len(instituciones), 0),
+        "compartido": edificio.n_instituciones >= 2,
+        "url_ver": reverse("dispositivos:edificio_detalle", args=[edificio.pk]),
+        "url_asignar": _url_asignar(edificio.pk) if asignable else "",
+    }
+
+
 def filas_del_listado(user, edificios):
     """Las filas de una página del listado, en consultas fijas.
 
     ``edificios`` es la página de :func:`para_el_listado`. Cuatro consultas, no una por fila: las
-    últimas realizadas (1), las instituciones del predio que el usuario
-    alcanza (1), cuáles de ellas puede abrir (1) y los edificios donde puede crear un relevamiento (1).
+    últimas realizadas (1), las instituciones del predio que el usuario alcanza (1), cuáles de ellas
+    puede abrir (1) y los edificios donde puede crear un relevamiento (1).
 
-    Las instituciones se **nombran** si están en el alcance de ``edificio.ver`` o de ``dispositivo.ver``
-    del usuario; llevan **enlace** solo si además puede ver su detalle. Las demás se cuentan sin
-    nombre (``otras``). ``url_asignar`` es el modal de asignar de Relevamientos (P21) y va vacía si
-    el edificio no admite un relevamiento nuevo o el usuario no lo coordina (R8).
+    ``url_asignar`` es el modal de asignar de Relevamientos (P21) y va vacía si el edificio no admite
+    un relevamiento nuevo o el usuario no lo coordina (R8).
     """
 
     edificios = list(edificios)
@@ -184,49 +242,113 @@ def filas_del_listado(user, edificios):
 
     # Solo el estado y la fecha de la última: el Cambio 428 los deja ver sin alcance de inspección.
     ultimas = InspeccionEdificio.objects.in_bulk([edificio.ultima_id for edificio in edificios if edificio.ultima_id])
-    del_predio = instituciones_del_predio(user, ids, tambien=dispositivos_en_alcance(user, CAP_VER_EDIFICIOS))
-    pks_instituciones = {institucion["pk"] for lista in del_predio.values() for institucion in lista}
-    abribles = set(
-        dispositivos_visibles(user).filter(pk__in=pks_instituciones).values_list("pk", flat=True)
-        if pks_instituciones
-        else ()
-    )
+    instituciones = _instituciones_por_edificio(user, ids)
     asignables = set(edificios_para_asignar(user).filter(pk__in=ids).values_list("pk", flat=True))
-    url_asignar = reverse("dispositivos:relevamientos")
+    return [
+        _base_de_fila(
+            edificio,
+            ultimas.get(edificio.ultima_id),
+            instituciones.get(edificio.pk, []),
+            hoy=hoy,
+            asignable=edificio.pk in asignables,
+        )
+        for edificio in edificios
+    ]
 
-    filas = []
-    for edificio in edificios:
-        ultima = ultimas.get(edificio.ultima_id)
-        semaforo = semaforo_de_inspeccion(ultima)
-        instituciones = [
+
+def ficha_de_edificio(user, edificio, pagina=1):
+    """Lo que dibuja la ficha propia del edificio (#1168): la de Infraestructura, a nivel edificio.
+
+    ``edificio`` viene de :func:`para_el_listado` sobre :func:`edificios_visibles` (la vista ya resolvió
+    el 404). Trae el encabezado de la fila, los datos, las instituciones del predio, los sectores
+    activos de las instituciones que el usuario alcanza (con su cantidad de plazas, agrupados por
+    institución), el último relevamiento y el registro fotográfico paginado.
+
+    Cambio 428: la criticidad, las observaciones, quién relevó y el registro son del informe, que se
+    abre solo por `inspecciones_visibles`. Sin ese alcance quedan el estado y la fecha.
+
+    Costo fijo, sin importar instituciones, sectores, relevamientos ni fotos: la última con su alcance
+    (1), instituciones y cuáles abre (2), si admite un relevamiento nuevo (1), sectores con plazas (1),
+    COUNT y página del registro (2), fotos de la página (1) y, solo si la página trae uno en curso,
+    quién puede ver su asignación (1).
+    """
+
+    hoy = timezone.localdate()
+    visibles = inspecciones_visibles(user)
+    ultima = (
+        InspeccionEdificio.objects.select_related("realizada_por")
+        .annotate(con_detalle=Exists(visibles.filter(pk=OuterRef("pk"))))
+        .filter(pk=edificio.ultima_id)
+        .first()
+        if edificio.ultima_id
+        else None
+    )
+    ve_detalle = ultima is not None and ultima.con_detalle
+    instituciones = _instituciones_por_edificio(user, [edificio.pk]).get(edificio.pk, [])
+    asignable = edificios_para_asignar(user).filter(pk=edificio.pk).exists()
+
+    nombres = {institucion["pk"]: institucion["nombre"] for institucion in instituciones}
+    sectores_por_institucion = {}
+    for sector in (
+        Sector.objects.filter(edificio=edificio, activo=True, dispositivo_id__in=list(nombres))
+        .annotate(cantidad_plazas=Count("plazas", filter=Q(plazas__activa=True)))
+        .order_by("nombre", "pk")
+        .values("pk", "nombre", "tipo", "dispositivo_id", "cantidad_plazas")
+    ):
+        sectores_por_institucion.setdefault(sector["dispositivo_id"], []).append(
             {
-                **institucion,
-                "url": reverse("dispositivos:detalle", args=[institucion["pk"]])
-                if institucion["pk"] in abribles
-                else "",
-            }
-            for institucion in del_predio.get(edificio.pk, [])
-        ]
-        filas.append(
-            {
-                "pk": edificio.pk,
-                "codigo": edificio.codigo,
-                "nombre": edificio.nombre,
-                "domicilio": edificio.domicilio_completo,
-                "localidad": edificio.localidad,
-                "activo": edificio.activo,
-                "estado": {
-                    "clave": clave_estado_edilicio(ultima),
-                    "texto": semaforo.texto,
-                    "tono": semaforo.tono,
-                },
-                "aviso": aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
-                "ultima_fecha": ultima.realizada_en if ultima else None,
-                "instituciones": instituciones,
-                "n_instituciones": edificio.n_instituciones,
-                "otras": max(edificio.n_instituciones - len(instituciones), 0),
-                "compartido": edificio.n_instituciones >= 2,
-                "url_asignar": f"{url_asignar}?asignar={edificio.pk}" if edificio.pk in asignables else "",
+                "pk": sector["pk"],
+                "nombre": sector["nombre"],
+                "tipo": Sector.Tipo(sector["tipo"]).label if sector["tipo"] in Sector.Tipo.values else sector["tipo"],
+                "plazas": sector["cantidad_plazas"],
             }
         )
-    return filas
+    sectores = [
+        {"institucion": nombres[pk], "sectores": lista, "n_plazas": sum(item["plazas"] for item in lista)}
+        for pk, lista in sorted(sectores_por_institucion.items(), key=lambda par: nombres[par[0]].lower())
+    ]
+
+    # El registro: los relevamientos del edificio que el usuario puede abrir, sin los cancelados (no dejaron
+    # resultado). El en curso va primero, porque todavía no tiene fecha.
+    consulta = (
+        InspeccionEdificio.objects.filter(edificio=edificio, pk__in=visibles.values("pk"))
+        .exclude(estado=InspeccionEdificio.Estado.CANCELADA)
+        .select_related("edificio", "asignado_a", "realizada_por", "revisado_por")
+        .annotate(n_fotos=Count("fotos"))
+        .order_by(F("realizada_en").desc(nulls_first=True), "-creado", "-pk")
+    )
+    relevamientos = Paginator(consulta, POR_PAGINA_RELEVAMIENTOS).get_page(pagina)
+    fotos_por_inspeccion = defaultdict(list)
+    ids = [inspeccion.pk for inspeccion in relevamientos]
+    if ids:
+        for foto in (
+            FotoInspeccion.objects.filter(inspeccion_id__in=ids)
+            .only("id", "inspeccion_id", "archivo", "descripcion", "creado")
+            .order_by("inspeccion_id", "creado", "pk")
+        ):
+            fotos_por_inspeccion[foto.inspeccion_id].append(foto)
+    en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != InspeccionEdificio.Estado.REALIZADA]
+    coordinados = edificios_con_asignacion_visible(user, [edificio.pk]) if en_curso else set()
+    eventos = [
+        evento_de_relevamiento(
+            inspeccion,
+            fotos_por_inspeccion.get(inspeccion.pk, []),
+            ve_asignacion=inspeccion.asignado_a_id == user.pk or inspeccion.edificio_id in coordinados,
+            enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]),
+        )
+        for inspeccion in relevamientos
+    ]
+
+    return {
+        **_base_de_fila(edificio, ultima, instituciones, hoy=hoy, asignable=asignable),
+        "latitud": edificio.latitud,
+        "longitud": edificio.longitud,
+        "ve_detalle": ve_detalle,
+        "relevo": _quien(ultima.realizada_por) if ve_detalle else "",
+        "observaciones": (ultima.observaciones or "").strip() if ve_detalle else "",
+        "sectores": sectores,
+        "n_sectores": sum(len(grupo["sectores"]) for grupo in sectores),
+        "eventos": eventos,
+        "relevamientos": relevamientos,
+        "url_listado": reverse("dispositivos:edificios"),
+    }

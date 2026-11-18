@@ -343,7 +343,7 @@ def _cantidad_de_fotos(cantidad):
     return f"{cantidad} foto{'s' if cantidad != 1 else ''}"
 
 
-def _evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace=""):
+def evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace=""):
     """Una entrada de la línea de tiempo por relevamiento, con su tanda de fotos adentro.
 
     Lo que pasó va en el texto, no en el color. ``fotos`` y ``total_fotos`` son el opcional de
@@ -433,6 +433,17 @@ def clave_estado_edilicio(ultima):
         if criticidad is not None and ultima.criticidad == criticidad:
             return clave
     return ""
+
+
+def estado_edilicio(ultima):
+    """El estado de un edificio como lo dibujan la tarjeta, la ficha y la fila: clave del filtro, rótulo y tono.
+
+    Sale de la **última realizada** (``None`` = sin relevar). «Vencido» y «Vence en N días» van aparte
+    (:func:`aviso_de_vencimiento`).
+    """
+
+    semaforo = semaforo_de_inspeccion(ultima)
+    return {"clave": clave_estado_edilicio(ultima), "texto": semaforo.texto, "tono": semaforo.tono}
 
 
 def aviso_de_vencimiento(vencido, vence_el, hoy):
@@ -543,7 +554,6 @@ def _fila_de_edificio(
     """
 
     ve_detalle = ultima is None or ultima.con_detalle
-    semaforo_estado = semaforo_de_inspeccion(ultima)
     otras = edificio.n_instituciones - 1
     realizados = total.get("realizados", 0)
     observaciones = (ultima.observaciones or "").strip() if ultima else ""
@@ -566,11 +576,7 @@ def _fila_de_edificio(
         "longitud": edificio.longitud,
         "instituciones": del_predio,
         # El estado de la tarjeta es el de la última realizada; «Vencido» y «Vence en N días» van aparte.
-        "estado": {
-            "clave": clave_estado_edilicio(ultima),
-            "texto": semaforo_estado.texto,
-            "tono": semaforo_estado.tono,
-        },
+        "estado": estado_edilicio(ultima),
         "vencido": bool(edificio.vencido),
         "aviso": aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
         "ultima": ultima,
@@ -842,7 +848,7 @@ def infraestructura_del_dispositivo(
     propios = {inspeccion.pk for inspeccion in en_curso if inspeccion.asignado_a_id == getattr(usuario, "pk", None)}
     coordinados = edificios_con_asignacion_visible(usuario, [i.edificio_id for i in en_curso]) if en_curso else set()
     eventos = [
-        _evento_de_relevamiento(
+        evento_de_relevamiento(
             inspeccion,
             fotos_por_inspeccion.get(inspeccion.pk, []),
             ve_asignacion=inspeccion.pk in propios or inspeccion.edificio_id in coordinados,

@@ -608,6 +608,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 483 | Dispositivos · Edificios: capacidad `edificio.ver` | Dispositivos · edificios / RBAC | `#rbac` | PM — en sesión: «crea las capacidades edificio.ver» | 18/11/2026 | 🟢 **Hecho** | `users.0048` |
 | 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 485 | Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1167 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 486 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57139,5 +57140,91 @@ Revertir el commit; no hay datos ni migración.
   (`localidades_visibles(user, situacion)`); las últimas realizadas se leen sin el `con_detalle` que nadie usaba. El
   contrato del agente de diseño pidió registrar en `.claude/design/arquetipos/detalle.md` que el estado edilicio
   (`clave_estado_edilicio`, `aviso_de_vencimiento`) es compartido con el listado de Edificios.
+
+---
+
+# Cambio 486 — Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/`
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: ficha propia del edificio (decisión 4 del análisis #1164) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1168 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1168: la ficha propia del edificio en `/dispositivos/edificios/<pk>/`, con el contenido de la ficha de
+Infraestructura pero a nivel edificio. Solo lectura + «Crear relevamiento».
+
+## Alcance acordado
+
+Entra: la ruta `dispositivos:edificio_detalle`, la vista, el servicio de lectura y el template; «Ver» en la fila del
+listado. Queda afuera: el ítem del sidebar (#1169) y la ocupación por sector (sigue en la ficha de cada institución).
+
+## Decisiones tomadas
+
+- **404 por alcance** (Cambio 432): el edificio se busca en `edificios_visibles(user, situacion="todos")`, que para
+  quien no es admin deja solo los vigentes. Fuera de alcance, huérfano, inactivo o inexistente dan lo mismo.
+- **Sectores:** los activos de las instituciones que el usuario alcanza, con su cantidad de plazas, agrupados por
+  institución. Sin ocupación (exigiría el censo de cada institución).
+- **Cambio 428:** quién relevó, observaciones y el registro fotográfico solo por `inspecciones_visibles`; sin ese
+  alcance, estado y fecha del último relevamiento.
+- **El enlace al informe** va sin `?dispositivo=`: desde la ficha del edificio no hay institución de origen, así que
+  el «Volver» del informe cae en Relevamientos o en Dispositivos según la capacidad (regla de `_volver`).
+- `estado_edilicio(ultima)` y `evento_de_relevamiento` de `detalle_dispositivo.py` pasan a públicas: la tarjeta, la
+  ficha de Infraestructura, la fila del listado y esta ficha arman el estado en un solo lugar (sugerencia opcional
+  de la auditoría del PR #1190). La ficha del arquetipo Detalle lo registra.
+- **Presupuesto nuevo `dispositivos_edificio_ficha`: 15** (14 medidas con 1 y con 7 relevamientos, más la de un
+  relevamiento en curso).
+
+## Implementación
+
+`ficha_de_edificio(user, edificio, pagina)` en `programas/selectors/edificios.py` y `EdificioDetailView`. Template
+`edificios/detail.html` del arquetipo Detalle, variante apilada: Datos, Instituciones del predio, Sectores, Último
+relevamiento y Registro fotográfico (línea de tiempo plegable, paginada). El listado suma «Ver» y el nombre enlaza.
+
+## Archivos
+
+- `programas/selectors/edificios.py`, `programas/services/detalle_dispositivo.py`
+- `programas/views/dispositivos_edificios.py`, `programas/dispositivos_urls.py`
+- `programas/templates/programas/dispositivos/edificios/detail.html` (nuevo), `edificios/list.html`
+- `.claude/design/arquetipos/detalle.md`, `scripts/perf_budgets.json`
+- `programas/tests/test_dispositivos_edificios_ficha.py` (nuevo)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 14 tests nuevos (permiso, 404 por alcance, admin con huérfanos e inactivos, instituciones y sectores fuera de
+  alcance, Cambio 428, Crear relevamiento, sin escritura, enlace desde el listado, presupuesto). Con listado,
+  selector, Infraestructura, informe y contrato RBAC: 150 en verde.
+- Mutaciones: buscar en `edificios_en_alcance` (sin vigentes) deja 2 en rojo; mostrar el informe sin alcance, 1.
+- `design_audit.py --arquetipo detalle` OK (detalle + apilado), `--ratchet` 0 nuevos, `compile_templates.py
+  --bloques` 0, `check_design_agent.py --changed` OK, `check_perf_budgets.py`, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- El ítem del sidebar (#1169).
+- Que el «Volver» del informe regrese a la ficha del edificio (hoy vuelve a Relevamientos o Dispositivos).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
 
 ---

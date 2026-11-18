@@ -1,18 +1,21 @@
-"""Sección «Edificios» de Dispositivos (análisis #1164): el listado de los edificios del alcance (#1167).
+"""Sección «Edificios» de Dispositivos (análisis #1164): el listado (#1167) y la ficha del edificio (#1168).
 
 Solo lectura. La vista orquesta: qué edificios ve cada uno, los filtros y lo que dibuja cada fila
 salen de `programas.selectors.edificios`. La acción de la fila, «Crear relevamiento», abre el modal
 de asignar de Relevamientos (P21) y no tiene ruta propia.
 """
 
-from django.views.generic import ListView
+from django.shortcuts import get_object_or_404
+from django.views.generic import ListView, TemplateView
 
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
 from programas.selectors.edificios import (
     COMPARTIDO_NO,
     COMPARTIDO_SI,
+    SITUACION_TODOS,
     SITUACIONES,
     edificios_visibles,
+    ficha_de_edificio,
     filas_del_listado,
     filtrar_edificios,
     localidades_visibles,
@@ -74,4 +77,25 @@ class EdificioListView(DispositivoProgramaPermissionMixin, ListView):
                 "situaciones": SITUACIONES if situaciones else (),
             }
         )
+        return context
+
+
+class EdificioDetailView(DispositivoProgramaPermissionMixin, TemplateView):
+    """Ficha propia del edificio (RF3 del análisis #1164), en solo lectura.
+
+    Se busca entre **todos** los que el usuario ve: para quien no es admin, `edificios_visibles` ignora la
+    situación y deja solo los vigentes, así que un edificio fuera de alcance, huérfano o inactivo da 404
+    (Cambio 432), igual que un id que no existe. El admin abre también los huérfanos y los inactivos.
+    """
+
+    capacidad_requerida = CAP_VER_EDIFICIOS
+    template_name = "programas/dispositivos/edificios/detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        edificio = get_object_or_404(
+            para_el_listado(edificios_visibles(user, situacion=SITUACION_TODOS)), pk=self.kwargs["pk"]
+        )
+        context["ficha"] = ficha_de_edificio(user, edificio, pagina=self.request.GET.get("page") or 1)
         return context
