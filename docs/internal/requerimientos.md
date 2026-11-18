@@ -608,8 +608,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 483 | Dispositivos · Edificios: capacidad `edificio.ver` | Dispositivos · edificios / RBAC | `#rbac` | PM — en sesión: «crea las capacidades edificio.ver» | 18/11/2026 | 🟢 **Hecho** | `users.0048` |
 | 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 485 | Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1167 | 18/11/2026 | 🟢 **Hecho** | No requiere |
-| 486 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
-| 487 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 486 | Emergencia: un DNI ya registrado no se reemplaza en silencio por otro nombre (consulta y alta con la misma regla, rechazo o «identidad a revisar») | Emergencia · app de campo, alta del caso y backoffice | `#emergencia` `#api` `#mobile` `#datos` | Usuario (PM) — en testing de ECOM la app dijo que el DNI no figuraba y el caso llegó a nombre de otra persona | 18/11/2026 | 🟡 **En curso** | No requiere |
+| 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57144,7 +57145,113 @@ Revertir el commit; no hay datos ni migración.
 
 ---
 
-# Cambio 486 — Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/`
+# Cambio 486 — Emergencia: un DNI ya registrado no se reemplaza en silencio por otro nombre
+
+🟡 **EN CURSO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · app de campo (M1, M2-6), alta del caso, mesa y dispositivo por backoffice |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` `#datos` |
+| **Solicitante** | Usuario (PM) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue (análisis funcional en borrador: tareas T1, T2, T3 y T5) |
+| **Partes afectadas** | Servidor/API, backoffice (mesa y dispositivo), Mobile (T4, repo Chaco-mobile, pendiente) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En testing de ECOM, al cargar el responsable del grupo familiar en la app de campo, «Buscar» dijo que el DNI
+no figuraba en la base de personas; el agente cargó otro nombre y apellido y el caso llegó a la mesa como
+FARIÑA, Joaquin (DNI 40.732.122). La consulta y el alta buscaban a la persona con criterios distintos, y el
+alta descartaba sin aviso el nombre cargado.
+
+## Alcance acordado
+
+**Entra:** la regla única de «DNI ya registrado», la consulta de Emergencia, `crear_caso` (los tres
+orígenes), la API (M1, ingreso directo, aviso a la mesa, §13.2 y §13.6) y los formularios del backoffice.
+**Queda afuera:** la app (T4, Chaco-mobile), la ficha y la bandeja de la mesa para revisar la marca (T6 y
+T7, segunda entrega), sanear el legajo del DNI 40.732.122 (edad 0), «cambiar el responsable del caso» y el
+Formulario 2.
+
+## Decisiones tomadas
+
+1. **Regla única:** un DNI está registrado si existe un `Ciudadano` con ese DNI (exacto o cargado con
+   separadores), **activo o no y de cualquier género** (`ingreso.buscar_ciudadano_por_dni`). La usan la
+   consulta de Emergencia y `crear_caso`. Revierte las decisiones 3 y 4 del Cambio 481.
+2. **La consulta de Emergencia muestra el legajo** cuando existe, aunque Base de Personas la encuentre con
+   otros datos (decisión del PM; revierte la decisión 1 del Cambio 481 solo para Emergencia). La fallecida
+   sigue siendo 404. Becas no cambia.
+3. **Conflicto:** `nombre` o `apellido` con texto que no coincide con el legajo (sin acentos, mayúsculas ni
+   espacios de más). Un campo vacío no se compara; la fecha de nacimiento no genera conflicto.
+4. **Opción a del PM:** sin `identidad_en_conflicto`, `crear_caso` rechaza (`DniRegistrado`, en `dni`) sin
+   crear nada. La API suma `persona_registrada: {apellido, nombre}` al 400 `VALIDACION`.
+5. **Tercera salida «identidad a revisar»:** con `identidad_en_conflicto` y conflicto, el caso se cuelga del
+   legajo existente, que **no se toca**, y `situacion["identidad_a_revisar"]` guarda lo declarado. La traza
+   `CREADO` suma «· Identidad a revisar», sin nombres. Sin conflicto, el flag se ignora.
+6. **La guardia ve la marca** mientras esté pendiente: `identidad_a_revisar` en `derivacion.responsable`
+   (§13.2) y en la persona 1 (§13.6); si no, `null`.
+7. Si la mesa confirma que es otra persona, se corrige el legajo (`ciudadano.editar`); no hay «cambiar el
+   responsable del caso».
+8. **El rechazo cuenta como consulta de identidad** (hallazgo MAJOR de la auditoría del PR #1170): cada
+   `DniRegistrado` descuenta de la cubeta `personas_campo` del usuario (SEC-25), en la API y en el
+   backoffice. Agotada, la API responde 429 y el backoffice un error sin el nombre. Sin esto, los tres
+   extremos que crean casos enumeraban nombres por DNI sin tope.
+
+## Implementación
+
+La consulta y el alta deciden con la misma función si el DNI ya tiene persona. Si el nombre cargado no
+coincide, el envío se rechaza diciendo con quién está registrado, o —si quien carga lo pide— se crea
+marcado para que la mesa lo revise. El backoffice muestra el error bajo el DNI y la casilla «El DNI es
+correcto y es otra persona» solo después del rechazo.
+
+## Archivos
+
+`programas/services/ingreso.py`, `programas/services/identidad.py`, `programas/services/emergencia_alta.py`,
+`programas/models/__init__.py` (constantes, propiedades y filtro de `CasoEmergencia`, sin campos),
+`programas/api/views.py`, `programas/api/views_emergencia.py`, `programas/api/serializers_emergencia.py`,
+`programas/selectors/emergencia_alojar.py`, `programas/forms_emergencia.py`, `programas/views/emergencia.py`,
+`programas/views/emergencia_dispositivo.py`, `docs/internal/contrato-app-emergencia.md` y los tests
+(`test_emergencia_api_contrato`, `test_emergencia_casos`, `test_emergencia_api_m2_busqueda`,
+`test_emergencia_api_dni_registrado`, `test_emergencia_dni_registrado_vistas`, `base_emergencia_api`).
+
+## Base de datos
+
+No requiere: la marca vive en `CasoEmergencia.situacion` (JSON) y se filtra con `has_key`.
+
+## Validación
+
+- `ConsultaDePersonaTests`: legajo inactivo y de otro género → 200 `legajo`; con Base de Personas
+  encontrándola, responde el legajo; Becas sigue con Base de Personas.
+- `CrearCasoTests`: rechazo sin crear nada, legajo intacto, comparación sin acentos, reenvío sin nombre,
+  marca con el flag, flag ignorado sin conflicto, idempotencia y la carrera del alta.
+- API: los tres extremos con claves exactas del 400, el envío marcado, y la marca en §13.2 y §13.6.
+- Backoffice: «Nuevo caso», «Ingresar igual» y «Avisar a la mesa» (error, casilla, alta y aviso).
+
+## Puesta en marcha en el servidor
+
+No requiere. **Release coordinado:** primero el back (la app actual ve un 400 de campo común y no manda el
+flag), después la app (T4). Confirmar que `ecom/test` tenga el release del Cambio 481 o uno posterior.
+
+## Pendientes / a definir
+
+- T4 (Chaco-mobile): diálogo con las tres salidas, la cola sin reintento automático y la marca para la guardia.
+- T6 y T7: aviso y «Marcar identidad revisada» en la ficha, y la solapa «Identidad a revisar» en la bandeja.
+
+## Reversión
+
+Desplegar el código anterior. Los casos creados con la marca quedan con la clave en `situacion`, que el
+código anterior ignora.
+
+## Historial
+
+- **18/11/2026:** alta del cambio (T1, T2, T3 y T5).
+- **18/11/2026:** auditoría del PR #1170: el rechazo descuenta de la cubeta de identidad, y limpieza (sin
+  alias de la regla, `texto_comparable` pública, `identificar_en_legajo` sin `sexo`).
+
+---
+
+# Cambio 487 — Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/`
 
 🟢 **HECHO — 18/11/2026**
 
@@ -57230,12 +57337,13 @@ Revertir el commit; no hay datos ni migración.
 - **18/11/2026:** auditoría del PR #1192 (MAJOR): el registro fotográfico de la ficha copiaba la orquestación de
   `infraestructura_del_dispositivo`. Ahora las dos usan `registro_de_relevamientos` (`detalle_dispositivo.py`): misma
   salida y mismas consultas, y el mismo edificio muestra el mismo registro en las dos fichas. El MINOR del sidebar
-  (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; queda
-  para cuando el sidebar reciba sus estados armados desde un context processor.
+  (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; la
+  segunda ronda encontró la salida: el estilo activo ya lo pone `aria-current` (CSS de `sidebar/base.html`), así que
+  la condición puede quedar escrita una sola vez. Va al próximo PR, con captura antes/después.
 
 ---
 
-# Cambio 487 — Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos
+# Cambio 488 — Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos
 
 🟢 **HECHO — 18/11/2026**
 
@@ -57296,7 +57404,7 @@ Nada.
 
 ## Pendientes / a definir
 
-- Ninguno de esta task. Del análisis #1164 queda el «Volver» del informe a la ficha del edificio (Cambio 486).
+- Ninguno de esta task. Del análisis #1164 queda el «Volver» del informe a la ficha del edificio (Cambio 487).
 
 ## Reversión
 

@@ -27,7 +27,6 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.routers import APIRootView
-from rest_framework.throttling import UserRateThrottle
 
 from core.rbac import puede
 from core.services.throttle import (
@@ -45,6 +44,9 @@ from programas.api.serializers import (
     RelevamientoDetailSerializer,
     RelevamientoListSerializer,
 )
+
+# Reexportados: la consulta de Becas y los tests los toman de acá.
+from programas.api.throttles import ConsultaPersonasThrottle, descontar_consulta_de_identidad  # noqa: F401
 from programas.models import Formulario, Relevamiento
 from programas.services import campo
 from programas.services.becas import (
@@ -481,25 +483,6 @@ def _relevamientos_para_identificar(user, relevamiento_id):
     )
 
 
-class ConsultaPersonasThrottle(UserRateThrottle):
-    """SEC-25 · tope de la consulta de identidad de la app (``personas_campo``).
-
-    **Por usuario, no por IP** (``UserRateThrottle`` toma ``request.user.pk``
-    cuando hay sesión o token, que es siempre acá: el permiso corre antes que el
-    throttle y un anónimo ya se fue en 403). Una cubeta por IP le cerraría la
-    consulta a toda una región: los territoriales salen por el NAT de la
-    operadora móvil. Es además la razón por la que esto **no** toca
-    ``NUM_PROXIES``, que vale distinto en DEV (nginx) y en ECOM (ingress).
-
-    El 429 no rompe nada en el teléfono instalado: ``RelevamientoDetailScreen``
-    atrapa el error de la consulta, cae a carga manual y el caso entra sin
-    validar (``Chaco-mobile@a66c2d3``). No pasa por la cola de sincronización,
-    así que no hay ``FAILED_PERMANENT`` posible.
-    """
-
-    scope = "personas_campo"
-
-
 @extend_schema(
     request=ConsultaPersonaSerializer,
     responses={
@@ -534,9 +517,11 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
     * Sin ``relevamientos_de`` no hay padrón: se consulta solo Base de Personas (Emergencia,
       que no tiene convocatorias). Un ``relevamiento`` que venga en el cuerpo se ignora.
 
-    * ``buscar_en_legajos`` (solo Emergencia): si Base de Personas no la encuentra, falla o
-      está apagada, se busca un ``Ciudadano`` activo con ese DNI (``origen: "legajo"``). Una
-      persona fallecida no cae al legajo. Becas no lo activa y no cambia.
+    * ``buscar_en_legajos`` (solo Emergencia): si hay un legajo registrado con ese DNI
+      (activo o no, de cualquier género), responde **el legajo** (``origen: "legajo"``),
+      aunque Base de Personas la haya encontrado con otros datos: es la persona de la que
+      ``crear_caso`` va a colgar el caso (Cambio 486). Una persona que Base de Personas
+      informa fallecida sigue siendo 404. Becas no lo activa y no cambia.
 
     El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.
     """
@@ -565,8 +550,8 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
             {"success": False, "fallecido": True, "error": "Base de Personas informa que la persona falleció."},
             status=status.HTTP_404_NOT_FOUND,
         )
-    if not resultado["validado"] and buscar_en_legajos:
-        del_legajo = identificar_en_legajo(dni, sexo)
+    if buscar_en_legajos:
+        del_legajo = identificar_en_legajo(dni)
         if del_legajo is not None:
             del_legajo.update(dni=dni, sexo=sexo)
             return Response({"success": True, "origen": ORIGEN_LEGAJO, "data": del_legajo, "datos_api": {}})
