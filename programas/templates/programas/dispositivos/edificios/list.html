@@ -1,0 +1,91 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Edificios{% endblock %}
+
+{% block main-content %}
+<div class="space-y-6">
+
+  {% page_header titulo="Edificios" eyebrow="Programa Dispositivos" bajada="Los edificios de las instituciones de tu alcance, con su estado edilicio y el último relevamiento." %}
+  {% endpage_header %}
+
+  {% comment %}Filtros: el <form> va sin class y cada control con aria-label (dynamic_list_filters.js lo reescribe al montar).{% endcomment %}
+  <form method="get" data-dynamic-list-filters>
+    <input type="search" name="q" value="{{ filtros.q }}" class="nodo-field max-w-xs" aria-label="Código, nombre o calle">
+    <select name="localidad" class="nodo-field max-w-xs" aria-label="Localidad">
+      <option value="">Todas</option>
+      {% for loc in localidades %}<option value="{{ loc }}" {% if loc == filtros.localidad %}selected{% endif %}>{{ loc }}</option>{% endfor %}
+    </select>
+    <select name="estado" class="nodo-field max-w-xs" aria-label="Estado edilicio">
+      <option value="">Todos</option>
+      {% for value, label in estados %}<option value="{{ value }}" {% if value == filtros.estado %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="compartido" class="nodo-field max-w-xs" aria-label="Predio compartido">
+      <option value="">Todos</option>
+      {% for value, label in opciones_compartido %}<option value="{{ value }}" {% if value == filtros.compartido %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% if ve_situaciones %}
+    <select name="situacion" class="nodo-field max-w-xs" aria-label="Situación">
+      {% for value, label in situaciones %}<option value="{{ value }}" {% if value == filtros.situacion %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% endif %}
+  </form>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if filas %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Código</th>
+            <th class="nodo-th">Nombre</th>
+            <th class="nodo-th">Localidad</th>
+            <th class="nodo-th">Instituciones del predio</th>
+            <th class="nodo-th">Estado edilicio</th>
+            <th class="nodo-th">Último relevamiento</th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-body whitespace-nowrap">{{ fila.codigo }}</td>
+            <td class="nodo-td text-heading font-medium">{{ fila.nombre }}
+              <span class="block text-xs text-body-subtle font-normal">{{ fila.domicilio|default:"Sin domicilio cargado" }}</span>
+            </td>
+            <td class="nodo-td text-body">{{ fila.localidad|default:"—" }}</td>
+            <td class="nodo-td text-body">
+              {% for inst in fila.instituciones %}{% if inst.url %}<a href="{{ inst.url }}" class="text-fg-brand hover:underline">{{ inst.nombre }}</a>{% else %}{{ inst.nombre }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% if fila.otras %}{% if fila.instituciones %} {% endif %}<span class="text-xs text-body-subtle">y {{ fila.otras }} más</span>{% endif %}
+              {% if not fila.instituciones and not fila.otras %}<span class="text-body-subtle">—</span>{% endif %}
+            </td>
+            <td class="nodo-td">
+              <div class="flex flex-wrap items-center gap-1">
+                <span class="badge badge-dot badge-{{ fila.estado.tono }}">{{ fila.estado.texto }}</span>
+                {% if fila.aviso %}<span class="badge badge-{{ fila.aviso.tono }}">{{ fila.aviso.texto }}</span>{% endif %}
+                {% if not fila.activo %}<span class="badge badge-gray">Inactivo</span>{% endif %}
+              </div>
+            </td>
+            <td class="nodo-td text-body whitespace-nowrap">{% if fila.ultima_fecha %}{{ fila.ultima_fecha|date:"d/m/Y" }}{% else %}<span class="text-body-subtle">Sin relevar</span>{% endif %}</td>
+            <td class="nodo-td nodo-col-acciones text-right">
+              {% if fila.url_asignar %}
+              <a href="{{ fila.url_asignar }}" class="nodo-icon-btn" aria-label="Crear relevamiento del edificio {{ fila.nombre }}">
+                <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="edificio" entidad_plural="edificios" %}
+    {% elif vacio_por_alcance %}
+      {% include "components/_estado_vacio.html" with icono="fa-building-lock" titulo="No tenés edificios en tu alcance" texto="Los edificios se ven a través de las instituciones. Pedí acceso a una institución para ver los de su predio." %}
+    {% elif hay_filtros %}
+      {% url 'dispositivos:edificios' as url_sin_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún edificio coincide con los filtros" texto="Probá con otros filtros." accion_url=url_sin_filtros %}
+    {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todavía no hay edificios" texto="Los edificios se cargan desde la solapa Infraestructura de cada institución." %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

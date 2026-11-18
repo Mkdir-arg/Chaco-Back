@@ -607,6 +607,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
 | 483 | Dispositivos · Edificios: capacidad `edificio.ver` | Dispositivos · edificios / RBAC | `#rbac` | PM — en sesión: «crea las capacidades edificio.ver» | 18/11/2026 | 🟢 **Hecho** | `users.0048` |
 | 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 485 | Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1167 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57044,6 +57045,88 @@ Nada.
 ## Pendientes / a definir
 
 - Las pantallas que lo consumen: #1167 (listado), #1168 (ficha), #1169 (sidebar).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+
+---
+
+# Cambio 485 — Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026, sección «Edificios» del menú de Dispositivos |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1167 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1167: la pantalla Dispositivos → Edificios, tabla paginada de los edificios del alcance, con filtros y la
+acción «Crear relevamiento». Solo lectura.
+
+## Alcance acordado
+
+Entra: la ruta `dispositivos:edificios`, la vista y el template. Queda afuera: la ficha del edificio (#1168, por eso
+la fila todavía no tiene «Ver») y el ítem del sidebar (#1169). La ruta se abre por URL hasta que llegue el ítem.
+
+## Decisiones tomadas
+
+- **Permiso `edificio.ver`** (Cambio 483): sin ella, 403 aunque tenga `dispositivo.ver`. Con este PR la capacidad
+  sale de `CAPACIDADES_SIN_USO`: la vista la evalúa.
+- **Todo sale del selector del Cambio 484**: la vista solo orquesta. El filtro «Situación» se muestra y se aplica
+  solo al admin del programa.
+- **Una sola acción de fila** («Crear relevamiento», al modal de asignar de Relevamientos): `nodo-icon-btn`, no
+  `menu_fila`. «Ver» se suma con la ficha.
+- **Sin tarjetas en móvil**: la variante canónica (`_lista_tarjetas.html`) pide `tarjetas` armadas en la vista; la
+  tabla queda con `overflow-x-auto` como el resto de los listados. Si hiciera falta, se suma en el selector.
+- **Presupuesto nuevo `dispositivos_edificios_listado`: 12 consultas** por página (5 del request autenticado y 7 del
+  listado), iguales con 2 y con 20 edificios.
+
+## Implementación
+
+`/dispositivos/edificios/` muestra Código, Nombre (con domicilio), Localidad, Instituciones del predio (con enlace
+solo si puede abrirlas; «y N más» por las que no ve), Estado edilicio (más «Vencido»/«Vence en N días» e «Inactivo»
+como badges aparte) y Último relevamiento. Filtros: búsqueda, localidad, estado, compartido y, solo admin, situación.
+Tres estados vacíos: sin alcance, con filtros (limpiar) y sin edificios.
+
+## Archivos
+
+- `programas/views/dispositivos_edificios.py` (nuevo), `programas/dispositivos_urls.py`
+- `programas/templates/programas/dispositivos/edificios/list.html` (nuevo, arquetipo Listado)
+- `scripts/perf_budgets.json` (servicio `dispositivos_edificios_listado`)
+- `users/tests/test_rbac_contrato.py` (`edificio.ver` sale de `CAPACIDADES_SIN_USO`)
+- `programas/tests/test_dispositivos_edificios_listado.py` (nuevo)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 15 tests nuevos (permiso, login, alcance, situación, instituciones fuera de alcance, vacío por alcance, Crear
+  relevamiento, ninguna acción de escritura, filtros, paginación con filtros, presupuesto con 2 y 20 edificios).
+- Mutación: pedir `dispositivo.ver` en lugar de `edificio.ver` deja 8 en rojo.
+- `design_audit.py --arquetipo listado` OK, `--ratchet` 0 nuevos, `compile_templates.py --bloques` 0,
+  `check_design_agent.py --changed` OK, `check_perf_budgets.py`, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- «Ver» en la fila cuando exista la ficha (#1168); el ítem del sidebar (#1169).
 
 ## Reversión
 
