@@ -263,9 +263,9 @@ localidad» del Resumen tiene todos los números.
 | Capacidad | `dispositivo.ver` | `emergencia.ver_situacion` nueva | La audiencia no tiene ninguna capacidad del módulo (§3.2) |
 | Coordenadas de localidad | Sin tabla (decisión 3) | `core.UbicacionLocalidad` | Hay que ubicar demanda sin dispositivos (§3.5) |
 | Plazas que cuentan | Todas (`Conteo` del dispositivo) | Solo **`CAMA`** | Emergencia aloja familias en camas (RN-2.3); se resuelve con el mismo parámetro `tipos` que la T7 de Dispositivos necesita para «Encontrar plaza libre» (§8.2) |
-| Caché | Patrón de Becas, 60–120 s | Sin caché en este lote | La foto es barata (RNF-009-03) y la mesa necesita el dato fresco; si se proyecta, se revisa (pregunta 6) |
+| Caché | Patrón de Becas, 60–120 s | Sin caché en este lote | La foto es barata (RNF-009-03) y la mesa necesita el dato fresco; no se proyecta en este lote (pregunta 6, resuelta) |
 | Mapa impreso | — | La tabla reemplaza al mapa | §3.8 |
-| Host de mosaicos en la CSP | T9: sumarlo a `MAPA_HOSTS` | Tupla propia **`MAPA_TILES_HOSTS`**, solo en `img-src` | `MAPA_HOSTS` alimenta `img-src` **y** `frame-src` (`config/middlewares/security_headers.py`, l.30, 40 y 46): sumar ahí el host de mosaicos abre `frame-src` sin necesidad. Se propone enmendar el T9 en el mismo lote (pregunta 12) |
+| Host de mosaicos en la CSP | T9: sumarlo a `MAPA_HOSTS` | Tupla propia **`MAPA_TILES_HOSTS`**, solo en `img-src` | `MAPA_HOSTS` alimenta `img-src` **y** `frame-src` (`config/middlewares/security_headers.py`, l.30, 40 y 46): sumar ahí el host de mosaicos abre `frame-src` sin necesidad. Se enmienda el T9 en el mismo lote (pregunta 12, resuelta) |
 | Referer de los mosaicos | T9: `referrerpolicy="no-referrer"` (patrón del iframe SEC-33) | `strict-origin-when-cross-origin` en `L.tileLayer` | La política de mosaicos de OSM exige Referer; el iframe de Becas no pide mosaicos sueltos. Misma enmienda del T9 |
 
 Todo lo demás —vocabulario Crítica / Exigida / Normal / Sin plazas, umbrales del tipo, `disponibles`, solapas,
@@ -852,12 +852,12 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 
 | Tarea | Equivale a | Contenido | Horas (spec de Dispositivos) |
 |---|---|---|---|
-| C1 | T9 (enmendado) | Mapa: Leaflet en `static/vendor/leaflet/`, **`MAPA_TILES_HOSTS` solo en `img-src`** (no en `MAPA_HOSTS`), `referrerPolicy: 'strict-origin-when-cross-origin'` en `L.tileLayer` (no `no-referrer`), `components/_mapa.html` y ficha, `componentes/ubicacion.md`, `SinRecursosDeTercerosTests`. Las dos enmiendas se proponen para el T9 de Dispositivos en el mismo lote | 6 |
+| C1 | T9 (enmendado) | Mapa: Leaflet en `static/vendor/leaflet/`, **`MAPA_TILES_HOSTS` solo en `img-src`** (no en `MAPA_HOSTS`), `referrerPolicy: 'strict-origin-when-cross-origin'` en `L.tileLayer` (no `no-referrer`), `components/_mapa.html` y ficha, `componentes/ubicacion.md`, `SinRecursosDeTercerosTests`. Las dos enmiendas al T9 de Dispositivos entran en el mismo lote (pregunta 12, resuelta) | 6 |
 | C2 | T9b | `TipoDispositivo.ubicacion_reservada` (migración con `DEFAULT` real), configuración y filtro en el servicio | 2 |
 | C3 | T4 | Barra con marcas de umbral + ficha | 3 |
 | C4 | T5 (solo la pieza) | Gráfico de barras pareadas + ficha | ~2 de las 4 |
-| C5 | pieza 10 | `item-lista` + ficha | (dentro de T10) |
-| C6 | T11 (solo la golden) | `arquetipos/dashboard.md` y `pendientes.md` | (dentro de T11) |
+| C5 | pieza 10 | `item-lista` + ficha | 1 (dentro de T10) |
+| C6 | T11 (solo la golden) | `arquetipos/dashboard.md` y `pendientes.md` | 2 (dentro de T11) |
 | C7 | parte de T7 | Parámetro `tipos` en `ocupacion_de_plazas` | 1 |
 
 **PRs propios de E8:**
@@ -870,7 +870,7 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 | E-4 | Selectores de E8 (incluidos los puntos del mapa con el filtro de `ubicacion_reservada`), reglas puras de `services/situacion_emergencia.py`, alertas AE-1 a AE-7, tests de cada número, presupuesto `--tag performance`, test `@tag("mysql")` del SQL sin `convert_tz`/`trunc`/`cast_date`, `EXPLAIN` de RNF-009-10 | Índices de §4.1 si hacen falta (aparte) | E-1, E-2, C2 | 8 |
 | E-5 | Vista, form de filtros, esqueleto del arquetipo, **solapa Resumen** completa, impresión, enlaces E1 ↔ E8, tests de permisos y de no nominalidad | — | E-3, E-4, C3, C4, C6 | 8 |
 | E-6 | **Solapa Mapa**: capas de localidades y dispositivos sobre `_mapa.html`, panel «Localidad seleccionada», «Localidades con más presión», estados, test de mutación de `ubicacion_reservada` | — | E-5, C1, C2, C5 | 5 |
-| E-7a | **Regla de consumo y evento en E7**: los 4 campos de `TipoKit` y `SLAEmergencia.inicio_evento` + migración, `crear_tipo_kit` con los kwargs de la regla y traza del alta, form y template de E7, tests (alta con regla, edición de un ítem sin regla, validación cruzada, trazas) | `programas.01NN` (5 `AddField`, solo expand) | — (adelantable: el Ministerio carga reglas y fecha antes de que exista la solapa) | 2,5 |
+| E-7a | **Regla de consumo y evento en E7**: los 4 campos de `TipoKit` y `SLAEmergencia.inicio_evento` + migración, `crear_tipo_kit` con los kwargs de la regla y traza del alta, form y template de E7, tests (alta con regla, edición de un ítem sin regla, validación cruzada, trazas) | `programas.01NN` (5 `AddField`, solo expand) | — (adelantable: la mesa (con `supervisar`) carga reglas y fecha antes de que exista la solapa) | 2,5 |
 | E-7b | **Solapa Abastecimiento**: reglas puras con tests de cada fórmula (2 h); selector A1–A5, presupuesto `--tag performance` (≤ 5 / ≤ 26) con evento anterior sembrado y `EXPLAIN` de líneas por estado y de `egresado_en` (2,5 h); `armar_abastecimiento`, AE-8 a AE-10, `presentar_salud`, panel, «Calcular el abastecimiento», estado sin `inicio_evento`, «Preparar entrega», ubicación reservada y supresión con tests sobre la respuesta (2,5 h); casos de QA y Cambio (1 h) | Índice en `IntegranteGrupo.egresado_en` si el `EXPLAIN` lo pide (aparte) | E-5, C2, E-7a (con `inicio_evento`) | 8 |
 
 **Total propio de E8: ~44,5 h** (34 h de Resumen y Mapa + 10,5 h de Abastecimiento). Si Dispositivos no construyó antes las tareas compartidas, E8 suma las que use
@@ -879,7 +879,7 @@ fichas (por ejemplo, la línea de personas alojadas sobre las barras, si el PM l
 
 **Orden.** E-1, E-2 y E-3 son independientes y pueden ir en paralelo. E-4 después de E-1 y E-2. E-5 espera las
 piezas C3, C4, C6. E-6 espera el mapa (C1) y el indicador de ubicación reservada (C2). E-7a no depende de nada y
-conviene adelantarlo, para que el Ministerio cargue las reglas y la fecha de inicio antes de que exista la solapa.
+conviene adelantarlo, para que la mesa (con `supervisar`) cargue las reglas y la fecha de inicio antes de que exista la solapa.
 E-7b espera E-5 (la vista y las solapas), C2 y E-7a; es independiente de E-6. Si el tablero de
 Dispositivos ya tiene hechas T9, T9b y T10, **E-6 solo agrega las capas** y baja a ~3 h.
 
@@ -938,7 +938,7 @@ se cerraron con lo que el análisis ya daba por alcance.
 | 3 | Umbrales de las alertas | **Fijos** en este lote |
 | 4 | ¿Filtrar la capacidad por departamento? | **No**: la FK de `Dispositivo` a localidad sigue fuera de alcance (§9); la capacidad es provincial (RN-009-12) |
 | 5 | ¿Fecha de inicio del evento? | Entra `SLAEmergencia.inicio_evento` (`null=True`, E7, solo expand) con E-7a; la carga la mesa con `supervisar`; sin fecha, Abastecimiento muestra estado vacío |
-| 6 | ¿Se proyecta en una pantalla de la mesa? | **No** en este lote: sin «modo sala» ni caché (§9) |
+| 6 | ¿Se proyecta en una pantalla de la mesa? | **No** en este lote: sin «modo sala» (§9) ni caché (§3.7) |
 | 7 | Supresión del perfil | **Mínimo 5**, también con filtro de departamento, y **supresión complementaria** (RN-009-11) |
 | 8 | Atribución BAHRA/Georef | **Se acepta** |
 | 9 | Localidades del fixture que no concilian | Quedan **sin punto** en el mapa (cuentan en «N sin ubicación») y salen en el reporte de conciliación que revisa el PM (E-2) |
