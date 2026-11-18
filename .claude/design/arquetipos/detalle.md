@@ -130,7 +130,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). Arriba de la ficha, los avisos de la mesa (`avisos_de_la_mesa` de
   `programas/selectors/emergencia_mesa.py`: «Rechazado por X: motivo», «Derivación vencida», «Dispositivo
   inactivo», «Llegaron N sobre M declaradas») van uno por `_alerta.html` con `tono`, `titulo` y `texto`, sin
-  variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. Sin panel lateral,
+  variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. La tabla «Personas que ingresan
+  juntas» agrega una fila «Responsable» (sexo en «—», total 1) antes de la de totales cuando el grupo tiene
+  `responsable_aparte`; misma `nodo-td`, sin clases nuevas. Las filas las arma `franjas_del_grupo` (selector de la
+  mesa), la misma fuente que la tarjeta de «Llegadas» del dispositivo. Sin panel lateral,
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.

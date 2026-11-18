@@ -278,8 +278,9 @@ class NuevoCasoTests(BaseMesa):
             (Origen.MESA, Estado.EN_GESTION, self.operador.pk, self.operador.pk, T0),
         )
         self.assertEqual((caso.latitud, caso.longitud, caso.localidad_id), (None, None, self.resistencia.pk))
-        # El total y la prioridad los calcula el servidor.
-        self.assertEqual((caso.grupo.total_declarado, caso.prioridad), (3, Prioridad.ALTA))
+        # El total y la prioridad los calcula el servidor: tres acompañantes más el responsable.
+        self.assertEqual((caso.grupo.total_declarado, caso.prioridad), (4, Prioridad.ALTA))
+        self.assertTrue(caso.grupo.responsable_aparte)
         self.assertEqual(caso.situacion, {"telefono": "3624 555555"})
         self.assertEqual(caso.necesidades["embarazo"], True)
         self.assertEqual([t.accion for t in self._trazas(caso)], [Accion.CREADO])
@@ -289,7 +290,33 @@ class NuevoCasoTests(BaseMesa):
         self.client.post(URL_NUEVO, self._formulario1(total_declarado="40", prioridad="ALTA", estado="CERRADO"))
         caso = CasoEmergencia.objects.get()
         self.assertEqual(
-            (caso.grupo.total_declarado, caso.prioridad, caso.estado), (2, Prioridad.BAJA, Estado.EN_GESTION)
+            (caso.grupo.total_declarado, caso.prioridad, caso.estado), (3, Prioridad.BAJA, Estado.EN_GESTION)
+        )
+
+    def test_sin_acompanantes_la_familia_es_el_responsable(self):
+        """Las cantidades son quienes vienen con el responsable: él suma uno más al total."""
+        respuesta = self.client.post(URL_NUEVO, self._formulario1(adultos_f="0", adultos_m="0"))
+
+        caso = CasoEmergencia.objects.get()
+        self.assertRedirects(respuesta, self._url("caso_detalle", caso))
+        self.assertEqual((caso.grupo.total_declarado, caso.grupo.suma_de_cantidades()), (1, 1))
+        self.assertFalse(caso.grupo.llegaron_mas)
+        ficha = self._ficha(caso)
+        self.assertContains(ficha, "el responsable suma aparte al total")
+        self.assertEqual(ficha.context["personas"]["total"], 1)
+        self.assertEqual(ficha.context["personas"]["franjas"][-1]["franja"], "Responsable")
+
+    def test_el_responsable_solo_puede_ser_el_mayor_dependiente(self):
+        """No tiene franja en las cantidades: el tope de mayores dependientes lo cuenta igual."""
+        self.client.post(URL_NUEVO, self._formulario1(adultos_f="0", adultos_m="0", mayores_dependientes="1"))
+
+        caso = CasoEmergencia.objects.get()
+        self.assertEqual((caso.grupo.mayores_dependientes, caso.prioridad), (1, Prioridad.ALTA))
+
+        de_mas = self.client.post(URL_NUEVO, self._formulario1(adultos_f="0", adultos_m="0", mayores_dependientes="2"))
+        self.assertEqual(
+            de_mas.context["form"].errors["mayores_dependientes"],
+            ["No puede haber más mayores dependientes que mayores."],
         )
 
     def test_la_localidad_es_obligatoria_en_la_mesa(self):
@@ -319,11 +346,6 @@ class NuevoCasoTests(BaseMesa):
 
     def test_lo_que_rechaza_el_servicio_vuelve_al_campo_o_arriba(self):
         """Las reglas del caso no están en el formulario: las dice ``crear_caso`` y la pantalla las muestra."""
-        sin_personas = self.client.post(URL_NUEVO, self._formulario1(adultos_f="0", adultos_m="0"))
-        self.assertEqual(sin_personas.status_code, 400)
-        self.assertContains(sin_personas, "Cargá al menos una persona.", status_code=400)
-        self.assertEqual(sin_personas.context["form"].non_field_errors(), ["Cargá al menos una persona."])
-
         de_mas = self.client.post(URL_NUEVO, self._formulario1(lactantes="1"))
         self.assertEqual(de_mas.context["form"].errors["lactantes"], ["No puede haber más lactantes que menores."])
 
