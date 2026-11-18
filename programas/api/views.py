@@ -520,7 +520,7 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
     * ``buscar_en_legajos`` (solo Emergencia): si hay un legajo registrado con ese DNI
       (activo o no, de cualquier género), responde **el legajo** (``origen: "legajo"``),
       aunque Base de Personas la haya encontrado con otros datos: es la persona de la que
-      ``crear_caso`` va a colgar el caso (Cambio 482). Una persona que Base de Personas
+      ``crear_caso`` va a colgar el caso (Cambio 483). Una persona que Base de Personas
       informa fallecida sigue siendo 404. Becas no lo activa y no cambia.
 
     El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.

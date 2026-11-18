@@ -164,7 +164,7 @@ género**— responde el legajo (`origen: "legajo"`, con `localidad_id` y `local
 **aunque Base de Personas la encuentre con otros datos**: es la persona de la que el envío (§6) va a colgar
 el caso, porque el DNI es único. Sin legajo, responde Base de Personas (`origen: "personas"`). Una persona
 que Base de Personas informa fallecida es 404 aunque tenga legajo. La consulta de Becas no busca en
-legajos (Cambio 482).
+legajos (Cambio 483).
 
 ```json
 {"success": true, "origen": "personas",
@@ -212,9 +212,10 @@ No trae coordenadas: no se puede preseleccionar «la más cercana al GPS». El `
 | `telefono` | texto | no | Contacto para la mesa |
 | `documento_extraviado` | booleano | no | Perdió el documento pero sabe el número |
 | `identidad_en_conflicto` | booleano | no | Tras el 400 de «DNI ya registrado», el agente sostiene que el DNI es correcto y es otra persona. En multipart: `true` / `false`. Sin conflicto se ignora |
-| `menores_f`, `menores_m`, `adultos_f`, `adultos_m`, `mayores_f`, `mayores_m` | entero ≥ 0 | no (valen 0) | La suma tiene que ser ≥ 1. El responsable está incluido |
+| `responsable_aparte` | booleano | no (vale `false`) | `true`: las seis cantidades son los **acompañantes** y el total suma al responsable. La app actual lo manda siempre en `true`. Sin él (una app anterior, o un envío que quedó en su cola) el responsable ya está contado en las cantidades |
+| `menores_f`, `menores_m`, `adultos_f`, `adultos_m`, `mayores_f`, `mayores_m` | entero ≥ 0 | no (valen 0) | Con `responsable_aparte`: quienes vienen con el responsable, pueden ser todas 0. Sin él: la suma tiene que ser ≥ 1 y el responsable está incluido |
 | `dependientes` | entero ≥ 0 | no | ≤ total |
-| `mayores_dependientes` | entero ≥ 0 | no | ≤ mayores |
+| `mayores_dependientes` | entero ≥ 0 | no | ≤ mayores; con `responsable_aparte`, ≤ mayores + 1 (el responsable puede ser ese mayor) |
 | `lactantes` | entero ≥ 0 | no | ≤ menores |
 | `embarazo`, `electrodependiente`, `medicacion_critica`, `mascotas` | booleano | no | En multipart: `true` / `false` |
 | `direccion` | texto | **sí** | Calle y número o una referencia. Hasta 240 caracteres |
@@ -544,7 +545,7 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
    "caso": {"id": 184, "numero": "2026-C-000184", "estado": "DERIVADO", "prioridad": "ALTA", "total_declarado": 7},
    "responsable": {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222", "identidad_a_revisar": null},
    "grupo": {"menores_f": 2, "menores_m": 3, "adultos_f": 1, "adultos_m": 1, "mayores_f": 0, "mayores_m": 0,
-             "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1},
+             "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1, "responsable_aparte": false},
    "necesidades": ["embarazo"], "telefono": "3624000000", "observaciones": "Vienen con un perro."},
  "alojada_aca": null, "alojada_en": "", "alojada_desde": null}
 ```
@@ -558,11 +559,13 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
 - `responsable.identidad_a_revisar`: `{"nombre", "apellido"}` tal como los cargó quien relevó, cuando el
   DNI ya era de otra persona registrada y se envió con `identidad_en_conflicto` (§6). Viene **solo
   mientras la mesa no lo revisó**; si no, `null`. Es un aviso: la app lo muestra («Identidad a revisar: se
-  cargó como Gómez, Pedro») y no bloquea nada (Cambio 482).
+  cargó como Gómez, Pedro») y no bloquea nada (Cambio 483).
 - `vencida: true` es una derivación pendiente con `vence_en` pasado que la mesa todavía no marcó: **se
   puede aceptar igual** (RN-3.3; la familia está en la puerta).
 - `necesidades`: los avisos del Formulario 1 marcados en `true` (`embarazo`, `electrodependiente`,
   `medicacion_critica`, `mascotas`).
+- `grupo.responsable_aparte`: con `true`, las franjas son los acompañantes y el responsable suma uno
+  más a `caso.total_declarado` (§6). Con `false`, el responsable está contado en las franjas.
 - 400 `dni` si viene vacío o no es un DNI.
 - 429 pasado el tope de búsquedas **del usuario** (`emergencia_buscar`, 300 por hora, aparte del de
   identidad de §4): la búsqueda dice si un DNI está derivado o alojado en la red, y sin tope un token

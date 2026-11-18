@@ -175,7 +175,7 @@ def identificar_en_legajo(dni):
     Es la parte de legajos de la consulta de Emergencia. Usa la regla única de
     :func:`programas.services.ingreso.buscar_ciudadano_por_dni` —la misma que usa
     ``crear_caso`` para el responsable—: cuenta el legajo **activo o no y con
-    cualquier género** (Cambio 482). Si la consulta lo ocultara, la app ofrecería
+    cualquier género** (Cambio 483). Si la consulta lo ocultara, la app ofrecería
     cargar a mano un nombre que el alta después descartaría, porque el DNI es único.
     """
     from programas.services.ingreso import buscar_ciudadano_por_dni

@@ -116,7 +116,13 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
         )
     )
 
-    # Paso 2 · personas que ingresan juntas (el responsable está incluido)
+    # Paso 2 · personas que ingresan juntas
+    responsable_aparte = _aviso(
+        help_text=(
+            "`true`: las cantidades son los acompañantes y el total suma al responsable. Sin él (o "
+            "`false`, lo que manda una app anterior), el responsable ya está contado en las cantidades."
+        )
+    )
     menores_f = _cantidad()
     menores_m = _cantidad()
     adultos_f = _cantidad()
@@ -126,7 +132,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
 
     # Paso 3 · necesitan asistencia
     dependientes = _cantidad(help_text="No puede superar el total.")
-    mayores_dependientes = _cantidad(help_text="No puede superar los mayores.")
+    mayores_dependientes = _cantidad(help_text="No puede superar los mayores (más el responsable, si va aparte).")
     lactantes = _cantidad(help_text="No puede superar los menores.")
     embarazo = _aviso()
     electrodependiente = _aviso()
@@ -412,7 +418,7 @@ class IdentidadDeclaradaSerializer(serializers.Serializer):
     apellido = serializers.CharField()
 
 
-#: La marca «Identidad a revisar» para la guardia (Cambio 482): lo que declaró quien cargó, solo
+#: La marca «Identidad a revisar» para la guardia (Cambio 483): lo que declaró quien cargó, solo
 #: mientras la mesa no la revisó; si no, ``null``.
 _IDENTIDAD_A_REVISAR_HELP = (
     "`{nombre, apellido}` tal como los cargó quien relevó cuando el DNI ya era de otra persona registrada, "
@@ -479,7 +485,10 @@ class ResponsableSerializer(serializers.Serializer):
 
 
 class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
-    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia."""
+    """La tabla del paso 2 del Formulario 1: personas por franja y asistencia.
+
+    ``responsable_aparte``: si es ``true``, las franjas son los acompañantes y el responsable suma uno más.
+    """
 
     class Meta:
         model = GrupoFamiliar
@@ -493,6 +502,7 @@ class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
             "dependientes",
             "mayores_dependientes",
             "lactantes",
+            "responsable_aparte",
         ]
         read_only_fields = fields
 

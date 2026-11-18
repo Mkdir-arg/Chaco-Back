@@ -270,6 +270,47 @@ class EnviarCasoTests(BaseApiEmergencia):
         self.assertEqual(respuesta.status_code, 400)
         self.assertEqual(respuesta.json()["total"], ["Cargá al menos una persona."])
 
+    def test_con_responsable_aparte_el_total_suma_al_responsable(self):
+        """Las cantidades son los acompañantes: uno cargado son dos personas."""
+        respuesta = self._enviar(responsable_aparte="true", adultos_f=1, adultos_m=0)
+
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+        self.assertEqual(respuesta.json()["total_declarado"], 2)
+        grupo = CasoEmergencia.objects.select_related("grupo").get().grupo
+        self.assertTrue(grupo.responsable_aparte)
+        self.assertEqual(grupo.suma_de_cantidades(), 2, "lo declarado al relevar cuenta al responsable")
+        self.assertFalse(grupo.llegaron_mas)
+
+    def test_con_responsable_aparte_sin_acompanantes_es_una_persona(self):
+        respuesta = self._enviar(responsable_aparte="true", dni="30555777", adultos_f=0, adultos_m=0)
+
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+        self.assertEqual(respuesta.json()["total_declarado"], 1)
+        # Sin acompañantes las cantidades no dicen el sexo del responsable: no se adivina.
+        self.assertEqual(Ciudadano.objects.get(dni="30555777").genero, "")
+
+    def test_con_responsable_aparte_el_responsable_puede_ser_el_mayor_dependiente(self):
+        con_marca = self._enviar(responsable_aparte="true", adultos_f=0, adultos_m=0, mayores_dependientes=1)
+        sin_marca = self._enviar(adultos_f=1, adultos_m=0, mayores_dependientes=1)
+
+        self.assertEqual(con_marca.status_code, 201, con_marca.content)
+        self.assertEqual(con_marca.json()["prioridad"], "ALTA")
+        # Sin la marca el responsable ya está en las franjas: el tope es el de siempre.
+        self.assertEqual(sin_marca.status_code, 400)
+        self.assertIn("mayores_dependientes", sin_marca.json())
+
+    def test_sin_la_marca_el_responsable_va_en_las_cantidades(self):
+        """Un envío de una app anterior (o que quedó en su cola) se lee como antes: no suma de más."""
+        for valor in (None, "false"):
+            with self.subTest(responsable_aparte=valor):
+                cambios = {} if valor is None else {"responsable_aparte": valor}
+                respuesta = self._enviar(adultos_f=1, adultos_m=1, **cambios)
+
+                self.assertEqual(respuesta.status_code, 201, respuesta.content)
+                self.assertEqual(respuesta.json()["total_declarado"], 2)
+                grupo = CasoEmergencia.objects.select_related("grupo").get(pk=respuesta.json()["id"]).grupo
+                self.assertFalse(grupo.responsable_aparte)
+
     def test_el_total_y_la_prioridad_que_manda_la_app_se_ignoran(self):
         """RN-1.2 y RN-1.4: los dos son del servidor."""
         respuesta = self._enviar(total=99, total_declarado=99, prioridad="ALTA", estado="CERRADO", numero="X")

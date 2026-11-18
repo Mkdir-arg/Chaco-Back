@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from programas.models import AdjuntoCaso
 from programas.selectors import emergencia_alojar as alojar
-from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, _personas, nombre_de
+from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, _personas, franjas_del_grupo, nombre_de
 from programas.selectors.emergencia_mesa import filas_de_integrantes as filas_de_integrantes_de_la_mesa
 from programas.services.emergencia import NECESIDADES, prioridad_visible
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
@@ -66,11 +66,7 @@ def tarjeta_de_derivacion(derivacion, ahora):
         "vence": _dia_hora(derivacion.vence_en),
         "vencida": derivacion_vencida(derivacion, ahora),
         "necesidades": [ROTULO_DE_NECESIDAD[clave] for clave in NECESIDADES if caso.necesidades.get(clave)],
-        "franjas": [
-            {"franja": "Menores de 16", "femenino": grupo.menores_f, "masculino": grupo.menores_m},
-            {"franja": "Adultos (16 a 59)", "femenino": grupo.adultos_f, "masculino": grupo.adultos_m},
-            {"franja": "Mayores (60+)", "femenino": grupo.mayores_f, "masculino": grupo.mayores_m},
-        ],
+        "franjas": franjas_del_grupo(grupo),
         "asistencia": [
             {"etiqueta": "Personas con dependencia", "valor": grupo.dependientes},
             {"etiqueta": "Mayores dependientes", "valor": grupo.mayores_dependientes},

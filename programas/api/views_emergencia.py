@@ -93,7 +93,7 @@ CODIGO_UUID_EN_USO = "UUID_EN_USO"
 _AUTENTICACION = [TokenAuthentication, SessionAuthentication]
 
 _SIN_TOKEN = OpenApiResponse(description="Sin token o token inválido.")
-#: El 400 del DNI ya registrado y el 429 de su tope: los publican los tres extremos que crean casos (Cambio 482).
+#: El 400 del DNI ya registrado y el 429 de su tope: los publican los tres extremos que crean casos (Cambio 483).
 _DNI_REGISTRADO = (
     "DNI ya registrado como otra persona: el mensaje en `dni` y `persona_registrada: {apellido, nombre}`; "
     "se reenvía sin nombre ni apellido, con el DNI corregido o con `identidad_en_conflicto`."
@@ -203,7 +203,7 @@ def _respuesta_dni_registrado(error):
     """:class:`DniRegistrado` → el 400 ``VALIDACION`` de siempre, más ``persona_registrada``.
 
     La app en producción lo muestra como cualquier error de campo; la nueva lee
-    ``persona_registrada`` para preguntar «¿Es esa persona?» sin parsear el texto (Cambio 482).
+    ``persona_registrada`` para preguntar «¿Es esa persona?» sin parsear el texto (Cambio 483).
     """
 
     respuesta = _respuesta_de_validacion(_errores(error))

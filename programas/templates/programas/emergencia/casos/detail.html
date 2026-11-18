@@ -110,7 +110,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
         <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-personas-titulo">
           <div class="px-5 py-4 border-b border-light">
             <h2 id="caso-personas-titulo" class="text-heading font-bold">Personas que ingresan juntas</h2>
-            <p class="mt-1 text-xs text-body-subtle">Lo declarado al relevar. El responsable está incluido en el total.</p>
+            <p class="mt-1 text-xs text-body-subtle">Lo declarado al relevar. {% if personas.responsable_aparte %}Las franjas son los acompañantes; el responsable suma aparte al total.{% else %}El responsable está incluido en las franjas.{% endif %}</p>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full border-collapse">
@@ -126,8 +126,8 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
                 {% for fila in personas.franjas %}
                 <tr class="hover:bg-secondary">
                   <td class="nodo-td text-heading font-medium">{{ fila.franja }}</td>
-                  <td class="nodo-td text-center">{{ fila.femenino }}</td>
-                  <td class="nodo-td text-center">{{ fila.masculino }}</td>
+                  <td class="nodo-td text-center">{{ fila.femenino|default_if_none:"—" }}</td>
+                  <td class="nodo-td text-center">{{ fila.masculino|default_if_none:"—" }}</td>
                   <td class="nodo-td text-center">{{ fila.total }}</td>
                 </tr>
                 {% endfor %}

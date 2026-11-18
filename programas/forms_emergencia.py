@@ -419,6 +419,8 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         datos["fotos"] = {
             tipo: self.cleaned_data[campo] for campo, tipo in self.FOTOS.items() if self.cleaned_data.get(campo)
         }
+        # Las cantidades de este formulario son los acompañantes: el responsable suma aparte.
+        datos["responsable_aparte"] = True
         return datos
 
 
