@@ -14,6 +14,8 @@ Las cuatro superficies tienen herencia y assets distintos. **No se mezclan.**
 Se hereda; no se recrean el sidebar ni sus offsets.
 
 El enlace al listado del grupo Dispositivos se llama «Instituciones» (`dispositivos:lista`).
+Le sigue «Edificios» (`dispositivos:edificios`, capacidad `edificio.ver`, subítem con utilidades y
+`aria-current` para `dispositivos/edificios`); «Instituciones» queda inactivo en esa sección.
 El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto y destino.
 
 - El sidebar es un **único panel responsivo**: overlay en móvil y fijo/colapsable en escritorio,

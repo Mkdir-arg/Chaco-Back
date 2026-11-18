@@ -609,6 +609,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 485 | Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1167 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 486 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 487 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57222,6 +57223,79 @@ Nada.
 ## Reversión
 
 Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+
+---
+
+# Cambio 487 — Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: «en dispositivos tenemos Instituciones, Relevamientos, Configuración, pero falta uno para edificios» |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1169 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El menú lateral de Dispositivos tenía Instituciones, Relevamientos y Configuración, y faltaba Edificios. Task #1169:
+el ítem, con su estado activo.
+
+## Alcance acordado
+
+Entra: el ítem en el submenú expandido y el destino del ícono colapsado. Queda afuera: cualquier otro grupo del sidebar.
+
+## Decisiones tomadas
+
+- **Visible con `edificio.ver`** (Cambio 483), independiente de `dispositivo.ver`: el grupo Dispositivos se muestra
+  también para quien solo ve edificios.
+- **Orden:** Instituciones · Edificios · Relevamientos · Configuración. Ícono `home-modern` (heroicons outline),
+  distinto del de Instituciones; clases como «Relevamientos», sin `style=` nuevos.
+- **Activo** en `dispositivos/edificios/` y en la ficha; «Instituciones» suma la exclusión de esa ruta.
+- **Colapsado:** sigue siendo un solo ícono. El destino no cambia para nadie que hoy lo use; solo quien tiene
+  `edificio.ver` y ninguna de las otras (ni `inspeccion.asignar`) va a Edificios.
+- `.claude/design/shells.md` lo registra (lo exige el contrato del agente de diseño al tocar el sidebar).
+
+## Implementación
+
+`templates/includes/sidebar/opciones.html`: flag `puede_ver_edificios`, el ítem y las condiciones de activo.
+
+## Archivos
+
+- `templates/includes/sidebar/opciones.html`, `.claude/design/shells.md`
+- `programas/tests/test_dispositivos_edificios_listado.py` (`SidebarTests`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 4 tests nuevos (aparece y queda activo en listado y ficha con Instituciones inactivo; en Instituciones no cambia;
+  sin `edificio.ver` no aparece; con solo `edificio.ver` el grupo aparece y lleva a Edificios).
+- Mutación: sacar la exclusión de «Instituciones» deja 2 en rojo.
+- `design_audit.py --ratchet` 0 nuevos, `compile_templates.py --bloques` 0, `check_design_agent.py --changed` OK;
+  `test_dispositivos_config` y `test_dispositivos_header` en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno de esta task. Del análisis #1164 queda el «Volver» del informe a la ficha del edificio (Cambio 486).
+
+## Reversión
+
+Revertir el commit.
 
 ## Historial
 
