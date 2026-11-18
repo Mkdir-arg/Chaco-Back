@@ -4,6 +4,7 @@ from programas import dispositivos_emergencia_urls
 from programas.views import dispositivos_bitacora as bitacora
 from programas.views import dispositivos_capacidad as capacidad
 from programas.views import dispositivos_config as cfg
+from programas.views import dispositivos_edificios as edificios
 from programas.views import dispositivos_equipo as equipo_views
 from programas.views import dispositivos_formularios as frm
 from programas.views import dispositivos_ingreso as ingreso
@@ -135,6 +136,8 @@ urlpatterns = [
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),
     path("<int:pk>/ingresar/confirmar/", ingreso.IngresoConfirmarView.as_view(), name="ingreso_confirmar"),
+    # Sección «Edificios» (análisis #1164): los edificios del alcance, en solo lectura.
+    path("edificios/", edificios.EdificioListView.as_view(), name="edificios"),
     # Relevamientos edilicios del coordinador (P21 · #701): en el código, `InspeccionEdificio`.
     path("relevamientos/", relevamientos.RelevamientoListView.as_view(), name="relevamientos"),
     path(
