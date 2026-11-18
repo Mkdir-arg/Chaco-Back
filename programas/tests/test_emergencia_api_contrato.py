@@ -815,16 +815,31 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
                 self.assertEqual(envio["properties"]["derivacion"]["type"], "integer")
                 self.assertNotIn("derivacion", envio.get("required", []))
 
-    def test_las_dos_consultas_con_tope_publican_el_429(self):
-        """La identidad (SEC-25) y la búsqueda por DNI (M2-1): la app sabe que pueden contestar 429."""
+    def test_las_consultas_con_tope_publican_el_429(self):
+        """La identidad (SEC-25), la búsqueda por DNI (M2-1) y los tres extremos que crean casos, cuyo rechazo
+        «DNI ya registrado» descuenta de la cubeta de la identidad (Cambio 482): la app sabe que pueden contestar 429."""
         rutas = self.esquema["paths"]
 
         for operacion in (
             rutas[URL_CONSULTAR]["post"],
             rutas["/api/emergencia/dispositivos/{dispositivo_id}/buscar/"]["get"],
+            rutas[URL_CASOS]["post"],
+            rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso-directo/"]["post"],
+            rutas["/api/emergencia/dispositivos/{dispositivo_id}/avisar-mesa/"]["post"],
         ):
             with self.subTest(operacion=operacion["operationId"]):
                 self.assertIn("429", operacion["responses"])
+
+    def test_los_extremos_que_crean_casos_publican_persona_registrada(self):
+        rutas = self.esquema["paths"]
+
+        for operacion in (
+            rutas[URL_CASOS]["post"],
+            rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso-directo/"]["post"],
+            rutas["/api/emergencia/dispositivos/{dispositivo_id}/avisar-mesa/"]["post"],
+        ):
+            with self.subTest(operacion=operacion["operationId"]):
+                self.assertIn("persona_registrada", operacion["responses"]["400"]["description"])
 
     def test_el_envio_es_multipart_y_solo_exige_el_uuid(self):
         operacion = self.esquema["paths"][URL_CASOS]["post"]

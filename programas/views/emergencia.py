@@ -37,7 +37,6 @@ from programas.forms_emergencia import (
     PrioridadCasoForm,
     ReasignarCasoForm,
     aviso_identidad_a_revisar,
-    rechazo_para_mostrar,
 )
 from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
@@ -47,6 +46,7 @@ from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import EstadoCambio, FaltanPlazas
 from programas.services.emergencia_programa import puede_supervisar_la_mesa
+from programas.views.emergencia_rechazos import rechazo_para_mostrar
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
 TEMPLATE_FICHA = "programas/emergencia/casos/detail.html"

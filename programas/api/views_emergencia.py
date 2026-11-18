@@ -57,11 +57,8 @@ from programas.api.serializers_emergencia import (
     MiCasoEmergenciaSerializer,
     PerfilEmergenciaSerializer,
 )
-from programas.api.views import (
-    ConsultaPersonasThrottle,
-    descontar_consulta_de_identidad,
-    responder_consulta_de_persona,
-)
+from programas.api.throttles import ConsultaPersonasThrottle, descontar_consulta_de_identidad
+from programas.api.views import responder_consulta_de_persona
 from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
@@ -96,6 +93,17 @@ CODIGO_UUID_EN_USO = "UUID_EN_USO"
 _AUTENTICACION = [TokenAuthentication, SessionAuthentication]
 
 _SIN_TOKEN = OpenApiResponse(description="Sin token o token inválido.")
+#: El 400 del DNI ya registrado y el 429 de su tope: los publican los tres extremos que crean casos (Cambio 482).
+_DNI_REGISTRADO = (
+    "DNI ya registrado como otra persona: el mensaje en `dni` y `persona_registrada: {apellido, nombre}`; "
+    "se reenvía sin nombre ni apellido, con el DNI corregido o con `identidad_en_conflicto`."
+)
+_DNI_REGISTRADO_SIN_CUPO = OpenApiResponse(
+    description=(
+        "El DNI ya es de otra persona y el usuario agotó el tope de consultas de identidad (`personas_campo`, "
+        "compartido con `personas/consultar/`). Sin el nombre; trae `Retry-After`. No se creó nada."
+    )
+)
 _SIN_MODULO = OpenApiResponse(description="El usuario no abre el módulo Emergencia: `code: SIN_MODULO`.")
 _SIN_RELEVAR = OpenApiResponse(
     description="El usuario no tiene `emergencia.relevar` en el programa Emergencia: `code: SIN_MODULO`."
@@ -354,7 +362,7 @@ class CasosEmergenciaView(_VistaDeCampo):
                 description=(
                     "El envío no es válido. Trae `code: VALIDACION`, `detail` legible y el detalle por campo: "
                     "falta `uuid_cliente`, total en cero (`total`), RN-1.3, sin dirección, foto que no es JPEG "
-                    "o que pasa de 5 MB, `relevado_en` adelantada más de un día."
+                    "o que pasa de 5 MB, `relevado_en` adelantada más de un día. " + _DNI_REGISTRADO
                 )
             ),
             401: _SIN_TOKEN,
@@ -365,6 +373,7 @@ class CasosEmergenciaView(_VistaDeCampo):
                     "con el mismo identificador."
                 )
             ),
+            429: _DNI_REGISTRADO_SIN_CUPO,
         },
         description=(
             "Crea un caso de origen territorio con su grupo familiar y hasta dos fotos. Idempotente por "
