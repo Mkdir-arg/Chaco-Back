@@ -350,6 +350,7 @@ def _personas_del_grupo(caso):
         "total_femenino": sum(fila["femenino"] for fila in franjas),
         "total_masculino": sum(fila["masculino"] for fila in franjas),
         "total": grupo.total_declarado,
+        "responsable_aparte": grupo.responsable_aparte,
         "asistencia": [
             {"etiqueta": "Personas con dependencia", "valor": grupo.dependientes},
             {"etiqueta": "Mayores dependientes", "valor": grupo.mayores_dependientes},

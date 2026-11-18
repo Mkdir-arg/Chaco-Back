@@ -604,6 +604,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 479 | Dispositivos: dar de baja una plaza (cama) del mapa y reactivarla, sin borrar su historia | Dispositivos · sectores y plazas | `#datos` `#ui` | Usuario — «no tengo forma de eliminar una cama» | 17/11/2026 | 🟡 **En curso** | `programas.0122` |
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
+| 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
 
 **Notas del índice**
 
@@ -56782,5 +56783,97 @@ Desplegar el código anterior. No hay datos ni columnas.
 ## Historial
 
 - **17/11/2026:** alta del cambio.
+
+---
+
+# Cambio 482 — Emergencia: el total de «Personas que ingresan juntas» suma al responsable
+
+🟡 **EN CURSO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia (app de campo, «Nuevo caso» de la mesa y Formulario 1 de la puerta del dispositivo) |
+| **Etiquetas** | `#api` `#datos` `#ui` |
+| **Solicitante** | Usuario (PM) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API, Backoffice, Mobile (Chaco-mobile 1.2.23) |
+| **Migración** | `programas.0124` |
+
+## Pedido original
+
+«En la app de campo, cuando ingreso una persona me pide el responsable, eso está bien. Lo que está mal es que en la
+tabla de abajo, "Personas que ingresan juntas", ingreso por ejemplo 1 persona y el cálculo me dice que es solo una
+persona: no está contabilizando el responsable.»
+
+## Alcance acordado
+
+**Entra:** la regla del total del Formulario 1 en los tres orígenes (app, mesa y puerta del dispositivo), la ficha del
+caso y los textos de ayuda. **Queda afuera:** la franja de edad y el sexo del responsable (ver Pendientes).
+
+## Decisiones tomadas
+
+1. **Las seis cantidades pasan a ser los acompañantes** y el total suma uno por el responsable (antes la regla era
+   «el responsable está incluido»). Decisión del PM, elegida entre esto y solo aclarar el texto.
+2. **Marca explícita por envío, no cambio de golpe:** `GrupoFamiliar.responsable_aparte` y el campo
+   `responsable_aparte` del §6 del contrato. La app tiene cola sin señal y borradores guardados: un envío cargado con la
+   regla vieja que sale después del deploy se contaría con una persona de más. Sin la marca (`false` por defecto) el
+   back lee como antes; la app nueva la manda en `true`, y lo guardado en el teléfono antes de 1.2.23 sale sin ella.
+3. **Los casos anteriores no se tocan:** la columna nace en `False` y su total sigue siendo el que era.
+4. **La mesa y la puerta web** usan la regla nueva siempre (`NuevoCasoMesaForm.datos_formulario1`).
+5. **Lo declarado al relevar** (`suma_de_cantidades`, base de «Llegaron N sobre M declaradas») suma al responsable
+   cuando va aparte, para que un caso nuevo no figure como «llegaron más».
+6. **Sexo en el alta mínima:** solo se deduce de las cantidades cuando el responsable va adentro y la familia es de
+   uno; con la marca y sin acompañantes no se adivina.
+
+## Implementación
+
+Cargar 1 persona en «Personas que ingresan juntas» da un total de 2: esa persona más el responsable. Sin acompañantes
+el caso es de una persona. La ficha del caso muestra una fila «Responsable» en la tabla de personas cuando el caso se
+cargó con la regla nueva. Los textos de ayuda dicen que al responsable no se lo cuenta en la tabla.
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0124_grupo_responsable_aparte.py`,
+`programas/services/emergencia_alta.py`, `programas/api/serializers_emergencia.py`, `programas/forms_emergencia.py`,
+`programas/selectors/emergencia_mesa.py`, `programas/templates/programas/emergencia/_formulario1_bloques.html`,
+`programas/templates/programas/emergencia/casos/detail.html`, `.claude/design/arquetipos/detalle.md`,
+`docs/internal/contrato-app-emergencia.md`; tests `test_emergencia_api_m1`, `test_emergencia_mesa`,
+`test_emergencia_alojar_vistas`. En Chaco-mobile: `src/utils/emergencia.js`, `src/services/emergenciaApi.js`,
+`src/services/emergenciaCola.js`, las pantallas del Formulario 1 y de la puerta, y sus tests.
+
+## Base de datos
+
+`programas.0124`: `grupofamiliar.responsable_aparte` booleano `NOT NULL` con `DEFAULT 0` real en la base
+(`db_default`), así el código anterior puede seguir dando de alta durante el rolling. Segura sobre datos existentes.
+
+## Validación
+
+- Suite de Emergencia del back: 987 tests, OK (SQLite, Django 5.2.17). Nuevos: con la marca el total suma al
+  responsable, sin acompañantes es 1 y no se adivina el sexo; sin la marca o en `false` se lee como antes; la mesa
+  sin acompañantes crea el caso de 1 y la ficha lo dice.
+- `manage.py check`, `ruff`, `check_migraciones.py` (0 problemas), `makemigrations --check`,
+  `design_audit.py --ratchet` (0 nuevos), `compile_templates.py --bloques` (0), `check_design_agent.py --changed` OK.
+- Chaco-mobile: `npm test`, 949 OK.
+
+## Puesta en marcha en el servidor
+
+**Orden de deploy: primero el back, después la app.** Un back viejo ignora `responsable_aparte` y contaría una
+persona menos en los envíos de la app 1.2.23.
+
+## Pendientes / a definir
+
+- El responsable no tiene franja de edad ni sexo en las cantidades: no cuenta para «mayores» ni «menores» en la
+  prioridad sugerida ni en los topes (`mayores_dependientes ≤ mayores`). Un responsable mayor y dependiente que llega
+  solo hoy no se puede marcar como «mayor dependiente». Se podría derivar de su fecha de nacimiento: a definir.
+
+## Reversión
+
+Desplegar el código anterior del back y de la app. La columna puede quedar (tiene `DEFAULT`); los casos creados con
+la marca guardan el total con el responsable sumado, que el código viejo muestra igual.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
 
 ---

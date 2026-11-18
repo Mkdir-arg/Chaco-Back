@@ -99,7 +99,13 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     telefono = _texto()
     documento_extraviado = _aviso(help_text="Perdió el documento pero sabe el número.")
 
-    # Paso 2 · personas que ingresan juntas (el responsable está incluido)
+    # Paso 2 · personas que ingresan juntas
+    responsable_aparte = _aviso(
+        help_text=(
+            "`true`: las cantidades son los acompañantes y el total suma al responsable. Sin él (o "
+            "`false`, lo que manda una app anterior), el responsable ya está contado en las cantidades."
+        )
+    )
     menores_f = _cantidad()
     menores_m = _cantidad()
     adultos_f = _cantidad()

@@ -209,7 +209,8 @@ No trae coordenadas: no se puede preseleccionar «la más cercana al GPS». El `
 | `fecha_nacimiento` | `AAAA-MM-DD` | no | Solo se usa en el alta mínima |
 | `telefono` | texto | no | Contacto para la mesa |
 | `documento_extraviado` | booleano | no | Perdió el documento pero sabe el número |
-| `menores_f`, `menores_m`, `adultos_f`, `adultos_m`, `mayores_f`, `mayores_m` | entero ≥ 0 | no (valen 0) | La suma tiene que ser ≥ 1. El responsable está incluido |
+| `responsable_aparte` | booleano | no (vale `false`) | `true`: las seis cantidades son los **acompañantes** y el total suma al responsable. La app actual lo manda siempre en `true`. Sin él (una app anterior, o un envío que quedó en su cola) el responsable ya está contado en las cantidades |
+| `menores_f`, `menores_m`, `adultos_f`, `adultos_m`, `mayores_f`, `mayores_m` | entero ≥ 0 | no (valen 0) | Con `responsable_aparte`: quienes vienen con el responsable, pueden ser todas 0. Sin él: la suma tiene que ser ≥ 1 y el responsable está incluido |
 | `dependientes` | entero ≥ 0 | no | ≤ total |
 | `mayores_dependientes` | entero ≥ 0 | no | ≤ mayores |
 | `lactantes` | entero ≥ 0 | no | ≤ menores |

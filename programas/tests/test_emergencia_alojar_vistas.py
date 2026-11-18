@@ -716,7 +716,8 @@ class RecorridoCompletoTests(BaseLlegadas):
         formulario = self.client.get(self._url("ingreso_directo"), {"dni": "33444555"})
         self.assertTemplateUsed(formulario, "programas/emergencia/dispositivo/formulario1.html")
         self.assertContains(formulario, 'value="33444555"')
-        creado = self.client.post(self._url("ingreso_directo"), self._formulario1(menores_f="0"))
+        # El responsable y una acompañante: dos personas.
+        creado = self.client.post(self._url("ingreso_directo"), self._formulario1(menores_f="0", adultos_m="0"))
 
         caso = CasoEmergencia.objects.get()
         self.assertRedirects(creado, self._url("integrantes", caso.pk), fetch_redirect_response=False)
