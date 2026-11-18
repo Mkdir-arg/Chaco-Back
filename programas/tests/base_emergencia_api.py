@@ -147,6 +147,7 @@ CLAVES_GRUPO_DE_LA_DERIVACION = [
     "mayores_m",
     "menores_f",
     "menores_m",
+    "responsable_aparte",
 ]
 CLAVES_ACEPTACION = ["caso", "faltantes", "integrantes", "mensaje", "reservadas"]
 CLAVES_RECHAZO = ["caso_estado"]
