@@ -343,7 +343,7 @@ def _cantidad_de_fotos(cantidad):
     return f"{cantidad} foto{'s' if cantidad != 1 else ''}"
 
 
-def _evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace=""):
+def evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace=""):
     """Una entrada de la línea de tiempo por relevamiento, con su tanda de fotos adentro.
 
     Lo que pasó va en el texto, no en el color. ``fotos`` y ``total_fotos`` son el opcional de
@@ -433,6 +433,17 @@ def clave_estado_edilicio(ultima):
         if criticidad is not None and ultima.criticidad == criticidad:
             return clave
     return ""
+
+
+def estado_edilicio(ultima):
+    """El estado de un edificio como lo dibujan la tarjeta, la ficha y la fila: clave del filtro, rótulo y tono.
+
+    Sale de la **última realizada** (``None`` = sin relevar). «Vencido» y «Vence en N días» van aparte
+    (:func:`aviso_de_vencimiento`).
+    """
+
+    semaforo = semaforo_de_inspeccion(ultima)
+    return {"clave": clave_estado_edilicio(ultima), "texto": semaforo.texto, "tono": semaforo.tono}
 
 
 def aviso_de_vencimiento(vencido, vence_el, hoy):
@@ -543,7 +554,6 @@ def _fila_de_edificio(
     """
 
     ve_detalle = ultima is None or ultima.con_detalle
-    semaforo_estado = semaforo_de_inspeccion(ultima)
     otras = edificio.n_instituciones - 1
     realizados = total.get("realizados", 0)
     observaciones = (ultima.observaciones or "").strip() if ultima else ""
@@ -566,11 +576,7 @@ def _fila_de_edificio(
         "longitud": edificio.longitud,
         "instituciones": del_predio,
         # El estado de la tarjeta es el de la última realizada; «Vencido» y «Vence en N días» van aparte.
-        "estado": {
-            "clave": clave_estado_edilicio(ultima),
-            "texto": semaforo_estado.texto,
-            "tono": semaforo_estado.tono,
-        },
+        "estado": estado_edilicio(ultima),
         "vencido": bool(edificio.vencido),
         "aviso": aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
         "ultima": ultima,
@@ -596,6 +602,53 @@ def _fila_de_edificio(
             reverse("dispositivos:edificio_desvincular", args=[dispositivo.pk, edificio.pk]) if puede_editar else ""
         ),
     }
+
+
+def registro_de_relevamientos(usuario, inspecciones, pagina, *, sufijo_enlace=""):
+    """El registro fotográfico de un edificio: la página de relevamientos y sus eventos de línea de tiempo.
+
+    Lo comparten la ficha de Infraestructura del dispositivo y la ficha propia del edificio (#1168), para que
+    el mismo edificio muestre el mismo registro en las dos. ``inspecciones`` es la base ya acotada al
+    edificio y sin canceladas (no dejaron resultado); ``sufijo_enlace`` se agrega al enlace del informe
+    (la solapa pasa ``?dispositivo=<pk>`` para volver a la institución).
+
+    Cambio 422: el registro enlaza al informe y a las fotos, y los dos se abren solo por
+    `inspecciones_visibles`; quien llega por leer todos los dispositivos (`ver_todos`) sin operar ni
+    coordinar no ve los relevamientos. Sin usuario, todos. El en curso va primero (todavía no tiene fecha).
+
+    Costo fijo: COUNT y página (2), fotos de la página (1) y, solo si la página trae algo en curso, quién
+    puede ver su asignación (1): preguntarlo por fila sería un N+1 proporcional a la página.
+    """
+
+    if usuario is not None:
+        inspecciones = inspecciones.filter(pk__in=inspecciones_visibles(usuario).values("pk"))
+    consulta = inspecciones.annotate(n_fotos=Count("fotos")).order_by(
+        F("realizada_en").desc(nulls_first=True), "-creado", "-pk"
+    )
+    relevamientos = Paginator(consulta, POR_PAGINA_RELEVAMIENTOS).get_page(pagina)
+    ids = [inspeccion.pk for inspeccion in relevamientos]
+    fotos_por_inspeccion = defaultdict(list)
+    if ids:
+        for foto in (
+            FotoInspeccion.objects.filter(inspeccion_id__in=ids)
+            .only("id", "inspeccion_id", "archivo", "descripcion", "creado")
+            .order_by("inspeccion_id", "creado", "pk")
+        ):
+            fotos_por_inspeccion[foto.inspeccion_id].append(foto)
+
+    en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != _REALIZADA]
+    propios = {inspeccion.pk for inspeccion in en_curso if inspeccion.asignado_a_id == getattr(usuario, "pk", None)}
+    coordinados = edificios_con_asignacion_visible(usuario, [i.edificio_id for i in en_curso]) if en_curso else set()
+    eventos = [
+        evento_de_relevamiento(
+            inspeccion,
+            fotos_por_inspeccion.get(inspeccion.pk, []),
+            ve_asignacion=inspeccion.pk in propios or inspeccion.edificio_id in coordinados,
+            enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]) + sufijo_enlace,
+        )
+        for inspeccion in relevamientos
+    ]
+    return relevamientos, eventos
 
 
 def infraestructura_del_dispositivo(
@@ -815,42 +868,13 @@ def infraestructura_del_dispositivo(
         for fila in nombres
     ]
 
-    # Las canceladas no entran: no tienen resultado. La en curso va primero (todavía no tiene fecha).
-    inspecciones = inspecciones_de_dispositivo(dispositivo).filter(edificio_id=pedido)
-    if usuario is not None:
-        # Cambio 422: el registro enlaza al informe y a las fotos, y los dos se abren solo por
-        # `inspecciones_visibles`. Quien llega al detalle por leer todos los dispositivos
-        # (`ver_todos`) sin operar ni coordinar la institución no ve los relevamientos.
-        inspecciones = inspecciones.filter(pk__in=inspecciones_visibles(usuario).values("pk"))
-    consulta = inspecciones.annotate(n_fotos=Count("fotos")).order_by(
-        F("realizada_en").desc(nulls_first=True), "-creado", "-pk"
+    # Las canceladas no entran: no tienen resultado (`inspecciones_de_dispositivo` las excluye).
+    relevamientos, eventos = registro_de_relevamientos(
+        usuario,
+        inspecciones_de_dispositivo(dispositivo).filter(edificio_id=pedido),
+        pagina,
+        sufijo_enlace=f"?dispositivo={dispositivo.pk}",
     )
-    relevamientos = Paginator(consulta, POR_PAGINA_RELEVAMIENTOS).get_page(pagina)
-    ids = [inspeccion.pk for inspeccion in relevamientos]
-    fotos_por_inspeccion = defaultdict(list)
-    if ids:
-        for foto in (
-            FotoInspeccion.objects.filter(inspeccion_id__in=ids)
-            .only("id", "inspeccion_id", "archivo", "descripcion", "creado")
-            .order_by("inspeccion_id", "creado", "pk")
-        ):
-            fotos_por_inspeccion[foto.inspeccion_id].append(foto)
-
-    # El alcance se resuelve para toda la página y solo si hay algo en curso que lo necesite:
-    # preguntarlo por fila sería un N+1 proporcional a la página.
-    en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != _REALIZADA]
-    propios = {inspeccion.pk for inspeccion in en_curso if inspeccion.asignado_a_id == getattr(usuario, "pk", None)}
-    coordinados = edificios_con_asignacion_visible(usuario, [i.edificio_id for i in en_curso]) if en_curso else set()
-    eventos = [
-        _evento_de_relevamiento(
-            inspeccion,
-            fotos_por_inspeccion.get(inspeccion.pk, []),
-            ve_asignacion=inspeccion.pk in propios or inspeccion.edificio_id in coordinados,
-            enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk])
-            + f"?dispositivo={dispositivo.pk}",
-        )
-        for inspeccion in relevamientos
-    ]
 
     return {
         **_respuesta_base(),

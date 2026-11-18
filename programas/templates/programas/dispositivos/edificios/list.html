@@ -49,7 +49,7 @@
           {% for fila in filas %}
           <tr class="hover:bg-secondary">
             <td class="nodo-td text-body whitespace-nowrap">{{ fila.codigo }}</td>
-            <td class="nodo-td text-heading font-medium">{{ fila.nombre }}
+            <td class="nodo-td text-heading font-medium"><a href="{{ fila.url_ver }}" class="text-fg-brand hover:underline">{{ fila.nombre }}</a>
               <span class="block text-xs text-body-subtle font-normal">{{ fila.domicilio|default:"Sin domicilio cargado" }}</span>
             </td>
             <td class="nodo-td text-body">{{ fila.localidad|default:"—" }}</td>
@@ -66,6 +66,9 @@
             </td>
             <td class="nodo-td text-body whitespace-nowrap">{% if fila.ultima_fecha %}{{ fila.ultima_fecha|date:"d/m/Y" }}{% else %}<span class="text-body-subtle">Sin relevar</span>{% endif %}</td>
             <td class="nodo-td nodo-col-acciones text-right">
+              <a href="{{ fila.url_ver }}" class="nodo-icon-btn" aria-label="Ver el edificio {{ fila.nombre }}">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+              </a>
               {% if fila.url_asignar %}
               <a href="{{ fila.url_asignar }}" class="nodo-icon-btn" aria-label="Crear relevamiento del edificio {{ fila.nombre }}">
                 <i class="fas fa-clipboard-list" aria-hidden="true"></i>
