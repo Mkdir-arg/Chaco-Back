@@ -1,0 +1,15 @@
+{% comment %}
+Cargador de Google Maps del backoffice. Va en el bloque `customJS` de la pantalla que dibuja un mapa, una sola vez:
+  {% include "components/_google_maps.html" %}
+Contexto: ninguno. La key y el Map ID salen de settings (GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID) por el tag
+`google_maps_config`; el resto lo hace static/custom/js/nodo-mapa.js, que expone `window.NodoMapa`:
+  NodoMapa.configurado                 false sin key: la pantalla no intenta cargar y muestra su estado vacío.
+  NodoMapa.crearMapa(elemento, opc)    Promise<google.maps.Map> con el Map ID del ambiente, centrado en Resistencia.
+  NodoMapa.importar("marker", …)       Promise con las librerías pedidas (google.maps.importLibrary).
+Google se pide recién en la primera llamada, no al cargar la página: una pantalla que solo muestra el mapa a
+pedido (Becas, SEC-33) no le manda nada a Google hasta que alguien lo abre. Si la key es inválida para el sitio,
+se dispara `nodo-mapa:error` en `document` con `detail.mensaje`.
+{% endcomment %}
+{% load static nodo_ui %}{% google_maps_config as config_mapa %}
+{{ config_mapa|json_script:"nodo-mapa-config" }}
+<script src="{% static 'custom/js/nodo-mapa.js' %}"></script>

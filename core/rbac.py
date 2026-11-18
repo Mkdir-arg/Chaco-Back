@@ -339,6 +339,19 @@ CATALOGO = [
         ],
     },
     {
+        # Mapa de Google Maps (`/mapa/`). Global, sin alcance de programa: las capas que
+        # muestra (dispositivos, edificios, casos de Emergencia) se tienen que filtrar
+        # además con la capacidad de lectura de cada módulo: `mapa.ver` no abre datos que
+        # el usuario no pudiera ver por otro lado.
+        "modulo": "mapa",
+        "label": "Mapa",
+        "tab": "general",
+        "capacidades": [
+            ("mapa.ver", "Ver el mapa"),
+            ("mapa.editar", "Agregar, mover y eliminar puntos del mapa"),
+        ],
+    },
+    {
         # Campañas de correo masivo (análisis 007). Global, sin alcance de programa.
         # Enviar va separado de gestionar a propósito: el envío no se deshace y
         # conviene poder dárselo a menos gente que el armado (RN-007-12).

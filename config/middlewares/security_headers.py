@@ -20,7 +20,9 @@ formulario público lo necesita: el resto de las librerías se autoalojan en
 ``static/vendor/``. Con ``GTM_CONTAINER_ID`` configurado (Cambio 68) se suman
 los hosts de Google Tag Manager y GA4, que es una decisión explícita: abre a
 Google el canal que ``connect-src 'self'`` cerraba. Otras etiquetas de GTM
-declaran sus hosts en ``CSP_EXTRA_SOURCES``.
+declaran sus hosts en ``CSP_EXTRA_SOURCES``. Con ``GOOGLE_MAPS_API_KEY``
+configurada pasa lo mismo con los hosts de Google Maps, por la misma razón: sin
+key no hay mapa y la política no se abre.
 """
 
 from django.conf import settings
@@ -68,6 +70,33 @@ GTM_SOURCES = {
     "frame-src": ["https://www.googletagmanager.com"],
 }
 
+# Lo que pide la Maps JavaScript API, según la política *allowlist* de la guía de Google
+# «Content Security Policy guide» (la de nonce no aplica mientras la política base use
+# 'unsafe-inline'). Solo entra con ``GOOGLE_MAPS_API_KEY`` configurada. Los hosts sin
+# esquema de la guía (``*.google.com``) van con ``https://`` para no habilitar http. El
+# ``blob:`` de script-src es el que cubre los Workers del mapa: la política no declara
+# ``worker-src`` y CSP3 cae a script-src.
+GOOGLE_MAPS_SOURCES = {
+    "script-src": [
+        "https://*.googleapis.com",
+        "https://*.gstatic.com",
+        "https://*.google.com",
+        "https://*.ggpht.com",
+        "https://*.googleusercontent.com",
+        "blob:",
+    ],
+    "img-src": [
+        "https://*.googleapis.com",
+        "https://*.gstatic.com",
+        "https://*.google.com",
+        "https://*.googleusercontent.com",
+    ],
+    "connect-src": ["https://*.googleapis.com", "https://*.google.com", "https://*.gstatic.com", "data:", "blob:"],
+    "font-src": ["https://fonts.gstatic.com"],
+    "style-src": ["https://fonts.googleapis.com"],
+    "frame-src": ["https://*.google.com"],
+}
+
 
 def parsear_fuentes_extra(texto):
     """``"connect-src=https://a https://b;img-src=https://c"`` →
@@ -84,6 +113,8 @@ def _politica():
     extras = [getattr(settings, "CSP_EXTRA_SOURCES", {}) or {}]
     if getattr(settings, "GTM_CONTAINER_ID", ""):
         extras.insert(0, GTM_SOURCES)
+    if getattr(settings, "GOOGLE_MAPS_API_KEY", ""):
+        extras.insert(0, GOOGLE_MAPS_SOURCES)
     partes = []
     for directiva, valores in POLITICA_BASE.items():
         completos = list(valores)

@@ -605,6 +605,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
+| 483 | Mapa con Google Maps y domicilio → coordenadas (fase 1: base común) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048` |
 
 **Notas del índice**
 
@@ -56883,5 +56884,120 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 - **18/11/2026:** alta del cambio.
 - **18/11/2026:** la auditoría del PR #1162 pidió el tope de mayores dependientes con el responsable, la fila
   «Responsable» en la tarjeta de «Llegadas» y la regla del total en un solo lugar (decisiones 7 y 8).
+
+---
+
+# Cambio 483 — Mapa con Google Maps y domicilio → coordenadas
+
+🟡 **EN CURSO — fase 1 de 4 hecha el 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal |
+| **Etiquetas** | `#gps` `#rbac` `#infra` `#ui` |
+| **Solicitante** | Usuario (PM) — pedido en sesión de trabajo, con un prompt de referencia y un mockup aprobado |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API · Infra/ECOM |
+| **Migración** | `users.0048` (fase 1) |
+
+## Pedido original
+
+«En Chaco vamos a implementar el mapa de Google […] vamos a reemplazar los mapas que usamos.» Con un
+prompt de referencia: módulo de mapa para registrar y ver la ubicación de equipos, vehículos y sedes,
+con Advanced Markers, panel con filtros, alta con un clic, marcadores arrastrables y API JSON. Después:
+«a partir de ahora cuando se pida un domicilio use el servicio de Google para pasarle esos datos y
+conseguir las coordenadas para mostrar ese punto».
+
+## Alcance acordado
+
+Cuatro fases, en este orden:
+
+1. **Base común** (esta entrega): configuración por entorno, CSP, capacidades y el cargador de Google Maps.
+2. **Domicilio → coordenadas** en los formularios del backoffice, empezando por Dispositivo; después
+   Ciudadano (con migración de latitud y longitud) y Caso de Emergencia.
+3. **Mapa general `/mapa/`** (opción C): capas de Dispositivos, Edificios y Casos de Emergencia, más un
+   modelo `Punto` para lo que no tiene ficha propia (vehículos, equipos, sedes), con su API.
+4. **Reemplazos**: el mapa del lugar de la toma de Becas y el enlace «Ver en el mapa» de
+   `components/_ubicacion.html` pasan a Google.
+
+Afuera: el formulario público de inscripción del portal **no** geocodifica el domicilio.
+
+## Decisiones tomadas
+
+- **Opción C para el mapa general** (18/11/2026): capas sobre lo que ya tiene coordenadas + puntos
+  sueltos. Motivo: no cargar dos veces la ubicación de un dispositivo y que el mapa siga a la ficha.
+- **El portal no geocodifica.** Cualquiera podría usarlo para consumir la cuota de la key, que se cobra
+  por uso, y ahí carga datos la propia persona.
+- **El domicilio del ciudadano sí** (decisión del PM, 18/11/2026), sabiendo que la dirección de la
+  persona pasa por Google, que es lo que SEC-33 había limitado para Becas.
+- **Becas pasa a Google pero sigue a pedido** (SEC-33): el cargador no pide nada a Google hasta que una
+  pantalla crea su primer mapa.
+- **Geocodificación en el navegador**, con la misma key: no hace falta una key de servidor ni salida a
+  Google desde ECOM, y el operador confirma el punto antes de guardar.
+- **CSP abierta solo con key**, con los hosts de la política *allowlist* de la guía de Google (la de
+  nonce no aplica mientras la base use `'unsafe-inline'`). Los hosts sin esquema de la guía se
+  escribieron con `https://`.
+- **`DEMO_MAP_ID` solo en `dev`**; `core.W005` avisa si `qa`/`prd` tienen key sin Map ID propio, porque
+  sin Map ID los Advanced Markers no cargan y no hay error visible.
+- **Capacidades globales `mapa.ver` y `mapa.editar`**, sembradas al Administrador. Las capas tienen que
+  filtrarse además por la capacidad de lectura de cada módulo.
+- **Marcadores con `AdvancedMarkerElement`**, nunca `google.maps.Marker` (deprecado).
+
+## Implementación
+
+Fase 1. No hay nada visible todavía: queda la infraestructura que usan las fases siguientes.
+
+- `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en settings y en los `.env` de ejemplo.
+- La CSP suma los hosts de Google Maps cuando hay key.
+- Pieza `components/_google_maps.html` + `static/custom/js/nodo-mapa.js`: expone `window.NodoMapa`
+  (`configurado`, `crearMapa`, `importar`) y carga la API con `loading=async` en la primera llamada.
+  Si la key no vale para el sitio, dispara `nodo-mapa:error`.
+- Módulo «Mapa» en el ABM de Roles con `mapa.ver` y `mapa.editar`.
+- Guía operativa `docs/mapa.md`: crear y restringir la key, el Map ID y su estilo, variables, CSP,
+  permisos y costos.
+
+## Archivos
+
+`config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
+`core/templatetags/nodo_ui.py`, `templates/components/_google_maps.html`, `static/custom/js/nodo-mapa.js`,
+`users/migrations/0048_capacidades_mapa.py`, `.env.qa.example`, `.env.local.example`, `docs/mapa.md`,
+`.claude/agents/chaco-design-system.md`, `.claude/design/componentes/mapa_google.md`,
+`core/tests/test_google_maps.py`, `core/tests/test_nodo_ui_piezas.py`, `users/tests/test_rbac_contrato.py`.
+
+## Base de datos
+
+`users.0048`: declara las dos capacidades (`AlterModelOptions` sobre el modelo ancla `managed = False`,
+no toca el esquema) y se las da al Administrador. Segura sobre datos existentes; reversa real.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` y `scripts/check_migraciones.py`: OK.
+- `core.tests.test_google_maps` (CSP con y sin key, `core.W005`, catálogo), `GoogleMapsCargadorTest`
+  (configuración, sin Map ID sin key, key escapada) y `users.tests.test_rbac_contrato`: OK.
+- `manage.py test core users portal`: las mismas fallas que en la base, todas por falta de `mysqlclient`
+  en la máquina de desarrollo (`test_sql_motor_real` y afines); ninguna nueva.
+- `design_audit.py --ratchet`: 0 nuevos. `compile_templates.py --bloques`: 0. `check_design_agent.py`: OK.
+- Sin verificar: la carga real del mapa, que necesita una key válida.
+
+## Puesta en marcha en el servidor
+
+Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`).
+Sin ellas no cambia nada.
+
+## Pendientes / a definir
+
+- Fases 2, 3 y 4.
+- `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
+- La ficha de `components/_ubicacion.html` prohíbe mapas y orígenes en la CSP: se actualiza en la fase 4.
+
+## Reversión
+
+Revertir el commit y desaplicar `users.0048` (`migrate users 0047`). No se pierden datos: solo salen las
+dos capacidades del Administrador.
+
+## Historial
+
+- **18/11/2026:** alta del cambio con la fase 1.
 
 ---
