@@ -252,7 +252,7 @@
     "dispositivos_edificios_listado": {
       "servicio": "programas.views.dispositivos_edificios.EdificioListView",
       "consultas_fijas": 12,
-      "motivo": "Seccion Edificios de Dispositivos (#1167, analisis #1164): la pagina entera, medida con el cliente ya logueado y la cache del programa caliente. Cinco del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); siete del listado: COUNT del paginador (1), pagina de edificios con ultima realizada, instituciones y vencimiento anotados (1), ultimas realizadas con su alcance de inspeccion (1), instituciones del predio que el usuario alcanza (1), cuales puede abrir (1), edificios donde puede crear un relevamiento (1) y localidades del filtro (1). Medido con 2 y 20 edificios: 12 en los dos casos. No crece por edificio, institucion ni relevamiento."
+      "motivo": "Seccion Edificios de Dispositivos (#1167, analisis #1164): la pagina entera, medida con el cliente ya logueado y la cache del programa caliente. Cinco del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); siete del listado: COUNT del paginador (1), pagina de edificios con ultima realizada, instituciones y vencimiento anotados (1), ultimas realizadas (1), instituciones del predio que el usuario alcanza (1), cuales puede abrir (1), edificios donde puede crear un relevamiento (1) y localidades del filtro (1). Medido con 2 y 20 edificios: 12 en los dos casos. No crece por edificio, institucion ni relevamiento."
     },
     "dispositivos_bitacora_turno": {
       "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",

@@ -57135,5 +57135,9 @@ Revertir el commit; no hay datos ni migración.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1190 (dos MINOR) y CI. El selector de localidad sigue la «Situación» del admin
+  (`localidades_visibles(user, situacion)`); las últimas realizadas se leen sin el `con_detalle` que nadie usaba. El
+  contrato del agente de diseño pidió registrar en `.claude/design/arquetipos/detalle.md` que el estado edilicio
+  (`clave_estado_edilicio`, `aviso_de_vencimiento`) es compartido con el listado de Edificios.
 
 ---

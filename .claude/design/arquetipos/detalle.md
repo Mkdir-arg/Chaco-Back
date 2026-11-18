@@ -208,6 +208,10 @@ El badge del registro es siempre la criticidad; la revisión agrega «Revisado»
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
 Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y la ficha de
 Infraestructura solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
+El estado edilicio de cada edificio (clave del filtro, rótulo y tono del semáforo, y el aviso «Vencido» / «Vence en
+N días») sale de `clave_estado_edilicio` y `aviso_de_vencimiento` de `programas/services/detalle_dispositivo.py`, las
+mismas que usa el listado de la sección Edificios (`programas/selectors/edificios.py`): una sola definición para la
+tarjeta, la ficha y la fila.
 
 ## Prohibido
 

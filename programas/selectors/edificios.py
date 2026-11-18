@@ -39,7 +39,6 @@ from programas.services.dispositivos import (
 from programas.services.inspecciones import (
     edificios_en_alcance,
     edificios_para_asignar,
-    inspecciones_visibles,
     semaforo_de_inspeccion,
     subconsulta_ultima_realizada,
 )
@@ -129,11 +128,15 @@ def filtrar_edificios(queryset, *, q="", localidad="", estado="", compartido="")
     return queryset
 
 
-def localidades_visibles(user):
-    """Las localidades no vacías de los edificios vigentes que ``user`` ve, para el selector."""
+def localidades_visibles(user, situacion=SITUACION_VIGENTES):
+    """Las localidades no vacías de los edificios que ``user`` ve en esa ``situacion``, para el selector.
+
+    Sigue la misma ``situacion`` que el listado: el admin que mira los inactivos o los que no tienen
+    institución recibe sus localidades. Para el resto la situación se ignora, igual que en el listado.
+    """
 
     return list(
-        edificios_visibles(user)
+        edificios_visibles(user, situacion=situacion)
         .exclude(localidad="")
         .order_by("localidad")
         .values_list("localidad", flat=True)
@@ -164,7 +167,7 @@ def filas_del_listado(user, edificios):
     """Las filas de una página del listado, en consultas fijas.
 
     ``edificios`` es la página de :func:`para_el_listado`. Cuatro consultas, no una por fila: las
-    últimas realizadas con su alcance de inspección (1), las instituciones del predio que el usuario
+    últimas realizadas (1), las instituciones del predio que el usuario
     alcanza (1), cuáles de ellas puede abrir (1) y los edificios donde puede crear un relevamiento (1).
 
     Las instituciones se **nombran** si están en el alcance de ``edificio.ver`` o de ``dispositivo.ver``
@@ -179,9 +182,8 @@ def filas_del_listado(user, edificios):
     ids = [edificio.pk for edificio in edificios]
     hoy = timezone.localdate()
 
-    ultimas = InspeccionEdificio.objects.annotate(
-        con_detalle=Exists(inspecciones_visibles(user).filter(pk=OuterRef("pk")))
-    ).in_bulk([edificio.ultima_id for edificio in edificios if edificio.ultima_id])
+    # Solo el estado y la fecha de la última: el Cambio 428 los deja ver sin alcance de inspección.
+    ultimas = InspeccionEdificio.objects.in_bulk([edificio.ultima_id for edificio in edificios if edificio.ultima_id])
     del_predio = instituciones_del_predio(user, ids, tambien=dispositivos_en_alcance(user, CAP_VER_EDIFICIOS))
     pks_instituciones = {institucion["pk"] for lista in del_predio.values() for institucion in lista}
     abribles = set(

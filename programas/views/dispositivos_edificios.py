@@ -67,7 +67,7 @@ class EdificioListView(DispositivoProgramaPermissionMixin, ListView):
                 "hay_filtros": hay_filtros,
                 # Sin filtros y sin filas, para quien no es admin: no alcanza ningún edificio vigente.
                 "vacio_por_alcance": not filas and not hay_filtros and not situaciones,
-                "localidades": localidades_visibles(user),
+                "localidades": localidades_visibles(user, situacion=filtros["situacion"]),
                 "estados": [(clave, texto) for clave, texto, _criticidad in ESTADOS_EDILICIOS],
                 "opciones_compartido": [(COMPARTIDO_SI, "Compartido"), (COMPARTIDO_NO, "Una sola institución")],
                 "ve_situaciones": situaciones,

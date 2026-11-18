@@ -125,6 +125,14 @@ class FiltrosTests(BaseEdificios):
         self.assertEqual(self._filtrar(estado="OTRO"), todos)
         self.assertEqual(self._filtrar(compartido="tal vez"), todos)
 
+    def test_las_localidades_siguen_la_situacion_del_admin(self):
+        Edificio.objects.filter(pk=self.huerfano.pk).update(localidad="Fontana")
+        admin = self._fresco(self.admin)
+
+        self.assertNotIn("Fontana", localidades_visibles(admin))
+        self.assertIn("Fontana", localidades_visibles(admin, situacion=SITUACION_SIN_INSTITUCION))
+        self.assertNotIn("Fontana", localidades_visibles(self._fresco(self.red), situacion=SITUACION_SIN_INSTITUCION))
+
     def test_las_localidades_son_las_del_alcance(self):
         self.assertEqual(localidades_visibles(self._fresco(self.admin)), ["Barranqueras", "Resistencia"])
         self.assertEqual(localidades_visibles(self._fresco(self.del_parador)), ["Resistencia"])
