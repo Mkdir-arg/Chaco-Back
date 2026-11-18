@@ -5579,9 +5579,9 @@ class CasoEmergencia(TimeStamped):
     SITUACION_ALOJAMIENTO = "alojamiento"  # sección 4 del Formulario 1 (M2-5)
     SITUACION_DIFERENCIA = "diferencia"  # motivo del cierre con diferencia (RN-3.9)
     SITUACION_EN_LA_PUERTA = "en_la_puerta_de"  # «Avisar a la mesa» (M2-6)
-    #: Lo que declaró quien cargó cuando el DNI ya era de otra persona registrada (Cambio 483).
+    #: Lo que declaró quien cargó cuando el DNI ya era de otra persona registrada (Cambio 484).
     SITUACION_IDENTIDAD_A_REVISAR = "identidad_a_revisar"
-    #: Quién, cuándo y con qué observación la mesa revisó esa identidad (Cambio 483).
+    #: Quién, cuándo y con qué observación la mesa revisó esa identidad (Cambio 484).
     SITUACION_IDENTIDAD_REVISADA = "identidad_revisada"
 
     numero = models.CharField(max_length=16, unique=True, editable=False, verbose_name="N.° de caso")
@@ -5727,7 +5727,7 @@ class CasoEmergencia(TimeStamped):
 
     @property
     def identidad_a_revisar(self):
-        """``{"nombre", "apellido"}`` tal como los declaró quien cargó, o ``None`` (Cambio 483).
+        """``{"nombre", "apellido"}`` tal como los declaró quien cargó, o ``None`` (Cambio 484).
 
         Nace en ``crear_caso`` cuando el DNI ya era de una persona registrada con otro nombre
         y quien cargaba sostuvo que es otra persona. Queda guardado para siempre: revisarla

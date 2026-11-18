@@ -1,4 +1,4 @@
-"""Cómo se le muestra al backoffice un rechazo de ``crear_caso`` (Cambio 483).
+"""Cómo se le muestra al backoffice un rechazo de ``crear_caso`` (Cambio 484).
 
 Lo usan «Nuevo caso» de la mesa y el Formulario 1 de la puerta del dispositivo. Es
 orquestación HTTP —recibe el ``request`` y descuenta del tope del usuario—, por eso vive
