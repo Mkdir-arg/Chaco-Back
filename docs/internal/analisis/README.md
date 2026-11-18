@@ -13,6 +13,7 @@ Se genera cuando el `functional-analyst` cierra el alcance de un requerimiento.
 |---|---|---|---|
 | [001](001-registro-de-ciudadano.md) | Registro de ciudadano | Completado | [Sprint 001](../sprints/2026-05-12-sprint-001.md) |
 | [002](002-derivacion-de-ciudadano-a-programa.md) | Derivación de ciudadano a programa | En desarrollo | [Sprint 001](../sprints/2026-05-12-sprint-001.md) |
+| [009](009-emergencia-tablero-estrategico.md) | Emergencia: tablero estratégico «Situación» con mapa (E8) | En análisis | Sin asignar |
 
 ## Estados posibles
 
