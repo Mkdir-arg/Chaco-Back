@@ -57426,6 +57426,10 @@ Revertir el commit.
   de `sidebar/base.html` pinta activo e inactivo con `!important`). Sin cambio visual: Chromium dio los mismos estilos
   calculados (fondo, color, peso, tamaño, fuente, padding, radio, subrayado, color del ícono) antes y después, en
   `/dispositivos/` (activo) y `/dispositivos/edificios/` (inactivo). `.claude/design/shells.md` lo registra.
+- **18/11/2026:** MINOR de la auditoría del PR #1195. `.claude/design/shells.md` citaba como evidencia del «grupo
+  nuevo del sidebar» todos los subítems de Dispositivos, pero el botón del grupo, su link colapsado y «Configuración»
+  siguen con `style=`. La evidencia queda acotada a «Notificaciones» y a los subítems Instituciones, Edificios y
+  Relevamientos, y dice cuáles todavía no son molde. Solo documentación.
 
 ---
 
