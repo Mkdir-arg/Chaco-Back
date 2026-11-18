@@ -27,8 +27,10 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
   colapsado `px-3.5 py-2.5 rounded-full` (+ `text-[13.5px] border-0 cursor-pointer text-left` en el
   botón); subítem `px-3 py-2 rounded-full text-[13px]`; chevron `transition-transform` con
   `:class="open ? 'rotate-180' : ''"`. Colores, hover y activo (`aria-current="page"`) los pone
-  `.ds-snav` del `<style>` de `sidebar/base.html`, que gana con `!important`. Evidencia: los grupos Dispositivos (subítems) y
-  «Notificaciones». `text-[13.5px]` y `text-[13px]` son una **excepción de shell**: reproducen los
+  `.ds-snav` del `<style>` de `sidebar/base.html`, que gana con `!important`. Evidencia: el grupo
+  «Notificaciones» y los subítems Instituciones, Edificios y Relevamientos de Dispositivos (el botón de
+  ese grupo, su link colapsado y «Configuración» siguen en línea: no son molde).
+  `text-[13.5px]` y `text-[13px]` son una **excepción de shell**: reproducen los
   tamaños que los demás grupos fijan en línea y no amplían la lista blanca de arbitrarios del
   contenido.
 - **Subítem nuevo en un grupo heredado** (que todavía fija sus estilos en línea): el subítem nuevo

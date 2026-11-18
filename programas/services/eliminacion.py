@@ -9,18 +9,22 @@ Si en la cascada hay **casos cargados** (``Formulario``, en cualquier estado) no
 elimina nada: ocultarlos descuadraría el cupo, la lista de espera y lo ya informado a
 SIIS, y dejarlos visibles colgando de una convocatoria invisible tampoco sirve.
 
-Tampoco se elimina nada si algún relevamiento de la cascada está **en campo**
-(``EN_CURSO`` o ``FINALIZANDO``): la app del territorial puede tener capturas offline
-sin sincronizar, que al subir encontrarían el relevamiento eliminado (404).
+Tampoco se elimina nada si algún relevamiento de la cascada está **en campo**: en
+``EN_CURSO`` o ``FINALIZANDO``, o en un estado que todavía acepta capturas atrasadas
+(``campo.ESTADOS_CON_GRACIA``) mientras dure la gracia de sincronización. La app del
+territorial puede tener capturas offline que al subir encontrarían el relevamiento
+eliminado (404).
 """
 
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from core import rbac
 from programas.models import Convocatoria, Formulario, ProgramaSiis, Relevamiento, Segmento, Subsegmento
 from programas.services.autorizacion import programa_becas, puede_configurar_segmento
+from programas.services.campo import ESTADOS_CON_GRACIA, GRACIA_SINCRONIZACION
 
 CAP_PROGRAMA_ELIMINAR = "becas.programa.eliminar"
 CAP_SEGMENTO_ELIMINAR = "becas.segmento.eliminar"
@@ -32,12 +36,22 @@ CAP_RELEVAMIENTO_ELIMINAR = "becas.relevamiento.eliminar"
 ESTADOS_EN_CAMPO = (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO)
 
 
+def en_campo_q(ahora):
+    """Relevamientos que la app todavía puede estar cargando: en curso, o cerrados dentro
+    de la gracia de sincronización (la misma regla que ``campo.en_gracia``, en SQL)."""
+    return Q(estado__in=ESTADOS_EN_CAMPO) | Q(
+        estado__in=ESTADOS_CON_GRACIA, fecha_hasta__gte=ahora - GRACIA_SINCRONIZACION
+    )
+
+
 class EliminacionBloqueada(Exception):
     """La cascada tiene casos cargados o relevamientos en campo: no se elimina nada."""
 
-    def __init__(self, casos=0, en_campo=0):
+    def __init__(self, casos=0, en_campo=0, propio=False):
         self.casos = casos
         self.en_campo = en_campo
+        # El elemento bloqueado es el propio relevamiento en campo, no uno que cuelga de él.
+        self.propio = propio
         super().__init__(f"{casos} caso(s) cargado(s), {en_campo} relevamiento(s) en campo")
 
 
@@ -115,11 +129,11 @@ def eliminar(objeto, usuario):
         )
 
     casos = Formulario.objects.filter(relevamiento_id__in=ids["relevamientos"]).count()
-    en_campo = Relevamiento.objects.filter(pk__in=ids["relevamientos"], estado__in=ESTADOS_EN_CAMPO).count()
-    if casos or en_campo:
-        raise EliminacionBloqueada(casos=casos, en_campo=en_campo)
-
     ahora = timezone.now()
+    en_campo = Relevamiento.objects.filter(pk__in=ids["relevamientos"]).filter(en_campo_q(ahora)).count()
+    if casos or en_campo:
+        raise EliminacionBloqueada(casos=casos, en_campo=en_campo, propio=isinstance(objeto, Relevamiento))
+
     marca = {"eliminado_en": ahora, "eliminado_por": usuario, "modificado": ahora}
     return {nivel: modelo.objects.filter(pk__in=ids[nivel]).update(**marca) for nivel, modelo in _ORDEN}
 
@@ -144,11 +158,17 @@ def mensaje_bloqueo(error, que):
         s = "s" if error.casos != 1 else ""
         motivos.append(f"tiene {error.casos} caso{s} cargado{s}")
     if error.en_campo:
-        if error.en_campo == 1:
-            motivos.append("tiene 1 relevamiento en curso en campo")
+        if error.propio:
+            motivos.append("está en campo")
+        elif error.en_campo == 1:
+            motivos.append("tiene 1 relevamiento en campo")
         else:
-            motivos.append(f"tiene {error.en_campo} relevamientos en curso en campo")
-    return (
-        f"No se puede eliminar {que}: {' y '.join(motivos)}. Solo se puede eliminar lo que no tiene casos "
-        "ni relevamientos en curso (la app puede tener datos sin sincronizar)."
-    )
+            motivos.append(f"tiene {error.en_campo} relevamientos en campo")
+    texto = f"No se puede eliminar {que}: {' y '.join(motivos)}."
+    if error.en_campo:
+        # La gracia se cuenta desde ``fecha_hasta`` (``campo.en_gracia``), no desde el «Finalizar».
+        texto += (
+            " Un relevamiento está en campo mientras está en curso y hasta 24 h después de la fecha de fin de "
+            "su período, porque hasta entonces la app todavía puede sincronizar capturas."
+        )
+    return texto

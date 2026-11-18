@@ -612,7 +612,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
-| 490 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
+| 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 
 **Notas del índice**
 
@@ -57427,6 +57428,10 @@ Revertir el commit.
   de `sidebar/base.html` pinta activo e inactivo con `!important`). Sin cambio visual: Chromium dio los mismos estilos
   calculados (fondo, color, peso, tamaño, fuente, padding, radio, subrayado, color del ícono) antes y después, en
   `/dispositivos/` (activo) y `/dispositivos/edificios/` (inactivo). `.claude/design/shells.md` lo registra.
+- **18/11/2026:** MINOR de la auditoría del PR #1195. `.claude/design/shells.md` citaba como evidencia del «grupo
+  nuevo del sidebar» todos los subítems de Dispositivos, pero el botón del grupo, su link colapsado y «Configuración»
+  siguen con `style=`. La evidencia queda acotada a «Notificaciones» y a los subítems Instituciones, Edificios y
+  Relevamientos, y dice cuáles todavía no son molde. Solo documentación.
 
 ---
 
@@ -57557,7 +57562,82 @@ Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita l
 - **18/11/2026:** el usuario confirma bloquear también los relevamientos en curso (`EN_CURSO`/`FINALIZANDO`);
   la verificación del nombre eliminado queda solo en `validate_constraints` (MINOR de la ronda 2).
 
-# Cambio 490 — Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento
+# Cambio 490 — Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h)
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas |
+| **Etiquetas** | `#relevamientos` `#datos` `#mobile` |
+| **Solicitante** | Usuario — «hacé el PR con las dos cosas» (los dos MINOR de la ronda 3 de la auditoría del PR #1194) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Seguimiento del Cambio 489: bloquear también la eliminación de relevamientos cerrados que todavía están dentro de
+la gracia de sincronización, y corregir el texto del aviso cuando el bloqueado es el propio relevamiento.
+
+## Alcance acordado
+
+- La regla «en campo» del borrado lógico suma los relevamientos en `campo.ESTADOS_CON_GRACIA` (`FINALIZANDO`,
+  `FINALIZADO`, `EN_REVISION`) mientras dure la gracia (`fecha_hasta` + 24 h).
+- El aviso dice «está en campo» cuando se elimina el propio relevamiento.
+- Afuera: cambiar la gracia o el cierre automático.
+
+## Decisiones tomadas
+
+- **Se reusa la regla de la app, no una propia**: `en_campo_q` traduce a SQL `campo.en_gracia` con
+  `campo.ESTADOS_CON_GRACIA` y `campo.GRACIA_SINCRONIZACION`. Si la gracia cambia, el borrado la sigue.
+- `TERMINADO` no tiene gracia (sus reportes ya salieron) y se sigue pudiendo eliminar sin casos.
+- Cubre los dos caminos que vio la auditoría: el cierre automático por vencimiento y el «Finalizar» manual que
+  alguien aprieta después de que el bloqueo frenó la eliminación.
+
+## Implementación
+
+Un relevamiento está «en campo» mientras está en curso y hasta 24 h después de la fecha de fin de su período. Mientras haya
+uno así en la cascada, no se elimina nada y el mensaje lo explica.
+
+## Archivos
+
+- `programas/services/eliminacion.py` (`en_campo_q`, `EliminacionBloqueada.propio`, `mensaje_bloqueo`)
+- Los cuatro templates de listado (texto del modal)
+- `programas/tests/test_becas_eliminacion.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `programas.tests.test_becas_eliminacion`: cerrado dentro de la gracia bloquea (FINALIZADO y EN_REVISION, sobre
+  programa, convocatoria y relevamiento), vencida la gracia se elimina, TERMINADO sin gracia, y el texto propio
+  del relevamiento.
+- `manage.py check`, ruff, `design_audit --ratchet`, `compile_templates --bloques`.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+No quedan.
+
+## Reversión
+
+Desplegar el código anterior. No hay datos ni columnas.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1200 (APPROVE con un MINOR): el texto decía «24 h desde el cierre», pero la
+  gracia se cuenta desde la fecha de fin del período (`fecha_hasta`), no desde el «Finalizar». Se corrigió el
+  texto del aviso y de los modales; la frase sobre «en campo» sale solo si hay relevamientos en campo.
+
+# Cambio 492 — Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento
 
 🟢 **HECHO — 18/11/2026**
 
@@ -57651,7 +57731,7 @@ cargadas).
 
 ## Historial
 
-- **18/11/2026:** alta del cambio.
+- **18/11/2026:** alta del cambio (registrado como 490; pasa a 492 porque development usó el 490 y el #1197 lo reclamaba).
 - **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 - **18/11/2026:** auditoría del PR #1199: la dotación con días se rechaza en E7 en vez de vaciarse (TC-1186-08); `CAMPOS_TIPO_KIT` se arma con `CAMPOS_REGLA`.
 
