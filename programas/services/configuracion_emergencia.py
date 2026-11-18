@@ -42,20 +42,11 @@ CAMPOS_SLA = (
     "inicio_evento",
 )
 
-#: Los campos de un tipo de kit que E7 deja editar.
-CAMPOS_TIPO_KIT = (
-    "nombre",
-    "unidad",
-    "orden",
-    "activo",
-    "regla_modo",
-    "regla_cantidad",
-    "regla_por",
-    "regla_cada_dias",
-)
-
 #: Los campos de la regla de consumo (RN-009-15), en el orden en que se trazan en el alta.
 CAMPOS_REGLA = ("regla_modo", "regla_cantidad", "regla_por", "regla_cada_dias")
+
+#: Los campos de un tipo de kit que E7 deja editar.
+CAMPOS_TIPO_KIT = ("nombre", "unidad", "orden", "activo", *CAMPOS_REGLA)
 
 #: «Campo» de la traza del alta de un tipo de kit: no es una columna, es el hecho.
 CAMPO_ALTA = "alta"
@@ -97,7 +88,7 @@ def _con_etiquetas(modelo, cambios):
     """Los valores de un campo con opciones se trazan con su etiqueta («Reposición…», no «REPOSICION»)."""
     legibles = []
     for campo, anterior, nuevo in cambios:
-        opciones = dict(modelo._meta.get_field(campo).flatchoices) if campo != CAMPO_ALTA else {}
+        opciones = dict(modelo._meta.get_field(campo).flatchoices)
         legibles.append((campo, opciones.get(anterior, anterior), opciones.get(nuevo, nuevo)))
     return legibles
 

@@ -115,16 +115,14 @@ class TipoKitForm(forms.ModelForm):
         }
 
     def clean(self):
-        """Lo que no aplica al modo elegido se vacía solo: pasar a «Sin regla» no obliga a borrar a mano.
+        """Pasar a «Sin regla» vacía la regla sola: no obliga a borrar a mano cantidad, por y días.
 
-        Después valida el modelo (RN-009-15): con dotación o reposición, lo que falta es error.
+        Después valida el modelo (RN-009-15): con dotación o reposición, lo que falta o sobra es
+        error (una dotación con días se rechaza, no se borra en silencio: TC-1186-08).
         """
         datos = super().clean()
-        modo = datos.get("regla_modo")
-        if modo == TipoKit.ModoRegla.SIN_REGLA:
+        if datos.get("regla_modo") == TipoKit.ModoRegla.SIN_REGLA:
             datos["regla_cantidad"], datos["regla_por"], datos["regla_cada_dias"] = None, "", None
-        elif modo == TipoKit.ModoRegla.DOTACION:
-            datos["regla_cada_dias"] = None
         return datos
 
     def clean_nombre(self):

@@ -117,6 +117,7 @@ class ReglaDeConsumoE7Tests(BaseE7):
         fila |= {"regla_cantidad": "0", "regla_por": "PERSONA", "regla_cada_dias": "1"}
         respuesta = self.client.post(self.url, self._datos(**self._fila_nueva(**fila)))
         self.assertEqual(respuesta.status_code, 400)
+        self.assertTrue(respuesta.context["kits"].filas_nuevas()[0].errors.get("regla_cantidad"))
         self.assertFalse(TipoKit.objects.exists())
 
     def test_pasar_a_sin_regla_vacia_los_datos_de_la_regla(self):
@@ -143,7 +144,8 @@ class ReglaDeConsumoE7Tests(BaseE7):
             },
         )
 
-    def test_pasar_a_dotacion_vacia_los_dias(self):
+    def test_pasar_a_dotacion_con_dias_se_rechaza(self):
+        """TC-1186-08: la dotación no lleva período; los días no se borran en silencio."""
         tipo = TipoKit.objects.create(
             nombre="Frazada",
             unidad="unidad",
@@ -152,7 +154,15 @@ class ReglaDeConsumoE7Tests(BaseE7):
             regla_por="PERSONA",
             regla_cada_dias=7,
         )
-        self.assertRedirects(self.client.post(self.url, self._datos(**{f"{K}-0-regla_modo": "DOTACION"})), self.url)
+        respuesta = self.client.post(self.url, self._datos(**{f"{K}-0-regla_modo": "DOTACION"}))
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertTrue(respuesta.context["kits"].filas_existentes()[0].errors.get("regla_cada_dias"))
+        tipo.refresh_from_db()
+        self.assertEqual((tipo.regla_modo, tipo.regla_cada_dias), ("REPOSICION", 7))
+        self.assertFalse(TrazaConfiguracion.objects.exists())
+
+        datos = self._datos(**{f"{K}-0-regla_modo": "DOTACION", f"{K}-0-regla_cada_dias": ""})
+        self.assertRedirects(self.client.post(self.url, datos), self.url)
         tipo.refresh_from_db()
         self.assertEqual((tipo.regla_modo, tipo.regla_cada_dias), ("DOTACION", None))
 
