@@ -172,7 +172,7 @@
       "consultas_fijas": 2,
       "nota": "C5: plazas con estadías activas y reservas/préstamos abiertos; dos consultas incluso con 200 plazas. test_dispositivos_capacidad.CapacidadPresupuestoTests."
     },
-    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_edificios_listado.py, programas/tests/test_dispositivos_alertas.py, programas/tests/test_dispositivos_auditoria.py y programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance.",
+    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_edificios_listado.py, programas/tests/test_dispositivos_edificios_ficha.py, programas/tests/test_dispositivos_alertas.py, programas/tests/test_dispositivos_auditoria.py y programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance.",
     "becas_respuestas_por_persona": {
       "servicio": "programas.services.dashboard_becas.respuestas_por_persona",
       "consultas_fijas": 12,
@@ -253,6 +253,11 @@
       "servicio": "programas.views.dispositivos_edificios.EdificioListView",
       "consultas_fijas": 12,
       "motivo": "Seccion Edificios de Dispositivos (#1167, analisis #1164): la pagina entera, medida con el cliente ya logueado y la cache del programa caliente. Cinco del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); siete del listado: COUNT del paginador (1), pagina de edificios con ultima realizada, instituciones y vencimiento anotados (1), ultimas realizadas (1), instituciones del predio que el usuario alcanza (1), cuales puede abrir (1), edificios donde puede crear un relevamiento (1) y localidades del filtro (1). Medido con 2 y 20 edificios: 12 en los dos casos. No crece por edificio, institucion ni relevamiento."
+    },
+    "dispositivos_edificio_ficha": {
+      "servicio": "programas.views.dispositivos_edificios.EdificioDetailView",
+      "consultas_fijas": 15,
+      "motivo": "Ficha propia del edificio (#1168, analisis #1164): la pagina entera, con el cliente logueado y la cache del programa caliente. Cinco del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); el edificio con su ultima, instituciones y vencimiento anotados (1, get_object_or_404 sobre edificios_visibles); y ocho de la ficha: la ultima realizada con quien relevo y su alcance de inspeccion (1), instituciones del predio que el usuario alcanza y cuales abre (2), si admite un relevamiento nuevo (1), sectores activos con plazas (1), COUNT y pagina del registro (2) y fotos de la pagina (1). Medido con 1 y 7 relevamientos, de 1 a 3 instituciones y de 1 a 6 sectores: 14 en los dos casos. El techo es 15 por la consulta que se suma solo cuando la pagina trae un relevamiento en curso (quien puede ver su asignacion, edificios_con_asignacion_visible), que no depende de cuantos haya."
     },
     "dispositivos_bitacora_turno": {
       "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",

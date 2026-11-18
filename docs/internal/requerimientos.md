@@ -609,6 +609,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 484 | Dispositivos · Edificios: selector de edificios visibles con alcance y filtros | Dispositivos · edificios | `#rbac` `#performance` | PM — análisis #1164, task #1166 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 485 | Dispositivos · Edificios: listado `/dispositivos/edificios/` con filtros y Crear relevamiento | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1167 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 486 | Emergencia: un DNI ya registrado no se reemplaza en silencio por otro nombre (consulta y alta con la misma regla, rechazo o «identidad a revisar») | Emergencia · app de campo, alta del caso y backoffice | `#emergencia` `#api` `#mobile` `#datos` | Usuario (PM) — en testing de ECOM la app dijo que el DNI no figuraba y el caso llegó a nombre de otra persona | 18/11/2026 | 🟡 **En curso** | No requiere |
+| 487 | Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/` | Dispositivos · edificios | `#ui` `#rbac` `#performance` | PM — análisis #1164, task #1168 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57246,5 +57248,170 @@ código anterior ignora.
 - **18/11/2026:** alta del cambio (T1, T2, T3 y T5).
 - **18/11/2026:** auditoría del PR #1170: el rechazo descuenta de la cubeta de identidad, y limpieza (sin
   alias de la regla, `texto_comparable` pública, `identificar_en_legajo` sin `sexo`).
+
+---
+
+# Cambio 487 — Dispositivos · Edificios: ficha propia del edificio `/dispositivos/edificios/<pk>/`
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: ficha propia del edificio (decisión 4 del análisis #1164) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1168 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Task #1168: la ficha propia del edificio en `/dispositivos/edificios/<pk>/`, con el contenido de la ficha de
+Infraestructura pero a nivel edificio. Solo lectura + «Crear relevamiento».
+
+## Alcance acordado
+
+Entra: la ruta `dispositivos:edificio_detalle`, la vista, el servicio de lectura y el template; «Ver» en la fila del
+listado. Queda afuera: el ítem del sidebar (#1169) y la ocupación por sector (sigue en la ficha de cada institución).
+
+## Decisiones tomadas
+
+- **404 por alcance** (Cambio 432): el edificio se busca en `edificios_visibles(user, situacion="todos")`, que para
+  quien no es admin deja solo los vigentes. Fuera de alcance, huérfano, inactivo o inexistente dan lo mismo.
+- **Sectores:** los activos de las instituciones que el usuario alcanza, con su cantidad de plazas, agrupados por
+  institución. Sin ocupación (exigiría el censo de cada institución).
+- **Cambio 428:** quién relevó, observaciones y el registro fotográfico solo por `inspecciones_visibles`; sin ese
+  alcance, estado y fecha del último relevamiento.
+- **El enlace al informe** va sin `?dispositivo=`: desde la ficha del edificio no hay institución de origen, así que
+  el «Volver» del informe cae en Relevamientos o en Dispositivos según la capacidad (regla de `_volver`).
+- `estado_edilicio(ultima)` y `evento_de_relevamiento` de `detalle_dispositivo.py` pasan a públicas: la tarjeta, la
+  ficha de Infraestructura, la fila del listado y esta ficha arman el estado en un solo lugar (sugerencia opcional
+  de la auditoría del PR #1190). La ficha del arquetipo Detalle lo registra.
+- **Presupuesto nuevo `dispositivos_edificio_ficha`: 15** (14 medidas con 1 y con 7 relevamientos, más la de un
+  relevamiento en curso).
+
+## Implementación
+
+`ficha_de_edificio(user, edificio, pagina)` en `programas/selectors/edificios.py` y `EdificioDetailView`. Template
+`edificios/detail.html` del arquetipo Detalle, variante apilada: Datos, Instituciones del predio, Sectores, Último
+relevamiento y Registro fotográfico (línea de tiempo plegable, paginada). El listado suma «Ver» y el nombre enlaza.
+
+## Archivos
+
+- `programas/selectors/edificios.py`, `programas/services/detalle_dispositivo.py`
+- `programas/views/dispositivos_edificios.py`, `programas/dispositivos_urls.py`
+- `programas/templates/programas/dispositivos/edificios/detail.html` (nuevo), `edificios/list.html`
+- `.claude/design/arquetipos/detalle.md`, `scripts/perf_budgets.json`
+- `programas/tests/test_dispositivos_edificios_ficha.py` (nuevo)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 14 tests nuevos (permiso, 404 por alcance, admin con huérfanos e inactivos, instituciones y sectores fuera de
+  alcance, Cambio 428, Crear relevamiento, sin escritura, enlace desde el listado, presupuesto). Con listado,
+  selector, Infraestructura, informe y contrato RBAC: 150 en verde.
+- Mutaciones: buscar en `edificios_en_alcance` (sin vigentes) deja 2 en rojo; mostrar el informe sin alcance, 1.
+- `design_audit.py --arquetipo detalle` OK (detalle + apilado), `--ratchet` 0 nuevos, `compile_templates.py
+  --bloques` 0, `check_design_agent.py --changed` OK, `check_perf_budgets.py`, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- El ítem del sidebar (#1169).
+- Que el «Volver» del informe regrese a la ficha del edificio (hoy vuelve a Relevamientos o Dispositivos).
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1192 (MAJOR): el registro fotográfico de la ficha copiaba la orquestación de
+  `infraestructura_del_dispositivo`. Ahora las dos usan `registro_de_relevamientos` (`detalle_dispositivo.py`): misma
+  salida y mismas consultas, y el mismo edificio muestra el mismo registro en las dos fichas. El MINOR del sidebar
+  (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; la
+  segunda ronda encontró la salida: el estilo activo ya lo pone `aria-current` (CSS de `sidebar/base.html`), así que
+  la condición puede quedar escrita una sola vez. Va al próximo PR, con captura antes/después.
+
+---
+
+# Cambio 488 — Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · edificios |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — en sesión de trabajo, 18/11/2026: «en dispositivos tenemos Instituciones, Relevamientos, Configuración, pero falta uno para edificios» |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1169 · análisis #1164 · Épica #127 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El menú lateral de Dispositivos tenía Instituciones, Relevamientos y Configuración, y faltaba Edificios. Task #1169:
+el ítem, con su estado activo.
+
+## Alcance acordado
+
+Entra: el ítem en el submenú expandido y el destino del ícono colapsado. Queda afuera: cualquier otro grupo del sidebar.
+
+## Decisiones tomadas
+
+- **Visible con `edificio.ver`** (Cambio 483), independiente de `dispositivo.ver`: el grupo Dispositivos se muestra
+  también para quien solo ve edificios.
+- **Orden:** Instituciones · Edificios · Relevamientos · Configuración. Ícono `home-modern` (heroicons outline),
+  distinto del de Instituciones; clases como «Relevamientos», sin `style=` nuevos.
+- **Activo** en `dispositivos/edificios/` y en la ficha; «Instituciones» suma la exclusión de esa ruta.
+- **Colapsado:** sigue siendo un solo ícono. El destino no cambia para nadie que hoy lo use; solo quien tiene
+  `edificio.ver` y ninguna de las otras (ni `inspeccion.asignar`) va a Edificios.
+- `.claude/design/shells.md` lo registra (lo exige el contrato del agente de diseño al tocar el sidebar).
+
+## Implementación
+
+`templates/includes/sidebar/opciones.html`: flag `puede_ver_edificios`, el ítem y las condiciones de activo.
+
+## Archivos
+
+- `templates/includes/sidebar/opciones.html`, `.claude/design/shells.md`
+- `programas/tests/test_dispositivos_edificios_listado.py` (`SidebarTests`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 4 tests nuevos (aparece y queda activo en listado y ficha con Instituciones inactivo; en Instituciones no cambia;
+  sin `edificio.ver` no aparece; con solo `edificio.ver` el grupo aparece y lleva a Edificios).
+- Mutación: sacar la exclusión de «Instituciones» deja 2 en rojo.
+- `design_audit.py --ratchet` 0 nuevos, `compile_templates.py --bloques` 0, `check_design_agent.py --changed` OK;
+  `test_dispositivos_config` y `test_dispositivos_header` en verde.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno de esta task. Del análisis #1164 queda el «Volver» del informe a la ficha del edificio (Cambio 487).
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **18/11/2026:** alta del cambio.
 
 ---

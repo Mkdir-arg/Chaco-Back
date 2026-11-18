@@ -12,6 +12,7 @@ Lo que se fija acá:
 """
 
 import json
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -160,3 +161,44 @@ class PresupuestoTests(BaseListado):
         self.assertEqual((filas_antes, filas_despues), (2, 20))
         self.assertEqual(antes, despues)
         self.assertLessEqual(despues, techo["consultas_fijas"])
+
+
+class SidebarTests(BaseListado):
+    """#1169: el ítem «Edificios» del menú de Dispositivos (CA11 del análisis #1164)."""
+
+    def _enlace(self, html, url):
+        """La etiqueta ``<a>`` del menú que apunta a ``url``, o ``""`` si no está."""
+
+        coincidencia = re.search(rf'<a href="{re.escape(url)}"[^>]*>', html)
+        return coincidencia.group(0) if coincidencia else ""
+
+    def test_con_edificio_ver_aparece_y_queda_activo_en_la_seccion(self):
+        for url in (URL, reverse("dispositivos:edificio_detalle", args=[self.predio.pk])):
+            with self.subTest(url=url):
+                html = self._cliente(self.admin).get(url).content.decode()
+                edificios = self._enlace(html, URL)
+                instituciones = self._enlace(html, reverse("dispositivos:lista"))
+
+                self.assertIn('aria-current="page"', edificios)
+                self.assertTrue(instituciones)
+                self.assertNotIn('aria-current="page"', instituciones)
+
+    def test_en_instituciones_el_activo_no_cambia(self):
+        html = self._cliente(self.admin).get(reverse("dispositivos:lista")).content.decode()
+
+        self.assertIn('aria-current="page"', self._enlace(html, reverse("dispositivos:lista")))
+        self.assertNotIn('aria-current="page"', self._enlace(html, URL))
+
+    def test_sin_edificio_ver_no_aparece_aunque_vea_dispositivos(self):
+        solo_dispositivos = self._usuario("solo_disp", ("dispositivo.ver",), [self.parador])
+        html = self._cliente(solo_dispositivos).get(reverse("dispositivos:lista")).content.decode()
+
+        self.assertTrue(self._enlace(html, reverse("dispositivos:lista")))
+        self.assertEqual(self._enlace(html, URL), "")
+
+    def test_con_solo_edificio_ver_el_grupo_lleva_a_edificios(self):
+        html = self._get(self.del_parador).content.decode()
+
+        self.assertIn('<span class="flex-1">Dispositivos</span>', html)
+        self.assertIn('aria-current="page"', self._enlace(html, URL))
+        self.assertEqual(self._enlace(html, reverse("dispositivos:lista")), "")
