@@ -6,6 +6,7 @@ from programas.views import configuracion as cfg
 from programas.views import cupo as cpo
 from programas.views import dashboard_becas as dsh
 from programas.views import diseno as dis
+from programas.views import eliminacion as eli
 from programas.views import inicio_becas as ini
 from programas.views import pausas as pau
 from programas.views import proceso_masivo as masivo
@@ -28,6 +29,7 @@ urlpatterns = [
     path("config/programas/", cfg.ProgramaSiisListView.as_view(), name="programas"),
     path("config/programas/nuevo/", cfg.ProgramaSiisCreateView.as_view(), name="programa_crear"),
     path("config/programas/<int:pk>/", cfg.ProgramaSiisDetailView.as_view(), name="programa_detalle"),
+    path("config/programas/<int:pk>/eliminar/", eli.programa_eliminar, name="programa_eliminar"),
     path(
         "config/programas/<int:pk>/identificadores-siis/",
         cfg.programa_identificadores_siis,
@@ -75,6 +77,7 @@ urlpatterns = [
     path("config/segmentos/<int:pk>/", cfg.SegmentoDetailView.as_view(), name="segmento_detalle"),
     path("config/segmentos/<int:pk>/editar/", cfg.SegmentoUpdateView.as_view(), name="segmento_editar"),
     path("config/segmentos/<int:pk>/toggle/", cfg.segmento_toggle_activo, name="segmento_toggle"),
+    path("config/segmentos/<int:pk>/eliminar/", eli.segmento_eliminar, name="segmento_eliminar"),
     # --- Subsegmentos ---
     path("config/segmentos/<int:segmento_pk>/subsegmentos/nuevo/", cfg.subsegmento_crear, name="subsegmento_crear"),
     path(
@@ -117,6 +120,7 @@ urlpatterns = [
     path("convocatorias/<int:pk>/editar/", rel.ConvocatoriaUpdateView.as_view(), name="convocatoria_editar"),
     path("convocatorias/<int:pk>/toggle/", rel.convocatoria_toggle_activo, name="convocatoria_toggle"),
     path("convocatorias/<int:pk>/reactivar/", rel.convocatoria_reactivar, name="convocatoria_reactivar"),
+    path("convocatorias/<int:pk>/eliminar/", eli.convocatoria_eliminar, name="convocatoria_eliminar"),
     path(
         "convocatorias/<int:pk>/export/beneficiarios/",
         rel.convocatoria_export_beneficiarios,
@@ -138,6 +142,7 @@ urlpatterns = [
     path("relevamientos/<int:pk>/", rel.RelevamientoDetailView.as_view(), name="relevamiento_detalle"),
     path("relevamientos/<int:pk>/finalizar/", rel.relevamiento_finalizar, name="relevamiento_finalizar"),
     path("relevamientos/<int:pk>/reabrir/", rel.relevamiento_reabrir, name="relevamiento_reabrir"),
+    path("relevamientos/<int:pk>/eliminar/", eli.relevamiento_eliminar, name="relevamiento_eliminar"),
     path("relevamientos/<int:pk>/reasignar/", rel.relevamiento_reasignar, name="relevamiento_reasignar"),
     # Cambio 57: el padrón es de la convocatoria (lo usan los dos canales).
     path("convocatorias/<int:pk>/padron/", rel.convocatoria_padron, name="convocatoria_padron"),

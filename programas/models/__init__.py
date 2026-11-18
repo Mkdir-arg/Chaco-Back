@@ -70,6 +70,47 @@ class PausableMixin(models.Model):
         return self if self.pausado else None
 
 
+class NoEliminadosManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(eliminado_en__isnull=True)
+
+
+class EliminableMixin(models.Model):
+    """Borrado lógico de la estructura de Becas (programa, segmento, subsegmento,
+    convocatoria y relevamiento).
+
+    ``objects`` es el manager por defecto y **no** devuelve lo eliminado: así lo
+    eliminado desaparece de todas las pantallas, de la API de campo, del portal y de
+    los procesos sin tocar cada consulta, y los managers de relación inversos
+    (``programa.segmentos``) heredan el mismo filtro. ``todos`` ve también lo
+    eliminado; lo usan las validaciones de unicidad, porque la fila sigue en la base.
+
+    Ojo: el filtro del manager **no** viaja en los joins (``Count("segmentos")``,
+    ``filter(segmentos__…)``); ahí hay que filtrar ``eliminado_en`` a mano. El borrado
+    en cascada y sus reglas viven en ``programas.services.eliminacion``.
+    """
+
+    eliminado_en = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name="Eliminado el")
+    eliminado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Eliminado por",
+    )
+
+    objects = NoEliminadosManager()
+    todos = models.Manager()
+
+    class Meta:
+        abstract = True
+
+    @property
+    def eliminado(self):
+        return self.eliminado_en is not None
+
+
 class RegistroPausa(TimeStamped):
     class Accion(models.TextChoices):
         PAUSAR = "PAUSAR", "Pausar"
@@ -2535,7 +2576,7 @@ def _entero_o_none(valor):
         return None
 
 
-class ProgramaSiis(PausableMixin, TimeStamped):
+class ProgramaSiis(EliminableMixin, PausableMixin, TimeStamped):
     """Programa del catálogo SIIS: nivel superior de Becas.
 
     Programa (SIIS) → Segmento → Subsegmento. El nombre se toma tal cual del
@@ -2679,7 +2720,7 @@ class ProgramaSiis(PausableMixin, TimeStamped):
         return self if self.pausado else None
 
 
-class Segmento(PausableMixin, TimeStamped):
+class Segmento(EliminableMixin, PausableMixin, TimeStamped):
     """Sub-modalidad de la beca con cupo y requisitos nativos propios (§6.2).
 
     Pertenece a un programa SIIS (Programa → Segmento → Subsegmento). El nombre
@@ -2736,6 +2777,24 @@ class Segmento(PausableMixin, TimeStamped):
 
     def __str__(self):
         return self.nombre
+
+    def validate_constraints(self, exclude=None):
+        """``uniq_segmento_programa_nombre`` también cuenta los segmentos eliminados.
+
+        Django valida la constraint con el manager por defecto, que no ve lo eliminado:
+        sin esto el alta pasaba la validación y moría en un ``IntegrityError`` (500).
+        """
+        super().validate_constraints(exclude=exclude)
+        if exclude and {"programa", "nombre"} & set(exclude):
+            return
+        if (
+            Segmento.todos.filter(programa_id=self.programa_id, nombre=self.nombre, eliminado_en__isnull=False)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            raise ValidationError(
+                {"nombre": "Ya hay un segmento eliminado con este nombre en el programa. Usá otro nombre."}
+            )
 
     def clean(self):
         super().clean()
@@ -2801,7 +2860,7 @@ class Segmento(PausableMixin, TimeStamped):
         return self.cupo_maximo
 
 
-class Subsegmento(PausableMixin, TimeStamped):
+class Subsegmento(EliminableMixin, PausableMixin, TimeStamped):
     """Nivel opcional dentro de un segmento, con cupo propio (RN-35/40).
 
     **`cupo_maximo` es una referencia de distribución, no un tope duro** (BEC-05,
@@ -2907,7 +2966,7 @@ class CupoSegmento(TimeStamped):
             )
 
 
-class Convocatoria(PausableMixin, TimeStamped):
+class Convocatoria(EliminableMixin, PausableMixin, TimeStamped):
     """Agrupador dentro del programa; apunta a un segmento (requerido) y a un
     subsegmento opcional de ese segmento (RN-30)."""
 
@@ -3030,7 +3089,7 @@ class Convocatoria(PausableMixin, TimeStamped):
         return self.fecha_fin is not None and self.fecha_fin < timezone.localdate()
 
 
-class Relevamiento(PausableMixin, TimeStamped):
+class Relevamiento(EliminableMixin, PausableMixin, TimeStamped):
     """Campaña de campo asignada a un territorial, o formulario público con
     link de inscripción (análisis #289). Nombre auto-generado.
 
@@ -3238,7 +3297,9 @@ class Relevamiento(PausableMixin, TimeStamped):
 
     @classmethod
     def proximo_numero(cls, convocatoria=None):
-        qs = cls.objects.filter(convocatoria=convocatoria) if convocatoria else cls.objects.none()
+        # ``todos``: el número de un relevamiento eliminado sigue ocupado en la base
+        # (``uniq_relevamiento_numero_convocatoria``).
+        qs = cls.todos.filter(convocatoria=convocatoria) if convocatoria else cls.todos.none()
         return (qs.aggregate(m=models.Max("numero"))["m"] or 0) + 1
 
     def save(self, *args, **kwargs):

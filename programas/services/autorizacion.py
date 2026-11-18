@@ -421,7 +421,7 @@ def programas_siis_visibles(user, programa=None):
     diferido entre vistas (RED-79). ``programas/`` no tiene paquete ``selectors/``
     —el resto de los querysets de alcance de Becas vive acá—, así que queda acá.
     """
-    from django.db.models import Count
+    from django.db.models import Count, Q
 
     from programas.models import ProgramaSiis
 
@@ -429,7 +429,10 @@ def programas_siis_visibles(user, programa=None):
         base = ProgramaSiis.objects.all()
     else:
         base = ProgramaSiis.objects.filter(segmentos__in=segmentos_visibles(user, programa=programa)).distinct()
-    return base.annotate(n_segmentos=Count("segmentos", distinct=True)).order_by("nombre")
+    # El filtro del manager no viaja en el join: los segmentos eliminados se excluyen acá.
+    return base.annotate(
+        n_segmentos=Count("segmentos", filter=Q(segmentos__eliminado_en__isnull=True), distinct=True)
+    ).order_by("nombre")
 
 
 def segmentos_para_gestion_territoriales(user):

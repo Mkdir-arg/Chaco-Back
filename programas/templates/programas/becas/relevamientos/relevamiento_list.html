@@ -115,6 +115,15 @@
               <a href="{% url 'becas:relevamiento_detalle' rel.pk %}" class="nodo-icon-btn" aria-label="Ver {{ rel.nombre }}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
               </a>
+              {% if puede_eliminar %}
+              <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Eliminar {{ rel.nombre }}"
+                      data-confirm-url="{% url 'becas:relevamiento_eliminar' rel.pk %}"
+                      data-confirm-title="¿Eliminar el relevamiento?"
+                      data-confirm-text="«{{ rel.nombre }}» deja de verse. Solo se puede eliminar si no tiene casos cargados."
+                      data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, eliminar">
+                <i class="fas fa-trash" aria-hidden="true"></i>
+              </button>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -240,6 +249,7 @@
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
 {% include "programas/becas/relevamientos/_cascada_localidad.html" %}
 {% include "programas/becas/relevamientos/_copiar_link_js.html" %}
+{% include "programas/becas/_confirm_js.html" %}
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}
 

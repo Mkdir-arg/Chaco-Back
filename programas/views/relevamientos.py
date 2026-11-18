@@ -48,6 +48,7 @@ from programas.services.autorizacion import (
     subsegmentos_visibles,
     usuarios_territoriales_becas,
 )
+from programas.services.eliminacion import CAP_RELEVAMIENTO_ELIMINAR
 from programas.services.exportacion_reportes import celda_segura
 from programas.services.listados import PaginadorConConteo, hidratar_pagina
 from programas.services.vencimientos import contar_cerrados_automaticamente
@@ -722,6 +723,9 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
             "fecha_desde": self.request.GET.get("fecha_desde", ""),
             "fecha_hasta": self.request.GET.get("fecha_hasta", ""),
         }
+        ctx["puede_eliminar"] = puede(
+            self.request.user, CAP_RELEVAMIENTO_ELIMINAR, programa=programa_becas(self.request.user)
+        )
         # Form + nombre autogenerado para el modal "Nuevo relevamiento".
         ctx["puede_publico"] = _puede_publico(self.request.user)
         form_crear = RelevamientoForm(

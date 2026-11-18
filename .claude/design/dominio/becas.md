@@ -464,6 +464,20 @@ superusuario y quien sí tiene segmentos. El texto nombra la acción según el r
 segmento; regional: «Referente asignado» del subsegmento; referente: «Coordinador del Referente» en el usuario, o
 segmentos para su coordinador). Es informativo: no cambia el alcance ni los 403.
 
+## Eliminar programa, segmento, convocatoria o relevamiento (baja lógica)
+
+Evidencia: `programas/templates/programas/becas/config/_programas_table.html`,
+`programas/templates/programas/becas/config/_segmentos_table.html`,
+`programas/templates/programas/becas/relevamientos/_convocatorias_table.html` y
+`programas/templates/programas/becas/relevamientos/relevamiento_list.html`. Sin piezas nuevas: es el mismo
+botón de tacho que «Eliminar subsegmento» (`_subsegmentos_panel.html`) —`nodo-icon-btn nodo-icon-btn--danger` +
+`fa-trash`, último de la columna de acciones— con la confirmación de `_confirm_js.html`
+(`data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, eliminar"`). El cuerpo dice qué
+arrastra la cascada y que con casos cargados no se elimina nada. El botón se dibuja solo con
+`becas.<nivel>.eliminar` (en relevamientos, el flag `puede_eliminar` de la vista); el bloqueo por casos lo
+avisa el toast de error después del POST, no se anticipa en la tabla. `relevamiento_list.html` incluye
+`_confirm_js.html` porque no carga `_ajax_js.html`.
+
 ## Territorial: buscar antes de crear, y segmentos múltiples
 
 Un territorial puede trabajar en varios segmentos (Cambio 355). El botón «Crear territorial» de los
