@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from core import rbac
 from programas.models import Convocatoria, Formulario, ProgramaSiis, Relevamiento, Segmento, Subsegmento
-from programas.services.autorizacion import programa_becas, segmentos_visibles
+from programas.services.autorizacion import programa_becas, puede_configurar_segmento
 
 CAP_PROGRAMA_ELIMINAR = "becas.programa.eliminar"
 CAP_SEGMENTO_ELIMINAR = "becas.segmento.eliminar"
@@ -39,73 +39,79 @@ def assert_puede_eliminar(user, capacidad):
 
 
 def assert_alcance_programa_completo(user, programa):
-    """Eliminar un programa arrastra **todos** sus segmentos: tienen que ser todos del usuario."""
-    fuera = Segmento.objects.filter(programa=programa).exclude(pk__in=segmentos_visibles(user).values("pk"))
-    if fuera.exists():
-        raise PermissionDenied("El programa tiene segmentos fuera de su alcance.")
+    """Eliminar un programa arrastra **todos** sus segmentos: el usuario tiene que poder
+    eliminar cada uno, con la misma regla que ``segmento_eliminar``.
+
+    ``segmentos_visibles`` no alcanza: para el Coordinador Regional incluye todo segmento
+    con **un** subsegmento suyo, y con eso eliminaba el programa —y lo de sus pares—
+    aunque no puede eliminar ninguno de sus segmentos (SEC-30).
+    """
+    for segmento in Segmento.objects.filter(programa=programa):
+        if not puede_configurar_segmento(user, segmento):
+            raise PermissionDenied("El programa tiene segmentos fuera de su alcance.")
 
 
-def _cascada(objeto):
-    """Querysets (no eliminados) de cada nivel que cuelga de ``objeto``, incluido él."""
-    if isinstance(objeto, ProgramaSiis):
-        segmentos = Segmento.objects.filter(programa=objeto)
-        convocatorias = Convocatoria.objects.filter(segmento__in=segmentos)
-    elif isinstance(objeto, Segmento):
-        segmentos = Segmento.objects.filter(pk=objeto.pk)
-        convocatorias = Convocatoria.objects.filter(segmento=objeto)
-    else:
-        segmentos = Segmento.objects.none()
-        convocatorias = (
-            Convocatoria.objects.filter(pk=objeto.pk)
-            if isinstance(objeto, Convocatoria)
-            else Convocatoria.objects.none()
-        )
-    if isinstance(objeto, Relevamiento):
-        relevamientos = Relevamiento.objects.filter(pk=objeto.pk)
-    else:
-        relevamientos = Relevamiento.objects.filter(convocatoria__in=convocatorias)
+def _ids_de_cascada(objeto):
+    """ids (no eliminados) de cada nivel que cuelga de ``objeto``, incluido él."""
+
+    def nivel(modelo, de_los_hijos):
+        if isinstance(objeto, modelo):
+            return [objeto.pk]
+        return list(de_los_hijos.values_list("pk", flat=True))
+
+    programas = nivel(ProgramaSiis, ProgramaSiis.objects.none())
+    segmentos = nivel(Segmento, Segmento.objects.filter(programa_id__in=programas))
+    convocatorias = nivel(Convocatoria, Convocatoria.objects.filter(segmento_id__in=segmentos))
+    relevamientos = nivel(Relevamiento, Relevamiento.objects.filter(convocatoria_id__in=convocatorias))
     return {
-        "programas": (
-            ProgramaSiis.objects.filter(pk=objeto.pk)
-            if isinstance(objeto, ProgramaSiis)
-            else ProgramaSiis.objects.none()
-        ),
+        "programas": programas,
         "segmentos": segmentos,
-        "subsegmentos": Subsegmento.objects.filter(segmento__in=segmentos),
+        "subsegmentos": list(Subsegmento.objects.filter(segmento_id__in=segmentos).values_list("pk", flat=True)),
         "convocatorias": convocatorias,
         "relevamientos": relevamientos,
     }
 
 
-def casos_en_cascada(objeto):
-    """Cuántos casos (``Formulario``) cuelgan de ``objeto`` y bloquean su eliminación."""
-    return Formulario.objects.filter(relevamiento__in=_cascada(objeto)["relevamientos"]).count()
+#: De abajo hacia arriba: el mismo orden de locks que el link público y el alta de oficio
+#: (relevamiento → convocatoria). El inverso abre un deadlock con una inscripción en curso.
+_ORDEN = (
+    ("relevamientos", Relevamiento),
+    ("convocatorias", Convocatoria),
+    ("subsegmentos", Subsegmento),
+    ("segmentos", Segmento),
+    ("programas", ProgramaSiis),
+)
 
 
 @transaction.atomic
 def eliminar(objeto, usuario):
     """Marca ``objeto`` y toda su cascada como eliminados. Devuelve cuántas filas marcó por nivel.
 
-    Los relevamientos se bloquean antes de contar casos: ``Formulario.save`` toma el
-    mismo lock al numerar, así que un caso que entra en paralelo espera y, al soltarse
-    el lock, ya no encuentra el relevamiento.
+    Los ids se resuelven primero (pocas filas, y sin ``IN`` anidados en el ``FOR UPDATE``)
+    y se bloquean de abajo hacia arriba. ``Formulario.save`` toma el lock del relevamiento
+    al numerar: un caso que entra en paralelo espera y, al soltarse, ya no lo encuentra.
+    Después de bloquear las convocatorias se vuelve a leer sus relevamientos, por si se
+    creó uno entre la lectura y el lock.
     """
-    modelo = type(objeto)
-    objeto = modelo.objects.select_for_update().get(pk=objeto.pk)
-    cascada = _cascada(objeto)
-    relevamientos_ids = list(cascada["relevamientos"].select_for_update().values_list("pk", flat=True))
-    casos = Formulario.objects.filter(relevamiento_id__in=relevamientos_ids).count()
+    ids = _ids_de_cascada(objeto)
+    if not type(objeto).objects.filter(pk=objeto.pk).exists():
+        raise type(objeto).DoesNotExist
+    for nivel, modelo in _ORDEN:
+        list(modelo.objects.select_for_update().filter(pk__in=ids[nivel]).values_list("pk", flat=True))
+    if not isinstance(objeto, Relevamiento):
+        ids["relevamientos"] = list(
+            Relevamiento.objects.select_for_update()
+            .filter(convocatoria_id__in=ids["convocatorias"])
+            .values_list("pk", flat=True)
+        )
+
+    casos = Formulario.objects.filter(relevamiento_id__in=ids["relevamientos"]).count()
     if casos:
         raise EliminacionBloqueada(casos)
 
     ahora = timezone.now()
     marca = {"eliminado_en": ahora, "eliminado_por": usuario, "modificado": ahora}
-    # De abajo hacia arriba: los filtros de cada nivel leen el de arriba todavía vivo.
-    marcados = {"relevamientos": Relevamiento.objects.filter(pk__in=relevamientos_ids).update(**marca)}
-    for nivel in ("convocatorias", "subsegmentos", "segmentos", "programas"):
-        ids = list(cascada[nivel].values_list("pk", flat=True))
-        marcados[nivel] = cascada[nivel].model.objects.filter(pk__in=ids).update(**marca)
-    return marcados
+    return {nivel: modelo.objects.filter(pk__in=ids[nivel]).update(**marca) for nivel, modelo in _ORDEN}
 
 
 def resumen_cascada(marcados):

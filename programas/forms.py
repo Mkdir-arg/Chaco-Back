@@ -496,6 +496,8 @@ class SegmentoForm(forms.ModelForm):
             )
             if duplicado.exists():
                 raise forms.ValidationError("Ya existe un segmento con ese nombre en este programa.")
+            if Segmento.nombre_de_eliminado(self.instance.programa_id, nombre, excluir_pk=self.instance.pk):
+                raise forms.ValidationError(Segmento.MENSAJE_NOMBRE_DE_ELIMINADO)
         return nombre
 
 
@@ -557,6 +559,8 @@ class SegmentoCreateForm(forms.ModelForm):
         programa, nombre = cleaned.get("programa"), cleaned.get("nombre")
         if programa and nombre and Segmento.objects.filter(programa=programa, nombre=nombre).exists():
             self.add_error("nombre", "Ya existe un segmento con ese nombre en este programa.")
+        elif programa and Segmento.nombre_de_eliminado(programa.pk, nombre):
+            self.add_error("nombre", Segmento.MENSAJE_NOMBRE_DE_ELIMINADO)
         return cleaned
 
 

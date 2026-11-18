@@ -11,8 +11,18 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
-from programas.management.commands.seed_becas import ROL_ADMIN
-from programas.models import Convocatoria, Formulario, ProgramaSiis, Relevamiento, Segmento, Subsegmento
+from programas.forms import SegmentoForm
+from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR_REGIONAL
+from programas.models import (
+    AsignacionTerritorial,
+    Convocatoria,
+    Formulario,
+    ProgramaSiis,
+    Relevamiento,
+    Segmento,
+    Subsegmento,
+)
+from programas.services.autorizacion import segmento_dueno_id
 from programas.services.eliminacion import (
     CAP_CONVOCATORIA_ELIMINAR,
     CAP_PROGRAMA_ELIMINAR,
@@ -43,6 +53,7 @@ class _Base(TestCase):
                 for c in CAPS_ELIMINAR
             )
         )
+        self.rol_eliminador = rol
         self.eliminador.groups.add(rol)
 
         self.programa = ProgramaSiis.objects.create(nombre="Programa Uno")
@@ -200,3 +211,53 @@ class BotonTests(_Base):
                 resp = self.client.get(reverse(listado))
                 detalle = reverse(f"becas:{attr}_detalle", args=[getattr(self, attr).pk])
                 self.assertNotContains(resp, detalle)
+
+
+class RevisionAuditoriaTests(_Base):
+    """Hallazgos de la auditoría del PR #1194."""
+
+    def test_regional_no_elimina_el_programa_si_no_puede_eliminar_sus_segmentos(self):
+        regional = User.objects.create_user("regional", password="x")
+        regional.groups.add(Group.objects.get(name=ROL_COORDINADOR_REGIONAL), self.rol_eliminador)
+        self.subsegmento.referente = regional
+        self.subsegmento.save()
+        self.client.force_login(regional)
+
+        resp = self.client.post(reverse("becas:programa_eliminar", args=[self.programa.pk]))
+
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Segmento.objects.filter(pk=self.segmento.pk).exists())
+
+    def test_renombrar_con_el_nombre_de_un_eliminado_es_error_de_formulario(self):
+        otro = Segmento.objects.create(programa=self.programa, nombre="Seg B", cupo_maximo=10)
+        eliminar(self.segmento, self.eliminador)
+        form = SegmentoForm(
+            data={"nombre": "Seg A", "descripcion": "", "cupo_maximo": 10, "requiere_gps": False, "activo": True},
+            instance=otro,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("nombre", form.errors)
+
+    def test_el_dueno_del_territorial_es_la_asignacion_viva_mas_antigua(self):
+        territorial = User.objects.create_user("terri", password="x")
+        vivo = Segmento.objects.create(programa=self.programa, nombre="Seg vivo", cupo_maximo=10)
+        AsignacionTerritorial.objects.create(segmento=self.segmento, territorial=territorial)
+        AsignacionTerritorial.objects.create(segmento=vivo, territorial=territorial)
+        self.assertEqual(segmento_dueno_id(territorial), self.segmento.pk)
+
+        eliminar(self.segmento, self.eliminador)
+
+        self.assertEqual(segmento_dueno_id(territorial), vivo.pk)
+
+    def test_subsegmento_protegido_por_convocatoria_eliminada_lo_dice(self):
+        conv = Convocatoria.objects.create(
+            nombre="Conv sub",
+            segmento=self.segmento,
+            subsegmento=self.subsegmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        eliminar(conv, self.eliminador)
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("becas:subsegmento_eliminar", args=[self.subsegmento.pk]), follow=True)
+        self.assertContains(resp, "lo usa una convocatoria eliminada")

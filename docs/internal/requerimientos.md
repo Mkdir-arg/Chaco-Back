@@ -57460,8 +57460,14 @@ capacidad en el rol pueden hacerlo y solo se ve el botón de borrar si tienen la
   relevamientos aunque no tenga `becas.convocatoria.eliminar`. Es lo que significa «en cascada».
 - **Alcance**: las capacidades se evalúan con el alcance del Programa Becas (SEC-06). Además, el segmento exige
   `puede_configurar_segmento` (el coordinador regional no elimina segmentos), la convocatoria
-  `convocatorias_visibles`, el relevamiento `assert_alcance_relevamiento`, y el programa exige que **todos** sus
-  segmentos estén en el alcance del usuario (si no, 403): eliminarlo arrastra segmentos de otros coordinadores.
+  `convocatorias_visibles`, el relevamiento `assert_alcance_relevamiento`, y el programa exige
+  `puede_configurar_segmento` sobre **cada uno** de sus segmentos (si no, 403): eliminarlo arrastra segmentos de
+  otros coordinadores, y `segmentos_visibles` no alcanza porque para el coordinador regional incluye el segmento de
+  un subsegmento suyo.
+- **El segmento dueño de un territorial es la asignación viva más antigua**: un segmento eliminado deja de serlo
+  (`segmento_dueno_id`, sus versiones en lote y el aviso del ABM de Usuarios).
+- **Un subsegmento protegido por una convocatoria eliminada** sigue sin poder borrarse (la fila existe), y el
+  mensaje lo dice: «lo usa una convocatoria eliminada».
 - **Ocultamiento por manager por defecto** (`EliminableMixin`): `objects` excluye lo eliminado y `todos` lo ve.
   Así desaparece de todas las pantallas, la API de campo, el link público del portal y los procesos sin tocar
   cada consulta, y los detalles responden 404. El filtro no viaja en los joins: se corrigieron a mano los
@@ -57469,7 +57475,9 @@ capacidad en el rol pueden hacerlo y solo se ve el botón de borrar si tienen la
 - **Unicidad con filas eliminadas**: el número de relevamiento sigue ocupado (`proximo_numero` usa `todos`); un
   segmento nuevo no puede repetir el nombre de uno eliminado del mismo programa, y un programa SIIS vinculado a un
   programa eliminado no se puede volver a vincular (la columna es UNIQUE). Ambos casos dan error de formulario,
-  no 500.
+  no 500, también al **renombrar** un segmento (`Segmento.nombre_de_eliminado`, única fuente de la regla).
+- **Locks de abajo hacia arriba** (relevamientos → convocatorias → subsegmentos → segmentos → programa), el mismo
+  orden que el link público y el alta de oficio, para no abrir un deadlock con una inscripción en curso.
 
 ## Implementación
 
@@ -57499,7 +57507,7 @@ existentes y con el código viejo. `users.0049`: declara las capacidades y se la
 
 ## Validación
 
-- `programas.tests.test_becas_eliminacion` (16 tests): cascada por nivel, bloqueo por casos sin marcar nada,
+- `programas.tests.test_becas_eliminacion` (20 tests): cascada por nivel, bloqueo por casos sin marcar nada,
   numeración y nombre con filas eliminadas, conteo de segmentos, 302 sin login, 403 sin capacidad, 405 por GET,
   404 en el detalle de lo eliminado, botón visible solo con la capacidad y listados sin lo eliminado.
 - `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `design_audit.py --ratchet` (0 nuevos),
@@ -57517,6 +57525,9 @@ No requiere. Para que alguien elimine hay que tildarle la capacidad en Roles.
 
 - Restaurar lo eliminado (hoy solo por base: `eliminado_en = NULL` en el elemento y su cascada).
 - Botón de eliminar en las pantallas de detalle, si se pide.
+- DECISIÓN CLIENTE (auditoría del PR #1194): un relevamiento `EN_CURSO` sin casos en el servidor se puede
+  eliminar aunque la app tenga capturas offline sin sincronizar; al sincronizar recibe 404. Propuesta por
+  defecto: bloquear también los relevamientos `EN_CURSO`/`FINALIZANDO`. No se cambió sin confirmación.
 
 ## Reversión
 
@@ -57526,3 +57537,6 @@ Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita l
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1194 (CHANGES NEEDED): el programa exige poder eliminar cada segmento
+  (el regional lo eliminaba entero), el renombre de segmento con nombre eliminado daba 500, el dueño del territorial
+  ignora segmentos eliminados, orden de locks invertido y mensaje del subsegmento protegido.

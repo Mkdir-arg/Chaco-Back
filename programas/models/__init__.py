@@ -2778,23 +2778,33 @@ class Segmento(EliminableMixin, PausableMixin, TimeStamped):
     def __str__(self):
         return self.nombre
 
-    def validate_constraints(self, exclude=None):
-        """``uniq_segmento_programa_nombre`` también cuenta los segmentos eliminados.
+    MENSAJE_NOMBRE_DE_ELIMINADO = "Ya hay un segmento eliminado con este nombre en el programa. Usá otro nombre."
 
-        Django valida la constraint con el manager por defecto, que no ve lo eliminado:
-        sin esto el alta pasaba la validación y moría en un ``IntegrityError`` (500).
+    @classmethod
+    def nombre_de_eliminado(cls, programa_id, nombre, excluir_pk=None):
+        """¿``nombre`` lo ocupa un segmento **eliminado** del programa?
+
+        ``uniq_segmento_programa_nombre`` cuenta también las filas eliminadas, que el
+        manager por defecto no ve: sin esta pregunta el alta o el renombre pasaban la
+        validación y morían en un ``IntegrityError`` (500). Única fuente de la regla: la
+        usan ``validate_constraints`` y los dos forms de segmento.
         """
-        super().validate_constraints(exclude=exclude)
-        if exclude and {"programa", "nombre"} & set(exclude):
-            return
-        if (
-            Segmento.todos.filter(programa_id=self.programa_id, nombre=self.nombre, eliminado_en__isnull=False)
-            .exclude(pk=self.pk)
+        if not programa_id or not nombre:
+            return False
+        return (
+            cls.todos.filter(programa_id=programa_id, nombre=nombre, eliminado_en__isnull=False)
+            .exclude(pk=excluir_pk)
             .exists()
-        ):
-            raise ValidationError(
-                {"nombre": "Ya hay un segmento eliminado con este nombre en el programa. Usá otro nombre."}
-            )
+        )
+
+    def validate_constraints(self, exclude=None):
+        super().validate_constraints(exclude=exclude)
+        if exclude and "nombre" in exclude:
+            return
+        # ``programa`` puede venir en ``exclude`` (el form de edición no lo trae) y la
+        # instancia igual lo tiene: se mira la instancia, no el form.
+        if self.nombre_de_eliminado(self.programa_id, self.nombre, excluir_pk=self.pk):
+            raise ValidationError({"nombre": self.MENSAJE_NOMBRE_DE_ELIMINADO})
 
     def clean(self):
         super().clean()
