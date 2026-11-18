@@ -310,6 +310,8 @@ def ficha_de_edificio(user, edificio, pagina=1):
         .exclude(estado=InspeccionEdificio.Estado.CANCELADA)
         .select_related("edificio", "asignado_a", "realizada_por", "revisado_por"),
         pagina,
+        # El informe vuelve a esta ficha (Cambio 487).
+        sufijo_enlace=f"?edificio={edificio.pk}",
     )
 
     return {

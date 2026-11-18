@@ -189,3 +189,48 @@ class PresupuestoTests(BaseFicha):
         self.assertEqual((eventos_antes, eventos_despues), (1, 7))
         self.assertEqual(antes, despues)
         self.assertLessEqual(despues, techo["consultas_fijas"])
+
+
+class VolverDelInformeTests(BaseFicha):
+    """Cambio 487: el informe abierto desde la ficha del edificio vuelve a la ficha."""
+
+    def setUp(self):
+        super().setUp()
+        self.inspeccion = self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",))
+        self.informe = reverse("dispositivos:relevamiento_informe", args=[self.inspeccion.pk])
+
+    def test_el_registro_de_la_ficha_enlaza_al_informe_con_el_edificio(self):
+        _respuesta, ficha = self._ficha(self.admin, self.predio)
+
+        self.assertEqual(ficha["eventos"][0]["enlace"], f"{self.informe}?edificio={self.predio.pk}")
+
+    def test_el_informe_vuelve_a_la_ficha_del_edificio(self):
+        respuesta = self._cliente(self.admin).get(self.informe, {"edificio": self.predio.pk})
+
+        self.assertEqual(respuesta.context["volver_url"], _url(self.predio))
+        self.assertEqual(respuesta.context["volver_label"], "Predio Resistencia")
+
+    def test_revisado_vuelve_al_informe_conservando_el_edificio(self):
+        respuesta = self._cliente(self.admin).get(self.informe, {"edificio": self.predio.pk})
+
+        self.assertIn(f"edificio={self.predio.pk}", respuesta.context["url_revisar"])
+        self.assertIn("origen=informe", respuesta.context["url_revisar"])
+
+    def test_sin_edificio_ver_el_edificio_de_la_url_no_arma_el_volver(self):
+        """El coordinador ve el relevamiento pero no la sección Edificios: vuelve a Relevamientos."""
+
+        respuesta = self._cliente(self.coordinador).get(self.informe, {"edificio": self.predio.pk})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context["volver_url"].startswith(reverse("dispositivos:relevamientos")))
+
+    def test_un_edificio_que_no_ve_no_arma_el_volver(self):
+        respuesta = self._cliente(self.admin).get(self.informe, {"edificio": 99999})
+
+        self.assertNotEqual(respuesta.context["volver_url"], _url(self.predio))
+        self.assertNotIn("edificios/99999", respuesta.context["volver_url"])
+
+    def test_un_id_que_no_es_decimal_ascii_no_rompe_el_volver(self):
+        respuesta = self._cliente(self.admin).get(self.informe, {"edificio": "²"})
+
+        self.assertEqual(respuesta.status_code, 200)

@@ -47,6 +47,7 @@ from programas.forms_dispositivos import (
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, InspeccionEdificio
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
+from programas.selectors.edificios import SITUACION_TODOS, edificios_visibles
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import (
     CAP_VER,
@@ -85,6 +86,10 @@ from programas.views.ajax_utils import ajax_redirect, is_ajax
 #: Parámetros que abren un modal: no son filtros ni se conservan al paginar.
 PARAMETROS_DE_MODAL = ("nuevo", "asignar", "reasignar", "cancelar")
 PARAMETRO_VOLVER = "volver"
+#: Lo que el informe recuerda de dónde se entró, para volver ahí y para que «Revisado» vuelva al informe con lo mismo:
+#: el listado de P21 (`volver`), la solapa Infraestructura de una institución (`dispositivo`) o la ficha del
+#: edificio de la sección Edificios (`edificio`, Cambio 487).
+PARAMETROS_DE_ORIGEN = (PARAMETRO_VOLVER, "dispositivo", "edificio")
 #: Lo que se conserva al elegir el edificio de «Nuevo relevamiento»: la solapa y los filtros.
 PARAMETROS_DE_VISTA = ("tab", "estado", "asignado_a")
 
@@ -563,7 +568,7 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
         context.update(informe_de_relevamiento(user, relevamiento))
         context.update({"volver_url": volver_url, "volver_label": volver_label})
         context["url_revisar"] = reverse("dispositivos:relevamiento_revisar", args=[relevamiento.pk])
-        origen = {k: self.request.GET[k] for k in (PARAMETRO_VOLVER, "dispositivo") if self.request.GET.get(k)}
+        origen = {k: self.request.GET[k] for k in PARAMETROS_DE_ORIGEN if self.request.GET.get(k)}
         if origen:
             context["url_revisar"] += "?" + urlencode({"origen": "informe", **origen})
         return context
@@ -572,7 +577,7 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
     def _volver(user, params):
         """A dónde vuelve el botón: de donde se entró, y nunca a una pantalla que daría 403.
 
-        Las dos URL se arman con `reverse` y el querystring del listado se **rearma** con
+        Las URL se arman con `reverse` y el querystring del listado se **rearma** con
         `_url_lista`: lo que llega por la URL no se copia crudo a un `Location`.
         """
 
@@ -582,6 +587,12 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
             if dispositivo is not None and puede_operar_dispositivo(user, dispositivo, CAP_VER):
                 url = reverse("dispositivos:detalle", args=[dispositivo.pk])
                 return f"{url}?tab=infraestructura", dispositivo.nombre
+        pk = _entero(params.get("edificio"))
+        if pk is not None:
+            # La misma regla que abre la ficha: sin `edificio.ver` o fuera de alcance no hay edificio y se sigue de largo.
+            edificio = edificios_visibles(user, situacion=SITUACION_TODOS).filter(pk=pk).only("id", "nombre").first()
+            if edificio is not None:
+                return reverse("dispositivos:edificio_detalle", args=[edificio.pk]), edificio.nombre
         if puede_en_programa_dispositivos(user, CAP_ASIGNAR):
             return _url_lista(params.get(PARAMETRO_VOLVER, "")), "Relevamientos"
         return reverse("dispositivos:lista"), "Dispositivos"
@@ -639,7 +650,7 @@ class RelevamientoRevisarView(_RelevamientoAccionView):
 
     def _volver(self):
         if self.request.GET.get("origen") == "informe":
-            origen = {k: self.request.GET[k] for k in (PARAMETRO_VOLVER, "dispositivo") if self.request.GET.get(k)}
+            origen = {k: self.request.GET[k] for k in PARAMETROS_DE_ORIGEN if self.request.GET.get(k)}
             url = reverse("dispositivos:relevamiento_informe", args=[self.kwargs["pk"]])
             return url + ("?" + urlencode(origen) if origen else "")
         if self.request.GET.get(PARAMETRO_VOLVER):
