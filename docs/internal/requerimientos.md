@@ -605,7 +605,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 480 | Constructor de formularios: campo «Firma» (trazo, nombre y DNI de quien firma) en Becas, Dispositivos, relevamientos y la app | Transversal · constructor de formularios | `#datos` `#ui` `#mobile` `#api` | Usuario — «agregar un campo del tipo firma a los módulos de crear formulario» | 17/11/2026 | 🟡 **En curso** | `programas.0123` |
 | 481 | Emergencia: la consulta de identidad busca también en los legajos | Dispositivos · Emergencia (app) | `#api` `#datos` | Usuario (PM) — la consulta de DNI de la app debe encontrar a quien ya tiene legajo | 17/11/2026 | 🟡 **En curso** | No requiere |
 | 482 | Emergencia: el total de «Personas que ingresan juntas» suma al responsable | Emergencia (app de campo, mesa y puerta del dispositivo) | `#api` `#datos` `#ui` | Usuario (PM) — al cargar 1 persona la app decía «1 persona» sin contar al responsable | 18/11/2026 | 🟡 **En curso** | `programas.0124` |
-| 483 | Mapa con Google Maps y domicilio → coordenadas (fase 1: base común) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048` |
+| 483 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2 en Dispositivo) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0048` |
 
 **Notas del índice**
 
@@ -56889,7 +56889,7 @@ la marca guardan el total con el responsable sumado, que el código viejo muestr
 
 # Cambio 483 — Mapa con Google Maps y domicilio → coordenadas
 
-🟡 **EN CURSO — fase 1 de 4 hecha el 18/11/2026**
+🟡 **EN CURSO — fases 1 y 2 (Dispositivo) hechas el 18/11/2026**
 
 | | |
 |---|---|
@@ -56957,6 +56957,19 @@ Fase 1. No hay nada visible todavía: queda la infraestructura que usan las fase
 - Guía operativa `docs/mapa.md`: crear y restringir la key, el Map ID y su estilo, variables, CSP,
   permisos y costos.
 
+Fase 2, en Dispositivo (alta y edición del legajo), con el diseño aprobado en el mockup:
+
+- Pieza `components/_ubicacion_domicilio.html` + `nodo-ubicacion.js` + `nodo-ubicacion.css`. El operador
+  escribe el domicilio y toca «Ubicar en el mapa» (o Enter): Google busca «domicilio, localidad, Chaco,
+  Argentina», restringido a Argentina. Un resultado pone el marcador; varios se eligen de una lista; ninguno
+  muestra un aviso y el punto se marca tocando el mapa.
+- El marcador se arrastra y un clic en el mapa lo mueve. Latitud y longitud son los campos reales del form y se
+  completan con 6 decimales; «Cargar coordenadas a mano» los abre y escribir en ellos mueve el marcador.
+- Un badge dice el estado (Sin ubicar, Con ubicación, Ubicado con Google, Ajustado a mano, Elegí una opción,
+  El domicilio cambió, No encontrado). Si cambia el domicilio, las coordenadas no se borran: el badge avisa.
+- Sin JS, sin key, con la key rechazada o si falla la búsqueda, quedan domicilio, latitud y longitud a mano,
+  como antes, con una alerta.
+
 ## Archivos
 
 `config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
@@ -56964,6 +56977,12 @@ Fase 1. No hay nada visible todavía: queda la infraestructura que usan las fase
 `users/migrations/0048_capacidades_mapa.py`, `.env.qa.example`, `.env.local.example`, `docs/mapa.md`,
 `.claude/agents/chaco-design-system.md`, `.claude/design/componentes/mapa_google.md`,
 `core/tests/test_google_maps.py`, `core/tests/test_nodo_ui_piezas.py`, `users/tests/test_rbac_contrato.py`.
+
+Fase 2: `templates/components/_ubicacion_domicilio.html`, `static/custom/js/nodo-ubicacion.js`,
+`static/custom/css/nodo-ubicacion.css`, `programas/templates/programas/dispositivos/legajo/form.html`,
+`.claude/agents/chaco-design-system.md`, `.claude/design/componentes/ubicacion_domicilio.md`,
+`.claude/design/arquetipos/formulario.md`, `core/tests/test_nodo_ui_piezas.py` (`UbicacionDomicilioTest`),
+`programas/tests/test_dispositivos_ubicacion_mapa.py`.
 
 ## Base de datos
 
@@ -56979,6 +56998,11 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   en la máquina de desarrollo (`test_sql_motor_real` y afines); ninguna nueva.
 - `design_audit.py --ratchet`: 0 nuevos. `compile_templates.py --bloques`: 0. `check_design_agent.py`: OK.
 - Sin verificar: la carga real del mapa, que necesita una key válida.
+- Fase 2: `UbicacionDomicilioTest` y `test_dispositivos_ubicacion_mapa` OK; la suite de Dispositivos, `core` y
+  `portal` sin fallas nuevas (las que fallan son las que necesitan `mysqlclient`). Además, una prueba de punta a
+  punta con Playwright sobre la pantalla real de alta, con Google Maps reemplazado por un doble: 26 de 26
+  escenarios (búsqueda, coincidencias, sin resultados, arrastre, clic, carga a mano, sin key, key rechazada,
+  error de Google, edición con punto guardado). `design_audit.py --ratchet` y `--goldens`: 0.
 
 ## Puesta en marcha en el servidor
 
@@ -56987,7 +57011,9 @@ Sin ellas no cambia nada.
 
 ## Pendientes / a definir
 
-- Fases 2, 3 y 4.
+- Fase 2 en Ciudadano (con migración de latitud y longitud) y en Caso de Emergencia; fases 3 y 4.
+- Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
+  cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
 - `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
 - La ficha de `components/_ubicacion.html` prohíbe mapas y orígenes en la CSP: se actualiza en la fase 4.
 
@@ -56999,5 +57025,6 @@ dos capacidades del Administrador.
 ## Historial
 
 - **18/11/2026:** alta del cambio con la fase 1.
+- **18/11/2026:** fase 2 en Dispositivo, después de aprobar el mockup sobre la pantalla real.
 
 ---

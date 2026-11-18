@@ -2,7 +2,7 @@
 {% load nodo_ui static %}
 {% block title %}Dispositivos · {% if form.instance.pk %}Editar institución{% else %}Nueva institución{% endif %}{% endblock %}
 
-{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}"><link rel="stylesheet" href="{% static 'custom/css/nodo-ubicacion.css' %}">{% endblock %}
 
 {% block main-content %}
 <div class="space-y-5">
@@ -34,7 +34,8 @@
     <div class="border-t border-light mt-5 pt-4">
       <h2 class="text-heading font-bold mb-4">Ubicación</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {% for field in form %}{% if field.name == 'localidad' or field.name == 'domicilio' or field.name == 'latitud' or field.name == 'longitud' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
+        {% include "components/_field.html" with field=form.localidad wrapper_class="" %}
+        {% include "components/_ubicacion_domicilio.html" with domicilio=form.domicilio latitud=form.latitud longitud=form.longitud localidad_id=form.localidad.id_for_label %}
       </div>
     </div>
     {% if form.responsables %}
@@ -165,6 +166,8 @@
 {% endblock %}
 
 {% block customJS %}
+{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-ubicacion.js' %}"></script>
 <script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 <script>
 (function () {

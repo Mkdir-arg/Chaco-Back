@@ -946,6 +946,72 @@ class GoogleMapsCargadorTest(SimpleTestCase):
         self.assertEqual(self.config(html)["key"], "</script><script>alert(1)</script>")
 
 
+class UbicacionDomicilioTest(SimpleTestCase):
+    """``components/_ubicacion_domicilio.html``: mejora progresiva sobre los campos reales del form."""
+
+    TEMPLATE = "components/_ubicacion_domicilio.html"
+
+    class Form(forms.Form):
+        localidad = forms.CharField(required=False)
+        domicilio = forms.CharField(required=False, label="Domicilio")
+        latitud = forms.DecimalField(required=False, max_digits=9, decimal_places=6, label="Latitud")
+        longitud = forms.DecimalField(required=False, max_digits=9, decimal_places=6, label="Longitud")
+
+    def render(self, form, **extra):
+        return render_to_string(
+            self.TEMPLATE,
+            {
+                "domicilio": form["domicilio"],
+                "latitud": form["latitud"],
+                "longitud": form["longitud"],
+                "localidad_id": form["localidad"].id_for_label,
+                **extra,
+            },
+        )
+
+    def test_sin_js_quedan_los_tres_campos_a_mano(self):
+        html = self.render(self.Form(initial={"latitud": "-27.451198", "longitud": "-58.986695"}))
+
+        for nombre in ("domicilio", "latitud", "longitud"):
+            self.assertIn(f'name="{nombre}"', html)
+        self.assertIn('value="-27.451198"', html)
+        # Lo que necesita JS arranca oculto; los campos manuales, visibles.
+        self.assertRegex(html, r"<button[^>]*data-ubicacion-buscar hidden")
+        self.assertRegex(html, r"data-ubicacion-marco hidden")
+        self.assertNotRegex(html, r"data-ubicacion-manual hidden")
+        self.assertNotIn("googleapis.com", html)
+
+    def test_cablea_los_ids_de_los_campos_y_la_localidad(self):
+        html = self.render(self.Form(), provincia="Corrientes")
+
+        for atributo in (
+            'data-domicilio="id_domicilio"',
+            'data-latitud="id_latitud"',
+            'data-longitud="id_longitud"',
+            'data-localidad="id_localidad"',
+            'data-provincia="Corrientes"',
+        ):
+            self.assertIn(atributo, html)
+        self.assertIn('class="sm:col-span-2 nodo-ubicacion"', html)
+
+    def test_trae_las_tres_alertas_canonicas_para_el_js(self):
+        html = self.render(self.Form())
+
+        for clave in ("no-encontrado", "sin-mapa", "error"):
+            self.assertIn(f'data-ubicacion-alerta="{clave}"', html)
+        self.assertIn("No encontramos ese domicilio.", html)
+
+    def test_con_error_en_las_coordenadas_los_campos_manuales_quedan_abiertos(self):
+        form = self.Form(data={"latitud": "no-es-numero", "longitud": ""})
+        form.is_valid()
+
+        html = self.render(form)
+
+        self.assertIn("data-manual-abierto", html)
+        self.assertIn('aria-invalid="true"', html)
+        self.assertNotIn("data-manual-abierto", self.render(self.Form()))
+
+
 class LineaTiempoTest(SimpleTestCase):
     def test_dibuja_cada_evento_con_su_cuando_y_su_titulo(self):
         eventos = [
