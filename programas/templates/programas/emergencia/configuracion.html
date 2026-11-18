@@ -28,7 +28,7 @@
     </div>
     <div class="border-t border-light pt-4">
       <h2 class="text-heading font-bold">Catálogo de kits</h2>
-      <p class="mt-1 mb-4 text-xs text-body-subtle">Lo que la mesa puede enviar a un dispositivo. Un ítem no se borra: se desactiva, y deja de ofrecerse en las entregas nuevas sin desaparecer de las anteriores.</p>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Lo que la mesa puede enviar a un dispositivo. Un ítem no se borra: se desactiva, y deja de ofrecerse en las entregas nuevas sin desaparecer de las anteriores. La regla de consumo es con lo que el tablero estima qué le falta a cada dispositivo; sin regla, el ítem no se calcula.</p>
       {{ kits.management_form }}
       {% for fila in kits.filas_existentes %}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4{% if not forloop.first %} border-t border-light pt-4{% endif %}">

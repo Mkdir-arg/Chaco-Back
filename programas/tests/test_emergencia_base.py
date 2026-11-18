@@ -345,7 +345,7 @@ class AccesoE7Tests(BaseE7):
         form = respuesta.context["form"]
         self.assertEqual(
             [form[campo].value() for campo in servicio.CAMPOS_SLA],
-            ["Emergencia", 15, 30, 120, 60, 720, 60, 80],
+            ["Emergencia", 15, 30, 120, 60, 720, 60, 80, None],
         )
         self.assertContains(respuesta, "Catálogo de kits")
         self.assertContains(respuesta, "csrfmiddlewaretoken")
@@ -583,7 +583,7 @@ class ServicioConfiguracionTests(BaseEmergencia):
         SLAEmergencia.objects.all().delete()
         sla = servicio.sla_vigente()
         self.assertEqual(
-            [getattr(sla, campo) for campo in servicio.CAMPOS_SLA], ["Emergencia", 15, 30, 120, 60, 720, 60, 80]
+            [getattr(sla, campo) for campo in servicio.CAMPOS_SLA], ["Emergencia", 15, 30, 120, 60, 720, 60, 80, None]
         )
         self.assertEqual(servicio.sla_vigente().pk, sla.pk)
         self.assertEqual(SLAEmergencia.objects.count(), 1)
@@ -770,7 +770,7 @@ class SeedEmergenciaTests(TestCase):
             self.assertEqual(getattr(programa, campo), valor, campo)
         sla = SLAEmergencia.objects.get(programa=programa)
         self.assertEqual(
-            [getattr(sla, campo) for campo in servicio.CAMPOS_SLA], ["Emergencia", 15, 30, 120, 60, 720, 60, 80]
+            [getattr(sla, campo) for campo in servicio.CAMPOS_SLA], ["Emergencia", 15, 30, 120, 60, 720, 60, 80, None]
         )
         self.assertIn("✓", salida)
 
