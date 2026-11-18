@@ -57326,7 +57326,7 @@ Nada.
 ## Pendientes / a definir
 
 - El ítem del sidebar (#1169).
-- Que el «Volver» del informe regrese a la ficha del edificio (hoy vuelve a Relevamientos o Dispositivos).
+- ~~Que el «Volver» del informe regrese a la ficha del edificio~~: resuelto el 18/11/2026 (ver Historial).
 
 ## Reversión
 
@@ -57341,6 +57341,13 @@ Revertir el commit; no hay datos ni migración.
   (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; la
   segunda ronda encontró la salida: el estilo activo ya lo pone `aria-current` (CSS de `sidebar/base.html`), así que
   la condición puede quedar escrita una sola vez. Va al próximo PR, con captura antes/después.
+- **18/11/2026:** el «Volver» del informe abierto desde la ficha del edificio regresa a la ficha. El registro de la
+  ficha enlaza al informe con `?edificio=<pk>` (`registro_de_relevamientos(..., sufijo_enlace=...)`), y
+  `RelevamientoInformeView._volver` lo acepta solo si el edificio está en `edificios_visibles(user, «todos»)`, la
+  misma regla que abre la ficha: sin `edificio.ver` o fuera de alcance se sigue de largo a Relevamientos o
+  Dispositivos, como antes (nunca a una pantalla que daría 403 o 404). «Revisado» conserva el origen
+  (`PARAMETROS_DE_ORIGEN` suma `edificio`). 6 tests nuevos en `test_dispositivos_edificios_ficha.py`; mutación
+  (aceptar cualquier edificio de la URL) deja 1 en rojo.
 
 ---
 
