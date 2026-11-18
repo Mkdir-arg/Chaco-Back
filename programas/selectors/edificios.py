@@ -18,22 +18,18 @@ El estado edilicio es el de la tarjeta de Infraestructura (Cambio 439): la criti
 listado pagina la red entera.
 """
 
-from collections import defaultdict
-
-from django.core.paginator import Paginator
-from django.db.models import Count, Exists, F, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Edificio, FotoInspeccion, InspeccionEdificio, Sector
+from programas.models import Edificio, InspeccionEdificio, Sector
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.detalle_dispositivo import (
     ESTADOS_EDILICIOS,
-    POR_PAGINA_RELEVAMIENTOS,
     aviso_de_vencimiento,
     estado_edilicio,
-    evento_de_relevamiento,
+    registro_de_relevamientos,
 )
 from programas.services.dispositivos import (
     CAP_VER_EDIFICIOS,
@@ -42,7 +38,6 @@ from programas.services.dispositivos import (
     puede_configurar_dispositivos,
 )
 from programas.services.inspecciones import (
-    edificios_con_asignacion_visible,
     edificios_en_alcance,
     edificios_para_asignar,
     inspecciones_visibles,
@@ -308,36 +303,14 @@ def ficha_de_edificio(user, edificio, pagina=1):
         for pk, lista in sorted(sectores_por_institucion.items(), key=lambda par: nombres[par[0]].lower())
     ]
 
-    # El registro: los relevamientos del edificio que el usuario puede abrir, sin los cancelados (no dejaron
-    # resultado). El en curso va primero, porque todavía no tiene fecha.
-    consulta = (
-        InspeccionEdificio.objects.filter(edificio=edificio, pk__in=visibles.values("pk"))
+    # El registro: el mismo que la ficha de Infraestructura, con la misma regla de alcance (Cambio 422).
+    relevamientos, eventos = registro_de_relevamientos(
+        user,
+        InspeccionEdificio.objects.filter(edificio=edificio)
         .exclude(estado=InspeccionEdificio.Estado.CANCELADA)
-        .select_related("edificio", "asignado_a", "realizada_por", "revisado_por")
-        .annotate(n_fotos=Count("fotos"))
-        .order_by(F("realizada_en").desc(nulls_first=True), "-creado", "-pk")
+        .select_related("edificio", "asignado_a", "realizada_por", "revisado_por"),
+        pagina,
     )
-    relevamientos = Paginator(consulta, POR_PAGINA_RELEVAMIENTOS).get_page(pagina)
-    fotos_por_inspeccion = defaultdict(list)
-    ids = [inspeccion.pk for inspeccion in relevamientos]
-    if ids:
-        for foto in (
-            FotoInspeccion.objects.filter(inspeccion_id__in=ids)
-            .only("id", "inspeccion_id", "archivo", "descripcion", "creado")
-            .order_by("inspeccion_id", "creado", "pk")
-        ):
-            fotos_por_inspeccion[foto.inspeccion_id].append(foto)
-    en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != InspeccionEdificio.Estado.REALIZADA]
-    coordinados = edificios_con_asignacion_visible(user, [edificio.pk]) if en_curso else set()
-    eventos = [
-        evento_de_relevamiento(
-            inspeccion,
-            fotos_por_inspeccion.get(inspeccion.pk, []),
-            ve_asignacion=inspeccion.asignado_a_id == user.pk or inspeccion.edificio_id in coordinados,
-            enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]),
-        )
-        for inspeccion in relevamientos
-    ]
 
     return {
         **_base_de_fila(edificio, ultima, instituciones, hoy=hoy, asignable=asignable),

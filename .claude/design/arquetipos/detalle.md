@@ -218,6 +218,9 @@ El estado edilicio de cada edificio (clave del filtro, rótulo y tono del semáf
 N días») sale de `clave_estado_edilicio` y `aviso_de_vencimiento` de `programas/services/detalle_dispositivo.py`, las
 mismas que usa el listado de la sección Edificios (`programas/selectors/edificios.py`): una sola definición para la
 tarjeta, la ficha y la fila.
+El registro fotográfico (página de relevamientos, fotos y quién ve la asignación) sale de
+`registro_de_relevamientos` del mismo servicio: la ficha de Infraestructura y la ficha propia del edificio
+muestran el mismo registro del mismo edificio.
 
 ## Prohibido
 

@@ -57227,6 +57227,11 @@ Revertir el commit; no hay datos ni migración.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** auditoría del PR #1192 (MAJOR): el registro fotográfico de la ficha copiaba la orquestación de
+  `infraestructura_del_dispositivo`. Ahora las dos usan `registro_de_relevamientos` (`detalle_dispositivo.py`): misma
+  salida y mismas consultas, y el mismo edificio muestra el mismo registro en las dos fichas. El MINOR del sidebar
+  (condición de «Instituciones» repetida tres veces) no se resuelve con `{% with %}`, que no evalúa booleanos; queda
+  para cuando el sidebar reciba sus estados armados desde un context processor.
 
 ---
 
