@@ -57452,6 +57452,10 @@ capacidad en el rol pueden hacerlo y solo se ve el botón de borrar si tienen la
   casos descuadraría el cupo, la lista de espera y lo ya informado a SIIS; dejarlos visibles colgando de una
   convocatoria invisible tampoco sirve. Por eso los listados de casos, el cupo, los reportes y el dashboard no
   necesitan filtrar nada: debajo de lo eliminado no hay casos.
+- **Tampoco se elimina nada con relevamientos en campo** (`EN_CURSO` o `FINALIZANDO`; decisión del usuario,
+  18/11/2026, a partir de la auditoría del PR #1194): la app puede tener capturas offline sin sincronizar, que al
+  subir encontrarían el relevamiento eliminado (404). El mensaje dice cuántos casos y cuántos relevamientos en
+  curso frenan la operación.
 - **Cuatro capacidades nuevas**: `becas.programa.eliminar`, `becas.segmento.eliminar`,
   `becas.convocatoria.eliminar`, `becas.relevamiento.eliminar`. Son opt-in (`CAPACIDADES_OPT_IN` de
   `seed_becas`): ningún rol de Becas las recibe por seed y el arranque conserva el tilde manual (decisión del
@@ -57507,7 +57511,7 @@ existentes y con el código viejo. `users.0049`: declara las capacidades y se la
 
 ## Validación
 
-- `programas.tests.test_becas_eliminacion` (20 tests): cascada por nivel, bloqueo por casos sin marcar nada,
+- `programas.tests.test_becas_eliminacion` (23 tests): cascada por nivel, bloqueo por casos sin marcar nada,
   numeración y nombre con filas eliminadas, conteo de segmentos, 302 sin login, 403 sin capacidad, 405 por GET,
   404 en el detalle de lo eliminado, botón visible solo con la capacidad y listados sin lo eliminado.
 - `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `design_audit.py --ratchet` (0 nuevos),
@@ -57525,9 +57529,6 @@ No requiere. Para que alguien elimine hay que tildarle la capacidad en Roles.
 
 - Restaurar lo eliminado (hoy solo por base: `eliminado_en = NULL` en el elemento y su cascada).
 - Botón de eliminar en las pantallas de detalle, si se pide.
-- DECISIÓN CLIENTE (auditoría del PR #1194): un relevamiento `EN_CURSO` sin casos en el servidor se puede
-  eliminar aunque la app tenga capturas offline sin sincronizar; al sincronizar recibe 404. Propuesta por
-  defecto: bloquear también los relevamientos `EN_CURSO`/`FINALIZANDO`. No se cambió sin confirmación.
 
 ## Reversión
 
@@ -57540,3 +57541,5 @@ Desaplicar `programas.0125` borra la marca de eliminación; `users.0049` quita l
 - **18/11/2026:** auditoría del PR #1194 (CHANGES NEEDED): el programa exige poder eliminar cada segmento
   (el regional lo eliminaba entero), el renombre de segmento con nombre eliminado daba 500, el dueño del territorial
   ignora segmentos eliminados, orden de locks invertido y mensaje del subsegmento protegido.
+- **18/11/2026:** el usuario confirma bloquear también los relevamientos en curso (`EN_CURSO`/`FINALIZANDO`);
+  la verificación del nombre eliminado queda solo en `validate_constraints` (MINOR de la ronda 2).

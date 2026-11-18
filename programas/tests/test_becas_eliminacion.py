@@ -261,3 +261,36 @@ class RevisionAuditoriaTests(_Base):
         self.client.force_login(self.admin)
         resp = self.client.post(reverse("becas:subsegmento_eliminar", args=[self.subsegmento.pk]), follow=True)
         self.assertContains(resp, "lo usa una convocatoria eliminada")
+
+
+class RelevamientoEnCampoTests(_Base):
+    """La app puede tener capturas offline sin sincronizar (decisión del usuario, 18/11/2026)."""
+
+    def test_en_curso_o_finalizando_bloquean_toda_la_cascada(self):
+        for estado in (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO):
+            Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=estado)
+            for objeto in (self.programa, self.segmento, self.convocatoria, self.relevamiento):
+                with (
+                    self.subTest(estado=estado, objeto=type(objeto).__name__),
+                    self.assertRaises(EliminacionBloqueada) as ctx,
+                ):
+                    eliminar(objeto, self.eliminador)
+                self.assertEqual((ctx.exception.casos, ctx.exception.en_campo), (0, 1))
+        self.assertFalse(Relevamiento.todos.filter(eliminado_en__isnull=False).exists())
+
+    def test_fuera_de_campo_se_elimina(self):
+        for estado in (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION, Relevamiento.Estado.TERMINADO):
+            with self.subTest(estado=estado):
+                rel = Relevamiento.objects.create(
+                    convocatoria=self.convocatoria, territorial=self.admin, fecha_asignada=date(2026, 6, 1), zona="Z"
+                )
+                Relevamiento.objects.filter(pk=rel.pk).update(estado=estado)
+                eliminar(rel, self.eliminador)
+                self.assertFalse(Relevamiento.objects.filter(pk=rel.pk).exists())
+
+    def test_la_vista_avisa_el_motivo(self):
+        Relevamiento.objects.filter(pk=self.relevamiento.pk).update(estado=Relevamiento.Estado.EN_CURSO)
+        self.client.force_login(self.eliminador)
+        resp = self.client.post(reverse("becas:convocatoria_eliminar", args=[self.convocatoria.pk]), follow=True)
+        self.assertContains(resp, "tiene 1 relevamiento en curso en campo")
+        self.assertTrue(Convocatoria.objects.filter(pk=self.convocatoria.pk).exists())

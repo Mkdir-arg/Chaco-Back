@@ -2786,8 +2786,8 @@ class Segmento(EliminableMixin, PausableMixin, TimeStamped):
 
         ``uniq_segmento_programa_nombre`` cuenta también las filas eliminadas, que el
         manager por defecto no ve: sin esta pregunta el alta o el renombre pasaban la
-        validación y morían en un ``IntegrityError`` (500). Única fuente de la regla: la
-        usan ``validate_constraints`` y los dos forms de segmento.
+        validación y morían en un ``IntegrityError`` (500). La aplica solo
+        ``validate_constraints``, que los dos forms de segmento ya corren al validar.
         """
         if not programa_id or not nombre:
             return False

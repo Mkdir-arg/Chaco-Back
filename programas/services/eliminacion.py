@@ -8,6 +8,10 @@ borra de la base: cada fila de la cascada queda marcada con ``eliminado_en`` /
 Si en la cascada hay **casos cargados** (``Formulario``, en cualquier estado) no se
 elimina nada: ocultarlos descuadraría el cupo, la lista de espera y lo ya informado a
 SIIS, y dejarlos visibles colgando de una convocatoria invisible tampoco sirve.
+
+Tampoco se elimina nada si algún relevamiento de la cascada está **en campo**
+(``EN_CURSO`` o ``FINALIZANDO``): la app del territorial puede tener capturas offline
+sin sincronizar, que al subir encontrarían el relevamiento eliminado (404).
 """
 
 from django.core.exceptions import PermissionDenied
@@ -24,12 +28,17 @@ CAP_CONVOCATORIA_ELIMINAR = "becas.convocatoria.eliminar"
 CAP_RELEVAMIENTO_ELIMINAR = "becas.relevamiento.eliminar"
 
 
-class EliminacionBloqueada(Exception):
-    """La cascada tiene casos cargados: no se elimina nada."""
+#: Estados en los que la app puede tener capturas sin sincronizar (decisión del usuario, 18/11/2026).
+ESTADOS_EN_CAMPO = (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO)
 
-    def __init__(self, casos):
+
+class EliminacionBloqueada(Exception):
+    """La cascada tiene casos cargados o relevamientos en campo: no se elimina nada."""
+
+    def __init__(self, casos=0, en_campo=0):
         self.casos = casos
-        super().__init__(f"{casos} caso(s) cargado(s)")
+        self.en_campo = en_campo
+        super().__init__(f"{casos} caso(s) cargado(s), {en_campo} relevamiento(s) en campo")
 
 
 def assert_puede_eliminar(user, capacidad):
@@ -106,8 +115,9 @@ def eliminar(objeto, usuario):
         )
 
     casos = Formulario.objects.filter(relevamiento_id__in=ids["relevamientos"]).count()
-    if casos:
-        raise EliminacionBloqueada(casos)
+    en_campo = Relevamiento.objects.filter(pk__in=ids["relevamientos"], estado__in=ESTADOS_EN_CAMPO).count()
+    if casos or en_campo:
+        raise EliminacionBloqueada(casos=casos, en_campo=en_campo)
 
     ahora = timezone.now()
     marca = {"eliminado_en": ahora, "eliminado_por": usuario, "modificado": ahora}
@@ -129,7 +139,16 @@ def resumen_cascada(marcados):
 
 
 def mensaje_bloqueo(error, que):
+    motivos = []
+    if error.casos:
+        s = "s" if error.casos != 1 else ""
+        motivos.append(f"tiene {error.casos} caso{s} cargado{s}")
+    if error.en_campo:
+        if error.en_campo == 1:
+            motivos.append("tiene 1 relevamiento en curso en campo")
+        else:
+            motivos.append(f"tiene {error.en_campo} relevamientos en curso en campo")
     return (
-        f"No se puede eliminar {que}: tiene {error.casos} caso{'s' if error.casos != 1 else ''} "
-        f"cargado{'s' if error.casos != 1 else ''}. Solo se puede eliminar lo que no tiene casos."
+        f"No se puede eliminar {que}: {' y '.join(motivos)}. Solo se puede eliminar lo que no tiene casos "
+        "ni relevamientos en curso (la app puede tener datos sin sincronizar)."
     )
