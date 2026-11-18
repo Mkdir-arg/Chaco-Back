@@ -57413,5 +57413,10 @@ Revertir el commit.
 ## Historial
 
 - **18/11/2026:** alta del cambio.
+- **18/11/2026:** MINOR de la auditoría del PR #1192. El ítem «Instituciones» se escribe como «Edificios» y
+  «Relevamientos»: clases en vez de `style=`, y la condición de activo una sola vez, en `aria-current` (el CSS `.ds-snav`
+  de `sidebar/base.html` pinta activo e inactivo con `!important`). Sin cambio visual: Chromium dio los mismos estilos
+  calculados (fondo, color, peso, tamaño, fuente, padding, radio, subrayado, color del ícono) antes y después, en
+  `/dispositivos/` (activo) y `/dispositivos/edificios/` (inactivo). `.claude/design/shells.md` lo registra.
 
 ---
