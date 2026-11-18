@@ -221,6 +221,8 @@ tarjeta, la ficha y la fila.
 El registro fotográfico (página de relevamientos, fotos y quién ve la asignación) sale de
 `registro_de_relevamientos` del mismo servicio: la ficha de Infraestructura y la ficha propia del edificio
 muestran el mismo registro del mismo edificio.
+El enlace «Ver informe» lleva el origen para volver: `?dispositivo=<pk>` desde Infraestructura y
+`?edificio=<pk>` desde la ficha del edificio; el informe solo arma ese «Volver» si el usuario puede abrir esa pantalla.
 
 ## Prohibido
 
