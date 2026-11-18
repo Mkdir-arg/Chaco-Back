@@ -613,6 +613,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 488 | Dispositivos · Edificios: ítem «Edificios» en el sidebar de Dispositivos | Dispositivos · edificios | `#ui` `#rbac` | PM — análisis #1164, task #1169 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
+| 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 
 **Notas del índice**
 
@@ -57635,3 +57636,103 @@ Desplegar el código anterior. No hay datos ni columnas.
 - **18/11/2026:** auditoría del PR #1200 (APPROVE con un MINOR): el texto decía «24 h desde el cierre», pero la
   gracia se cuenta desde la fecha de fin del período (`fecha_hasta`), no desde el «Finalizar». Se corrigió el
   texto del aviso y de los modales; la frase sobre «en campo» sale solo si hay relevamientos en campo.
+
+# Cambio 492 — Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento
+
+🟢 **HECHO — 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · configuración (E7) |
+| **Etiquetas** | `#emergencia` `#datos` `#ui` |
+| **Solicitante** | PM — «arrancá con E-7a» (análisis 009, solapa «Abastecimiento» de E8) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1186 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | Sí — `programas.0126_regla_consumo_e_inicio_evento` (5 `AddField`, solo expand) |
+
+## Pedido original
+
+E-7a del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.9, §8.1, RN-009-15,
+RF-009-19 y RF-009-26): que la mesa cargue en E7, antes de que exista la solapa «Abastecimiento» de E8, la regla de
+consumo de cada ítem del catálogo de kits y la fecha de inicio del evento.
+
+## Alcance acordado
+
+Entra: los cuatro campos de la regla en `TipoKit`, `SLAEmergencia.inicio_evento`, la migración, el servicio de
+configuración, el formulario y la pantalla E7, y la traza. Queda afuera: el cálculo y la solapa (E-7b, #1187) y los
+valores iniciales de las reglas (pregunta 13: los carga la mesa desde E7, no hay migración de datos).
+
+## Decisiones tomadas
+
+- **Regla (RN-009-15):** `regla_modo` («Sin regla» / «Dotación (una vez)» / «Reposición (cada N días)»),
+  `regla_cantidad` (decimal 7,2, > 0), `regla_por` (persona, familia, lactante) y `regla_cada_dias` (≥ 1). Completa o
+  vacía: `TipoKit.clean()` la valida, así que la rechazan el formulario y el servicio (`full_clean`).
+- **Los cuatro son `blank=True`:** los ítems que ya existen nacen «sin regla» y E7 los sigue editando.
+- **Pasar a «Sin regla» vacía la regla sola en el formulario** (cantidad, por y días): responde la asunción de QA
+  del #1186. Una **dotación con días se rechaza**, no se borra en silencio (TC-1186-08). El servicio rechaza toda
+  regla a medias (una API futura no pasa por el form).
+- **`inicio_evento`** (`DateTimeField`, `null=True`): opcional, en el bloque del evento de E7, `datetime-local`. No
+  puede ser futuro (`SLAEmergencia.clean()`; MINOR arrastrado de la auditoría del PR #1163).
+- **Traza:** `CAMPOS_TIPO_KIT` y `CAMPOS_SLA` suman los campos nuevos, así que cada cambio deja su fila. El alta de un
+  ítem con regla deja la traza del alta **y** una por cada dato de la regla. Los valores se trazan legibles: etiqueta
+  de la opción («Reposición (cada N días)», «Persona»), decimal con coma («0,5») y fecha `dd/mm/aaaa hh:mm` en hora local.
+- `crear_tipo_kit` acepta los kwargs de la regla: sin esto, `guardar_configuracion` (que la llama con `**campos`) daba
+  `TypeError` en cuanto el formulario mandara la regla.
+
+## Implementación
+
+- `programas/models/__init__.py`: `TipoKit.ModoRegla`, `TipoKit.PorRegla`, los cuatro campos y `clean()`;
+  `SLAEmergencia.inicio_evento` y `clean()`.
+- `programas/migrations/0126_regla_consumo_e_inicio_evento.py`: 5 `AddField`; `regla_modo` y `regla_por` con
+  `db_default=""` (DEFAULT real: el alta de la release vieja sigue andando); el resto `null=True`.
+- `programas/services/configuracion_emergencia.py`: campos, `CAMPOS_REGLA`, `crear_tipo_kit` con la regla,
+  `_texto` para fecha y decimal, `_con_etiquetas` para las opciones.
+- `programas/forms_emergencia.py`: widgets de la regla y de `inicio_evento`, `TipoKitForm.clean()` que vacía lo que no
+  aplica, `campos_del_evento` con la fecha.
+- `programas/templates/programas/emergencia/configuracion.html`: la bajada del catálogo explica la regla (los campos
+  salen solos de `visible_fields`).
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0126_regla_consumo_e_inicio_evento.py`
+- `programas/services/configuracion_emergencia.py`, `programas/forms_emergencia.py`
+- `programas/templates/programas/emergencia/configuracion.html`
+- `programas/tests/test_emergencia_regla_consumo.py` (nuevo), `programas/tests/test_emergencia_base.py` (los valores de
+  fábrica suman `inicio_evento`)
+
+## Base de datos
+
+`programas.0126_regla_consumo_e_inicio_evento`: cinco columnas nuevas, solo expand: `programas_tipokit.regla_modo` y `regla_por` (`varchar`, `NOT NULL DEFAULT ''`),
+`regla_cantidad` (`decimal(7,2) NULL`), `regla_cada_dias` (`smallint unsigned NULL`) y
+`programas_slaemergencia.inicio_evento` (`datetime NULL`). Sin migración de datos.
+
+## Validación
+
+- 17 tests nuevos: alta con regla (traza del alta y de cada dato), alta sin regla, dotación a un ítem existente, edición
+  de un ítem sin regla, reposición sin días, regla sin cantidad o sin «por», cantidad 0, pasar a «Sin regla» y a
+  «Dotación» vacía lo que no aplica (con su traza), `inicio_evento` con traza, futuro rechazado, opcional; servicio
+  (regla aceptada, reglas a medias rechazadas sin traza, futuro rechazado); modelo (nace sin regla).
+- `test_emergencia_base` en verde; `makemigrations --check` sin cambios; `manage.py check` OK; `ruff` OK;
+  `design_audit.py --ratchet` 0 nuevos; `compile_templates.py --bloques` 0; `check_design_agent.py --changed` OK.
+
+## Puesta en marcha en el servidor
+
+Migrar. Después, la mesa carga en E7 las reglas (valores de la pregunta 13 del análisis) y la fecha de inicio del evento.
+
+## Pendientes / a definir
+
+- E-7b (#1187): la solapa que usa estos datos.
+
+## Reversión
+
+Revertir el commit y desaplicar `programas.0126` (las cinco columnas se borran; se pierden las reglas y la fecha
+cargadas).
+
+## Historial
+
+- **18/11/2026:** alta del cambio (registrado como 490; pasa a 492 porque development usó el 490 y el #1197 lo reclamaba).
+- **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
+- **18/11/2026:** auditoría del PR #1199: la dotación con días se rechaza en E7 en vez de vaciarse (TC-1186-08); `CAMPOS_TIPO_KIT` se arma con `CAMPOS_REGLA`.
+
+---

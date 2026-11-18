@@ -76,10 +76,13 @@ class SLAEmergenciaForm(forms.ModelForm):
                     "inputmode": "numeric",
                 }
             ),
+            "inicio_evento": forms.DateTimeInput(
+                format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}
+            ),
         }
 
     def campos_del_evento(self):
-        return [self["nombre_evento"]]
+        return [self["nombre_evento"], self["inicio_evento"]]
 
     def campos_de_objetivos(self):
         return [self[campo] for campo in CAMPOS_SLA if campo.startswith("objetivo_")]
@@ -103,7 +106,24 @@ class TipoKitForm(forms.ModelForm):
             "unidad": forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "kit, unidad, bidón…"}),
             "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "inputmode": "numeric"}),
             "activo": SwitchInput(),
+            "regla_modo": forms.Select(attrs={"class": INPUT_CLASS}),
+            "regla_cantidad": forms.NumberInput(
+                attrs={"class": INPUT_CLASS, "min": "0.01", "step": "0.01", "inputmode": "decimal"}
+            ),
+            "regla_por": forms.Select(attrs={"class": INPUT_CLASS}),
+            "regla_cada_dias": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "inputmode": "numeric"}),
         }
+
+    def clean(self):
+        """Pasar a «Sin regla» vacía la regla sola: no obliga a borrar a mano cantidad, por y días.
+
+        Después valida el modelo (RN-009-15): con dotación o reposición, lo que falta o sobra es
+        error (una dotación con días se rechaza, no se borra en silencio: TC-1186-08).
+        """
+        datos = super().clean()
+        if datos.get("regla_modo") == TipoKit.ModoRegla.SIN_REGLA:
+            datos["regla_cantidad"], datos["regla_por"], datos["regla_cada_dias"] = None, "", None
+        return datos
 
     def clean_nombre(self):
         nombre = normalizar_nombre(self.cleaned_data.get("nombre"))
