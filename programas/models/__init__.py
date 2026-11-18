@@ -1,7 +1,7 @@
+import decimal
 import json
 import uuid
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth.models import Group, User
@@ -5386,7 +5386,7 @@ class TipoKit(TimeStamped):
         decimal_places=2,
         null=True,
         blank=True,
-        validators=[MinValueValidator(Decimal("0.01"))],
+        validators=[MinValueValidator(decimal.Decimal("0.01"))],
         verbose_name="Cantidad",
         help_text="Cuántas unidades por persona, familia o lactante. Ej.: 0,5 bidón por persona.",
     )
