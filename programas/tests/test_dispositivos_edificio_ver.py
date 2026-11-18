@@ -7,6 +7,7 @@
 3. ``edificios_en_alcance`` con ``edificio.ver`` devuelve los edificios de ese alcance.
 """
 
+from core import rbac
 from programas.models import Edificio
 from programas.services.dispositivos import CAP_VER_EDIFICIOS, dispositivos_en_alcance
 from programas.services.inspecciones import edificios_en_alcance
@@ -22,7 +23,7 @@ class VerTodosAmpliaEdificiosTests(BaseEquipo):
         self.edificio_b.dispositivos.add(self.disp_b)
 
     def test_la_constante_es_la_del_catalogo(self):
-        self.assertEqual(CAP_VER_EDIFICIOS, "edificio.ver")
+        self.assertIn(CAP_VER_EDIFICIOS, rbac.codigos_de_capacidad())
 
     def test_ver_todos_amplia_edificio_ver_a_toda_la_red(self):
         rol = self._rol("Lector red", ["edificio.ver", "dispositivo.ver_todos"])
