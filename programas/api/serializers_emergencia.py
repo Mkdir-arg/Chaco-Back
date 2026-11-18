@@ -93,11 +93,28 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     traslado = _texto(help_text=f"Obligatorio. Fuerza que traslada: {_TRASLADOS}.")
     traslado_otro = _texto(help_text="Obligatorio si `traslado` es `OTRA`.")
     dni = _texto(help_text="Obligatorio. DNI del responsable; se queda solo con los dígitos.")
-    nombre = _texto(help_text="Obligatorio si la persona no está en el legajo (alta mínima).")
-    apellido = _texto(help_text="Obligatorio si la persona no está en el legajo (alta mínima).")
+    nombre = _texto(
+        help_text=(
+            "Obligatorio si la persona no está en el legajo (alta mínima). Si está, se omite, coincide con el "
+            "legajo o va con `identidad_en_conflicto`."
+        )
+    )
+    apellido = _texto(
+        help_text=(
+            "Obligatorio si la persona no está en el legajo (alta mínima). Si está, se omite, coincide con el "
+            "legajo o va con `identidad_en_conflicto`."
+        )
+    )
     fecha_nacimiento = serializers.DateField(required=False, allow_null=True, default=None)
     telefono = _texto()
     documento_extraviado = _aviso(help_text="Perdió el documento pero sabe el número.")
+    identidad_en_conflicto = _aviso(
+        help_text=(
+            "El DNI ya está registrado como otra persona (400 con `persona_registrada`) y quien carga sostiene "
+            "que el DNI es correcto: el caso se crea con la persona registrada, sin tocarla, y queda marcado "
+            "«Identidad a revisar» con el `nombre` y `apellido` enviados. Sin conflicto se ignora."
+        )
+    )
 
     # Paso 2 · personas que ingresan juntas
     responsable_aparte = _aviso(
@@ -396,6 +413,19 @@ class PlazaDelIntegranteSerializer(serializers.Serializer):
     nombre = serializers.CharField(help_text="Código con el sector: «B-12 (Pabellón B)».")
 
 
+class IdentidadDeclaradaSerializer(serializers.Serializer):
+    nombre = serializers.CharField()
+    apellido = serializers.CharField()
+
+
+#: La marca «Identidad a revisar» para la guardia (Cambio 486): lo que declaró quien cargó, solo
+#: mientras la mesa no la revisó; si no, ``null``.
+_IDENTIDAD_A_REVISAR_HELP = (
+    "`{nombre, apellido}` tal como los cargó quien relevó cuando el DNI ya era de otra persona registrada, "
+    "mientras la mesa no lo revisó; si no, `null`. Es un aviso: no bloquea nada."
+)
+
+
 class IntegranteSerializer(serializers.Serializer):
     """Una fila de M2-3 («Persona 3 · sin confirmar» o «Pérez, Juan · cama B-12 · ficha incompleta»)."""
 
@@ -415,6 +445,10 @@ class IntegranteDetalleSerializer(IntegranteSerializer):
     ficha = serializers.DictField(help_text="El Formulario 2 tal como se guardó (contrato, «La ficha»).")
     secciones_incompletas = serializers.ListField(
         child=serializers.CharField(), help_text="Rótulos de las secciones 4 a 8 que faltan, en orden."
+    )
+    identidad_a_revisar = IdentidadDeclaradaSerializer(
+        allow_null=True,
+        help_text=f"Solo en la persona 1 (el responsable); en las demás, `null`. {_IDENTIDAD_A_REVISAR_HELP}",
     )
 
 
@@ -440,9 +474,14 @@ class IntegrantesDelCasoSerializer(serializers.Serializer):
 
 
 class ResponsableSerializer(serializers.Serializer):
-    nombre = serializers.CharField()
-    apellido = serializers.CharField()
-    dni = serializers.CharField()
+    """El responsable de la familia, leído desde el caso (``source="caso"``)."""
+
+    nombre = serializers.CharField(source="grupo.responsable.nombre")
+    apellido = serializers.CharField(source="grupo.responsable.apellido")
+    dni = serializers.CharField(source="grupo.responsable.dni")
+    identidad_a_revisar = IdentidadDeclaradaSerializer(
+        source="identidad_pendiente", allow_null=True, help_text=_IDENTIDAD_A_REVISAR_HELP
+    )
 
 
 class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
@@ -478,7 +517,7 @@ class DerivacionLlegadaSerializer(serializers.ModelSerializer):
     derivada_en = serializers.DateTimeField(source="creado", read_only=True)
     derivada_por = serializers.SerializerMethodField(help_text="Nombre de quien derivó en la mesa.")
     caso = CasoResumenSerializer(read_only=True)
-    responsable = ResponsableSerializer(source="caso.grupo.responsable", read_only=True)
+    responsable = ResponsableSerializer(source="caso", read_only=True)
     grupo = GrupoDeLaDerivacionSerializer(source="caso.grupo", read_only=True)
     necesidades = serializers.SerializerMethodField(
         help_text="Las que marcó el Formulario 1: `embarazo`, `electrodependiente`, `medicacion_critica`, `mascotas`."

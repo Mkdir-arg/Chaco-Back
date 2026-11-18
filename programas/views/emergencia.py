@@ -26,6 +26,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
+from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import (
     CancelarDerivacionForm,
     CierreCasoForm,
@@ -36,6 +37,7 @@ from programas.forms_emergencia import (
     PanelDerivarForm,
     PrioridadCasoForm,
     ReasignarCasoForm,
+    aviso_identidad_a_revisar,
 )
 from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
@@ -156,9 +158,11 @@ class NuevoCasoView(MesaPermissionMixin, View):
                 datos_formulario1=form.datos_formulario1(),
             )
         except ValidationError as error:
-            form.agregar_errores_del_servicio(error)
+            form.agregar_errores_del_servicio(rechazo_para_mostrar(request, error))
             return self._render(request, form, status=400)
-        messages.success(request, f"Caso {caso.numero} cargado. Quedó en gestión, tomado por vos.")
+        messages.success(
+            request, f"Caso {caso.numero} cargado. Quedó en gestión, tomado por vos.{aviso_identidad_a_revisar(caso)}"
+        )
         return redirect(_url_ficha(caso))
 
 
