@@ -118,7 +118,10 @@ def _aviso_no_dueno(territorial):
     from programas.models import AsignacionTerritorial
 
     dueno = (
-        AsignacionTerritorial.objects.filter(territorial=territorial).select_related("segmento").order_by("pk").first()
+        AsignacionTerritorial.objects.filter(territorial=territorial, segmento__eliminado_en__isnull=True)
+        .select_related("segmento")
+        .order_by("pk")
+        .first()
     )
     nombre = dueno.segmento.nombre if dueno else "su segmento"
     return (

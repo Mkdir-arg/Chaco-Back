@@ -4,7 +4,7 @@ Son selectores: leen, no deciden ni escriben. El alcance (qué convocatorias ve 
 rol) lo resuelve ``services.autorizacion.convocatorias_visibles``.
 """
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from programas.models import Convocatoria
 from programas.services.autorizacion import convocatorias_visibles
@@ -24,7 +24,10 @@ def convocatorias_listado_qs(user):
             "subsegmento__segmento__programa",
         )
         .defer("descripcion", "segmento__descripcion", "subsegmento__descripcion")
-        .annotate(n_relevamientos=Count("relevamientos", distinct=True))
+        # El filtro del manager no viaja en el join: los relevamientos eliminados se excluyen acá.
+        .annotate(
+            n_relevamientos=Count("relevamientos", filter=Q(relevamientos__eliminado_en__isnull=True), distinct=True)
+        )
         .filter(pk__in=convocatorias_visibles(user))
         .order_by("-fecha_inicio", "nombre")
     )

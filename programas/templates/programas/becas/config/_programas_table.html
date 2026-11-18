@@ -65,6 +65,15 @@
             <a href="{% url 'becas:programa_detalle' p.pk %}" class="nodo-icon-btn" aria-label="Ver programa {{ p.nombre }}">
               <i class="fas fa-eye" aria-hidden="true"></i>
             </a>
+            {% if request.user|puede:"becas.programa.eliminar" %}
+            <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Eliminar el programa {{ p.nombre }}"
+                    data-confirm-url="{% url 'becas:programa_eliminar' p.pk %}"
+                    data-confirm-title="¿Eliminar el programa?"
+                    data-confirm-text="«{{ p.nombre }}» deja de verse junto con todos sus segmentos, subsegmentos, convocatorias y relevamientos. Si alguno tiene casos cargados o un relevamiento en curso, no se elimina nada."
+                    data-confirm-danger="true" data-confirm-icon="danger" data-confirm-ok="Sí, eliminar">
+              <i class="fas fa-trash" aria-hidden="true"></i>
+            </button>
+            {% endif %}
           </div>
         </td>
       </tr>

@@ -148,6 +148,9 @@ class ProgramaSiisCreateForm(forms.ModelForm):
                     self.add_error("siis_programa_id", "Elegí el programa del catálogo de SIIS.")
             elif ProgramaSiis.objects.filter(siis_programa_id=int(valor)).exists():
                 self.add_error("siis_programa_id", "Ese programa SIIS ya está vinculado.")
+            elif ProgramaSiis.todos.filter(siis_programa_id=int(valor)).exists():
+                # La columna es UNIQUE y la fila eliminada sigue en la base.
+                self.add_error("siis_programa_id", "Ese programa SIIS está vinculado a un programa eliminado.")
             else:
                 cleaned["siis_programa_id"] = int(valor)
             # El nombre sale del catálogo: lo que se haya escrito se ignora.
