@@ -58106,7 +58106,7 @@ reversa es el `DROP TABLE` de Django. Sin migración de datos: los carga el coma
 
 ## Validación
 
-- 15 tests nuevos: `__str__`, normalización, alta con todos los campos, otra provincia no se toca, dos corridas dejan
+- 15 tests nuevos (21 tras la auditoría): `__str__`, normalización, alta con todos los campos, otra provincia no se toca, dos corridas dejan
   el mismo resultado, dato cambiado actualiza sin duplicar, ambigua no asignada y reportada con candidatos, nombre
   repetido que concilia por municipio sí se asigna, nombre solo en otro municipio es ambiguo, no conciliada sin punto y
   reportada, `--simular` no escribe, OneToOne rechaza la segunda, CSV mal formado y ausente; y el CSV versionado contra
@@ -58139,3 +58139,8 @@ cargar con el comando).
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+- **19/11/2026:** auditoría del PR #1209 (aprobado, tres MINOR corregidos): los errores de `leer_csv` informan la
+  línea real del archivo (antes salían corridos por el encabezado `#`); `NaN`/`Infinity` se rechazan con su línea y
+  las coordenadas se validan contra la caja del Chaco ± 0,5° (lat −28,5 a −23,6, lon −63,8 a −58,0), lo que corta
+  latitud y longitud invertidas; el reporte marca las ambiguas y no conciliadas que conservan una ubicación de una
+  carga anterior («conserva ubicación anterior (id_fuente …)»), con una sola consulta y sin borrar nada. 21 tests.

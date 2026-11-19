@@ -25,6 +25,10 @@ from django.db import transaction
 from core.models import UbicacionLocalidad
 
 RUTA_CSV = Path(__file__).resolve().parents[1] / "data" / "localidades_chaco_georef.csv"
+#: Caja de la provincia del Chaco ± 0,5° (TC-1181-07): una posición afuera es un dato roto
+#: (latitud y longitud invertidas, otra provincia), no un lugar del Chaco.
+LATITUD_CHACO = (Decimal("-28.5"), Decimal("-23.6"))
+LONGITUD_CHACO = (Decimal("-63.8"), Decimal("-58.0"))
 COLUMNAS = ("id_fuente", "nombre", "municipio", "departamento", "latitud", "longitud")
 CAMPOS_ACTUALIZABLES = ("latitud", "longitud", "departamento", "fuente", "id_fuente")
 
@@ -55,18 +59,25 @@ class Conciliacion:
 @dataclass
 class ResultadoCarga:
     conciliacion: Conciliacion
+    #: {localidad_id: id_fuente} de las ambiguas y no conciliadas que conservan la
+    #: ubicación de una carga anterior (el comando no borra).
+    conservadas: dict = field(default_factory=dict)
     creadas: int = 0
     actualizadas: int = 0
     sin_cambios: int = 0
 
 
-def _coordenada(valor, minimo, maximo, numero_linea, columna):
+def _coordenada(valor, rango, numero_linea, columna):
     try:
-        numero = Decimal(str(valor).strip()).quantize(Decimal("0.000001"))
+        numero = Decimal(str(valor or "").strip())
+        if not numero.is_finite():
+            raise ValueError
+        numero = numero.quantize(Decimal("0.000001"))
     except (InvalidOperation, ValueError):
         raise ValueError(f"Línea {numero_linea}: {columna} «{valor}» no es un número.") from None
+    minimo, maximo = rango
     if not minimo <= numero <= maximo:
-        raise ValueError(f"Línea {numero_linea}: {columna} {numero} fuera de rango.")
+        raise ValueError(f"Línea {numero_linea}: {columna} {numero} fuera de la provincia ({minimo} a {maximo}).")
     return numero
 
 
@@ -76,13 +87,17 @@ def leer_csv(ruta=RUTA_CSV):
     if not ruta.exists():
         raise FileNotFoundError(f"Falta el archivo de datos {ruta}.")
     with ruta.open(encoding="utf-8", newline="") as archivo:
-        lineas = [linea for linea in archivo if not linea.lstrip().startswith("#")]
-    lector = csv.DictReader(lineas)
+        numeradas = [(n, linea) for n, linea in enumerate(archivo, start=1) if not linea.lstrip().startswith("#")]
+    # Los comentarios se descartan antes del lector: su line_num cuenta líneas filtradas y
+    # hay que traducirlo a la línea real del archivo para que el error sirva.
+    linea_real = [n for n, _ in numeradas]
+    lector = csv.DictReader(linea for _, linea in numeradas)
     faltan = [c for c in COLUMNAS if c not in (lector.fieldnames or [])]
     if faltan:
         raise ValueError(f"Al CSV le faltan las columnas: {', '.join(faltan)}.")
     filas = []
-    for numero, fila in enumerate(lector, start=2):
+    for fila in lector:
+        numero = linea_real[lector.line_num - 1]
         if not (fila["id_fuente"] or "").strip() or not (fila["nombre"] or "").strip():
             raise ValueError(f"Línea {numero}: id_fuente y nombre son obligatorios.")
         filas.append(
@@ -91,8 +106,8 @@ def leer_csv(ruta=RUTA_CSV):
                 nombre=fila["nombre"].strip(),
                 municipio=(fila["municipio"] or "").strip(),
                 departamento=(fila["departamento"] or "").strip(),
-                latitud=_coordenada(fila["latitud"], -90, 90, numero, "latitud"),
-                longitud=_coordenada(fila["longitud"], -180, 180, numero, "longitud"),
+                latitud=_coordenada(fila["latitud"], LATITUD_CHACO, numero, "latitud"),
+                longitud=_coordenada(fila["longitud"], LONGITUD_CHACO, numero, "longitud"),
             )
         )
     return filas
@@ -143,10 +158,10 @@ def cargar_ubicaciones(localidades, filas, fuente=UbicacionLocalidad.FUENTE_BAHR
     """
     conciliacion = conciliar(localidades, filas)
     resultado = ResultadoCarga(conciliacion=conciliacion)
-    existentes = {
-        u.localidad_id: u
-        for u in UbicacionLocalidad.objects.filter(localidad__in=[loc for loc, _ in conciliacion.asignadas])
-    }
+    sin_punto = [loc.pk for loc, _ in conciliacion.ambiguas] + [loc.pk for loc in conciliacion.no_conciliadas]
+    todas = [loc.pk for loc, _ in conciliacion.asignadas] + sin_punto
+    existentes = {u.localidad_id: u for u in UbicacionLocalidad.objects.filter(localidad_id__in=todas)}
+    resultado.conservadas = {pk: existentes[pk].id_fuente for pk in sin_punto if pk in existentes}
     nuevas = []
     for localidad, fila in conciliacion.asignadas:
         valores = _valores(fila, fuente)

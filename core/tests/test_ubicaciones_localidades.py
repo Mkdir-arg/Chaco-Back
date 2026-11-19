@@ -8,8 +8,9 @@ from pathlib import Path
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from core.models import Localidad, Municipio, Provincia, UbicacionLocalidad
 from core.services.ubicaciones_localidades import clave
@@ -128,7 +129,7 @@ class UbicacionLocalidadTests(TestCase):
         salida = self._correr()
 
         self.assertFalse(UbicacionLocalidad.objects.filter(localidad=self.inexistente).exists())
-        reporte = salida.split("No conciliadas (sin punto en el mapa):")[1]
+        reporte = salida.split("No conciliadas (sin punto en el mapa")[1]
         self.assertIn(f"Paraje Inventado — municipio Quitilipi (id {self.inexistente.pk})", reporte)
 
     def test_simular_no_escribe(self):
@@ -151,6 +152,65 @@ class UbicacionLocalidadTests(TestCase):
         with self.assertRaisesMessage(CommandError, "no es un número"):
             self._correr()
         self.assertFalse(UbicacionLocalidad.objects.exists())
+
+    def test_el_error_informa_la_linea_real_del_archivo(self):
+        """El encabezado tiene un comentario: la tercera fila de datos está en la línea 5."""
+        self._escribir([FILAS[0], FILAS[1], FILAS[2].replace("-27.510000", "norte")])
+
+        with self.assertRaisesMessage(CommandError, "Línea 5: latitud «norte» no es un número."):
+            self._correr()
+
+    def test_nan_se_rechaza_con_su_linea(self):
+        self._escribir([FILAS[0].replace("-58.933333", "NaN")])
+
+        with self.assertRaisesMessage(CommandError, "Línea 3: longitud «NaN» no es un número."):
+            self._correr()
+        self.assertFalse(UbicacionLocalidad.objects.exists())
+
+    def test_latitud_y_longitud_invertidas_se_rechazan(self):
+        self._escribir(["22140010,Barranqueras,Barranqueras,San Fernando,-58.933333,-27.483333"])
+
+        with self.assertRaisesMessage(CommandError, "Línea 3: latitud -58.933333 fuera de la provincia"):
+            self._correr()
+        self.assertFalse(UbicacionLocalidad.objects.exists())
+
+    def test_coordenada_de_otra_provincia_se_rechaza(self):
+        self._escribir(["22140010,Barranqueras,Barranqueras,San Fernando,-34.600000,-58.933333"])
+
+        with self.assertRaisesMessage(CommandError, "latitud -34.600000 fuera de la provincia"):
+            self._correr()
+
+    def test_el_reporte_marca_las_que_conservan_una_ubicacion_anterior(self):
+        """El comando no borra: si una localidad deja de conciliar, el reporte no puede decir «sin punto» a secas."""
+        self._correr()
+        self._escribir(FILAS[1:])
+
+        salida = self._correr()
+
+        self.assertEqual(UbicacionLocalidad.objects.get(localidad=self.barranqueras).id_fuente, "22140010")
+        reporte = salida.split("No conciliadas (sin punto en el mapa")[1]
+        self.assertIn(
+            f"BARRANQUERAS — municipio Barranqueras (id {self.barranqueras.pk}) · conserva ubicación anterior "
+            "(id_fuente 22140010)",
+            reporte,
+        )
+        self.assertNotIn(f"Paraje Inventado — municipio Quitilipi (id {self.inexistente.pk}) · conserva", reporte)
+
+    def test_la_marca_de_conservadas_cuesta_una_sola_consulta(self):
+        from core.selectors.geografia import localidades_operativas
+        from core.services.ubicaciones_localidades import cargar_ubicaciones, leer_csv
+
+        localidades = list(localidades_operativas())
+        filas = leer_csv(self.csv)
+        cargar_ubicaciones(localidades, filas)
+
+        with CaptureQueriesContext(connection) as consultas:
+            resultado = cargar_ubicaciones(localidades, filas[1:3])
+
+        selects = [q["sql"] for q in consultas.captured_queries if q["sql"].startswith("SELECT")]
+        self.assertEqual(len(selects), 1, selects)
+
+        self.assertEqual(resultado.conservadas, {self.barranqueras.pk: "22140010", self.esperanza_ch.pk: "22002001"})
 
     def test_csv_ausente(self):
         self.csv.unlink()

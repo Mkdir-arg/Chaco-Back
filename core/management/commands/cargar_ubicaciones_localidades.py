@@ -17,9 +17,12 @@ from core.selectors.geografia import localidades_operativas
 from core.services.ubicaciones_localidades import RUTA_CSV, cargar_ubicaciones, leer_csv
 
 
-def _lugar(localidad):
+def _lugar(localidad, conservadas):
     municipio = localidad.municipio.nombre if localidad.municipio else "sin municipio"
-    return f"{localidad.nombre} — municipio {municipio} (id {localidad.pk})"
+    texto = f"{localidad.nombre} — municipio {municipio} (id {localidad.pk})"
+    if localidad.pk in conservadas:
+        texto += f" · conserva ubicación anterior (id_fuente {conservadas[localidad.pk]})"
+    return texto
 
 
 def _orden(localidad):
@@ -55,13 +58,15 @@ class Command(BaseCommand):
         )
         ambiguas = sorted(c.ambiguas, key=lambda par: _orden(par[0]))
         if ambiguas:
-            self.stdout.write("\nAmbiguas (no se asignan; sin punto en el mapa):")
+            self.stdout.write(
+                "\nAmbiguas (no se asignan; sin punto en el mapa salvo que conserven una ubicación anterior):"
+            )
             for localidad, candidatas in ambiguas:
                 opciones_csv = "; ".join(
                     f"{f.id_fuente} {f.nombre} / {f.municipio} / {f.departamento}" for f in candidatas
                 )
-                self.stdout.write(f"  - {_lugar(localidad)} · candidatos: {opciones_csv}")
+                self.stdout.write(f"  - {_lugar(localidad, resultado.conservadas)} · candidatos: {opciones_csv}")
         if c.no_conciliadas:
-            self.stdout.write("\nNo conciliadas (sin punto en el mapa):")
+            self.stdout.write("\nNo conciliadas (sin punto en el mapa salvo que conserven una ubicación anterior):")
             for localidad in sorted(c.no_conciliadas, key=_orden):
-                self.stdout.write(f"  - {_lugar(localidad)}")
+                self.stdout.write(f"  - {_lugar(localidad, resultado.conservadas)}")
