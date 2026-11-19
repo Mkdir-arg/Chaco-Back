@@ -298,11 +298,20 @@ def pildoras(foto):
 
 
 def atencion(foto, *, supervisa):
-    """«Necesita atención»: las alertas recortadas y el texto del contador. Ninguna enlaza a un caso."""
+    """«Necesita atención»: las alertas recortadas y el contador. Ninguna enlaza a un caso; AE-6, a Abastecimiento."""
 
     resultado = alertas_de_situacion(foto)
+    url_abastecimiento = f"{reverse('emergencia:situacion')}?tab=abastecimiento"
     avisos = [
-        {"tono": alerta["tono"], "icono": alerta["icono"], "titulo": alerta["titulo"], "texto": alerta["texto"]}
+        {
+            "tono": alerta["tono"],
+            "icono": alerta["icono"],
+            "titulo": alerta["titulo"],
+            "texto": alerta["texto"],
+            # AE-6 lleva a la solapa que dice qué mandar (RN-009-22); las demás no enlazan.
+            "url": url_abastecimiento if alerta["regla"] == "AE-6" else "",
+            "accion": "Ver el abastecimiento" if alerta["regla"] == "AE-6" else "",
+        }
         for alerta in resultado["alertas"]
     ]
     total = resultado["total"]

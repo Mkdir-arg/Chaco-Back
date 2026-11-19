@@ -56,7 +56,7 @@ def _minutos(minimo):
 
 
 class SLAEmergenciaForm(forms.ModelForm):
-    """Los ocho parámetros de la mesa. Los rangos son los validadores del modelo."""
+    """Los parámetros de la mesa y el inicio del evento (``CAMPOS_SLA``). Los rangos son los validadores del modelo."""
 
     class Meta:
         model = SLAEmergencia
@@ -116,13 +116,15 @@ class TipoKitForm(forms.ModelForm):
         }
 
     def clean(self):
-        """Pasar a «Sin regla» vacía la regla sola: no obliga a borrar a mano cantidad, por y días.
+        """**Pasar** a «Sin regla» vacía la regla sola: no obliga a borrar a mano cantidad, por y días.
 
-        Después valida el modelo (RN-009-15): con dotación o reposición, lo que falta o sobra es
-        error (una dotación con días se rechaza, no se borra en silencio: TC-1186-08).
+        Solo cuando el modo cambió en este envío: una regla cargada (cantidad, por o días) con el
+        modo que ya estaba en «Sin regla» no se descarta en silencio, la rechaza el modelo. Después
+        valida el modelo (RN-009-15): con dotación o reposición, lo que falta o sobra es error (una
+        dotación con días se rechaza, no se borra en silencio: TC-1186-08).
         """
         datos = super().clean()
-        if datos.get("regla_modo") == TipoKit.ModoRegla.SIN_REGLA:
+        if datos.get("regla_modo") == TipoKit.ModoRegla.SIN_REGLA and "regla_modo" in self.changed_data:
             datos["regla_cantidad"], datos["regla_por"], datos["regla_cada_dias"] = None, "", None
         return datos
 

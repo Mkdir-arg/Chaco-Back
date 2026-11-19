@@ -1,4 +1,5 @@
-"""«Necesita atención» de E8: las alertas estratégicas AE-1 a AE-7 (RN-009-09).
+"""«Necesita atención» de E8: las alertas estratégicas AE-1 a AE-7 (RN-009-09) y, en la solapa
+Abastecimiento, AE-8 a AE-10 (RN-009-22).
 
 Distintas de los siete avisos operativos de E1 (``services.avisos_emergencia``), que no se
 mueven ni se repiten acá (RN-009-10). Igual que ellos:
@@ -25,6 +26,10 @@ AE-3   casos de las últimas 24 h ≥ 20 y ≥ 1,3 × el promedio   media     de
 AE-4   p90 de un tramo en 24 h > 2 × su objetivo, con ≥ 20    media     demanda filtrada
        casos en la muestra (la de ``tiempos()`` de E1)
 AE-6   dispositivos con gente y sin entrega recibida en 48 h  media     provincial
+       (en el Resumen enlaza a la solapa Abastecimiento)
+AE-8   dispositivos sin cobertura 48 h, con sus personas      alta      solo en la solapa
+AE-9   medicación crítica sin dosis (el número de AE-7)       alta      solo en la solapa
+AE-10  lactantes sin el ítem «por lactante» cubierto          alta      solo en la solapa
 =====  =====================================================  ========  =====================
 
 **Orden** (decisión del PM): alta antes que media; dentro de cada severidad, primero las de la
@@ -36,6 +41,7 @@ para «Mostrando N de M». Con un filtro activo, las provinciales lo dicen: «en
 from programas.selectors.emergencia import TRAMOS, texto_de_minutos
 from programas.selectors.emergencia_situacion import HORAS_DEL_RITMO, VENTANA_DE_ALZA, VENTANAS_ANTERIORES_DE_ALZA
 from programas.selectors.emergencia_tablero import muestras_por_tramo, percentil
+from programas.services.abastecimiento_emergencia import nombre_visible
 from programas.services.avisos_emergencia import ICONOS, TONOS
 from programas.services.bitacora_detalle import plural
 from programas.services.ocupacion import NIVEL_CRITICA, tension_de_ocupacion
@@ -264,6 +270,69 @@ def dispositivos_sin_entrega(foto):
         f"{'no recibió' if cantidad == 1 else 'no recibieron'} ninguna entrega en las últimas 48 h"
     )
     return [_alerta("AE-6", MEDIA, titulo, provincial=True, filtrado=foto.filtrado)]
+
+
+# --- AE-8 a AE-10 · solapa Abastecimiento (RN-009-22) ------------------------------
+#
+# Solo dentro de la solapa: calcularlas en el Resumen costaría las consultas de la solapa en cada
+# carga. Puras sobre lo armado por ``services.abastecimiento_emergencia``; todas alta.
+
+
+def sin_cobertura_48h(abastecimiento):
+    """AE-8: dispositivos sin cobertura para las próximas 48 h, con las personas que tienen."""
+
+    cantidad = abastecimiento.sin_cobertura
+    if not cantidad:
+        return []
+    titulo = (
+        f"{plural(cantidad, 'dispositivo', 'dispositivos')} sin cobertura para las próximas 48 h: "
+        f"{plural(abastecimiento.personas_con_faltantes, 'persona', 'personas')}"
+    )
+    return [_alerta("AE-8", ALTA, titulo, "Estimado con la regla de consumo de cada ítem.")]
+
+
+def linea_de_sin_dosis(salud):
+    """«9 personas con medicación crítica sin dosis en 4 dispositivos» (RN-009-21 a y d)."""
+
+    linea = f"{plural(salud.sin_dosis, 'persona', 'personas')} con medicación crítica sin dosis"
+    if salud.decir_dispositivos:
+        linea += f" en {plural(salud.dispositivos, 'dispositivo', 'dispositivos')}"
+    return linea
+
+
+def sin_dosis_en_dispositivos(salud):
+    """AE-9: el mismo número que AE-7 sin filtro; los nombres, sin número, solo si ``presentar_salud`` los deja."""
+
+    if not salud.sin_dosis:
+        return []
+    texto = f"En {_lista(nombre_visible(d) for d in salud.nombres)}." if salud.nombres else ""
+    return [_alerta("AE-9", ALTA, linea_de_sin_dosis(salud), texto)]
+
+
+def lactante_visible(dispositivo, lactantes):
+    """«EES N.° 9 · Barranqueras (6 lactantes)»; con menos de 5, el nombre solo (RN-009-21 c)."""
+
+    nombre = nombre_visible(dispositivo)
+    return f"{nombre} ({lactantes} lactantes)" if lactantes else nombre
+
+
+def lactantes_sin_su_item(salud):
+    """AE-10: lactantes en dispositivos que nunca recibieron el ítem «por lactante» o lo tienen sin cubrir."""
+
+    if not salud.lactantes:
+        return []
+    items = _lista(item.nombre for item in salud.items_de_lactantes)
+    texto = f"{_lista(lactante_visible(d, n) for d, n in salud.lactantes)}."
+    return [_alerta("AE-10", ALTA, f"Lactantes sin {items} cubierto", texto)]
+
+
+def alertas_de_abastecimiento(abastecimiento, salud):
+    """AE-8, AE-9 y AE-10, en ese orden, para «Necesita atención» de la solapa. Sin consultas.
+
+    ``salud`` es la de ``presentar_salud`` (ya decidió qué se nombra según quién mira).
+    """
+
+    return [*sin_cobertura_48h(abastecimiento), *sin_dosis_en_dispositivos(salud), *lactantes_sin_su_item(salud)]
 
 
 REGLAS = (
