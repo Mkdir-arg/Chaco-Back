@@ -17,7 +17,7 @@ exige que coincidan).
 | PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. medido en MariaDB (8,99 s de SQL) | 4 | S | ✅ |
 | PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ✅ |
 | PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ✅ |
-| PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ✅ |
+| PERF-07 | Pantalla del masivo: `count()` con un literal por DNI cada 5 s | MEDIA | CONF. ajustado | 4 | S | ✅ |
 | PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⏸️ diferida |
 | PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ✅ |
 | G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ✅ |
@@ -142,7 +142,7 @@ y `programas.tests.test_cupo_performance.MismosCasosEnElMismoOrdenTests.test_ben
   4. (Opcional) `enviar_beneficiario_a_siis(..., catalogos=None, payload=None)` para reusar el payload de `elegir_completos`; solo si se confirma que aprobar no cambia ningún campo del payload (si hay duda, los puntos 1-3 ya bajan el segundo armado a 0 consultas).
   5. `hidratar()`: `Formulario.objects.select_related(*SELECT_RELATED_CASOS).defer("respuestas", "definicion").filter(pk__in=ids)`; en `procesar_casos_siis.py:202`, `hidratar_por_lotes`.
 - **Tests a agregar:** `test_proceso_masivo.py`: `assertNumQueries(K)` para `elegir_completos(hidratar(ids_10), cat, 99, Cuenta())` y el **mismo** K (± lotes) con 50 casos del mismo segmento (hoy 6×N); el SQL de `hidratar` no contiene `"definicion"`; `procesar_caso` con SIIS mockeado no suma consultas por campo diferido.
-- **Verificación:** V-STD; banco: `procesar_casos_siis --solo-completos --total 5000` en ensayo contra `chaco_perf_ci` (tabla `aprobados_materias` desde `scripts/Aprobados.sql`), cronometrar «Armando el payload…».
+- **Verificación:** V-STD; banco: `procesar_casos_siis --solo-completos --total 5000` en ensayo contra `chaco_perf_ci` (tabla `aprobados_materias` desde el volcado de aprobados), cronometrar «Armando el payload…».
 - **Dependencias:** G1-08 cambia de dónde sale el destino (foto): coordinar el memo.
 
 **Resolución:** ✅ Resuelto en #639 (Cambio 186, Ola 4 PR 3), 08-oct-2026 — los puntos 1 a 3 de la propuesta,
@@ -265,9 +265,9 @@ viajando al servidor, para que nadie envuelva `_vigilar` en un `except` que lo c
 `.FalloAMitadDelStreamTests` (×2).
 
 
-### PERF-07 · Pantalla del proceso masivo: `candidatos().count()` con 15.532 literales, recalculado cada 5 s
+### PERF-07 · Pantalla del proceso masivo: `candidatos().count()` con un literal por DNI, recalculado cada 5 s
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-08, V4-NEW-03 · **Ola:** 4 · **Esfuerzo:** S
-- **Medición:** la lista real (`scripts/Aprobados.sql`: 15.531 DNI) da un set de 15.532 literales; el `count()` lleva **188 KB de SQL**; el GET hace 13 consultas (el `SELECT dni` de toda la tabla, 1 `table_names()` y el `count()` con dos subconsultas correlacionadas por fila, PERF-19). Con una corrida en curso, `proceso_masivo.html:196-206` recarga **cada 5 s**, en el mismo proceso que el hilo de la corrida.
+- **Medición:** la lista real (el volcado de aprobados) da un set de literales, uno por DNI; el `count()` lleva **188 KB de SQL**; el GET hace 13 consultas (el `SELECT dni` de toda la tabla, 1 `table_names()` y el `count()` con dos subconsultas correlacionadas por fila, PERF-19). Con una corrida en curso, `proceso_masivo.html:196-206` recarga **cada 5 s**, en el mismo proceso que el hilo de la corrida.
 - **Ajuste:** `aprobados_materias` ya tiene índice (`idx_dni`, #506); en MariaDB, un IN > 1.000 literales se convierte en tabla derivada (`in_predicate_conversion_threshold`), no en scan: costo real pero moderado (NO-MEDIDO).
 - **Propuesta:** (1) en `ProcesoMasivoView.get_context_data`, si `ctx["en_curso"]` no calcular `pendientes`; si no hay corrida, `cache.get_or_set(f"masivo_pendientes_{programa.pk}", lambda: ...count(), 60)`; (2) `dnis_aprobados_materias()`: memo por proceso con TTL 5 min (variable de módulo `(momento, set)`) y `table_names()` cacheado en la misma memo; (3) la tabla administrada por Django que proponía A4 no hace falta para performance.
 - **Presupuesto:** `becas_proceso_masivo` en `build_targets` y `perf_budgets.json` (hoy 13; después medido + 1); el `setUp` crea `aprobados_materias` como `crear_tabla_aprobados_materias` de `test_proceso_masivo.py`.

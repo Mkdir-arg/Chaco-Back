@@ -20,7 +20,7 @@ CÓMO CORRERLO (PowerShell, raíz del repo, en el worktree de la ola)
 QUÉ ID CANÓNICO REPRODUCE CADA CLASE
   G1b01ToggleCrossProgramTests                   -> SEC-03 (ampliación G1b-01: toggle y credenciales de multiprograma)
   G1b02EscaladaDentroDelProgramaTests            -> G1b-02
-  G1b03y04TokenCampoTests                        -> SEC-26 (clave provisoria del territorial; token que sobrevive al cambio de clave)
+  (PoC reservada: SEC-26; se publica con el PR que lo cierra)
   G1b05CuentaFantasmaTests                       -> G1b-05
   G1b06CapsGlobalesBorradasTests                 -> G1b-06
   G2OperadorBackofficeSeedTests                  -> OPS-06 (origen G2-02, absorbido: seed_rbac reactiva «Operador de backoffice»)
@@ -154,31 +154,6 @@ class G1b02EscaladaDentroDelProgramaTests(Base):
         b = User.objects.get(pk=b.pk)
         self.assertTrue(rbac.puede(b, "programa.rol.administrar"))
         self.assertTrue(rbac.puede(b, "becas.programa.administrar"))
-
-
-class G1b03y04TokenCampoTests(Base):
-    def setUp(self):
-        super().setUp()
-        self.rol_terr = _rol("Terr", ["becas.campo"], self.becas)
-        self.terr = _user("terri", self.rol_terr, password="Provisoria-123")
-        Profile.objects.filter(user=self.terr).update(debe_cambiar_contrasena=True)
-        self.api = APIClient()
-
-    def test_provisoria_nunca_se_cambia_pero_da_token(self):
-        form = UsuariosAuthenticationForm(data={"username": "terri", "password": "Provisoria-123"})
-        self.assertFalse(form.is_valid())
-        self.assertEqual(form.non_field_errors().as_data()[0].code, "territorial_mobile_only")
-        resp = self.api.post(reverse("becas_api:token"), {"username": "terri", "password": "Provisoria-123"})
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(Profile.objects.get(user=self.terr).debe_cambiar_contrasena)
-
-    def test_token_sobrevive_cambio_de_clave(self):
-        resp = self.api.post(reverse("becas_api:token"), {"username": "terri", "password": "Provisoria-123"})
-        key = resp.data["token"]
-        self.terr.set_password("Nueva-Clave-2026")
-        self.terr.save()
-        self.api.credentials(HTTP_AUTHORIZATION=f"Token {key}")
-        self.assertEqual(self.api.get("/api/becas/relevamientos/").status_code, 200)
 
 
 class G1b05CuentaFantasmaTests(Base):

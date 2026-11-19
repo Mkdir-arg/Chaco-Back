@@ -31,7 +31,7 @@ indicación.
 | SIIS-10 | `normalizar_persona` toma claves de objetos anidados | MEDIA | CONF. test | 3 | S | ✅ |
 | SIIS-11 | JSON de SIIS que no es objeto → `AttributeError` | MEDIA | CONF. test | 1 | S | ✅ |
 | SIIS-12 | El payload no prevalida al apoderado | MEDIA | CONF. test | 1 | S | ✅ |
-| SIIS-13 | Link abierto: un DNI ajeno bloquea al titular | MEDIA | CONF. ajustado | 3 | S | ✅ |
+| SIIS-13 | Regla del documento ocupado en el link público de convocatorias | MEDIA | CONF. ajustado | 3 | S | 🟡 |
 | BEC-01 | Aprobar y promover no bloquean la fila del caso | MEDIA | CONF. test | 1 | S | ✅ |
 | BEC-02 | Agregar a espera y dar de baja chequean antes del lock | MEDIA | CONF. test | 1 | S | ✅ |
 | BEC-03 | La revisión reevalúa condiciones de edad con la fecha de hoy | MEDIA | CONF. lectura | 3 | S |  ✅ |
@@ -50,7 +50,7 @@ indicación.
 | G2-01 | Excel de respuestas y dashboard leen `data`: faltan los campos propios del constructor | MEDIA | CONF. test | 3 | M | ✅ |
 | SIIS-14 | RENAPER: DNI en logs y token que no se invalida con 401 | BAJA | CONF. test (401) | 3 | S | ✅ |
 | SIIS-15 | Comprobante renderizado fuera del `try` | BAJA | CONF. lectura | 3 | S | ✅ |
-| SIIS-16 | Adjuntos anónimos validados solo por extensión | BAJA | CONF. lectura | 3 | S | ✅ |
+| SIIS-16 | Adjuntos del link público: validación pendiente de completar | BAJA | CONF. lectura | 3 | S | 🟡 |
 | SIIS-17 | «Completar datos para SIIS»: correcciones no se borran y se pisan | BAJA | CONF. lectura | 1 | S | ⬜✅ |
 | SIIS-18 | Filtro de localidades por provincia con otras claves | BAJA | CONF. lectura | 3 | S | ✅ |
 | SIIS-19 | `diagnosticar_siis --alta` sin guarda de PRD y DNI por defecto | BAJA | CONF. lectura | 1 | S | ⬜✅ |
@@ -340,15 +340,15 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 - **Propuesta:** `_apoderado(formulario, faltantes, correcciones, hoy, dni_titular)`: fecha futura → `faltantes["fecha_nacim_apoderado"] = "Fecha futura"`; menor de 18 → `"El apoderado debe ser mayor de 18 años"`; mismo DNI → `faltantes["dni_apoderado"] = "El apoderado no puede ser el propio titular"`. Validar después de aplicar las correcciones de `datos_siis` (Cambio 98).
 - **Tests a agregar:** tres casos (15 años, fecha futura, mismo DNI) → `faltantes` con la clave y `cargar_beneficiario` sin llamar.
 
-### SIIS-13 · Link abierto: un DNI ajeno bloquea al titular en la convocatoria
-**Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO (la docstring de `dni_en_convocatoria` lo marca «pendiente de confirmar») · **Origen:** A2-14; parte de SEC-28 de V1 · **Ola:** 3 · **Esfuerzo:** S (a) / M (b) · **Decisión:** D-S13 (decisión pendiente del Cambio 41)
+### SIIS-13 · Regla del documento ocupado en el link público de convocatorias
+**Severidad:** MEDIA · **Estado:** 🟡 PARCIAL · **Origen:** A2-14; parte de SEC-28 de V1 · **Ola:** 3 · **Esfuerzo:** S (a) / M (b) · **Decisión:** D-S13 (decisión pendiente del Cambio 41)
 
-**Resolución:** 🟡 Opción (a) resuelta en #PENDIENTE (Cambio 174), 08-oct-2026 — **`DECISIÓN CLIENTE: D-S13 = sí (default del README §2)`**. `dni_en_convocatoria` arranca con `.exclude(estado=RECHAZADO, validado_renaper=False)` y de ahí salen las dos consultas de RN-P5, así que la regla vale igual por `dni_titular` que por `ciudadano__dni`. Lo que **sigue** bloqueando: el RECHAZADO **validado** (esa persona se presentó y ya tiene su resolución), el BAJA (llegó a estar aprobado) y el ENVIADO sin revisar (si no, dos cargas del mismo documento entrarían juntas a la bandeja). La forma de la consulta no cambia —dos lecturas, cada una por su índice, sin funciones sobre la columna—, que es lo que pide el Cambio 91 y mide `core/tests/test_sql_motor_real.py`. **La opción (b)** (marcar la carga nueva como `conflicto_duplicado` cuando la que está es `manual` y la que llega se valida) **no se hace**: la ficha la deja «para después» y necesita un estado nuevo del caso. **Para el PM:** la ficha pide confirmar RN-P5 con el programa (análisis #289) antes de dar la decisión por firme; hasta entonces queda el default aplicado. **Test permanente:** `programas/tests/test_inscripcion_dni_bloqueado.py::RechazadoSinValidarNoBloqueaTests.test_un_rechazado_sin_validar_libera_el_documento` (y `.test_un_rechazado_sin_validar_con_legajo_tambien_lo_libera`, `.test_un_rechazado_validado_sigue_bloqueando`, `.test_una_baja_sigue_bloqueando_aunque_no_este_validada`, `.test_un_enviado_sin_validar_sigue_bloqueando`, `.test_el_titular_entra_aunque_le_hayan_quemado_el_documento`, `.test_siguen_siendo_dos_consultas`).
-- **Ubicación:** `programas/services/inscripcion_publica.py:54-71`, `:135-136`; `portal/views/inscripcion.py:175-179`.
-- **Escenario:** alguien carga DNI de terceros en un link sin padrón; quedan formularios `manual` que ocupan el DNI en toda la convocatoria y, aunque el backoffice los rechace, **siguen bloqueando** porque RN-P5 cuenta los RECHAZADO.
-- **Propuesta (default D-S13 = sí, opción a):** en `dni_en_convocatoria`, excluir los `RECHAZADO` con `validado_renaper=False`. (b) para después: si el que llega se valida y el existente es `manual`, crear la carga como `conflicto_duplicado`. La parte de captcha va en SIIS-21.
-- **Tests a agregar:** con un `RECHAZADO` no validado del DNI X, el paso 1 del DNI X deja pasar.
-- **Dependencias:** toca RN-P5 (análisis #289): confirmar con el programa antes de implementar.
+**Resolución:** 🟡 Opción (a) resuelta en #PENDIENTE (Cambio 174), 08-oct-2026 — **`DECISIÓN CLIENTE: D-S13 = sí (default del README §2)`**. La opción (b) no se hace: necesita un estado nuevo del caso y la ficha la deja «para después». **Para el PM:** confirmar la regla con el programa (análisis #289) antes de dar la decisión por firme; hasta entonces queda el default aplicado. Test permanente: `programas/tests/test_inscripcion_dni_bloqueado.py`.
+- **Test permanente:** `programas.tests.test_inscripcion_dni_bloqueado`
+- **Impacto:** la regla del documento ocupado en la convocatoria sigue admitiendo un uso indebido del link público.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** completar la opción (b) con la decisión del PM.
+- **Dependencias:** toca una regla del análisis #289: confirmar con el programa antes de implementar.
 
 ### BEC-01 · Aprobar y promover no bloquean la fila del caso
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`AprobarPisaRechazoTests`: un RECHAZADO commiteado entre la relectura y el `save` queda APROBADO) · **Origen:** A1-06 (ya en pendientes de 96.16) · **Ola:** 1 · **Esfuerzo:** S
@@ -545,13 +545,14 @@ el mensaje vacío —`motivo_sin_consulta` falsy— el `elif` se evaluaba igual 
 - **Propuesta:** `render_to_string` ×2 y `EmailMultiAlternatives` dentro del `try`.
 - **Test:** patch de `render_to_string` que lanza → el paso 2 redirige al comprobante con `correo_enviado=False`.
 
-### SIIS-16 · Adjuntos anónimos del link validados solo por extensión
-**Severidad:** BAJA · **Origen:** A2-18 · **Ola:** 3 · **Esfuerzo:** S
+### SIIS-16 · Adjuntos del link público: validación pendiente de completar
+**Severidad:** BAJA · **Estado:** 🟡 PARCIAL · **Origen:** A2-18 · **Ola:** 3 · **Esfuerzo:** S
 
-**Resolución:** 🟡 Las dos partes de código, en #PENDIENTE (Cambio 174), 08-oct-2026; la de nginx queda como paso operativo. (1) **Firma por magic bytes.** `core/validators.py` suma `FIRMAS`, `cabecera`, `firma_coincide` y `validar_firma` —ahí, compartido, porque SEC-15 (Ola 2) tiene que reusarlo para F-00 y merenderos— y `_validar_archivo` lo llama después de la extensión y del tamaño. `cabecera` lee con `seek(0)` y **deja el puntero donde estaba**: el form valida el mismo archivo más de una vez y el storage lo escribe desde el principio, así que leer sin rebobinar guardaría un archivo truncado. Un `.pdf` con HTML adentro, un `.png` que es PHP y un JPG real subido como `.pdf` quedan afuera. (2) **El comentario de `settings.py` decía algo falso** y se corrigió campo por campo: `DATA_UPLOAD_MAX_MEMORY_SIZE` no cuenta archivos, `FILE_UPLOAD_MAX_MEMORY_SIZE` es el umbral de volcado a disco y no un tope, y el único techo del **request** lo pone el proxy. **Lo que no se hace:** bajar `client_max_body_size` a 25-30 MB. La ficha pide **medir antes los envíos reales** y eso solo se puede hacer contra PRD; además el formulario puede tener varios requisitos de tipo ARCHIVO (`DATA_UPLOAD_MAX_NUMBER_FILES=20` × 5 MB), así que un número elegido a ojo **rechaza inscripciones legítimas**. Queda como paso para el PM, con el snippet escrito en el cuerpo del PR, y vale para `nginx.conf` (icore) y para el ingress de ECOM, que no está en este repo. **Test permanente:** `portal/tests/test_inscripcion_comprobante_y_adjuntos.py::AdjuntoAnonimoPorFirmaTests.test_un_pdf_que_adentro_es_html_se_rechaza` (y `.test_un_png_que_adentro_es_un_script_se_rechaza`, `.test_una_extension_que_no_coincide_con_el_contenido_se_rechaza`, `.test_los_tres_formatos_de_verdad_pasan`, `.test_la_extension_sigue_filtrando_antes_que_la_firma`, `.test_el_tope_de_tamano_sigue_vigente`, `.test_un_archivo_mas_corto_que_la_firma_no_revienta`).
-- **Ubicación:** `portal/forms/inscripcion.py:52-57`; `config/settings.py:443-449` (el comentario promete un tope que no existe: `DATA_UPLOAD_MAX_MEMORY_SIZE` no cuenta archivos); `nginx.conf:38,107` (`client_max_body_size 100M`).
-- **Propuesta:** firma por magic bytes (`%PDF-`, `\x89PNG`, `\xFF\xD8\xFF`) en `_validar_archivo` (reusar `core/validators.py` de SEC-15); `client_max_body_size` de ~25-30 MB en la location `/portal/inscripcion/` (medir antes los envíos reales); corregir el comentario.
-- **Test:** un `.pdf` con contenido HTML → error de validación.
+**Resolución:** 🟡 Las dos partes de código, en #PENDIENTE (Cambio 174), 08-oct-2026; queda un paso operativo de infraestructura (PM) que necesita medir los envíos reales en PRD y vale también para el ingress de ECOM, que no está en este repo. Test permanente: `portal/tests/test_inscripcion_comprobante_y_adjuntos.py`.
+- **Test permanente:** `portal.tests.test_inscripcion_comprobante_y_adjuntos`
+- **Impacto:** los adjuntos del link público no tienen todavía todos los límites previstos.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** completar el paso de infraestructura una vez medidos los envíos reales.
 
 ### SIIS-17 · «Completar datos para SIIS»: una corrección no se puede borrar y dos se pisan
 **Severidad:** BAJA (pero un `id_plan_soc` mal corregido va a SIIS de forma irreversible) · **Origen:** A2-19 · **Ola:** 1 · **Esfuerzo:** S

@@ -40,7 +40,7 @@ con lo que existe hoy; la lista solo baja.
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| RED-01 | Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | 🟡 (falta el PM) |
+| RED-01 | Datos personales versionados en el repositorio | CRÍTICA | CONF. lectura (API + git) | R (hotfix) | M | 🟡 (falta el PM) |
 | RED-02 | Ningún test recorre el URLconf: una ruta que vuelva a quedar abierta pasa el CI | ALTA | CONF. test (barrido) | R | S | ✅ |
 | RED-03 | App de campo: pausa probada en 1 de 6 endpoints, período en 3, ramas de error en ninguna | ALTA | CONF. test (coverage) | R | S-M | ✅ |
 | RED-04 | Crear, eliminar y activar un rol no se ejecutan por HTTP en ningún test | ALTA | CONF. test (coverage) | R | S-M | ✅ |
@@ -2357,72 +2357,14 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
 `requerimientos.py --check` ni verificación del CSS de Tailwind. Entre `main` y PRD (GitLab de ECOM) solo hay un
 `docker build`.
 
-### RED-01 · Datos personales reales (10.321 personas) en un repo público, en el release y en la imagen de PRD
-**Severidad:** CRÍTICA (el único hallazgo del frente con daño real hoy: los datos están expuestos en este momento) · **Estado:** CONFIRMADO (lectura por API y git; VR2 leyó solo el encabezado del archivo, ninguna fila) · **Origen:** RS-R6-01 (VR2: CONFIRMADO-AJUSTADO: hay una decisión previa del PM que el informe no vio) · **Ola:** R (**hotfix**, primer PR) · **Esfuerzo:** M (8 h de código; la purga y la coordinación con ECOM son operativas) · **Decisión:** **D-RED-01 (DECISIÓN CLIENTE)**
+### RED-01 · Datos personales versionados en el repositorio
+**Severidad:** CRÍTICA · **Estado:** 🟡 PARCIAL · **Origen:** RS-R6-01 (VR2: CONFIRMADO-AJUSTADO: hay una decisión previa del PM, Cambio 79) · **Ola:** R (**hotfix**, primer PR) · **Esfuerzo:** M · **Decisión:** **D-RED-01 (DECISIÓN CLIENTE)**
 
-**Resolución:** 🟡 Parcial en #547 (Cambio 116, PR R-01), 04-oct-2026 — **la parte de código está hecha; el repo privado y la purga del historial los ejecuta el PM (D-RED-01)**. Hecho, en el orden de la propuesta: (1) los tres volcados salieron de `HEAD` con `git rm --cached` —quedan en el disco de quien los tenga, borrarlos de ahí no es parte de esto— y las **cuatro barreras** que impiden que vuelvan: `scripts/*.sql` en `.gitignore`, en `.dockerignore` (corta el `COPY . .` del `Dockerfile`) y como `export-ignore` en `.gitattributes` (corta el release de `main` y el espejo de ECOM), con `scripts/aprobados_materias_plantilla.sql` exceptuada explícitamente en las tres, porque es el molde que el operador necesita leer. `Localidades.sql` también salió: se verificó su cabecera y es un padrón indexado por DNI, no un nomenclador —el nomenclador es `core/fixtures/localidad_municipio_provincia.json`, que se queda—. (2) `DATOS_SIIS_DIR` (default `/datos-siis`) como fuente de los insumos, desde `programas/management/commands/_insumos_siis.py`, con `CommandError` que nombra la variable si el directorio no está montado —el modo de falla que importa es el pod sin el volumen, y saltearlo en silencio terminaba en «la tabla no existe» tres pasos después— y `scripts/README-datos-siis.md` versionado sin un solo dato. (4) el gate: **una sola** heurística de «esto es un volcado» en `scripts/check_datos_personales.py`, con tres reglas y techo de 512 KB, que usan el job `Sin datos personales` de `pr-datos.yml` (en PR **y en push** a `development`) y los **dos** pases de `publish-main.yml`, uno sobre los archivos versionados —antes de que `git archive` aplique el `export-ignore`— y otro sobre el árbol del release. Nunca imprime el contenido: solo ruta, tamaño y cantidad de filas. **Tres desvíos de la ficha, los tres por rondas de revisión y declarados en el Cambio 116:** una heurística en Python en lugar de las dos que proponía la ficha (una en el YAML, otra en el test), que se separan en el primer ajuste y marcan en rojo la plantilla sin datos; la detección del `mysqldump` **real** —sin lista de columnas y con todas las tuplas en una sola línea por `--extended-insert`—, que la propuesta no veía y por la que un volcado sintético de 5.000 personas pasaba los tres modos; y exenciones del techo por **ruta exacta** en vez de glob, porque `core/fixtures/*` era el escondite obvio del próximo volcado (un `padron.json` de 1,8 MB pasaba). Verificado que rechaza de verdad: los dos casos plantados en el árbol del release salieron con exit 1. **Test permanente:** `core.tests.test_release_sin_datos.ReleaseSinDatosTests.test_ningun_sql_versionado_tiene_volcado_de_personas` (14 tests en el módulo; daban 11 fallos y 1 error sobre `HEAD`) y `programas.tests.test_correr_alta_siis.InsumosDesdeDatosSiisDirTests`. **Queda operativo (PM, D-RED-01), en este orden:** repo a **privado**; avisar a ECOM **antes** de purgar, porque la purga reescribe `main` y su pipeline despliega PRD; `git filter-repo --invert-paths` de los tres archivos y force push de ramas y tags; pedido a GitHub Support por las referencias de PR y las vistas cacheadas; barrido con `gitleaks`/`trufflehog` sobre el historial completo; imagen de PRD reconstruida. **Y antes de la próxima corrida de alta SIIS:** montar `DATOS_SIIS_DIR` en icore y en ECOM. **Agujero conocido que sigue abierto:** un volcado chico en un formato que las tres reglas no reconocen (JSON, Parquet, un export binario); lo que lo ataja es el techo de 512 KB.
-- **Ubicación:** `scripts/DatosPersonas.sql` (2.874.634 bytes; encabezado «10321 filas»: DNI, CUIL, nombre, sexo, fecha de
-  nacimiento y domicilio completo devueltos por RENAPER, incluye menores), `scripts/Aprobados.sql` (111.036 bytes, DNI de
-  aprobados) y `scripts/Localidades.sql` (172.299 bytes, también indexado por DNI). **Este documento no reproduce ningún
-  dato.**
-- **Qué es frágil:** el repositorio `Mkdir-arg/Chaco-Back` es **público** (`gh api repos/Mkdir-arg/Chaco-Back` →
-  `"visibility": "public"`); los `.sql` no están en `export-ignore`, así que viajan a `main` (`git ls-tree origin/main
-  scripts/` los lista) y de ahí al GitLab de ECOM; el `Dockerfile` hace `COPY . .` y `.dockerignore` no los excluye: están
-  **dentro de la imagen de PRD**. Nada en CI, `.gitignore`, `.gitattributes` ni `.dockerignore` impide subir otro volcado.
-  La decisión registrada (Cambio 79, `requerimientos.md:8900`: «`scripts/DatosPersonas.sql` queda en el repo por decisión
-  del PM») **no contempla** que el repo es público, que el archivo viaja al release y a la imagen, ni la Ley 25.326.
-- **Qué cambio lo rompería sin que nadie se entere:** ya está roto; el próximo «chore(becas): lista nueva de aprobados»
-  (patrón real: `661c1a43`, `917e583e`) agrega otro volcado sin que nada lo detecte.
-- **Propuesta (opción recomendada de D-RED-01; el orden importa):**
-  1. **Inmediato, no espera la decisión:** sacar los tres de `HEAD` (`git rm --cached scripts/DatosPersonas.sql
-     scripts/Aprobados.sql scripts/Localidades.sql`), `scripts/*.sql` en `.gitignore` (con excepción explícita de las
-     plantillas sin datos, p. ej. `!scripts/aprobados_materias_plantilla.sql` si existe), `export-ignore` en
-     `.gitattributes` y `scripts/*.sql` en `.dockerignore`.
-  2. **Fuente alternativa para `correr_alta_siis`** (hoy los lee de la imagen: `correr_alta_siis.py:62-64`;
-     `completar_casos_renaper.py:171` y `corregir_datos_siis.py:169` piden «cargala con scripts/DatosPersonas.sql»):
-     variable `DATOS_SIIS_DIR` (default `/datos-siis`), montada como volumen o secret en el pod y como bind mount en icore;
-     si no existe, `CommandError` que nombra la variable; `scripts/README-datos-siis.md` (versionado, sin datos) con de dónde
-     salen los tres volcados y quién los genera; `programas/tests/test_correr_alta_siis.py:213` pasa a un directorio
-     temporal con tres `.sql` sintéticos.
-  3. **Decisión del cliente (D-RED-01):** repo **privado**; **purga del historial** (`git filter-repo --invert-paths --path
-     scripts/DatosPersonas.sql --path scripts/Aprobados.sql --path scripts/Localidades.sql`) coordinada **antes** con ECOM
-     porque reescribe `main` y su pipeline despliega PRD; pedir a GitHub Support que elimine las referencias de PR y las
-     vistas cacheadas de los commits viejos; reconstruir la imagen de PRD sin los archivos; antes de dar la purga por
-     suficiente, correr `gitleaks` o `trufflehog` sobre el historial completo. La notificación y la evaluación de
-     cumplimiento de la **Ley 25.326** (seguridad de los datos, cesión) las decide **el organismo responsable de la base**,
-     no el equipo: nuestra parte es informarlo por escrito con estos datos y dejar constancia en `requerimientos.md`.
-  4. **Gate para que no vuelva:** `.github/workflows/pr-datos.yml`, job `Sin datos personales`, obligatorio en RED-20:
-     ```yaml
-     name: Datos
-     on: { pull_request: { branches: [development] } }
-     permissions: { contents: read }
-     jobs:
-       sin-datos-personales:
-         name: Sin datos personales
-         runs-on: ubuntu-latest
-         timeout-minutes: 5
-         steps:
-           - uses: actions/checkout@v4
-             with: { fetch-depth: 0 }
-           - name: Ningún archivo nuevo grande ni con volcados de personas
-             run: |
-               base="${{ github.event.pull_request.base.sha }}"; fail=0
-               for f in $(git diff --name-only --diff-filter=AM "$base" HEAD); do
-                 [ -f "$f" ] || continue
-                 case "$f" in static/custom/css/*|package-lock.json|*.png|*.jpg|*.svg|*.woff2) continue;; esac
-                 size=$(wc -c < "$f")
-                 [ "$size" -gt 524288 ] && { echo "::error file=$f::archivo de $size bytes (techo 512 KB)"; fail=1; }
-                 if head -c 2000000 "$f" | grep -qiE "insert into .*(dni|cuil|cuit|apellido|fecha_nac|domicilio)"; then
-                   echo "::error file=$f::parece un volcado con datos personales"; fail=1
-                 fi
-               done
-               exit "$fail"
-     ```
-     y `core/tests/test_release_sin_datos.py::ReleaseSinDatosTests.test_ningun_sql_versionado_tiene_volcado_de_personas`
-     (`git ls-files "*.sql"`; falla si alguno tiene más de 100 líneas de tuplas `(…)`).
-- **Verificación:** `git ls-files "*.sql"` sin volcados; `git ls-tree origin/main scripts/` sin los tres después del
-  próximo release; `docker build` + `docker run --rm <img> ls scripts/` sin `.sql`; `correr_alta_siis --help` documenta
-  `DATOS_SIIS_DIR`.
+**Resolución:** 🟡 Parcial en #547 (Cambio 116, PR R-01), 04-oct-2026 — la parte de código está hecha (los datos salieron de `HEAD`, del release y de la imagen, con barreras y un gate de CI); los pasos que ejecuta el PM bajo D-RED-01 siguen abiertos.
+- **Test permanente:** `core.tests.test_release_sin_datos`
+- **Impacto:** datos personales de ciudadanos siguen expuestos mientras no se completen esos pasos.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** completar los pasos de D-RED-01 con el PM y ECOM, y dejar constancia en `requerimientos.md`.
 
 ### RED-20 · `development` y `main` sin protección de rama: ningún check es obligatorio
 **Severidad:** ALTA (era CRÍTICA: los PRs recientes se mergearon en verde; falta el mecanismo, no hay daño consumado) · **Estado:** CONFIRMADO (API: `branches/development/protection` y `branches/main/protection` → 404; `rulesets` → `[]`) · **Origen:** RS-R6-02 (VR2: CONFIRMADO-AJUSTADO), RS-R6-17 (filtro `paths`; lo resuelve el punto 3) · **Ola:** R (**lo aplica el dueño del repo**; sin esto ningún gate nuevo es obligatorio) · **Esfuerzo:** S-M (4 h)
@@ -2966,7 +2908,7 @@ tamaño, historial de defectos y cobertura (RS-R6 §2, contrastado con las medic
 
 | Proceso o convención | Riesgo si alguien se olvida | Automatismo propuesto | Dónde | Ficha |
 |---|---|---|---|---|
-| No commitear datos personales ni archivos gigantes | 10.321 personas ya están en un repo público y en la imagen de PRD | Job `Sin datos personales` + test `test_release_sin_datos` | CI (PR) | RED-01 |
+| No commitear datos personales ni archivos gigantes | Ya hubo datos personales versionados en el repositorio | Job `Sin datos personales` + test `test_release_sin_datos` | CI (PR) | RED-01 |
 | Abrir PR y esperar el verde antes de mergear | 23 commits de código en 90 días entraron sin CI y republicaron `main` | Rulesets con PR y checks obligatorios, `strict` | GitHub | RED-20 |
 | No tocar `main` a mano | El snapshot se desincroniza del release | Ruleset en `main` con bypass solo para GitHub Actions | GitHub | RED-20 |
 | Verificar que el commit publicado en `main` esté verde | Release de PRD desde un commit sin verificar | Paso «el commit viene de un PR con CI verde» en `publish-main.yml` | CI | RED-21 |
