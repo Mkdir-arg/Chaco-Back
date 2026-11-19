@@ -59434,7 +59434,7 @@ ABM de Roles.
 
 # Cambio 510 — Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h
 
-🟢 **HECHO — 19/11/2026** · rama `feat/e8-e7b-abastecimiento` (sale de la de E-5, #1226)
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e7b-abastecimiento` (sale de la de E-5, #1226, ya mergeada en development)
 
 | | |
 |---|---|
