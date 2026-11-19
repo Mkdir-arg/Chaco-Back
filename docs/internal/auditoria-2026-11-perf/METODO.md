@@ -81,7 +81,7 @@ Lo compartido se audita una sola vez, en el capítulo del módulo que más lo us
 ## 4. Banco
 
 - Becas: receta de `scripts/perf_mysql/README.md` tal cual (20.000 casos).
-- Emergencia y Dispositivos: el banco no los siembra ni mide sus rutas. Antes del capítulo 2 va un
+- Emergencia y Dispositivos: el banco no los sembraba ni medía; lo resolvió (ya mergeado, #1220, medido el 19-nov-2026) un
   PR (`perf/banco-emergencia-dispositivos`) con `scripts/perf_mysql/escenarios_emergencia.py` y `escenarios_dispositivos.py` (volumen de
   producción, a confirmar) y sus rutas en `bench_mysql.py`. **No** se toca `seed_perf`: lo usa el
   CI de performance.
