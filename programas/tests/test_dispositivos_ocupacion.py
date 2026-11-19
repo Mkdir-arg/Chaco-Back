@@ -476,7 +476,7 @@ class OcupacionDePlazasPresupuestoTests(TestCase):
 
 
 class OcupacionPorTipoDePlazaTests(TestCase):
-    """``tipos`` acota la cuenta a esos ``Plaza.Tipo`` (Cambio 497, C7 · #1179).
+    """``tipos`` acota la cuenta a esos ``Plaza.Tipo`` (Cambio 503, C7 · #1179).
 
     Emergencia aloja familias en camas: un cupo o un turno libre no es dónde ponerlas.
     Por defecto se cuentan todas, que es lo que Dispositivos siempre mostró.

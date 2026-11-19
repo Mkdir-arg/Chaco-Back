@@ -619,7 +619,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
-| 497 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -58084,7 +58084,7 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 Sin cambios posteriores.
 
-# Cambio 497 — Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas
+# Cambio 503 — Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas
 
 🟢 **HECHO — 19/11/2026**
 
