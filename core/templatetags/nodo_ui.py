@@ -82,6 +82,7 @@ Renderiza ``templates/components/_menu_fila.html``: un ``.nodo-icon-btn`` de 28 
 """
 
 import re
+from collections.abc import Mapping
 
 from django import template
 from django.conf import settings
@@ -152,6 +153,57 @@ def entero_o_none(valor):
         return int(valor)
     except (TypeError, ValueError):
         return None
+
+
+def _entero(valor):
+    """Entero no negativo para dibujar; lo que falta o no es entero cuenta como 0."""
+    try:
+        return max(int(valor or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _campo(periodo, clave):
+    if isinstance(periodo, Mapping):
+        return periodo.get(clave)
+    return getattr(periodo, clave, None)
+
+
+@register.filter
+def resumen_barras(periodos):
+    """Escala, totales y períodos normalizados del gráfico de barras pareadas
+    (``components/_barras_pareadas.html``): el único lugar donde se normaliza.
+
+    Cada período (dict u objeto con atributos) sale como ``etiqueta``, ``eje`` (por defecto la
+    etiqueta), ``a``, ``b`` (enteros; lo que falta o no es entero cuenta 0) y ``alto_a``/``alto_b``
+    (porcentaje entero sobre el tope). ``tope`` es el máximo de las dos series redondeado hacia
+    arriba a par, para que la guía del medio (``medio``) sea un entero; con todo en cero, ``tope``
+    es 0 y las barras quedan en 0 % sin dividir.
+    """
+    filas = []
+    for periodo in periodos or ():
+        etiqueta = _campo(periodo, "etiqueta")
+        etiqueta = "" if etiqueta is None else etiqueta
+        filas.append(
+            {
+                "etiqueta": etiqueta,
+                "eje": _campo(periodo, "eje") or etiqueta,
+                "a": _entero(_campo(periodo, "a")),
+                "b": _entero(_campo(periodo, "b")),
+            }
+        )
+    maximo = max((max(f["a"], f["b"]) for f in filas), default=0)
+    tope = maximo + maximo % 2
+    for fila in filas:
+        fila["alto_a"] = round(fila["a"] * 100 / tope) if tope else 0
+        fila["alto_b"] = round(fila["b"] * 100 / tope) if tope else 0
+    return {
+        "periodos": filas,
+        "tope": tope,
+        "medio": tope // 2,
+        "total_a": sum(f["a"] for f in filas),
+        "total_b": sum(f["b"] for f in filas),
+    }
 
 
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
