@@ -33,10 +33,10 @@ pueda confundir con un documento real.
 """
 
 import argparse
-import time
 from datetime import timedelta
 
 from _bootstrap import cargar_django, exigir_base_descartable  # noqa: E402
+from _medicion import medir  # noqa: E402
 
 cargar_django()
 
@@ -122,34 +122,6 @@ def sembrar(historicos):
     with connection.cursor() as cur:
         cur.execute(f"ANALYZE TABLE {_tabla()}")  # nosec B608 - nombre de tabla del modelo
         cur.fetchall()
-
-
-def _filas_leidas(cur):
-    cur.execute("SHOW SESSION STATUS LIKE 'Handler_read%'")
-    return sum(int(valor) for _nombre, valor in cur.fetchall())
-
-
-def medir(titulo, sql, repeticiones):
-    print(f"\n=== {titulo}")
-    print(f"SQL: {sql[:400]}{' …' if len(sql) > 400 else ''}")
-    with connection.cursor() as cur:
-        cur.execute(f"EXPLAIN {sql}")
-        columnas = [c[0] for c in cur.description]
-        for fila in cur.fetchall():
-            print("  EXPLAIN " + " | ".join(f"{c}={v}" for c, v in zip(columnas, fila) if v not in (None, "")))
-        cur.execute(sql)  # calienta el buffer pool; esta corrida no cuenta
-        devueltas = len(cur.fetchall())
-        antes = _filas_leidas(cur)
-        cur.execute(sql)
-        cur.fetchall()
-        leidas = _filas_leidas(cur) - antes
-        t0 = time.perf_counter()
-        for _ in range(repeticiones):
-            cur.execute(sql)
-            cur.fetchall()
-        total = (time.perf_counter() - t0) * 1000
-    print(f"  --> {devueltas} filas devueltas · {leidas} lecturas del handler por corrida")
-    print(f"  --> {total / repeticiones:.2f} ms por corrida ({repeticiones} corridas)")
 
 
 def sql_de_la_ventana(ahora):

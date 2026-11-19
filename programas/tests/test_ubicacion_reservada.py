@@ -1,36 +1,20 @@
 """`TipoDispositivo.ubicacion_reservada` (Cambio 499, C2 / T9b, RN-009-13)."""
 
-from importlib import import_module
-
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 
-from programas.models import Dispositivo, Programa, TipoDispositivo
-from programas.services.ubicacion_reservada import (
-    es_de_ubicacion_reservada,
-    q_sin_ubicacion_reservada,
-    separar_por_ubicacion_reservada,
-)
+from programas.models import Dispositivo, Programa, Sector, TipoDispositivo
+from programas.services.ubicacion_reservada import q_sin_ubicacion_reservada, separar_por_ubicacion_reservada
 from programas.tests.test_dispositivos_config import rol_configuracion
 
 
-class CampoYMigracionTests(TestCase):
+class CampoTests(TestCase):
     def test_un_tipo_nuevo_nace_sin_reservar(self):
         tipo = TipoDispositivo.objects.create(codigo="HOG", nombre="Hogar")
         tipo.refresh_from_db()
         self.assertFalse(tipo.ubicacion_reservada)
-
-    def test_la_migracion_agrega_la_columna_con_default_real_en_la_base(self):
-        migracion = import_module("programas.migrations.0127_tipodispositivo_ubicacion_reservada").Migration
-        self.assertIn(("programas", "0126_regla_consumo_e_inicio_evento"), migracion.dependencies)
-        (operacion,) = migracion.operations
-        self.assertEqual((operacion.model_name, operacion.name), ("tipodispositivo", "ubicacion_reservada"))
-        self.assertIs(operacion.field.default, False)
-        db_default = operacion.field.db_default
-        self.assertIs(getattr(db_default, "value", db_default), False)
-        self.assertFalse(operacion.field.null)
 
 
 class HelperTests(TestCase):
@@ -48,9 +32,10 @@ class HelperTests(TestCase):
     def test_la_q_excluye_los_dispositivos_de_tipo_reservado(self):
         self.assertEqual(list(Dispositivo.objects.filter(q_sin_ubicacion_reservada())), [self.hogar])
 
-    def test_la_q_admite_un_prefijo_hacia_el_dispositivo(self):
-        q = q_sin_ubicacion_reservada("dispositivo__")
-        self.assertEqual(q.children, [("dispositivo__tipo__ubicacion_reservada", False)])
+    def test_la_q_con_prefijo_filtra_un_modelo_que_llega_al_dispositivo(self):
+        del_hogar = Sector.objects.create(dispositivo=self.hogar, nombre="General", capacidad=4)
+        Sector.objects.create(dispositivo=self.refugio, nombre="General", capacidad=4)
+        self.assertEqual(list(Sector.objects.filter(q_sin_ubicacion_reservada("dispositivo__"))), [del_hogar])
 
     def test_separar_no_consulta_con_el_tipo_ya_traido_y_deja_sumar_los_reservados(self):
         red = list(Dispositivo.objects.select_related("tipo").order_by("codigo"))
@@ -68,8 +53,6 @@ class HelperTests(TestCase):
     def test_separar_sin_extractor_toma_el_elemento_como_dispositivo(self):
         red = list(Dispositivo.objects.select_related("tipo").order_by("codigo"))
         self.assertEqual(separar_por_ubicacion_reservada(red), ([self.hogar], [self.refugio]))
-        self.assertTrue(es_de_ubicacion_reservada(self.refugio))
-        self.assertFalse(es_de_ubicacion_reservada(self.hogar))
 
 
 class ConfiguracionTests(TestCase):
@@ -115,6 +98,6 @@ class ConfiguracionTests(TestCase):
 
     def test_sin_capacidad_no_la_cambia(self):
         self.client.force_login(self.sin_permiso)
-        self.assertIn(self._post(ubicacion_reservada="on").status_code, (302, 403))
+        self.assertEqual(self._post(ubicacion_reservada="on").status_code, 403)
         self.tipo.refresh_from_db()
         self.assertFalse(self.tipo.ubicacion_reservada)

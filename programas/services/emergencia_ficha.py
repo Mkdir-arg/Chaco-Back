@@ -376,3 +376,16 @@ CLAVES_DE_ENVIO = ("uuid_cliente", "uuid_cliente_alta")
 
 def _claves_de_envio(ficha):
     return {clave: ficha[clave] for clave in CLAVES_DE_ENVIO if (ficha or {}).get(clave)}
+
+
+def sin_dosis(avisos):
+    """¿La persona tiene medicación crítica **sin dosis**? Sobre la sección ``avisos_salud``.
+
+    Sí solo si respondió que toma medicación crítica (``True``) y que **no** tiene la dosis
+    (``False``). Una clave ausente no cuenta: no responder no es «no tiene». Es la definición
+    única del perfil y de la alerta AE-7 de E8 y de la salud logística de Abastecimiento (E-7b).
+    Pura: recibe el dict de la sección (o ``None``) y no consulta.
+    """
+
+    avisos = avisos if isinstance(avisos, dict) else {}
+    return avisos.get("medicacion_critica") is True and avisos.get("medicacion_critica_tiene_dosis") is False

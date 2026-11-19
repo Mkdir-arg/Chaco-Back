@@ -5832,6 +5832,10 @@ class CasoEmergencia(TimeStamped):
             models.Index(fields=["estado", "prioridad"]),
             # «Míos».
             models.Index(fields=["tomado_por", "estado"]),
+            # La ventana de RN-5.1 (E1) y la de E8: `~CERRADO OR alojado_en >= x OR cerrado_en >= x`
+            # usa *index merge* con estos dos y el de `estado` (EXPLAIN del Cambio 504).
+            models.Index(fields=["alojado_en"], name="caso_emerg_alojado_en_idx"),
+            models.Index(fields=["cerrado_en"], name="caso_emerg_cerrado_en_idx"),
         ]
 
     def __str__(self):

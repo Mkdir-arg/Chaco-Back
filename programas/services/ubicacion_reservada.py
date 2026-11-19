@@ -5,8 +5,9 @@ sus coordenadas **no llegan al template** y no se nombran en listados ordenados 
 distancia o por tensión. **Siguen sumando** en los totales (camas libres, capacidad de la
 red, alertas agregadas): esos bloques no muestran dónde quedan.
 
-Es la definición única que usan los puntos del mapa y «más tensionados» de E8 (E-4) y del
-tablero de Dispositivos. El filtro se hace acá, en el servidor; nunca con CSS.
+Es la definición única que usan los puntos del mapa, «más tensionados», las camas cercanas y
+AE-5 de E8 (``selectors.emergencia_situacion``) y, cuando llegue, el tablero de Dispositivos.
+El filtro se hace acá, en el servidor; nunca con CSS.
 
 No se aplica al panel «Derivar» de la mesa (``selectors.emergencia.dispositivos_para_derivar``):
 la mesa (``emergencia.operar``) es la que tiene que poder derivar una familia a un refugio
@@ -26,26 +27,19 @@ def q_sin_ubicacion_reservada(prefijo=""):
     return Q(**{f"{prefijo}tipo__ubicacion_reservada": False})
 
 
-def es_de_ubicacion_reservada(dispositivo):
-    """¿El dispositivo es de un tipo de ubicación reservada?
-
-    Lee ``dispositivo.tipo``: con el ``select_related("tipo")`` de la red no suma consultas.
-    """
-
-    return bool(dispositivo.tipo.ubicacion_reservada)
-
-
 def separar_por_ubicacion_reservada(elementos, *, dispositivo=None):
     """``(publicables, reservados)`` en el orden de entrada. Sin consultas.
 
-    ``elementos`` son dispositivos o filas que los contienen; ``dispositivo`` extrae el
-    dispositivo de cada elemento (por omisión, el elemento mismo). Los ``publicables`` se
-    pueden dibujar y nombrar; los ``reservados`` solo se suman («N camas en dispositivos de
+    ``elementos`` son dispositivos o filas que los contienen (la red de E8, por ejemplo, son
+    ``selectors.emergencia_tablero.DispositivoDeLaRed``); ``dispositivo`` extrae de cada
+    elemento lo que tiene el ``tipo`` (por omisión, el elemento mismo). Con el
+    ``select_related("tipo")`` de la red no suma consultas. Los ``publicables`` se pueden
+    dibujar y nombrar; los ``reservados`` solo se suman («N camas en dispositivos de
     ubicación reservada»), sin nombre ni orden.
     """
 
     extraer = dispositivo or (lambda elemento: elemento)
     publicables, reservados = [], []
     for elemento in elementos:
-        (reservados if es_de_ubicacion_reservada(extraer(elemento)) else publicables).append(elemento)
+        (reservados if extraer(elemento).tipo.ubicacion_reservada else publicables).append(elemento)
     return publicables, reservados

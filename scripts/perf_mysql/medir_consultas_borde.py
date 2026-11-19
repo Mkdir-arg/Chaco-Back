@@ -15,9 +15,9 @@ Uso: python scripts/perf_mysql/medir_consultas_borde.py [--repeticiones 50]
 """
 
 import argparse
-import time
 
 from _bootstrap import cargar_django  # noqa: E402
+from _medicion import medir as _medir  # noqa: E402
 
 cargar_django()
 
@@ -36,21 +36,7 @@ def capturar(fn):
 
 
 def medir(titulo, sql, repeticiones):
-    print(f"\n=== {titulo}")
-    print(f"SQL: {sql[:260]}{' …' if len(sql) > 260 else ''}")
-    with connection.cursor() as cur:
-        cur.execute(f"EXPLAIN {sql}")
-        columnas = [c[0] for c in cur.description]
-        for fila in cur.fetchall():
-            print("  EXPLAIN " + " | ".join(f"{c}={v}" for c, v in zip(columnas, fila) if v not in (None, "")))
-        cur.execute(sql)  # calienta el buffer pool; esta corrida no cuenta
-        cur.fetchall()
-        t0 = time.perf_counter()
-        for _ in range(repeticiones):
-            cur.execute(sql)
-            cur.fetchall()
-        total = (time.perf_counter() - t0) * 1000
-    print(f"  --> {total / repeticiones:.2f} ms por corrida ({repeticiones} corridas, {total:.0f} ms en total)")
+    _medir(titulo, sql, repeticiones, ancho=260, contar_lecturas=False)
 
 
 def main():
