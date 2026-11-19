@@ -89,6 +89,8 @@
         <link rel="stylesheet" href="/static/custom/css/nodo-ficha.css" />
         <!-- NODO Barra con marcas de umbral (components/_barra_umbral.html) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-barra-umbral.css" />
+        <!-- NODO Gráfico de barras pareadas (components/_barras_pareadas.html) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-barras.css" />
 
         <!-- NODO SweetAlertN theming (fuente única — cascada a los N Swal.fire del sistema) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-swal.css" />

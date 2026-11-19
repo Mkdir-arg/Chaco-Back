@@ -1,7 +1,8 @@
 /* NODO — pista de scroll horizontal en tablas (mejora progresiva).
    Marca con `nodo-scroll-mas` a cada `.overflow-x-auto` que tiene una tabla con
    contenido oculto a la derecha; el CSS de nodo-tables.css dibuja la sombra.
-   Si el script no carga, la tabla funciona igual. */
+   Si el script no carga, la tabla funciona igual. También abre al imprimir la tabla
+   equivalente de los gráficos de barras pareadas (fallback de `::details-content`). */
 (function () {
     'use strict';
 
@@ -33,6 +34,20 @@
         barrer();
     }
     document.addEventListener('alpine:initialized', barrer);
+    /* Tabla equivalente de un gráfico (components/_barras_pareadas.html): para los navegadores sin
+       `::details-content`, se abre al imprimir y vuelve a cerrarse después. Sin JS lo cubre el CSS. */
+    window.addEventListener('beforeprint', function () {
+        document.querySelectorAll('details.nodo-barras__tabla:not([open])').forEach(function (d) {
+            d.dataset.nodoAbiertoParaImprimir = '1';
+            d.open = true;
+        });
+    });
+    window.addEventListener('afterprint', function () {
+        document.querySelectorAll('details[data-nodo-abierto-para-imprimir]').forEach(function (d) {
+            d.open = false;
+            delete d.dataset.nodoAbiertoParaImprimir;
+        });
+    });
     /* Para tablas que llegan después por AJAX (innerHTML): window.nodoTablas.barrer(). */
     window.nodoTablas = { barrer: barrer };
 })();
