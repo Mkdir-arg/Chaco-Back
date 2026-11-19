@@ -617,6 +617,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 | 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57973,6 +57974,53 @@ No requiere.
 
 ## Validación
 `test_el_error_de_filtro_no_se_sirve_como_html` (periodo y canal con `<script>`): verificado por mutación, con el arreglo revertido falla con `text/html`. Suite del módulo, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
+
+# Cambio 495 — Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · eliminación |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | QA en testing de ECOM (19/11/2026), MENOR de #1194 (autorizado por el usuario: «pr») |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Al eliminar un segmento, el aviso decía «También se eliminaron: 1 segmento, 1 convocatoria.»: contaba al propio segmento como si fuera un hijo. Lo mismo con convocatoria y relevamiento.
+
+## Alcance acordado
+Solo el texto del aviso de éxito. La cascada y los bloqueos no cambian.
+
+## Decisiones tomadas
+- `eliminar()` devuelve los marcados incluido el propio elemento; `resumen_cascada(marcados, propio)` le resta uno a la clave del elemento eliminado. El programa no tiene clave en los marcados, así que no pasa `propio`.
+
+## Implementación
+La vista pasa la clave del elemento (`segmentos`, `convocatorias`, `relevamientos`) a `resumen_cascada`.
+
+## Archivos
+`programas/services/eliminacion.py`, `programas/views/eliminacion.py`, `programas/tests/test_becas_eliminacion.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`ResumenCascadaTests` (4): verificado por mutación, sin la resta fallan 2. Módulo `test_becas_eliminacion` (31) y ruff en verde.
 
 ## Puesta en marcha en el servidor
 No requiere.
