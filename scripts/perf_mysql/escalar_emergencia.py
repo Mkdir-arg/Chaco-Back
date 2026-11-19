@@ -233,7 +233,10 @@ def sembrar_casos(args, mesa, supervisores, agente, grande, chicos, pool, rng):
             datos["cerrado_en"] = min(relevado + timedelta(days=rng.uniform(1, 20)), ahora - timedelta(hours=1))
             datos["motivo_cierre"] = "TODOS_EGRESADOS" if i % 2 else "NO_REQUIERE"
         if estado in (E.NUEVO, E.EN_GESTION) and rng.random() < 0.05:
-            datos["situacion"] = {CasoEmergencia.SITUACION_EN_LA_PUERTA: rng.choice(list(nombres_disp.values()))}
+            disp_id = rng.choice(dispositivos)
+            datos["situacion"] = {
+                CasoEmergencia.SITUACION_EN_LA_PUERTA: {"dispositivo_id": disp_id, "dispositivo": nombres_disp[disp_id]}
+            }
         casos.append(CasoEmergencia(**datos))
     comun.en_lotes(CasoEmergencia, casos)
     paso(

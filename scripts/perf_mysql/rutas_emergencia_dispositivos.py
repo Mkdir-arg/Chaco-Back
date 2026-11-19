@@ -72,7 +72,7 @@ def emergencia():
         _t("E-entrega_nueva", "mesa", reverse("emergencia:entrega_nueva")),
         _t("E-llegadas_grande", "guardia_web", reverse("dispositivos:emergencia_llegadas", args=[grande.pk])),
         _t("E-api_mis_dispositivos", "guardia_api", reverse("emergencia_api:mis-dispositivos")),
-        _t("E-api_caso_list", "agente_api", reverse("emergencia_api:caso-list")),
+        _t("E-api_caso_mios", "agente_api", reverse("emergencia_api:caso-mios")),
         _t(
             "E-api_dispositivo_buscar_inexistente",
             "guardia_api",
@@ -149,7 +149,7 @@ def dispositivos():
         _t("D-historial_pag_1", "admin_disp", detalle + "?tab=historial&historial_page=1"),
         _t("D-historial_pag_profunda", "admin_disp", detalle + "?tab=historial&historial_page=99999"),
         _t("D-bitacora_censo", "admin_disp", reverse("dispositivos:bitacora", args=[grande.pk])),
-        _t("D-estadias", "admin_disp", reverse("dispositivos:estadias", args=[grande.pk])),
+        _t("D-estadias", "admin_disp", detalle + "?tab=estadias"),
         _t("D-alta_form", "admin_disp", reverse("dispositivos:crear")),
         _t("D-edificios", "admin_disp", reverse("dispositivos:edificios")),
         _t("D-edificios_pag_profunda", "admin_disp", reverse("dispositivos:edificios") + "?page=200"),

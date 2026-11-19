@@ -79,13 +79,14 @@ ROLES = {
             "dispositivo.bitacora",
             "emergencia.recibir_kit",
             "inspeccion.asignar",
+            "edificio.ver",
             "ciudadano.ver",
         ),
     ),
     "coordinador": (
         "BENCH Dispositivos — Coordinador",
         rbac.CODIGO_PROGRAMA_DISPOSITIVOS,
-        ("dispositivo.ver", "inspeccion.asignar", "ciudadano.ver"),
+        ("dispositivo.ver", "inspeccion.asignar", "edificio.ver", "ciudadano.ver"),
     ),
     "operador": (
         "BENCH Dispositivos — Operador",
