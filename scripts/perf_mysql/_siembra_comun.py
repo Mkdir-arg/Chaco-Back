@@ -33,7 +33,8 @@ from users.services.roles import asegurar_rol_sembrado
 
 PREFIJO = "BENCH"
 CLAVE_ROL = "bench."
-PASSWORD = "bench-perf-2026"
+# Usuarios sintéticos del banco local: exigir_base_descartable() frena toda base que no sea chaco_perf_ci.
+PASSWORD = "bench-perf-2026"  # nosec B105
 LOTE = 2000
 PRIMER_DNI = 10_000_000
 
