@@ -459,7 +459,27 @@ def dispositivo_elegible(dispositivo):
     )
 
 
-def _dispositivos_elegibles():
+#: Lo que aloja una familia de Emergencia (RN-2.3): las camas. Un cupo o un turno libre no cuenta.
+TIPOS_QUE_ALOJAN = (Plaza.Tipo.CAMA,)
+
+
+def camas_de(dispositivos, momento=None):
+    """El ``Censo`` de ``ocupacion_de_plazas`` contando **solo camas**. Las mismas 3 consultas en lote.
+
+    Es la cuenta única de Emergencia: el panel «Derivar» (E3), la validación al derivar, la
+    red del tablero (E1) y sus avisos la leen de acá.
+    """
+
+    return ocupacion_de_plazas(dispositivos, momento, tipos=TIPOS_QUE_ALOJAN)
+
+
+def camas_libres(conteo):
+    """Las camas libres de un ``Conteo`` de :func:`camas_de`, nunca negativas."""
+
+    return max(conteo.disponibles or 0, 0)
+
+
+def dispositivos_elegibles():
     """Los elegibles, con su tipo. Una consulta; lo que mira el JSON del tipo se filtra en Python."""
 
     candidatos = (
@@ -505,8 +525,8 @@ def dispositivos_para_derivar(caso, usuario, *, plazas=None, momento=None):
 
     ``{"id", "nombre", "localidad", "libres", "reservadas", "distancia_km", "marca", "faltan"}``
 
-    * ``libres`` y ``reservadas`` salen de ``ocupacion_de_plazas`` (RN-2.3): la misma
-      cuenta que ve el dispositivo, sin reimplementar.
+    * ``libres`` y ``reservadas`` son **camas** (RN-2.3), de :func:`camas_de`: la cuenta de
+      ``ocupacion_de_plazas``, sin reimplementar, la misma que ve el tablero E1.
     * ``distancia_km`` es ``None`` —«distancia desconocida»— si el caso no tiene GPS o el
       dispositivo no tiene coordenadas. No hay centroide de localidad (hallazgo H4).
     * ``marca`` es ``ALCANZA``, ``FALTAN`` o ``SIN_PLAZAS`` contra ``plazas`` (por omisión,
@@ -523,13 +543,13 @@ def dispositivos_para_derivar(caso, usuario, *, plazas=None, momento=None):
     if not puede_operar_la_mesa(usuario):
         raise PermissionDenied(SIN_PERMISO_DE_MESA)
     pedidas = caso.grupo.total_declarado if plazas is None else int(plazas)
-    dispositivos = _dispositivos_elegibles()
-    censo = ocupacion_de_plazas([dispositivo.pk for dispositivo in dispositivos], momento)
+    dispositivos = dispositivos_elegibles()
+    censo = camas_de([dispositivo.pk for dispositivo in dispositivos], momento)
 
     filas = []
     for dispositivo in dispositivos:
         conteo = censo.de(dispositivo.pk).conteo
-        libres = max(conteo.disponibles, 0)
+        libres = camas_libres(conteo)
         marca, faltan = _marca_de_plazas(libres, pedidas)
         filas.append(
             {

@@ -33,7 +33,7 @@ class TableroView(EmergenciaPermissionMixin, View):
     def get(self, request):
         sla, ahora = sla_vigente(), timezone.now()
         foto = tablero.foto_del_tablero(sla, ahora)
-        entregas, total_entregas = tablero.entregas_en_camino(ahora)
+        entregas, total_entregas = tablero.entregas_en_camino(sla, ahora, foto=foto)
         contexto = {
             "resumen": tablero.resumen(sla, ahora, foto=foto),
             "localidades": tablero.por_localidad(sla, ahora, foto=foto),

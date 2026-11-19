@@ -29,7 +29,7 @@ base de ECOM no tiene tablas de zona horaria y un ``Trunc*`` rompería solo en p
 
 from datetime import datetime, time, timedelta
 
-from django.db.models import Count, Max, Prefetch, Q
+from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, EntregaKit, Estadia, LineaEntrega, TrazaEntrega
@@ -60,6 +60,19 @@ _Q_DE_SOLAPA = {
     SOLAPA_RECIBIDAS: Q(estado=Estado.RECIBIDA),
     SOLAPA_CANCELADAS: Q(estado=Estado.CANCELADA),
 }
+
+
+def q_entrega_sin_revisar():
+    """Recibida con diferencias y sin la observación de la mesa **posterior a la recepción**.
+
+    No alcanza con mirar ``observacion_mesa``: el campo nace con la nota que la mesa le deja al
+    dispositivo al armar la entrega. Lo que dice «la mesa la revisó» es la traza ``OBSERVADA``,
+    que solo se escribe sobre una entrega ya recibida (``kits.observar_recepcion``).
+    """
+
+    observada = TrazaEntrega.objects.filter(entrega=OuterRef("pk"), accion=TrazaEntrega.Accion.OBSERVADA)
+    return Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS) & ~Q(Exists(observada))
+
 
 #: Cuántos ítems nombra el resumen de una fila antes de cortar con «…».
 ITEMS_EN_EL_RESUMEN = 3

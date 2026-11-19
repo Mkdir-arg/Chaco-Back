@@ -14,7 +14,8 @@ por el shell: solo marcas, muestra de la leyenda y alto contraste), el relleno `
 
 `_contador_avance` cuenta **unidades** («3 de 7») y su barra no tiene nivel. `_ficha_avance` es el medidor de
 una sección de ficha. Acá el dato es un **porcentaje con nivel de tensión**: la barra tiene que mostrar dónde
-empieza cada nivel, y el nivel lo decide el dominio (`programas/services/ocupacion.py`), no la pantalla.
+empieza cada nivel, y el nivel lo decide el dominio (`programas/services/ocupacion.py`, que con `tipos=(Plaza.Tipo.CAMA,)` cuenta solo
+camas), no la pantalla.
 
 ## Invocación
 

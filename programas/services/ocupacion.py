@@ -329,10 +329,24 @@ def _reservas_que_cuentan(momento):
     )
 
 
-def _de_los_tipos(tipos, prefijo="plaza__"):
-    """El filtro por ``Plaza.tipo``: vacío (todas) si ``tipos`` es ``None``."""
+def _normalizar_tipos(tipos):
+    """``tipos`` como tupla, una sola vez: ``None`` sigue siendo «todas» y un ``str`` es un tipo.
 
-    return Q() if tipos is None else Q(**{f"{prefijo}tipo__in": tuple(tipos)})
+    Las tres consultas leen ``tipos``; un generador se agotaría en la primera y las otras dos
+    contarían cero ocupadas y cero reservadas (libres infladas).
+    """
+
+    if tipos is None:
+        return None
+    if isinstance(tipos, str):
+        return (tipos,)
+    return tuple(tipos)
+
+
+def _de_los_tipos(tipos, prefijo="plaza__"):
+    """El filtro por ``Plaza.tipo``: vacío (todas) si ``tipos`` es ``None``. Espera la tupla de :func:`_normalizar_tipos`."""
+
+    return Q() if tipos is None else Q(**{f"{prefijo}tipo__in": tipos})
 
 
 def _ocupadas_por_sector(sector_ids, tipos=None):
@@ -390,11 +404,14 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     ``tipos`` acota la cuenta a esos ``Plaza.Tipo`` (p. ej. ``(Plaza.Tipo.CAMA,)`` para
     contar solo camas, que es lo que aloja Emergencia). Por defecto, ``None``, cuentan
     todas. El filtro va dentro de las mismas tres consultas: no agrega ninguna. Los
-    sectores siguen apareciendo todos, en cero si no tienen plazas de esos tipos.
+    sectores siguen apareciendo todos, en cero si no tienen plazas de esos tipos. Se
+    normaliza una vez al entrar: un generador vale, un ``str`` es un solo tipo y ``()`` no
+    cuenta ninguna plaza.
     """
 
     ids = _ids_de(dispositivos)
     momento = momento or timezone.now()
+    tipos = _normalizar_tipos(tipos)
     sectores_por_dispositivo: dict[int, list[OcupacionSector]] = {pk: [] for pk in ids}
     de_los_tipos = _de_los_tipos(tipos, prefijo="plazas__")
 

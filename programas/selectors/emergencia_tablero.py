@@ -29,7 +29,8 @@ Presupuesto (lo fija ``programas.tests.test_emergencia_tablero`` con ``@tag("per
 :func:`resumen` (con foto)         **0**.
 :func:`por_localidad` (con foto)   **0**.
 :func:`tiempos` (con foto)         **0**.
-:func:`entregas_en_camino`         **2**: las entregas con su dispositivo y sus líneas.
+:func:`entregas_en_camino`         **2**: las primeras ``tope`` entregas con su dispositivo, y
+                                   sus líneas. El total sale de la foto.
 **Selectores del tablero**         **9** en total.
 =================================  =========================================================
 """
@@ -38,32 +39,27 @@ import math
 import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
+from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
-from django.db.models import Exists, OuterRef, Prefetch, Q, Subquery
+from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Prefetch, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import (
-    CasoEmergencia,
-    ContactoCaso,
-    Derivacion,
-    Dispositivo,
-    EntregaKit,
-    LineaEntrega,
-    TrazaEntrega,
-)
+from programas.models import CasoEmergencia, ContactoCaso, Derivacion, EntregaKit, LineaEntrega
 from programas.selectors.emergencia import (
     SLA_FUERA,
     TRAMO_ALOJAR,
     TRAMOS,
-    dispositivo_elegible,
+    camas_de,
+    camas_libres,
+    dispositivos_elegibles,
     estado_sla,
     texto_de_minutos,
     ultima_traza_del_caso,
 )
-from programas.selectors.kits import resumen_de_items
-from programas.services.ocupacion import ocupacion_de_plazas
+from programas.selectors.kits import q_entrega_sin_revisar, resumen_de_items
+from programas.services.bitacora_detalle import plural
 
 Estado = CasoEmergencia.Estado
 Origen = CasoEmergencia.Origen
@@ -118,7 +114,8 @@ class FilaCaso:
     """Lo que el tablero lee de un caso: las marcas del SLA y poco más (sin JSON).
 
     ``ultima_accion`` y ``ultimo_detalle`` son los de su última ``TrazaCaso``;
-    ``contacto_posterior``, si la mesa registró un contacto desde que se alojó.
+    ``contacto_posterior``, si la mesa registró un contacto desde que se alojó, e
+    ``ingreso_directo``, ``CasoEmergencia.es_ingreso_directo`` leído en SQL con su ``Q``.
     """
 
     id: int
@@ -139,44 +136,61 @@ class FilaCaso:
     ultima_accion: str | None = None
     ultimo_detalle: str | None = None
     contacto_posterior: bool = False
+    ingreso_directo: bool = False
 
     @property
     def abierto(self):
         return self.estado != Estado.CERRADO
 
     @property
-    def ingreso_directo(self):
-        """«Ingresar igual» sin pasar por la mesa: el servicio deja ``tomado_en = creado``.
-
-        Un aviso a la mesa («en la puerta») también es de origen dispositivo, pero lo toma un
-        operador después: su ``tomado_en`` es otro. Así se distingue sin leer ``situacion``.
-        """
-
-        return self.origen == Origen.DISPOSITIVO and self.tomado_en is not None and self.tomado_en == self.creado
-
-    @property
     def ingreso_parcial(self):
         return self.total_alojado is not None and self.total_alojado < self.total_declarado
 
 
+class DispositivoDeLaRed(NamedTuple):
+    """Un elegible con sus **camas** libres y reservadas (``selectors.emergencia.camas_de``)."""
+
+    id: int
+    nombre: str
+    localidad: str
+    libres: int
+    reservadas: int
+
+
+class DerivacionPendiente(NamedTuple):
+    id: int
+    caso_id: int
+    numero: str
+    dispositivo_id: int
+    dispositivo: str
+    vence_en: datetime
+
+
+class EntregaSinRevisar(NamedTuple):
+    id: int
+    numero: str
+    dispositivo: str
+    recibida_en: datetime | None
+
+
 @dataclass(frozen=True)
 class Red:
-    """Los dispositivos elegibles (RN-2.2) con sus plazas, de ``ocupacion_de_plazas`` en lote."""
+    """Los dispositivos elegibles (RN-2.2) con sus camas, de ``ocupacion_de_plazas`` en lote."""
 
-    dispositivos: tuple  # ((id, nombre, localidad, libres, reservadas), ...)
+    dispositivos: tuple[DispositivoDeLaRed, ...]
 
     @property
     def libres(self):
-        return sum(libres for _pk, _nombre, _localidad, libres, _reservadas in self.dispositivos)
+        return sum(dispositivo.libres for dispositivo in self.dispositivos)
 
     @property
     def reservadas(self):
-        return sum(reservadas for *_resto, reservadas in self.dispositivos)
+        return sum(dispositivo.reservadas for dispositivo in self.dispositivos)
 
     def libres_de(self, pk):
-        for dispositivo_id, _nombre, _localidad, libres, _reservadas in self.dispositivos:
-            if dispositivo_id == pk:
-                return libres
+        for dispositivo in self.dispositivos:
+            if dispositivo.id == pk:
+                return dispositivo.libres
         return None
 
 
@@ -188,12 +202,10 @@ class Foto:
     ahora: datetime
     casos: tuple
     red: Red
-    #: Derivaciones ``PENDIENTE`` con caso y dispositivo: ``(id, caso_id, numero, dispositivo_id,
-    #: dispositivo, vence_en)``.
-    pendientes: tuple
-    #: Entregas ``RECIBIDA_CON_DIFERENCIAS`` sin observación de la mesa: ``(id, numero, dispositivo,
-    #: recibida_en)``.
-    entregas_sin_revisar: tuple
+    #: Derivaciones ``PENDIENTE`` con caso y dispositivo.
+    pendientes: tuple[DerivacionPendiente, ...]
+    #: Entregas ``RECIBIDA_CON_DIFERENCIAS`` sin observación de la mesa.
+    entregas_sin_revisar: tuple[EntregaSinRevisar, ...]
     #: Cuántas entregas están ``EN_CAMINO``.
     entregas_en_camino: int
     semaforos: dict = field(default_factory=dict)
@@ -220,6 +232,7 @@ def _casos_de_la_ventana(ahora):
             ultima_accion=Subquery(ultima.values("accion")[:1]),
             ultimo_detalle=Subquery(ultima.values("detalle")[:1]),
             contacto_posterior=Exists(contacto),
+            ingreso_directo=ExpressionWrapper(CasoEmergencia.q_ingreso_directo(), output_field=BooleanField()),
         )
         .order_by("creado", "id")
         .values_list(
@@ -241,6 +254,7 @@ def _casos_de_la_ventana(ahora):
             "ultima_accion",
             "ultimo_detalle",
             "contacto_posterior",
+            "ingreso_directo",
         )
     )
     return tuple(
@@ -263,6 +277,7 @@ def _casos_de_la_ventana(ahora):
             ultima_accion=ultima_accion,
             ultimo_detalle=ultimo_detalle,
             contacto_posterior=bool(contacto_posterior),
+            ingreso_directo=bool(ingreso_directo),
         )
         for (
             pk,
@@ -283,35 +298,31 @@ def _casos_de_la_ventana(ahora):
             ultima_accion,
             ultimo_detalle,
             contacto_posterior,
+            ingreso_directo,
         ) in filas
     )
 
 
 def red_de_dispositivos(momento):
-    """Los elegibles con sus plazas libres y reservadas. **4 consultas fijas** (RN-5.7).
+    """Los elegibles con sus **camas** libres y reservadas. **4 consultas fijas** (RN-5.7).
 
-    Una por los candidatos con su tipo (lo que mira el JSON del tipo se filtra en Python con
-    ``dispositivo_elegible``, la única definición) y las tres de ``ocupacion_de_plazas`` en
-    lote: la misma cuenta que ve el panel «Derivar» de E3, sin una consulta por dispositivo.
+    Una por los elegibles con su tipo (``selectors.emergencia.dispositivos_elegibles``) y las
+    tres de ``ocupacion_de_plazas`` en lote con ``camas_de``: la misma cuenta que ve el panel
+    «Derivar» de E3, sin una consulta por dispositivo. Un cupo o un turno libre no suma (RN-2.3).
     """
 
-    candidatos = (
-        Dispositivo.objects.filter(estado=Dispositivo.Estado.ACTIVO, tipo__activo=True)
-        .select_related("tipo")
-        .order_by("nombre", "id")
-    )
-    elegibles = [dispositivo for dispositivo in candidatos if dispositivo_elegible(dispositivo)]
-    censo = ocupacion_de_plazas([dispositivo.pk for dispositivo in elegibles], momento)
+    elegibles = dispositivos_elegibles()
+    censo = camas_de([dispositivo.pk for dispositivo in elegibles], momento)
     filas = []
     for dispositivo in elegibles:
         conteo = censo.de(dispositivo.pk).conteo
         filas.append(
-            (
-                dispositivo.pk,
-                dispositivo.nombre,
-                dispositivo.localidad,
-                max(conteo.disponibles or 0, 0),
-                conteo.reservadas or 0,
+            DispositivoDeLaRed(
+                id=dispositivo.pk,
+                nombre=dispositivo.nombre,
+                localidad=dispositivo.localidad,
+                libres=camas_libres(conteo),
+                reservadas=conteo.reservadas or 0,
             )
         )
     return Red(dispositivos=tuple(filas))
@@ -319,26 +330,15 @@ def red_de_dispositivos(momento):
 
 def _derivaciones_pendientes():
     return tuple(
-        Derivacion.objects.filter(estado=Derivacion.Estado.PENDIENTE)
+        DerivacionPendiente(*fila)
+        for fila in Derivacion.objects.filter(estado=Derivacion.Estado.PENDIENTE)
         .order_by("vence_en", "id")
         .values_list("id", "caso_id", "caso__numero", "dispositivo_id", "dispositivo__nombre", "vence_en")
     )
 
 
-def q_entrega_sin_revisar():
-    """Recibida con diferencias y sin la observación de la mesa **posterior a la recepción**.
-
-    No alcanza con mirar ``observacion_mesa``: el campo nace con la nota que la mesa le deja al
-    dispositivo al armar la entrega. Lo que dice «la mesa la revisó» es la traza ``OBSERVADA``,
-    que solo se escribe sobre una entrega ya recibida (``kits.observar_recepcion``).
-    """
-
-    observada = TrazaEntrega.objects.filter(entrega=OuterRef("pk"), accion=TrazaEntrega.Accion.OBSERVADA)
-    return Q(estado=EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS) & ~Q(Exists(observada))
-
-
 def _entregas():
-    """Una consulta: las en camino y las recibidas con diferencias sin revisar.
+    """Una consulta: las en camino y las recibidas con diferencias sin revisar (``kits.q_entrega_sin_revisar``).
 
     Devuelve ``(sin_revisar, en_camino)``: la lista de las sin revisar y cuántas van en camino.
     """
@@ -353,7 +353,7 @@ def _entregas():
         if estado == EntregaKit.Estado.EN_CAMINO:
             en_camino += 1
         else:
-            sin_revisar.append((pk, numero, dispositivo, recibida_en))
+            sin_revisar.append(EntregaSinRevisar(pk, numero, dispositivo, recibida_en))
     return tuple(sin_revisar), en_camino
 
 
@@ -384,7 +384,9 @@ def foto_del_tablero(sla, ahora):
     )
 
 
-def _foto(sla, ahora, foto):
+def asegurar_foto(sla, ahora, foto):
+    """``foto``, o una nueva si no vino (7 consultas). La usan también los avisos."""
+
     return foto if foto is not None else foto_del_tablero(sla, ahora)
 
 
@@ -394,10 +396,6 @@ def fuera_de_sla(foto):
     fuera = [(caso, foto.semaforos[caso.id]) for caso in foto.casos if caso.id in foto.semaforos]
     fuera = [(caso, semaforo) for caso, semaforo in fuera if semaforo.estado == SLA_FUERA]
     return sorted(fuera, key=lambda par: (-par[1].minutos, par[0].id))
-
-
-def _plural(cantidad, singular, plural=None):
-    return f"{cantidad} {singular if cantidad == 1 else (plural or singular + 's')}"
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +413,7 @@ def resumen(sla, ahora, foto=None):
     **Presupuesto: 0 consultas** con ``foto``; 7 sin ella.
     """
 
-    foto = _foto(sla, ahora, foto)
+    foto = asegurar_foto(sla, ahora, foto)
     desde, hasta = dia_operativo(ahora)
     abiertos = foto.abiertos
     nuevos = [caso for caso in abiertos if caso.estado == Estado.NUEVO]
@@ -452,7 +450,7 @@ def resumen(sla, ahora, foto=None):
         {
             "etiqueta": "En gestión",
             "valor": len(en_gestion),
-            "nota": f"{_plural(derivados, 'derivado')} · {ingresando} ingresando",
+            "nota": f"{plural(derivados, 'derivado', 'derivados')} · {ingresando} ingresando",
             "icono": "fa-people-arrows",
             "tono": "brand",
         },
@@ -467,8 +465,8 @@ def resumen(sla, ahora, foto=None):
             "etiqueta": "Familias alojadas hoy",
             "valor": len(alojadas),
             "nota": (
-                f"{_plural(personas, 'persona')} · {_plural(directos, 'ingreso directo', 'ingresos directos')}"
-                f" · {_plural(parciales, 'parcial', 'parciales')}"
+                f"{plural(personas, 'persona', 'personas')} · {plural(directos, 'ingreso directo', 'ingresos directos')}"
+                f" · {plural(parciales, 'parcial', 'parciales')}"
             ),
             "icono": "fa-house-chimney-user",
             "tono": "success",
@@ -476,7 +474,7 @@ def resumen(sla, ahora, foto=None):
         {
             "etiqueta": "Plazas libres en la red",
             "valor": libres,
-            "nota": _plural(reservadas, "reservada"),
+            "nota": plural(reservadas, "reservada", "reservadas"),
             "icono": "fa-bed",
             "tono": "brand" if libres else "danger",
         },
@@ -507,33 +505,38 @@ def resumen(sla, ahora, foto=None):
 # ---------------------------------------------------------------------------
 
 
-def _clave_de_localidad(nombre):
+def _clave_de_nombre(nombre):
     return " ".join((nombre or "").split()).casefold()
 
 
 def por_localidad(sla, ahora, foto=None):
-    """Una fila por localidad: nuevos, en gestión, fuera de SLA, alojadas hoy y plazas libres.
+    """Una fila por localidad: nuevos, en gestión, fuera de SLA, alojadas hoy y camas libres.
 
-    La localidad del caso es ``core.Localidad`` y la del dispositivo es texto libre: se cruzan
-    por el nombre, sin mayúsculas ni espacios de más. Una localidad que solo tiene
-    dispositivos aparece igual (es donde hay lugar). ``url`` es la bandeja E2 filtrada por
-    esa localidad, o vacía si la fila no corresponde a una ``core.Localidad`` con casos.
+    Los casos se agrupan por ``localidad_id`` (``core.Localidad``), **nunca por el nombre**
+    (RN-009-04): en Chaco hay nombres repetidos en municipios distintos, y cada fila enlaza a la
+    bandeja E2 filtrada por esa sola localidad. Los casos sin localidad van a «Sin localidad».
+
+    La localidad del dispositivo es texto libre, así que sus camas libres se suman a la fila de
+    casos cuyo nombre coincide (sin mayúsculas ni espacios de más) **solo si es una sola**. Si
+    no hay ninguna, o si el nombre es de dos localidades con casos, van a una fila propia por
+    nombre, sin enlace: una localidad que solo tiene dispositivos aparece igual (es donde hay
+    lugar) y las camas no se atribuyen a una homónima al azar.
 
     Orden: fuera de SLA, de más a menos; después nuevos; después el nombre.
 
     **Presupuesto: 0 consultas** con ``foto``; 7 sin ella.
     """
 
-    foto = _foto(sla, ahora, foto)
+    foto = asegurar_foto(sla, ahora, foto)
     desde, hasta = dia_operativo(ahora)
     fuera = {caso.id for caso, _semaforo in fuera_de_sla(foto)}
     filas = {}
 
-    def fila(clave, nombre):
+    def fila(clave, nombre, localidad_id=None):
         if clave not in filas:
             filas[clave] = {
                 "localidad": nombre,
-                "localidad_id": None,
+                "localidad_id": localidad_id,
                 "nuevos": 0,
                 "en_gestion": 0,
                 "fuera_de_sla": 0,
@@ -543,10 +546,10 @@ def por_localidad(sla, ahora, foto=None):
         return filas[clave]
 
     for caso in foto.casos:
-        nombre = caso.localidad or SIN_LOCALIDAD
-        actual = fila(_clave_de_localidad(caso.localidad) if caso.localidad_id else None, nombre)
         if caso.localidad_id:
-            actual["localidad_id"] = caso.localidad_id
+            actual = fila(("localidad", caso.localidad_id), caso.localidad, caso.localidad_id)
+        else:
+            actual = fila(("sin_localidad",), SIN_LOCALIDAD)
         if caso.estado == Estado.NUEVO:
             actual["nuevos"] += 1
         elif caso.estado in ESTADOS_EN_GESTION:
@@ -555,10 +558,21 @@ def por_localidad(sla, ahora, foto=None):
             actual["fuera_de_sla"] += 1
         if caso.alojado_en is not None and desde <= caso.alojado_en < hasta:
             actual["alojadas_hoy"] += 1
-    for _pk, _nombre, localidad, libres, _reservadas in foto.red.dispositivos:
-        if not (localidad or "").strip():
+
+    por_nombre = {}
+    for clave, actual in filas.items():
+        if actual["localidad_id"]:
+            por_nombre.setdefault(_clave_de_nombre(actual["localidad"]), []).append(clave)
+    for dispositivo in foto.red.dispositivos:
+        nombre = (dispositivo.localidad or "").strip()
+        if not nombre:
             continue
-        fila(_clave_de_localidad(localidad), localidad.strip())["plazas_libres"] += libres
+        homonimas = por_nombre.get(_clave_de_nombre(nombre), [])
+        if len(homonimas) == 1:
+            actual = filas[homonimas[0]]
+        else:
+            actual = fila(("nombre", _clave_de_nombre(nombre)), nombre)
+        actual["plazas_libres"] += dispositivo.libres
 
     url_bandeja = reverse("emergencia:bandeja")
     resultado = []
@@ -604,7 +618,7 @@ def tiempos(sla, ahora, foto=None):
     **Presupuesto: 0 consultas** con ``foto``; 7 sin ella.
     """
 
-    foto = _foto(sla, ahora, foto)
+    foto = asegurar_foto(sla, ahora, foto)
     limite = ahora - VENTANA
     muestras = {tramo: [] for tramo, *_resto in TRAMOS}
     for caso in foto.casos:
@@ -642,25 +656,26 @@ def tiempos(sla, ahora, foto=None):
 # ---------------------------------------------------------------------------
 
 
-def entregas_en_camino(ahora, tope=TOPE_ENTREGAS):
+def entregas_en_camino(sla, ahora, foto=None, tope=TOPE_ENTREGAS):
     """Las entregas ``EN_CAMINO``, la que salió hace más primero: ``(filas, total)``.
 
     Cada fila: ``numero``, ``dispositivo``, ``desde`` (fecha y hora), ``hace`` («hace 3 h»),
-    ``items`` (resumen de lo enviado) y ``url`` (E5). Se listan las primeras ``tope``; el
-    total sirve para el enlace a E4.
+    ``items`` (resumen de lo enviado) y ``url`` (E5). Se leen de la base solo las primeras
+    ``tope``; el ``total`` (para el enlace a E4) es el de la foto, que ya las contó.
 
-    **Presupuesto: 2 consultas**: las entregas con su dispositivo, y sus líneas con el ítem
-    (``prefetch``). Sin N+1 por fila.
+    **Presupuesto: 2 consultas** con ``foto``: las entregas con su dispositivo, y sus líneas con
+    el ítem (``prefetch``). Sin N+1 por fila.
     """
 
-    entregas = list(
+    foto = asegurar_foto(sla, ahora, foto)
+    entregas = (
         EntregaKit.objects.filter(estado=EntregaKit.Estado.EN_CAMINO)
         .select_related("dispositivo")
         .prefetch_related(Prefetch("lineas", queryset=LineaEntrega.objects.select_related("item").order_by("id")))
-        .order_by("despachada_en", "id")
+        .order_by("despachada_en", "id")[:tope]
     )
     filas = []
-    for entrega in entregas[:tope]:
+    for entrega in entregas:
         desde = entrega.despachada_en or entrega.creado
         minutos = max(int((ahora - desde).total_seconds() // 60), 0)
         lineas = list(entrega.lineas.all())
@@ -674,4 +689,4 @@ def entregas_en_camino(ahora, tope=TOPE_ENTREGAS):
                 "url": reverse("emergencia:entrega_detalle", args=[entrega.pk]),
             }
         )
-    return filas, len(entregas)
+    return filas, foto.entregas_en_camino
