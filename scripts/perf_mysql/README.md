@@ -58,6 +58,41 @@ Remove-Item Env:DB_READ_TIMEOUT, Env:DB_WRITE_TIMEOUT
 consultas, duplicadas y ms de SQL; el JSON guarda además las tres consultas más lentas.
 `perfil_ruta.py` corre `cProfile` sobre la ruta y separa SQL de plantillas/Python.
 
+## Emergencia y Dispositivos (auditoría de noviembre de 2026)
+
+Dos scripts siembran la forma de producción de cada módulo sobre la base ya migrada y
+con `seed_perf` (hace falta que existan los programas EMERGENCIA y DISPOSITIVOS). Son
+**idempotentes**: cuentan lo que hay con el prefijo del banco (`BENCH-C-`, `BENCH-K-`,
+`BENCH-D-`, `BENCH-ED-`, usuarios `bench_*`) y crean solo lo que falta; volver a correrlos
+no duplica y sirve para subir el volumen. **Exigen MariaDB 10.5+** (necesitan que `bulk_create` devuelva las pk; con MySQL 8 se detienen con un mensaje claro). Solo `escalar_dispositivos.py` borra algo: las trazas `ESTADIA_*` del banco cuando no coinciden con los movimientos, para rearmarlas. Comparten `_siembra_comun.py`
+(roles acotados, usuarios, ciudadanos, dispositivos y plazas).
+
+```powershell
+$env:DB_READ_TIMEOUT = "600"; $env:DB_WRITE_TIMEOUT = "600"   # solo para sembrar
+& $env:PY_VENV scripts\perf_mysql\escalar_dispositivos.py    # ≈ 10 min: 200 dispositivos, 20.000 estadías, 100.000 movimientos del grande, 5.000 edificios…
+& $env:PY_VENV scripts\perf_mysql\escalar_emergencia.py      # ≈ 15 min: 500.000 ciudadanos, 10.000 casos, 15.000 derivaciones, 20.000 entregas…
+Remove-Item Env:DB_READ_TIMEOUT, Env:DB_WRITE_TIMEOUT
+& $env:PY_VENV scripts\perf_mysql\bench_mysql.py --salida resultado-ED.json
+```
+
+- Los volúmenes se cambian por argumento (`--egresadas-chicos` reparte la historia de estadías entre los chicos: el grande queda en torno al 20 % de las filas de `Estadia`/`MovimientoEstadia`; `--casos 100000 --entregas 200000` es la variante
+  grande de E-PERF-03/04/05; ver `--help`). Cada bloque de Emergencia que arma casos corre en
+  una transacción: un corte a la mitad no deja casos sin grupo ni derivación.
+- Las rutas están en `rutas_emergencia_dispositivos.py`, con un cliente por actor: la web va
+  con `force_login` de usuarios `bench_mesa_01`, `bench_sup_01`, `bench_admin_disp_01`,
+  `bench_coord_01` y `bench_guardia_01`; la API de campo, con `Authorization: Token` de la
+  guardia y del agente. Si el banco no está sembrado, no agrega nada.
+- Fuera de `bench_mysql.py` (no se repiten con estado distinto): los POST de un solo uso
+  (`derivacion-aceptar`, `caso-integrante-confirmar`), las medidas de concurrencia
+  (E-PERF-02, E-PERF-09, D-PERF-07: dos sesiones) y la ficha E-PERF-01 por dos puntas, que se
+  mide con `EXPLAIN ANALYZE` del `REGEXP` sobre `legajos_ciudadano` filtrando `id <= N`.
+- `escalar_dispositivos.py` reparte las fechas de `TrazaDispositivo`/`TrazaInspeccion` con
+  `auto_now_add` desactivado en el proceso (el historial queda en tres años, no en «ahora»).
+  Un `/media/` de adjunto necesita el archivo en `MEDIA_ROOT`: se escriben archivos mínimos
+  para el adjunto del medio y el último de cada tipo.
+- Si la base se migró con un commit anterior al de la rama, `manage.py migrate` antes de sembrar
+  (faltaban `legajos.0012` y `users.0050`).
+
 ## Gotchas
 
 - `settings_bench.py` saca `BackofficeSingleSessionMiddleware` (el segundo request del
@@ -73,5 +108,9 @@ consultas, duplicadas y ms de SQL; el JSON guarda además las tres consultas má
   que `bench_mysql.py` las encuentre (antes devolvían 404 y se medían vacías).
 - `OPENPYXL_LXML=False` desactiva lxml sin desinstalarlo: sirve para comparar el costo de
   armar un xlsx con y sin él (PERF-03).
+- `bench_mysql.py` consume las descargas en streaming (`streaming_content`) en vez de leer
+  `.content`, que no existe en un `StreamingHttpResponse`. `revision_bandeja_estado_raro`
+  devolvía 404 porque `escenarios_borde.py` no había marcado ningún caso BAJA y se pedía la
+  página 10 de una bandeja vacía: ahora entra solo si hay casos BAJA y pide la última página.
 - Después de medir: `docker stop chaco-mysql-dash chaco-redis-bench` (o
   `docker rm -f chaco-mariadb-bench chaco-redis-bench` si el banco era descartable).
