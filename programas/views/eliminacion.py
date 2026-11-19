@@ -32,13 +32,13 @@ from programas.services.eliminacion import (
 )
 
 
-def _eliminar_y_avisar(request, objeto, que, destino):
+def _eliminar_y_avisar(request, objeto, que, destino, propio=None):
     try:
         marcados = eliminar(objeto, request.user)
     except EliminacionBloqueada as error:
         messages.error(request, mensaje_bloqueo(error, que))
     else:
-        messages.success(request, f"Se eliminó {que} «{objeto}».{resumen_cascada(marcados)}")
+        messages.success(request, f"Se eliminó {que} «{objeto}».{resumen_cascada(marcados, propio)}")
     return redirect(destino)
 
 
@@ -60,7 +60,7 @@ def segmento_eliminar(request, pk):
     segmento = get_object_or_404(Segmento, pk=pk)
     if not puede_configurar_segmento(request.user, segmento):
         raise PermissionDenied("No tiene acceso a este segmento.")
-    return _eliminar_y_avisar(request, segmento, "el segmento", "becas:segmentos")
+    return _eliminar_y_avisar(request, segmento, "el segmento", "becas:segmentos", "segmentos")
 
 
 @login_required
@@ -68,7 +68,7 @@ def segmento_eliminar(request, pk):
 def convocatoria_eliminar(request, pk):
     assert_puede_eliminar(request.user, CAP_CONVOCATORIA_ELIMINAR)
     convocatoria = get_object_or_404(convocatorias_visibles(request.user), pk=pk)
-    return _eliminar_y_avisar(request, convocatoria, "la convocatoria", "becas:convocatorias")
+    return _eliminar_y_avisar(request, convocatoria, "la convocatoria", "becas:convocatorias", "convocatorias")
 
 
 @login_required
@@ -77,4 +77,4 @@ def relevamiento_eliminar(request, pk):
     assert_puede_eliminar(request.user, CAP_RELEVAMIENTO_ELIMINAR)
     relevamiento = get_object_or_404(Relevamiento.objects.select_related("convocatoria__segmento"), pk=pk)
     assert_alcance_relevamiento(request.user, relevamiento)
-    return _eliminar_y_avisar(request, relevamiento, "el relevamiento", "becas:relevamientos")
+    return _eliminar_y_avisar(request, relevamiento, "el relevamiento", "becas:relevamientos", "relevamientos")

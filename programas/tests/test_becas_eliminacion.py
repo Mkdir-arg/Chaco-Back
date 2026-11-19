@@ -7,7 +7,7 @@ from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -32,6 +32,7 @@ from programas.services.eliminacion import (
     CAP_SEGMENTO_ELIMINAR,
     EliminacionBloqueada,
     eliminar,
+    resumen_cascada,
 )
 from users.models import Capacidad, RolMeta
 
@@ -333,3 +334,22 @@ class GraciaDeSincronizacionTests(_Base):
         self._cerrado(Relevamiento.Estado.TERMINADO, timedelta(hours=2))
         eliminar(self.relevamiento, self.eliminador)
         self.assertFalse(Relevamiento.objects.filter(pk=self.relevamiento.pk).exists())
+
+
+class ResumenCascadaTests(SimpleTestCase):
+    """El aviso de éxito no anuncia al propio elemento como si fuera un hijo (QA en testing, 19-nov)."""
+
+    def test_segmento_no_se_cuenta_a_si_mismo(self):
+        marcados = {"segmentos": 1, "convocatorias": 1}
+        self.assertEqual(resumen_cascada(marcados, "segmentos"), " También se eliminaron: 1 convocatoria.")
+
+    def test_relevamiento_solo_no_anuncia_nada(self):
+        self.assertEqual(resumen_cascada({"relevamientos": 1}, "relevamientos"), "")
+
+    def test_programa_cuenta_todos_sus_hijos(self):
+        self.assertEqual(resumen_cascada({"segmentos": 2}), " También se eliminaron: 2 segmentos.")
+
+    def test_no_modifica_el_diccionario_recibido(self):
+        marcados = {"convocatorias": 1}
+        resumen_cascada(marcados, "convocatorias")
+        self.assertEqual(marcados, {"convocatorias": 1})
