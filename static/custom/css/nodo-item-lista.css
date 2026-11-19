@@ -1,0 +1,74 @@
+/* NODO Design System — Ítem de lista de selección
+   Contrato: templates/components/_item_lista.html (ficha .claude/design/componentes/item_lista.md).
+   Botón de ancho completo con nombre, dato secundario y badge. El estado seleccionado lo dice
+   `aria-pressed="true"`: lo que el consumidor alterna con JS es el atributo, y el resaltado lo sigue
+   solo (el estado no vive en una clase aparte). Colores por token. */
+
+.nodo-item-lista {
+    appearance: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.nodo-item-lista:hover {
+    background: var(--bg-secondary);
+}
+
+.nodo-item-lista:focus-visible {
+    outline: 2px solid var(--bg-brand);
+    outline-offset: 2px;
+}
+
+.nodo-item-lista[aria-pressed="true"] {
+    background: var(--bg-info-soft);
+    border-color: var(--border-info-subtle);
+}
+
+.nodo-item-lista__texto {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Un nombre largo se recorta con puntos suspensivos (el `title` lo dice completo) y no tapa el badge. */
+.nodo-item-lista__nombre {
+    display: block;
+    font-weight: 700;
+    color: var(--text-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nodo-item-lista__meta {
+    display: block;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-body-subtle);
+}
+
+.nodo-item-lista .badge {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Alto contraste: el fondo lo pisa el sistema, así que el seleccionado se marca con borde y el foco
+   conserva el contorno. */
+@media (forced-colors: active) {
+    .nodo-item-lista[aria-pressed="true"] {
+        border-color: Highlight;
+        border-width: 2px;
+    }
+
+    .nodo-item-lista:focus-visible {
+        outline-color: Highlight;
+    }
+}
