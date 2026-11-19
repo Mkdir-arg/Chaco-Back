@@ -626,7 +626,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
-| 505 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -58707,7 +58707,7 @@ cargar con el comando).
   latitud y longitud invertidas; el reporte marca las ambiguas y no conciliadas que conservan una ubicación de una
   carga anterior («conserva ubicación anterior (id_fuente …)»), con una sola consulta y sin borrar nada. 21 tests.
 
-# Cambio 505 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
+# Cambio 507 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
 
 🟢 **HECHO — 19/11/2026**
 
