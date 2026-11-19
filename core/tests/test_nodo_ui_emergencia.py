@@ -1,17 +1,20 @@
 """Piezas de UI del lote Emergencia: semáforo de SLA (badge y reloj), tarjeta de dispositivo
-para derivar, contador de avance «N de N» y celda de diferencia de una conciliación."""
+para derivar, contador de avance «N de N», celda de diferencia de una conciliación y barra con
+marcas de umbral."""
 
 import re
 
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 
-from core.templatetags.nodo_ui import menos
+from core.templatetags.nodo_ui import entero_o_none, menos, porcentaje_barra
+from programas.services.ocupacion import Conteo, tension_de_ocupacion
 
 SEMAFORO = "components/_semaforo_sla.html"
 TARJETA = "components/_tarjeta_dispositivo_derivar.html"
 CONTADOR = "components/_contador_avance.html"
 CELDA = "components/_celda_diferencia.html"
+BARRA = "components/_barra_umbral.html"
 
 
 def _texto(html):
@@ -353,3 +356,165 @@ class CeldaDiferenciaTest(SimpleTestCase):
         self.assertIsNone(menos(None, 10))
         self.assertIsNone(menos(10, None))
         self.assertIsNone(menos("x", 1))
+
+
+class _TipoConUmbrales:
+    umbral_ocupacion_amarillo = 70
+    umbral_ocupacion_rojo = 85
+
+
+class BarraUmbralTest(SimpleTestCase):
+    def _render(self, **contexto):
+        return render_to_string(BARRA, contexto)
+
+    def _de_tension(self, ocupadas, operativas, *, tipo=None, **extra):
+        tension = tension_de_ocupacion(
+            Conteo(totales=operativas, ocupadas=ocupadas, reservadas=0, prestadas=0), tipo=tipo
+        )
+        return self._render(
+            valor=tension.ocupadas,
+            maximo=tension.operativas,
+            porcentaje=tension.porcentaje,
+            tono=tension.tono,
+            etiqueta=tension.etiqueta,
+            **extra,
+        )
+
+    def _sr(self, html):
+        return re.search(r'<span class="sr-only">([^<]*)</span>', html).group(1)
+
+    def test_con_umbrales_dibuja_marcas_tono_cifra_y_badge(self):
+        # TC-1175-01: la red al 88 % con el corte general 60/80.
+        html = self._de_tension(1633, 1850, umbral_exigida=60, umbral_critica=80)
+
+        self.assertIn('style="--avance:88%"', html)
+        self.assertIn(
+            'class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full bg-danger"', html
+        )
+        self.assertIn('style="--umbral:60%" title="Exigida desde 60 %" data-marca="exigida"', html)
+        self.assertIn('style="--umbral:80%" title="Crítica desde 80 %" data-marca="critica"', html)
+        self.assertIn('<span class="badge badge-danger whitespace-nowrap">', html)
+        self.assertIn('<i class="fas fa-circle-exclamation" aria-hidden="true"></i> Crítica', html)
+        self.assertIn(">88 %</span>", html)
+        self.assertIn("Exigida desde 60 %</span>", html)
+        self.assertIn("Crítica desde 80 %</span>", html)
+
+    def test_las_marcas_son_las_del_tipo(self):
+        # TC-1175-02: un tipo 70/85 marca ahí y el nivel responde a esos umbrales.
+        tipo = _TipoConUmbrales()
+        html = self._de_tension(
+            58, 70, tipo=tipo, umbral_exigida=tipo.umbral_ocupacion_amarillo, umbral_critica=tipo.umbral_ocupacion_rojo
+        )
+
+        self.assertIn('style="--umbral:70%"', html)
+        self.assertIn('style="--umbral:85%"', html)
+        self.assertNotIn("--umbral:60%", html)
+        self.assertNotIn("--umbral:80%", html)
+        self.assertEqual(self._sr(html), "Ocupación: 83 por ciento, nivel Exigida.")
+        self.assertIn("bg-warning", html)
+
+    def test_un_tono_icono_y_texto_por_nivel(self):
+        # TC-1175-03: el nivel nunca depende solo del color.
+        tipo = _TipoConUmbrales()
+        casos = {
+            40: ("bg-success", "badge-success", "fa-circle-check", "Normal"),
+            75: ("bg-warning", "badge-warning", "fa-triangle-exclamation", "Exigida"),
+            90: ("bg-danger", "badge-danger", "fa-circle-exclamation", "Crítica"),
+        }
+        for ocupadas, (relleno, badge, icono, etiqueta) in casos.items():
+            with self.subTest(ocupadas=ocupadas):
+                html = self._de_tension(ocupadas, 100, tipo=tipo, umbral_exigida=70, umbral_critica=85)
+
+                self.assertIn(
+                    f"nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full {relleno}", html
+                )
+                self.assertIn(f"badge {badge}", html)
+                self.assertIn(f'<i class="fas {icono}" aria-hidden="true"></i> {etiqueta}', html)
+
+    def test_sin_umbrales_es_la_variante_sin_marcas_con_cifra(self):
+        # TC-1175-04: el embudo.
+        html = self._render(valor=204, maximo=212, texto="204 casos", nombre="Tomados")
+
+        self.assertNotIn("nodo-barra-umbral-marca", html)
+        self.assertNotIn("nodo-barra-umbral-muestra", html)
+        self.assertNotIn("desde", html)
+        self.assertNotIn("badge", html)
+        self.assertIn(
+            'class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full bg-brand" style="--avance:96%"',
+            html,
+        )
+        self.assertIn(">204 casos</span>", html)
+        self.assertEqual(self._sr(html), "Tomados: 96 por ciento (204 casos).")
+
+    def test_vacia_y_llena(self):
+        # TC-1175-05.
+        vacia = self._de_tension(0, 40, umbral_exigida=60, umbral_critica=80)
+        llena = self._de_tension(40, 40, umbral_exigida=60, umbral_critica=80)
+
+        self.assertIn('style="--avance:0%"', vacia)
+        self.assertIn(">0 %</span>", vacia)
+        self.assertIn("Normal", vacia)
+        self.assertIn('style="--avance:100%"', llena)
+        self.assertIn(">100 %</span>", llena)
+
+    def test_sin_plazas_operativas_dice_raya_y_sin_plazas(self):
+        # TC-1175-06: no es un 0 %.
+        html = self._de_tension(0, 0, umbral_exigida=60, umbral_critica=80)
+
+        self.assertNotIn("--avance", html)
+        self.assertNotIn(">0 %</span>", html)
+        self.assertIn(">—</span>", html)
+        self.assertIn('<span class="badge badge-gray whitespace-nowrap">', html)
+        self.assertIn("fa-circle-minus", html)
+        self.assertEqual(self._sr(html), "Ocupación: sin cifra, nivel Sin plazas.")
+        self.assertIn(">—</span>", self._render())
+
+    def test_el_texto_equivalente_dice_valor_y_nivel_y_lo_grafico_va_oculto(self):
+        # TC-1175-07.
+        html = self._de_tension(1633, 1850, umbral_exigida=60, umbral_critica=80, nombre="Capacidad de la red")
+
+        self.assertEqual(self._sr(html), "Capacidad de la red: 88 por ciento, nivel Crítica.")
+        self.assertIn('<div class="flex items-center gap-3" aria-hidden="true">', html)
+        self.assertNotIn("role=", html)
+
+    def test_escapa_lo_que_escribe_la_vista(self):
+        html = self._render(valor=1, maximo=2, nombre="<b>x</b>", texto='"><script>', etiqueta="<i>y</i>")
+
+        self.assertNotIn("<b>", html)
+        self.assertNotIn("<script>", html)
+        self.assertNotIn("<i>y</i>", html)
+
+    def test_un_umbral_que_no_es_numero_no_se_dibuja(self):
+        for basura in ("50%;background:red", "x", ""):
+            with self.subTest(umbral=basura):
+                html = self._render(valor=1, maximo=2, umbral_exigida=basura, umbral_critica=80)
+
+                self.assertNotIn("background:red", html)
+                self.assertNotIn('data-marca="exigida"', html)
+                self.assertNotIn("Exigida desde", html)
+                self.assertNotIn("--umbral:%", html)
+                self.assertIn('style="--umbral:80%"', html)
+                self.assertIn("Crítica desde 80 %", html)
+
+    def test_un_umbral_cero_dibuja_marca_y_leyenda(self):
+        # MinValueValidator(0): un umbral amarillo 0 es válido y el nivel Exigida lo usó.
+        html = self._render(valor=1, maximo=2, umbral_exigida=0, umbral_critica=80)
+
+        self.assertIn('style="--umbral:0%" title="Exigida desde 0 %" data-marca="exigida"', html)
+        self.assertIn("Exigida desde 0 %</span>", html)
+
+    def test_entero_o_none(self):
+        self.assertEqual(entero_o_none(0), 0)
+        self.assertEqual(entero_o_none("70"), 70)
+        self.assertIsNone(entero_o_none(None))
+        self.assertIsNone(entero_o_none(""))
+        self.assertIsNone(entero_o_none("50%;x"))
+
+    def test_porcentaje_barra(self):
+        self.assertEqual(porcentaje_barra(1633, 1850), 88)
+        self.assertEqual(porcentaje_barra(0, 40), 0)
+        self.assertEqual(porcentaje_barra(5, 0), None)
+        self.assertEqual(porcentaje_barra(None, 10), None)
+        self.assertEqual(porcentaje_barra(1, 3, 34), 34)
+        self.assertEqual(porcentaje_barra(1, 3, "x"), None)
+        self.assertEqual(porcentaje_barra(1, 3, None), 33)
