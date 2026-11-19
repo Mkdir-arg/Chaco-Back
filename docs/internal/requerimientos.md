@@ -622,6 +622,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 499 | Dispositivos: `TipoDispositivo.ubicacion_reservada` (dispositivos de protección sin ubicación pública; C2 del análisis 009, T9b) | Dispositivos · configuración de tipos | `#datos` `#ui` `#emergencia` `#gps` | PM — análisis 009, task #1174 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0127` (1 `AddField`, solo expand) |
 | 500 | Pieza de UI «barra con marcas de umbral» y su ficha (C3 del análisis 009; T4 del tablero de Dispositivos) | Transversal · sistema de diseño | `#emergencia` `#ui` | PM — análisis 009, task #1175 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
@@ -58511,3 +58512,87 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 
 Sin cambios posteriores.
+
+# Cambio 501 — Pieza de UI «gráfico de barras pareadas» y su ficha (C4)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · UI (consumidores: Emergencia E8 y tablero de Dispositivos) |
+| **Etiquetas** | `#ui` `#emergencia` |
+| **Solicitante** | PM — análisis 009, pieza C4 |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1176 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+C4 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §8.3, §8.4 y RF-009-09): un
+gráfico de barras pareadas por período (casos nuevos y familias alojadas por día) que funcione sin JS, con colores
+del sistema y tabla equivalente para accesibilidad e impresión. Es la misma pieza 2 / T5 del spec del tablero de
+Dispositivos (`docs/superpowers/specs/2026-11-08-tablero-dispositivos-design.md`, «Ingresos y egresos»).
+
+## Alcance acordado
+
+Entra: el include, su CSS, el filtro de escala, la ficha, la fila del inventario y los tests de render. Queda afuera:
+los consumidores (bloque «Evolución» de E8 en E-5 y el T5 de Dispositivos) y los selectores que arman las series.
+
+## Decisiones tomadas
+
+- **Sin librería:** lo dibuja el servidor con HTML y CSS, como el mockup del tablero (no Chart.js): funciona sin JS,
+  se imprime y no toca la CSP. No había gráfico de barras reutilizable en `templates/components/` (el de Becas es
+  Chart.js y es dominio propio, no molde).
+- **Altura por custom property** (`style="--alto:50%"`), igual que `--avance` del contador: es el único `style=`
+  admitido para pasar un número del servidor. CSS nuevo `static/custom/css/nodo-barras.css`, cargado por el shell.
+- **Colores:** serie A `--bg-brand`, serie B `--color-gray-500` (el gris del mockup, un tono más oscuro para llegar a
+  3:1 sobre blanco). Se declaran como `--serie-a` / `--serie-b` en `.nodo-barras`; no se agregan tokens globales.
+- **Escala:** filtro `resumen_barras` (`core/templatetags/nodo_ui.py`): tope = máximo de las dos series redondeado a
+  par (guía del medio entera), y los totales de la leyenda. Con todo en cero no divide (`widthratio` con tope 0).
+- **Tabla equivalente en `<details>`** («Ver la tabla de datos», opcional `tabla_abierta`), con la tabla densa
+  canónica y fila Total; en impresión sale desplegada con `::details-content`. Cada par lleva `title` y el área
+  `role="img"` con los totales.
+- **Los huecos los rellena quien arma la serie:** la pieza dibuja los períodos que recibe; un día sin datos llega en 0.
+
+## Implementación
+
+- `templates/components/_barras_pareadas.html`: eje Y, guías, pares, eje X, leyenda y tabla.
+- `static/custom/css/nodo-barras.css` + `<link>` en `templates/includes/base.html`.
+- `core/templatetags/nodo_ui.py`: filtro `resumen_barras`.
+
+## Archivos
+
+- `templates/components/_barras_pareadas.html` (nuevo), `static/custom/css/nodo-barras.css` (nuevo)
+- `templates/includes/base.html`, `core/templatetags/nodo_ui.py`
+- `.claude/design/componentes/barras_pareadas.md` (nueva), `.claude/agents/chaco-design-system.md` (fila),
+  `.claude/design/shells.md` (el shell carga el CSS)
+- `core/tests/test_nodo_ui_piezas.py` (`BarrasPareadasTest`)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `BarrasPareadasTest` (8): dos barras por período con alturas proporcionales y leyenda con totales, tabla con los
+  mismos números y fila Total, período sin datos en cero, todo en cero sin dividir, sin hex ni `style=` fuera de
+  `--alto`, eje corto y escape, el filtro y que el shell carga el CSS.
+- `manage.py check` OK; `ruff` OK; `design_audit.py --ratchet` 0 nuevos; `--goldens` 0;
+  `compile_templates.py --bloques` 0; `check_design_agent.py --changed` y `--limites` OK.
+
+## Puesta en marcha en el servidor
+
+No requiere (`collectstatic` del deploy publica el CSS nuevo).
+
+## Pendientes / a definir
+
+- Consumirla en el bloque «Evolución» de E8 (E-5) y en «Ingresos y egresos» del tablero de Dispositivos (T5).
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+- **19/11/2026:** auditoría del PR #1211 (aprobado, tres MINOR): barras y muestras con `print-color-adjust: exact` al imprimir; fallback de `beforeprint`/`afterprint` en `nodo-tables.js` para abrir la tabla en navegadores sin `::details-content`; la normalización queda solo en `resumen_barras`, que devuelve los períodos con `alto_a`/`alto_b` y acepta dicts u objetos (un valor no entero o negativo cuenta 0 igual en barra, tabla y total).

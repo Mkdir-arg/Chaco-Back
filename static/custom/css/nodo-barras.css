@@ -1,0 +1,129 @@
+/* NODO Design System — Gráfico de barras pareadas
+   Contrato: templates/components/_barras_pareadas.html (ficha .claude/design/componentes/barras_pareadas.md).
+   Dos barras por período, dibujadas por el servidor sin JS. La altura llega como custom property
+   (`style="--alto:50%"`), la única forma de pasar un número del servidor sin `style=` con declaraciones.
+   Colores de serie: marca y gris neutro (gray-500, contraste ≥ 3:1 sobre blanco), siempre por token. */
+
+.nodo-barras {
+    --serie-a: var(--bg-brand);
+    --serie-b: var(--color-gray-500);
+}
+
+.nodo-barras__grafico {
+    display: flex;
+    gap: 8px;
+}
+
+.nodo-barras__eje-y {
+    width: 28px;
+    height: 176px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: right;
+    font-size: 11px;
+    line-height: 12px;
+    color: var(--text-body-subtle);
+}
+
+.nodo-barras__area {
+    flex: 1;
+    min-width: 0;
+}
+
+.nodo-barras__plot {
+    position: relative;
+    height: 176px;
+    border-bottom: 1px solid var(--border-base);
+}
+
+.nodo-barras__guia {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed var(--border-light);
+}
+
+.nodo-barras__guia--tope {
+    top: 0;
+}
+
+.nodo-barras__guia--medio {
+    top: 50%;
+}
+
+.nodo-barras__pares {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.nodo-barras__par {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.nodo-barras__barra {
+    flex: 1;
+    height: var(--alto, 0%);
+    border-radius: 3px 3px 0 0;
+}
+
+.nodo-barras__eje-x {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 16px;
+    color: var(--text-body-subtle);
+}
+
+.nodo-barras__eje-x > span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nodo-barras__muestra {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.nodo-barras--a {
+    background: var(--serie-a);
+}
+
+.nodo-barras--b {
+    background: var(--serie-b);
+}
+
+/* La tabla equivalente sale impresa aunque el desplegable esté cerrado. Navegadores sin `::details-content`
+   (Chrome < 131, Firefox < 143): la abre nodo-tables.js en `beforeprint`. */
+@media print {
+    .nodo-barras__tabla::details-content {
+        content-visibility: visible;
+        display: block;
+    }
+
+    .nodo-barras__tabla > summary {
+        display: none;
+    }
+
+    /* Sin esto el navegador omite los fondos al imprimir y las barras y muestras salen en blanco. */
+    .nodo-barras__barra,
+    .nodo-barras__muestra {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
