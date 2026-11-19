@@ -247,6 +247,18 @@ class PeriodoYRecalculoTests(DashboardBecasBase):
         base = reverse("becas:programa_dashboard_exportar", args=[self.programa.pk, "csv"])
         return base + ("?" + "&".join(f"{k}={v}" for k, v in params.items()) if params else "")
 
+    def test_el_error_de_filtro_no_se_sirve_como_html(self):
+        """B2-SEG-01: el mensaje de un ChoiceField inválido repite el valor enviado; en
+        text/html sería XSS reflejado, así que la respuesta 400 va como texto plano."""
+        self.client.force_login(self.admin)
+        payload = "<script>alert(1)</script>"
+        for param in ("periodo", "canal"):
+            with self.subTest(param=param):
+                respuesta = self.client.get(self._url_export(**{param: payload}))
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertTrue(respuesta["Content-Type"].startswith("text/plain"), respuesta["Content-Type"])
+                self.assertNotIn("text/html", respuesta["Content-Type"])
+
     def test_el_periodo_personalizado_no_puede_terminar_despues_de_hoy(self):
         hoy = timezone.localdate()
 
