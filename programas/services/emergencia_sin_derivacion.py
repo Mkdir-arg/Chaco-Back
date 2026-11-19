@@ -18,7 +18,13 @@ from programas.models import (
 )
 from programas.selectors.emergencia import dispositivo_elegible
 from programas.selectors.emergencia_alojar import camas_libres
-from programas.services.emergencia import DISPOSITIVO_NO_ELEGIBLE, _caso_de_ese_envio, _como_uuid, crear_caso
+from programas.services.emergencia import (
+    DISPOSITIVO_NO_ELEGIBLE,
+    UuidEnUso,
+    _caso_de_ese_envio,
+    _como_uuid,
+    crear_caso,
+)
 from programas.services.emergencia_comun import _bloquear_caso, _trazar
 from programas.services.emergencia_ingreso_comun import (
     Accion,
@@ -68,6 +74,19 @@ def _con_sus_reservas(caso):
     return caso
 
 
+def _exigir_reenvio_de_este_ingreso(caso, dispositivo):
+    """El caso hallado por ``uuid_cliente`` tiene que ser un ingreso directo hacia **este** dispositivo.
+
+    La idempotencia es un atajo de lectura: el mismo ``uuid_cliente`` puesto en la URL de otro
+    dispositivo (o de un envío de M1) no es un reenvío de este envío. Si no, ``UuidEnUso``
+    (409), sin devolver nada del caso.
+    """
+
+    primera = Derivacion.objects.filter(caso_id=caso.pk).order_by("id").first()
+    if caso.origen != Origen.DISPOSITIVO or primera is None or primera.dispositivo_id != dispositivo.pk:
+        raise UuidEnUso()
+
+
 @archivos_atomicos
 @transaction.atomic
 def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=None):
@@ -96,6 +115,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
     if uuid_cliente is not None:
         existente = _caso_de_ese_envio(uuid_cliente, usuario)
         if existente is not None:
+            _exigir_reenvio_de_este_ingreso(existente, dispositivo)
             return _con_sus_reservas(existente)
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
@@ -178,6 +198,9 @@ def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=No
         uuid_cliente=uuid_cliente,
     )
     if caso.ya_existia:
+        puerta = (caso.situacion or {}).get(CasoEmergencia.SITUACION_EN_LA_PUERTA) or {}
+        if caso.origen != Origen.DISPOSITIVO or puerta.get("dispositivo_id") != dispositivo.pk:
+            raise UuidEnUso()
         return caso
     caso = _bloquear_caso(caso)
     caso.situacion = {
