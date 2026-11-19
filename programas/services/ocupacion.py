@@ -329,7 +329,13 @@ def _reservas_que_cuentan(momento):
     )
 
 
-def _ocupadas_por_sector(sector_ids):
+def _de_los_tipos(tipos, prefijo="plaza__"):
+    """El filtro por ``Plaza.tipo``: vacío (todas) si ``tipos`` es ``None``."""
+
+    return Q() if tipos is None else Q(**{f"{prefijo}tipo__in": tuple(tipos)})
+
+
+def _ocupadas_por_sector(sector_ids, tipos=None):
     """Plazas ocupadas (:func:`_estadias_que_ocupan`), por sector. Una consulta, una fila por sector.
 
     Se filtra por los sectores que ya se conocen y no por el dispositivo: así el JOIN es
@@ -343,13 +349,13 @@ def _ocupadas_por_sector(sector_ids):
 
     return _por_sector(
         _estadias_que_ocupan()
-        .filter(plaza__sector_id__in=sector_ids)
+        .filter(_de_los_tipos(tipos), plaza__sector_id__in=sector_ids)
         .values("plaza__sector_id")
         .annotate(cuantas=Count("plaza_id", distinct=True))
     )
 
 
-def _reservadas_por_sector(sector_ids, momento):
+def _reservadas_por_sector(sector_ids, momento, tipos=None):
     """Plazas reservadas o prestadas (:func:`_reservas_que_cuentan`), por sector.
 
     La vigencia la define `ReservaPlaza.objects.vigentes()` y no se repite acá: es por
@@ -360,7 +366,7 @@ def _reservadas_por_sector(sector_ids, momento):
     return {
         fila["plaza__sector_id"]: (fila["cuantas"], fila["prestadas"])
         for fila in _reservas_que_cuentan(momento)
-        .filter(plaza__sector_id__in=sector_ids)
+        .filter(_de_los_tipos(tipos), plaza__sector_id__in=sector_ids)
         .values("plaza__sector_id")
         .annotate(
             cuantas=Count("plaza_id", distinct=True),
@@ -369,7 +375,7 @@ def _reservadas_por_sector(sector_ids, momento):
     }
 
 
-def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
+def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     """Las cifras de plazas de ``dispositivos`` en ``momento`` (por defecto, ahora), en tres consultas fijas.
 
     ``dispositivos`` puede ser un :class:`~programas.models.Dispositivo`, su id, o
@@ -380,11 +386,17 @@ def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
     ``fuera_de_servicio``, las estadías activas dan ``ocupadas``, las reservas vigentes
     dan ``reservadas``, y ``operativas`` y ``disponibles`` se derivan. Ver el docstring
     del módulo para el porqué de cada consulta y de los ``None`` que siguen existiendo.
+
+    ``tipos`` acota la cuenta a esos ``Plaza.Tipo`` (p. ej. ``(Plaza.Tipo.CAMA,)`` para
+    contar solo camas, que es lo que aloja Emergencia). Por defecto, ``None``, cuentan
+    todas. El filtro va dentro de las mismas tres consultas: no agrega ninguna. Los
+    sectores siguen apareciendo todos, en cero si no tienen plazas de esos tipos.
     """
 
     ids = _ids_de(dispositivos)
     momento = momento or timezone.now()
     sectores_por_dispositivo: dict[int, list[OcupacionSector]] = {pk: [] for pk in ids}
+    de_los_tipos = _de_los_tipos(tipos, prefijo="plazas__")
 
     if ids:
         filas = (
@@ -396,9 +408,10 @@ def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
             # `(dispositivo, activo)` y `(sector, estado)` están puestos para evitar.
             # El JOIN de `Count` no pasa por el manager de `Plaza`: las dadas de baja se filtran acá.
             .annotate(
-                plazas_totales=Count("plazas", filter=Q(plazas__activa=True)),
+                plazas_totales=Count("plazas", filter=Q(plazas__activa=True) & de_los_tipos),
                 plazas_fuera_de_servicio=Count(
-                    "plazas", filter=Q(plazas__activa=True, plazas__estado=Plaza.Estado.FUERA_SERVICIO)
+                    "plazas",
+                    filter=Q(plazas__activa=True, plazas__estado=Plaza.Estado.FUERA_SERVICIO) & de_los_tipos,
                 ),
             )
             # Explícito y no por `Meta.ordering`: este queryset agrupa, y el orden tiene
@@ -410,8 +423,8 @@ def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
         # movimientos necesitan los ids de los sectores antes de armar los conteos.
         filas = list(filas)
         sector_ids = [fila["id"] for fila in filas]
-        ocupadas = _ocupadas_por_sector(sector_ids) if sector_ids else {}
-        reservadas = _reservadas_por_sector(sector_ids, momento) if sector_ids else {}
+        ocupadas = _ocupadas_por_sector(sector_ids, tipos) if sector_ids else {}
+        reservadas = _reservadas_por_sector(sector_ids, momento, tipos) if sector_ids else {}
         for fila in filas:
             sectores_por_dispositivo[fila["dispositivo_id"]].append(
                 OcupacionSector(

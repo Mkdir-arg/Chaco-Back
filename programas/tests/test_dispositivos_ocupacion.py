@@ -29,7 +29,7 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector, TipoDispositivo
-from programas.services.ocupacion import Conteo, ocupacion_de_plazas
+from programas.services.ocupacion import Conteo, ocupacion_de_plazas, tension_de_ocupacion
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 CLAVE_PRESUPUESTO = "dispositivos_ocupacion_de_plazas"
@@ -473,3 +473,100 @@ class OcupacionDePlazasPresupuestoTests(TestCase):
 
         self.assertEqual(len(ocupacion.sectores), 25)
         self.assertEqual(len(despues), len(antes))
+
+
+class OcupacionPorTipoDePlazaTests(TestCase):
+    """``tipos`` acota la cuenta a esos ``Plaza.Tipo`` (Cambio 503, C7 · #1179).
+
+    Emergencia aloja familias en camas: un cupo o un turno libre no es dónde ponerlas.
+    Por defecto se cuentan todas, que es lo que Dispositivos siempre mostró.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        tipo = TipoDispositivo.objects.create(codigo="ALBERGUE", nombre="Albergue")
+        cls.mixto = _dispositivo(tipo, "MIX-1")
+        sector = _sector(cls.mixto, "General", capacidad=10)
+        cls.camas = Plaza.objects.bulk_create(
+            [Plaza(sector=sector, codigo=f"C{n}", tipo=Plaza.Tipo.CAMA) for n in range(1, 4)]
+            + [
+                Plaza(
+                    sector=sector,
+                    codigo="C4",
+                    tipo=Plaza.Tipo.CAMA,
+                    estado=Plaza.Estado.FUERA_SERVICIO,
+                    motivo_fuera_servicio="Refacción",
+                )
+            ]
+        )
+        cls.cupos = Plaza.objects.bulk_create(
+            Plaza(sector=sector, codigo=f"U{n}", tipo=Plaza.Tipo.CUPO) for n in range(1, 6)
+        )
+        Plaza.objects.create(sector=sector, codigo="T1", tipo=Plaza.Tipo.TURNO)
+        cls.sin_camas = _dispositivo(tipo, "CUP-1")
+        cupos = _sector(cls.sin_camas, "Cupos", capacidad=20)
+        Plaza.objects.bulk_create(Plaza(sector=cupos, codigo=f"U{n}", tipo=Plaza.Tipo.CUPO) for n in range(1, 21))
+        personas = [Ciudadano.objects.create(dni=f"4050000{n}", nombre="Persona", apellido=f"N{n}") for n in range(4)]
+        ahora = timezone.now()
+        for persona, plaza in ((personas[0], cls.camas[0]), (personas[1], cls.cupos[0])):
+            Estadia.objects.create(
+                ciudadano=persona,
+                dispositivo=cls.mixto,
+                plaza=plaza,
+                fecha_ingreso=ahora,
+                clave_alojamiento=Estadia.clave_para(persona),
+            )
+        ReservaPlaza.objects.create(plaza=cls.camas[1], ciudadano=personas[2], desde=ahora)
+        ReservaPlaza.objects.create(
+            plaza=cls.cupos[1],
+            ciudadano=personas[3],
+            tipo=ReservaPlaza.Tipo.PRESTAMO,
+            desde=ahora,
+            hasta=ahora + timedelta(days=1),
+        )
+
+    def _cifras(self, conteo):
+        return (
+            conteo.totales,
+            conteo.fuera_de_servicio,
+            conteo.operativas,
+            conteo.ocupadas,
+            conteo.reservadas,
+            conteo.prestadas,
+            conteo.disponibles,
+        )
+
+    def test_con_tipos_cama_cuenta_solo_las_camas(self):
+        censo = ocupacion_de_plazas(self.mixto, tipos=(Plaza.Tipo.CAMA,))
+
+        self.assertEqual(self._cifras(censo.de(self.mixto).conteo), (4, 1, 3, 1, 1, 0, 1))
+        self.assertEqual(self._cifras(censo.de(self.mixto).sectores[0].conteo), (4, 1, 3, 1, 1, 0, 1))
+
+    def test_sin_tipos_cuenta_todas_como_antes(self):
+        conteo = ocupacion_de_plazas(self.mixto).de(self.mixto).conteo
+
+        self.assertEqual(self._cifras(conteo), (10, 1, 9, 2, 2, 1, 5))
+
+    def test_varios_tipos_suman_solo_los_pedidos(self):
+        conteo = ocupacion_de_plazas(self.mixto, tipos=[Plaza.Tipo.CUPO, Plaza.Tipo.TURNO]).de(self.mixto).conteo
+
+        self.assertEqual(self._cifras(conteo), (6, 0, 6, 1, 1, 1, 4))
+
+    def test_un_dispositivo_sin_camas_da_cero_camas_sin_fallar(self):
+        censo = ocupacion_de_plazas([self.mixto, self.sin_camas], tipos=(Plaza.Tipo.CAMA,))
+        ocupacion = censo.de(self.sin_camas)
+
+        self.assertEqual(self._cifras(ocupacion.conteo), (0, 0, 0, 0, 0, 0, 0))
+        self.assertEqual(len(ocupacion.sectores), 1)
+        self.assertEqual(censo.total.disponibles, 1)
+        self.assertIsNone(tension_de_ocupacion(ocupacion.conteo).porcentaje)
+
+    def test_filtrar_por_tipo_no_agrega_consultas(self):
+        dispositivos = [self.mixto, self.sin_camas]
+        with CaptureQueriesContext(connection) as todas:
+            ocupacion_de_plazas(dispositivos)
+        with CaptureQueriesContext(connection) as solo_camas:
+            ocupacion_de_plazas(dispositivos, tipos=(Plaza.Tipo.CAMA,))
+
+        self.assertEqual(len(solo_camas), len(todas))
+        self.assertEqual(len(solo_camas), 3)
