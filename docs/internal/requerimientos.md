@@ -631,6 +631,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 506 | Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos | Transversal · documentación interna de la auditoría | `#seguridad` `#metodo` | PM | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
+| 509 | Auditoría 2026-11: banco de Emergencia y Dispositivos (#1220) y mediciones volcadas a los informes | Transversal · documentación interna y banco de performance (`scripts/perf_mysql/`, `docs/internal/auditoria-2026-11-perf/`) | `#performance` `#metodo` `#emergencia` | PM — auditoría de performance (pasada 2 de Emergencia y Dispositivos) | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59228,3 +59229,60 @@ Revertir el commit; no hay datos involucrados.
 
 - **19/11/2026:** alta del cambio.
 - **19/11/2026:** ronda 2 de revisión: PoC de SEC-26 y SEC-29, parte de DEV de SEC-09, claves por defecto de OPS-02/P-09 y referencia a `Aprobados.sql` de PERF-07; R0b-09 vuelve a su texto original; las fichas recuperan su `Test permanente`.
+
+---
+
+# Cambio 509 — Auditoría 2026-11: banco de Emergencia y Dispositivos (#1220) y mediciones volcadas a los informes
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · banco de performance (`scripts/perf_mysql/`) y documentación interna (`docs/internal/auditoria-2026-11-perf/`) |
+| **Etiquetas** | `#performance` `#metodo` `#emergencia` |
+| **Solicitante** | PM — auditoría de performance (pasada 2 de Emergencia y Dispositivos) |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ninguna del producto: el banco es un script de medición y los informes son documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+El Cambio 505 dejó los informes de Emergencia y Dispositivos con la pasada 2 «pendiente de medición» porque el banco MariaDB no sembraba ni medía sus rutas. Hacía falta sembrarlas, medirlas y volcar los números a las fichas, para que las olas de rendimiento salgan con severidad medida y no supuesta.
+
+## Alcance acordado
+Entra: el banco (PR #1220: `scripts/perf_mysql/escenarios_emergencia.py`, `escenarios_dispositivos.py` y las rutas de `bench_mysql.py`, sin tocar `seed_perf`, que usa el CI de performance) y este PR de documentación: la medición volcada a las fichas PERF/DAT de `emergencia.md` y `dispositivos.md`, una sección «8.d Medición en banco» por capítulo y los totales del README. Queda afuera: arreglar cualquiera de las fichas (cada ola es su propio PR), las fichas de seguridad, medir con 100.000 casos y medir concurrencia.
+
+## Decisiones tomadas
+- **Método:** MariaDB 10.11 con `read_timeout` 10 s y las OPTIONS de producción; frío = primer request, caliente = mediana de 3; `EXPLAIN` y `ANALYZE` sobre las consultas dominantes; ruido del equipo de ±2x. Es un banco local con datos sintéticos: ordena las fichas, no promete un tiempo en PRD.
+- **`ANALYZE TABLE` tras sembrar:** sin él, el prefetch de líneas (E-PERF-06) costaba 859 ms; con él baja a 63-78 ms en `/emergencia/entregas/`, pero en el tablero sigue en 719 ms y ese costo se arregla dentro de E-PERF-03. La segunda medición también repartió la historia del dispositivo grande para descartar que el costo de `MovimientoEstadia` fuera un artefacto de la siembra: no lo era.
+- **Suben a ALTA (3):** E-PERF-01 (REGEXP sobre 522.013 DNI, ≈ 0,5 s por recorrido y ≈ 1 s con dos recorridos bajo candado), E-PERF-03 (tablero, ≈ 3,2 s con ≈ 4.000 casos en la ventana: casos 813 ms y líneas de entregas 719 ms de 2.392 ms de SQL) y D-PERF-01 (historial profundo ≈ 64 s: corta en ECOM; la página 1 ≈ 6,2 s; el detalle del dispositivo ≈ 6,1 s paga la misma consulta de `MovimientoEstadia`, cuyo join con `Estadia` va en `type=ALL` sobre ≈ 121.000 filas). El arreglo propuesto: que esa consulta no arranque por `Estadia` (`prefetch_related` en lugar de `select_related`, o un índice `(dispositivo, momento, id)`, a decidir con EXPLAIN); cargar la solapa al abrirla queda como DECISIÓN CLIENTE (default: mantener la carga actual). D-DAT-01 (índice de trazas y bitácora) se queda en BAJA: las trazas suman ≈ 1,5 s y entran en el mismo PR; falta su EXPLAIN. Las tres ya estaban en la ola de rendimiento de su capítulo (Ola 2 de Emergencia, Ola 4 de Dispositivos): no cambian ni las olas ni las horas, solo van primero dentro de la suya.
+- **Bajan o se mantienen:** E-PERF-05, D-PERF-02 y E-PERF-04 en MEDIA; D-PERF-03 sube de BAJA a MEDIA (459 ms en frío); E-PERF-06, E-PERF-12 (a re-medir: la medición de 680 ms no tiene registro en el JSON), D-PERF-04 y D-PERF-08 (sube de INFO) y D-DAT-01 y D-LIM-08 (limpieza) en BAJA; E-PERF-07, E-PERF-08, E-PERF-11, E-PERF-15 y E-DAT-01 en INFO.
+- **No medidas por ruta** (exigen concurrencia, dos sesiones o un presupuesto de consultas): E-PERF-02, E-PERF-09, E-PERF-10, D-PERF-06 y D-PERF-07 (y D-PERF-05, una verificación de pantalla). Quedan como estaban, con el motivo en la ficha.
+- Conteos: Emergencia ALTA 5 / MEDIA 36 / BAJA 42 / INFO 10; Dispositivos ALTA 4 / MEDIA 38 / BAJA 45 / INFO 6; total de la serie ALTA 18 / MEDIA 147 / BAJA 145 / INFO 27 (337 fichas).
+
+## Implementación
+En `emergencia.md` y `dispositivos.md`: cada ficha medida cambia su severidad y su estado (`MEDIDO`), y suma una línea «Medición en banco» con los ms frío y caliente, las consultas y el EXPLAIN resumido; el índice, las listas de la ola, las tablas de resumen y los textos «pendiente de medición» se actualizan, y se agrega la sección 8.d. En el README, los totales, el estado de la pasada 2 y «Mediciones pendientes». En `METODO.md`, la nota del banco. No se editó nada bajo `.claude/` ni ninguna ficha de seguridad.
+
+## Archivos
+`docs/internal/auditoria-2026-11-perf/` (`README.md`, `METODO.md`, `emergencia.md`, `dispositivos.md`) y este archivo. El banco, en #1220.
+
+## Base de datos
+No requiere.
+
+## Validación
+`scripts/requerimientos.py --check` en OK; `core.tests.test_contrato_auditoria` en verde. Ningún código ni plantilla cambió en este PR.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- Medir con 100.000 casos (tablero y bandeja de Emergencia) y las pruebas de concurrencia (E-PERF-02, E-PERF-09, D-PERF-07) con dos sesiones.
+- Sumar las rutas de Emergencia y Dispositivos a `scripts/perf_budgets.json` (E-PERF-13).
+- Re-medir `dispositivo-entregas?pendientes=1` (E-PERF-12): el último dato crudo, 1.460 ms, es anterior al `ANALYZE TABLE`.
+- Los issues de las olas de rendimiento con las tres ALTA al frente.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
