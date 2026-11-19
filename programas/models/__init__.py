@@ -5924,6 +5924,12 @@ class CasoEmergencia(TimeStamped):
 
         return self.origen == self.Origen.DISPOSITIVO and self.SITUACION_EN_LA_PUERTA not in (self.situacion or {})
 
+    @classmethod
+    def q_ingreso_directo(cls):
+        """El filtro de :attr:`es_ingreso_directo` en SQL (``has_key`` anda en SQLite, MySQL y MariaDB)."""
+
+        return models.Q(origen=cls.Origen.DISPOSITIVO) & ~models.Q(situacion__has_key=cls.SITUACION_EN_LA_PUERTA)
+
     @property
     def alojamiento(self):
         """La sección 4 del Formulario 1 que dejó «Familia alojada», o ``None``."""
