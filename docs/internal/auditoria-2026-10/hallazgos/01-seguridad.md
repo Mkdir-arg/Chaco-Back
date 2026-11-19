@@ -59,7 +59,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
 | R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ✅ |
 | R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ✅ |
-| R0b-09 | Alcance de un feed del inicio que no coincide con la capacidad que lo protege | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | 🟡 |
+| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | 🟡 |
 | R0b-11 | Despliegue pendiente en icore-srv de una restricción de acceso en DEV (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
@@ -87,7 +87,7 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 `core.tests.test_api_backoffice_permiso.PermisoDeLaApiDelBackofficeTests.test_todas_declaran_backoffice_autenticado`
 (y `.test_el_barrido_ve_las_que_tiene_que_ver`, que impide que un barrido vacío dé verde).
 - **Ubicación:** `config/settings.py:404-413` (`REST_FRAMEWORK`); middlewares `core/middleware.py:81-95` (`PortalCiudadanoMiddleware`), `users/middleware.py:9-66` (sesión única y clave provisoria; exime `/api/` a propósito).
-- **Escenario (reproducido):** (1) un anónimo se registra en `/portal/mi-perfil/registro/` con el DNI de un `Ciudadano` existente (SEC-29); (2) con sesión, `/api/users/users/` da 302; (3) con `Authorization: Basic <dni>:<clave>`: `/api/users/users/` → 200 (lista el personal), `/api/legajos/ciudadanos/` → 200 (padrón), `/api/buscar-ciudadanos/?q=301` → 200, POST `/api/core/provincias/` → 201; (4) un territorial (solo `becas.campo`, con el login web prohibido por `users/forms/auth.py:44-51`) recibe 200 en `/api/legajos/ciudadanos/` por Basic. nginx reenvía `Authorization` sin tocarlo.
+- **Escenario (reproducido):** (1) una cuenta de ciudadano del portal (ver SEC-29); (2) con sesión, `/api/users/users/` da 302; (3) con `Authorization: Basic <dni>:<clave>`: `/api/users/users/` → 200 (lista el personal), `/api/legajos/ciudadanos/` → 200 (padrón), `/api/buscar-ciudadanos/?q=301` → 200, POST `/api/core/provincias/` → 201; (4) un territorial (solo `becas.campo`, con el login web prohibido por `users/forms/auth.py:44-51`) recibe 200 en `/api/legajos/ciudadanos/` por Basic. nginx reenvía `Authorization` sin tocarlo.
 - **Causa raíz:** causa transversal 1.
 - **Propuesta:**
   1. En `config/settings.py`, dentro de `REST_FRAMEWORK`:
@@ -270,8 +270,8 @@ código y se ancla al `pk`. Nada de esto lo ve ninguna herramienta: hoy el únic
 ### SEC-09 · `/media/`: en ECOM cualquier sesión (también la de un ciudadano) baja cualquier archivo
 **Severidad:** ALTA / MEDIA · **Estado:** CONFIRMADO-AJUSTADO (test `SEC09MediaTests` con `SERVE_MEDIA=True`) · **Origen:** A5-09, A2-12 · **Ola:** 0 (etapa 1) y 2 (etapa 2) · **Esfuerzo:** S + M · **Decisión:** D-09 (coordinación ECOM)
 
-**Resolución:** ✅ Resuelta en #538 (Cambio 112, etapa 1) y en el **Cambio 188** (etapa 2), 08-oct-2026 — etapa 1: `nginx.conf` reemplaza los dos `location /media/` por `location /protected-media/` (`internal`, `attachment`, `nosniff`) y `PortalCiudadanoMiddleware` deja de eximir `/media/`. **Etapa 2:** `core/views/media.py::media_protegida` resuelve el dueño por el prefijo de la ruta y evalúa la capacidad con su alcance (`adjuntos/`, `ciudadanos/fotos/` y `contactos/` → `ciudadano.ver`; `admisiones/f00/` → `puede_operar_dispositivo`; `merenderos/solicitudes/` → `merendero.ver` en su programa; `becas/adjuntos/` → `assert_alcance_formulario`; `becas/padrones/` → el guard de su carga, **no** `es_admin_becas`: quien lo sube es el que edita la convocatoria); `upload_to` con UUID en los cinco campos que faltaban (`legajos.0010` y `programas.0083`, las dos **sin DDL**, los archivos existentes no se renombran); y `X-Accel-Redirect` **preparado y apagado** detrás de `MEDIA_X_ACCEL` (D-09/H-05: necesita el `location internal` del ingress de ECOM; el default entrega los bytes desde Django, que es lo de hoy). `SERVE_MEDIA` se borró: la ruta existe siempre y siempre autoriza. **Falta (operativo, PM):** desplegar la etapa 1 en icore-srv (R0b-11) y pedirle a ECOM el `location /protected-media/` si se quiere prender `MEDIA_X_ACCEL`. **Test permanente:** `core.tests.test_media_protegida` (35). Seguimientos R0b-07 y R0b-08: cerrados en el mismo PR.
-- **Ubicación:** módulo de `/media/` del ambiente DEV (detalle reservado, ver abajo); ECOM (`SERVE_MEDIA=True`): `config/urls.py:71-81` con `login_required(_media_serve)` sin pertenencia; `core/middleware.py:88` exime `/media/` para ciudadanos. Solo adjuntos y padrones de Becas usan UUID; `adjuntos/`, `ciudadanos/fotos/`, `admisiones/f00/` y `merenderos/solicitudes/%Y/%m/` conservan el nombre original.
+**Resolución:** ✅ Resuelta en #538 (Cambio 112, etapa 1) y en el **Cambio 188** (etapa 2), 08-oct-2026 — etapa 1: ver R0b-11 (detalle reservado). **Etapa 2:** `core/views/media.py::media_protegida` resuelve el dueño por el prefijo de la ruta y evalúa la capacidad con su alcance (`adjuntos/`, `ciudadanos/fotos/` y `contactos/` → `ciudadano.ver`; `admisiones/f00/` → `puede_operar_dispositivo`; `merenderos/solicitudes/` → `merendero.ver` en su programa; `becas/adjuntos/` → `assert_alcance_formulario`; `becas/padrones/` → el guard de su carga, **no** `es_admin_becas`: quien lo sube es el que edita la convocatoria); `upload_to` con UUID en los cinco campos que faltaban (`legajos.0010` y `programas.0083`, las dos **sin DDL**, los archivos existentes no se renombran); y `X-Accel-Redirect` **preparado y apagado** detrás de `MEDIA_X_ACCEL` (D-09/H-05: necesita el `location internal` del ingress de ECOM; el default entrega los bytes desde Django, que es lo de hoy). `SERVE_MEDIA` se borró: la ruta existe siempre y siempre autoriza. **Falta (operativo, PM):** desplegar la etapa 1 en icore-srv (R0b-11) y pedirle a ECOM el `location /protected-media/` si se quiere prender `MEDIA_X_ACCEL`. **Test permanente:** `core.tests.test_media_protegida` (35). Seguimientos R0b-07 y R0b-08: cerrados en el mismo PR.
+- **Ubicación:** módulo de `/media/` del ambiente DEV (detalle reservado, ver abajo); ECOM (`SERVE_MEDIA=True`): `config/urls.py:71-81` con `login_required(_media_serve)` sin pertenencia; `core/middleware.py:88` exime `/media/` para ciudadanos.
 - **Escenario:** con `SERVE_MEDIA=True`, anónimo → 302; ciudadano del portal (SEC-29) → **200** con el contenido. **Detalle técnico del ambiente DEV reservado hasta el arreglo; se agrega al informe con el cierre de R0b-11 (despliegue de la etapa 1 en icore).**
 - **Propuesta:**
   - **Etapa 1 (Ola 0, DEV):** hecha en #538 (Cambio 112); falta desplegarla en icore (R0b-11). Detalle reservado hasta que cierre R0b-11.
@@ -697,6 +697,7 @@ lo fija `ConsultaDePersonasConThrottleTests.test_la_tasa_configurada_es_la_de_d2
 **Severidad:** MEDIA · **Estado:** 🟡 PARCIAL · **Origen:** A5-15, A5-35, A5-37, G1b-03, G1b-04 · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-26
 
 **Resolución:** 🟡 Parcial en #631 (Cambio 181, Ola 2 PR 2), 08-oct-2026 — la parte de código está hecha; quedan abiertos un punto de infraestructura y otro que depende de un release de la app móvil.
+- **Test permanente:** `users.tests.test_credenciales_ola2_pr2`
 - **Impacto:** la defensa de las cuentas del backoffice y de la credencial de la app de campo no está completa.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** completar el endurecimiento con el PM y ECOM, sin cambios de contrato para la app instalada.
@@ -706,6 +707,7 @@ lo fija `ConsultaDePersonasConThrottleTests.test_la_tasa_configurada_es_la_de_d2
 **Severidad:** MEDIA · **Estado:** 🟡 PARCIAL · **Origen:** A2-10 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-27
 
 **Resolución:** 🟡 Preparado y apagado en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026, con el default de **D-27**: encenderlo sin el dato de ECOM corta el alta de ciudadanos en el acto. Queda para el PM pedir ese dato y activarlo ambiente por ambiente. Nada se probó contra el servicio real.
+- **Test permanente:** `legajos.tests.test_renaper_tls_y_payload`
 - **Impacto:** la comunicación con un servicio externo de identidad no queda protegida de extremo a extremo hasta cerrar el punto.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** pedirle a ECOM el dato pendiente y activar el cambio por ambiente, con el diagnóstico de integraciones antes de PRD.
@@ -829,6 +831,7 @@ capacidad → 403 exista o no el objeto, se fue con `EntregaMercaderiaCreateView
 **Severidad:** BAJA · **Estado:** 🟡 PARCIAL · **Origen:** A5-38 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** pregunta ECOM (variables)
 
 **Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — hecho lo que no depende de ECOM, con tests permanentes en `core.tests.test_sesion_inactividad`. Falta un ajuste de configuración del proxy en ECOM (H-09).
+- **Test permanente:** `core.tests.test_sesion_inactividad`
 - **Impacto:** parte del endurecimiento depende de la configuración del proxy y de las variables de ambiente en ECOM.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** pedir a ECOM el ajuste pendiente (H-09) y verificarlo con `check --deploy`.
@@ -876,6 +879,7 @@ se rompen: ahí el desafío aritmético es a propósito. **Test permanente:**
 **Severidad:** BAJA (baja desde MEDIA) · **Estado:** 🟡 PARCIAL (mayormente duplicado de DAT-02 y SEC-26) · **Origen:** G1c-10 · **Ola:** 2 · **Esfuerzo:** S
 
 **Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que es código está hecho, con tests permanentes en `core.tests.test_bajos_ola2`. Falta un paso de infraestructura con el PM (va con SEC-26).
+- **Test permanente:** `core.tests.test_bajos_ola2`
 - **Impacto:** la superficie administrativa del framework sigue accesible desde cualquier red.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** restringir el acceso en la capa de red junto con el PM y ECOM.
@@ -977,17 +981,34 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Ubicación:** `.env.qa.example:77-79` («en la VM lo sirve nginx y esto queda en False»: falso desde #538, la VM usa `SERVE_MEDIA=True`); también `docs/client/architecture.md:203` («excepto `/static/` y `/media/`»: el middleware ya no exime `/media/`; ese mismo párrafo es el de R0-02).
 - **Propuesta:** reescribir los dos textos según SEC-09 etapa 1.
 
-### R0b-09 · Alcance de un feed del inicio que no coincide con la capacidad que lo protege
-**Severidad:** BAJA (MINOR del revisor de #541) · **Estado:** 🟡 PARCIAL · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** S
+### R0b-09 · `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance
+**Severidad:** BAJA (MINOR del revisor de #541) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** S
+- **Ubicación:** `dashboard/api_views/__init__.py:135-146` (`@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])`; `InscripcionPrograma.objects…` y `DerivacionPrograma.objects…` globales; solo las alertas pasan por `FiltrosUsuarioService`).
+- **Escenario:** la capacidad no corresponde al contenido: quien tiene `ciudadano.sensible` ve las últimas inscripciones y derivaciones de todos los programas, y quien solo tiene `ciudadano.ver` no ve nada.
+- **Propuesta:** separar por tipo de evento: inscripciones y derivaciones con `ciudadano.ver` (acotadas como en SEC-12/D-12), alertas con `ciudadano.sensible` (D-11); o partir el feed en dos endpoints.
+- **Test:** con `ciudadano.ver` solo, el feed trae inscripciones y no alertas; sin capacidad → 403.
 
-**Resolución:** 🟡 Parcial en #629 (Cambio 179), 08-oct-2026 — resuelta la mitad del alcance, con tests permanentes en `dashboard.tests.test_api_rbac`. Queda la mitad de la capacidad: va a una ola posterior, con decisión del PM sobre qué ve el «Operador de backoffice» en el inicio.
-- **Impacto:** la capacidad que protege el feed no coincide del todo con su contenido.
-- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
-- **Propuesta por defecto:** separar el feed por tipo de evento, con la capacidad que corresponde a cada uno, cuando el PM decida el alcance del inicio.
+**Resolución:** 🟡 Resuelta **la mitad del alcance** en #629 (Cambio 179), 08-oct-2026 - las inscripciones y
+derivaciones salen por `FiltrosUsuarioService.acotar_a_programas_del_usuario` (helper nuevo, mismo alcance que
+ya usan las alertas: los programas de los legajos propios; superusuario y `config.administrar` ven todo), así
+que el feed dejó de mostrar movimientos de programas ajenos. **Test permanente:**
+`dashboard.tests.test_api_rbac.ActividadRecienteAlcanceTests` (en particular
+`test_con_ciudadano_sensible_trae_lo_de_su_alcance_y_nada_ajeno` y `test_config_administrar_ve_todo`).
+
+**Pendiente — la mitad de la capacidad.** La ronda 1 del PR había bajado el endpoint a
+`RequiereCapacidad("ciudadano.ver")` dejando la rama de alertas detrás de `ciudadano.sensible`. La ronda 3 lo
+devolvió a `ciudadano.sensible`: **el PR era de endurecimiento y no tenía que darle acceso nuevo a nadie**. Con
+`ciudadano.ver` el feed se abría a roles que hoy no lo ven y, en particular, un rol con `config.administrar` y
+sin `ciudadano.sensible` —que `acotar_a_programas_del_usuario` trata como alcance global— pasaba a ver las
+inscripciones y derivaciones de **todo el sistema**. Nada se rompe por volver: es la capacidad que el endpoint
+pedía antes del PR. Lo que queda abierto es la mitad original de la ficha —que quien solo tiene `ciudadano.ver`
+siga sin ver nada del feed—, y resolverlo bien es partir el endpoint en dos (inscripciones/derivaciones con
+`ciudadano.ver`, alertas con `ciudadano.sensible`) o sacar la rama de alertas del feed. Va a una ola posterior,
+con decisión del PM sobre qué ve el «Operador de backoffice» en el inicio.
 
 ### R0b-11 · Despliegue pendiente en icore-srv de una restricción de acceso en DEV (operativo, PM)
 **Severidad:** — (operativo, sin código) · **Origen:** #538 (Cambio 112) · **Ola:** PM · **Esfuerzo:** —
 - **Impacto:** hasta desplegarlo, DEV mantiene un acceso más amplio del debido a los archivos de los ciudadanos.
-- **Orden:** pull → build y recrear **`web` primero** (con `SERVE_MEDIA=True`) → después `nginx` (el gotcha de IP cacheada obliga a reiniciarlo igual). Si `nginx` va antes, `/media/` cae en Django sin la ruta y los adjuntos dan 404.
+- **Orden:** pull → build y recrear **`web` primero** → después `nginx` (el gotcha de IP cacheada obliga a reiniciarlo igual).
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
-- **Propuesta por defecto:** desplegar en el orden indicado y verificar con una consulta sin sesión y otra con sesión de backoffice.
+- **Propuesta por defecto:** desplegar en el orden indicado y verificar el resultado con una cuenta de backoffice.

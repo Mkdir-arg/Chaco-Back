@@ -168,17 +168,17 @@ mensaje pasa a seguir la causa real.
 
 ### OPS-02 · `crear_usuarios_sistema` y los seeds demo con claves conocidas viajan en el release
 **Severidad:** MEDIA (era ALTA: requiere que un operador con `exec` lo corra) · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A8-03, V6-NEW-06, G1c-18 · **Ola:** 3 · **Esfuerzo:** S
-- **Ubicación:** `users/management/commands/crear_usuarios_sistema.py` (viaja en `origin/main`: `.gitattributes` solo excluye docs y auditorías; nadie lo invoca); deja `admin`/`admin123` superusuario y `admin1..3`/`admin123` en el rol **«Administrador» real** (`rbac.ROL_ADMINISTRADOR`, protegido con todas las capacidades, `seed_rbac.py:73-83`), con `is_staff=True`, y les resetea la clave si existen. `seed_relevamientos_periodo_demo.py:16-49` (`set_password` sobre el `--username` que se pase, default `territorial_demo`/`demo1234`, `is_active=True`); `seed_becas_demo_mobile.py:320-325` (`terri123`); `legajos/management/commands/setup_roles_contactos.py` (10 grupos `Psicologo`, `Director`, … sin `RolMeta`, con permisos de modelo sobre `historialcontacto`; `seed_rbac:56-64` los convierte en roles con `RolMeta` activa: roles fantasma) y `setup_groups.py` (`Responsable`). Refutado: `seed_perf`, `prepare_perf_http_probe` y `seed_aceptacion_reportes` ya exigen base efímera.
+- **Ubicación:** `users/management/commands/crear_usuarios_sistema.py` (viaja en `origin/main`: `.gitattributes` solo excluye docs y auditorías; nadie lo invoca); deja cuentas por defecto con claves por defecto conocidas (detalle reservado hasta P-09) en el rol **«Administrador» real** (`rbac.ROL_ADMINISTRADOR`, protegido con todas las capacidades, `seed_rbac.py:73-83`), con `is_staff=True`, y les resetea la clave si existen. `seed_relevamientos_periodo_demo.py:16-49` (`set_password` sobre el `--username` que se pase, con clave por defecto conocida, `is_active=True`); `seed_becas_demo_mobile.py:320-325` (clave por defecto conocida); `legajos/management/commands/setup_roles_contactos.py` (10 grupos `Psicologo`, `Director`, … sin `RolMeta`, con permisos de modelo sobre `historialcontacto`; `seed_rbac:56-64` los convierte en roles con `RolMeta` activa: roles fantasma) y `setup_groups.py` (`Responsable`). Refutado: `seed_perf`, `prepare_perf_http_probe` y `seed_aceptacion_reportes` ya exigen base efímera.
 - **Propuesta:** `git rm users/management/commands/crear_usuarios_sistema.py`, `setup_roles_contactos.py` y `setup_groups.py`; helper `core/management/guardas.py::exigir_entorno_demo()` = `if not (settings.DEBUG or os.environ.get("CHACO_PERMITIR_SEED_DEMO") == "1"): raise CommandError(...)` al inicio de `seed_becas_demo_mobile`, `seed_relevamientos_periodo_demo` y `seed_busqueda_ciudadanos_demo`, que además no deben resetear la clave de usuarios existentes. **No** usar `settings.ENVIRONMENT` (icore DEV vale `prd`; QA lo pisa a `prd`, OPS-12). Contar con P-09 las cuentas que ya existan en PRD.
 - **Tests:** `call_command("crear_usuarios_sistema")` → `CommandError: Unknown command`; cada seed demo con `DEBUG=False` y sin la variable → `CommandError`.
 
 **Resolución:** ✅ Resuelto en el PR 3 de la Ola 3 (Cambio 171), 07-oct-2026 — los tres comandos **se borraron**, que es
 el remedio que el Cambio 28 ya había elegido para `crear_superadmin` y por el mismo motivo: cualquier variante que los
 deje creando usuarios vuelve a poner una credencial por defecto en un ambiente servido. `crear_usuarios_sistema` era
-además el peor de los tres —`admin`/`admin123` superusuario y `admin1..3` en el rol «Administrador» real, **reseteando
+además el peor de los tres —cuentas por defecto con claves por defecto conocidas (detalle reservado hasta P-09) en el rol «Administrador» real, **reseteando
 la clave si ya existían**—. Los tres seeds de demo que quedan pasan por `core/management/guardas.py::exigir_entorno_demo()`
 (`DEBUG` o `CHACO_PERMITIR_SEED_DEMO=1`, **no** `settings.ENVIRONMENT`), y `seed_relevamientos_periodo_demo` dejó de
-pisarle la clave —y de reactivar— a un `territorial_demo` que ya exista: ahora avisa y sigue. **Lo que la ficha no
+pisarle la clave —y de reactivar— a la cuenta demo que ya exista: ahora avisa y sigue. **Lo que la ficha no
 pedía y es lo que impide que vuelva por otra puerta:** dos ratchets AST sobre `*/management/commands/*.py`. Uno exige
 que todo comando que llame a `set_password`/`create_user`/`create_superuser` llame también a `exigir_entorno_demo`, con
 un allowlist de cuatro archivos y su motivo escrito; el otro es el de G1c-12. Sin ellos, borrar cuatro archivos no
@@ -187,7 +187,7 @@ efímera (`seed_perf`, `prepare_perf_http_probe`, `seed_aceptacion_reportes`) y 
 entraron al allowlist en vez de recibir la guarda de demo —la suya es más fuerte—. `docs/internal/onboarding.md` dejó
 de mandar a leer `setup_groups.py` para saber los roles (apuntaba a un archivo borrado y además la respuesta era
 equivocada: los roles salen del `CATALOGO` de `core/rbac.py`). **Pendiente operativo, no de código:** contar con P-09
-las cuentas que hayan quedado en PRD (`admin`, `admin1..3`, `territorial_demo`) y darlas de baja o cambiarles la clave;
+las cuentas que hayan quedado en PRD (las cuentas por defecto de los seeds) y darlas de baja o cambiarles la clave;
 borrar el comando no borra lo que ya creó. **Test permanente:** `core.tests.test_comandos_peligrosos`
 (`ComandosBorradosTests.test_los_cuatro_comandos_peligrosos_ya_no_existen`,
 `SeedsDemoExigenEntornoDeDemoTests.test_sin_debug_ni_variable_los_tres_cortan`,

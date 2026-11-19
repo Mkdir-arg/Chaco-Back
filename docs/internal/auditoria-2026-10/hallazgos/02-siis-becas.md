@@ -344,6 +344,7 @@ y `.test_el_catalogo_distingue_los_dos_motivos`).
 **Severidad:** MEDIA · **Estado:** 🟡 PARCIAL · **Origen:** A2-14; parte de SEC-28 de V1 · **Ola:** 3 · **Esfuerzo:** S (a) / M (b) · **Decisión:** D-S13 (decisión pendiente del Cambio 41)
 
 **Resolución:** 🟡 Opción (a) resuelta en #PENDIENTE (Cambio 174), 08-oct-2026 — **`DECISIÓN CLIENTE: D-S13 = sí (default del README §2)`**. La opción (b) no se hace: necesita un estado nuevo del caso y la ficha la deja «para después». **Para el PM:** confirmar la regla con el programa (análisis #289) antes de dar la decisión por firme; hasta entonces queda el default aplicado. Test permanente: `programas/tests/test_inscripcion_dni_bloqueado.py`.
+- **Test permanente:** `programas.tests.test_inscripcion_dni_bloqueado`
 - **Impacto:** la regla del documento ocupado en la convocatoria sigue admitiendo un uso indebido del link público.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** completar la opción (b) con la decisión del PM.
@@ -548,6 +549,7 @@ el mensaje vacío —`motivo_sin_consulta` falsy— el `elif` se evaluaba igual 
 **Severidad:** BAJA · **Estado:** 🟡 PARCIAL · **Origen:** A2-18 · **Ola:** 3 · **Esfuerzo:** S
 
 **Resolución:** 🟡 Las dos partes de código, en #PENDIENTE (Cambio 174), 08-oct-2026; queda un paso operativo de infraestructura (PM) que necesita medir los envíos reales en PRD y vale también para el ingress de ECOM, que no está en este repo. Test permanente: `portal/tests/test_inscripcion_comprobante_y_adjuntos.py`.
+- **Test permanente:** `portal.tests.test_inscripcion_comprobante_y_adjuntos`
 - **Impacto:** los adjuntos del link público no tienen todavía todos los límites previstos.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** completar el paso de infraestructura una vez medidos los envíos reales.

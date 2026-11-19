@@ -2361,6 +2361,7 @@ desde base vacía), `pr-security.yml` (`pip-audit`), `pr-quality.yml` (ruff, ruf
 **Severidad:** CRÍTICA · **Estado:** 🟡 PARCIAL · **Origen:** RS-R6-01 (VR2: CONFIRMADO-AJUSTADO: hay una decisión previa del PM, Cambio 79) · **Ola:** R (**hotfix**, primer PR) · **Esfuerzo:** M · **Decisión:** **D-RED-01 (DECISIÓN CLIENTE)**
 
 **Resolución:** 🟡 Parcial en #547 (Cambio 116, PR R-01), 04-oct-2026 — la parte de código está hecha (los datos salieron de `HEAD`, del release y de la imagen, con barreras y un gate de CI); los pasos que ejecuta el PM bajo D-RED-01 siguen abiertos.
+- **Test permanente:** `core.tests.test_release_sin_datos`
 - **Impacto:** datos personales de ciudadanos siguen expuestos mientras no se completen esos pasos.
 - **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
 - **Propuesta por defecto:** completar los pasos de D-RED-01 con el PM y ECOM, y dejar constancia en `requerimientos.md`.
