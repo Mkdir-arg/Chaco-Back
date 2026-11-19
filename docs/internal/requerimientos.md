@@ -628,6 +628,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 504 | Emergencia · E1: deuda del tablero que E8 reusa (camas, localidades homónimas, estado vacío, ingreso directo único, copias, `EXPLAIN` de la ventana) | Emergencia · tablero | `#emergencia` `#performance` `#ui` | PM — análisis 009 (§8.2, RF-009-18), task #1180 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 505 | Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#performance` `#seguridad` `#metodo` `#gestion` | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 506 | Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos | Transversal · documentación interna de la auditoría | `#seguridad` `#metodo` | PM | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
 | 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
@@ -59145,6 +59146,94 @@ No requiere (`collectstatic` del deploy publica el CSS nuevo).
 ## Reversión
 
 Revertir el commit; no hay datos involucrados.
+
+# Cambio 506 — Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · documentación interna de la auditoría de octubre |
+| **Etiquetas** | `#seguridad` `#metodo` |
+| **Solicitante** | PM |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin registrar |
+| **Partes afectadas** | `docs/internal/auditoria-2026-10/` (README, fichas de `hallazgos/` y PoC de `poc/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El repositorio `Mkdir-arg/Chaco-Back` es público. `docs/internal/` no sale a GitHub Pages ni a `main` (`export-ignore`),
+pero se lee en `development`. El PM decidió recortar de la auditoría de octubre el detalle de explotación de los
+hallazgos de seguridad que siguen abiertos.
+
+## Alcance acordado
+
+Solo los hallazgos que siguen abiertos, o parciales con un resto abierto: SEC-26, SEC-27, SEC-29, SEC-35, G1c-10,
+R0b-11, SIIS-13, SIIS-16 y RED-01. Además: la parte de SEC-09 que describe el ambiente DEV (hasta que cierre R0b-11),
+las claves por defecto de OPS-02/P-09 (hasta P-09), las PoC de SEC-26 y SEC-29 y la referencia al volcado de aprobados
+de PERF-07. Los resueltos conservan su detalle. R0b-09 se dejó como estaba: lo que queda abierto ahí es acceso de
+menos, no de más.
+
+## Decisiones tomadas
+
+- En cada hallazgo abierto: título genérico en todos los lugares donde aparece, la columna de archivo pasa a decir el
+  módulo, y los campos de escenario, ubicación, causa, evidencia, PoC, solución, tests y verificación se reemplazan por
+  una línea de impacto, la frase «Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo
+  cierra.» y una propuesta por defecto sin mecanismo.
+- Las reglas y las decisiones de cliente del README (D-26, D-27, D-S13, D-RED-01) y las fichas de otros ejes que
+  citaban lo mismo se reescribieron sin el mecanismo.
+- Las PoC de hallazgos abiertos (`G1b03y04TokenCampoTests` de SEC-26 y el test de registro anónimo de SEC-29) salen de
+  `poc/`; esos archivos y su README dicen «PoC reservada». Se vuelven a publicar con el PR que cierra cada hallazgo.
+- Las fichas parciales conservan la línea `**Test permanente:**` (solo el módulo), que exige
+  `core.tests.test_contrato_auditoria`.
+- El texto original completo se guarda fuera del repo, en el equipo del PM.
+- Cada PR que cierre uno de estos hallazgos agrega su detalle técnico al informe.
+
+## Implementación
+
+Solo documentación.
+
+## Archivos
+
+- `docs/internal/auditoria-2026-10/README.md`
+- `docs/internal/auditoria-2026-10/hallazgos/01-seguridad.md`
+- `docs/internal/auditoria-2026-10/hallazgos/02-siis-becas.md`
+- `docs/internal/auditoria-2026-10/hallazgos/04-performance.md`
+- `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md`
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md`
+- `docs/internal/auditoria-2026-10/anexo-mediciones-performance.md`
+- `docs/internal/auditoria-2026-10/poc/README.md`
+- `docs/internal/auditoria-2026-10/poc/test_repro_seguridad.py`
+- `docs/internal/auditoria-2026-10/poc/test_repro_usuarios.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `scripts/requerimientos.py --check` en OK y `scripts/check_docs_client.py` en 0 hallazgos.
+- Búsqueda de control sobre `docs/internal/auditoria-2026-10/`: lo que queda de las funciones y condiciones recortadas
+  pertenece a hallazgos resueltos.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Las entradas anteriores de este archivo que registran el cierre parcial de esos hallazgos conservan su texto
+  (la regla de este archivo es no reescribir): el PM decide si también se recortan.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026:** ronda 2 de revisión: PoC de SEC-26 y SEC-29, parte de DEV de SEC-09, claves por defecto de OPS-02/P-09 y referencia a `Aprobados.sql` de PERF-07; R0b-09 vuelve a su texto original; las fichas recuperan su `Test permanente`.
 
 ---
 
