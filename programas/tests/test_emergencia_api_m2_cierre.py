@@ -332,6 +332,98 @@ class SinDerivacionApiTests(BaseApiLlegadas):
         self.assertEqual(respuesta.json()["code"], "UUID_EN_USO")
         self.assertEqual(CasoEmergencia.objects.count(), 1)
 
+    def _guardia_de_dos(self):
+        """Un usuario que admite en el centro y en la escuela, y el ingreso directo que hizo en el centro."""
+        usuario = self._guardia("guardia_doble", list(GUARDIA), [self.centro, self.escuela])
+        identificador = uuid.uuid4()
+        primera = self._como(usuario).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk),
+            self._cuerpo_puerta(identificador, adultos_m=1, dni="33444555", nombre="Marta", apellido="Rios"),
+            format="multipart",
+        )
+        self.assertEqual(primera.status_code, 201, primera.content)
+        return usuario, identificador, primera
+
+    def test_reenvio_con_uuid_de_otro_dispositivo_no_devuelve_integrantes(self):
+        """E-SEG-01: el mismo uuid en la URL de otro dispositivo no es un reenvío: 409, sin datos del caso."""
+        usuario, identificador, _ = self._guardia_de_dos()
+
+        respuesta = self._como(usuario).post(
+            _url("dispositivo-ingreso-directo", self.escuela.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertEqual(respuesta.json()["code"], "UUID_EN_USO")
+        self.assertNotIn("integrantes", respuesta.json())
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
+    def test_reenvio_con_uuid_de_un_envio_de_m1_es_uuid_en_uso(self):
+        """Un caso que no nació de «Ingresar igual» no se devuelve como si fuera uno de este dispositivo."""
+        usuario, identificador, _ = self._guardia_de_dos()
+        CasoEmergencia.objects.update(origen=CasoEmergencia.Origen.TERRITORIO)
+
+        respuesta = self._como(usuario).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertEqual(respuesta.json()["code"], "UUID_EN_USO")
+
+    def test_reenvio_tras_perder_el_alcance_de_la_ultima_derivacion_no_muestra_personas(self):
+        """E-SEG-01: la mesa mandó el caso a otro lado; quien sigue en el centro recibe su 200 sin personas."""
+        usuario = self._guardia("guardia_centro_2", list(GUARDIA), [self.centro])
+        identificador = uuid.uuid4()
+        primera = self._como(usuario).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk),
+            self._cuerpo_puerta(identificador, adultos_m=1, dni="33444555", nombre="Marta", apellido="Rios"),
+            format="multipart",
+        )
+        self.assertEqual(primera.status_code, 201, primera.content)
+        self.assertTrue(primera.json()["integrantes"])
+        caso = CasoEmergencia.objects.get()
+        Derivacion.objects.create(
+            caso=caso,
+            dispositivo=self.escuela,
+            estado=Derivacion.Estado.RECHAZADA,
+            plazas_pedidas=1,
+            vence_en=caso.creado,
+            derivada_por=self.operador,
+        )
+
+        respuesta = self._como(usuario).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["caso"]["id"], primera.json()["caso"]["id"])
+        self.assertEqual(respuesta.json()["integrantes"], [])
+
+    def test_el_reenvio_legitimo_de_quien_sigue_en_el_equipo_conserva_los_integrantes(self):
+        usuario, identificador, primera = self._guardia_de_dos()
+
+        respuesta = self._como(usuario).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json(), primera.json())
+        self.assertTrue(respuesta.json()["integrantes"])
+
+    def test_avisar_a_la_mesa_con_uuid_de_otro_dispositivo_es_uuid_en_uso_en_la_api(self):
+        usuario = self._guardia("guardia_doble", list(GUARDIA), [self.centro, self.escuela])
+        identificador = uuid.uuid4()
+        primera = self._como(usuario).post(
+            _url("dispositivo-avisar-mesa", self.centro.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+        self.assertEqual(primera.status_code, 201, primera.content)
+
+        respuesta = self._como(usuario).post(
+            _url("dispositivo-avisar-mesa", self.escuela.pk), self._cuerpo_puerta(identificador), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertEqual(respuesta.json()["code"], "UUID_EN_USO")
+
     def test_el_409_sale_por_tipo_aunque_cambie_el_texto_del_mensaje(self):
         """``_ejecutar`` atrapa ``UuidEnUso`` por tipo, no compara el texto (PR #1130).
 

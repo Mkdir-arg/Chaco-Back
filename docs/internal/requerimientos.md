@@ -618,7 +618,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
-| 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -54805,6 +54805,7 @@ entrada; las demás remiten acá.
 |---|---|---|---|
 | [462](#cambio-462) | 0 | Piezas de UI del lote | — |
 | 463 | 1 | Programa, capacidades y E7 | `programas.0117`, `programas.0118`, `users.0047` |
+| 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | [464](#cambio-464) | 2 | Modelo del caso y servicios de la mesa | `programas.0119` |
 | [465](#cambio-465) | 3 | Mesa en el backoffice: E2, E3 y «Nuevo caso» | — |
 | [466](#cambio-466) | 4 | Vencimientos de la mesa | — |
@@ -58035,7 +58036,53 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 Sin cambios posteriores.
 
----
+# Cambio 496 — Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · API de campo |
+| **Etiquetas** | `#emergencia` `#seguridad` |
+| **Solicitante** | Auditoría de Emergencia — hallazgo E-SEG-01 (severidad alta, confirmado con PoC) |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | API de campo (app móvil) |
+| **Migración** | No requiere |
+
+## Pedido original
+Reenviar «Ingresar igual» con el mismo `uuid_cliente` a la URL de otro dispositivo devolvía 200 con los integrantes (nombre, DNI, cama) de un caso de otro dispositivo, también después de que el usuario saliera de su Equipo. «Avisar a la mesa» repetía el patrón con menos datos.
+
+## Alcance acordado
+Dos guardas, sin tocar el camino feliz ni la forma de la respuesta. La idempotencia por `uuid_cliente` sigue resolviéndose antes de mirar camas.
+
+## Decisiones tomadas
+- `ingreso_directo` y `avisar_a_la_mesa`: si el caso hallado por idempotencia no es un ingreso directo hacia **este** dispositivo (origen distinto, o primera derivación a otro lado; en el aviso, `en_la_puerta_de` de otro), es `UuidEnUso` (409 `UUID_EN_USO`).
+- `IngresoDirectoView`: en un reenvío, `integrantes` solo si `ingreso_sin_candado` pasa (alcance vigente sobre la última derivación); si no, 200 con `integrantes: []`, para no trabar la cola de la app.
+
+## Implementación
+`_exigir_reenvio_de_este_ingreso` en el servicio y `_opera_el_ingreso` en la vista.
+
+## Archivos
+`programas/services/emergencia_sin_derivacion.py`, `programas/api/views_emergencia_sin_derivacion.py`, `programas/tests/test_emergencia_sin_derivacion.py`, `programas/tests/test_emergencia_api_m2_cierre.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+5 tests nuevos de API y 2 de servicio. Verificado por mutación: sin la guarda de `ingreso_directo` fallan 3, sin la de `avisar_a_la_mesa` fallan 2, sin la de la vista falla 1; restauradas, verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
 
 # Cambio 501 — Pieza de UI «gráfico de barras pareadas» y su ficha (C4)
 
