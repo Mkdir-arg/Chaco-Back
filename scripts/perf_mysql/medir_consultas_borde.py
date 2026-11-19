@@ -17,7 +17,7 @@ Uso: python scripts/perf_mysql/medir_consultas_borde.py [--repeticiones 50]
 import argparse
 
 from _bootstrap import cargar_django  # noqa: E402
-from _medicion import medir as _medir  # noqa: E402
+from _medicion import medir  # noqa: E402
 
 cargar_django()
 
@@ -35,10 +35,6 @@ def capturar(fn):
     return [q["sql"] for q in cap.captured_queries]
 
 
-def medir(titulo, sql, repeticiones):
-    _medir(titulo, sql, repeticiones, ancho=260, contar_lecturas=False)
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repeticiones", type=int, default=50)
@@ -54,7 +50,7 @@ def main():
     # ── PERF-12 · el COUNT del cupo del link público: la property que mira
     # `relevamiento_disponible` en el GET del paso 1 y que el envío repite bajo el lock.
     for sql in capturar(lambda: rel.cupo_utilizado):
-        medir("PERF-12 · COUNT del cupo del link público", sql, reps)
+        medir("PERF-12 · COUNT del cupo del link público", sql, reps, ancho=260, contar_lecturas=False)
 
     # ── PERF-13 · la bandeja de personas filtrada por un estado raro, página 10.
     # Mismo queryset que `RevisionPersonasListView.get_queryset`: los ids de
@@ -66,9 +62,15 @@ def main():
         .order_by("-creado", "-pk")
     )
     for sql in capturar(lambda: list(bandeja[225:250])):
-        medir(f"PERF-13 · bandeja estado=BAJA página 10 ({len(ids)} relevamientos)", sql, reps)
+        medir(
+            f"PERF-13 · bandeja estado=BAJA página 10 ({len(ids)} relevamientos)",
+            sql,
+            reps,
+            ancho=260,
+            contar_lecturas=False,
+        )
     for sql in capturar(bandeja.count):
-        medir("PERF-13 · COUNT del paginador de esa bandeja", sql, reps)
+        medir("PERF-13 · COUNT del paginador de esa bandeja", sql, reps, ancho=260, contar_lecturas=False)
 
     # El contraste que la ficha no pide pero que decide el índice: el mismo filtro
     # con un estado **común**. Si el motor elige el índice de `estado` ahí también,
@@ -80,13 +82,25 @@ def main():
     )
     aprobados = comun.count()
     for sql in capturar(lambda: list(comun[225:250])):
-        medir(f"PERF-13 · bandeja estado=APROBADO página 10 ({aprobados} casos)", sql, reps)
+        medir(
+            f"PERF-13 · bandeja estado=APROBADO página 10 ({aprobados} casos)",
+            sql,
+            reps,
+            ancho=260,
+            contar_lecturas=False,
+        )
     for sql in capturar(lambda: list(comun[9975:10000])):
-        medir("PERF-13 · bandeja estado=APROBADO página 400 (la más profunda)", sql, reps)
+        medir(
+            "PERF-13 · bandeja estado=APROBADO página 400 (la más profunda)",
+            sql,
+            reps,
+            ancho=260,
+            contar_lecturas=False,
+        )
     for sql in capturar(
         lambda: list(Formulario.objects.filter(relevamiento_id__in=ids).only("pk").order_by("-creado", "-pk")[225:250])
     ):
-        medir("PERF-13 · bandeja sin filtro de estado, página 10", sql, reps)
+        medir("PERF-13 · bandeja sin filtro de estado, página 10", sql, reps, ancho=260, contar_lecturas=False)
 
     # ── PERF-15 · el aggregate del padrón del detalle de convocatoria
     # (`ConvocatoriaDetailView.get_context_data`), tal cual está escrito ahí.
@@ -101,7 +115,13 @@ def main():
 
     filas = conv.padron.count()
     for sql in capturar(aggregate_del_detalle):
-        medir(f"PERF-15 · aggregate del padrón del detalle de convocatoria ({filas} filas)", sql, reps)
+        medir(
+            f"PERF-15 · aggregate del padrón del detalle de convocatoria ({filas} filas)",
+            sql,
+            reps,
+            ancho=260,
+            contar_lecturas=False,
+        )
 
     # ── PERF-15 · los dos Count anotados en el queryset del detalle de relevamiento
     # (`RelevamientoDetailView.queryset`), que recorren el padrón de la convocatoria.
@@ -118,7 +138,13 @@ def main():
         )
 
     for sql in capturar(anotados_del_detalle):
-        medir("PERF-15 · Count del padrón anotado en el detalle de relevamiento", sql, reps)
+        medir(
+            "PERF-15 · Count del padrón anotado en el detalle de relevamiento",
+            sql,
+            reps,
+            ancho=260,
+            contar_lecturas=False,
+        )
 
 
 if __name__ == "__main__":

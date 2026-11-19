@@ -34,26 +34,22 @@ para «Mostrando N de M». Con un filtro activo, las provinciales lo dicen: «en
 """
 
 from programas.selectors.emergencia import TRAMOS, texto_de_minutos
-from programas.selectors.emergencia_situacion import (
-    VENTANA_DE_ALZA,
-    VENTANAS_ANTERIORES_DE_ALZA,
+from programas.selectors.emergencia_situacion import HORAS_DEL_RITMO, VENTANA_DE_ALZA, VENTANAS_ANTERIORES_DE_ALZA
+from programas.selectors.emergencia_tablero import muestras_por_tramo, percentil
+from programas.services.avisos_emergencia import ICONOS, TONOS
+from programas.services.bitacora_detalle import plural
+from programas.services.ocupacion import NIVEL_CRITICA, tension_de_ocupacion
+from programas.services.situacion_emergencia import (
+    PROYECCION,
+    RADIO_CERCANAS_KM,
+    SATURADA,
+    demanda_en_alza,
     presion_por_localidad,
     saturacion,
     sin_dosis_provincial,
     sin_entrega_reciente,
     tensionados,
     total_de_la_red,
-)
-from programas.selectors.emergencia_tablero import muestras_por_tramo, percentil
-from programas.services.avisos_emergencia import ICONOS, TONOS
-from programas.services.bitacora_detalle import plural
-from programas.services.ocupacion import NIVEL_CRITICA, tension_de_ocupacion
-from programas.services.situacion_emergencia import (
-    HORAS_DEL_RITMO,
-    PROYECCION,
-    RADIO_CERCANAS_KM,
-    SATURADA,
-    demanda_en_alza,
 )
 
 #: Cuántas alertas muestra «Necesita atención» (RF-009-06).
@@ -176,7 +172,7 @@ def dispositivos_criticos_con_pendientes(foto):
     """AE-5, provincial: una alerta por dispositivo Crítica **de su tipo** con derivaciones pendientes.
 
     Del más al menos tensionado (``porcentaje − umbral rojo``). Los de ubicación reservada no
-    entran (``selectors.emergencia_situacion.tensionados`` ya los deja afuera).
+    entran (``services.situacion_emergencia.tensionados`` ya los deja afuera).
     """
 
     alertas = []

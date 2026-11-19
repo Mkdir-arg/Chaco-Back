@@ -13,7 +13,7 @@ para los casos históricos). Los índices que el `EXPLAIN` pida van en una migra
 
 import argparse
 
-from _bootstrap import cargar_django  # noqa: E402
+from _bootstrap import cargar_django, exigir_base_descartable  # noqa: E402
 from _medicion import medir  # noqa: E402
 
 cargar_django()
@@ -32,6 +32,7 @@ def main():
     parser.add_argument("--repeticiones", type=int, default=20)
     args = parser.parse_args()
 
+    exigir_base_descartable()  # sla_vigente() puede escribir el SLA de fábrica
     sla = sla_vigente()
     with CaptureQueriesContext(connection) as capturadas:
         foto = situacion.foto_de_situacion(sla, timezone.now(), situacion.FiltrosSituacion(ventana=args.ventana))

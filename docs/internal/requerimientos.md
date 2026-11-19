@@ -55958,7 +55958,8 @@ Revertir el PR; sin migraciones.
   en `test_emergencia_tablero.py` (46).
 - **13/11/2026 — mergeado** (PR #1135, merge `8400f935` en `development`).
 - **19/11/2026 — pendientes resueltos por el [Cambio 504](#cambio-504)** (E-1 del análisis 009, #1180): los pendientes
-  1, 3, 4, 6, 7, 8, 9, 10 y 11 de este cambio; el 2 (revisión visual) sigue en QA y el 5 lo reemplaza E8.
+  1, 3, 4, 6, 7, 8, 9 y 11 de este cambio; el 10 (ventana sin índice) lo midió el 504 con `EXPLAIN` y lo cerró el
+  [Cambio 508](#cambio-508) con `programas.0128`; el 2 (revisión visual) sigue en QA y el 5 lo reemplaza E8.
 
 ---
 
@@ -58828,6 +58829,8 @@ Revertir el PR; sin migraciones.
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+- **19/11/2026 —** pendiente 1 resuelto por el [Cambio 508](#cambio-508) (`programas.0128`); decisión 3 precisada
+  (límite de homónimas).
 
 ---
 
@@ -58962,11 +58965,14 @@ de «dispositivos que el usuario puede abrir» de §4.1, que necesita el usuario
 
 ## Implementación
 
-- `programas/selectors/emergencia_situacion.py` (nuevo): `FiltrosSituacion`, `periodos_de_la_ventana`,
-  `foto_de_situacion` y `resumen`, `presion_por_localidad`, `evolucion`, `capacidad`, `tensionados`, `embudo`,
-  `perfil`, `logistica`, `sin_entrega_reciente`, `sin_dosis_provincial`, `puntos_del_mapa`.
-- `programas/services/situacion_emergencia.py` (nuevo): `nivel_de_presion`, `horas_hasta_saturar`, `camas_cercanas`,
-  `ubicacion_valida`, `demanda_en_alza`, `presentar_perfil`.
+- `programas/selectors/emergencia_situacion.py` (nuevo, solo lectura): `FiltrosSituacion`, `periodos_de_la_ventana`,
+  las filas de la foto y `foto_de_situacion`.
+- `programas/services/situacion_emergencia.py` (nuevo): reglas puras (`nivel_de_presion`, `horas_hasta_saturar`,
+  `camas_cercanas`, `ubicacion_valida`, `demanda_en_alza`, `presentar_perfil`) e indicadores sobre la foto (`resumen`,
+  `presion_por_localidad`, `evolucion`, `capacidad`, `tensionados`, `embudo`, `perfil`, `logistica`,
+  `sin_entrega_reciente`, `sin_dosis_provincial`, `puntos_del_mapa`).
+- `programas/services/ocupacion.py`: `etiqueta_y_tono(nivel)`.
+- `CasoEmergencia.q_en_la_ventana(desde)` (sin cambio de esquema).
 - `programas/services/alertas_situacion_emergencia.py` (nuevo): AE-1 a AE-7, `todas_las_alertas`,
   `alertas_de_situacion`.
 - `programas/services/emergencia_ficha.py`: `sin_dosis(avisos)`.
@@ -58985,7 +58991,8 @@ de «dispositivos que el usuario puede abrir» de §4.1, que necesita el usuario
 `programas/migrations/0128_indices_ventana_casos_emergencia.py`, `scripts/perf_mysql/_medicion.py`,
 `scripts/perf_mysql/explain_situacion.py`, `scripts/perf_mysql/explain_ventana_tablero.py`,
 `scripts/perf_mysql/medir_consultas_borde.py`, `programas/tests/test_emergencia_situacion.py` (nuevo),
-`programas/tests/test_emergencia_tablero_e1.py` (nuevo), `programas/tests/test_emergencia_tablero.py`,
+`programas/tests/test_emergencia_tablero_e1.py` (nuevo), `programas/tests/test_situacion_emergencia_reglas.py` (nuevo),
+`programas/services/ocupacion.py`, `programas/tests/test_emergencia_tablero.py`,
 `programas/tests/test_ubicacion_reservada.py`.
 
 ## Base de datos
@@ -59002,6 +59009,23 @@ reintenta (tabla de miles de filas, segundos).
   (TC-1183-16, 17, 20 a 25, 29, 37, 38), `--tag performance` (TC-1183-34: 12 consultas, también con filtro) y
   `--tag mysql` (TC-1183-35 y la clave JSON en los dos motores).
 - `manage.py check`, `makemigrations --check --dry-run`, `check_migraciones.py`, `ruff` check/format.
+- **`EXPLAIN` en MariaDB 10.11** descartable (`explain_situacion.py`, 20 corridas), con 50.700 casos (50.000 cerrados de
+  un evento anterior), 30.050 estadías (30.000 egresadas), 23.000 integrantes (3.000 alojados), 20.300 derivaciones
+  (20.000 rechazadas o vencidas de casos viejos) y 10.500 entregas (10.000 de un evento anterior), con 0128 aplicada:
+
+  | # | Lectura | Plan | Filas leídas (handler) | ms |
+  |---|---|---|---:|---:|
+  | 1 | Casos de la ventana | `index_merge` (`sort_union` de `estado`, `alojado_en`, `cerrado_en`) | 9.576 | 36–41 |
+  | 2–5 | Red (`red_de_dispositivos`) | índices de tipo, sector y plaza | ≤ 4.051 | 1–4 |
+  | 6 | Personas alojadas | **`ALL`** sobre `integrantegrupo` (22.625) | 27.501 | 27 |
+  | 7 | Ritmo de 6 h | **`ALL`** sobre `plaza` y `ref` a `estadia` por plaza: sin índice de fechas | 34.051 | 28–34 |
+  | 8 | Derivaciones | **`ALL`** sobre `derivacion` (19.805), `eq_ref` al caso por `creado` | 40.601 | 28 |
+  | 9 | Entregas de la ventana | **`ALL`** sobre `entregakit` (10.553) | 10.501 | 6 |
+  | 10 | Líneas por ítem | `ref` por ítem: recorre todas las líneas del ítem | 21.321 | 16 |
+  | 11 | Última recepción | `ref` por dispositivo: todas las entregas de cada uno | 21.204 | 13 |
+  | 12 | Localidades del Chaco | índices de localidad y municipio | 2 | 0,3 |
+
+  La ventana de casos usa los índices de 0128; las demás que recorren tablas son las que el §4.1 ya marcaba para medir.
 
 ## Puesta en marcha en el servidor
 
@@ -59009,9 +59033,11 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
 
 ## Pendientes / a definir
 
-1. **`EXPLAIN` de la foto en motor real** (RNF-009-10): `scripts/perf_mysql/explain_situacion.py` está listo pero no se
-   corrió (sin motor en esta sesión). Mirar sobre todo derivaciones por estado y fecha, entregas por estado y fecha, y
-   el ritmo de `Estadia` (sin índice en `fecha_ingreso`/`fecha_egreso`).
+1. **Índices que pide el `EXPLAIN` de la foto** (RNF-009-10, ver «Validación»; no se agregan acá, van en una
+   migración aparte si el PM lo prioriza): `IntegranteGrupo.egresado_en` (personas alojadas; también lo pide A4 de
+   Abastecimiento), `Derivacion.estado` (o `(estado, …)`), `EntregaKit.despachada_en` y las fechas de `Estadia` para el
+   ritmo de 6 h. Hoy, con el banco de abajo, cada una tarda 6 a 28 ms: no comprometen el `read_timeout` de 10 s, pero
+   crecen lineal con el histórico.
 2. **Para E-5 (UI):** cómo se escriben los números (miles, «≈», «—»), el orden visual de la tabla de presión y el
    agrupado «Otras localidades», el texto exacto de «en toda la provincia» y del aviso de localidad ignorada.
 3. **Decisión abierta:** la cohorte del embudo usa sus tramos completos; AE-4 usa la muestra de E1. Si el PM quiere
@@ -59031,3 +59057,10 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+- **19/11/2026 — auditoría del PR #1224** (dos MAJOR y MINOR, sin cambiar la lógica ni las salidas): los indicadores
+  (`resumen` … `puntos_del_mapa`) pasan del selector a `services/situacion_emergencia.py`, y el selector queda solo con
+  la lectura; los tests de reglas puras pasan a `test_situacion_emergencia_reglas.py`. «Alojada en un momento» usa
+  `services.ocupacion.alojada_en` (borde del censo: confirmada **antes** del instante); `ocupacion.etiqueta_y_tono` es la
+  fuente del vocabulario y los tonos para `Tension` y `Presion`; `CasoEmergencia.q_en_la_ventana` es la ventana de E1 y
+  E8; `DispositivoDeLaRed.tipo` y `conteo` son obligatorios. Scripts: sin `--probar-indices`, `medir` directo,
+  `explain_situacion.py` exige la base descartable. `EXPLAIN` corrido (arriba).

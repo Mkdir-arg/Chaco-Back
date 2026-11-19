@@ -5945,6 +5945,17 @@ class CasoEmergencia(TimeStamped):
 
         return models.Q(origen=cls.Origen.DISPOSITIVO) & ~models.Q(situacion__has_key=cls.SITUACION_EN_LA_PUERTA)
 
+    @classmethod
+    def q_en_la_ventana(cls, desde):
+        """Los casos de una ventana del tablero: abiertos, o alojados o cerrados desde ``desde``.
+
+        Es la ventana de RN-5.1 (E1) y la de la foto de situación (E8). Con los índices de
+        ``alojado_en`` y ``cerrado_en`` (``programas.0128``) y el de ``(estado, prioridad)``, el ``OR``
+        usa *index merge* en vez de recorrer la tabla (EXPLAIN de los Cambios 504 y 508).
+        """
+
+        return ~models.Q(estado=cls.Estado.CERRADO) | models.Q(alojado_en__gte=desde) | models.Q(cerrado_en__gte=desde)
+
     @property
     def alojamiento(self):
         """La sección 4 del Formulario 1 que dejó «Familia alojada», o ``None``."""

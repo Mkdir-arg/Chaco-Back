@@ -162,10 +162,10 @@ class DispositivoDeLaRed(NamedTuple):
     localidad: str
     libres: int
     reservadas: int
-    tipo: Any = None
+    tipo: Any
+    conteo: Conteo
     latitud: Decimal | None = None
     longitud: Decimal | None = None
-    conteo: Conteo | None = None
 
 
 class DerivacionPendiente(NamedTuple):
@@ -240,7 +240,7 @@ def _casos_de_la_ventana(ahora):
     ultima = ultima_traza_del_caso()
     contacto = ContactoCaso.objects.filter(caso=OuterRef("pk"), momento__gte=OuterRef("alojado_en"))
     filas = (
-        CasoEmergencia.objects.filter(~Q(estado=Estado.CERRADO) | Q(alojado_en__gte=limite) | Q(cerrado_en__gte=limite))
+        CasoEmergencia.objects.filter(CasoEmergencia.q_en_la_ventana(limite))
         .annotate(
             ultima_accion=Subquery(ultima.values("accion")[:1]),
             ultimo_detalle=Subquery(ultima.values("detalle")[:1]),
