@@ -114,7 +114,7 @@ def mensaje_dni_registrado(ciudadano):
     )
 
 
-def _nombre_en_conflicto(ciudadano, nombre, apellido):
+def nombre_en_conflicto(ciudadano, nombre, apellido):
     """¿Lo declarado contradice al legajo? Un campo vacío, de un lado o del otro, no se compara."""
 
     for declarado, registrado in ((nombre, ciudadano.nombre), (apellido, ciudadano.apellido)):
@@ -349,7 +349,7 @@ def _responsable(datos, limpio):
             ciudadano.dni_fisico = Ciudadano.DniFisico.NO_TIENE
             ciudadano.save(update_fields=["dni_fisico", "modificado"])
 
-    if not _nombre_en_conflicto(ciudadano, nombre, apellido):
+    if not nombre_en_conflicto(ciudadano, nombre, apellido):
         return ciudadano, None
     if not datos.get("identidad_en_conflicto"):
         raise DniRegistrado(ciudadano)
