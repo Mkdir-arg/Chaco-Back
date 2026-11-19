@@ -20,8 +20,8 @@ Esfuerzo con S = 2 h, S-M = 4 h, M = 8 h, L = 20 h. Ninguna ficha es CRÍTICA. L
 | CRÍTICA | 0 | 0 | 0 | 0 |
 | ALTA | 9 | 5 | 4 | 18 |
 | MEDIA | 73 | 36 | 38 | 147 |
-| BAJA | 58 | 44 | 44 | 146 |
-| INFO | 11 | 8 | 7 | 26 |
+| BAJA | 58 | 42 | 45 | 145 |
+| INFO | 11 | 10 | 6 | 27 |
 | **Total** | **151** | **93** | **93** | **337** |
 
 | Eje | Becas | Emergencia | Dispositivos | Total |
@@ -73,7 +73,7 @@ Cada decisión trae su **propuesta por defecto**, que se aplica si el cliente no
 ## Mediciones pendientes
 
 - **Becas:** la pasada 2 de los exports ya se midió en el banco (el XLSX de respuestas tarda 18,7 s y el de beneficiarios 8 s, B-PERF-25 y B-PERF-26); el resto de las PERF MEDIA o mayores sigue PLAUSIBLE hasta medir (becas.md §8).
-- **Emergencia y Dispositivos: medidos el 19-nov-2026** en el banco del PR #1220 (`scripts/perf_mysql/escenarios_emergencia.py` y `escenarios_dispositivos.py`, MariaDB 10.11, `read_timeout` 10 s; volumen y método en la sección 8.d de cada informe). Subieron a ALTA E-PERF-01 (REGEXP sobre 522.013 DNI), E-PERF-03 (tablero, ≈ 3,2 s) y D-PERF-01 (historial profundo, ≈ 64 s: corta en ECOM; el detalle del dispositivo, ≈ 6,1 s, paga la misma consulta de `Estadia`); bajaron o quedaron en BAJA/INFO E-PERF-06, E-PERF-11, E-PERF-12, E-PERF-15, D-PERF-04, D-LIM-08 y otras. Quedan **no medidas por ruta** (exigen concurrencia o dos sesiones): E-PERF-02, E-PERF-09, E-PERF-10, D-PERF-06 y D-PERF-07. Es un banco local con datos sintéticos y ruido de ±2x: ordena las fichas, no promete un tiempo en PRD. No se tocó `seed_perf`.
+- **Emergencia y Dispositivos: medidos el 19-nov-2026** en el banco del PR #1220 (`scripts/perf_mysql/escenarios_emergencia.py` y `escenarios_dispositivos.py`, MariaDB 10.11, `read_timeout` 10 s; volumen y método en la sección 8.d de cada informe). Subieron a ALTA E-PERF-01 (REGEXP sobre 522.013 DNI), E-PERF-03 (tablero, ≈ 3,2 s) y D-PERF-01 (historial profundo, ≈ 64 s: corta en ECOM; el detalle del dispositivo, ≈ 6,1 s, paga la misma consulta de `MovimientoEstadia`); bajaron o quedaron en BAJA/INFO E-PERF-06, E-PERF-07, E-PERF-08, E-PERF-11, E-PERF-12, E-PERF-15, D-PERF-04 y otras; D-PERF-03 sube a MEDIA (459 ms en frío; cada `/media/` es un archivo distinto, así que el frío es el caso real) y D-PERF-08 sube a BAJA; D-LIM-08 baja a BAJA como limpieza. E-PERF-12 espera una re-medición (la de 680 ms no tiene registro). Quedan **no medidas por ruta** (exigen concurrencia o dos sesiones): E-PERF-02, E-PERF-09, E-PERF-10, D-PERF-06 y D-PERF-07. Es un banco local con datos sintéticos y ruido de ±2x: ordena las fichas, no promete un tiempo en PRD. No se tocó `seed_perf`.
 - **PoC:** las confirmadas (E-SEG-01, E-ERR-01, D-ERR-01, D-SEG-01) quedan como «PoC reproducida; test en el PR que la arregla».
 
 ## Reglas propuestas

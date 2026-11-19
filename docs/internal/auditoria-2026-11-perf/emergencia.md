@@ -12,8 +12,8 @@
 | CRÍTICA | 0 |
 | ALTA | 5 |
 | MEDIA | 36 |
-| BAJA | 44 |
-| INFO | 8 |
+| BAJA | 42 |
+| INFO | 10 |
 | **Total** | **93** |
 
 | Eje | Fichas |
@@ -31,8 +31,8 @@
 | CRÍTICA | 0 | 0 | 0 | 0 | 0 | 0 |
 | ALTA | 1 | 1 | 2 | 0 | 1 | 0 |
 | MEDIA | 0 | 2 | 3 | 0 | 30 | 1 |
-| BAJA | 0 | 13 | 6 | 0 | 22 | 3 |
-| INFO | 0 | 2 | 4 | 1 | 1 | 0 |
+| BAJA | 0 | 13 | 4 | 0 | 22 | 3 |
+| INFO | 0 | 2 | 6 | 1 | 1 | 0 |
 
 **Las que importan:**
 
@@ -140,8 +140,8 @@ Relaciones que NO se fusionaron (misma familia, otro archivo o otra causa; van c
 | E-ERR-15 | «Marcar en camino» acepta una hora de salida anterior al armado de la entrega | BAJA | CONFIRMADO | S | 3 | `programas/services/kits.py` |
 | E-ERR-16 | «Casos por localidad» del tablero fusiona localidades homónimas de municipios distintos y su e… | BAJA | PLAUSIBLE | S | 3 | `programas/selectors/emergencia_tablero.py` |
 | E-PERF-06 | El tablero trae todas las entregas en camino con todas sus líneas para mostrar 20 | BAJA | MEDIDO | S | 2 | `programas/selectors/emergencia_tablero.py` |
-| E-PERF-07 | Derivaciones y entregas se filtran por `estado` sin un índice que empiece por `estado` | BAJA | MEDIDO | S | 2 | `programas/selectors/emergencia_tablero.py` |
-| E-PERF-08 | Tres consultas fijas de la bandeja recorren todos los casos en cada carga | BAJA | MEDIDO | S | 2 | `programas/selectors/emergencia.py` |
+| E-PERF-07 | Derivaciones y entregas se filtran por `estado` sin un índice que empiece por `estado` | INFO | MEDIDO | S | 2 | `programas/selectors/emergencia_tablero.py` |
+| E-PERF-08 | Tres consultas fijas de la bandeja recorren todos los casos en cada carga | INFO | MEDIDO | S | 2 | `programas/selectors/emergencia.py` |
 | E-PERF-09 | Dos aceptaciones simultáneas en el mismo dispositivo eligen las mismas camas y la segunda espe… | BAJA | CONFIRMADO | S-M | 2 | `programas/services/emergencia_recepcion.py` |
 | E-PERF-10 | Reservar las camas de la familia valida cada cama con dos consultas propias mientras las tiene… | BAJA | CONFIRMADO | S | 2 | `programas/services/reservas_derivacion.py` |
 | E-PERF-11 | «Familia en la puerta» busca en todos los casos no cerrados en vez de en los de la foto | INFO | MEDIDO | S | 2 | `programas/services/avisos_emergencia.py` |
@@ -228,8 +228,8 @@ Medido en el banco el 19-nov-2026 (sección 8.d): **E-PERF-01 y E-PERF-03 son AL
 - **E-PERF-04** [MEDIA · S-M] La página de la bandeja ordena por expresiones y ordena el historial entero de la solapa
 - **E-PERF-05** [MEDIA · S-M] E4 (listado de entregas) ordena y pagina todo el histórico sin índice, con `select_related` en la consulta paginada
 - **E-PERF-06** [BAJA · S] El tablero trae todas las entregas en camino con todas sus líneas para mostrar 20
-- **E-PERF-07** [BAJA · S] Derivaciones y entregas se filtran por `estado` sin un índice que empiece por `estado`
-- **E-PERF-08** [BAJA · S] Tres consultas fijas de la bandeja recorren todos los casos en cada carga
+- **E-PERF-07** [INFO · S] Derivaciones y entregas se filtran por `estado` sin un índice que empiece por `estado`
+- **E-PERF-08** [INFO · S] Tres consultas fijas de la bandeja recorren todos los casos en cada carga
 - **E-PERF-09** [BAJA · S-M] Dos aceptaciones simultáneas en el mismo dispositivo eligen las mismas camas y la segunda espera el candado para fallar siempre
 - **E-PERF-10** [BAJA · S] Reservar las camas de la familia valida cada cama con dos consultas propias mientras las tiene todas tomadas
 - **E-PERF-11** [INFO · S] «Familia en la puerta» busca en todos los casos no cerrados en vez de en los de la foto
@@ -630,7 +630,7 @@ Cada una lleva una propuesta por defecto aplicable: si no hay respuesta a tiempo
 
 > **Estado: medido el 19-nov-2026** en el banco del PR #1220 (resultados en la sección 8.d). La tabla de abajo es el plan original; el resultado de cada ficha está en su línea «Medición en banco».
 
-MariaDB 10.11, `read_timeout` 10 s. Sin número, una PERF ALTA baja a INFO. Resultado: **E-PERF-01 pasó el umbral** (REGEXP > 0,5 s por recorrido bajo candado) y E-PERF-03 pasó 1 s; E-PERF-02 (candado del numerador > 200 ms por alta) no se midió: exige concurrencia.
+MariaDB 10.11, `read_timeout` 10 s. Sin medición, una PERF ALTA baja a INFO. Resultado: **E-PERF-01 pasó el umbral** (REGEXP ≈ 0,5 s por recorrido; dos recorridos bajo candado ≈ 1 s) y E-PERF-03 pasó 1 s; E-PERF-02 (candado del numerador > 200 ms por alta) no se midió: exige concurrencia.
 
 | Ficha | Sev. | Qué se mide (medición propuesta por el auditor) |
 |---|---|---|
@@ -695,18 +695,18 @@ Rutas a sumar a `_extra_targets()` de `bench_mysql.py` y a `scripts/perf_budgets
 
 ### 8.d Medición en banco
 
-Banco local y sintético (MariaDB 10.11, `read_timeout` 10 s, OPTIONS de producción), sembrado por `scripts/perf_mysql/escenarios_emergencia.py` (PR #1220). **Volumen:** 522.013 ciudadanos, 10.000 casos (≈ 4.000 abiertos o alojados), 15.000 derivaciones, 22.515 entregas con 114.090 líneas, 56.700 trazas. **Método:** frío = primer request; caliente = mediana de 3; `EXPLAIN` y `ANALYZE` sobre las consultas dominantes. Tras sembrar se corrió `ANALYZE TABLE` sobre las tablas grandes: sin eso el plan de E-PERF-06 salía por un índice equivocado (estadística vieja) y la ficha parecía MEDIA. **Ruido:** ±2x entre corridas del equipo; no se compara una ficha con otra por menos de eso. **Alcance:** es un banco local con datos sintéticos, no ECOM: sirve para ordenar fichas y ver el plan, no para prometer un tiempo en PRD. Con 100.000 casos no se midió.
+Banco local y sintético (MariaDB 10.11, `read_timeout` 10 s, OPTIONS de producción), sembrado por `scripts/perf_mysql/escenarios_emergencia.py` (PR #1220). **Volumen:** 522.013 ciudadanos, 10.000 casos (≈ 4.000 abiertos o alojados), 15.000 derivaciones, 22.515 entregas con 114.090 líneas, 56.700 trazas. **Método:** frío = primer request; caliente = mediana de 3; `EXPLAIN` y `ANALYZE` sobre las consultas dominantes. Tras sembrar se corrió `ANALYZE TABLE` sobre las tablas grandes: sin eso el prefetch de líneas (E-PERF-06) salía por el índice de `item_id` y costaba 859 ms; con él baja a 63-78 ms en `/emergencia/entregas/` (en el tablero sigue en 719 ms). **Ruido:** ±2x entre corridas del equipo; no se compara una ficha con otra por menos de eso. **Alcance:** es un banco local con datos sintéticos, no ECOM: sirve para ordenar fichas y ver el plan, no para prometer un tiempo en PRD. Con 100.000 casos no se midió.
 
 | Ficha | Ruta | Caliente (ms) | Consultas | Severidad |
 |---|---|---|---|---|
 | E-PERF-01 | `GET /api/emergencia/dispositivos/201/buscar/?dni=` | 333 (REGEXP 469-515 por recorrido) | 13 | MEDIA → **ALTA** |
-| E-PERF-03 | `/emergencia/tablero/` | 3.225 | 18 | MEDIA → **ALTA** |
+| E-PERF-03 | `/emergencia/tablero/` | 3.225 (SQL 2.392: casos 813, líneas 719) | 18 | MEDIA → **ALTA** |
 | E-PERF-04 | `/emergencia/casos/` y solapas | 207-285 | 18 | MEDIA |
 | E-PERF-05 | `/emergencia/entregas/` | 303-400 | 12 | MEDIA |
-| E-PERF-06 | prefetch de líneas | < 150 (la consulta) | — | BAJA |
-| E-PERF-12 | `dispositivo-entregas?pendientes=1` | 680 | 10 | BAJA |
+| E-PERF-06 | prefetch de líneas | 63-78 (entregas); 719 (tablero) | — | BAJA (el costo del tablero va en E-PERF-03) |
+| E-PERF-12 | `dispositivo-entregas?pendientes=1` | 1.460 (SQL 781; la re-medición de 680 no tiene registro) | 10 | BAJA (re-medir) |
 | E-PERF-11, E-PERF-15, E-DAT-01 | bandeja, `buscar` de un alojado, bandeja con 56.700 trazas | < 300 | 14-18 | INFO |
-| E-PERF-07, E-PERF-08 | EXPLAIN por `estado`; localidades | < 100 (la consulta) | — | BAJA |
+| E-PERF-07, E-PERF-08 | EXPLAIN por `estado`; localidades | < 100 (la consulta) | — | INFO |
 | E-PERF-14 | ficha con 100 trazas | 206 | 18 | INFO |
 | E-PERF-02, E-PERF-09, E-PERF-10 | concurrencia / presupuesto de consultas | — | — | no medidas por ruta |
 
@@ -867,7 +867,7 @@ Ordenadas por severidad y eje. Los IDs son los finales `E-<EJE>-NN`; el ID de la
 
 ### E-PERF-01 · El alta de un responsable nuevo recorre toda la tabla de ciudadanos con REGEXP, dos veces
 **Severidad:** ALTA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** fusión de E-PERF-01; probablemente compartido con la tajada de Dispositivos (ingreso) y la etapa 3 (`emergencia_confirmacion.py:383`, `emergencia_recepcion.py:143`) · **Ola:** 2 · **Esfuerzo:** M
-- **Medición en banco (19-nov-2026):** `GET /api/emergencia/dispositivos/201/buscar/?dni=99999999` (la misma consulta del alta): 655 ms frío / 333 ms caliente, 13 consultas. El REGEXP recorre el índice `dni` entero: EXPLAIN `rows` 522.013, 469-515 ms por recorrido (439 ms de reloj en SQL puro); con 22.013 filas, 97 ms. Escala lineal con el padrón y corre bajo candado en el alta (dos recorridos por persona nueva): pasa el umbral de ~0,5 s por recorrido, **sube a ALTA**. Se midió por la API `buscar`, no por el POST de alta.
+- **Medición en banco (19-nov-2026):** `GET /api/emergencia/dispositivos/201/buscar/?dni=99999999` (la misma consulta del alta): 655 ms frío / 333 ms caliente, 13 consultas. El REGEXP recorre el índice `dni` entero: EXPLAIN `rows` 522.013, 469-515 ms por recorrido (439 ms de reloj en SQL puro); con 22.013 filas, 97 ms. Escala lineal con el padrón y corre bajo candado en el alta: ≈ 0,5 s por recorrido y dos recorridos bajo candado ≈ 1 s, **sube a ALTA**. Se midió por la API `buscar`, no por el POST de alta.
 - **ID de la pasada 1:** E1-PERF-02 + E2-PERF-01 (**hallado por 2 revisores**)
 - **Alcance ampliado (E4 y juez):** el mismo `buscar_ciudadano_por_dni` corre también en `POST …/personas/consultar/` (vía `identificar_en_legajo`, `programas/services/identidad.py:186`, cubeta `personas_campo` 120/h) y en `GET …/dispositivos/{id}/buscar/` (`emergencia_recepcion.py:143`, cubeta `emergencia_buscar` 300/h). Es el mismo REGEXP; la ficha queda con tres consumidores (alta de caso, confirmación bajo candado, consultas de la app). **Hallado por 2 revisores (E1 y E2) y citado por E3 y E4: sube de peso.** Ejecutar primero la mitad barata (S) de la solución de E2 (no repetir el recorrido y no correrlo con el caso tomado) y después, si la medición lo pide, la columna `dni_normalizado`.
 - **Ubicación:** `programas/services/ingreso.py:79` (`Ciudadano.objects.exclude(dni=dni).filter(dni__regex=r"[^0-9]")`),
@@ -908,7 +908,7 @@ _Pasada 1: severidad MEDIA · estado PLAUSIBLE · esfuerzo S._
 - **Ubicación:** `programas/services/emergencia_confirmacion.py:383` (primera búsqueda) y `:407` → `_dar_de_alta` → `programas/services/ingreso.py:355` (`_crear_legajo`, segunda búsqueda; tercera en `:366` si choca el `IntegrityError`); el recorrido es `programas/services/ingreso.py:79-82`. También `programas/services/emergencia_recepcion.py:143` (búsqueda por DNI de la guardia, sin candado).
 - **Escenario:** familia de 7 evacuada; 5 son chicos sin legajo. La guardia confirma persona por persona desde la app. Por cada DNI que no está exacto en la base, `buscar_ciudadano_por_dni` hace `SELECT id, dni FROM legajos_ciudadano WHERE NOT (dni = X) AND dni REGEXP "[^0-9]"`: recorre el índice entero de `dni` (la función sobre la columna anula la búsqueda por índice) y decodifica en Python lo que devuelve. `confirmar_integrante` lo hace **dos veces** por persona nueva (línea 383 y otra vez en `_crear_legajo:355`, microsegundos después), y las dos con `CasoEmergencia` y `Derivacion` tomados `FOR UPDATE` (`_abrir_ingreso`, línea 357). Con 7 personas: 10 recorridos completos de la tabla de ciudadanos por familia, más 1 por cada búsqueda por DNI en la puerta. Mientras dura, esperan la otra guardia que confirma a un integrante de la **misma** familia, el egreso de un familiar ya alojado (`al_egresar_estadia` pide el caso con la estadía y la plaza tomadas) y la mesa que cancela.
 - **Causa raíz:** el respaldo para DNIs legacy con separadores es un recorrido O(ciudadanos) que su propio autor dejó documentado como aceptable **porque** «no es una ruta caliente ni toma ningún lock» (`legajos/services/ciudadanos.py:95-99`, misma regla). Emergencia lo usa en el camino caliente de la etapa 3 y dentro de la transacción con candados. Además, la segunda búsqueda es redundante: el alta nueva guarda el DNI normalizado (`legajos/forms/ciudadanos.py:149-167`, `clean_dni`), así que la carrera que `_crear_legajo` quiere cubrir solo puede traer una fila **exacta**; las fichas con separadores son legacy y ya se miraron en la línea 383.
-- **Con qué crece:** filas de `legajos_ciudadano` (todo el padrón, no Emergencia). Consultas: 2 recorridos por persona nueva confirmada (3 con choque de DNI), 1 por búsqueda en la puerta. Filas: N ciudadanos por recorrido. A 20.000 es despreciable; a 500.000 o 1.000.000 se estima del orden de 0,3 a 1 s por recorrido (sin medir), 0,6 a 2 s con el caso tomado por persona.
+- **Con qué crece:** filas de `legajos_ciudadano` (todo el padrón, no Emergencia). Consultas: 2 recorridos por persona nueva confirmada (3 con choque de DNI), 1 por búsqueda en la puerta. Filas: N ciudadanos por recorrido. A 20.000 es despreciable; a 500.000 o 1.000.000 se estimó del orden de 0,3 a 1 s por recorrido (estimación de la pasada 1; medido: 469-515 ms con 522.013 DNI, ver «Medición en banco»), 0,6 a 2 s con el caso tomado por persona.
 - **Solución:** sin cambiar qué persona se encuentra:
   1. (S) No repetir el recorrido dentro de la misma transacción: `_crear_legajo` recibe `ya_buscado=False`; con `True` (lo pasa `alta_minima_de_persona` cuando la llama Emergencia después de su propia búsqueda) la relectura antes del `form.save()` y en el `IntegrityError` mira solo `Ciudadano.objects.filter(dni=dni).first()`: la fila que puede aparecer por carrera nace normalizada.
   2. (S) Hacer la búsqueda de la línea 383 **antes** de `_abrir_ingreso` (es lectura sin candado, como `_cama_del_dispositivo`); con el candado puesto, solo el lookup exacto (indexado) para la carrera. El recorrido deja de correr con el caso tomado.
@@ -1014,12 +1014,12 @@ _Pasada 1: severidad MEDIA · estado PLAUSIBLE · esfuerzo S-M._
 
 ### E-PERF-03 · El tablero recorre todo el histórico de casos en cada carga para quedarse con la ventana del día
 **Severidad:** ALTA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S-M
-- **Medición en banco (19-nov-2026):** `/emergencia/tablero/` (supervisor): 2.790 ms frío / 1.838 ms caliente en la primera medición y 3.225 ms caliente en la segunda (con `ANALYZE TABLE`), 18 consultas, ≈ 2,4 s de SQL. La ventana tenía ≈ 4.000 casos abiertos o alojados de 10.000; la consulta dominante ahora es de 328 ms y el resto se reparte entre las 18. **Sube a ALTA** (> 1 s). Con 100.000 casos no se midió.
+- **Medición en banco (19-nov-2026):** `/emergencia/tablero/` (supervisor): 2.790 ms frío / 1.838 ms caliente en la primera medición y 3.225 ms caliente en la segunda (con `ANALYZE TABLE`), 18 consultas. De 2.392 ms de SQL (JSON de la segunda medición): casos de la ventana 813 ms y líneas de entregas 719 ms; el 328 ms del EXPLAIN es la consulta de casos aislada. La ventana tenía ≈ 4.000 casos abiertos o alojados de 10.000. **Sube a ALTA** (> 1 s). Con 100.000 casos no se midió.
 - **ID de la pasada 1:** E3-PERF-01
 - **Ubicación:** `programas/selectors/emergencia_tablero.py:218` (`_casos_de_la_ventana`), con las subconsultas de 220-222 y `programas/selectors/emergencia.py:384` (`ultima_traza_del_caso`); la llama `programas/views/emergencia_tablero.py:35` en cada GET.
 - **Escenario:** emergencia larga o varios eventos en el año: 10.000 casos, 9.000 cerrados hace más de 24 h, ~1.000 abiertos. Cada «Actualizar» del supervisor lee las 10.000 filas de `programas_casoemergencia` (con sus columnas JSON `situacion`/`necesidades`) para devolver ~1.000-1.200. Con el histórico creciendo (el módulo no purga ni archiva casos), el costo del tablero crece con todos los casos que existieron, no con los de la operación. El docstring del módulo (líneas 4-6) promete «nunca el histórico completo»: el resultado sí, el recorrido no.
 - **Causa raíz:** el `WHERE` es `NOT (estado = "CERRADO") OR alojado_en >= %s OR cerrado_en >= %s`. Para usar índice en un `OR` el motor necesita un índice por cada rama (index_merge/sort_union); `alojado_en` y `cerrado_en` no tienen ninguno, así que el plan esperable es `type=ALL`. Además, por cada fila que pasa el filtro corren tres subconsultas correlacionadas: dos idénticas para la última traza (`accion` y `detalle`, líneas 220-221), cada una `WHERE caso_id = ? ORDER BY creado_en DESC, id DESC LIMIT 1` con filesort porque `TrazaCaso` solo tiene el índice de la FK, y un `EXISTS` sobre `ContactoCaso`. Con ~1.200 filas: ~3.600 subconsultas dependientes por carga.
-- **Consultas/filas estimadas:** 1 consulta; ~10.000 filas leídas (crece lineal con los casos acumulados) + ~3.600 lecturas por índice de FK con filesort de ~5 trazas cada una (crece con los abiertos). Estimación sin medir: 0,1-0,5 s con 10.000 casos; el riesgo de 500 aparece recién con decenas de miles de casos acumulados o con un pico de abiertos alto. Por eso MEDIA y no ALTA.
+- **Consultas/filas estimadas:** 1 consulta; ~10.000 filas leídas (crece lineal con los casos acumulados) + ~3.600 lecturas por índice de FK con filesort de ~5 trazas cada una (crece con los abiertos). Estimación de la pasada 1 (MEDIA); el banco la superó: ver «Medición en banco» (ALTA).
 - **Solución (preserva lógica y pantalla):** que el recorte lo haga un índice, sin cambiar qué casos entran. (1) Migración expand-only `AddIndex` en `CasoEmergencia`: `Index(fields=["cerrado_en"])` e `Index(fields=["alojado_en"])`; con las tres ramas indexadas (la de `estado` ya está en `(estado, prioridad)`) MariaDB/MySQL pueden resolver el `OR` con index_merge. (2) Si el `EXPLAIN` sigue en `ALL` (el `<>` sobre `estado` suele empujar al optimizador a no mezclar), plan B: elegir primero los ids con tres consultas indexadas (`estado__in=<estados abiertos>`, `alojado_en__gte`, `cerrado_en__gte`), unirlos en Python y correr la consulta actual con `pk__in=ids`. Son +2 consultas fijas: el presupuesto de `test_emergencia_tablero` se mueve en el mismo diff. (3) Opcional: `Index(fields=["caso", "creado_en", "id"])` en `TrazaCaso` (E-DAT-01).
 - **Lo que NO hay que hacer:** cachear la foto del tablero (es «calculado al leer», RN-5.1, y el SLA se mide en minutos); acotar por `creado` (un caso abierto de hace días tiene que seguir entrando).
 - **Tests a agregar:** `programas/tests/test_emergencia_tablero.py::TableroRendimientoTest.test_ventana_se_resuelve_por_indices` (con `CaptureQueriesContext`: la consulta de la ventana va por `pk__in` o por columnas indexadas), y la entrada de `/emergencia/tablero/` en `scripts/perf_budgets.json` (cierra en parte E-PERF-13).
@@ -1078,7 +1078,7 @@ _Pasada 1: severidad MEDIA · estado PLAUSIBLE · esfuerzo S-M._
 - **Ubicación:** `programas/selectors/kits.py:109-124` (`listado_de_entregas`), paginado en `programas/views/emergencia_kits.py:173-175`; en la misma carga `programas/selectors/kits.py:130` (`conteos_de_solapas`) y `:141` (`destinos_con_entregas`).
 - **Escenario:** 20.000 entregas acumuladas; la mesa abre E4 (cualquier solapa). La consulta de la página es `SELECT … FROM entregakit INNER JOIN dispositivo LEFT JOIN auth_user ×2 [WHERE estado …] ORDER BY creado DESC, id DESC LIMIT 50 OFFSET n`. Ningún índice sirve al `ORDER BY` (ni `creado` ni `estado` encabezan uno), así que el motor arma la unión completa, la ordena con filesort y recién ahí recorta: es la trampa 4 medida en Chaco («paginar con `select_related` en la consulta paginada»), con el agravante de que la `INNER JOIN` a `Dispositivo` (200 filas) invita a arrancar por la tabla chica. El filtro por fecha (`creado__gte/__lt`, línea 123) tampoco tiene índice. En la misma carga, `Paginator.count`, `conteos_de_solapas` y `destinos_con_entregas` recorren las 20.000 entregas (estas dos últimas probablemente por `(dispositivo, estado)` como índice cubriente, que es barato).
 - **Causa raíz:** el listado crece con el histórico (las entregas no se archivan) y ni el orden ni la solapa por `estado` tienen índice.
-- **Consultas/filas estimadas:** 5 consultas de la vista sobre `EntregaKit` (página, count, prefetch de líneas, conteos, destinos); la de la página lee y ordena ~20.000 filas unidas (lineal con las entregas) y las páginas profundas suman el `OFFSET`. Estimación sin medir: decenas a cientos de ms con 20.000; no llega a 10 s con el volumen supuesto, por eso MEDIA.
+- **Consultas/filas estimadas:** 5 consultas de la vista sobre `EntregaKit` (página, count, prefetch de líneas, conteos, destinos); la de la página lee y ordena ~20.000 filas unidas (lineal con las entregas) y las páginas profundas suman el `OFFSET`. Estimación de la pasada 1; medido en el banco: 303-400 ms (ver «Medición en banco»), se mantiene MEDIA.
 - **Solución (preserva lógica y pantalla):** (1) migración expand-only en `EntregaKit`: `Index(fields=["estado", "creado", "id"])` (solapa/estado + orden) e `Index(fields=["creado", "id"])` (sin solapa, y filtro por fecha). (2) En `listado_de_entregas`, separar elegir la página de hidratarla (patrón de la trampa 4): paginar el queryset ordenado con `only("pk")` y sin `select_related`, y rehidratar con `EntregaKit.objects.filter(pk__in=ids).select_related(...).prefetch_related(_lineas_ordenadas())` respetando el orden de `ids`. Mismo resultado y misma pantalla.
 - **Lo que NO hay que hacer:** sacar el `select_related` sin rehidratar (vuelve el N+1 de dispositivo y usuarios, que zeal frena en el CI).
 - **Tests a agregar:** `programas/tests/test_emergencia_kits.py::ListadoEntregasRendimientoTest.test_pagina_no_ordena_con_join` (la consulta con `LIMIT` no lleva `JOIN`) y la entrada `/emergencia/entregas/` en `scripts/perf_budgets.json`.
@@ -2190,7 +2190,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### E-PERF-06 · El tablero trae todas las entregas en camino con todas sus líneas para mostrar 20
 **Severidad:** BAJA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** fusión de E-PERF-06 · **Ola:** 2 · **Esfuerzo:** S
-- **Medición en banco (19-nov-2026):** el prefetch de líneas de las entregas en camino costó 859 ms en el tablero y 672 ms en `dispositivo-entregas?pendientes=1` en la primera medición (el `IN (entrega_id…)` lo resolvía el motor por el índice de `item_id`, `rows` 2.282 por ítem). Era un artefacto de estadísticas viejas: tras `ANALYZE TABLE` la consulta baja a < 150 ms. Vuelve a BAJA.
+- **Medición en banco (19-nov-2026):** el prefetch de líneas de las entregas en camino costó 859 ms en el tablero y 672 ms en `dispositivo-entregas?pendientes=1` en la primera medición (el `IN (entrega_id…)` lo resolvía el motor por el índice de `item_id`, `rows` 2.282 por ítem). Tras `ANALYZE TABLE` bajó a 63-78 ms en `/emergencia/entregas/`; en el tablero sigue en 719 ms (segunda medición, JSON). Sigue en BAJA por otro motivo: ese costo cae dentro de E-PERF-03 (ALTA, misma pantalla y misma ola) y se arregla ahí.
 - **ID de la pasada 1:** E3-PERF-03 + E3-ERR-07
 - **Fusión (juez):** absorbe E-PERF-06 y la segunda parte de E-LIM-50 (misma consulta: `entregas_en_camino` trae todas las `EN_CAMINO` con las líneas para dibujar 20). La solución elegida toma el total de `foto.entregas_en_camino` (2 consultas), no un `COUNT` aparte (ver «Contradicciones» de la sección 1).
 - **Ubicación:** `programas/selectors/emergencia_tablero.py:656-677` (`entregas_en_camino`), llamada en `programas/views/emergencia_tablero.py:36`.
@@ -2216,8 +2216,8 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 ---
 
 ### E-PERF-07 · Derivaciones y entregas se filtran por `estado` sin un índice que empiece por `estado`
-**Severidad:** BAJA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
-- **Medición en banco (19-nov-2026):** EXPLAIN de los filtros por `estado` con 15.000 derivaciones y 22.515 entregas: < 100 ms. Se mantiene BAJA.
+**Severidad:** INFO · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
+- **Medición en banco (19-nov-2026):** EXPLAIN de los filtros por `estado` con 15.000 derivaciones y 22.515 entregas: < 100 ms. **Baja a INFO**.
 - **ID de la pasada 1:** E3-PERF-04
 - **Ubicación:** `programas/selectors/emergencia_tablero.py:322` (`_derivaciones_pendientes`), `:347` (`_entregas`, con el `NOT EXISTS` de `q_entrega_sin_revisar`, 336-337), `:657` (`entregas_en_camino`); `programas/services/vencimientos_emergencia.py:103` (`derivaciones_vencidas`, cron). Índices: `programas/models/__init__.py:6055-6058` y `:6383-6386`.
 - **Escenario:** cada carga del tablero filtra `Derivacion` por `estado = PENDIENTE` y `EntregaKit` por estado dos veces. El único índice compuesto de cada tabla es `(dispositivo, estado)`, que no sirve para buscar por `estado` solo: recorrido completo de las 15.000 derivaciones y de las 20.000 entregas por carga (más un `NOT EXISTS` sobre `TrazaEntrega` por cada recibida con diferencias). El cron `emergencia.derivacion` hace lo mismo con `estado + vence_en`; hoy corre una vez por día, pero el pendiente registrado (`docs/internal/requerimientos.md:55197`, «Frecuencia del cron») es pasarlo a cada 5 minutos: ahí son 288 recorridos diarios de `Derivacion`.
@@ -2232,8 +2232,8 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 ---
 
 ### E-PERF-08 · Tres consultas fijas de la bandeja recorren todos los casos en cada carga
-**Severidad:** BAJA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
-- **Medición en banco (19-nov-2026):** bandeja con las tres consultas fijas: la de localidades DISTINCT tarda 94 ms (la ruta, 519 ms frío / 242 ms caliente, 18 consultas). Se mantiene BAJA.
+**Severidad:** INFO · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
+- **Medición en banco (19-nov-2026):** bandeja con las tres consultas fijas: la de localidades DISTINCT tarda 94 ms (la ruta, 519 ms frío / 242 ms caliente, 18 consultas). **Baja a INFO** (< 100 ms la consulta).
 - **ID de la pasada 1:** E1-PERF-04
 - **Ubicación:** `programas/selectors/emergencia.py:366-370` (`conteo_por_solapa`: `aggregate` con 9
   `Count(filter=…)` sobre toda la tabla); `programas/selectors/emergencia_mesa.py:138`
@@ -2306,7 +2306,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### E-PERF-12 · La lista de entregas pendientes de un dispositivo no tiene tope
 **Severidad:** BAJA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** fusión de E-PERF-12 · **Ola:** 2 · **Esfuerzo:** S
-- **Medición en banco (19-nov-2026):** `GET /api/emergencia/dispositivos/201/entregas/?pendientes=1` (500 entregas × 8 líneas): 1.572 ms frío / 1.460 ms caliente en la primera medición y **680 ms** en la segunda (10 consultas, SQL 156 ms; el resto es serializar 500 × 8 líneas). Sin pendientes, 349 / 390 ms. Mismo origen que E-PERF-06: **BAJA** tras `ANALYZE TABLE`.
+- **Medición en banco (19-nov-2026):** `GET /api/emergencia/dispositivos/201/entregas/?pendientes=1` (500 entregas × 8 líneas): 1.572 ms frío / 1.460 ms caliente en la primera medición, con 781 ms de SQL y 10 consultas; sin pendientes, 349 / 390 ms. Hubo una segunda medición de 680 ms (SQL 156 ms) **sin registro en el JSON**: el último dato crudo es 1.460 ms / 781 ms de SQL, anterior al `ANALYZE`; **re-medir**. Sigue en BAJA con ese pendiente. Mismo origen que E-PERF-06.
 - **ID de la pasada 1:** E4-PERF-01 + E4-LIM-15
 - **Ubicación:** `programas/api/views_emergencia_kits.py:108-109` (`?pendientes=1` sin recorte; la otra rama sí
   corta en `TOPE_ENTREGAS = 50`, `:39` y `:111`); `programas/selectors/kits.py:262-277` (`entregas_pendientes_de`,
@@ -2903,7 +2903,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### E-PERF-15 · La derivación aceptada nunca deja de ser ACEPTADA y las lecturas de la guardia arrastran todo el histórico del dispositivo
 **Severidad:** INFO · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
-- **Medición en banco (19-nov-2026):** `buscar` de un alojado 219 / 176 ms (15 consultas; 200 ms en la segunda medición) y `dispositivo-plazas?caso=` 143 / 133 ms (14 consultas), con 1.000 aceptadas en el dispositivo grande. **Baja a INFO** (< 200 ms).
+- **Medición en banco (19-nov-2026):** `buscar` de un alojado 219 / 176 ms (15 consultas; 200 ms en la segunda medición) y `dispositivo-plazas?caso=` 143 / 133 ms (14 consultas), con 1.000 aceptadas en el dispositivo grande. Se mantiene INFO (< 200 ms).
 - **ID de la pasada 1:** E2-PERF-04
 - **Ubicación:** `programas/selectors/emergencia_alojar.py:450-463` (`llegadas_del_dispositivo`), `programas/services/emergencia_recepcion.py:147-161` (`buscar_por_dni`); índice en `programas/models/__init__.py:6055-6058` (`(dispositivo, estado)`); ningún cierre toca la derivación (`programas/services/emergencia_cierre.py:55-63`, `:152-167`, `:225-241`).
 - **Escenario:** cada familia alojada deja su derivación `ACEPTADA` (con `clave_vigente`) para siempre. `llegadas_del_dispositivo` filtra `estado = ACEPTADA AND caso.estado = INGRESO_EN_CURSO`, y `buscar_por_dni` `estado IN (PENDIENTE, ACEPTADA)` con un `OR` entre responsable e integrantes y `DISTINCT`: el índice `(dispositivo, estado)` entrega todas las aceptadas históricas del dispositivo, y el filtro por el estado del caso (y, en la búsqueda, el `LEFT JOIN` a todos los integrantes) se resuelve fila por fila.

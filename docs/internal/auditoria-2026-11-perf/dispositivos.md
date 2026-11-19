@@ -13,8 +13,8 @@
 | CRÍTICA | 0 |
 | ALTA | 4 |
 | MEDIA | 38 |
-| BAJA | 44 |
-| INFO | 7 |
+| BAJA | 45 |
+| INFO | 6 |
 | **Total** | **93** |
 
 | Eje | Fichas |
@@ -32,8 +32,8 @@
 | CRÍTICA | 0 | 0 | 0 | 0 | 0 | 0 |
 | ALTA | 0 | 0 | 1 | 0 | 3 | 0 |
 | MEDIA | 2 | 4 | 2 | 0 | 26 | 4 |
-| BAJA | 5 | 8 | 3 | 1 | 21 | 6 |
-| INFO | 0 | 2 | 4 | 0 | 1 | 0 |
+| BAJA | 5 | 8 | 3 | 1 | 22 | 6 |
+| INFO | 0 | 2 | 4 | 0 | 0 | 0 |
 
 **Las que importan:**
 
@@ -43,7 +43,7 @@
 4. **D-ERR-01** (MEDIA, **CONFIRMADO con PoC**, hallado por 3 revisores, Ola 1): no hay orden global de candados; el ERROR 1213 se reprodujo en los dos caminos y llega como 500. No es Ola 0: InnoDB elige la víctima y el rollback no deja datos inconsistentes.
 5. **D-LIM-02 y D-LIM-03** (ALTA): la transacción de negocio del ingreso y la edición del legajo están en la vista. Con D4-LIM-04, D3-LIM-06 y D1-LIM-06 forman la **regla transversal «lógica de dominio en vistas»** (R-1), la misma de Becas ola 7 y de E-LIM-01.
 6. **D-ERR-02** (MEDIA, hallado por 4 revisores): un dispositivo cerrado sigue admitiendo cambios de plaza y reservas, y cerrar no mira estadías ni reservas. Es DECISIÓN CLIENTE con default aplicable.
-7. **Rendimiento (medido el 19-nov-2026, sección 8.d):** **D-PERF-01** (ALTA, corta en ECOM: el historial profundo tarda ≈ 64 s y la página 1, ≈ 6,2 s; el detalle del dispositivo tarda ≈ 6,1 s por la misma consulta de `Estadia`, en `type=ALL` sobre ≈ 121.000 filas) es la que sube. D-DAT-01 sigue BAJA: el EXPLAIN de trazas y bitácora no se tomó. D-PERF-02 y D-PERF-03 quedan en MEDIA; D-PERF-04 y D-PERF-08 en BAJA; D-LIM-08 baja a INFO. D-PERF-05, D-PERF-06 y D-PERF-07 no se midieron por ruta. **No hay ninguna CRÍTICA.**
+7. **Rendimiento (medido el 19-nov-2026, sección 8.d):** **D-PERF-01** (ALTA, corta en ECOM: el historial profundo tarda ≈ 64 s y la página 1, ≈ 6,2 s; el detalle del dispositivo tarda ≈ 6,1 s por la misma consulta de `MovimientoEstadia`, cuyo join con `Estadia` va en `type=ALL` sobre ≈ 121.000 filas) es la que sube. D-DAT-01 sigue BAJA: el costo dominante es `MovimientoEstadia` y las trazas suman ≈ 1,5 s; falta su EXPLAIN. D-PERF-02 queda en MEDIA; D-PERF-03 sube a MEDIA (459 ms en frío; cada `/media/` es un archivo distinto, así que el frío es el caso real) y D-PERF-08 sube a BAJA; D-PERF-04 queda en BAJA; D-LIM-08 baja a BAJA como limpieza (la consulta copiada tres veces sigue en pie). D-PERF-05, D-PERF-06 y D-PERF-07 no se midieron por ruta. **No hay ninguna CRÍTICA.**
 
 ### Fusiones
 
@@ -125,7 +125,7 @@ Se citan con los IDs de tajada (la tabla de equivalencia está al final de la se
 | D-LIM-05 | El historial borra el id del ciudadano con una regex sobre un texto que escribe otro servicio | MEDIA | CONFIRMADO | S | 2 | `programas/selectors/auditoria_dispositivo.py` |
 | D-LIM-06 | El enmascarado de la persona («Persona alojada») se resuelve en cinco lugares con dos redaccio… | MEDIA | CONFIRMADO | S | 2 | `programas/views/dispositivos_legajo.py` |
 | D-LIM-07 | `puede_administrar_usuarios_dispositivos` es una regla paralela a `programas_administrables_us… | MEDIA | PLAUSIBLE | S | 2 | `services/equipo_dispositivo.py` |
-| D-LIM-08 | La consulta «pares usuario×rol sumables» está escrita tres veces y el contrato `"u:r"` vive en… | INFO | MEDIDO | S-M | 4 | `services/equipo_dispositivo.py` |
+| D-LIM-08 | La consulta «pares usuario×rol sumables» está escrita tres veces y el contrato `"u:r"` vive en… | BAJA | MEDIDO | S-M | 4 | `services/equipo_dispositivo.py` |
 | D-LIM-09 | La vista de P21 arma ~330 líneas de view-model y muta instancias del modelo con 18 atributos s… | MEDIA | CONFIRMADO | M | 5 | `programas/views/dispositivos_relevamientos.py` |
 | D-LIM-10 | La vista del detalle arma a mano cada fila de estadías, y la regla «se puede mover» está tripl… | MEDIA | CONFIRMADO | S-M | 5 | `programas/views/dispositivos_legajo.py` |
 | D-LIM-11 | La regla «puede dar de alta = `dispositivo.crear` + alcance de admin» está escrita en cuatro l… | MEDIA | CONFIRMADO | S | 5 | `programas/mixins_dispositivos.py` |
@@ -382,7 +382,7 @@ Medido en el banco el 19-nov-2026 (sección 8.d): **D-PERF-01 es ALTA y va prime
 - **D-DAT-01** [BAJA · S-M] Las trazas y la bitácora del historial no tienen índice que sirva al orden: cada detalle recorre toda la historia del dispositivo
 - **D-PERF-02** [MEDIA · S] El censo del día lee el histórico entero de estadías del dispositivo
 - **D-PERF-03** [MEDIA · S-M] `/media/` busca el adjunto de la bitácora y de los formularios del dispositivo por la ruta, en columnas sin índice: un scan completo p…
-- **D-LIM-08** [INFO · S-M] La consulta «pares usuario×rol sumables» está escrita tres veces y el contrato `"u:r"` vive en tres archivos
+- **D-LIM-08** [BAJA · S-M] La consulta «pares usuario×rol sumables» está escrita tres veces y el contrato `"u:r"` vive en tres archivos
 - **D-PERF-04** [BAJA · S-M] P21 recorre el histórico entero de relevamientos unas 8 veces por carga, con un predicado de alcance que no usa índice
 - **D-PERF-05** [BAJA · S] Las alertas de reservas y préstamos vencidos no tienen tope: una por cada reserva olvidada, para siempre
 - **D-PERF-08** [BAJA · S-M] El listado de Edificios calcula tres subconsultas y un GROUP BY sobre todo el alcance antes de recortar la página
@@ -528,7 +528,7 @@ Cruce con `docs/internal/auditoria-2026-10/README.md` (§0.4 y §8): lo que all�
 | Globalizar `programa.configurar` para simplificar `puede_administrar_usuarios_dispositivos` (D-LIM-07) | Octubre A5-07 / SEC-07: Dispositivos la evalúa con programa. | Alinear con `programas_administrables_usuarios` sin tocar la capacidad. |
 | Promover `_ajax_js`, `_modal_*`, `_field`, `_confirm_js` a `components/` (D-FE-02, D-FE-01) | Octubre A7: refactor que rompe consumidores; se declaran transversales. | Extraer el JS a `static/custom/js/` y usar el handler que ya cargan las pantallas de Dispositivos (contradicción 6 de la sección 1). |
 | Ratchet «ninguna vista importa de otra vista» o `test_ninguna_vista_importa_de_otra_vista` (a propósito de D-LIM-32 y D-LIM-37) | Octubre RED-79: refutado; la regla es un ratchet de aristas existentes, no un absoluto. | La regla R-1 mide otra cosa (operaciones de dominio dentro de la vista), con lista congelada. |
-| Índice «solo de orden» sin número (D-DAT-01) | Octubre §8.1: sin EXPLAIN baja a INFO. | Queda BAJA condicionada al EXPLAIN de la pasada 2; sin número, INFO. |
+| Índice «solo de orden» (D-DAT-01) | Octubre §8.1: sin EXPLAIN baja a INFO. | Queda BAJA condicionada al EXPLAIN de la pasada 2; sin ese EXPLAIN, INFO. |
 | Deduplicar «entregas idénticas en menos de 1 minuto» | Octubre A3-23: rechaza entregas legítimas del mismo día. | No aplica a Dispositivos; no se propone. |
 | `D1-LIM-15` · «La guardia de Emergencia no reimplementa el detalle del dispositivo» | Verificado por el revisor de calidad de D1: la guardia usa `ocupacion.estado_de_plazas` y el mixin de alcance; lo que se duplica es el gate (D-LIM-32) y el parseo de ids (D-LIM-33). | Nada; sin ficha propia. |
 | API de campo con N+1 o sin idempotencia (D4 perf) | Revisado sin hallazgo: la lista trae edificio y diseño con `select_related`, el detalle hace prefetch de fotos y la idempotencia por UUID usa `q_uuid_en_texto` contra columnas `char(36)`. | Nada. |
@@ -710,7 +710,7 @@ Cada una lleva una propuesta por defecto aplicable: si no hay respuesta a tiempo
 
 > **Estado: medido el 19-nov-2026** en el banco del PR #1220 (resultados en la sección 8.d). La tabla de abajo es el plan original; el resultado de cada ficha está en su línea «Medición en banco».
 
-MariaDB 10.11, `read_timeout` 10 s, **sin** `DB_READ_TIMEOUT` propio (con los 10 s de producción). Sin número, una PERF ALTA baja a INFO. Resultado: D-PERF-01 pasó los 10 s (ALTA, corta; el detalle del dispositivo paga la misma consulta) y D-PERF-03 pasó 200 ms (MEDIA). D-DAT-01 no se midió: el EXPLAIN de trazas y bitácora sigue pendiente.
+MariaDB 10.11, `read_timeout` 10 s, **sin** `DB_READ_TIMEOUT` propio (con los 10 s de producción). Sin medición, una PERF ALTA baja a INFO. Resultado: D-PERF-01 pasó los 10 s (ALTA, corta; el detalle del dispositivo paga la misma consulta de `MovimientoEstadia`) y D-PERF-03 pasó 200 ms (MEDIA). D-DAT-01: las trazas suman ≈ 1,5 s; su EXPLAIN sigue pendiente.
 
 | Ficha | Sev. | Qué se mide (medición propuesta por el auditor) |
 |---|---|---|
@@ -732,7 +732,7 @@ Volumen que pide cada ficha (se siembra una vez, ver 8.c):
 | Ficha | Volumen y medición |
 |---|---|
 | D-PERF-01 | Dispositivo grande de 500 plazas con unas 20.000 trazas y 10.000 entradas de bitácora; `perfil_ruta.py` sobre `/dispositivos/<pk_grande>/` (página 1) y sobre `?tab=historial&historial_page=99999`; `EXPLAIN` de las dos consultas del historial antes y después del índice. |
-| D-DAT-01 | Las mismas tablas; `EXPLAIN` de la «última traza» y del orden del historial, antes y después del índice. Sin número, INFO. |
+| D-DAT-01 | Las mismas tablas; `EXPLAIN` de la «última traza» y del orden del historial, antes y después del índice. Sin el EXPLAIN, INFO. |
 | D-PERF-05 | 200 `ReservaPlaza` `VIGENTE` con `hasta` vencido en un dispositivo. |
 | D-PERF-02 | Dispositivo grande con 3 turnos, 10 sectores y 500 plazas; **20.000 `Estadia` en total**: 500 activas en el grande (una por plaza, cada una con `clave_alojamiento`), unas 19.000 egresadas en el grande en 3 años y el resto repartido entre los dispositivos chicos; 100.000 ciudadanos. `EXPLAIN ANALYZE` / `ANALYZE FORMAT=JSON` del censo y `perfil_ruta.py` sobre `/dispositivos/<pk>/bitacora/`. |
 | D-PERF-06 | 100.000 `MovimientoEstadia` y una plaza «caliente» con **2.000 salidas** (`plaza_origen`). Dos sesiones de `mysql`. |
@@ -787,19 +787,19 @@ Rutas a sumar a `_extra_targets()` de `bench_mysql.py` y a `scripts/perf_budgets
 
 ### 8.d Medición en banco
 
-Banco local y sintético (MariaDB 10.11, `read_timeout` 10 s, OPTIONS de producción), sembrado por `scripts/perf_mysql/escenarios_dispositivos.py` (PR #1220). **Volumen:** 200 dispositivos; en la segunda medición, 120.304 estadías y 498.000 movimientos (el grande con 16,8 % de las estadías y 19,9 % de los movimientos), 140.000 trazas, 63.000 entradas de bitácora, 5.000 edificios, 50.000 inspecciones y adjuntos de 50.000 / 20.000 / 200.000. **Método:** frío = primer request; caliente = mediana de 3; `EXPLAIN` y `ANALYZE` sobre las consultas dominantes. Tras sembrar se corrió `ANALYZE TABLE` sobre las tablas grandes. **Ruido:** ±2x entre corridas del equipo. **Alcance:** banco local con datos sintéticos, no ECOM: ordena fichas y muestra el plan, no promete un tiempo en PRD. La segunda medición repartió la historia del dispositivo grande para descartar que el costo de `Estadia` fuera un artefacto de la siembra: no lo era.
+Banco local y sintético (MariaDB 10.11, `read_timeout` 10 s, OPTIONS de producción), sembrado por `scripts/perf_mysql/escenarios_dispositivos.py` (PR #1220). **Volumen:** 200 dispositivos; en la segunda medición, 120.304 estadías y 498.000 movimientos (el grande con 16,8 % de las estadías y 19,9 % de los movimientos), ≈ 640.000 trazas (498.000 `ESTADIA_*`), 63.000 entradas de bitácora, 5.000 edificios, 50.000 inspecciones y adjuntos de 50.000 / 20.000 / 200.000. **Método:** frío = primer request; caliente = mediana de 3; `EXPLAIN` y `ANALYZE` sobre las consultas dominantes. Tras sembrar se corrió `ANALYZE TABLE` sobre las tablas grandes. **Ruido:** ±2x entre corridas del equipo. **Alcance:** banco local con datos sintéticos, no ECOM: ordena fichas y muestra el plan, no promete un tiempo en PRD. La segunda medición repartió la historia del dispositivo grande para descartar que el costo de `MovimientoEstadia` fuera un artefacto de la siembra: no lo era.
 
 | Ficha | Ruta | Caliente (ms) | Consultas | Severidad |
 |---|---|---|---|---|
 | D-PERF-01 | `/dispositivos/1/?tab=historial&historial_page=1` / `=99999` | 6.171 / 64.009 | 44 | MEDIA → **ALTA** (corta) |
-| D-PERF-01 (detalle) | `/dispositivos/1/` y `?tab=estadias` | 6.141 / 4.165 | 44 | misma consulta de `Estadia` |
-| D-DAT-01 | sin EXPLAIN de trazas y bitácora | — | — | BAJA (pendiente) |
+| D-PERF-01 (detalle) | `/dispositivos/1/` y `?tab=estadias` | 6.141 / 4.165 | 44 | misma consulta de `MovimientoEstadia` (join con `Estadia` en `type=ALL`) |
+| D-DAT-01 | trazas y bitácora del detalle (828 + 687 ms; COUNT 625 ms en la página 1) | — | — | BAJA (falta el EXPLAIN) |
 | D-PERF-02 | `/dispositivos/1/bitacora/` | 245 | 22 | MEDIA |
 | D-PERF-03 | `/media/…` de bitácora y de relevamiento | 126 / 155 | 7 / 9 | BAJA → MEDIA |
 | D-PERF-04 | `/dispositivos/relevamientos/` (P21) | 610 | 16 | BAJA |
-| D-PERF-08 | `/dispositivos/edificios/` | 196-203 | 13-16 | INFO → BAJA |
-| D-PERF-09, D-PERF-10 | detalle del grande; informe de relevamiento | 2.429 (ver D-PERF-01) / 49 | 44 / 12 | INFO |
-| D-LIM-08 | `/dispositivos/nuevo/` con 1.000 usuarios | 449 | 10 | MEDIA → INFO |
+| D-PERF-08 | `/dispositivos/edificios/` | 196-203 | 8-16 | INFO → BAJA |
+| D-PERF-09, D-PERF-10 | detalle del grande; informe de relevamiento | 6.141 (ver D-PERF-01) / 49 | 44 / 12 | INFO |
+| D-LIM-08 | `/dispositivos/nuevo/` con 1.000 usuarios | 449 | 10 | MEDIA → BAJA (limpieza) |
 | D-PERF-05, D-PERF-06, D-PERF-07 | alertas; salidas de una plaza; concurrencia | — | — | no medidas por ruta |
 
 Otras rutas medidas, sin ficha: `/dispositivos/1/?tab=estadias` 4.165 ms (la misma consulta del historial), `/dispositivos/` 307 ms, padrón CSV 51 ms y XLSX 87 ms.
@@ -1071,7 +1071,7 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### D-PERF-01 · El historial del detalle lee y arma en Python toda la auditoría anterior a la página pedida
 **Severidad:** ALTA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** fusión de D1-PERF-01 + D1-ERR-04 · **Ola:** 4 · **Esfuerzo:** M
-- **Medición en banco (19-nov-2026):** `/dispositivos/1/?tab=historial&historial_page=1` / `=99999`: 6.171 ms / 64.009 ms calientes en la segunda medición (frío 99.670 ms), 44 consultas; en la primera, 1.966 / 57.818 ms. La consulta de `Estadia` / `MovimientoEstadia` del historial tarda 19,7 s en `ANALYZE` y ≈ 60 s de SQL en el request (en la primera medición, 36,7 s en una sola consulta de `MovimientoEstadia`). **Sube a ALTA y corta en ECOM** (`read_timeout` 10 s): la página profunda no termina y la página 1 ya tarda ≈ 6,2 s porque lee y arma toda la auditoría anterior. No depende de la siembra. La página 1 del detalle del dispositivo grande tarda ≈ 6,1 s caliente y la solapa `?tab=estadias` ≈ 2,7 s (4,2 s en la segunda): es la misma consulta (`Estadia` en `type=ALL` sobre ≈ 121.000 filas, `Using temporary; Using filesort`), porque el detalle arma la solapa del historial en cada carga aunque no esté abierta (`dispositivos_legajo.py:438`).
+- **Medición en banco (19-nov-2026):** `/dispositivos/1/?tab=historial&historial_page=1` / `=99999`: 6.171 ms / 64.009 ms calientes en la segunda medición (frío 99.670 ms), 44 consultas; en la primera, 1.966 / 57.818 ms. La consulta dominante es la de `MovimientoEstadia` del historial (`MovimientoEstadia.objects.filter(dispositivo=…).select_related("estadia__ciudadano", …).order_by("-momento", "-id")`, `auditoria_dispositivo.py:330-339`): 3.937 ms en la página 1 y 56.297 ms en la profunda (JSON de la segunda medición; ≈ 60 s de SQL en el request). Ya filtra por dispositivo: el `type=ALL` sobre `programas_estadia` (121.041 filas, `Using temporary; Using filesort`) es el orden de join que elige el optimizador por los `select_related`. **Sube a ALTA y corta en ECOM** (`read_timeout` 10 s): la página profunda no termina y la página 1 ya tarda ≈ 6,2 s. El detalle del dispositivo paga la misma consulta: 6.141 ms caliente en la página 1 (5.219 ms esa consulta) y `?tab=estadias` 4.165 ms, porque arma la solapa del historial en cada carga (`dispositivos_legajo.py:438`). No depende de la siembra.
 - **ID de la pasada 1:** D1-PERF-01 + D1-ERR-04 (**hallado por 2 revisores**)
 - **Hallado por 2 revisores (sube de peso):** D1-PERF-01 (rendimiento: el historial arma en Python toda la auditoría anterior a la página pedida) y D1-ERR-04 (corrección: pasar a una página profunda lee cada fuente completa). Es el mismo código; la solución es la misma (cursor por fuente o tope de páginas, DECISIÓN CLIENTE en el cuerpo). Va junto con el índice de D-DAT-01 (`TrazaDispositivo`/`EntradaBitacora`), que sirve al mismo orden.
 - **Ubicación:** `programas/selectors/auditoria_dispositivo.py:370-382` (`FeedAuditoria.__getitem__`), alimentado
@@ -1101,7 +1101,7 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) · esfuerzo S._
   baja. Variante: la fase 1 como un solo `UNION ALL` de `(fecha, fuente, pk)` con `ORDER BY … LIMIT 20 OFFSET
   desde`; las columnas ya son homogéneas, que era la objeción del motivo del presupuesto al `UNION ALL` de
   filas completas.
-- **Parte del mismo arreglo (se propone; no cambia comportamiento ni pantalla):** no armar la solapa del historial si no está abierta, y que la consulta de `Estadia` filtre por el dispositivo con un índice que sirva, para que no recorra toda la tabla ni ordene con filesort.
+- **Parte del mismo arreglo (se propone; mismo resultado, sin cambiar la pantalla):** que la consulta de `MovimientoEstadia` del historial no arranque por `Estadia`: mismo resultado con `prefetch_related` de la estadía en lugar de `select_related`, o con un índice `(dispositivo, momento, id)`, a decidir con EXPLAIN. **DECISIÓN CLIENTE:** cargar la solapa del historial al abrirla (propuesta por defecto: mantener la carga actual; las solapas son `x-show` de Alpine y el contador del botón usa `historial.paginator.count`).
 - **Lo que NO hay que hacer:** recortar el historial a N páginas o cambiar el tamaño de página (cambia lo que
   el usuario ve: sería DECISIÓN CLIENTE); paginar cada fuente por separado con su propio OFFSET (rompe el
   orden global entre fuentes).
@@ -1250,8 +1250,8 @@ _Pasada 1: severidad BAJA · estado PLAUSIBLE · esfuerzo S-M._
 ---
 
 ### D-LIM-08 · La consulta «pares usuario×rol sumables» está escrita tres veces y el contrato `"u:r"` vive en tres archivos
-**Severidad:** INFO · **Estado:** MEDIDO en banco · **Eje:** LIM · **Origen:** fusión de D3-LIM-04 + D3-PERF-02 · **Ola:** 4 · **Esfuerzo:** S-M
-- **Medición en banco (19-nov-2026):** `/dispositivos/nuevo/` con 1.000 usuarios: 483 / 449 ms, 10 consultas, SQL 110 ms. No pasa el umbral de 500 ms de la ficha: **baja a INFO** (el costo de rendimiento; la deduplicación de la consulta sigue siendo limpieza de código).
+**Severidad:** BAJA · **Estado:** MEDIDO en banco · **Eje:** LIM · **Origen:** fusión de D3-LIM-04 + D3-PERF-02 · **Ola:** 4 · **Esfuerzo:** S-M
+- **Medición en banco (19-nov-2026):** `/dispositivos/nuevo/` con 1.000 usuarios: 483 / 449 ms, 10 consultas, SQL 110 ms. No pasa el umbral de 500 ms de la ficha: el costo de rendimiento no justifica MEDIA, pero **queda en BAJA como limpieza**, porque la consulta copiada tres veces sigue en pie.
 - **ID de la pasada 1:** D3-LIM-04 + D3-PERF-02 (**hallado por 2 revisores**)
 - **Hallado por 2 revisores (sube de peso):** D3-LIM-04 (calidad: la consulta «pares usuario×rol sumables» escrita tres veces y el contrato `"u:r"` en tres archivos) y D3-PERF-02 (rendimiento: el alta de un dispositivo arma «Responsables» con todos los pares persona × rol del programa, sin tope). Mismo selector: se unifica y se acota a la vez. **Se mide en la pasada 2** (1.000 usuarios con roles de Dispositivos y `perfil_ruta.py` sobre el alta; secciones 8.a y 8.c).
 - **Ubicación:** `services/equipo_dispositivo.py:109-120` (`_exigir_pares_sumables`), `:307-317` (`pares_persona_rol`), `selectors/equipo_sugeridas.py:33-45` (`consulta_de_pares`). Contrato `"<usuario>:<rol>"`: `services/equipo_dispositivo.py:333`, `selectors/equipo_sugeridas.py:65`, `forms_dispositivos.py:796`.
@@ -2266,9 +2266,9 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### D-DAT-01 · Las trazas y la bitácora del historial no tienen índice que sirva al orden: cada detalle recorre toda la historia del dispositivo
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (falta el EXPLAIN con volumen) · **Eje:** DAT · **Origen:** nuevo · **Ola:** 4 · **Esfuerzo:** S-M
-- **Medición en banco (19-nov-2026):** el detalle del grande tarda 6,1 s, pero el costo dominante es la consulta de `Estadia` de D-PERF-01; el EXPLAIN de estas dos consultas (trazas y bitácora) no se tomó, sigue pendiente.
+- **Medición en banco (19-nov-2026):** el detalle del grande tarda 6,1 s, pero el costo dominante es `MovimientoEstadia`, 5.219 ms (D-PERF-01); las trazas suman ≈ 1,5 s (828 ms de la consulta y 687 ms del COUNT en el detalle; COUNT de 625 ms en la página 1 del historial y 1.500 ms en la profunda) y entran en el mismo PR que D-PERF-01; falta el EXPLAIN.
 - **ID de la pasada 1:** D1-DAT-01
-- **Regla de octubre (`README.md` §8.1, índice «solo de orden» sin número):** sin el `EXPLAIN` de la pasada 2 esta ficha baja a INFO. Se mantiene BAJA solo porque va junto con D-PERF-01 (el arreglo del historial) y su costo es el de una migración *expand*.
+- **Regla de octubre (`README.md` §8.1, índice «solo de orden»):** sin el `EXPLAIN` de la pasada 2 esta ficha baja a INFO. Se mantiene BAJA solo porque va junto con D-PERF-01 (el arreglo del historial) y su costo es el de una migración *expand*.
 - **Ubicación:** `programas/models/__init__.py:818-823` (`TrazaDispositivo.Meta`: sin `indexes`, solo el índice
   implícito de la FK `dispositivo_id`) y `programas/models/__init__.py:1949-1952` (`EntradaBitacora.Meta`: solo
   `(dispositivo, fecha_operativa, turno)`); consultas en `programas/selectors/auditoria_dispositivo.py:322-325`
@@ -2927,7 +2927,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### D-PERF-08 · El listado de Edificios calcula tres subconsultas y un GROUP BY sobre todo el alcance antes de recortar la página
 **Severidad:** BAJA · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 4 · **Esfuerzo:** S-M
-- **Medición en banco (19-nov-2026):** `/dispositivos/edificios/` / `?page=200` / `?estado=CRITICO` / `?estado=SIN_RELEVAR`: 203 / 199 / 196 / 36 ms en la segunda medición (13-16 consultas), ya con el filtro de verdad (la primera usaba `ACTIVO`, que no filtraba). `COUNT` de 5.000 filas con tres subconsultas, 250 ms la consulta. Pasa de INFO a BAJA por el número; no sube más.
+- **Medición en banco (19-nov-2026):** `/dispositivos/edificios/` / `?page=200` / `?estado=CRITICO` / `?estado=SIN_RELEVAR`: 203 / 199 / 196 / 36 ms en la segunda medición (8-16 consultas), ya con el filtro de verdad (la primera usaba `ACTIVO`, que no filtraba). `COUNT` de 5.000 filas con tres subconsultas, 250 ms la consulta. Sube de INFO a BAJA: 200 ms está por encima de los 100 ms de INFO.
 - **ID de la pasada 1:** D4-PERF-02
 - **Ubicación:** `programas/selectors/edificios.py:148-164` (`para_el_listado`), `:113-128` (`filtrar_edificios`,
   filtros `estado` y `compartido`); `programas/views/dispositivos_edificios.py:46-57`.
@@ -2955,7 +2955,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ### D-PERF-09 · El detalle arma el mapa completo de plazas solo para saber si hay alguna libre
 **Severidad:** INFO · **Estado:** MEDIDO en banco · **Eje:** PERF · **Origen:** nuevo · **Ola:** 4 · **Esfuerzo:** S
-- **Medición en banco (19-nov-2026):** detalle del dispositivo grande (500 plazas): 3.807 / 2.429 ms en la primera medición. El tiempo lo domina el historial y las estadías (D-PERF-01), no el mapa de plazas. Se mantiene INFO.
+- **Medición en banco (19-nov-2026):** detalle del dispositivo grande (500 plazas): 6.141 ms caliente en la segunda medición (3.807 / 2.429 ms en la primera). El tiempo lo domina la consulta de `MovimientoEstadia` del historial (D-PERF-01), no el mapa de plazas. Se mantiene INFO.
 - **ID de la pasada 1:** D1-PERF-03
 - **Ubicación:** `programas/views/dispositivos_legajo.py:461-464`, que llama a `_mapa_de_ingreso()` (`:421-425`),
   que llama a `programas/services/ingreso.py:129` (`plazas_para_ingresar`).
