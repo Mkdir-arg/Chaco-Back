@@ -27,7 +27,7 @@
       <p class="mt-1 mb-4 text-xs text-body-subtle">{{ ayuda_ubicacion }}</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {% include "components/_field.html" with field=form.localidad wrapper_class="" %}
-        {% comment %}Cambio 490: dirección con mapa, a pedido (es el domicilio de una familia, SEC-33). Quien incluye carga la pieza en page_css y customJS.{% endcomment %}
+        {% comment %}Cambio 493: dirección con mapa, a pedido (es el domicilio de una familia, SEC-33). Quien incluye carga la pieza en page_css y customJS.{% endcomment %}
         {% include "components/_ubicacion_domicilio.html" with domicilio=form.direccion latitud=form.latitud longitud=form.longitud localidad_id=form.localidad.id_for_label a_pedido=True %}
         {% for field in form.campos_de_fotos %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
       </div>

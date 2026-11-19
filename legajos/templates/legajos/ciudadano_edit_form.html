@@ -102,7 +102,7 @@
                                     {{ form.localidad }}
                                 </div>
                             </div>
-                            {% comment %}Cambio 490: domicilio con mapa, debajo de la localidad para que la búsqueda la use. A pedido (SEC-33).{% endcomment %}
+                            {% comment %}Cambio 493: domicilio con mapa, debajo de la localidad para que la búsqueda la use. A pedido (SEC-33).{% endcomment %}
                             {% include "components/_ubicacion_domicilio.html" with domicilio=form.domicilio latitud=form.latitud longitud=form.longitud localidad_id=form.localidad.id_for_label provincia_id=form.provincia.id_for_label a_pedido=True wrapper_class="" %}
                         </div>
                     </section>

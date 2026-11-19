@@ -1,4 +1,4 @@
-"""Domicilio con mapa en el legajo del ciudadano (Cambio 490, fase 2).
+"""Domicilio con mapa en el legajo del ciudadano (Cambio 493, fase 2).
 
 Latitud y longitud nuevas en `Ciudadano`; las completa el mapa del backoffice en las tres
 pantallas de carga (alta manual, confirmación con RENAPER y edición), siempre **a pedido**

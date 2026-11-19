@@ -2,7 +2,7 @@
 
 La pieza `components/_ubicacion_domicilio.html` completa las coordenadas desde el mapa, pero
 «Cargar coordenadas a mano» deja escribir cualquier cosa, y `DECIMAL(9,6)` admite 999,999999.
-Cambio 490: el legajo del ciudadano y el Formulario 1 de Emergencia validan con esto, en vez de
+Cambio 493: el legajo del ciudadano y el Formulario 1 de Emergencia validan con esto, en vez de
 repetir los límites en cada form.
 """
 

@@ -1,6 +1,6 @@
 # Componente · Domicilio con mapa (`components/_ubicacion_domicilio.html`, `nodo-ubicacion.js`)
 
-**Clasificación:** Canónico reutilizable. Pieza única (Cambio 490, fase 2).
+**Clasificación:** Canónico reutilizable. Pieza única (Cambio 493, fase 2).
 **Evidencia:** `templates/components/_ubicacion_domicilio.html`, `static/custom/js/nodo-ubicacion.js`,
 `static/custom/css/nodo-ubicacion.css`, `core/tests/test_nodo_ui_piezas.py` (`UbicacionDomicilioTest`).
 **Consumidor de referencia:** alta y edición del legajo de Dispositivos
@@ -60,5 +60,5 @@ RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_fo
 
 - Geocodificar en `input`/`blur` (gasta cuota).
 - Borrar coordenadas cuando cambia el domicilio.
-- Usarla en el portal ciudadano: la inscripción pública no geocodifica (Cambio 490).
+- Usarla en el portal ciudadano: la inscripción pública no geocodifica (Cambio 493).
 - Usarla sin `a_pedido=True` en el domicilio de una persona.
