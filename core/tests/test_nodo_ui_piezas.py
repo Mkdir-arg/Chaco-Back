@@ -21,7 +21,7 @@ from django.template.loader import render_to_string
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
-from core.templatetags.nodo_ui import hay_filtros, sin_parametros
+from core.templatetags.nodo_ui import hay_filtros, resumen_barras, sin_parametros
 
 
 class PageHeaderEstadoTests(SimpleTestCase):
@@ -202,6 +202,7 @@ STEPPER = "components/_stepper.html"
 LINEA_TIEMPO = "components/_linea_tiempo.html"
 FICHA_SECCION = "components/_ficha_seccion.html"
 REVISION = "programas/dispositivos/estadia/revision_referencia.html"
+TABLERO = "programas/dispositivos/tablero/tablero_referencia.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -1354,6 +1355,99 @@ class RevisionReferenciaTest(TestCase):
         self.assertNotIn("\U0001f4ce", html)
 
 
+class TableroReferenciaTest(TestCase):
+    """La golden del arquetipo Dashboard se renderiza con los datos de ejemplo del mockup del tablero."""
+
+    def _contexto(self):
+        return {
+            "titulo": "Red de dispositivos",
+            "eyebrow": "Programa Dispositivos · Abordaje Psicosocial",
+            "resumen": "538 de 554 plazas ocupadas en 18 dispositivos de 14 localidades.",
+            "url_accion": "/dispositivos/",
+            "accion_texto": "Ver instituciones",
+            "accion_icono": "fa-building",
+            "pildoras": [
+                {"nombre": "tipo", "etiqueta": "Tipo", "opciones": [("1", "Hogar"), ("2", "Parador")], "valor": ""},
+            ],
+            "ocultos": [("tab", "resumen")],
+            "url_limpiar": "/tablero/",
+            "actualizado": "10:42",
+            "tarjetas": [
+                {"etiqueta": "Ocupación de la red", "valor": "97", "sufijo": " %", "nota": "538 de 554 plazas"},
+                {"etiqueta": "Plazas libres", "valor": "16", "icono": "fa-bed", "tono": "success"},
+            ],
+            "atencion_resumen": "1 dispositivo pide atención",
+            "atencion": [
+                {
+                    "tono": "danger",
+                    "icono": "triangle-exclamation",
+                    "titulo": "Hogar San José está sobre el umbral crítico",
+                    "texto": "Ocupación 96 %.",
+                    "url": "/d/1/",
+                    "accion": "Ver dispositivo",
+                }
+            ],
+            "red_resumen": "18 dispositivos activos",
+            "url_listado": "/dispositivos/",
+            "filas": [
+                {
+                    "nombre": "Hogar San José",
+                    "url": "/d/1/",
+                    "tipo": "Hogar",
+                    "localidad": "Resistencia",
+                    "ocupacion": {"texto": "96 % · Crítica", "tono": "danger", "icono": "fa-circle-exclamation"},
+                    "libres": 1,
+                    "relevamiento": {"texto": "Vencido", "tono": "danger", "icono": "fa-clock"},
+                }
+            ],
+        }
+
+    def _html(self, query="/", **cambios):
+        contexto = {**self._contexto(), **cambios}
+        request = RequestFactory().get(query)
+        request.user = User.objects.filter(username="u").first() or User.objects.create_user(
+            username="u", password="x", is_superuser=True
+        )
+        return render_to_string(TABLERO, contexto, request=request)
+
+    def test_dibuja_hero_filtros_franja_atencion_y_tabla(self):
+        html = self._html()
+
+        self.assertIn('<h1 class="nodo-hero__titulo">Red de dispositivos</h1>', html)
+        self.assertIn("538 de 554 plazas ocupadas", html)
+        self.assertIn('aria-label="Filtros rápidos"', html)
+        self.assertIn('<input type="hidden" name="tab" value="resumen">', html)
+        self.assertIn("Actualizado a las 10:42", html)
+        self.assertIn("nodo-stat-tablero", html)
+        self.assertIn("Ocupación de la red", html)
+        self.assertIn("Hogar San José está sobre el umbral crítico", html)
+        self.assertIn("96 % · Crítica", html)
+        self.assertIn('<caption class="sr-only">', html)
+
+    def test_un_solo_h1_y_el_filtro_conserva_la_solapa_visible(self):
+        html = self._html()
+
+        self.assertEqual(html.count("<h1"), 1)
+        self.assertIn("@submit.capture=", html)
+
+    def test_solapas_con_aria(self):
+        html = self._html()
+
+        for tab in ("resumen", "mapa"):
+            self.assertIn(f'id="tab-{tab}" aria-controls="panel-{tab}"', html)
+            self.assertIn(f'id="panel-{tab}" aria-labelledby="tab-{tab}"', html)
+        self.assertIn('role="tablist" aria-label="Vistas del tablero"', html)
+
+    def test_sin_avisos_dice_nada_pendiente(self):
+        self.assertIn("Nada pendiente", self._html(atencion=[]))
+
+    def test_tabla_vacia_por_filtros_ofrece_limpiar_y_la_solapa_no_cuenta_como_filtro(self):
+        self.assertIn("Ningún dispositivo coincide con el filtro", self._html("/?tipo=1&tab=mapa", filas=[]))
+        sin_filtro = self._html("/?tab=mapa", filas=[])
+        self.assertIn("Todavía no hay dispositivos activos", sin_filtro)
+        self.assertNotIn(">Limpiar</a>", sin_filtro)
+
+
 class FormErroresTest(SimpleTestCase):
     """FE-08: los errores no de campo dejan de ser invisibles.
 
@@ -2056,3 +2150,137 @@ class TarjetaEdificioTest(SimpleTestCase):
         html = self._render(self._edificio(nombre="<script>alert(1)</script>"))
         self.assertNotIn("<script>alert(1)</script>", html)
         self.assertIn("&lt;script&gt;", html)
+
+
+class BarrasPareadasTest(SimpleTestCase):
+    """Gráfico de barras pareadas (``components/_barras_pareadas.html``): contrato de la pieza."""
+
+    PLANTILLA = "components/_barras_pareadas.html"
+    SEMANA = [
+        {"etiqueta": "Lun 10", "a": 18, "b": 9},
+        {"etiqueta": "Mar 11", "a": 12, "b": 6},
+        {"etiqueta": "Mié 12", "a": 0, "b": 0},
+    ]
+
+    def _render(self, periodos, **extra):
+        contexto = {
+            "titulo": "Evolución de la semana",
+            "serie_a": "Casos nuevos",
+            "serie_b": "Familias alojadas",
+            "periodos": periodos,
+            **extra,
+        }
+        return render_to_string(self.PLANTILLA, contexto)
+
+    def test_dos_barras_por_periodo_con_altura_proporcional_y_leyenda(self):
+        html = self._render(self.SEMANA)
+
+        self.assertEqual(html.count('class="nodo-barras__par"'), 3)
+        self.assertEqual(html.count("nodo-barras__barra nodo-barras--a"), 3)
+        self.assertEqual(html.count("nodo-barras__barra nodo-barras--b"), 3)
+        # Tope 18: 18 → 100 %, 9 → 50 %, 12 → 67 %, 6 → 33 %.
+        for alto in ("100%", "50%", "67%", "33%"):
+            self.assertIn(f'style="--alto:{alto}"', html)
+        self.assertIn('title="Lun 10: 18 casos nuevos · 9 familias alojadas"', html)
+        self.assertIn("Casos nuevos · 30", html)
+        self.assertIn("Familias alojadas · 15", html)
+        self.assertIn('role="img"', html)
+        self.assertIn('aria-label="Evolución de la semana: 30 casos nuevos y 15 familias alojadas en total.', html)
+
+    def test_la_tabla_equivalente_trae_los_mismos_numeros(self):
+        html = self._render(self.SEMANA, periodo="Día")
+        tabla = re.search(r"<details.*</details>", html, re.S).group(0)
+
+        self.assertIn('<caption class="sr-only">Evolución de la semana</caption>', tabla)
+        self.assertIn(">Día</th>", tabla)
+        self.assertIn(">Casos nuevos</th>", tabla)
+        filas = re.findall(r"<tr>\s*(.*?)</tr>", tabla, re.S)
+        valores = [re.findall(r">([^<]+)</td>", fila) for fila in filas]
+        self.assertEqual(
+            valores,
+            [["Lun 10", "18", "9"], ["Mar 11", "12", "6"], ["Mié 12", "0", "0"], ["Total", "30", "15"]],
+        )
+        self.assertNotIn(" open", tabla.split(">")[0])
+        self.assertIn(" open>", self._render(self.SEMANA, tabla_abierta=True))
+
+    def test_periodo_sin_datos_se_dibuja_en_cero(self):
+        html = self._render([{"etiqueta": "Jue 13", "a": None, "b": None}, {"etiqueta": "Vie 14", "a": 4, "b": 1}])
+
+        self.assertEqual(html.count('class="nodo-barras__par"'), 2)
+        self.assertEqual(html.count('style="--alto:0%"'), 2)
+        self.assertIn('title="Jue 13: 0 casos nuevos · 0 familias alojadas"', html)
+
+    def test_todo_en_cero_no_divide(self):
+        html = self._render([{"etiqueta": "Lun", "a": 0, "b": 0}, {"etiqueta": "Mar", "a": 0, "b": 0}])
+
+        self.assertEqual(html.count('style="--alto:0%"'), 4)
+        self.assertIn("Casos nuevos · 0", html)
+
+    def test_sin_hex_ni_estilos_fuera_de_la_altura(self):
+        html = self._render(self.SEMANA)
+
+        self.assertNotRegex(html, r"#[0-9a-fA-F]{3,6}\b")
+        self.assertEqual(re.findall(r'style="(?!--alto:\d+%")', html), [])
+
+    def test_eje_corto_y_escape(self):
+        html = self._render([{"etiqueta": "<b>Lunes</b>", "eje": "L", "a": 1, "b": 2}])
+
+        self.assertIn("<span>L</span>", html)
+        self.assertNotIn("<b>Lunes</b>", html)
+        self.assertIn("&lt;b&gt;Lunes&lt;/b&gt;", html)
+
+    def test_resumen_barras_normaliza_en_un_solo_lugar(self):
+        resumen = resumen_barras(
+            [{"etiqueta": "Lun", "a": 9, "b": 3}, {"etiqueta": "Mar", "eje": "M", "a": "x", "b": 5}]
+        )
+
+        self.assertEqual(
+            {k: v for k, v in resumen.items() if k != "periodos"},
+            {"tope": 10, "medio": 5, "total_a": 9, "total_b": 8},
+        )
+        self.assertEqual(
+            resumen["periodos"],
+            [
+                {"etiqueta": "Lun", "eje": "Lun", "a": 9, "b": 3, "alto_a": 90, "alto_b": 30},
+                {"etiqueta": "Mar", "eje": "M", "a": 0, "b": 5, "alto_a": 0, "alto_b": 50},
+            ],
+        )
+        self.assertEqual(resumen_barras(None), {"periodos": [], "tope": 0, "medio": 0, "total_a": 0, "total_b": 0})
+
+    def test_un_valor_no_entero_cuenta_cero_igual_en_barra_tabla_y_total(self):
+        html = self._render([{"etiqueta": "Lun", "a": "x", "b": 4}])
+
+        self.assertIn('style="--alto:0%"', html)
+        self.assertIn('style="--alto:100%"', html)
+        self.assertNotIn("--alto:%", html)
+        self.assertIn("Casos nuevos · 0", html)
+        self.assertIn('title="Lun: 0 casos nuevos · 4 familias alojadas"', html)
+        self.assertNotIn(">x<", html)
+
+    def test_acepta_objetos_con_atributos(self):
+        class Periodo:
+            def __init__(self, etiqueta, a, b):
+                self.etiqueta, self.a, self.b = etiqueta, a, b
+
+        html = self._render([Periodo("Lun", 6, 3), Periodo("Mar", 2, 0)])
+
+        self.assertIn('title="Lun: 6 casos nuevos · 3 familias alojadas"', html)
+        self.assertIn('style="--alto:50%"', html)
+        self.assertIn("Casos nuevos · 8", html)
+
+    def test_imprime_colores_y_abre_la_tabla_sin_details_content(self):
+        raiz = Path(__file__).resolve().parents[2] / "static" / "custom"
+        css = (raiz / "css" / "nodo-barras.css").read_text(encoding="utf-8")
+        impresion = css[css.index("@media print") :]
+        self.assertIn("print-color-adjust: exact", impresion)
+        self.assertIn(".nodo-barras__muestra", impresion)
+        js = (raiz / "js" / "nodo-tables.js").read_text(encoding="utf-8")
+        self.assertIn("beforeprint", js)
+        self.assertIn("afterprint", js)
+        self.assertIn("details.nodo-barras__tabla", js)
+
+    def test_el_shell_carga_el_css_de_la_pieza(self):
+        base = (Path(__file__).resolve().parents[2] / "templates" / "includes" / "base.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("custom/css/nodo-barras.css", base)
