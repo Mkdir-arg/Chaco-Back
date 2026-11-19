@@ -147,6 +147,7 @@ def _personas(desde):
     filas = (
         IntegranteGrupo.objects.filter(estadia__isnull=False)
         .filter(egreso)
+        .order_by()  # sin el orden del modelo: el cruce es en Python y el ORDER BY costaba un filesort
         .values_list(
             "estadia__dispositivo_id", "estadia__fecha_ingreso", "egresado_en", "orden", "grupo_id", "grupo__lactantes"
         )
