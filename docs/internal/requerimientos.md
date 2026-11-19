@@ -626,6 +626,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 504 | Emergencia · E1: deuda del tablero que E8 reusa (camas, localidades homónimas, estado vacío, ingreso directo único, copias, `EXPLAIN` de la ventana) | Emergencia · tablero | `#emergencia` `#performance` `#ui` | PM — análisis 009 (§8.2, RF-009-18), task #1180 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 505 | Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#performance` `#seguridad` `#metodo` `#gestion` | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -58762,3 +58763,116 @@ Revertir el commit; no hay datos involucrados.
 
 ## Historial
 Sin cambios posteriores.
+
+# Cambio 504 — Emergencia · E1: deuda del tablero que E8 reusa
+
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e1-deuda-e1`
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · tablero (E1) y panel «Derivar» (E3) |
+| **Etiquetas** | `#emergencia` `#performance` `#ui` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §8.2, RF-009-18, RN-009-04) |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | #1180 (E-1) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+E-1 del análisis 009: dejar limpias las piezas de E1 que E8 va a reusar —los pendientes 1, 3, 4, 6, 7, 8, 9, 10 y 11
+del [Cambio 472](#cambio-472)— para no arrastrar una cuarta copia ni números inflados. Antes, el MINOR de la auditoría
+del PR #1206 sobre `tipos` ([Cambio 503](#cambio-503)).
+
+## Alcance acordado
+
+**Entra:** camas libres solo `CAMA` en E1, sus avisos, el panel «Derivar» de E3 y la validación al derivar; casos por
+localidad por `localidad_id`; «Todavía no hay casos» con `hay_casos`; `entregas_en_camino` recortado en la base; una
+sola definición de ingreso directo; sin copias (elegibles, camas libres, `TONOS`/`ICONOS`, `_foto`, `_plural`);
+`q_entrega_sin_revisar` a `selectors/kits.py` y tuplas a `NamedTuple`; el `EXPLAIN` de la ventana de RN-5.1; el
+comentario muerto de `test_nodo_ui_piezas.py`. **Queda afuera:** la solapa «Mapa» (pendiente 5, la reemplaza E8), la
+revisión visual (pendiente 2, de QA) y los índices que pide el `EXPLAIN` (van en una migración aparte).
+
+## Decisiones tomadas
+
+1. **`tipos` se normaliza una vez al entrar** a `ocupacion_de_plazas` (`_normalizar_tipos`): `None` sigue siendo
+   «todas», un `str` es un solo tipo y cualquier iterable pasa a tupla. Un generador ya no se agota en la primera de las
+   tres consultas (las ocupadas y reservadas daban 0 y las libres salían infladas).
+2. **Una sola cuenta de camas de Emergencia:** `selectors.emergencia.camas_de` (`ocupacion_de_plazas` con
+   `TIPOS_QUE_ALOJAN = (CAMA,)`) y `camas_libres`. La leen la red de E1, el aviso «sin plazas con derivación
+   pendiente», el panel «Derivar» y **también `derivar_caso`**: si el panel dice 0 camas y el servicio contara cupos,
+   se podría derivar a un comedor. Los textos de pantalla no cambian («plazas libres»).
+3. **Casos por `localidad_id`, nunca por nombre** (RN-009-04). La localidad del dispositivo es texto libre: sus camas se
+   suman a la fila de casos con ese nombre **solo si es una sola**; si el nombre es de dos localidades con casos (o de
+   ninguna), van a una fila propia por nombre, sin enlace. No se atribuyen camas a una homónima al azar.
+4. **Estado vacío:** sin casos en la ventana, la tabla de localidades muestra «Todavía no hay casos» aunque haya red
+   (las filas de solo plazas ya no lo tapan).
+5. **`entregas_en_camino(sla, ahora, foto=None, tope=20)`:** la consulta trae solo `tope` entregas (`LIMIT`) y el total
+   es `foto.entregas_en_camino`, que la foto ya contaba. Siguen siendo 2 consultas.
+6. **Ingreso directo:** `CasoEmergencia.q_ingreso_directo()` es el `Q` de `es_ingreso_directo` (origen dispositivo y
+   sin `en_la_puerta_de` en `situacion`, con `has_key`); la foto lo anota en la misma consulta de casos. Se va la regla
+   `tomado_en == creado` de `FilaCaso`.
+7. **Sin copias:** `dispositivos_elegibles()` (antes privada) para E1 y E3; `TONOS`/`ICONOS` de
+   `services/alertas_dispositivos.py`; `tablero.asegurar_foto` en lugar de los dos `_foto`; `plural` de
+   `services/bitacora_detalle.py`. E1 no muestra tensión, así que «tonos de tensión desde `Tension.tono`» no aplica acá
+   (es para E8).
+8. **`EXPLAIN` de la ventana** (`scripts/perf_mysql/explain_ventana_tablero.py`, MariaDB 10.11 descartable, 50.000 casos
+   cerrados fuera de la ventana + 700 en ella): con los índices de hoy **recorre la tabla** (`type=ALL`, ~50.400 filas
+   estimadas, 57.401 lecturas del handler, ~25–31 ms). Con índices simples en `alojado_en` y `cerrado_en` el motor usa
+   `index_merge` (`sort_union` con el `(estado, prioridad)` que ya existe): ~800 filas estimadas, 8.204 lecturas,
+   ~14–17 ms. **Pide índices**; no se agregan en este cambio (análisis 009, §8.2: migración aparte).
+
+## Implementación
+
+- `programas/services/ocupacion.py`: `_normalizar_tipos`.
+- `programas/selectors/emergencia.py`: `TIPOS_QUE_ALOJAN`, `camas_de`, `camas_libres`, `dispositivos_elegibles`.
+- `programas/services/emergencia.py`: `derivar_caso` valida con camas.
+- `programas/models/__init__.py`: `CasoEmergencia.q_ingreso_directo` (sin cambio de esquema).
+- `programas/selectors/kits.py`: `q_entrega_sin_revisar`.
+- `programas/selectors/emergencia_tablero.py`: `DispositivoDeLaRed`, `DerivacionPendiente`, `EntregaSinRevisar`
+  (`NamedTuple`), `FilaCaso.ingreso_directo` desde SQL, `por_localidad` por id, `entregas_en_camino` recortado,
+  `asegurar_foto`.
+- `programas/services/avisos_emergencia.py`: lee las filas por nombre y reusa las piezas de origen.
+- `programas/views/emergencia_tablero.py` y `programas/templates/programas/emergencia/tablero.html` (`hay_casos`).
+
+## Archivos
+
+`programas/services/ocupacion.py`, `programas/selectors/emergencia.py`, `programas/services/emergencia.py`,
+`programas/models/__init__.py`, `programas/selectors/kits.py`, `programas/selectors/emergencia_tablero.py`,
+`programas/services/avisos_emergencia.py`, `programas/views/emergencia_tablero.py`,
+`programas/templates/programas/emergencia/tablero.html`, `scripts/perf_mysql/explain_ventana_tablero.py`,
+`programas/tests/test_emergencia_tablero.py`, `programas/tests/test_dispositivos_ocupacion.py`,
+`core/tests/test_nodo_ui_piezas.py`.
+
+## Base de datos
+
+No requiere. Los índices que pide el `EXPLAIN` quedan pendientes.
+
+## Validación
+
+- Tests nuevos: `tipos` con generador, con `str` y con `()`; E1 y «Derivar» sin cupos ni turnos y coincidiendo entre
+  sí; no se deriva a un dispositivo con solo cupos; dos «La Esperanza» en municipios distintos en filas separadas y
+  camas de un nombre ambiguo aparte; estado vacío con red y sin casos, y no con un caso; la foto y el modelo dicen lo
+  mismo del ingreso directo; `entregas_en_camino` con `LIMIT` y el total de la foto.
+- `--tag performance`: E1 sigue en **16** consultas, los selectores en 9 y con avisos en 10; `perf_budgets.json` sin tocar.
+- `manage.py check`, `makemigrations --check --dry-run`, `ruff` check/format, `design_audit.py --ratchet` y
+  `compile_templates.py --bloques`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+1. **Índices de la ventana de RN-5.1:** `AddIndex` en `CasoEmergencia.alojado_en` y `cerrado_en` (migración aparte,
+   antes de E8, que amplía la ventana). Con 50.000 casos cuesta ~30 ms; crece lineal con el histórico.
+2. **Homónimas en pantalla:** las dos filas «La Esperanza» se separan y enlazan cada una a su localidad, pero el texto
+   es el mismo; nombrar el municipio sería un cambio visual que E-1 no pide.
+
+## Reversión
+
+Revertir el PR; sin migraciones.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.

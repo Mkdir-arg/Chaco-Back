@@ -48,6 +48,7 @@ pedir la pantalla. Lo ve solo quien supervisa la mesa.{% endcomment %}
           </tr>
         </thead>
         <tbody>
+          {% if resumen.hay_casos %}
           {% for fila in localidades %}
           <tr class="hover:bg-secondary">
             <td class="nodo-td text-heading font-medium">
@@ -59,13 +60,14 @@ pedir la pantalla. Lo ve solo quien supervisa la mesa.{% endcomment %}
             <td class="nodo-td text-right">{{ fila.alojadas_hoy }}</td>
             <td class="nodo-td text-right">{{ fila.plazas_libres }}</td>
           </tr>
-          {% empty %}
+          {% endfor %}
+          {% else %}
           <tr>
             <td colspan="6" class="p-0">
               {% include "components/_estado_vacio.html" with icono="fa-life-ring" titulo="Todavía no hay casos" texto="Cuando la mesa reciba el primero, acá vas a ver dónde están las familias y dónde hay lugar." only %}
             </td>
           </tr>
-          {% endfor %}
+          {% endif %}
         </tbody>
       </table>
     </div>

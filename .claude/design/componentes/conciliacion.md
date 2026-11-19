@@ -7,7 +7,8 @@ nueva**: es la tabla densa canónica (`tabla.md`) con una columna cuya celda dib
 **Consumidor de referencia:** el detalle de una entrega de kits de Emergencia,
 `programas/templates/programas/emergencia/kits/detail.html` (ítem · enviado · recibido · diferencia; la unidad
 copiada de la línea va como metadato bajo el ítem). Las líneas llegan de `programas/selectors/kits.py`
-(`lineas_de`); el estado de la entrega lo decide `programas/services/kits.py`.
+(`lineas_de`); el estado de la entrega lo decide `programas/services/kits.py`. «Recibida con diferencias sin revisar»
+es una sola condición, `q_entrega_sin_revisar` del mismo selector, que comparten el aviso y la foto del tablero E1.
 
 ## Invocación
 

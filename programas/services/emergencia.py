@@ -80,7 +80,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from programas.models import CasoEmergencia, ContactoCaso, Derivacion, TrazaCaso
-from programas.selectors.emergencia import dispositivo_elegible
+from programas.selectors.emergencia import camas_de, camas_libres, dispositivo_elegible
 from programas.services.configuracion_emergencia import sla_vigente
 
 # El alta del caso se mudó a `emergencia_alta`; se reexporta para que los imports de siempre
@@ -111,7 +111,6 @@ from programas.services.emergencia_comun import (  # noqa: F401
     siguiente_numero,
 )
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
-from programas.services.ocupacion import ocupacion_de_plazas
 
 logger = logging.getLogger(__name__)
 
@@ -499,8 +498,8 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
     El dueño o quien supervisa (HU-2.3). Reglas:
 
     * El dispositivo tiene que ser elegible (``selectors.emergencia.dispositivo_elegible``).
-    * Las plazas libres son las de ``ocupacion_de_plazas``, la misma cuenta que ve la
-      institución (RN-2.3). Con **0 libres** no se deriva (``ValidationError``). Con menos
+    * Las plazas libres son las **camas** libres de ``selectors.emergencia.camas_de``, la
+      misma cuenta que muestra el panel «Derivar» (RN-2.3). Con **0 libres** no se deriva (``ValidationError``). Con menos
       libres que ``plazas_pedidas`` hace falta ``confirmar_faltantes=True``; si no,
       :class:`FaltanPlazas` (RN-2.5). ``plazas_pedidas`` guarda lo pedido.
     * **No reserva plazas**: las reserva el dispositivo al aceptar, que es quien elige las
@@ -531,7 +530,7 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
 
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
-    libres = max(ocupacion_de_plazas(dispositivo).de(dispositivo).conteo.disponibles, 0)
+    libres = camas_libres(camas_de(dispositivo).de(dispositivo).conteo)
     if libres < 1:
         raise ValidationError({"dispositivo": SIN_PLAZAS})
     if libres < plazas_pedidas and not confirmar_faltantes:
