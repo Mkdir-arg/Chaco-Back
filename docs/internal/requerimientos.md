@@ -628,7 +628,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 504 | Emergencia · E1: deuda del tablero que E8 reusa (camas, localidades homónimas, estado vacío, ingreso directo único, copias, `EXPLAIN` de la ventana) | Emergencia · tablero | `#emergencia` `#performance` `#ui` | PM — análisis 009 (§8.2, RF-009-18), task #1180 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 505 | Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#performance` `#seguridad` `#metodo` `#gestion` | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 506 | Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos | Transversal · documentación interna de la auditoría | `#seguridad` `#metodo` | PM | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
 
 **Notas del índice**
 
@@ -55957,6 +55959,9 @@ Revertir el PR; sin migraciones.
   (`has_key` sobre `situacion`); el presupuesto no cambia (10 de selectores y avisos, 16 la vista). Tests: los dos casos nuevos
   en `test_emergencia_tablero.py` (46).
 - **13/11/2026 — mergeado** (PR #1135, merge `8400f935` en `development`).
+- **19/11/2026 — pendientes resueltos por el [Cambio 504](#cambio-504)** (E-1 del análisis 009, #1180): los pendientes
+  1, 3, 4, 6, 7, 8, 9 y 11 de este cambio; el 10 (ventana sin índice) lo midió el 504 con `EXPLAIN` y lo cerró el
+  [Cambio 508](#cambio-508) con `programas.0128`; el 2 (revisión visual) sigue en QA y el 5 lo reemplaza E8.
 
 ---
 
@@ -58222,6 +58227,8 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+- **19/11/2026:** pendientes resueltos por el [Cambio 504](#cambio-504): «Camas libres» de E1, sus avisos y el panel
+  «Derivar» de E3 cuentan solo camas con `tipos=(CAMA,)`.
 
 # Cambio 500 — Pieza de UI «barra con marcas de umbral» y su ficha (C3)
 
@@ -58709,62 +58716,6 @@ cargar con el comando).
   latitud y longitud invertidas; el reporte marca las ambiguas y no conciliadas que conservan una ubicación de una
   carga anterior («conserva ubicación anterior (id_fuente …)»), con una sola consulta y sin borrar nada. 21 tests.
 
-# Cambio 505 — Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos
-
-🟢 **HECHO — 19/11/2026**
-
-| | |
-|---|---|
-| **Programa / módulo** | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) |
-| **Etiquetas** | `#performance` `#seguridad` `#metodo` `#gestion` |
-| **Solicitante** | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos |
-| **Fecha del pedido** | 19/11/2026 |
-| **Issue / épica** | sin issue |
-| **Partes afectadas** | Ninguna del producto: solo documentación interna |
-| **Migración** | No requiere |
-
-## Pedido original
-Auditar la performance y el código de los tres módulos que más crecieron (Becas, Emergencia y Dispositivos) con el método de `/auditoria completa`, y dejar los informes en el repo para que las olas de arreglo salgan de ahí.
-
-## Alcance acordado
-Entra: el método de la serie, los tres informes con sus fichas (151 + 93 + 93 = 337, unas 1.254 h) y un README que resume la serie. Queda afuera: el código de los arreglos (cada ola es su propio PR, con su issue) y las mediciones del banco de Emergencia y Dispositivos, que llegan en el PR `perf/banco-emergencia-dispositivos`. Las reglas nuevas para las skills se **proponen** en el README; no se editó nada bajo `.claude/`.
-
-## Decisiones tomadas
-- **Becas:** B-PERF-25 (XLSX de respuestas, 12,2 → 2,9 s medido) **reabre A4-03 de octubre**; B-PERF-16 se **descarta** (PERF-13 de octubre midió el mismo mecanismo); B-PERF-02, B-PERF-03, B-PERF-18 y B-PERF-26 se quedan en sus olas y citan PERF-11 (si se retoma, las absorbe); B-LIM-02 (unificar los estados del relevamiento) y B-LIM-15 (cupo ocupado del dashboard) son **decisión del cliente**, y B-LIM-02 va en un PR coordinado con Chaco-mobile y con los tests de contrato RED-11/RED-03 en el mismo diff.
-- **Emergencia:** E-SEG-01 y E-ERR-01 ya están resueltas (#1204, Cambio 496, y #1205, Cambio 497); el seguimiento que dejaron esos PRs va en la sección 10 de `emergencia.md` para el próximo PR de Emergencia.
-- **Dispositivos (8 contradicciones):** se adopta el orden global de candados (entrada de bitácora → estadías → plazas → reservas → ciudadano → dispositivo → sector), que el PR debe verificar contra ingreso, egreso, cambio de plaza y reserva; «cerrado» contra «no ACTIVO» es decisión del cliente con default «cerrado»; los formateadores van a `core/texto.py` solo si se usan fuera de `programas/`, si no a `programas/services/formato.py`; `ve_la_asignacion_en_lote` y MEDIA para el motivo libre; D-FE-02 **no** promueve `_ajax_js` (descartado en octubre) y usa el handler `data-ajax` canónico; el banco se siembra con el volumen mayor (500 plazas, 20.000 estadías). D-ERR-06 cubre también `views/diseno.py:287` de Becas.
-- **Los informes no llevan datos de personas:** los DNI de las PoC se reemplazaron por marcadores y las rutas del entorno local, por «PoC reproducida; test en el PR que la arregla».
-- **Publicación:** docs/internal no sale a Pages ni a main, pero el repo es público: las fichas de seguridad abiertas van sin detalle técnico (el detalle se agrega al informe con el PR que cada una cierra).
-
-## Implementación
-Se agregan `README.md`, `METODO.md`, `becas.md`, `emergencia.md` y `dispositivos.md` en `docs/internal/auditoria-2026-11-perf/`, con el molde de `auditoria-2026-10/`: resumen, índice, plan por olas, reglas para no repetirlo, descartados, línea de base, decisiones del cliente, plan de la pasada 2 y fichas. En las dos ALTA ya resueltas y en B-SEG-01 (#1202, Cambio 494) la ficha dice el PR y el Cambio.
-
-## Archivos
-`docs/internal/auditoria-2026-11-perf/` (cinco archivos), `.gitattributes` (la carpeta nueva con `text eol=lf`, como la de octubre) y este archivo.
-
-También se cierra el pendiente de la auditoría de #1202: el Cambio 494 suma una segunda etiqueta (`#ui`) y `#seguridad` se agrega a los Cambios de seguridad que no la tenían (95, 100, 101, 102, 103, 109, 110, 111, 112, 113, 114, 115, 126, 179, 184, 185, 188, 193 y 198), para que `--tag seguridad` devuelva todo lo de seguridad. Los Cambios 177 y 181 también lo son, pero ya tienen cinco etiquetas y no se tocaron.
-
-## Base de datos
-No requiere.
-
-## Validación
-`scripts/requerimientos.py --check` en OK; `scripts/check_docs_client.py` en 0 hallazgos (el alcance estricto mira solo `docs/client/`); los informes pesan menos que el tope de 512 KB de `scripts/check_datos_personales.py`. Ningún código ni plantilla cambió, así que no corren `manage.py check` ni la auditoría de diseño.
-
-## Puesta en marcha en el servidor
-No requiere.
-
-## Pendientes / a definir
-- Las **decisiones del cliente** de cada informe (sección 7): 19 en Becas, 12 en Emergencia (una es del juez) y 16 en Dispositivos; cada una trae su propuesta por defecto.
-- La **medición de Emergencia y Dispositivos** en el banco (PR `perf/banco-emergencia-dispositivos`): las secciones de pasada 2 dicen «pendiente de medición» y no traen números.
-- Los **issues** de las olas 0 a 7 (Becas), 0 a 6 (Emergencia) y 0 a 10 (Dispositivos): se abren en Backlog, Iteration 7, con las fichas y los casos de QA. La limpieza (olas 8 a 13, 7 a 9 y 11 y 12) queda como backlog opcional.
-- Las **reglas propuestas** para las skills (README, «Reglas propuestas»), que aplica quien edita `.claude/`.
-
-## Reversión
-Revertir el commit; no hay datos involucrados.
-
-## Historial
-Sin cambios posteriores.
-
 # Cambio 504 — Emergencia · E1: deuda del tablero que E8 reusa
 
 🟢 **HECHO — 19/11/2026** · rama `feat/e8-e1-deuda-e1`
@@ -58805,7 +58756,10 @@ revisión visual (pendiente 2, de QA) y los índices que pide el `EXPLAIN` (van 
    se podría derivar a un comedor. Los textos de pantalla no cambian («plazas libres»).
 3. **Casos por `localidad_id`, nunca por nombre** (RN-009-04). La localidad del dispositivo es texto libre: sus camas se
    suman a la fila de casos con ese nombre **solo si es una sola**; si el nombre es de dos localidades con casos (o de
-   ninguna), van a una fila propia por nombre, sin enlace. No se atribuyen camas a una homónima al azar.
+   ninguna), van a una fila propia por nombre, sin enlace. **Límite** (precisado en el [Cambio 508](#cambio-508)): la
+   ambigüedad se mide solo contra las localidades **con casos en la ventana**, así que una homónima sin casos no la
+   dispara y las camas van a la que tiene casos. E8 aplica RN-009-05 completa (ambigüedad contra todas las
+   `core.Localidad` del Chaco).
 4. **Estado vacío:** sin casos en la ventana, la tabla de localidades muestra «Todavía no hay casos» aunque haya red
    (las filas de solo plazas ya no lo tapan).
 5. **`entregas_en_camino(sla, ahora, foto=None, tope=20)`:** la consulta trae solo `tope` entregas (`LIMIT`) y el total
@@ -58877,6 +58831,241 @@ Revertir el PR; sin migraciones.
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+- **19/11/2026 —** pendiente 1 resuelto por el [Cambio 508](#cambio-508) (`programas.0128`); decisión 3 precisada
+  (límite de homónimas).
+
+---
+
+# Cambio 505 — Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) |
+| **Etiquetas** | `#performance` `#seguridad` `#metodo` `#gestion` |
+| **Solicitante** | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ninguna del producto: solo documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+Auditar la performance y el código de los tres módulos que más crecieron (Becas, Emergencia y Dispositivos) con el método de `/auditoria completa`, y dejar los informes en el repo para que las olas de arreglo salgan de ahí.
+
+## Alcance acordado
+Entra: el método de la serie, los tres informes con sus fichas (151 + 93 + 93 = 337, unas 1.254 h) y un README que resume la serie. Queda afuera: el código de los arreglos (cada ola es su propio PR, con su issue) y las mediciones del banco de Emergencia y Dispositivos, que llegan en el PR `perf/banco-emergencia-dispositivos`. Las reglas nuevas para las skills se **proponen** en el README; no se editó nada bajo `.claude/`.
+
+## Decisiones tomadas
+- **Becas:** B-PERF-25 (XLSX de respuestas, 12,2 → 2,9 s medido) **reabre A4-03 de octubre**; B-PERF-16 se **descarta** (PERF-13 de octubre midió el mismo mecanismo); B-PERF-02, B-PERF-03, B-PERF-18 y B-PERF-26 se quedan en sus olas y citan PERF-11 (si se retoma, las absorbe); B-LIM-02 (unificar los estados del relevamiento) y B-LIM-15 (cupo ocupado del dashboard) son **decisión del cliente**, y B-LIM-02 va en un PR coordinado con Chaco-mobile y con los tests de contrato RED-11/RED-03 en el mismo diff.
+- **Emergencia:** E-SEG-01 y E-ERR-01 ya están resueltas (#1204, Cambio 496, y #1205, Cambio 497); el seguimiento que dejaron esos PRs va en la sección 10 de `emergencia.md` para el próximo PR de Emergencia.
+- **Dispositivos (8 contradicciones):** se adopta el orden global de candados (entrada de bitácora → estadías → plazas → reservas → ciudadano → dispositivo → sector), que el PR debe verificar contra ingreso, egreso, cambio de plaza y reserva; «cerrado» contra «no ACTIVO» es decisión del cliente con default «cerrado»; los formateadores van a `core/texto.py` solo si se usan fuera de `programas/`, si no a `programas/services/formato.py`; `ve_la_asignacion_en_lote` y MEDIA para el motivo libre; D-FE-02 **no** promueve `_ajax_js` (descartado en octubre) y usa el handler `data-ajax` canónico; el banco se siembra con el volumen mayor (500 plazas, 20.000 estadías). D-ERR-06 cubre también `views/diseno.py:287` de Becas.
+- **Los informes no llevan datos de personas:** los DNI de las PoC se reemplazaron por marcadores y las rutas del entorno local, por «PoC reproducida; test en el PR que la arregla».
+- **Publicación:** docs/internal no sale a Pages ni a main, pero el repo es público: las fichas de seguridad abiertas van sin detalle técnico (el detalle se agrega al informe con el PR que cada una cierra).
+
+## Implementación
+Se agregan `README.md`, `METODO.md`, `becas.md`, `emergencia.md` y `dispositivos.md` en `docs/internal/auditoria-2026-11-perf/`, con el molde de `auditoria-2026-10/`: resumen, índice, plan por olas, reglas para no repetirlo, descartados, línea de base, decisiones del cliente, plan de la pasada 2 y fichas. En las dos ALTA ya resueltas y en B-SEG-01 (#1202, Cambio 494) la ficha dice el PR y el Cambio.
+
+## Archivos
+`docs/internal/auditoria-2026-11-perf/` (cinco archivos), `.gitattributes` (la carpeta nueva con `text eol=lf`, como la de octubre) y este archivo.
+
+También se cierra el pendiente de la auditoría de #1202: el Cambio 494 suma una segunda etiqueta (`#ui`) y `#seguridad` se agrega a los Cambios de seguridad que no la tenían (95, 100, 101, 102, 103, 109, 110, 111, 112, 113, 114, 115, 126, 179, 184, 185, 188, 193 y 198), para que `--tag seguridad` devuelva todo lo de seguridad. Los Cambios 177 y 181 también lo son, pero ya tienen cinco etiquetas y no se tocaron.
+
+## Base de datos
+No requiere.
+
+## Validación
+`scripts/requerimientos.py --check` en OK; `scripts/check_docs_client.py` en 0 hallazgos (el alcance estricto mira solo `docs/client/`); los informes pesan menos que el tope de 512 KB de `scripts/check_datos_personales.py`. Ningún código ni plantilla cambió, así que no corren `manage.py check` ni la auditoría de diseño.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- Las **decisiones del cliente** de cada informe (sección 7): 19 en Becas, 12 en Emergencia (una es del juez) y 16 en Dispositivos; cada una trae su propuesta por defecto.
+- La **medición de Emergencia y Dispositivos** en el banco (PR `perf/banco-emergencia-dispositivos`): las secciones de pasada 2 dicen «pendiente de medición» y no traen números.
+- Los **issues** de las olas 0 a 7 (Becas), 0 a 6 (Emergencia) y 0 a 10 (Dispositivos): se abren en Backlog, Iteration 7, con las fichas y los casos de QA. La limpieza (olas 8 a 13, 7 a 9 y 11 y 12) queda como backlog opcional.
+- Las **reglas propuestas** para las skills (README, «Reglas propuestas»), que aplica quien edita `.claude/`.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
+
+---
+
+# Cambio 508 — Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7
+
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e4-situacion-selectores` (sale de la de E-1, #1212)
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · situación (E8), sin pantalla (la consume E-5, #1184) |
+| **Etiquetas** | `#emergencia` `#performance` `#datos` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §4.1, §5, §8.1, RNF-009-03/05/06/07/10) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1183 (E-4) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (capa de datos y reglas) |
+| **Migración** | `programas.0128_indices_ventana_casos_emergencia` (solo índices) |
+
+## Pedido original
+
+E-4 del análisis 009: leer en una sola foto (≤ 15 consultas fijas) todo lo que muestran el Resumen y el Mapa de E8, y
+calcular indicadores y alertas con funciones puras. Con las notas «Pendiente de…» del #1183: las MINOR de las auditorías
+de los PR #1189, #1193, #1196, #1207 (C2) y #1212 (E-1), y las decisiones del PM sobre el orden y el alcance con filtro
+de las alertas.
+
+## Alcance acordado
+
+**Entra:** `selectors/emergencia_situacion.py` (foto y derivados), `services/situacion_emergencia.py` (reglas puras),
+`services/alertas_situacion_emergencia.py` (AE-1 a AE-7), `sin_dosis` en `services/emergencia_ficha.py`, los índices de
+la ventana de RN-5.1 en una migración propia, el script de `EXPLAIN` de la foto y los MINOR. **Queda afuera:** la
+pantalla, el form de filtros y la capacidad `ver_situacion` (E-5), el mapa (E-6), Abastecimiento (E-7b) y la consulta
+de «dispositivos que el usuario puede abrir» de §4.1, que necesita el usuario y va en la vista (E-5).
+
+## Decisiones tomadas
+
+1. **La foto son 12 consultas fijas** (presupuesto 15): casos de la ventana ampliada (1), red con
+   `emergencia_tablero.red_de_dispositivos` (4), personas alojadas con solo `ficha__avisos_salud` (1), ritmo de camas de
+   6 h sobre `Estadia` (1), derivaciones (1), logística (3: entregas de la ventana, líneas por ítem y última recepción
+   de los dispositivos con gente) y localidades del Chaco con su centroide (1). Los derivados y las alertas, 0. Con
+   5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas, y con filtro de departamento, las mismas 12.
+2. **El filtro no va en el `WHERE`** (MINOR (a) del PR #1193): se aplica en Python por la `localidad_id` del caso;
+   AE-1, AE-5, AE-6 y AE-7 salen de la misma foto provincial. Departamento = `UbicacionLocalidad.departamento`; una
+   localidad que no es del departamento elegido se ignora y la foto lo marca (`localidad_ignorada`).
+3. **«Creado desde el inicio de la lectura» no va en el SQL**: está implicado por `cerrado_en` (un caso creado desde ahí
+   está abierto o se cerró después). La consulta queda con la forma de la de E1 (`~CERRADO OR alojado_en OR
+   cerrado_en`), que con los índices de `programas.0128` usa *index merge*; con `creado` en el `OR` y sin índice, el
+   merge no sería posible. La lectura cubre siempre 96 h (AE-3).
+4. **La ventana** (72 h por defecto, o 7 días) empieza en el primer período: 12 bloques de 6 h alineados a las 06:00, o
+   7 días operativos, armados en Python. Embudo y logística usan ese inicio.
+5. **Una sola red**: `DispositivoDeLaRed` suma `tipo`, coordenadas y `conteo` (con defaults) y `Red` el `Censo.total`;
+   E1 no cambia.
+6. **Camas cercanas (RN-009-05)**: a ≤ 25 km del centroide; sin ubicación válida (sin coordenadas o fuera de la caja
+   del Chaco ± 0,5° de E-2), por el nombre normalizado de su localidad **solo si es de una sola `core.Localidad` del
+   Chaco** (MINOR (1) de #1212). Una localidad sin centroide suma solo por nombre. Los reservados suman en el total y
+   en una cifra aparte, nunca en «los más cercanos».
+7. **Horas hasta saturar** sin casos en el programa: «—» (`SIN_DATOS`), sin AE-1 por proyección (§3.8, TC-1183-36).
+8. **AE-4** usa `emergencia_tablero.muestras_por_tramo`, la muestra de `tiempos()` de E1 extraída sin copiarla
+   (MINOR del PR #1196), con ≥ 20 casos y p90 > 2 × objetivo; una alerta por tramo. **AE-3** sin porcentaje con promedio
+   0 (MINOR (b) del PR #1193). **AE-5**, una por dispositivo, sin reservados. **AE-7** sobre los alojados sin filtro.
+   Orden: AE-1, AE-2, AE-7, las AE-5 por `porcentaje − umbral rojo`, AE-3, AE-4, AE-6; tope 6 con el total. Con
+   filtro, las provinciales terminan su título en «, en toda la provincia».
+9. **Perfil (RN-009-11)**: `perfil` agrega exacto y `presentar_perfil(perfil, filtrado)` decide: con filtro quita las
+   claves de salud, los no sensibles (menores, mayores, edad sin dato, lactantes, mascotas) de 1 a 4 dicen «menos de 5»
+   sin número y **ningún** indicador lleva porcentaje.
+10. **Embudo**: cohorte de los creados en la ventana sin ingresos directos; rechazadas y vencidas son las derivaciones de
+    la cohorte; los tramos del embudo son los que la cohorte completó (mediana y p90 en minutos).
+11. **No nominal**: la foto no lee nombres, DNI, direcciones, números de caso ni coordenadas de casos; en «sin entrega en
+    48 h» un dispositivo reservado va sin nombre ni localidad.
+12. **MINOR de C2 (PR #1207):** se va `es_de_ubicacion_reservada` (envoltorio de un atributo); el test de la casilla
+    exige 403; se va el test que repetía el gate de migraciones; el prefijo se prueba filtrando `Sector`. El `---`
+    duplicado antes del Cambio 499 ya no estaba en `development`.
+13. **MINOR de #1212:** `selectors.emergencia.camas_libres(conteo)` pasa a `camas_libres_del_conteo`; docstring de
+    `por_localidad` y decisión 3 del Cambio 504 precisados; Historial de los Cambios 472 y 503; el bloque «Deuda de E1»
+    pasa a `test_emergencia_tablero_e1.py`; `medir` de `scripts/perf_mysql/` pasa a `_medicion.py`.
+
+## Implementación
+
+- `programas/selectors/emergencia_situacion.py` (nuevo, solo lectura): `FiltrosSituacion`, `periodos_de_la_ventana`,
+  las filas de la foto y `foto_de_situacion`.
+- `programas/services/situacion_emergencia.py` (nuevo): reglas puras (`nivel_de_presion`, `horas_hasta_saturar`,
+  `camas_cercanas`, `ubicacion_valida`, `demanda_en_alza`, `presentar_perfil`) e indicadores sobre la foto (`resumen`,
+  `presion_por_localidad`, `evolucion`, `capacidad`, `tensionados`, `embudo`, `perfil`, `logistica`,
+  `sin_entrega_reciente`, `sin_dosis_provincial`, `puntos_del_mapa`).
+- `programas/services/ocupacion.py`: `etiqueta_y_tono(nivel)`.
+- `CasoEmergencia.q_en_la_ventana(desde)` (sin cambio de esquema).
+- `programas/services/alertas_situacion_emergencia.py` (nuevo): AE-1 a AE-7, `todas_las_alertas`,
+  `alertas_de_situacion`.
+- `programas/services/emergencia_ficha.py`: `sin_dosis(avisos)`.
+- `programas/selectors/emergencia_tablero.py`: `DispositivoDeLaRed` y `Red` ampliadas, `muestras_por_tramo`,
+  `percentil` público, docstring de `por_localidad`.
+- `programas/models/__init__.py` y `programas/migrations/0128_indices_ventana_casos_emergencia.py`: índices en
+  `CasoEmergencia.alojado_en` y `cerrado_en`.
+- `scripts/perf_mysql/_medicion.py` (nuevo) y `explain_situacion.py` (nuevo).
+
+## Archivos
+
+`programas/selectors/emergencia_situacion.py`, `programas/services/situacion_emergencia.py`,
+`programas/services/alertas_situacion_emergencia.py`, `programas/services/emergencia_ficha.py`,
+`programas/selectors/emergencia_tablero.py`, `programas/selectors/emergencia.py`, `programas/services/emergencia.py`,
+`programas/services/avisos_emergencia.py`, `programas/services/ubicacion_reservada.py`, `programas/models/__init__.py`,
+`programas/migrations/0128_indices_ventana_casos_emergencia.py`, `scripts/perf_mysql/_medicion.py`,
+`scripts/perf_mysql/explain_situacion.py`, `scripts/perf_mysql/explain_ventana_tablero.py`,
+`scripts/perf_mysql/medir_consultas_borde.py`, `programas/tests/test_emergencia_situacion.py` (nuevo),
+`programas/tests/test_emergencia_tablero_e1.py` (nuevo), `programas/tests/test_situacion_emergencia_reglas.py` (nuevo),
+`programas/services/ocupacion.py`, `programas/tests/test_emergencia_tablero.py`,
+`programas/tests/test_ubicacion_reservada.py`.
+
+## Base de datos
+
+`programas.0128_indices_ventana_casos_emergencia`: dos `AddIndex` (`caso_emerg_alojado_en_idx`,
+`caso_emerg_cerrado_en_idx`). Solo expand, sin columnas ni datos. El DDL de MySQL/MariaDB no es transaccional: si la
+migración se corta entre los dos índices, el reintento falla con «Duplicate key name»; se borra a mano el primero y se
+reintenta (tabla de miles de filas, segundos).
+
+## Validación
+
+- `test_emergencia_situacion.py`: reglas puras (TC-1183-02 a 08, 10 a 12, 14, 15, 18 a 20, 30), un test por número de
+  la foto sobre un escenario con momentos fijos (TC-1183-01, 09, 11, 13, 14, 26, 27, 31 a 33, 36), una o más por alerta
+  (TC-1183-16, 17, 20 a 25, 29, 37, 38), `--tag performance` (TC-1183-34: 12 consultas, también con filtro) y
+  `--tag mysql` (TC-1183-35 y la clave JSON en los dos motores).
+- `manage.py check`, `makemigrations --check --dry-run`, `check_migraciones.py`, `ruff` check/format.
+- **`EXPLAIN` en MariaDB 10.11** descartable (`explain_situacion.py`, 20 corridas), con 50.700 casos (50.000 cerrados de
+  un evento anterior), 30.050 estadías (30.000 egresadas), 23.000 integrantes (3.000 alojados), 20.300 derivaciones
+  (20.000 rechazadas o vencidas de casos viejos) y 10.500 entregas (10.000 de un evento anterior), con 0128 aplicada:
+
+  | # | Lectura | Plan | Filas leídas (handler) | ms |
+  |---|---|---|---:|---:|
+  | 1 | Casos de la ventana | `index_merge` (`sort_union` de `estado`, `alojado_en`, `cerrado_en`) | 9.576 | 36–41 |
+  | 2–5 | Red (`red_de_dispositivos`) | índices de tipo, sector y plaza | ≤ 4.051 | 1–4 |
+  | 6 | Personas alojadas | **`ALL`** sobre `integrantegrupo` (22.625) | 27.501 | 27 |
+  | 7 | Ritmo de 6 h | **`ALL`** sobre `plaza` y `ref` a `estadia` por plaza: sin índice de fechas | 34.051 | 28–34 |
+  | 8 | Derivaciones | **`ALL`** sobre `derivacion` (19.805), `eq_ref` al caso por `creado` | 40.601 | 28 |
+  | 9 | Entregas de la ventana | **`ALL`** sobre `entregakit` (10.553) | 10.501 | 6 |
+  | 10 | Líneas por ítem | `ref` por ítem: recorre todas las líneas del ítem | 21.321 | 16 |
+  | 11 | Última recepción | `ref` por dispositivo: todas las entregas de cada uno | 21.204 | 13 |
+  | 12 | Localidades del Chaco | índices de localidad y municipio | 2 | 0,3 |
+
+  La ventana de casos usa los índices de 0128; las demás que recorren tablas son las que el §4.1 ya marcaba para medir.
+
+## Puesta en marcha en el servidor
+
+Aplicar `programas.0128` (crea dos índices). Nada más.
+
+## Pendientes / a definir
+
+1. **Índices que pide el `EXPLAIN` de la foto** (RNF-009-10, ver «Validación»; no se agregan acá, van en una
+   migración aparte si el PM lo prioriza): `IntegranteGrupo.egresado_en` (personas alojadas; también lo pide A4 de
+   Abastecimiento), `Derivacion.estado` (o `(estado, …)`), `EntregaKit.despachada_en` y las fechas de `Estadia` para el
+   ritmo de 6 h. Hoy, con el banco de abajo, cada una tarda 6 a 28 ms: no comprometen el `read_timeout` de 10 s, pero
+   crecen lineal con el histórico.
+2. **Para E-5 (UI):** cómo se escriben los números (miles, «≈», «—»), el orden visual de la tabla de presión y el
+   agrupado «Otras localidades», el texto exacto de «en toda la provincia» y del aviso de localidad ignorada.
+3. **Decisión abierta:** la cohorte del embudo usa sus tramos completos; AE-4 usa la muestra de E1. Si el PM quiere
+   que R5 muestre la misma muestra que AE-4, es un cambio de una línea.
+4. **Decisión abierta:** sin porcentaje en **todos** los no sensibles con filtro (RN-009-11 lo dice para 1 a 4; se tomó
+   lo conservador).
+5. **Decisión abierta:** AE-1 con la red saturada y sin casos no aparece (sin casos el indicador es «—»).
+6. Pendiente 6 de #1212 (solapa «Ingreso directo» de E2): DECISIÓN CLIENTE, no se tocó.
+
+## Reversión
+
+1. Desplegar el código anterior: los índices quedan y el código viejo no los nota (la consulta de E1 solo se vuelve
+   más rápida).
+2. Solo si hace falta volver el esquema: `manage.py migrate programas 0127` borra `caso_emerg_alojado_en_idx` y
+   `caso_emerg_cerrado_en_idx`. No se pierde ningún dato; la ventana de E1 vuelve a recorrer la tabla.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026 — auditoría del PR #1224** (dos MAJOR y MINOR, sin cambiar la lógica ni las salidas): los indicadores
+  (`resumen` … `puntos_del_mapa`) pasan del selector a `services/situacion_emergencia.py`, y el selector queda solo con
+  la lectura; los tests de reglas puras pasan a `test_situacion_emergencia_reglas.py`. «Alojada en un momento» usa
+  `services.ocupacion.alojada_en` (borde del censo: confirmada **antes** del instante); `ocupacion.etiqueta_y_tono` es la
+  fuente del vocabulario y los tonos para `Tension` y `Presion`; `CasoEmergencia.q_en_la_ventana` es la ventana de E1 y
+  E8; `DispositivoDeLaRed.tipo` y `conteo` son obligatorios. Scripts: sin `--probar-indices`, `medir` directo,
+  `explain_situacion.py` exige la base descartable. `EXPLAIN` corrido (arriba).
 
 # Cambio 507 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
 
@@ -58951,3 +59140,91 @@ No requiere (`collectstatic` del deploy publica el CSS nuevo).
 ## Reversión
 
 Revertir el commit; no hay datos involucrados.
+
+# Cambio 506 — Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · documentación interna de la auditoría de octubre |
+| **Etiquetas** | `#seguridad` `#metodo` |
+| **Solicitante** | PM |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin registrar |
+| **Partes afectadas** | `docs/internal/auditoria-2026-10/` (README, fichas de `hallazgos/` y PoC de `poc/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El repositorio `Mkdir-arg/Chaco-Back` es público. `docs/internal/` no sale a GitHub Pages ni a `main` (`export-ignore`),
+pero se lee en `development`. El PM decidió recortar de la auditoría de octubre el detalle de explotación de los
+hallazgos de seguridad que siguen abiertos.
+
+## Alcance acordado
+
+Solo los hallazgos que siguen abiertos, o parciales con un resto abierto: SEC-26, SEC-27, SEC-29, SEC-35, G1c-10,
+R0b-11, SIIS-13, SIIS-16 y RED-01. Además: la parte de SEC-09 que describe el ambiente DEV (hasta que cierre R0b-11),
+las claves por defecto de OPS-02/P-09 (hasta P-09), las PoC de SEC-26 y SEC-29 y la referencia al volcado de aprobados
+de PERF-07. Los resueltos conservan su detalle. R0b-09 se dejó como estaba: lo que queda abierto ahí es acceso de
+menos, no de más.
+
+## Decisiones tomadas
+
+- En cada hallazgo abierto: título genérico en todos los lugares donde aparece, la columna de archivo pasa a decir el
+  módulo, y los campos de escenario, ubicación, causa, evidencia, PoC, solución, tests y verificación se reemplazan por
+  una línea de impacto, la frase «Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo
+  cierra.» y una propuesta por defecto sin mecanismo.
+- Las reglas y las decisiones de cliente del README (D-26, D-27, D-S13, D-RED-01) y las fichas de otros ejes que
+  citaban lo mismo se reescribieron sin el mecanismo.
+- Las PoC de hallazgos abiertos (`G1b03y04TokenCampoTests` de SEC-26 y el test de registro anónimo de SEC-29) salen de
+  `poc/`; esos archivos y su README dicen «PoC reservada». Se vuelven a publicar con el PR que cierra cada hallazgo.
+- Las fichas parciales conservan la línea `**Test permanente:**` (solo el módulo), que exige
+  `core.tests.test_contrato_auditoria`.
+- El texto original completo se guarda fuera del repo, en el equipo del PM.
+- Cada PR que cierre uno de estos hallazgos agrega su detalle técnico al informe.
+
+## Implementación
+
+Solo documentación.
+
+## Archivos
+
+- `docs/internal/auditoria-2026-10/README.md`
+- `docs/internal/auditoria-2026-10/hallazgos/01-seguridad.md`
+- `docs/internal/auditoria-2026-10/hallazgos/02-siis-becas.md`
+- `docs/internal/auditoria-2026-10/hallazgos/04-performance.md`
+- `docs/internal/auditoria-2026-10/hallazgos/05-datos-operacion-tests.md`
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md`
+- `docs/internal/auditoria-2026-10/anexo-mediciones-performance.md`
+- `docs/internal/auditoria-2026-10/poc/README.md`
+- `docs/internal/auditoria-2026-10/poc/test_repro_seguridad.py`
+- `docs/internal/auditoria-2026-10/poc/test_repro_usuarios.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `scripts/requerimientos.py --check` en OK y `scripts/check_docs_client.py` en 0 hallazgos.
+- Búsqueda de control sobre `docs/internal/auditoria-2026-10/`: lo que queda de las funciones y condiciones recortadas
+  pertenece a hallazgos resueltos.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Las entradas anteriores de este archivo que registran el cierre parcial de esos hallazgos conservan su texto
+  (la regla de este archivo es no reescribir): el PM decide si también se recortan.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026:** ronda 2 de revisión: PoC de SEC-26 y SEC-29, parte de DEV de SEC-09, claves por defecto de OPS-02/P-09 y referencia a `Aprobados.sql` de PERF-07; R0b-09 vuelve a su texto original; las fichas recuperan su `Test permanente`.

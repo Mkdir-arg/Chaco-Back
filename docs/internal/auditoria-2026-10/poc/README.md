@@ -28,12 +28,12 @@ En la tabla, «`manage.py test …`» se corre como `& $env:PY manage.py test �
 
 | Archivo | Copiar a | Correr | IDs que reproduce |
 |---|---|---|---|
-| `test_repro_seguridad.py` | `core/tests/` | `manage.py test core.tests.test_repro_seguridad` (SEC-09 además con `$env:SERVE_MEDIA="True"`) | SEC-01 a SEC-17, SEC-19 (clase `SEC18DebugXssTests`), SEC-18 (dentro de `SEC11LegajosJsonTests`) y SEC-29 (dentro de `SEC01BasicAuthTests`) |
+| `test_repro_seguridad.py` | `core/tests/` | `manage.py test core.tests.test_repro_seguridad` (SEC-09 además con `$env:SERVE_MEDIA="True"`) | SEC-01 a SEC-17, SEC-19 (clase `SEC18DebugXssTests`), SEC-18 (dentro de `SEC11LegajosJsonTests`); SEC-29: PoC reservada |
 | `patch_settings_sec01.py` | — (se ejecuta) | `& $env:PY <ruta>\patch_settings_sec01.py` desde la raíz de un worktree descartable | Aplica la propuesta de SEC-01 para comprobar 0 regresiones |
 | `test_repro_siis_becas.py` | `programas/tests/` | `manage.py test programas.tests.test_repro_siis_becas` | SIIS-01..06, SIIS-10..12, BEC-01, BEC-02 |
 | `test_repro_dispositivos_legajos.py` | `programas/tests/` | `manage.py test programas.tests.test_repro_dispositivos_legajos` | DIS-01..09, MER-01, LEG-01..05, SEC-18, SEC-19 |
 | `test_repro_datos_operacion.py` | `programas/tests/` | `manage.py test programas.tests.test_repro_datos_operacion` | DAT-01, OPS-03, OPS-04 |
-| `test_repro_usuarios.py` | `users/tests/` | `manage.py test users.tests.test_repro_usuarios` | SEC-03 (ampliación), SEC-26, G1b-02, G1b-05, G1b-06, G1b-07, OPS-06 (origen G2-02), G2-03 |
+| `test_repro_usuarios.py` | `users/tests/` | `manage.py test users.tests.test_repro_usuarios` | SEC-03 (ampliación), G1b-02, G1b-05, G1b-06, G1b-07, OPS-06 (origen G2-02), G2-03; SEC-26: PoC reservada |
 | `test_repro_dashboard_campos_propios.py` | `programas/tests/` | `manage.py test programas.tests.test_repro_dashboard_campos_propios` | G2-01 |
 | `test_repro_admin_cron_renaper.py` | `core/tests/` | `manage.py test core.tests.test_repro_admin_cron_renaper` | OPS-06 (seeds), G1c-04, G1c-08, G1c-09, G1c-15, SIIS-14 |
 | `perf_harness/tests.py` | `v4perf/tests.py` (+ `v4perf/__init__.py`) | `manage.py test v4perf` con `$env:V4_CASOS` y `$env:V4_OUT` (ver cabecera) | Mediciones de PERF-01..04, 07, 12, 19, 20 |

@@ -47,7 +47,12 @@ from core.services import vencimientos
 from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
 from programas.models import CasoEmergencia, TrazaCaso
 from programas.selectors import emergencia_tablero as tablero
-from programas.selectors.emergencia import camas_de, camas_libres, rechazo_sin_nueva_accion, texto_de_minutos
+from programas.selectors.emergencia import (
+    camas_de,
+    camas_libres_del_conteo,
+    rechazo_sin_nueva_accion,
+    texto_de_minutos,
+)
 from programas.services.alertas_dispositivos import ICONOS, TONOS
 from programas.services.emergencia_programa import puede_operar_la_mesa
 
@@ -297,7 +302,7 @@ def sin_plazas_con_derivacion_pendiente(sla, ahora, usuario=None, foto=None):
     if afuera:
         censo = camas_de(afuera, ahora)
         for pk in afuera:
-            libres[pk] = camas_libres(censo.de(pk).conteo)
+            libres[pk] = camas_libres_del_conteo(censo.de(pk).conteo)
     candidatas = [pendiente for pendiente in foto.pendientes if libres[pendiente.dispositivo_id] == 0]
     avisos = []
     for pendiente in candidatas[:TOPE_POR_REGLA]:

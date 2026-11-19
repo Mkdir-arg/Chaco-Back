@@ -22,7 +22,7 @@ CÓMO CORRERLO (PowerShell, raíz del repo, en el worktree de la ola)
   tests de SEC-01 pasan a 403: es lo buscado.
 
 QUÉ ID CANÓNICO REPRODUCE CADA CLASE
-  SEC01BasicAuthTests                            -> SEC-01 (+ SEC-29: registro anónimo sobre legajo existente)
+  SEC01BasicAuthTests                            -> SEC-01 (la PoC de SEC-29 está reservada hasta el PR que lo cierra)
   SEC02CiudadanoApiTests                         -> SEC-02
   SEC03TomaSuperusuarioTests                     -> SEC-03
   SEC04RenaperAnonimoTests                       -> SEC-04 (+ V1-NEW-04, oráculo de defunción)
@@ -100,32 +100,6 @@ class SEC01BasicAuthTests(TestCase):
         Group.objects.get_or_create(name="Ciudadanos")
         Ciudadano.objects.create(dni="30111222", nombre="Ana", apellido="Perez")
         User.objects.create_superuser("root", "r@x.com", "x")
-
-    def test_registro_anonimo_y_basic_a_api_backoffice(self):
-        # 1) Registro anonimo en el portal sobre un legajo existente (sin RENAPER).
-        r = self.client.post(reverse("portal:ciudadano_registro_step1"), {"dni": "30111222", "genero": "F"})
-        print("\n[SEC-01] registro step1:", r.status_code, r.get("Location"))
-        r = self.client.post(
-            reverse("portal:ciudadano_registro_step2"),
-            {"email": "a@evil.test", "telefono": "", "password1": "Clave-Seg-2026x", "password2": "Clave-Seg-2026x"},
-        )
-        print("[SEC-01] registro step2:", r.status_code, r.get("Location"))
-        u = User.objects.get(username="30111222")
-        self.assertTrue(rbac.es_ciudadano_portal(u))
-        # 2) Con sesion, el middleware lo corta.
-        r = self.client.get("/api/users/users/")
-        print("[SEC-01] sesion ciudadano /api/users/users/:", r.status_code)
-        self.assertEqual(r.status_code, 302)
-        # 3) Con Basic, pasa.
-        c = APIClient()
-        auth = _basic("30111222", "Clave-Seg-2026x")
-        for url in ("/api/users/users/", "/api/legajos/ciudadanos/", "/api/buscar-ciudadanos/?q=301"):
-            r = c.get(url, HTTP_AUTHORIZATION=auth)
-            print(f"[SEC-01] basic ciudadano GET {url}:", r.status_code, r.content[:120])
-            self.assertEqual(r.status_code, 200)
-        r = c.post("/api/core/provincias/", {"nombre": "ProvPoC"}, HTTP_AUTHORIZATION=auth)
-        print("[SEC-01] basic ciudadano POST provincia:", r.status_code)
-        self.assertEqual(r.status_code, 201)
 
     def test_territorial_sin_login_web_usa_api_por_basic(self):
         rol = _rol("Territorial PoC", ["becas.campo"])
