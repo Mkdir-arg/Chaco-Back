@@ -40,7 +40,7 @@ Una sola vez, en el bloque `customJS` de la pantalla que dibuja un mapa:
 - La CSP se abre a Google **solo con key configurada** (`GOOGLE_MAPS_SOURCES`), como GTM.
 - Al cargar, la página pasa a `Referrer-Policy: strict-origin-when-cross-origin` (meta `referrer` +
   `script.referrerPolicy`): sin `Referer`, Google rechaza la key restringida por referente. Solo viaja el
-  origen; antes de pedir el mapa la página sigue con el `same-origin` de Django.
+  origen; antes de pedir el mapa la página sigue con el `same-origin` de Django. Guía: `docs/mapa.md` §4.
 - El script de Google se carga desde JS (`maps.googleapis.com/maps/api/js?…&loading=async&callback=`):
   ninguna plantilla escribe un `<script src="https://…">` (`SinRecursosDeTercerosTests`).
 

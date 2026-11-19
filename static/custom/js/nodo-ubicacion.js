@@ -268,7 +268,10 @@
         campoDomicilio.focus();
         return;
       }
-      cargarMapa().then(ubicar, function () {});
+      // «Buscando…» desde que se pide: en un mapa a pedido, la carga de Google tarda, y un
+      // segundo Enter o clic durante ese rato colgaría otro `ubicar` (otra consulta cobrada).
+      ocupado(true);
+      cargarMapa().then(ubicar, function () { ocupado(false); });
     }
 
     if (aPedido) {
