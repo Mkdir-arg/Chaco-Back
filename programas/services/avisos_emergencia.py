@@ -47,15 +47,11 @@ from core.services import vencimientos
 from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
 from programas.models import CasoEmergencia, TrazaCaso
 from programas.selectors import emergencia_tablero as tablero
-from programas.selectors.emergencia import rechazo_sin_nueva_accion, texto_de_minutos
+from programas.selectors.emergencia import camas_de, camas_libres, rechazo_sin_nueva_accion, texto_de_minutos
+from programas.services.alertas_dispositivos import ICONOS, TONOS
 from programas.services.emergencia_programa import puede_operar_la_mesa
-from programas.services.ocupacion import ocupacion_de_plazas
 
 AMBITO = "emergencia"
-
-#: Cómo se dibuja cada severidad con la pieza `_alerta.html` (los mismos de Dispositivos).
-TONOS = {"alta": "danger", "media": "warning", "baja": "info"}
-ICONOS = {"alta": "triangle-exclamation", "media": "circle-exclamation", "baja": "circle-info"}
 
 #: Cuántos casos o entregas nombra cada regla antes de resumir el resto.
 TOPE_POR_REGLA = 5
@@ -93,17 +89,13 @@ def _y_mas(resto, usuario, *, singular, plural, url, accion):
     return [Aviso(titulo=f"Y {cuantos} más", texto="", origen=cuantos, fecha=None, enlace=enlace, accion=texto)]
 
 
-def _foto(sla, ahora, foto):
-    return foto if foto is not None else tablero.foto_del_tablero(sla, ahora)
-
-
 # --- Caso fuera de SLA -----------------------------------------------------------------
 
 
 def casos_fuera_de_sla(sla, ahora, usuario=None, foto=None):
     """El tramo en curso superó su objetivo. Del más excedido al menos. Sin consultas con foto."""
 
-    fuera = tablero.fuera_de_sla(_foto(sla, ahora, foto))
+    fuera = tablero.fuera_de_sla(tablero.asegurar_foto(sla, ahora, foto))
     avisos = []
     for caso, semaforo in fuera[:TOPE_POR_REGLA]:
         enlace, accion = _enlace(usuario, _url_caso(caso.id), "Abrir el caso")
@@ -140,22 +132,22 @@ def derivaciones_por_vencer(sla, ahora, usuario=None, foto=None):
     corrió) también aparece: dice «venció hace…».
     """
 
-    foto = _foto(sla, ahora, foto)
+    foto = tablero.asegurar_foto(sla, ahora, foto)
     limite = ahora.timestamp() + POR_VENCER_MIN * 60
-    candidatas = [fila for fila in foto.pendientes if fila[5].timestamp() < limite]
+    candidatas = [pendiente for pendiente in foto.pendientes if pendiente.vence_en.timestamp() < limite]
     avisos = []
-    for _pk, caso_id, numero, _dispositivo_id, dispositivo, vence_en in candidatas[:TOPE_POR_REGLA]:
-        segundos = (vence_en - ahora).total_seconds()
+    for pendiente in candidatas[:TOPE_POR_REGLA]:
+        segundos = (pendiente.vence_en - ahora).total_seconds()
         if segundos >= 0:
             cuando = f"vence en {texto_de_minutos(int(-(-segundos // 60)))}"
         else:
             cuando = f"venció hace {texto_de_minutos(int(-segundos // 60))} y sigue pendiente"
-        enlace, accion = _enlace(usuario, _url_caso(caso_id), "Abrir el caso")
+        enlace, accion = _enlace(usuario, _url_caso(pendiente.caso_id), "Abrir el caso")
         avisos.append(
             Aviso(
-                titulo=f"Derivación del caso {numero} por vencer",
-                texto=f"{dispositivo} todavía no respondió: {cuando}.",
-                origen=f"Caso {numero}",
+                titulo=f"Derivación del caso {pendiente.numero} por vencer",
+                texto=f"{pendiente.dispositivo} todavía no respondió: {cuando}.",
+                origen=f"Caso {pendiente.numero}",
                 fecha=None,
                 enlace=enlace,
                 accion=accion,
@@ -182,7 +174,7 @@ def rechazadas_sin_nueva_accion(sla, ahora, usuario=None, foto=None):
     traza y apaga el aviso.
     """
 
-    casos = [caso for caso in _foto(sla, ahora, foto).abiertos if rechazo_sin_nueva_accion(caso)]
+    casos = [caso for caso in tablero.asegurar_foto(sla, ahora, foto).abiertos if rechazo_sin_nueva_accion(caso)]
     avisos = []
     for caso in casos[:TOPE_POR_REGLA]:
         enlace, accion = _enlace(usuario, _url_caso(caso.id), "Derivar de nuevo")
@@ -220,7 +212,7 @@ def ingresos_parciales_sin_revisar(sla, ahora, usuario=None, foto=None):
     pendientes = sorted(
         (
             caso
-            for caso in _foto(sla, ahora, foto).abiertos
+            for caso in tablero.asegurar_foto(sla, ahora, foto).abiertos
             if caso.estado == Estado.ALOJADO and caso.ingreso_parcial and not caso.contacto_posterior
         ),
         key=lambda caso: (caso.alojado_en, caso.id),
@@ -255,20 +247,23 @@ def ingresos_parciales_sin_revisar(sla, ahora, usuario=None, foto=None):
 
 
 def entregas_con_diferencias_sin_revisar(sla, ahora, usuario=None, foto=None):
-    """Recibidas con diferencias sin la observación de la mesa (``tablero.q_entrega_sin_revisar``).
+    """Recibidas con diferencias sin la observación de la mesa (``kits.q_entrega_sin_revisar``).
 
     Sin consultas con foto. Se apaga al escribir la observación en E5.
     """
 
-    entregas = _foto(sla, ahora, foto).entregas_sin_revisar
+    entregas = tablero.asegurar_foto(sla, ahora, foto).entregas_sin_revisar
     avisos = []
-    for pk, numero, dispositivo, _recibida_en in entregas[:TOPE_POR_REGLA]:
-        enlace, accion = _enlace(usuario, _url_entrega(pk), "Revisar la entrega")
+    for entrega in entregas[:TOPE_POR_REGLA]:
+        enlace, accion = _enlace(usuario, _url_entrega(entrega.id), "Revisar la entrega")
         avisos.append(
             Aviso(
-                titulo=f"Entrega {numero} con diferencias sin revisar",
-                texto=f"{dispositivo} recibió algo distinto de lo enviado y la mesa todavía no dejó su observación.",
-                origen=f"Entrega {numero}",
+                titulo=f"Entrega {entrega.numero} con diferencias sin revisar",
+                texto=(
+                    f"{entrega.dispositivo} recibió algo distinto de lo enviado y la mesa todavía no dejó su "
+                    "observación."
+                ),
+                origen=f"Entrega {entrega.numero}",
                 fecha=None,
                 enlace=enlace,
                 accion=accion,
@@ -288,30 +283,30 @@ def entregas_con_diferencias_sin_revisar(sla, ahora, usuario=None, foto=None):
 
 
 def sin_plazas_con_derivacion_pendiente(sla, ahora, usuario=None, foto=None):
-    """Una derivación ``PENDIENTE`` hacia un dispositivo con 0 plazas libres.
+    """Una derivación ``PENDIENTE`` hacia un dispositivo con 0 camas libres.
 
     Derivar no reserva (las camas se reservan al aceptar), así que el dispositivo puede
-    haberse llenado mientras tanto. Las plazas salen de la red de la foto; un dispositivo que
-    ya no es elegible y tiene una pendiente se cuenta aparte con ``ocupacion_de_plazas`` (3
-    consultas, solo en ese caso raro). Sin consultas con foto en el caso común.
+    haberse llenado mientras tanto. Las camas salen de la red de la foto; un dispositivo que
+    ya no es elegible y tiene una pendiente se cuenta aparte con ``selectors.emergencia.camas_de``
+    (3 consultas, solo en ese caso raro). Sin consultas con foto en el caso común.
     """
 
-    foto = _foto(sla, ahora, foto)
-    libres = {pk: foto.red.libres_de(pk) for pk in {fila[3] for fila in foto.pendientes}}
+    foto = tablero.asegurar_foto(sla, ahora, foto)
+    libres = {pk: foto.red.libres_de(pk) for pk in {pendiente.dispositivo_id for pendiente in foto.pendientes}}
     afuera = [pk for pk, cantidad in libres.items() if cantidad is None]
     if afuera:
-        censo = ocupacion_de_plazas(afuera, ahora)
+        censo = camas_de(afuera, ahora)
         for pk in afuera:
-            libres[pk] = max(censo.de(pk).conteo.disponibles or 0, 0)
-    candidatas = [fila for fila in foto.pendientes if libres[fila[3]] == 0]
+            libres[pk] = camas_libres(censo.de(pk).conteo)
+    candidatas = [pendiente for pendiente in foto.pendientes if libres[pendiente.dispositivo_id] == 0]
     avisos = []
-    for _pk, caso_id, numero, _dispositivo_id, dispositivo, _vence_en in candidatas[:TOPE_POR_REGLA]:
-        enlace, accion = _enlace(usuario, _url_caso(caso_id), "Abrir el caso")
+    for pendiente in candidatas[:TOPE_POR_REGLA]:
+        enlace, accion = _enlace(usuario, _url_caso(pendiente.caso_id), "Abrir el caso")
         avisos.append(
             Aviso(
-                titulo=f"{dispositivo} no tiene plazas libres",
-                texto=f"Tiene pendiente la derivación del caso {numero}: no va a poder aceptarla así.",
-                origen=f"Caso {numero}",
+                titulo=f"{pendiente.dispositivo} no tiene plazas libres",
+                texto=f"Tiene pendiente la derivación del caso {pendiente.numero}: no va a poder aceptarla así.",
+                origen=f"Caso {pendiente.numero}",
                 fecha=None,
                 enlace=enlace,
                 accion=accion,
@@ -340,7 +335,7 @@ def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
     clave de ``situacion`` en la base y trae el JSON solo de esos casos).
     """
 
-    foto = _foto(sla, ahora, foto)
+    foto = tablero.asegurar_foto(sla, ahora, foto)
     sin_derivar = [caso for caso in foto.abiertos if caso.derivado_en is None]
     if not sin_derivar:
         return []

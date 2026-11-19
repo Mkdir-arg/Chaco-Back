@@ -570,3 +570,25 @@ class OcupacionPorTipoDePlazaTests(TestCase):
 
         self.assertEqual(len(solo_camas), len(todas))
         self.assertEqual(len(solo_camas), 3)
+
+    def test_un_generador_cuenta_lo_mismo_que_una_tupla(self):
+        """``tipos`` se normaliza una vez: un generador no se agota en la primera de las tres consultas."""
+
+        con_tupla = ocupacion_de_plazas(self.mixto, tipos=(Plaza.Tipo.CAMA,)).de(self.mixto).conteo
+        con_generador = (
+            ocupacion_de_plazas(self.mixto, tipos=(tipo for tipo in (Plaza.Tipo.CAMA,))).de(self.mixto).conteo
+        )
+
+        self.assertEqual(self._cifras(con_generador), self._cifras(con_tupla))
+        self.assertEqual(self._cifras(con_generador), (4, 1, 3, 1, 1, 0, 1))
+
+    def test_un_str_es_un_solo_tipo(self):
+        conteo = ocupacion_de_plazas(self.mixto, tipos=Plaza.Tipo.CAMA).de(self.mixto).conteo
+
+        self.assertEqual(self._cifras(conteo), (4, 1, 3, 1, 1, 0, 1))
+
+    def test_tipos_vacio_no_cuenta_ninguna_plaza(self):
+        censo = ocupacion_de_plazas([self.mixto, self.sin_camas], tipos=())
+
+        self.assertEqual(self._cifras(censo.total), (0, 0, 0, 0, 0, 0, 0))
+        self.assertEqual(len(censo.de(self.mixto).sectores), 1)
