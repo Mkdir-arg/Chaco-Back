@@ -58119,4 +58119,4 @@ Revertir el commit; no hay datos involucrados.
 
 ## Historial
 
-Sin cambios posteriores.
+- **19/11/2026:** auditoría del PR #1211 (aprobado, tres MINOR): barras y muestras con `print-color-adjust: exact` al imprimir; fallback de `beforeprint`/`afterprint` en `nodo-tables.js` para abrir la tabla en navegadores sin `::details-content`; la normalización queda solo en `resumen_barras`, que devuelve los períodos con `alto_a`/`alto_b` y acepta dicts u objetos (un valor no entero o negativo cuenta 0 igual en barra, tabla y total).

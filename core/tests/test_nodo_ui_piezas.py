@@ -2135,12 +2135,55 @@ class BarrasPareadasTest(SimpleTestCase):
         self.assertNotIn("<b>Lunes</b>", html)
         self.assertIn("&lt;b&gt;Lunes&lt;/b&gt;", html)
 
-    def test_resumen_barras_redondea_el_tope_a_par(self):
+    def test_resumen_barras_normaliza_en_un_solo_lugar(self):
+        resumen = resumen_barras(
+            [{"etiqueta": "Lun", "a": 9, "b": 3}, {"etiqueta": "Mar", "eje": "M", "a": "x", "b": 5}]
+        )
+
         self.assertEqual(
-            resumen_barras([{"a": 9, "b": 3}, {"a": "x", "b": 5}]),
+            {k: v for k, v in resumen.items() if k != "periodos"},
             {"tope": 10, "medio": 5, "total_a": 9, "total_b": 8},
         )
-        self.assertEqual(resumen_barras(None), {"tope": 0, "medio": 0, "total_a": 0, "total_b": 0})
+        self.assertEqual(
+            resumen["periodos"],
+            [
+                {"etiqueta": "Lun", "eje": "Lun", "a": 9, "b": 3, "alto_a": 90, "alto_b": 30},
+                {"etiqueta": "Mar", "eje": "M", "a": 0, "b": 5, "alto_a": 0, "alto_b": 50},
+            ],
+        )
+        self.assertEqual(resumen_barras(None), {"periodos": [], "tope": 0, "medio": 0, "total_a": 0, "total_b": 0})
+
+    def test_un_valor_no_entero_cuenta_cero_igual_en_barra_tabla_y_total(self):
+        html = self._render([{"etiqueta": "Lun", "a": "x", "b": 4}])
+
+        self.assertIn('style="--alto:0%"', html)
+        self.assertIn('style="--alto:100%"', html)
+        self.assertNotIn("--alto:%", html)
+        self.assertIn("Casos nuevos · 0", html)
+        self.assertIn('title="Lun: 0 casos nuevos · 4 familias alojadas"', html)
+        self.assertNotIn(">x<", html)
+
+    def test_acepta_objetos_con_atributos(self):
+        class Periodo:
+            def __init__(self, etiqueta, a, b):
+                self.etiqueta, self.a, self.b = etiqueta, a, b
+
+        html = self._render([Periodo("Lun", 6, 3), Periodo("Mar", 2, 0)])
+
+        self.assertIn('title="Lun: 6 casos nuevos · 3 familias alojadas"', html)
+        self.assertIn('style="--alto:50%"', html)
+        self.assertIn("Casos nuevos · 8", html)
+
+    def test_imprime_colores_y_abre_la_tabla_sin_details_content(self):
+        raiz = Path(__file__).resolve().parents[2] / "static" / "custom"
+        css = (raiz / "css" / "nodo-barras.css").read_text(encoding="utf-8")
+        impresion = css[css.index("@media print") :]
+        self.assertIn("print-color-adjust: exact", impresion)
+        self.assertIn(".nodo-barras__muestra", impresion)
+        js = (raiz / "js" / "nodo-tables.js").read_text(encoding="utf-8")
+        self.assertIn("beforeprint", js)
+        self.assertIn("afterprint", js)
+        self.assertIn("details.nodo-barras__tabla", js)
 
     def test_el_shell_carga_el_css_de_la_pieza(self):
         base = (Path(__file__).resolve().parents[2] / "templates" / "includes" / "base.html").read_text(

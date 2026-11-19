@@ -4,17 +4,17 @@ por el servidor sin JS, con leyenda y tabla equivalente.
   {% include "components/_barras_pareadas.html" with id="evolucion" titulo="Evolución de los últimos 7 días" serie_a="Casos nuevos" serie_b="Familias alojadas" periodos=evolucion only %}
 Contexto:
   periodos      lista armada por la vista o el selector, en orden, con TODOS los períodos de la ventana (un
-                período sin datos va con 0, no se omite): dicts con `etiqueta` (texto de la fila y del par),
-                `a` y `b` (enteros; None cuenta 0) y `eje` opcional (rótulo corto bajo el par; por defecto
-                `etiqueta`).
+                período sin datos va con 0, no se omite): dicts u objetos con `etiqueta` (texto de la fila y
+                del par), `a` y `b` (enteros; lo que falta o no es entero cuenta 0) y `eje` opcional (rótulo
+                corto bajo el par; por defecto `etiqueta`).
   serie_a       nombre de la primera serie (leyenda, columna y descripción de cada par). Color de marca.
   serie_b       nombre de la segunda serie. Gris neutro.
   titulo        nombre accesible del gráfico y caption de la tabla.
   id            opcional, prefijo de los id (por defecto «barras»); obligatorio distinto si hay dos en la página.
   periodo       opcional, encabezado de la columna de períodos (por defecto «Período»).
   tabla_abierta opcional, True deja la tabla desplegada.
-La escala y los totales salen del filtro `resumen_barras`: tope = máximo par, guía al medio, y con todo en cero las
-barras quedan vacías sin dividir. La altura viaja como custom property (`--alto`), clases en nodo-barras.css.
+Todo sale del filtro `resumen_barras`, único lugar que normaliza: períodos (con `alto_a`/`alto_b`), tope = máximo
+par, guía al medio y totales; con todo en cero las barras quedan vacías sin dividir. La altura viaja como custom property (`--alto`), clases en nodo-barras.css.
 {% endcomment %}{% with r=periodos|resumen_barras prefijo=id|default:"barras" %}
 <div class="nodo-barras" data-barras-pareadas>
   <div class="nodo-barras__grafico">
@@ -24,15 +24,15 @@ barras quedan vacías sin dividir. La altura viaja como custom property (`--alto
         <div class="nodo-barras__guia nodo-barras__guia--tope" aria-hidden="true"></div>
         <div class="nodo-barras__guia nodo-barras__guia--medio" aria-hidden="true"></div>
         <div class="nodo-barras__pares">
-          {% for p in periodos %}{% with a=p.a|default:0 b=p.b|default:0 %}
-          <div class="nodo-barras__par" title="{{ p.etiqueta }}: {{ a }} {{ serie_a|lower }} · {{ b }} {{ serie_b|lower }}">
-            <span class="nodo-barras__barra nodo-barras--a" style="--alto:{% widthratio a r.tope 100 %}%"></span>
-            <span class="nodo-barras__barra nodo-barras--b" style="--alto:{% widthratio b r.tope 100 %}%"></span>
+          {% for p in r.periodos %}
+          <div class="nodo-barras__par" title="{{ p.etiqueta }}: {{ p.a }} {{ serie_a|lower }} · {{ p.b }} {{ serie_b|lower }}">
+            <span class="nodo-barras__barra nodo-barras--a" style="--alto:{{ p.alto_a }}%"></span>
+            <span class="nodo-barras__barra nodo-barras--b" style="--alto:{{ p.alto_b }}%"></span>
           </div>
-          {% endwith %}{% endfor %}
+          {% endfor %}
         </div>
       </div>
-      <div class="nodo-barras__eje-x" aria-hidden="true">{% for p in periodos %}<span>{% firstof p.eje p.etiqueta %}</span>{% endfor %}</div>
+      <div class="nodo-barras__eje-x" aria-hidden="true">{% for p in r.periodos %}<span>{{ p.eje }}</span>{% endfor %}</div>
     </div>
   </div>
   <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-body">
@@ -52,11 +52,11 @@ barras quedan vacías sin dividir. La altura viaja como custom property (`--alto
           </tr>
         </thead>
         <tbody>
-          {% for p in periodos %}
+          {% for p in r.periodos %}
           <tr>
             <td class="nodo-td text-heading font-medium">{{ p.etiqueta }}</td>
-            <td class="nodo-td text-right tabular-nums">{{ p.a|default:0 }}</td>
-            <td class="nodo-td text-right tabular-nums">{{ p.b|default:0 }}</td>
+            <td class="nodo-td text-right tabular-nums">{{ p.a }}</td>
+            <td class="nodo-td text-right tabular-nums">{{ p.b }}</td>
           </tr>
           {% endfor %}
         </tbody>

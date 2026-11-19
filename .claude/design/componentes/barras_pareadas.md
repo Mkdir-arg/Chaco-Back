@@ -22,7 +22,7 @@ interacción: el detalle de cada par está en su `title` y en la tabla.
 
 | Parámetro | Efecto |
 |---|---|
-| `periodos` | Lista de dicts armada **en la vista o el selector**, en orden: `etiqueta` (fila de la tabla y `title` del par), `a` y `b` (enteros; `None` cuenta 0), `eje` opcional (rótulo corto bajo el par; por defecto `etiqueta`) |
+| `periodos` | Lista armada **en la vista o el selector**, en orden, de dicts u objetos con atributos: `etiqueta` (fila de la tabla y `title` del par), `a` y `b` (enteros; `None`, un negativo o algo que no es entero cuenta 0), `eje` opcional (rótulo corto bajo el par; por defecto `etiqueta`) |
 | `serie_a` / `serie_b` | Nombres de las series: leyenda, encabezados de la tabla y descripción de cada par. `a` va en color de marca, `b` en gris neutro |
 | `titulo` | Nombre accesible del gráfico (`role="img"` + `aria-label` con los totales) y `caption` de la tabla |
 | `id` | Opcional, prefijo de los `id` (por defecto `barras`). Distinto por gráfico si hay más de uno en la página |
@@ -33,10 +33,17 @@ Render: eje Y con tope, medio y 0 (`aria-hidden`); área de 176 px con guías pu
 un `.nodo-barras__par` por período con dos `.nodo-barras__barra` cuya altura viaja como custom property
 (`style="--alto:50%"`), la única forma admitida de pasar un número del servidor; rótulos del eje X; leyenda
 `Serie · total`; y `<details class="nodo-barras__tabla">` «Ver la tabla de datos» con la tabla densa canónica
-(período, serie A, serie B y fila Total). En impresión la tabla sale desplegada (`::details-content`).
+(período, serie A, serie B y fila Total).
 
-Escala (`resumen_barras`): el tope es el máximo de las dos series redondeado hacia arriba a par, así la guía del
-medio es entera. Con todo en cero el tope es 0, las barras quedan vacías y no se divide.
+Impresión: la tabla sale desplegada por CSS (`::details-content`); en los navegadores que no lo soportan
+(Chrome < 131, Firefox < 143) la abre `static/custom/js/nodo-tables.js` en `beforeprint` y la vuelve a cerrar en
+`afterprint`. Barras y muestras llevan `print-color-adjust: exact`, para que el fondo no se pierda con la
+configuración de impresión por defecto. Sin JS y en un navegador viejo, `tabla_abierta=True` garantiza la tabla impresa.
+
+Normalización y escala (`resumen_barras`, único lugar): devuelve `periodos` normalizados (`etiqueta`, `eje`, `a`,
+`b`, `alto_a`, `alto_b`), `tope`, `medio`, `total_a` y `total_b`; el template recorre `r.periodos` y no convierte
+nada. El tope es el máximo de las dos series redondeado hacia arriba a par, así la guía del medio es entera. Con
+todo en cero el tope es 0, las barras quedan vacías y no se divide. Barra, tabla y totales leen el mismo número.
 
 Colores: `--serie-a: var(--bg-brand)` y `--serie-b: var(--color-gray-500)` (contraste ≥ 3:1 sobre blanco),
 declarados en `.nodo-barras`. La serie se distingue también por la posición fija (A a la izquierda) y por la

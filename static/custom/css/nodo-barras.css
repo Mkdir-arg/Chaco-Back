@@ -108,7 +108,8 @@
     background: var(--serie-b);
 }
 
-/* La tabla equivalente sale impresa aunque el desplegable esté cerrado. */
+/* La tabla equivalente sale impresa aunque el desplegable esté cerrado. Navegadores sin `::details-content`
+   (Chrome < 131, Firefox < 143): la abre nodo-tables.js en `beforeprint`. */
 @media print {
     .nodo-barras__tabla::details-content {
         content-visibility: visible;
@@ -117,5 +118,12 @@
 
     .nodo-barras__tabla > summary {
         display: none;
+    }
+
+    /* Sin esto el navegador omite los fondos al imprimir y las barras y muestras salen en blanco. */
+    .nodo-barras__barra,
+    .nodo-barras__muestra {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
