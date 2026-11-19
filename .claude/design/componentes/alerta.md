@@ -79,9 +79,13 @@ Consumidores: las alertas del dispositivo en
 Emergencia (`programas/templates/programas/emergencia/tablero.html`, armados por `programas/services/avisos_emergencia.py`). La composición no se extrae a un include propio. El aviso
 «sin plazas» de E1 cuenta solo camas con la misma función que el panel «Derivar» (`camas_libres_del_conteo`, `programas/selectors/emergencia.py`).
 «Necesita atención» de E8 (`programas/templates/programas/emergencia/situacion/situacion.html`) usa la misma
-composición del arquetipo Dashboard: un include por alerta con `role="status"`, sin acción (las alertas estratégicas
-nombran el dato y no enlazan a casos), armadas por `programas/services/alertas_situacion_emergencia.py` con los
-tonos e íconos de `programas/services/avisos_emergencia.py`.
+composición del arquetipo Dashboard: un include por alerta con `role="status"`, armadas por
+`programas/services/alertas_situacion_emergencia.py` con los tonos e íconos de `programas/services/avisos_emergencia.py`.
+Las alertas estratégicas nombran el dato y no enlazan a casos; la única con acción es la que lleva a otra parte de la
+misma pantalla (`ACCIONES_DE_ALERTA` en `pantalla_situacion_emergencia.py`: AE-6 → «Ver el abastecimiento», con los
+filtros), con `accion_url` y `accion_texto` del contrato. La solapa Abastecimiento
+(`programas/templates/programas/emergencia/situacion/_abastecimiento.html`) repite la composición para AE-8 a AE-10,
+sin acción.
 Los avisos de la mesa arriba de la ficha del caso (`programas/templates/programas/emergencia/casos/detail.html`,
 armados por `avisos_de_la_mesa` de `programas/selectors/emergencia_mesa.py`) van uno por include con `only`. La
 condición de cada aviso es una sola y la comparten el tablero, la fila de la bandeja y la ficha

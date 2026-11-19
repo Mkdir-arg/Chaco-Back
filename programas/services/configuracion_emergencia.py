@@ -22,7 +22,7 @@ Reglas que viven en este módulo:
 from datetime import datetime
 from decimal import Decimal
 
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -84,26 +84,35 @@ def _texto(valor):
     return "" if valor is None else str(valor)
 
 
-def _con_etiquetas(modelo, cambios):
-    """Los valores de un campo con opciones se trazan con su etiqueta («Reposición…», no «REPOSICION»)."""
-    legibles = []
-    for campo, anterior, nuevo in cambios:
-        opciones = dict(modelo._meta.get_field(campo).flatchoices)
-        legibles.append((campo, opciones.get(anterior, anterior), opciones.get(nuevo, nuevo)))
-    return legibles
+#: El modelo de cada objeto trazado: de ahí salen las etiquetas de los campos con opciones.
+_MODELO_DE = {TrazaConfiguracion.Objeto.SLA: SLAEmergencia, TrazaConfiguracion.Objeto.TIPO_KIT: TipoKit}
+
+
+def _opciones(modelo, campo):
+    """``{valor: etiqueta}`` de un campo con opciones; vacío si no las tiene o no es una columna (el alta)."""
+    try:
+        return dict(modelo._meta.get_field(campo).flatchoices)
+    except FieldDoesNotExist:
+        return {}
 
 
 def _trazar(programa, usuario, objeto, objeto_id, cambios):
-    """Una fila de traza por cada ``(campo, anterior, nuevo)``."""
+    """Una fila de traza por cada ``(campo, anterior, nuevo)``.
+
+    Un campo con opciones se traza con su etiqueta («Reposición (cada N días)», no «REPOSICION»),
+    resuelta acá según el modelo del objeto: quien traza pasa los valores tal como están.
+    """
+    modelo = _MODELO_DE[objeto]
     for campo, anterior, nuevo in cambios:
+        opciones = _opciones(modelo, campo)
         TrazaConfiguracion.objects.create(
             programa=programa,
             usuario=usuario,
             objeto=objeto,
             objeto_id=objeto_id,
             campo=campo,
-            valor_anterior=_texto(anterior),
-            valor_nuevo=_texto(nuevo),
+            valor_anterior=_texto(opciones.get(anterior, anterior)),
+            valor_nuevo=_texto(opciones.get(nuevo, nuevo)),
         )
 
 
@@ -221,7 +230,7 @@ def crear_tipo_kit(
         usuario,
         TrazaConfiguracion.Objeto.TIPO_KIT,
         tipo.pk,
-        [(CAMPO_ALTA, "", str(tipo)), *_con_etiquetas(TipoKit, regla)],
+        [(CAMPO_ALTA, "", str(tipo)), *regla],
     )
     return tipo
 
@@ -245,7 +254,7 @@ def _editar_bloqueado(usuario, tipo, campos):
         return tipo
     _validar_tipo_kit(tipo)
     tipo.save(update_fields=[campo for campo, _anterior, _nuevo in cambios] + ["modificado"])
-    _trazar(_programa(), usuario, TrazaConfiguracion.Objeto.TIPO_KIT, tipo.pk, _con_etiquetas(TipoKit, cambios))
+    _trazar(_programa(), usuario, TrazaConfiguracion.Objeto.TIPO_KIT, tipo.pk, cambios)
     return tipo
 
 

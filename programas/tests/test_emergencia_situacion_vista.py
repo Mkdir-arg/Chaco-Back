@@ -248,10 +248,10 @@ class ContenidoTests(BaseVista):
                 self.assertIn(titulo, html)
         self.assertIn("Red provincial: camas de los dispositivos elegibles", html)
 
-    def test_tc_1184_36_mapa_y_abastecimiento_son_estado_vacio(self):
+    def test_tc_1184_36_mapa_vacio_y_abastecimiento_a_pedido(self):
         html = self._html(self.autoridad)
         self.assertIn("El mapa todavía no está disponible", html)
-        self.assertIn("El abastecimiento todavía no está disponible", html)
+        self.assertIn("El abastecimiento se calcula cuando lo pedís", html)
         self.assertNotIn("leaflet", html.lower())
 
 
@@ -379,22 +379,32 @@ class PresupuestoVistaTests(BancoSituacion):
 class PaginacionYImpresionTests(BaseVista):
     """TC-1184-17 y la parte estructural de TC-1184-33/34 (la vista previa real queda manual)."""
 
+    def _paginando(self):
+        """De a una fila desde la primera: así dos localidades ya son dos páginas."""
+        return mock.patch.multiple("programas.views.emergencia_situacion", PAGINAR_DESDE=1, FILAS_POR_PAGINA=1)
+
     def _paginada(self, url):
-        with (
-            mock.patch("programas.views.emergencia_situacion.PAGINAR_DESDE", 1),
-            mock.patch("programas.views.emergencia_situacion.FILAS_POR_PAGINA", 1),
-        ):
+        with self._paginando():
             return self._html(self.autoridad, url)
 
+    @staticmethod
+    def _tabla_de_pantalla(html):
+        return html.split('<div class="overflow-x-auto nodo-no-imprimir">', 1)[1].split("</table>", 1)[0]
+
     def test_tc_1184_17_pagina_y_conserva_los_filtros_y_la_solapa(self):
-        html = self._paginada(f"{URL}?departamento=San+Fernando")
+        with self._paginando():
+            html = self._html(self.autoridad, f"{URL}?departamento=San+Fernando")
+            pagina_2 = self._get(self.autoridad, f"{URL}?departamento=San+Fernando&localidades_page=2")
         self.assertIn("localidades_page=2", html)
         enlace = re.search(r'href="([^"]*localidades_page=2[^"]*)"', html).group(1)
         self.assertIn("departamento=San+Fernando", enlace)
         self.assertIn("tab=resumen", enlace)
-        self.assertEqual(
-            self._get(self.autoridad, f"{URL}?departamento=San+Fernando&localidades_page=2").status_code, 200
-        )
+        self.assertEqual(pagina_2.status_code, 200)
+        filas = pagina_2.context["presion"]["filas"]
+        primera, segunda = filas[0]["localidad"], filas[1]["localidad"]
+        pantalla = self._tabla_de_pantalla(pagina_2.content.decode())
+        self.assertIn(segunda, pantalla)
+        self.assertNotIn(primera, pantalla)
 
     def test_paginada_en_el_papel_va_la_tabla_entera_con_encabezado_y_total(self):
         html = self._paginada(URL)
@@ -408,7 +418,8 @@ class PaginacionYImpresionTests(BaseVista):
 
     def test_sin_paginar_la_tabla_de_pantalla_se_imprime(self):
         html = self._html(self.autoridad)
-        self.assertIn('<div class="overflow-x-auto">\n', html)
+        self.assertNotIn("overflow-x-auto nodo-no-imprimir", html)
+        self.assertNotIn('<div class="nodo-solo-impresion">', html)
         self.assertNotIn("localidades_page=", html)
 
     def test_que_sale_en_el_papel_y_que_no(self):
@@ -416,7 +427,7 @@ class PaginacionYImpresionTests(BaseVista):
         self.assertIn("custom/css/nodo-impresion.css", html)
         self.assertRegex(html, r'id="panel-resumen" aria-labelledby="tab-resumen" class="nodo-impresion-panel')
         self.assertIn('id="panel-mapa" aria-labelledby="tab-mapa" class="nodo-no-imprimir"', html)
-        self.assertIn('id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir"', html)
+        self.assertIn('id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir', html)
         self.assertIn('<div class="nodo-no-imprimir space-y-2">', html)
         self.assertIn('<div class="nodo-no-imprimir bg-white rounded-xl', html)
         self.assertIn('<details class="nodo-impresion-desplegar', html)

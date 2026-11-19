@@ -191,9 +191,19 @@ class AtencionTests(SimpleTestCase):
         self.assertEqual(self._atencion(1, 1)["resumen"], "1 alerta, primero las de prioridad alta.")
         self.assertEqual(self._atencion(0, 0)["resumen"], "Ninguna alerta estratégica con estos filtros.")
 
-    def test_ninguna_alerta_enlaza_y_los_avisos_operativos_solo_con_supervisar(self):
+    def test_solo_ae_6_enlaza_y_los_avisos_operativos_solo_con_supervisar(self):
+        """Ninguna enlaza a un caso; AE-6 lleva a la solapa Abastecimiento (RN-009-22, TC-1187-35)."""
         atencion = self._atencion(2, 2)
-        self.assertEqual(set(atencion["avisos"][0]), {"tono", "icono", "titulo", "texto"})
+        self.assertEqual(set(atencion["avisos"][0]), {"tono", "icono", "titulo", "texto", "url", "accion"})
+        self.assertEqual({(a["url"], a["accion"]) for a in atencion["avisos"]}, {("", "")})
+        resultado = {"alertas": [{**self._alerta(0), "regla": "AE-6"}], "total": 1}
+        url = "/emergencia/situacion/?departamento=San+Fernando&tab=abastecimiento"
+        with mock.patch.object(pantalla, "alertas_de_situacion", return_value=resultado):
+            ae_6 = pantalla.atencion(SimpleNamespace(), supervisa=False, urls={"abastecimiento": url})["avisos"][0]
+            sin_url = pantalla.atencion(SimpleNamespace(), supervisa=False)["avisos"][0]
+        self.assertEqual((ae_6["url"], ae_6["accion"]), (url, "Ver el abastecimiento"))
+        self.assertEqual((sin_url["url"], sin_url["accion"]), ("", ""))
+        self.assertEqual(set(pantalla.ACCIONES_DE_ALERTA), {"AE-6"})
         self.assertEqual(atencion["url_avisos_operativos"], "")
         self.assertEqual(self._atencion(2, 2, supervisa=True)["url_avisos_operativos"], "/emergencia/tablero/")
 

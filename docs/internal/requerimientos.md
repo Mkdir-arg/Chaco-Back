@@ -632,6 +632,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
 | 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
+| 510 | Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h (E-7b del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#ui` `#performance` `#datos` | PM — análisis 009 (§3.9, §4.1, RN-009-15 a 22), task #1187 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0130` (1 `AddIndex`) |
 
 **Notas del índice**
 
@@ -57755,6 +57756,10 @@ cargadas).
 - **18/11/2026:** alta del cambio (registrado como 490; pasa a 492 porque development usó el 490 y el #1197 lo reclamaba).
 - **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 - **18/11/2026:** auditoría del PR #1199: la dotación con días se rechaza en E7 en vez de vaciarse (TC-1186-08); `CAMPOS_TIPO_KIT` se arma con `CAMPOS_REGLA`.
+- **19/11/2026 — MINOR de la auditoría del PR #1199, cerrados en el Cambio 510 (E-7b):** «Sin regla» vacía la regla
+  solo si el modo cambió en ese envío (una regla cargada con el modo ya en «Sin regla» la rechaza el modelo); la
+  etiqueta de las opciones en la traza la resuelve `_trazar` según el modelo del objeto (se va `_con_etiquetas`); el
+  docstring de `SLAEmergenciaForm` ya no cuenta «ocho parámetros».
 
 ---
 
@@ -59419,3 +59424,172 @@ ABM de Roles.
   paginación, de la estructura de impresión y del sidebar colapsado; la paginación y «Actualizar» conservan la solapa;
   nota de `tabs.md` y `dashboard.md` sobre la solapa resuelta por la vista; `sr-only` del p90; tope de «sin entrega
   en 48 h»; la medición del superusuario corregida (18, no 19).
+- **19/11/2026 — MINOR de la auditoría del PR #1226, cerrados en el Cambio 510 (E-7b):** el test de la tabla sin paginar
+  afirma que no hay envoltorio `nodo-no-imprimir` ni copia `nodo-solo-impresion`; TC-1184-17 pide la página 2 dentro del
+  parche y afirma que trae la segunda localidad y no la primera; B12 y HU-9.7 del análisis 009 documentan el tope de
+  10 de «Sin entrega en 48 h» con «Mostrando N de M». El pendiente 6 queda a medias: Abastecimiento ya calcula
+  (Cambio 510); el Mapa (E-6) sigue como estado vacío.
+
+---
+
+# Cambio 510 — Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h
+
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e7b-abastecimiento` (sale de la de E-5, #1226, ya mergeada en development)
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · situación (E8) |
+| **Etiquetas** | `#emergencia` `#ui` `#performance` `#datos` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.9, §4.1, §12, RN-009-15 a 22, RF-009-19 a 26, RNF-009-10 a 13) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1187 (E-7b) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (pantalla E8, E7 y un índice) |
+| **Migración** | `programas.0130_indice_recepcion_entregas` (solo un índice) |
+
+## Pedido original
+
+E-7b del análisis 009: calcular, solo al abrir la solapa, una **estimación rotulada** de qué le falta a cada dispositivo
+y qué conviene mandar en las próximas 48 h, con la regla de consumo de cada ítem (E-7a, Cambio 492) y desde
+`SLAEmergencia.inicio_evento`. Con las notas «Pendiente de…» del #1187: los MINOR de la auditoría del PR #1199 (E-7a) y
+los de la auditoría del PR #1226 (E-5).
+
+## Alcance acordado
+
+**Entra:** reglas puras (`services/abastecimiento_emergencia.py`), lecturas A1-A5
+(`selectors/emergencia_abastecimiento.py`), AE-8 a AE-10, el panel `_abastecimiento.html` dentro de E8, el enlace de AE-6
+del Resumen a la solapa, el índice que pidió el `EXPLAIN` y los MINOR. **Queda afuera:** precargar las cantidades en E4
+(§9: «Preparar entrega» abre el paso 2 con el dispositivo elegido y nada más), la historia de las reglas (un cambio de
+regla recalcula hacia atrás) y el Mapa (E-6).
+
+## Decisiones tomadas
+
+1. **Solo con `?tab=abastecimiento`** (`componentes/tabs.md`): desde otra solapa el panel es un `_estado_vacio` con
+   «Calcular el abastecimiento», un GET a la misma URL con los filtros y `tab=abastecimiento`, y **0 consultas**. Sin
+   `inicio_evento`, estado vacío que lo explica (botón a E7 solo con `supervisar`); sin reglas o sin alojados, los
+   vacíos de la §3.9.
+2. **4 consultas** (A1, A2, A3, A4); A5 solo si hay dispositivos con gente fuera de la red de la foto (los
+   suspendidos). La red, la última recepción («nunca recibió», «sin entrega en 48 h», la misma lectura que B12 y AE-6) y
+   la salud salen de la foto: **AE-9 usa `sin_dosis_provincial(foto)`**, así que es el número de AE-7 por construcción, y
+   A4 no lee la ficha.
+3. **Unidades-día reales**: cada persona, su estadía hasta el egreso o ahora; cada familia, en su dispositivo principal
+   (el del integrante alojado de menor orden), desde el primer ingreso hasta el último egreso de sus integrantes ahí; los
+   lactantes pesan lo declarado. Todo recortado a `[primera recepción del ítem, ahora]`.
+4. **Cobertura** = (remanente + en camino) / consumo diario; sin consumo, «—»; agotado, «sin cubrir desde hace ≈ N h»
+   con N = déficit / consumo por hora. En pantalla, en horas hasta 24 h y desde ahí en fecha y hora redondeadas a la
+   media hora.
+5. **Urgencia (RN-009-20) sobre los ítems que faltan**: Crítica si nunca recibió nada, o si algún ítem con faltan > 0 es
+   una dotación, una reposición sin cubrir ahora aun con lo en camino, o un ítem «por lactante» que el dispositivo
+   **nunca recibió** teniendo lactantes, **aunque haya algo en camino** (el texto de RN-009-20, alineado en la auditoría
+   del PR #1227). Un ítem sin cubrir que lo preparado tapa no lo vuelve Crítica: así cierra el ejemplo de la §12 (Puerto
+   Vilelas y Hogar San José, Exigida con alimento y agua «preparados»). En el orden, todo ítem nunca recibido es la
+   menor cobertura, tenga o no algo en camino; urgencia, orden y AE-10 usan la misma marca.
+6. **Una regla a medias** (cargada por fuera de E7) cuenta como «sin regla»: no se inventa consumo.
+7. **Salud logística dentro de «Necesita atención»** (AB5 de la §12): AE-9 es la línea agregada y, si `presentar_salud`
+   lo deja, los nombres sin número en el texto; AE-10 nombra los lactantes (el número solo desde 5) con el título
+   «Lactantes sin cubrir: <ítems>». No hay un bloque aparte que repita lo mismo. **Las dos listas van por nombre visible
+   y después por id, nunca por conteo** (RN-009-21 b): ordenarlas por cantidad dejaba deducir cuántas personas sin
+   dosis había en cada dispositivo (con 3 en 2, el primero tenía 2).
+8. **Sin piezas nuevas**: stat cards chicas, `_alerta`, tablas densas con badge de ícono + texto (tonos de la tensión,
+   columna «Abastecimiento»), «Preparar entrega» como `btn-nodo btn-secondary btn-sm btn-fit` en `nodo-col-acciones`
+   (solo con `operar` o `supervisar`, y solo para `ACTIVO`), `_estado_vacio` y el plegable de R8. El panel sigue con
+   `nodo-no-imprimir`.
+9. **AE-6 en el Resumen** enlaza a la solapa con los filtros de la pantalla («Ver el abastecimiento», la misma URL que
+   «Calcular el abastecimiento»), por la tabla `ACCIONES_DE_ALERTA`; AE-8 a AE-10 no están en el Resumen.
+10. **Los estados del panel los arma `pantalla_abastecimiento_emergencia`** (`panel_sin_calcular` y
+    `contexto_de_abastecimiento`): el template recibe `calculado` y, si no calcula, `vacio` ya resuelto (texto, ícono
+    y acción, con el enlace a E7 solo para `supervisar`). `local` y `badge` de `pantalla_situacion_emergencia` pasan a
+    ser públicos y se reusan.
+11. **Índice `EntregaKit.recibida_en`** (`programas.0130`): el `EXPLAIN` de A2 recorría la tabla entera (ver
+    «Validación»). A4 no pidió índice: usa el de `egresado_en` de `programas.0129` como filtro de rowid.
+12. **MINOR de #1199:** `TipoKitForm.clean` vacía la regla solo con `"regla_modo" in self.changed_data`; `_trazar`
+    resuelve las etiquetas según el modelo del objeto; docstring de `SLAEmergenciaForm`. **MINOR de #1226:** ver el
+    Historial del Cambio 509.
+
+## Implementación
+
+- `programas/selectors/emergencia_abastecimiento.py` (nuevo): `lecturas_de_abastecimiento(foto, inicio_evento)`.
+- `programas/services/abastecimiento_emergencia.py` (nuevo): reglas puras, `armar_abastecimiento`, `presentar_salud`.
+- `programas/services/alertas_situacion_emergencia.py`: AE-8, AE-9, AE-10 y `alertas_de_abastecimiento`.
+- `programas/services/pantalla_abastecimiento_emergencia.py` (nuevo): lo que se dibuja (nota, franja, tablas, textos).
+- `programas/services/pantalla_situacion_emergencia.py`: AE-6 con su enlace.
+- `programas/views/emergencia_situacion.py`: `_abastecimiento` (solo con la solapa; `puede_operar_la_mesa`).
+- `programas/templates/programas/emergencia/situacion/_abastecimiento.html` (nuevo) y `situacion.html`.
+- `programas/models/__init__.py` y `programas/migrations/0130_indice_recepcion_entregas.py`.
+- `programas/forms_emergencia.py`, `programas/services/configuracion_emergencia.py` (MINOR de #1199).
+- `scripts/perf_mysql/explain_abastecimiento.py` (nuevo) y `scripts/perf_budgets.json`
+  (`servicios.emergencia_situacion_abastecimiento`).
+- `docs/internal/analisis/009-emergencia-tablero-estrategico.md` (B12, HU-9.7 e historial; MINOR de #1226).
+
+## Archivos
+
+Los de «Implementación», más `programas/tests/test_emergencia_abastecimiento.py` (nuevo),
+`programas/tests/test_emergencia_regla_consumo.py`, `programas/tests/test_emergencia_situacion_vista.py` y
+`programas/tests/test_pantalla_situacion_emergencia.py`.
+
+## Base de datos
+
+`programas.0130_indice_recepcion_entregas`: un `AddIndex` (`entrega_kit_recibida_en_idx`). Solo expand, sin columnas ni
+datos. Aplicada, revertida y vuelta a aplicar en MariaDB 10.11.
+
+## Validación
+
+- `test_emergencia_abastecimiento.py`:
+  - reglas puras: un test por fórmula (RN-009-16 a 20; TC-1187-07 a 11, 20, 23 y 24), cobertura, urgencia y orden
+    (TC-1187-21), el ítem «por lactante» nunca recibido con algo en camino, `presentar_salud` (TC-1187-28 a 32) y el
+    orden de la salud por nombre (3 personas en 2 dispositivos);
+  - armado sobre un escenario hecho a mano: TC-1187-06, 08 a 10 y 12 (la escuela queda cubierta), 13 a 22, 27, 32 a 34,
+    36 a 38;
+  - la vista: TC-1187-01 a 05, 14, 25 a 29, 32, 35, 39 y 40;
+  - `--tag performance`: TC-1187-41.
+  Sin test automático: TC-1187-11 sobre la base (lo cubre la regla pura y TC-1187-08), 26 de punta a punta (abrir el
+  paso 2 de E4 lo prueba E4) y lo visual de 21 (badges).
+- **Consultas** (50 dispositivos, 30 ítems, 2.000 entregas y 3.000 alojados): la solapa **4**; la vista **22** con
+  `?tab=abastecimiento` (18 + 4) como supervisor y como autoridad, y **18** sin la solapa. Con un evento anterior
+  sembrado (2.000 entregas recibidas y 3.000 egresados antes del inicio), las mismas consultas y el mismo resultado.
+- **`EXPLAIN` en MariaDB 10.11** descartable (`explain_abastecimiento.py`, 20 corridas; 12.000 entregas —10.000
+  recibidas de un evento anterior— con 36.000 líneas, 23.300 integrantes —20.000 egresados de un evento anterior, cada
+  uno con su estadía— y 3.000 alojados en 50 dispositivos). **Receta para volver a medirlo:** la base de
+  `scripts/perf_mysql/README.md` (MariaDB 10.11 descartable y `manage.py migrate`), después
+  `explain_abastecimiento.py --sembrar` (deja exactamente este banco) y `explain_abastecimiento.py`; el «antes» con
+  `manage.py migrate programas 0129`. Vuelto a correr así con el mismo resultado:
+
+  | # | Lectura | Plan antes → después de `0130` | Lecturas del handler | ms |
+  |---|---|---|---:|---:|
+  | A1 | Catálogo | `ALL` sobre 30 ítems | 31 | 0,5–1 |
+  | A2 | Recibido desde el inicio | `ALL` sobre `entregakit` (12.023) → `range` en `recibida_en` | 17.782 → 6.582 | 7,2 → 5,9 |
+  | A3 | En camino y preparadas | `range` en `estado` (sin cambio) | 6.583 | 5,6–6,2 |
+  | A4 | Personas | `ref` con filtro de rowid en `egresado_en` (sin cambio) | 8.403 | 25–26 |
+
+  A4 llevaba un `ORDER BY` del orden del modelo que costaba un *filesort*: se quitó (`order_by()`).
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `ruff`, `design_audit.py --ratchet` (0 nuevos),
+  `--arquetipo dashboard` OK, `compile_templates.py --bloques` 0, `check_design_agent.py`, `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Aplicar `programas.0130` (un índice). Cargar en E7 la fecha de inicio del evento y las reglas de cada ítem: sin fecha la
+solapa lo pide; sin reglas, también.
+
+## Pendientes / a definir
+
+1. **Decisión abierta:** la urgencia mira solo los ítems con faltan > 0 (decisión 5); si el PM quiere que un ítem
+   sin cubrir y tapado por lo preparado siga siendo Crítica, es una línea en `urgencia`. El ítem «por lactante» nunca
+   recibido ya es Crítico aunque haya algo en camino (RN-009-20).
+2. **Decisión abierta:** la salud logística va dentro de «Necesita atención» (AE-9 y AE-10) y no en un bloque propio.
+3. **Decisión abierta:** «Cómo se calcula» lista la regla vigente de cada ítem, pero no **desde cuándo** rige (la traza
+   de E7 costaría una consulta más).
+4. Límite conocido de la estimación (§7): una persona trasladada de estadía deja de imputar consumo en el origen.
+
+## Reversión
+
+1. Desplegar el código anterior: el índice queda y el código viejo no lo nota; la solapa vuelve a ser un estado vacío.
+2. Solo si hace falta volver el esquema: `manage.py migrate programas 0129` borra `entrega_kit_recibida_en_idx`. No se
+   pierde ningún dato.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026 — auditoría del PR #1227** (1 MAJOR y MINOR): la salud y los lactantes se listan por nombre y no por
+  conteo (RN-009-21 b); el ítem «por lactante» nunca recibido es Crítico aunque haya algo en camino; título de AE-10 sin
+  concordancia; AE-6 conserva los filtros (`ACCIONES_DE_ALERTA`); los estados del panel los arma la pantalla y el
+  template recibe booleanos; `local` y `badge` públicos; tests del panel con y sin filtro, de «Inactivo» en su fila, de
+  «Configurar» y de TC-1187-18; `explain_abastecimiento.py --sembrar`.
