@@ -467,14 +467,18 @@ def camas_de(dispositivos, momento=None):
     """El ``Censo`` de ``ocupacion_de_plazas`` contando **solo camas**. Las mismas 3 consultas en lote.
 
     Es la cuenta única de Emergencia: el panel «Derivar» (E3), la validación al derivar, la
-    red del tablero (E1) y sus avisos la leen de acá.
+    red del tablero (E1), sus avisos y la foto de situación (E8) la leen de acá.
     """
 
     return ocupacion_de_plazas(dispositivos, momento, tipos=TIPOS_QUE_ALOJAN)
 
 
-def camas_libres(conteo):
-    """Las camas libres de un ``Conteo`` de :func:`camas_de`, nunca negativas."""
+def camas_libres_del_conteo(conteo):
+    """Las camas libres de un ``Conteo`` de :func:`camas_de`, nunca negativas.
+
+    No confundir con ``selectors.emergencia_alojar.camas_libres(dispositivo, momento)``, que
+    devuelve las **plazas** libres de un dispositivo para elegir dónde alojar.
+    """
 
     return max(conteo.disponibles or 0, 0)
 
@@ -549,7 +553,7 @@ def dispositivos_para_derivar(caso, usuario, *, plazas=None, momento=None):
     filas = []
     for dispositivo in dispositivos:
         conteo = censo.de(dispositivo.pk).conteo
-        libres = camas_libres(conteo)
+        libres = camas_libres_del_conteo(conteo)
         marca, faltan = _marca_de_plazas(libres, pedidas)
         filas.append(
             {

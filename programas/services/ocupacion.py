@@ -624,6 +624,16 @@ _TENSION = {
 }
 
 
+def etiqueta_y_tono(nivel: str) -> tuple[str, str]:
+    """Cómo se nombra un nivel de tensión («Crítica») y su variante de badge («danger»).
+
+    La fuente única del vocabulario y los tonos de la tensión: la usan :class:`Tension` y la
+    presión por localidad de E8 (``services.situacion_emergencia.Presion``).
+    """
+
+    return _TENSION[nivel]
+
+
 @dataclass(frozen=True)
 class Tension:
     """La ocupación de un ámbito tal como la dibuja una fila de listado.
@@ -650,13 +660,13 @@ class Tension:
     def etiqueta(self) -> str:
         """Cómo se nombra la situación («Crítica»), para el `aria-label` y las pantallas que no muestran el %."""
 
-        return _TENSION[self.nivel][0]
+        return etiqueta_y_tono(self.nivel)[0]
 
     @property
     def tono(self) -> str:
         """Variante de badge de `nodo-badges.css` (`badge badge-{{ tono }}`)."""
 
-        return _TENSION[self.nivel][1]
+        return etiqueta_y_tono(self.nivel)[1]
 
     @property
     def hay_cifra(self) -> bool:
