@@ -13,7 +13,11 @@ con ``puede_en_programa_emergencia`` (RU-7).
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 
-from programas.services.emergencia_programa import puede_en_programa_emergencia, puede_operar_la_mesa
+from programas.services.emergencia_programa import (
+    puede_en_programa_emergencia,
+    puede_operar_la_mesa,
+    puede_ver_situacion,
+)
 
 
 class EmergenciaPermissionMixin(LoginRequiredMixin):
@@ -47,3 +51,13 @@ class MesaPermissionMixin(EmergenciaPermissionMixin):
 
     def tiene_permiso(self, user):
         return puede_operar_la_mesa(user)
+
+
+class SituacionPermissionMixin(EmergenciaPermissionMixin):
+    """E8 «Situación»: ``emergencia.ver_situacion`` **o** ``emergencia.supervisar`` en el programa.
+
+    Supervisar implica ver la situación (análisis 009, §3.2). Operar la mesa sola no alcanza.
+    """
+
+    def tiene_permiso(self, user):
+        return puede_ver_situacion(user)

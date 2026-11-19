@@ -1,0 +1,64 @@
+/* NODO Design System — Hoja de impresión de un tablero de programa
+   Ficha: .claude/design/componentes/impresion.md. La carga la pantalla que se imprime, en su bloque
+   `page_css`; el shell no la carga. Solo clases gancho `nodo-*` y la estructura del shell del
+   backoffice (sidebar `aside`, barra superior `.sticky`, columna con `lg:pl-*`): ningún color.
+
+   - `.nodo-no-imprimir`        no sale en el papel (filtros, solapas, botones, el mapa).
+   - `.nodo-solo-impresion`     sale solo en el papel (el subtítulo del alcance, el pie, una tabla completa).
+   - `.nodo-impresion-panel`    el panel que se imprime aunque se esté mirando otra solapa.
+   - `.nodo-impresion-desplegar` un `<details>` que sale abierto. */
+
+.nodo-solo-impresion {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 12mm;
+    }
+
+    /* El shell: sidebar, su fondo móvil, la barra superior y la columna corrida por el sidebar. */
+    aside,
+    body > div > .sticky,
+    .fixed,
+    .nodo-no-imprimir,
+    .nodo-hero__accion {
+        display: none !important;
+    }
+
+    [class*="lg:pl-"],
+    main,
+    main > div {
+        padding: 0 !important;
+    }
+
+    .nodo-solo-impresion {
+        display: block !important;
+    }
+
+    /* Gana sobre el `display:none` en línea de `x-show` y sobre `[x-cloak]`. */
+    .nodo-impresion-panel {
+        display: block !important;
+    }
+
+    .nodo-impresion-desplegar::details-content {
+        content-visibility: visible;
+        display: block;
+    }
+
+    .nodo-impresion-desplegar > summary {
+        display: none;
+    }
+
+    /* Un bloque no se corta entre dos hojas si entra en una. */
+    section {
+        break-inside: avoid-page;
+    }
+
+    /* Sin esto el navegador omite los fondos: el hero, los badges y las barras salen en blanco. */
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

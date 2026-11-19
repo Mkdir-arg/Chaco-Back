@@ -542,8 +542,8 @@ def por_localidad(sla, ahora, foto=None):
     **Límite conocido:** la ambigüedad se mide solo contra las localidades **con casos en la
     ventana**. Si «La Esperanza» de un municipio tiene casos y la de otro no, las camas de un
     dispositivo de «La Esperanza» se suman a la que tiene casos aunque estén en la otra. E8
-    (``selectors.emergencia_situacion``) aplica la regla completa, RN-009-05: ambigüedad contra
-    todas las ``core.Localidad`` del Chaco.
+    (``services.situacion_emergencia.camas_cercanas``) aplica la regla completa, RN-009-05:
+    ambigüedad contra todas las ``core.Localidad`` del Chaco.
 
     Orden: fuera de SLA, de más a menos; después nuevos; después el nombre.
 

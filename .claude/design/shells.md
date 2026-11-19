@@ -43,11 +43,14 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
   «Notificaciones» (utilidades, Heroicons outline, sin `style=`). Ícono del grupo `exclamation-triangle`.
   Subítems, con el filtro `|puede:` (el alcance lo exige la vista): «Casos» (bandeja, ícono `inbox`) y
   «Entregas de kits» (E4, `truck`) para quien tiene `emergencia.operar` **o** `emergencia.supervisar`;
+  «Situación» (E8, `globe-americas`) para quien tiene `emergencia.ver_situacion` **o** `emergencia.supervisar`;
   «Tablero» (E1, `chart-bar`) y «Configuración» (E7, `adjustments-horizontal`) solo para quien supervisa.
-  El grupo se muestra con cualquiera de las dos capacidades y se abre con `emergencia` en la ruta.
+  El grupo se muestra con cualquiera de las tres capacidades y se abre con `emergencia` en la ruta; con solo
+  `ver_situacion` trae solo «Situación» (Casos y Entregas piden operar o supervisar).
   «Casos» se marca con `emergencia` en la ruta salvo en `emergencia/config`, `emergencia/entregas`,
-  `emergencia/tablero` y `emergencia/dispositivos` (la recepción de kits vive dentro del dispositivo).
-  Colapsado tiene su propio link a la bandeja.
+  `emergencia/tablero`, `emergencia/situacion` y `emergencia/dispositivos` (la recepción de kits vive dentro del
+  dispositivo). Colapsado tiene su propio link: a la bandeja si opera la mesa, y si no a la situación (la bandeja
+  le respondería 403).
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`
   con `tailwind.config.js`. **No** se usa el CDN de Play.
 - La fuente de íconos se precarga con

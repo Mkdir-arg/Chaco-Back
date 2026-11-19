@@ -77,7 +77,11 @@ corresponde, el par de la acción; el template no decide la severidad ni cuenta.
 Consumidores: las alertas del dispositivo en
 `programas/templates/programas/dispositivos/legajo/detail.html` (referencia) y los avisos del tablero de
 Emergencia (`programas/templates/programas/emergencia/tablero.html`, armados por `programas/services/avisos_emergencia.py`). La composición no se extrae a un include propio. El aviso
-«sin plazas» de E1 cuenta solo camas con la misma función que el panel «Derivar» (`camas_libres`, `programas/selectors/emergencia.py`).
+«sin plazas» de E1 cuenta solo camas con la misma función que el panel «Derivar» (`camas_libres_del_conteo`, `programas/selectors/emergencia.py`).
+«Necesita atención» de E8 (`programas/templates/programas/emergencia/situacion/situacion.html`) usa la misma
+composición del arquetipo Dashboard: un include por alerta con `role="status"`, sin acción (las alertas estratégicas
+nombran el dato y no enlazan a casos), armadas por `programas/services/alertas_situacion_emergencia.py` con los
+tonos e íconos de `programas/services/avisos_emergencia.py`.
 Los avisos de la mesa arriba de la ficha del caso (`programas/templates/programas/emergencia/casos/detail.html`,
 armados por `avisos_de_la_mesa` de `programas/selectors/emergencia_mesa.py`) van uno por include con `only`. La
 condición de cada aviso es una sola y la comparten el tablero, la fila de la bandeja y la ficha

@@ -33,7 +33,7 @@
 /* Alto contraste: el sistema pisa los fondos; pista, relleno y marcas pasan a colores del
    sistema para no desaparecer. La leyenda en texto sigue diciendo qué marca es cuál. */
 @media (forced-colors: active) {
-    .nodo-barra-umbral > span:first-child {
+    .nodo-barra-umbral-pista {
         border: 1px solid CanvasText;
     }
 

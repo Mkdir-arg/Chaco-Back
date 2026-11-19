@@ -12,7 +12,8 @@ La golden es una **referencia sin vista**, como la de Revisión: no tiene URL. E
 Dispositivos con los datos de ejemplo del mockup; el test `TableroReferenciaTest`
 (`core/tests/test_nodo_ui_piezas.py`) la renderiza. Cuando el tablero de Dispositivos exista, la pantalla real
 **clona** este archivo y le pone su vista; la referencia no se edita para parecerse a ella. Los tableros que
-se declaran de este arquetipo: Dispositivos (`dispositivos:tablero`) y la Situación de Emergencia (E8).
+se declaran de este arquetipo: Dispositivos (`dispositivos:tablero`) y la Situación de Emergencia (E8,
+`programas/templates/programas/emergencia/situacion/situacion.html`, el primero con vista).
 
 ## Cuándo
 
@@ -105,10 +106,15 @@ la solapa no es un filtro.
 
 El tablero se imprime para una reunión: hoja apaisada sin sidebar, filtros, botones, barra de solapas ni mapa;
 el hero, los filtros aplicados como subtítulo, la franja y **todo el panel Resumen** aunque se esté mirando
-otra solapa, con un pie «Documento de trabajo · impreso el …». **No hay pieza de impresión canónica** (el
-`dash-no-print` de Becas es local y `.no-print` vive en `responsive.css`, clasificado como conflictivo), así
-que la golden no la trae: la construye, con su ficha, el primer tablero que imprima (E8), y los demás la
-reusan. No se escribe un `<style>` de impresión en la pantalla.
+otra solapa, con un pie «Documento de trabajo · impreso el …». La pieza es `static/custom/css/nodo-impresion.css`
+(ficha `componentes/impresion.md`), que construyó E8: la pantalla la carga en `page_css` y marca sus partes con
+`nodo-no-imprimir`, `nodo-solo-impresion`, `nodo-impresion-panel` y `nodo-impresion-desplegar`. La golden no la
+trae (es una referencia sin vista). No se escribe un `<style>` de impresión en la pantalla.
+
+**Sin JS** (el Resumen tiene que leerse igual): la vista resuelve la solapa (`?tab=` inválido → Resumen) y el
+`x-data` arranca con esa (`tab: '{{ solapa }}'`); el panel de esa solapa va **sin** `x-cloak` y los demás con él.
+Así sin JS se ve el panel que pidió la URL, y con JS nada cambia. La golden, que no tiene vista, conserva
+`URLSearchParams` en el `x-data`: no hay servidor que resuelva la solapa.
 
 ## Qué no cubre la golden
 

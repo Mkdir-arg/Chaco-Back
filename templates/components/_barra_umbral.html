@@ -24,7 +24,7 @@ es texto. Un umbral 0 se dibuja; uno que no es número, no. Ancho (`--avance`, n
   <span class="sr-only">{{ nombre|default:"Ocupación" }}: {% if pct is None %}sin cifra{% else %}{{ pct }} por ciento{% if texto %} ({{ texto }}){% endif %}{% endif %}{% if etiqueta %}, nivel {{ etiqueta }}{% endif %}.</span>
   <div class="flex items-center gap-3" aria-hidden="true">
     <span class="nodo-barra-umbral flex-1 min-w-0">
-      <span class="block h-2 rounded-full overflow-hidden bg-tertiary">{% if pct is not None %}<span class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full {% if tono == 'success' %}bg-success{% elif tono == 'warning' %}bg-warning{% elif tono == 'danger' %}bg-danger{% else %}bg-brand{% endif %}" style="--avance:{{ pct }}%"></span>{% endif %}</span>
+      <span class="nodo-barra-umbral-pista block h-2 rounded-full overflow-hidden bg-tertiary">{% if pct is not None %}<span class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full {% if tono == 'success' %}bg-success{% elif tono == 'warning' %}bg-warning{% elif tono == 'danger' %}bg-danger{% else %}bg-brand{% endif %}" style="--avance:{{ pct }}%"></span>{% endif %}</span>
       {% if exigida is not None %}<span class="nodo-barra-umbral-marca bg-warning" style="--umbral:{{ exigida }}%" title="Exigida desde {{ exigida }} %" data-marca="exigida"></span>{% endif %}
       {% if critica is not None %}<span class="nodo-barra-umbral-marca bg-danger" style="--umbral:{{ critica }}%" title="Crítica desde {{ critica }} %" data-marca="critica"></span>{% endif %}
     </span>

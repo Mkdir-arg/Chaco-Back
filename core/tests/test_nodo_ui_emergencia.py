@@ -3,7 +3,9 @@ para derivar, contador de avance «N de N», celda de diferencia de una concilia
 marcas de umbral."""
 
 import re
+from pathlib import Path
 
+from django.conf import settings
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 
@@ -518,3 +520,15 @@ class BarraUmbralTest(SimpleTestCase):
         self.assertEqual(porcentaje_barra(1, 3, 34), 34)
         self.assertEqual(porcentaje_barra(1, 3, "x"), None)
         self.assertEqual(porcentaje_barra(1, 3, None), 33)
+
+    def test_la_pista_lleva_su_clase_gancho_y_el_alto_contraste_la_usa(self):
+        """MINOR de la auditoría del PR #1210: el alto contraste no depende de la posición del span."""
+        self.assertIn('class="nodo-barra-umbral-pista block h-2', self._render(valor=1, maximo=2))
+        css = (Path(settings.BASE_DIR) / "static/custom/css/nodo-barra-umbral.css").read_text(encoding="utf-8")
+        self.assertIn(".nodo-barra-umbral-pista {", css)
+        self.assertNotIn("first-child", css)
+
+    def test_porcentaje_barra_delega_en_entero_o_none(self):
+        self.assertEqual(porcentaje_barra("7", "10"), 70)
+        self.assertEqual(porcentaje_barra("x", 10), None)
+        self.assertEqual(porcentaje_barra(1, 3, 88.0), 88)

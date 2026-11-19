@@ -31,8 +31,8 @@ se rechaza citando esta ficha y la fila del inventario del agente.
   `variante="tablero"`). No se copia el gradiente a otras piezas ni se arma un hero a mano.
 - Uno por pantalla, arriba de todo; no se repite en solapas ni en modales.
 - **Se hace cumplir en dos lugares.** `scripts/design_audit.py` tiene la regla P1 `HEROFUERA`: marca
-  `{% hero_inicio %}` o clases `nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS` (hoy E1 y la
-  golden del Dashboard; corta en `--ratchet`, hook y CI). Y `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan` contrasta
+  `{% hero_inicio %}` o clases `nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS` (hoy E1, la
+  golden del Dashboard y E8 «Situación» de Emergencia; corta en `--ratchet`, hook y CI). Y `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan` contrasta
   esa misma lista contra los templates reales. Incorporar una pantalla es agregar su ruta a
   `HERO_PANTALLAS`, a la vista de quien revisa.
 
