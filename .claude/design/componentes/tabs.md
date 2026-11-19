@@ -48,6 +48,8 @@ No hay include ni tag: las solapas se clonan de la golden de detalle con su ARIA
   demás), nunca utilidades de color sueltas.
 - Deep link por querystring:
   `tab: new URLSearchParams(window.location.search).get('tab') || '<default>'` en el `x-data`.
+  Con vista que resuelve la solapa, `tab: '{{ solapa }}'` y `x-cloak` solo en los paneles inactivos; ver
+  `arquetipos/dashboard.md`.
 
 ## Teclado
 

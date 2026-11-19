@@ -14,7 +14,9 @@ Todas las personas usan DNIs de prueba (90000001–90000099).
 
 import importlib
 import json
+import re
 from pathlib import Path
+from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
@@ -360,7 +362,8 @@ class PresupuestoVistaTests(BancoSituacion):
         techo = self._techo()
         self.assertLessEqual(techo, 21)
         autoridad = self._usuario("autoridad", [VER_SITUACION])
-        # El superusuario abre todos los dispositivos: paga la consulta de «Ver dispositivo» (19).
+        # El superusuario abre todos los dispositivos y paga la consulta de «Ver dispositivo», pero no lee sus
+        # capacidades (bypass): también 18.
         root = User.objects.create_superuser("root", "root@example.com", "x")
         for usuario, url in (
             (autoridad, URL),
@@ -371,3 +374,70 @@ class PresupuestoVistaTests(BancoSituacion):
             with self.subTest(usuario=usuario.username, url=url):
                 capturadas = self._medir(usuario, url)
                 self.assertLessEqual(len(capturadas), techo, [q["sql"][:140] for q in capturadas.captured_queries])
+
+
+class PaginacionYImpresionTests(BaseVista):
+    """TC-1184-17 y la parte estructural de TC-1184-33/34 (la vista previa real queda manual)."""
+
+    def _paginada(self, url):
+        with (
+            mock.patch("programas.views.emergencia_situacion.PAGINAR_DESDE", 1),
+            mock.patch("programas.views.emergencia_situacion.FILAS_POR_PAGINA", 1),
+        ):
+            return self._html(self.autoridad, url)
+
+    def test_tc_1184_17_pagina_y_conserva_los_filtros_y_la_solapa(self):
+        html = self._paginada(f"{URL}?departamento=San+Fernando")
+        self.assertIn("localidades_page=2", html)
+        enlace = re.search(r'href="([^"]*localidades_page=2[^"]*)"', html).group(1)
+        self.assertIn("departamento=San+Fernando", enlace)
+        self.assertIn("tab=resumen", enlace)
+        self.assertEqual(
+            self._get(self.autoridad, f"{URL}?departamento=San+Fernando&localidades_page=2").status_code, 200
+        )
+
+    def test_paginada_en_el_papel_va_la_tabla_entera_con_encabezado_y_total(self):
+        html = self._paginada(URL)
+        self.assertIn('<div class="overflow-x-auto nodo-no-imprimir">', html)
+        papel = html.split('<div class="nodo-solo-impresion">', 1)[1].split("</table>", 1)[0]
+        self.assertIn('scope="col">Localidad</th>', papel)
+        self.assertIn(">Total</td>", papel)
+        for localidad in ("Resistencia", "Barranqueras", "Las Breñas"):
+            with self.subTest(localidad=localidad):
+                self.assertIn(localidad, papel)
+
+    def test_sin_paginar_la_tabla_de_pantalla_se_imprime(self):
+        html = self._html(self.autoridad)
+        self.assertIn('<div class="overflow-x-auto">\n', html)
+        self.assertNotIn("localidades_page=", html)
+
+    def test_que_sale_en_el_papel_y_que_no(self):
+        html = self._html(self.autoridad, f"{URL}?tab=abastecimiento")
+        self.assertIn("custom/css/nodo-impresion.css", html)
+        self.assertRegex(html, r'id="panel-resumen" aria-labelledby="tab-resumen" class="nodo-impresion-panel')
+        self.assertIn('id="panel-mapa" aria-labelledby="tab-mapa" class="nodo-no-imprimir"', html)
+        self.assertIn('id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir"', html)
+        self.assertIn('<div class="nodo-no-imprimir space-y-2">', html)
+        self.assertIn('<div class="nodo-no-imprimir bg-white rounded-xl', html)
+        self.assertIn('<details class="nodo-impresion-desplegar', html)
+        self.assertIn('<p class="nodo-solo-impresion text-sm font-semibold text-heading">Toda la provincia', html)
+        self.assertIn('<p class="nodo-solo-impresion text-xs text-body-subtle">Documento de trabajo', html)
+        # «Actualizar» toma la solapa visible al hacer clic, como «Limpiar».
+        self.assertIn("u.searchParams.set('tab', tab)", html)
+
+
+def _emergencia_colapsado(html):
+    """El link del grupo Emergencia con el sidebar colapsado (se arma en el servidor, dentro del template)."""
+
+    fin = html.index('title="Emergencia"')
+    inicio = html.rindex('<template x-if="sidebarCollapsed">', 0, fin)
+    return re.search(r'href="([^"]+)"', html[inicio:fin]).group(1)
+
+
+class SidebarColapsadoTests(BaseVista):
+    def test_tc_1182_05_con_solo_ver_situacion_lleva_a_la_situacion(self):
+        self.assertEqual(_emergencia_colapsado(self._html(self.autoridad)), URL)
+
+    def test_quien_opera_va_a_la_bandeja(self):
+        self.assertEqual(_emergencia_colapsado(self._html(self.supervisor)), "/emergencia/casos/")
+        self.assertEqual(_emergencia_colapsado(self._html(self.operador, "/emergencia/casos/")), "/emergencia/casos/")

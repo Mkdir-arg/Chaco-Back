@@ -11,9 +11,12 @@ ni nombres, ni DNI, ni números de caso, ni coordenadas de familias. Sin auto-re
 La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin JS (RNF-009-08).{% endcomment %}
 <div class="space-y-5" x-data="{ tab: '{{ solapa }}' }">
 
+  {# «Actualizar» vuelve a pedir la pantalla en la solapa que se está mirando: al hacer clic, el `tab` de su URL toma la visible (como «Limpiar»). #}
+  <div @click.capture="const a = $event.target.closest('a.nodo-hero__accion'); if (a) { const u = new URL(a.href, window.location.href); u.searchParams.set('tab', tab); a.href = u.toString(); }">
   {% hero_inicio titulo=titulo eyebrow=eyebrow accion_url=url_accion accion_texto=accion_texto accion_icono=accion_icono %}
     {% bajada %}{{ resumen }}{% endbajada %}
   {% endhero_inicio %}
+  </div>
 
   <p class="nodo-solo-impresion text-sm font-semibold text-heading">{{ alcance }}</p>
 
@@ -99,52 +102,16 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
         <p class="mt-1 text-xs text-body-subtle">Personas esperando sobre camas libres a menos de {{ radio_km }} km. Las camas cercanas no son exclusivas: una misma cama cuenta para todas las localidades que la tienen cerca.</p>
       </div>
       {% if presion.hay_filas %}
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
-          <caption class="sr-only">Presión por localidad: familias y personas esperando, alojadas y camas cercanas</caption>
-          <thead>
-            <tr class="nodo-thead-row">
-              <th class="nodo-th" scope="col">Localidad</th>
-              <th class="nodo-th" scope="col">Departamento</th>
-              <th class="nodo-th text-right" scope="col">Familias</th>
-              <th class="nodo-th text-right" scope="col">Personas</th>
-              <th class="nodo-th text-right" scope="col">Fuera de SLA</th>
-              <th class="nodo-th text-right" scope="col">Alojadas</th>
-              <th class="nodo-th text-right" scope="col">Camas cercanas</th>
-              <th class="nodo-th" scope="col">Presión</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for fila in filas_presion %}
-            {% include "programas/emergencia/situacion/_fila_presion.html" with fila=fila only %}
-            {% endfor %}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td class="nodo-td text-heading font-bold" colspan="2">Total</td>
-              <td class="nodo-td text-right tabular-nums font-bold text-heading">{{ presion.total.familias }}</td>
-              <td class="nodo-td text-right tabular-nums font-bold text-heading">{{ presion.total.personas }}</td>
-              <td class="nodo-td text-right tabular-nums font-bold text-heading">{{ presion.total.fuera_de_sla }}</td>
-              <td class="nodo-td text-right tabular-nums font-bold text-heading">{{ presion.total.alojadas }}</td>
-              <td class="nodo-td" colspan="2"></td>
-            </tr>
-          </tfoot>
-        </table>
+      <div class="overflow-x-auto{% if pagina_localidades %} nodo-no-imprimir{% endif %}">
+        {% include "programas/emergencia/situacion/_tabla_presion.html" with filas=filas_presion total=presion.total caption="Presión por localidad: familias y personas esperando, alojadas y camas cercanas" only %}
       </div>
       {% if pagina_localidades %}
       <div class="nodo-no-imprimir">
-        {% include "components/_paginacion.html" with page_obj=pagina_localidades entidad="localidad" entidad_plural="localidades" param=parametro_de_pagina %}
+        {% include "components/_paginacion.html" with page_obj=pagina_localidades entidad="localidad" entidad_plural="localidades" param=parametro_de_pagina extra_qs="tab=resumen" %}
       </div>
-      {# En el papel va la tabla completa: reemplaza al mapa (§3.8). #}
+      {# En el papel va la tabla completa, con su encabezado y su Total: reemplaza al mapa (§3.8). #}
       <div class="nodo-solo-impresion">
-        <table class="w-full border-collapse">
-          <caption class="sr-only">Presión por localidad, todas las filas</caption>
-          <tbody>
-            {% for fila in presion.filas %}
-            {% include "programas/emergencia/situacion/_fila_presion.html" with fila=fila only %}
-            {% endfor %}
-          </tbody>
-        </table>
+        {% include "programas/emergencia/situacion/_tabla_presion.html" with filas=presion.filas total=presion.total caption="Presión por localidad, todas las filas" only %}
       </div>
       {% endif %}
       {% elif filtrado %}
@@ -261,7 +228,7 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
                 <td class="nodo-td text-right">{{ fila.conversion }}</td>
                 <td class="nodo-td">{{ fila.tramo }}</td>
                 <td class="nodo-td text-right">{{ fila.mediana }}</td>
-                <td class="nodo-td text-right">{% if fila.p90_supera %}<strong>{{ fila.p90 }}</strong>{% else %}{{ fila.p90 }}{% endif %}</td>
+                <td class="nodo-td text-right">{% if fila.p90_supera %}<strong>{{ fila.p90 }}</strong><span class="sr-only">{{ fila.p90_nota }}</span>{% else %}{{ fila.p90 }}{% endif %}</td>
                 <td class="nodo-td text-right">{{ fila.objetivo }}</td>
               </tr>
               {% endfor %}
@@ -362,6 +329,7 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
           <li>{% if fila.url %}<a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.nombre }}</a>{% else %}{{ fila.nombre }}{% endif %}: {{ fila.detalle }}</li>
           {% endfor %}
         </ul>
+        {% if logistica.sin_entrega_resumen %}<p class="mt-2 text-xs text-body-subtle">{{ logistica.sin_entrega_resumen }}</p>{% endif %}
         {% else %}
         <p class="mt-2 text-sm text-body">Todos los dispositivos con gente recibieron una entrega en las últimas 48 h.</p>
         {% endif %}
