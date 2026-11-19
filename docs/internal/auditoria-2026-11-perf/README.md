@@ -10,17 +10,17 @@ Es la continuación de [auditoria-2026-10](../auditoria-2026-10/README.md). Lo q
 |---|---|---|---|---|---|---|---|
 | Becas | [becas.md](becas.md) | 151 | 624 h | 9 | olas 0-7: 71 fichas, 262 h | olas 8-13: 80 fichas, 362 h | B-SEG-01 (#1202, Cambio 494) |
 | Emergencia | [emergencia.md](emergencia.md) | 93 | 312 h | 5 | olas 0-6: 66 fichas, 232 h | olas 7-9: 27 fichas, 80 h | E-SEG-01 (#1204, Cambio 496) y E-ERR-01 (#1205, Cambio 497) |
-| Dispositivos | [dispositivos.md](dispositivos.md) | 93 | 318 h | 5 | olas 0-10: 71 fichas, 264 h | olas 11-12: 22 fichas, 54 h | — |
-| **Total** | | **337** | **1.254 h** | **19** | **208 fichas, 758 h** | **129 fichas, 496 h** | 3 fichas |
+| Dispositivos | [dispositivos.md](dispositivos.md) | 93 | 318 h | 4 | olas 0-10: 71 fichas, 264 h | olas 11-12: 22 fichas, 54 h | — |
+| **Total** | | **337** | **1.254 h** | **18** | **208 fichas, 758 h** | **129 fichas, 496 h** | 3 fichas |
 
-Esfuerzo con S = 2 h, S-M = 4 h, M = 8 h, L = 20 h. Ninguna ficha es CRÍTICA. Las cuatro ALTA nuevas de la pasada 2 son de rendimiento y salen de la medición del banco del 19-nov-2026: E-PERF-01 y E-PERF-03 (Emergencia, Ola 2) y D-PERF-01 y D-DAT-01 (Dispositivos, Ola 4); no cambian las horas ni las olas, solo van primero dentro de la suya.
+Esfuerzo con S = 2 h, S-M = 4 h, M = 8 h, L = 20 h. Ninguna ficha es CRÍTICA. Las tres ALTA nuevas de la pasada 2 son de rendimiento y salen de la medición del banco del 19-nov-2026: E-PERF-01 y E-PERF-03 (Emergencia, Ola 2) y D-PERF-01 (Dispositivos, Ola 4); no cambian las horas ni las olas, solo van primero dentro de la suya.
 
 | Severidad | Becas | Emergencia | Dispositivos | Total |
 |---|---|---|---|---|
 | CRÍTICA | 0 | 0 | 0 | 0 |
-| ALTA | 9 | 5 | 5 | 19 |
+| ALTA | 9 | 5 | 4 | 18 |
 | MEDIA | 73 | 36 | 38 | 147 |
-| BAJA | 58 | 44 | 43 | 145 |
+| BAJA | 58 | 44 | 44 | 146 |
 | INFO | 11 | 8 | 7 | 26 |
 | **Total** | **151** | **93** | **93** | **337** |
 
@@ -73,7 +73,7 @@ Cada decisión trae su **propuesta por defecto**, que se aplica si el cliente no
 ## Mediciones pendientes
 
 - **Becas:** la pasada 2 de los exports ya se midió en el banco (el XLSX de respuestas tarda 18,7 s y el de beneficiarios 8 s, B-PERF-25 y B-PERF-26); el resto de las PERF MEDIA o mayores sigue PLAUSIBLE hasta medir (becas.md §8).
-- **Emergencia y Dispositivos: medidos el 19-nov-2026** en el banco del PR #1220 (`scripts/perf_mysql/escenarios_emergencia.py` y `escenarios_dispositivos.py`, MariaDB 10.11, `read_timeout` 10 s; volumen y método en la sección 8.d de cada informe). Subieron a ALTA E-PERF-01 (REGEXP sobre 522.013 DNI), E-PERF-03 (tablero, ≈ 3,2 s), D-PERF-01 (historial profundo, ≈ 64 s: corta en ECOM) y D-DAT-01 (detalle del dispositivo, ≈ 6,1 s); bajaron o quedaron en BAJA/INFO E-PERF-06, E-PERF-11, E-PERF-12, E-PERF-15, D-PERF-04, D-LIM-08 y otras. Quedan **no medidas por ruta** (exigen concurrencia o dos sesiones): E-PERF-02, E-PERF-09, E-PERF-10, D-PERF-06 y D-PERF-07. Es un banco local con datos sintéticos y ruido de ±2x: ordena las fichas, no promete un tiempo en PRD. No se tocó `seed_perf`.
+- **Emergencia y Dispositivos: medidos el 19-nov-2026** en el banco del PR #1220 (`scripts/perf_mysql/escenarios_emergencia.py` y `escenarios_dispositivos.py`, MariaDB 10.11, `read_timeout` 10 s; volumen y método en la sección 8.d de cada informe). Subieron a ALTA E-PERF-01 (REGEXP sobre 522.013 DNI), E-PERF-03 (tablero, ≈ 3,2 s) y D-PERF-01 (historial profundo, ≈ 64 s: corta en ECOM; el detalle del dispositivo, ≈ 6,1 s, paga la misma consulta de `Estadia`); bajaron o quedaron en BAJA/INFO E-PERF-06, E-PERF-11, E-PERF-12, E-PERF-15, D-PERF-04, D-LIM-08 y otras. Quedan **no medidas por ruta** (exigen concurrencia o dos sesiones): E-PERF-02, E-PERF-09, E-PERF-10, D-PERF-06 y D-PERF-07. Es un banco local con datos sintéticos y ruido de ±2x: ordena las fichas, no promete un tiempo en PRD. No se tocó `seed_perf`.
 - **PoC:** las confirmadas (E-SEG-01, E-ERR-01, D-ERR-01, D-SEG-01) quedan como «PoC reproducida; test en el PR que la arregla».
 
 ## Reglas propuestas
