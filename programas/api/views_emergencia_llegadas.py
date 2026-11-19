@@ -362,7 +362,8 @@ class ConfirmarIntegranteView(_VistaDeLlegadas):
                 "Falta lo mínimo de la ficha (clave: el nombre plano del campo, p. ej. `embarazo`, `dni`, "
                 "`adulto_responsable`); `plaza`: la cama no se puede elegir (ocupada, fuera de servicio, reservada "
                 "para otra persona, de otro dispositivo) o no queda ninguna; `dni`: la persona ya está confirmada en "
-                "esta familia o alojada en la red; `orden`: la persona no es de la familia."
+                "esta familia o alojada en la red, o el DNI ya está registrado a nombre de otra persona (sin nombre ni "
+                "apellido se toman del legajo); `orden`: la persona no es de la familia."
             ),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
