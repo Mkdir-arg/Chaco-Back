@@ -26,6 +26,12 @@ adentro del primer bloque porque, como hijo directo de `space-y-5`, suma un huec
 {% include "components/_field.html" with field=form.umbral_ocupacion_amarillo wrapper_class="" %}
 {% include "components/_field.html" with field=form.umbral_ocupacion_rojo wrapper_class="" %}
 <div>
+  <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.ubicacion_reservada }} {{ form.ubicacion_reservada.label }}</label>
+  <p class="mt-1 text-xs text-body-subtle">{{ form.ubicacion_reservada.help_text }}</p>
+  <p class="text-xs text-fg-danger{% if not form.ubicacion_reservada.errors %} hidden{% endif %}"
+     data-error="ubicacion_reservada">{{ form.ubicacion_reservada.errors|join:" " }}</p>
+</div>
+<div>
   <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.activo }} {{ form.activo.label }}</label>
   <p class="text-xs text-fg-danger{% if not form.activo.errors %} hidden{% endif %}"
      data-error="activo">{{ form.activo.errors|join:" " }}</p>
