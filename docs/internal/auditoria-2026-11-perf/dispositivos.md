@@ -37,7 +37,7 @@
 
 **Las que importan:**
 
-1. **D-LIM-01** (ALTA, hallado por 2 revisores): la vista reescribe la regla «quién ve al agente asignado» y el filtro «Asignado a» no aplica la misma regla de visibilidad que la fila (D-LIM-01 absorbe D4-SEG-01). Ola 0.
+1. **D-LIM-01** (ALTA, hallado por 2 revisores): la vista reescribe la regla «quién ve al agente asignado» (D-LIM-01 absorbe D4-SEG-01: detalle reservado hasta el arreglo). Ola 0.
 2. **D-SEG-01** (MEDIA, **CONFIRMADO con PoC**, Ola 0): detalle técnico reservado hasta el arreglo.
 3. **D-SEG-02** (MEDIA, hallado por 2 revisores, Ola 0): detalle técnico reservado hasta el arreglo.
 4. **D-ERR-01** (MEDIA, **CONFIRMADO con PoC**, hallado por 3 revisores, Ola 1): no hay orden global de candados; el ERROR 1213 se reprodujo en los dos caminos y llega como 500. No es Ola 0: InnoDB elige la víctima y el rollback no deja datos inconsistentes.
@@ -54,7 +54,7 @@ Pedidas por el juez (se conserva una ficha; las demás quedan en «Origen» y en
 | D-ERR-01 ← D2-ERR-01 | D2-DAT-01 + D3-DAT-01 | candados: no hay orden global (ingreso contra capacidad; corregir novedad contra cargarla). 3 revisores. PoC: 1213 en los dos caminos |
 | D-ERR-02 ← D1-ERR-01 | D2-ERR-03 + D2-ERR-04 + D2-LIM-05 | dispositivo cerrado: la guarda no está en los servicios. 4 revisores |
 | D-PERF-01 ← D1-PERF-01 | D1-ERR-04 | historial paginado: lee cada fuente completa hasta la página pedida. 2 revisores |
-| D-LIM-01 ← D4-LIM-05 | D4-SEG-01 | regla de visibilidad del agente asignado (columna y filtro); misma solución. ALTA se conserva |
+| D-LIM-01 ← D4-LIM-05 | D4-SEG-01 | regla de visibilidad del agente asignado; misma solución. ALTA se conserva |
 | D-ERR-07 ← D3-ERR-02 | D3-LIM-07 | toggle de tipo no idempotente y estado de dominio escrito en la vista |
 | D-LIM-13 ← D3-LIM-02 | D4-LIM-08 + D1-LIM-07 | traductor de errores del servicio al JSON/HTTP escrito varias veces (3 revisores; D1-LIM-07 hallada al consolidar) |
 | D-LIM-08 ← D3-LIM-04 | D3-PERF-02 | pares usuario×rol sumables: mismo selector, sin tope en el alta |
@@ -100,7 +100,7 @@ Se citan con los IDs de tajada (la tabla de equivalencia está al final de la se
 1. **Orden global de candados dicho de tres maneras.** D2-ERR-01: plazas (por pk) y después dispositivo. D2-DAT-01: plaza, dispositivo y recién después sector («igual que las estadías en bitácora»). D3-DAT-01: entrada raíz, estadías y dispositivo, «compatible con egreso o cambio de plaza (estadía → dispositivo)». La «regla para no repetirlo» de D2-ERR-01 agrega un cuarto orden (estadía → plaza → reserva → ciudadano → dispositivo). Las cuatro son compatibles con **entrada de bitácora → estadías (pk) → plazas (pk) → reservas → ciudadano → dispositivo → sector**, pero ningún revisor verificó que ingreso, egreso, cambio de plaza y reserva tomen las estadías antes que las plazas en ese orden. Propuesta: fijar ese orden, probarlo con la PoC de dos hilos ya escrita y, mientras tanto, la alternativa común: reintentar la transacción entera ante 1213 con tope. Cruce con Emergencia (E-LIM-15): el orden debe ser el mismo en los dos módulos.
 2. **Guarda «cerrado» contra «no ACTIVO».** D1-ERR-01 y D2-ERR-04 (ficha D-ERR-02) rechazan por estado `CERRADO`; D2-ERR-03 pide «no ACTIVO» para reservar. Hay estados intermedios que el cierre de Dispositivos no resuelve en ninguna ficha. Propuesta: una sola `dispositivo_operable(d)` con `CERRADO` rechazado en todo mutador y «no ACTIVO» solo donde ya se exige (bitácora, reservas); queda DECISIÓN CLIENTE con default.
 3. **Destino de los helpers de formato.** D1-LIM-16 propone `programas/services/formato.py`; D3-LIM-11, `core/texto.py` y `core/archivos.py`; D4-LIM-06, `core/usuarios.py::nombre_visible`; Emergencia (E-LIM-25) tiene su propia propuesta. Propuesta: `core/texto.py` (plural y formatos), `core/archivos.py` (extensiones) y `core/usuarios.py` (nombre visible), un solo PR con Emergencia ola 7; `programas/services/formato.py` no se crea.
-4. **Nombre del helper de visibilidad del agente asignado.** D4-LIM-05 propone `ve_la_asignacion_en_lote` y `agentes_visibles_para`; D4-SEG-01 expresa el filtro con `edificios_en_alcance(user, CAP_ASIGNAR) | asignado_a_id`. Propuesta: `ve_la_asignacion_en_lote` y que el filtro de D4-SEG-01 use el mismo conjunto (queda dicho en D-LIM-01).
+4. **Nombre del helper de visibilidad del agente asignado.** D4-LIM-05 propone `ve_la_asignacion_en_lote` y `agentes_visibles_para`; D4-SEG-01: detalle reservado hasta el arreglo. Propuesta: `ve_la_asignacion_en_lote` (queda dicho en D-LIM-01).
 5. **Severidad de D-SEG-02.** D1-SEG-01 la dio MEDIA y D3-SEG-01 BAJA para el mismo hallazgo en dos pantallas, contra el mismo invariante (Cambio 271). La ficha fusionada toma MEDIA (D-SEG-02); el juez puede bajarla.
 6. **D3-FE-01 propone `_ajax_js`; octubre descartó promoverlo.** El paso 2 usa un include que quizá solo exista en `programas/becas/` (descartado §8.1: no promover `_ajax_js`/`_modal_*` a `components/`). Resuelto: ver resolución 6 (data-ajax canónico, sin DECISIÓN CLIENTE).
 7. **Numeración de olas de los revisores.** Los revisores de tajada usaron «Ola» con significados distintos (D1: 1/2/3; D2 y D3: 2/3/4 o «limpieza»; D3 corrección: «RBAC», «config», «constructor»; D4: 2/3). Aquí se reasignaron todas; el campo «Ola» de cada ficha es el de este informe.
@@ -113,7 +113,7 @@ Se citan con los IDs de tajada (la tabla de equivalencia está al final de la se
 | D-LIM-01 | La vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el he… | ALTA | CONFIRMADO | S | 0 | `programas/views/dispositivos_relevamientos.py` |
 | D-LIM-02 | Lógica de dominio y transacción de negocio en la vista del asistente de ingreso | ALTA | CONFIRMADO | S-M | 5 | `programas/views/dispositivos_ingreso.py` |
 | D-LIM-03 | La edición del legajo (diff, contacto, traza y envío) se escribe en la vista | ALTA | CONFIRMADO | S-M | 5 | `programas/views/dispositivos_legajo.py` |
-| D-SEG-01 | Un atajo de alta permite otorgarse un rol propio | MEDIA | CONFIRMADO con test | S | 0 | Dispositivos · usuarios y agentes |
+| D-SEG-01 | Un atajo permite otorgarse un rol propio | MEDIA | CONFIRMADO con test | S | 0 | Dispositivos · usuarios y agentes |
 | D-SEG-02 | El historial muestra texto libre a quien no puede ver a la persona | MEDIA | CONFIRMADO | S | 0 | Dispositivos · historial |
 | D-ERR-01 | Configurar capacidad toma dispositivo→plaza y el ingreso toma plaza→dispositivo: deadlock 1213 | MEDIA | CONFIRMADO con test | S-M | 1 | `programas/services/plazas.py` |
 | D-ERR-02 | Cerrar un dispositivo no mira si tiene personas alojadas o reservas, y después del cierre se p… | MEDIA | CONFIRMADO | M | 3 | `programas/services/dispositivos.py` |
@@ -330,7 +330,7 @@ Lo confirmado primero; después por tema y por archivo, para que los PRs no se p
 
 Tres fichas chicas con arreglo escrito, todas de datos personales o de roles: D-SEG-01 (PoC confirmada), la visibilidad del agente asignado (la ALTA del capítulo) y D-SEG-02. D-SEG-02 lleva DECISIÓN CLIENTE con default aplicable (sección 7). Detalle técnico reservado hasta el arreglo.
 
-- **D-SEG-01** [MEDIA · S] Un atajo de alta permite otorgarse un rol propio
+- **D-SEG-01** [MEDIA · S] Un atajo permite otorgarse un rol propio
 - **D-LIM-01** [ALTA · S] La vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper por lote que existe
 - **D-SEG-02** [MEDIA · S] El historial muestra texto libre a quien no puede ver a la persona
 
@@ -489,7 +489,7 @@ Backlog opcional: JS inline chico, mapeos de tono y arranques de formularios sin
 1. **Orden global de candados: se adopta** el propuesto (**entrada de bitácora → estadías (pk) → plazas (pk) → reservas → ciudadano → dispositivo → sector**). El PR de D-ERR-01 tiene que **verificarlo contra ingreso, egreso, cambio de plaza y reserva** (que tomen las estadías antes que las plazas en ese orden) antes de tocar código, con la PoC de dos hilos; la alternativa común (reintentar ante 1213 con tope) queda como red de seguridad. El orden es el mismo que en Emergencia (E-LIM-15).
 2. **CERRADO contra no ACTIVO: DECISIÓN CLIENTE**, default «cerrado»: una sola `dispositivo_operable(d)` que rechaza `CERRADO` en todo mutador, y «no ACTIVO» solo donde ya se exige (bitácora, reservas). Entra en la sección 7.
 3. **Helpers de formato:** van a `core/texto.py` (y `core/archivos.py` para las extensiones) **si se usan fuera de `programas/`**; si no, a `programas/services/formato.py`. El PR lo decide con `grep` sobre los consumidores (`EXTENSIONES_IMAGEN` ya lo usa `notificaciones/services/paquete.py`, o sea `core/archivos.py`). Un solo PR con la Ola 7 de Emergencia.
-4. **`ve_la_asignacion_en_lote`:** aprobado; el filtro de D4-SEG-01 usa el mismo conjunto.
+4. **`ve_la_asignacion_en_lote`:** aprobado.
 5. **Severidad de D-SEG-02: MEDIA**, como quedó.
 6. **D3-FE-01 (D-FE-02) NO promueve `_ajax_js`** (descartado en octubre, §8.1): se usa el handler `data-ajax` canónico que ya cargan las pantallas de Dispositivos; si ese handler solo existiera en `programas/becas/`, se hace solo el paso 1.
 7. **Numeración de olas:** la de este informe.
@@ -502,10 +502,10 @@ Consolidadas: las reglas de las fichas que dicen lo mismo quedan en una sola fil
 | # | Tipo | Destino | Regla | Fichas |
 |---|---|---|---|---|
 | R-1 | control mecánico | `programas/tests/test_arquitectura.py` · ratchet con `ast` (**regla transversal «lógica de dominio en vistas»**) | Una clase de `programas/views/` o `programas/api/` no abre `transaction.atomic()`, no llama `select_for_update()` ni `.save()`/`.create()`/`.update()` sobre un modelo de dominio, y no decide una regla de privacidad: lo hace un servicio. Lista congelada de lo existente (D-LIM-02, D-LIM-03, D-LIM-09, D-LIM-01, D-LIM-31, D-ERR-07); el conjunto no puede crecer. Mensaje: «La vista orquesta, el servicio decide: mové esto a `services/`». No confundir con el ratchet de aristas vista → vista (RED-79), que octubre refutó. Misma regla que Becas ola 7 (B-LIM-01 a B-LIM-06) y E-LIM-01. | D-ERR-07, D-LIM-01, D-LIM-02, D-LIM-03, D-LIM-09, D-LIM-31 |
-| R-2 | control mecánico | `users/tests/` o `programas/tests/test_roles_atajos.py` · ratchet | Todo atajo que otorga roles aplica la misma guarda que el ABM de usuarios (`roles_propios_bloqueados`, patrón de #1114). Un test recorre los servicios y vistas que otorgan grupos y exige que importen la guarda, con lista congelada; y un test de comportamiento por atajo, con mutación (quitar la guarda y ver el test rojo). | D-SEG-01 |
+| R-2 | control mecánico | `users/tests/` o `programas/tests/test_roles_atajos.py` · ratchet | Todo atajo que otorga roles aplica la misma guarda que el ABM de usuarios (la guarda del ABM de usuarios, patrón de #1114). Un test recorre los servicios y vistas que otorgan grupos y exige que importen la guarda, con lista congelada; y un test de comportamiento por atajo, con mutación (quitar la guarda y ver el test rojo). | D-SEG-01 |
 | R-3 | control mecánico | `programas/tests/test_orden_candados.py` + skill `.claude/skills/mysql-mariadb/` | Orden global de candados de Dispositivos y Emergencia: **entrada de bitácora → estadías (pk) → plazas (pk) → reservas → ciudadano → dispositivo → sector**. Todo servicio que toma dos o más lo hace con un helper único (`bloquear_en_orden(...)`). Test de concurrencia con dos hilos sobre los dos caminos de la PoC, etiquetado `concurrencia`, que corre solo contra MariaDB (job efímero) con `DJANGO_SYNCDB_PROJECT_APPS=False`. Skill: «una transacción que toma más de un candado los toma siempre en el orden del módulo; ante un 1213 se reintenta la transacción entera con tope, nunca se deja pasar un 500». | D-ERR-01, D-PERF-06, D-PERF-07 |
 | R-4 | control mecánico | `programas/tests/test_privacidad_texto_libre.py` (invariante del Cambio 271 para texto libre) | Un usuario con `dispositivo.ver` y sin `ciudadano.ver` recorre las pantallas de un dispositivo con datos libres y personales sembrados con un centinela; el test falla si el centinela aparece. Se agrega una pantalla a la lista cada vez que se agrega una que muestra texto de otro. Regla: el texto libre y los datos de personas solo salen con `ciudadano.ver`. | D-SEG-02, D-SEG-03, D-SEG-04, D-SEG-05, D-LIM-04, D-LIM-05 |
-| R-5 | control mecánico | `programas/tests/test_alcance_asignacion.py` · «un solo dueño» | «Quién ve al agente asignado» tiene un solo dueño (`ve_la_asignacion` / `ve_la_asignacion_en_lote` en `services/inspecciones.py`). El test busca `asignado_a`/`agente_asignado` en vistas, selectores y templates y falla si aparece fuera del dueño y de una lista congelada. Test funcional: un usuario sin `inspeccion.agente.ver` filtra por «Asignado a» y no obtiene ni filas ni conteos de los relevamientos que la fila oculta (Cambio 428). | D-LIM-01 |
+| R-5 | control mecánico | `programas/tests/test_alcance_asignacion.py` · «un solo dueño» | «Quién ve al agente asignado» tiene un solo dueño (`ve_la_asignacion` / `ve_la_asignacion_en_lote` en `services/inspecciones.py`). El test busca `asignado_a`/`agente_asignado` en vistas, selectores y templates y falla si aparece fuera del dueño y de una lista congelada. Test funcional: reservado hasta el arreglo. | D-LIM-01 |
 | R-6 | control mecánico | `programas/tests/test_arquitectura.py` · ratchet de traductores | Un `except (ValidationError, EstadoCambio, ...)` en `programas/views/` o `programas/api/` que arma una respuesta a mano se congela; las vistas nuevas usan el traductor único de la superficie (`respuestas.py` / `handle_exception`). Mensaje: «Traducí el error con el traductor de la superficie, no con un try/except propio». Los cuerpos de la API de campo (`detail`, `non_field_errors`) no cambian sin test de contrato y release coordinado con Chaco-mobile. Coordinado con E-LIM-12, E-LIM-13, E-LIM-14 y B-LIM-65. | D-LIM-13, D-LIM-34, D-LIM-35 |
 | R-7 | control mecánico | `programas/tests/test_arquitectura.py` · ratchet de tamaño | Ningún archivo de `programas/` pasa de 1.000 líneas y ninguna función de 250, salvo una lista congelada que solo baja: `views/dispositivos_legajo.py` (1659), `services/estadias.py`, `services/inspecciones.py`, `services/detalle_dispositivo.py` (893) y `pantalla_bitacora` (318 líneas en una función). Mensaje: «Partí el módulo por responsabilidad antes de agregarle código». | D-LIM-20, D-LIM-24, D-LIM-25, D-LIM-27, D-LIM-30, D-LIM-39, D-LIM-46 |
 | R-8 | control mecánico | `programas/tests/test_dispositivo_cerrado.py` · tabla de mutadores | Una tabla (`MUTADORES_DE_DISPOSITIVO`) lista cada función pública de `services/dispositivos.py`, `estadias.py` y `plazas.py` que escribe; un test parametrizado la ejecuta con un dispositivo `CERRADO` y exige `ValidationError` (y, para las que toman una plaza, sin 500 si la plaza se desactivó en paralelo). Otro test recorre las funciones públicas del módulo y falla si una que escribe no está en la tabla. La guarda vive en el servicio, no en la vista. | D-ERR-02, D-ERR-09 |
@@ -748,7 +748,7 @@ Volumen que pide cada ficha (se siembra una vez, ver 8.c):
 Obligatorias (ALTA de corrección o seguridad): **ninguna ficha ERR/SEG es ALTA**. Las dos con PoC pedida están **ya ejecutadas y CONFIRMADAS** (8.0):
 
 - **D-ERR-01** [MEDIA · CONFIRMADO con test] Configurar capacidad toma dispositivo→plaza y el ingreso toma plaza→dispositivo: deadlock 1213
-- **D-SEG-01** [MEDIA · CONFIRMADO con test] Un atajo de alta permite otorgarse un rol propio
+- **D-SEG-01** [MEDIA · CONFIRMADO con test] Un atajo permite otorgarse un rol propio
 
 Recomendadas (ERR/SEG con estado PLAUSIBLE, o con daño de datos si se confirma):
 
@@ -792,38 +792,17 @@ Ordenadas por severidad y eje. Los IDs son los finales `D-<EJE>-NN`; el ID de la
 ### D-LIM-01 · La vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper por lote que existe
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Eje:** LIM · **Origen:** fusión de D4-LIM-05 + D4-SEG-01 · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** D4-LIM-05 + D4-SEG-01 (**hallado por 2 revisores**)
-- **Hallado por 2 revisores (sube de peso):** D4-LIM-05 (calidad: la vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper) y D4-SEG-01 (seguridad: el filtro «Asignado a» no aplica la misma regla de visibilidad que la fila). Son **la misma regla en dos puntos** (la columna y el filtro) y se arreglan con el mismo helper de alcance de asignación (`ve_la_asignacion` / `edificios_con_asignacion_visible`, `services/inspecciones.py:1071-1106`). Se conserva la severidad ALTA de D4-LIM-05.
-- **Parte del patrón «lógica de dominio en vistas»** (regla R-1). Los nombres de los helpers nuevos difieren entre las dos soluciones (contradicción 4 de la sección 1): se unifica en `ve_la_asignacion_en_lote(user, relevamientos) -> set[pk]`, con el filtro de D4-SEG-01 expresado sobre el mismo conjunto.
-- **Ubicación:** `programas/views/dispositivos_relevamientos.py:301-306` y `:348-356`; helper ignorado:
-  `programas/services/inspecciones.py:1095-1106` (`edificios_con_asignacion_visible`); regla canónica
-  `:1071-1092` (`ve_la_asignacion`)
-- **Escenario:** la decisión del juez «la institución relevada no ve el nombre del agente» (docstring de
-  `ve_la_asignacion`: «La regla vive acá y no en el template») está escrita una tercera y cuarta vez en la vista:
-  `Q(edificio__in=edificios_en_alcance(user, CAP_ASIGNAR)) | Q(asignado_a_id=user.pk)` para las opciones de la
-  píldora «Asignado a», y `relevamiento.edificio_id in en_alcance or relevamiento.asignado_a_id == user.pk` por
-  fila. Si la regla cambia en el servicio (por ejemplo, sumar al revisor), la píldora y la columna «Asignado a» de
-  P21 siguen con la vieja y el nombre del agente aparece donde el informe ya lo oculta.
-- **Causa raíz:** el helper por lote se agregó para la solapa Infraestructura y la vista de P21 no se migró. Lo
-  mismo pasa con `_preparar_modales` (`:520-523`), que arma «relevamientos en curso del alcance» con un queryset en
-  la vista en vez de pedirlo al servicio.
-- **Solución:** en la vista, `en_alcance = edificios_con_asignacion_visible(user, ids_de_la_pagina)` y
-  `ve = r.edificio_id in en_alcance or r.asignado_a_id == user.pk` pasa a un helper
-  `ve_la_asignacion_en_lote(user, relevamientos) -> set[pk]` en el mismo módulo que `ve_la_asignacion` (que pasa a
-  delegar en él). Para la píldora: `agentes_visibles_para(user, visibles)` en el servicio. `gestionables` →
-  `inspecciones_gestionables(user)` en el servicio. Mismo SQL, mismo resultado.
-- **Lo que NO hay que hacer:** «simplificar» usando `inspecciones_visibles` como criterio de la píldora: incluiría a
-  la institución, que ve el relevamiento pero no al agente.
-- **Tests a agregar:** `programas/tests/test_dispositivos_relevamientos_listado.py::AsignacionVisibleTests.test_pildora_y_columna_usan_la_regla_del_servicio`
-  — con `mock.patch` de la regla del servicio devolviendo vacío, ni la píldora ni la columna muestran nombres (hoy
-  pasaría en rojo: prueba que la vista no la consulta).
-- **Verificación:** el test anterior, rojo antes y verde después (mutación).
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md`, sección datos personales ·
-  «Una regla de visibilidad que tiene función en el servicio (`ve_la_asignacion`, `puede_*`) no se reescribe como
-  `Q(...)` o `in` en la vista: si falta la versión por lote, se agrega al lado de la original y la original delega».
+- **Hallado por 2 revisores (sube de peso):** D4-LIM-05 (calidad: la vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper) y D4-SEG-01: detalle reservado hasta el arreglo. Se arreglan con el mismo helper de alcance de asignación.
+- **Parte del patrón «lógica de dominio en vistas»** (regla R-1). Se unifica en `ve_la_asignacion_en_lote(user, relevamientos) -> set[pk]` (contradicción 4 de la sección 1).
+- **Ubicación:** `programas/views/dispositivos_relevamientos.py` y `programas/services/inspecciones.py` (helper por lote y regla canónica).
+- **Escenario:** la regla de quién ve al agente asignado está reescrita en la vista, y la píldora y la columna no usan el helper del servicio. Si la regla cambia en el servicio, la vista queda con la vieja.
+- **Causa raíz:** el helper por lote se agregó para la solapa Infraestructura y la vista de P21 no se migró.
+- **Solución:** que la vista use un helper por lote junto a la regla canónica del servicio (que pasa a delegar en él), y que la píldora pida sus opciones al servicio. Mismo SQL, mismo resultado.
+- **Tests a agregar:** un test que reemplaza la regla del servicio y verifica que la vista la consulta (rojo antes, verde después).
+- **Verificación:** el test anterior, con mutación.
+- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md`, sección datos personales · «Una regla de visibilidad que tiene función en el servicio no se reescribe en la vista: si falta la versión por lote, se agrega al lado de la original y la original delega».
 
-#### Aporte del segundo revisor (D4-SEG-01: el filtro «Asignado a» no aplica la misma regla de visibilidad que la fila)
-_Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
-
+#### Aporte del segundo revisor (D4-SEG-01)
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
 
 ---
@@ -890,7 +869,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ---
 
-### D-SEG-01 · Un atajo de alta permite otorgarse un rol propio
+### D-SEG-01 · Un atajo permite otorgarse un rol propio
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (PoC reproducida; test en el PR que la arregla) · **Eje:** SEG · **Origen:** thermos-correccion · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** D3-SEG-02
 - **Escenario:** Un operador puede otorgarse un rol que su perfil no debería darle.

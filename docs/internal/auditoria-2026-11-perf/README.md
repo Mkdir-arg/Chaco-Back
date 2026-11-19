@@ -44,7 +44,7 @@ Esfuerzo con S = 2 h, S-M = 4 h, M = 8 h, L = 20 h. Ninguna ficha es CRÍTICA.
 |---|---|---|
 | Becas | Ola 0 (altas a SIIS que se saltean la lista «no enviar», B-SEG-04 con el detalle reservado hasta el arreglo) y Ola 1 (la carga del padrón deja tomada la convocatoria y el link público espera más de 10 s) | B-PERF-01 espera la medición; el XSS del export (B-SEG-01) ya salió |
 | Emergencia | Ola 0 (queda E-ERR-04 y el seguimiento de las dos ALTA, [sección 10](emergencia.md)) y Ola 1 (idempotencia desde la web) | La Ola 2 es performance y va después de medir |
-| Dispositivos | Ola 0 (roles propios, agente asignado, motivo libre) y Ola 1 (orden global de candados) | El orden de candados se verifica contra ingreso, egreso, cambio de plaza y reserva antes de tocar código |
+| Dispositivos | Ola 0 (roles propios, agente asignado, texto libre en el historial) y Ola 1 (orden global de candados) | El orden de candados se verifica contra ingreso, egreso, cambio de plaza y reserva antes de tocar código |
 
 ## Decisiones de cliente pendientes
 
@@ -84,7 +84,7 @@ Cada informe consolida las suyas en la sección 4: 76 en Becas (28 control mecá
 |---|---|---|---|---|
 | RP-1 | skill + rúbrica | `.claude/skills/seguridad-django/SKILL.md` (API de campo) y `.claude/skills/auditoria/rubricas/` (seguridad) | **La idempotencia por `uuid_cliente` pasa la guarda de alcance en todas las ramas `ya_existia`.** Es un atajo de lectura: el objeto que devuelve el reenvío pasa la misma guarda que un GET de ese objeto (dispositivo de la URL, alcance vigente), también en la rama de carrera del `UNIQUE`. En la revisión: por cada `ya_existia`/`ya_estaba`, ¿qué alcance se exigió sobre el objeto **encontrado**, no sobre el de la URL? | E-SEG-01 (#1204) y su seguimiento 1 |
 | RP-2 | skill | `.claude/skills/seguridad-django/SKILL.md` (datos personales) | **Toda resolución por DNI que escribe compara el nombre** (`nombre_en_conflicto`): toda resolución de persona por DNI que escribe sobre el legajo o le abre una estadía compara nombre y apellido declarados con el legajo encontrado; el DNI solo identifica, no autoriza a escribir. | E-ERR-01 (#1205) |
-| RP-3 | control mecánico + skill | `users/tests/` o `programas/tests/test_roles_atajos.py` (ratchet) y `.claude/skills/seguridad-django/SKILL.md` | **Todo atajo que otorga roles aplica la misma guarda que el ABM de usuarios** (`roles_propios_bloqueados`, patrón de #1114). Un test recorre los servicios y vistas que otorgan grupos y exige que importen la guarda, con lista congelada, y un test de comportamiento por atajo, con mutación. | D-SEG-01 (R-2 de dispositivos.md) |
+| RP-3 | control mecánico + skill | `users/tests/` o `programas/tests/test_roles_atajos.py` (ratchet) y `.claude/skills/seguridad-django/SKILL.md` | **Todo atajo que otorga roles aplica la misma guarda que el ABM de usuarios** (la guarda del ABM de usuarios, patrón de #1114). Un test recorre los servicios y vistas que otorgan grupos y exige que importen la guarda, con lista congelada, y un test de comportamiento por atajo, con mutación. | D-SEG-01 (R-2 de dispositivos.md) |
 
 ## Archivos
 

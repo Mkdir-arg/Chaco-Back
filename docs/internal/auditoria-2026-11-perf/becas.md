@@ -77,7 +77,7 @@ Halladas al consolidar (mismo archivo:línea y mismo problema):
 | B-PERF-06 ← B3-PERF-01 | B4-ERR-03 | retención de hasta `--total` casos con sus JSON: `procesar_casos_siis.py:433` y `proceso_masivo.correr` (`:1098-1105`), el mismo patrón |
 | B-LIM-71 ← B6-LIM-10 | B6-PERF-04 | `catalogo_geografico.py:57-59`: `par_coherente_en_catalogo` consulta en vivo; la misma solución (usar el catálogo cacheado) cierra la divergencia y la consulta |
 
-Relaciones que NO se fusionaron (otro problema en el mismo archivo; van cruzadas en las fichas): B-FE-02/B-SEG-02 (misma regla de lectura en dos capas), B-ERR-27/B-DAT-02 (`eliminacion.py`, hijo vivo vs COUNT bajo lock), B-PERF-19/B-PERF-06 (ids de todos los candidatos vs casos hidratados en `proceso_masivo.py:1098`), B-LIM-61 (`_lotes` y cierre de corrida, comparte `_lotes` con B-LIM-46), B-ERR-07/B-LIM-26 (drenaje de la tabla intermedia).
+Relaciones que NO se fusionaron (otro problema en el mismo archivo; van cruzadas en las fichas): B-ERR-27/B-DAT-02 (`eliminacion.py`, hijo vivo vs COUNT bajo lock), B-PERF-19/B-PERF-06 (ids de todos los candidatos vs casos hidratados en `proceso_masivo.py:1098`), B-LIM-61 (`_lotes` y cierre de corrida, comparte `_lotes` con B-LIM-46), B-ERR-07/B-LIM-26 (drenaje de la tabla intermedia).
 
 ## 2. Índice
 
