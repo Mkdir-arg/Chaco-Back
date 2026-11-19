@@ -105,5 +105,6 @@ lo que corresponda.
 - Métricas que nadie usa para decidir.
 - **Ranura de cuerpo.** La pieza no acepta contenido libre. Una tarjeta que necesita
   minigráfico o barra de progreso se escribe en la pantalla **con el mismo esqueleto**
-  (es lo que hacen dos de las seis de `becas/config/_dashboard_panel.html`), hasta que
-  exista el **arquetipo Dashboard**. No se le inventa una ranura.
+  (es lo que hacen dos de las seis de `becas/config/_dashboard_panel.html`). El arquetipo
+  Dashboard tampoco la trae: un minigráfico o una barra dentro de la tarjeta sigue siendo
+  novedad (`arquetipos/dashboard.md`, *Qué no cubre la golden*). No se le inventa una ranura.

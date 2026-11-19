@@ -53,7 +53,7 @@ sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes h
 2. **(A) Ajuste:** tocá solo el bloque pedido. Si ese bloque tiene una pieza canónica
    equivalente, usala en ese bloque y en ningún otro. Saltá al paso 9.
 3. **(B) Elegí el arquetipo** de la tabla *Arquetipos*. Si no encaja o figura como
-   pendiente (dashboard): **no escribas**, devolvé la tarea al
+   pendiente (sin molde): **no escribas**, devolvé la tarea al
    llamador con el motivo.
 4. **Abrí la golden completa** y su ficha, y las fichas de los componentes que cita.
 5. **Mirá la hermana del módulo** con Grep o Glob (nunca `grep -r`, que entra a
@@ -164,7 +164,8 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Arquetipo · Modal | Canónico reutilizable | Golden `programas/templates/programas/becas/config/programa_list.html` (modal «Nuevo programa») — alta o edición corta sin salir de la pantalla, y confirmación con motivo. Ficha: `.claude/design/arquetipos/modal.md` |
 | Arquetipo · Confirmación | Canónico reutilizable | Golden `programas/templates/programas/becas/_confirm_js.html` + botón `data-confirm-url` → `ModernModal` — sí/no sin pedir datos. Ficha: `.claude/design/arquetipos/confirmacion.md` |
 | Arquetipo · Wizard | Canónico reutilizable | Golden `configuracion/templates/configuracion/programa_wizard_paso4.html` (paso final: resumen + confirmar) — alta o edición en varios pasos con validación por paso y resumen antes de confirmar. Indicador de pasos: `templates/components/_stepper.html`. Ficha: `.claude/design/arquetipos/wizard.md` |
-| Pendiente · dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** El dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
+| Arquetipo · Dashboard | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/tablero/tablero_referencia.html` (referencia sin vista) — primera pantalla de un programa: hero, una barra de píldoras, franja grande de métricas, solapas y paneles con «Necesita atención» y tablas. Ficha: `.claude/design/arquetipos/dashboard.md` |
+| Pendiente · sin molde | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** El dashboard de Becas y la revisión compleja de Becas no son molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
 | Arquetipo · Revision | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/estadia/revision_referencia.html` — una persona con su ficha por secciones plegables (con avance y bloqueo por sensibilidad), línea de tiempo y acciones. Ficha: `.claude/design/arquetipos/revision.md` |
 
 ## Inventario operativo inicial

@@ -202,6 +202,7 @@ STEPPER = "components/_stepper.html"
 LINEA_TIEMPO = "components/_linea_tiempo.html"
 FICHA_SECCION = "components/_ficha_seccion.html"
 REVISION = "programas/dispositivos/estadia/revision_referencia.html"
+TABLERO = "programas/dispositivos/tablero/tablero_referencia.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -1352,6 +1353,99 @@ class RevisionReferenciaTest(TestCase):
 
         self.assertNotIn("\U0001f512", html)
         self.assertNotIn("\U0001f4ce", html)
+
+
+class TableroReferenciaTest(TestCase):
+    """La golden del arquetipo Dashboard se renderiza con los datos de ejemplo del mockup del tablero."""
+
+    def _contexto(self):
+        return {
+            "titulo": "Red de dispositivos",
+            "eyebrow": "Programa Dispositivos · Abordaje Psicosocial",
+            "resumen": "538 de 554 plazas ocupadas en 18 dispositivos de 14 localidades.",
+            "url_accion": "/dispositivos/",
+            "accion_texto": "Ver instituciones",
+            "accion_icono": "fa-building",
+            "pildoras": [
+                {"nombre": "tipo", "etiqueta": "Tipo", "opciones": [("1", "Hogar"), ("2", "Parador")], "valor": ""},
+            ],
+            "ocultos": [("tab", "resumen")],
+            "url_limpiar": "/tablero/",
+            "actualizado": "10:42",
+            "tarjetas": [
+                {"etiqueta": "Ocupación de la red", "valor": "97", "sufijo": " %", "nota": "538 de 554 plazas"},
+                {"etiqueta": "Plazas libres", "valor": "16", "icono": "fa-bed", "tono": "success"},
+            ],
+            "atencion_resumen": "1 dispositivo pide atención",
+            "atencion": [
+                {
+                    "tono": "danger",
+                    "icono": "triangle-exclamation",
+                    "titulo": "Hogar San José está sobre el umbral crítico",
+                    "texto": "Ocupación 96 %.",
+                    "url": "/d/1/",
+                    "accion": "Ver dispositivo",
+                }
+            ],
+            "red_resumen": "18 dispositivos activos",
+            "url_listado": "/dispositivos/",
+            "filas": [
+                {
+                    "nombre": "Hogar San José",
+                    "url": "/d/1/",
+                    "tipo": "Hogar",
+                    "localidad": "Resistencia",
+                    "ocupacion": {"texto": "96 % · Crítica", "tono": "danger", "icono": "fa-circle-exclamation"},
+                    "libres": 1,
+                    "relevamiento": {"texto": "Vencido", "tono": "danger", "icono": "fa-clock"},
+                }
+            ],
+        }
+
+    def _html(self, query="/", **cambios):
+        contexto = {**self._contexto(), **cambios}
+        request = RequestFactory().get(query)
+        request.user = User.objects.filter(username="u").first() or User.objects.create_user(
+            username="u", password="x", is_superuser=True
+        )
+        return render_to_string(TABLERO, contexto, request=request)
+
+    def test_dibuja_hero_filtros_franja_atencion_y_tabla(self):
+        html = self._html()
+
+        self.assertIn('<h1 class="nodo-hero__titulo">Red de dispositivos</h1>', html)
+        self.assertIn("538 de 554 plazas ocupadas", html)
+        self.assertIn('aria-label="Filtros rápidos"', html)
+        self.assertIn('<input type="hidden" name="tab" value="resumen">', html)
+        self.assertIn("Actualizado a las 10:42", html)
+        self.assertIn("nodo-stat-tablero", html)
+        self.assertIn("Ocupación de la red", html)
+        self.assertIn("Hogar San José está sobre el umbral crítico", html)
+        self.assertIn("96 % · Crítica", html)
+        self.assertIn('<caption class="sr-only">', html)
+
+    def test_un_solo_h1_y_el_filtro_conserva_la_solapa_visible(self):
+        html = self._html()
+
+        self.assertEqual(html.count("<h1"), 1)
+        self.assertIn("@submit.capture=", html)
+
+    def test_solapas_con_aria(self):
+        html = self._html()
+
+        for tab in ("resumen", "mapa"):
+            self.assertIn(f'id="tab-{tab}" aria-controls="panel-{tab}"', html)
+            self.assertIn(f'id="panel-{tab}" aria-labelledby="tab-{tab}"', html)
+        self.assertIn('role="tablist" aria-label="Vistas del tablero"', html)
+
+    def test_sin_avisos_dice_nada_pendiente(self):
+        self.assertIn("Nada pendiente", self._html(atencion=[]))
+
+    def test_tabla_vacia_por_filtros_ofrece_limpiar_y_la_solapa_no_cuenta_como_filtro(self):
+        self.assertIn("Ningún dispositivo coincide con el filtro", self._html("/?tipo=1&tab=mapa", filas=[]))
+        sin_filtro = self._html("/?tab=mapa", filas=[])
+        self.assertIn("Todavía no hay dispositivos activos", sin_filtro)
+        self.assertNotIn(">Limpiar</a>", sin_filtro)
 
 
 class FormErroresTest(SimpleTestCase):
