@@ -17,6 +17,7 @@ from _bootstrap import cargar_django  # noqa: E402
 
 cargar_django()
 
+import rutas_emergencia_dispositivos  # noqa: E402
 from django.core.cache import cache  # noqa: E402
 from django.db import connection, reset_queries  # noqa: E402
 from django.test import Client  # noqa: E402
@@ -27,7 +28,7 @@ from scripts.perf_audit import build_clients, build_targets, duplicate_query_gro
 
 
 def _extra_targets():
-    from programas.models import Convocatoria, ProgramaSiis, Relevamiento
+    from programas.models import Convocatoria, Formulario, ProgramaSiis, Relevamiento
 
     rel = Relevamiento.objects.filter(tipo=Relevamiento.Tipo.PUBLICO).order_by("-pk").first()
     conv = rel.convocatoria if rel else Convocatoria.objects.order_by("pk").first()
@@ -123,16 +124,28 @@ def _extra_targets():
         )
     # PERF-13: la bandeja de personas filtrada por un estado que casi no existe. El
     # recorte (relevamiento IN … AND estado = X) y el orden (creado DESC) viven en
-    # índices distintos, así que el motor elige uno y paga el otro. Lo crea
-    # `escenarios_borde.py`, que marca 400 de 20.000 casos como BAJA.
-    extras.append(
-        {
-            "key": "revision_bandeja_estado_raro",
-            "actor": "backoffice",
-            "url": reverse("becas:revision") + "?estado=BAJA&page=10",
-        }
-    )
+    # índices distintos, así que el motor elige uno y paga el otro. Los casos BAJA los
+    # crea `escenarios_borde.py`; sin ellos la pantalla pedía una página que no existe
+    # y devolvía 404 (se medía el 404, no la consulta), así que el target solo entra si
+    # hay BAJA, y pide la última página en vez de una fija.
+    if Formulario.objects.filter(estado=Formulario.Estado.BAJA).exists():
+        extras.append(
+            {
+                "key": "revision_bandeja_estado_raro",
+                "actor": "backoffice",
+                "url": reverse("becas:revision") + "?estado=BAJA&page=last",
+            }
+        )
+    else:
+        print("aviso: sin casos BAJA (corré escenarios_borde.py); se omite revision_bandeja_estado_raro")
     return extras
+
+
+def _consumir(resp):
+    """Lee el cuerpo entero. Una descarga en streaming (CSV/XLSX) no tiene ``.content``: se recorre."""
+    if getattr(resp, "streaming", False):
+        return sum(len(parte) for parte in resp.streaming_content)
+    return len(resp.content)
 
 
 def _medir(client, target):
@@ -147,7 +160,7 @@ def _medir(client, target):
     with CaptureQueriesContext(connection) as cap:
         t0 = time.perf_counter()
         resp = _pedir()
-        _ = resp.content
+        _consumir(resp)
         frio = (time.perf_counter() - t0) * 1000
     consultas = list(cap.captured_queries)
     lentas = sorted(((float(q["time"]) * 1000, q["sql"][:160]) for q in consultas), reverse=True)[:3]
@@ -155,7 +168,7 @@ def _medir(client, target):
     calientes = []
     for _ in range(3):
         t0 = time.perf_counter()
-        _ = _pedir().content
+        _consumir(_pedir())
         calientes.append((time.perf_counter() - t0) * 1000)
     return {
         "status": resp.status_code,
@@ -176,7 +189,9 @@ def main():
     manifest = build_targets()
     clients = build_clients(manifest["actors"])
     clients["anon"] = Client()
-    targets = manifest["targets"] + _extra_targets()
+    targets_ed, clients_ed = rutas_emergencia_dispositivos.construir()
+    clients.update(clients_ed)
+    targets = manifest["targets"] + _extra_targets() + targets_ed
     solo = {s for s in args.solo.split(",") if s}
     resultados = {}
     print(f"{'ruta':36} {'st':>3} {'frío ms':>8} {'cal ms':>7} {'q':>4} {'dup':>4} {'sql ms':>7}")
