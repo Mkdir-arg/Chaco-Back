@@ -1,0 +1,74 @@
+{% load nodo_ui %}{% comment %}
+Gráfico de barras pareadas: dos series por período (p. ej. casos nuevos y familias alojadas por día), dibujado
+por el servidor sin JS, con leyenda y tabla equivalente.
+  {% include "components/_barras_pareadas.html" with id="evolucion" titulo="Evolución de los últimos 7 días" serie_a="Casos nuevos" serie_b="Familias alojadas" periodos=evolucion only %}
+Contexto:
+  periodos      lista armada por la vista o el selector, en orden, con TODOS los períodos de la ventana (un
+                período sin datos va con 0, no se omite): dicts con `etiqueta` (texto de la fila y del par),
+                `a` y `b` (enteros; None cuenta 0) y `eje` opcional (rótulo corto bajo el par; por defecto
+                `etiqueta`).
+  serie_a       nombre de la primera serie (leyenda, columna y descripción de cada par). Color de marca.
+  serie_b       nombre de la segunda serie. Gris neutro.
+  titulo        nombre accesible del gráfico y caption de la tabla.
+  id            opcional, prefijo de los id (por defecto «barras»); obligatorio distinto si hay dos en la página.
+  periodo       opcional, encabezado de la columna de períodos (por defecto «Período»).
+  tabla_abierta opcional, True deja la tabla desplegada.
+La escala y los totales salen del filtro `resumen_barras`: tope = máximo par, guía al medio, y con todo en cero las
+barras quedan vacías sin dividir. La altura viaja como custom property (`--alto`), clases en nodo-barras.css.
+{% endcomment %}{% with r=periodos|resumen_barras prefijo=id|default:"barras" %}
+<div class="nodo-barras" data-barras-pareadas>
+  <div class="nodo-barras__grafico">
+    <div class="nodo-barras__eje-y" aria-hidden="true"><span>{{ r.tope }}</span><span>{% if r.tope %}{{ r.medio }}{% endif %}</span><span>0</span></div>
+    <div class="nodo-barras__area">
+      <div class="nodo-barras__plot" role="img" aria-label="{{ titulo }}: {{ r.total_a }} {{ serie_a|lower }} y {{ r.total_b }} {{ serie_b|lower }} en total. El detalle por período está en la tabla de datos.">
+        <div class="nodo-barras__guia nodo-barras__guia--tope" aria-hidden="true"></div>
+        <div class="nodo-barras__guia nodo-barras__guia--medio" aria-hidden="true"></div>
+        <div class="nodo-barras__pares">
+          {% for p in periodos %}{% with a=p.a|default:0 b=p.b|default:0 %}
+          <div class="nodo-barras__par" title="{{ p.etiqueta }}: {{ a }} {{ serie_a|lower }} · {{ b }} {{ serie_b|lower }}">
+            <span class="nodo-barras__barra nodo-barras--a" style="--alto:{% widthratio a r.tope 100 %}%"></span>
+            <span class="nodo-barras__barra nodo-barras--b" style="--alto:{% widthratio b r.tope 100 %}%"></span>
+          </div>
+          {% endwith %}{% endfor %}
+        </div>
+      </div>
+      <div class="nodo-barras__eje-x" aria-hidden="true">{% for p in periodos %}<span>{% firstof p.eje p.etiqueta %}</span>{% endfor %}</div>
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-body">
+    <span class="inline-flex items-center gap-2"><span class="nodo-barras__muestra nodo-barras--a" aria-hidden="true"></span>{{ serie_a }} · {{ r.total_a }}</span>
+    <span class="inline-flex items-center gap-2"><span class="nodo-barras__muestra nodo-barras--b" aria-hidden="true"></span>{{ serie_b }} · {{ r.total_b }}</span>
+  </div>
+  <details class="nodo-barras__tabla mt-3"{% if tabla_abierta %} open{% endif %}>
+    <summary class="cursor-pointer text-sm font-semibold text-fg-brand">Ver la tabla de datos</summary>
+    <div class="overflow-x-auto mt-2">
+      <table class="w-full border-collapse" id="{{ prefijo }}-tabla">
+        <caption class="sr-only">{{ titulo }}</caption>
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th" scope="col">{{ periodo|default:"Período" }}</th>
+            <th class="nodo-th text-right" scope="col">{{ serie_a }}</th>
+            <th class="nodo-th text-right" scope="col">{{ serie_b }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periodos %}
+          <tr>
+            <td class="nodo-td text-heading font-medium">{{ p.etiqueta }}</td>
+            <td class="nodo-td text-right tabular-nums">{{ p.a|default:0 }}</td>
+            <td class="nodo-td text-right tabular-nums">{{ p.b|default:0 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="nodo-td text-heading font-bold">Total</td>
+            <td class="nodo-td text-right tabular-nums font-bold text-heading">{{ r.total_a }}</td>
+            <td class="nodo-td text-right tabular-nums font-bold text-heading">{{ r.total_b }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </details>
+</div>
+{% endwith %}

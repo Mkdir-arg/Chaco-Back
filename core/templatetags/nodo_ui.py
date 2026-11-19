@@ -118,6 +118,31 @@ def menos(valor, otro):
         return None
 
 
+def _entero(valor):
+    try:
+        return int(valor or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+@register.filter
+def resumen_barras(periodos):
+    """Escala y totales del gráfico de barras pareadas (``components/_barras_pareadas.html``).
+
+    ``tope`` es el máximo de las dos series redondeado hacia arriba a par, para que la guía
+    del medio (``medio``) sea un entero; con todo en cero, ``tope`` es 0 y las barras quedan
+    vacías sin dividir. Un valor que falta o no es entero cuenta como 0.
+    """
+    total_a = total_b = maximo = 0
+    for periodo in periodos or ():
+        a, b = _entero(periodo.get("a")), _entero(periodo.get("b"))
+        total_a += a
+        total_b += b
+        maximo = max(maximo, a, b)
+    tope = maximo + maximo % 2
+    return {"tope": tope, "medio": tope // 2, "total_a": total_a, "total_b": total_b}
+
+
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3
