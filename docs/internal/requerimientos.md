@@ -59305,7 +59305,13 @@ Abastecimiento (E-7b): las dos son un estado vacío y no suman consultas.
    `Estadia.fecha_egreso`. `Derivacion` va compuesto con `creado` y el selector agrega `creado >= desde` a la rama de
    rechazadas y vencidas (implicado: una derivación nace después que su caso); con solo `estado` el motor seguía
    recorriendo la tabla. `EntregaKit.estado` hace falta para el *index merge* del `OR` con `EN_CAMINO`.
-10. **MINOR de C3 (#1210):** `porcentaje_barra` delega en `entero_o_none`; el alto contraste de la pista usa la clase gancho
+10. **Recortes y solapa** (auditoría del PR #1226): «Con gente y sin entrega recibida en 48 h» lista a lo sumo 10 con
+    «Mostrando N de M» (la cifra completa sigue en AE-6); la paginación de la presión vuelve a Resumen
+    (`extra_qs="tab=resumen"`) y «Actualizar» toma la solapa visible al hacer clic (`@click.capture` sobre la acción
+    del hero, como «Limpiar»). Con la tabla paginada, la de pantalla no se imprime y el papel trae la tabla entera con
+    su encabezado y su Total (`_tabla_presion.html`, un solo include para las dos). El p90 que supera el objetivo,
+    además de la negrita, lo dice en `sr-only`.
+11. **MINOR de C3 (#1210):** `porcentaje_barra` delega en `entero_o_none`; el alto contraste de la pista usa la clase gancho
     `nodo-barra-umbral-pista` (ficha `barra_umbral.md`). **MINOR de E-4 (#1224):** Historial y pendiente 1 del Cambio 508
     y los tres docstrings que apuntaban al selector.
 
@@ -59317,7 +59323,7 @@ Abastecimiento (E-7b): las dos son un estado vacío y no suman consultas.
 - `programas/forms_emergencia_situacion.py`, `programas/views/emergencia_situacion.py`, `programas/emergencia_urls.py`
   (`emergencia:situacion`), `programas/services/pantalla_situacion_emergencia.py`,
   `programas/selectors/emergencia_situacion.py` (`con_filtros`, filtro implicado de derivaciones).
-- `programas/templates/programas/emergencia/situacion/situacion.html` y `_fila_presion.html`;
+- `programas/templates/programas/emergencia/situacion/situacion.html`, `_tabla_presion.html` y `_fila_presion.html`;
   `programas/templates/programas/emergencia/tablero.html` y `programas/views/emergencia_tablero.py` (enlace a E8);
   `templates/includes/sidebar/opciones.html`.
 - `static/custom/css/nodo-impresion.css`; `templates/components/_barra_umbral.html`,
@@ -59330,7 +59336,8 @@ Abastecimiento (E-7b): las dos son un estado vacío y no suman consultas.
 
 ## Archivos
 
-Los de «Implementación», más `programas/tests/test_emergencia_situacion_vista.py` (nuevo),
+Los de «Implementación», más `programas/tests/test_emergencia_situacion_vista.py` y
+`programas/tests/test_pantalla_situacion_emergencia.py` (nuevos), `.claude/design/componentes/tabs.md`,
 `programas/tests/test_emergencia_situacion.py` (el banco del presupuesto pasa a `BancoSituacion`),
 `core/tests/test_nodo_ui_emergencia.py` y `core/tests/test_nodo_ui_piezas.py` (`HojaDeImpresionTest`).
 
@@ -59343,14 +59350,23 @@ Los de «Implementación», más `programas/tests/test_emergencia_situacion_vist
 
 ## Validación
 
+- `test_pantalla_situacion_emergencia.py` (puros, sin base): `numero`, `con_signo`, `bajada`, los cuatro estados de
+  `_tarjeta_saturacion`, `tabla_de_presion` (orden, «Otras localidades (N)», «Sin localidad» al final, total),
+  `atencion` («Mostrando N de M») y `pildoras` (homónimas con su departamento).
 - `test_emergencia_situacion_vista.py`: permisos (TC-1184-01 a 03, TC-1182-03, 06, 07, 09 a 11), enlaces (TC-1184-04 a 06),
   no nominal (TC-1184-07: apellidos, DNI, direcciones, números de caso y coordenadas de familias, y el dispositivo
   reservado), filtros (TC-1184-22, 24 a 26, 35, 37, 40), perfil con filtro (TC-1184-28), vacíos (TC-1184-25, 31, 36),
   sidebar (TC-1182-02, 07, 08; TC-1184-38), migración (TC-1182-12, 13), catálogo y árbol del ABM (TC-1182-01) y
   presupuesto `--tag performance` (TC-1184-39).
 - **Consultas de la vista** (5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas): **18** como autoridad, como
-  supervisor y con filtro de departamento y `tab=mapa` (5 del shell + 1 SLA + 12 de la foto); **19** con quien abre
-  dispositivos (superusuario: + `dispositivos_visibles`). Techo 21.
+  supervisor y con filtro de departamento y `tab=mapa` (5 del shell + 1 SLA + 12 de la foto), y **18** también como
+  superusuario: no lee sus capacidades (bypass del RBAC) y en su lugar paga la de `dispositivos_visibles` (los ids que
+  abre por Dispositivos). Quien tiene capacidades y además abre dispositivos llegaría a 19. Techo 21.
+- **Quedan para prueba manual** solo la vista previa real de impresión de TC-1184-33 y TC-1184-34 (A4 apaisada, lo que
+  efectivamente sale en el papel). La parte estructural —qué lleva `nodo-no-imprimir`, `nodo-solo-impresion` y
+  `nodo-impresion-panel`, que Abastecimiento y Mapa no se imprimen y que con la tabla paginada el papel trae la tabla
+  entera con encabezado y Total— la cubren `PaginacionYImpresionTests` y `HojaDeImpresionTest`. TC-1182-05 (sidebar
+  colapsado) lo cubre `SidebarColapsadoTests`, y TC-1184-17 (paginación) `PaginacionYImpresionTests`.
 - `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `ruff`, `design_audit.py --ratchet` (0 nuevos),
   `--arquetipo dashboard` OK, `--goldens` 0, `compile_templates.py --bloques` 0, `check_design_agent.py`.
 - **`EXPLAIN` en MariaDB 10.11** descartable (`explain_situacion.py`, 20 corridas; 50.700 casos —48.300 cerrados de un
@@ -59398,3 +59414,8 @@ ABM de Roles.
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+- **19/11/2026 — auditoría del PR #1226** (2 MAJOR y 4 MINOR, sin cambios visibles en pantalla): impresión de la tabla
+  paginada sin filas repetidas y con encabezado y Total; tests puros de `pantalla_situacion_emergencia.py`, de la
+  paginación, de la estructura de impresión y del sidebar colapsado; la paginación y «Actualizar» conservan la solapa;
+  nota de `tabs.md` y `dashboard.md` sobre la solapa resuelta por la vista; `sr-only` del p90; tope de «sin entrega
+  en 48 h»; la medición del superusuario corregida (18, no 19).

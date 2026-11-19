@@ -113,7 +113,8 @@ trae (es una referencia sin vista). No se escribe un `<style>` de impresión en 
 
 **Sin JS** (el Resumen tiene que leerse igual): la vista resuelve la solapa (`?tab=` inválido → Resumen) y el
 `x-data` arranca con esa (`tab: '{{ solapa }}'`); el panel de esa solapa va **sin** `x-cloak` y los demás con él.
-Así sin JS se ve el panel que pidió la URL, y con JS nada cambia.
+Así sin JS se ve el panel que pidió la URL, y con JS nada cambia. La golden, que no tiene vista, conserva
+`URLSearchParams` en el `x-data`: no hay servidor que resuelva la solapa.
 
 ## Qué no cubre la golden
 

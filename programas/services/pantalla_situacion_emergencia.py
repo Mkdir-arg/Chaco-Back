@@ -53,6 +53,12 @@ ICONOS_DE_TONO = {
 #: Los tonos que admite ``components/_stat_card.html``; «Sin plazas» (gray) va con el de marca.
 _TONOS_DE_TARJETA = {"success", "warning", "danger"}
 
+#: Lo que dice el lector de pantalla cuando el p90 de un tramo supera su objetivo (en pantalla, negrita).
+P90_SUPERA = " (supera el objetivo)"
+
+#: Cuántos dispositivos «con gente y sin entrega recibida en 48 h» se listan; el total va aparte.
+TOPE_SIN_ENTREGA = 10
+
 DIAS = ("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
 
 RED_PROVINCIAL = "Red provincial"
@@ -518,14 +524,17 @@ def bloque_de_embudo(foto):
             "p90": "",
             "objetivo": "",
             "p90_supera": False,
+            "p90_nota": "",
         }
         if tramo is not None:
+            supera = tramo["p90_min"] is not None and tramo["p90_min"] > tramo["objetivo_min"]
             fila.update(
                 tramo=tramo["tramo"],
                 mediana=minutos(tramo["mediana_min"]),
                 p90=minutos(tramo["p90_min"]),
                 objetivo=minutos(tramo["objetivo_min"]),
-                p90_supera=tramo["p90_min"] is not None and tramo["p90_min"] > tramo["objetivo_min"],
+                p90_supera=supera,
+                p90_nota=P90_SUPERA if supera else "",
             )
         filas.append(fila)
 
@@ -604,7 +613,7 @@ def bloque_de_logistica(foto, *, dispositivos_visibles):
         for item in datos["por_item"]
     ]
     sin_entrega = []
-    for fila in datos["sin_entrega_48h"]:
+    for fila in datos["sin_entrega_48h"][:TOPE_SIN_ENTREGA]:
         if fila["reservado"]:
             nombre, url = "Un dispositivo de ubicación reservada", ""
         else:
@@ -614,7 +623,13 @@ def bloque_de_logistica(foto, *, dispositivos_visibles):
         sin_entrega.append(
             {"nombre": nombre, "url": url, "detalle": f"{_plural(fila['personas'], 'persona', 'personas')}, {ultima}"}
         )
-    return {"tarjetas": tarjetas_chicas, "items": items, "sin_entrega": sin_entrega}
+    total = len(datos["sin_entrega_48h"])
+    return {
+        "tarjetas": tarjetas_chicas,
+        "items": items,
+        "sin_entrega": sin_entrega,
+        "sin_entrega_resumen": f"Mostrando {len(sin_entrega)} de {total}." if total > len(sin_entrega) else "",
+    }
 
 
 def contexto_del_resumen(foto, *, supervisa, dispositivos_visibles):
