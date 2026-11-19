@@ -82,7 +82,7 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
       {% if atencion.avisos %}
       <div class="p-5 space-y-3">
         {% for aviso in atencion.avisos %}
-        {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto role="status" only %}
+        {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto accion_url=aviso.url accion_texto=aviso.accion role="status" only %}
         {% endfor %}
       </div>
       {% else %}
@@ -365,13 +365,8 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
     </section>
   </div>
 
-  <div x-show="tab==='abastecimiento'"{% if solapa != "abastecimiento" %} x-cloak{% endif %} role="tabpanel" id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir">
-    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-abastecimiento-titulo">
-      <div class="px-5 py-4 border-b border-light">
-        <h2 id="situacion-abastecimiento-titulo" class="text-heading font-bold">Abastecimiento</h2>
-      </div>
-      {% include "components/_estado_vacio.html" with icono="fa-boxes-stacked" titulo="El abastecimiento todavía no está disponible" texto="Mientras tanto, la logística de kits del Resumen muestra lo enviado y lo recibido." only %}
-    </section>
+  <div x-show="tab==='abastecimiento'"{% if solapa != "abastecimiento" %} x-cloak{% endif %} role="tabpanel" id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir space-y-5">
+    {% include "programas/emergencia/situacion/_abastecimiento.html" with abastecimiento=abastecimiento only %}
   </div>
 
 </div>

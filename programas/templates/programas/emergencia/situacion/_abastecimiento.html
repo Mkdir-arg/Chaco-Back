@@ -1,0 +1,162 @@
+{% comment %}E8 · solapa «Abastecimiento» (análisis 009, §3.9 y §12; E-7b). Bloques del panel del arquetipo Dashboard
+(golden: programas/templates/programas/dispositivos/tablero/tablero_referencia.html), sin piezas nuevas: stat cards
+chicas, _alerta, tablas densas con badge de ícono + texto, _estado_vacio y el plegable «Cómo se calcula» del Resumen.
+Todo llega escrito de services/pantalla_abastecimiento_emergencia.py: el template no cuenta ni decide. Solo se calcula
+con ?tab=abastecimiento; si no calcula (otra solapa, sin inicio del evento, sin reglas, sin alojados), `vacio` trae el
+estado vacío ya resuelto. Todo número es una estimación con la regla de consumo de cada ítem, no un inventario. «Preparar entrega» y el enlace a E7 solo llegan con
+la capacidad que los habilita.{% endcomment %}
+<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-titulo">
+  <div class="px-5 py-4 border-b border-light">
+    <h2 id="abastecimiento-titulo" class="text-heading font-bold">Abastecimiento</h2>
+    {% if abastecimiento.calculado %}
+    <p class="mt-1 text-xs text-body-subtle">{{ abastecimiento.nota }}</p>
+    {% else %}
+    <p class="mt-1 text-xs text-body-subtle">Qué le falta a cada dispositivo y qué conviene mandar en las próximas 48 h, estimado con la regla de consumo de cada ítem.</p>
+    {% endif %}
+  </div>
+  {% if abastecimiento.vacio %}
+  {% with vacio=abastecimiento.vacio %}
+  {% include "components/_estado_vacio.html" with icono=vacio.icono titulo=vacio.titulo texto=vacio.texto accion_url=vacio.accion_url accion_texto=vacio.accion_texto accion_icono=vacio.accion_icono only %}
+  {% endwith %}
+  {% else %}
+  <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+    {% for tarjeta in abastecimiento.tarjetas %}
+    {% include "components/_stat_card.html" with etiqueta=tarjeta.etiqueta valor=tarjeta.valor nota=tarjeta.nota icono=tarjeta.icono tono=tarjeta.tono only %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+{% if abastecimiento.calculado %}
+{# ===== AB2 · Necesita atención: AE-8 y la salud logística (AE-9, AE-10; RN-009-21 y 22) ===== #}
+<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-atencion-titulo">
+  <div class="px-5 py-4 border-b border-light">
+    <h2 id="abastecimiento-atencion-titulo" class="text-heading font-bold">Necesita atención</h2>
+    <p class="mt-1 text-xs text-body-subtle">Dispositivos sin cobertura y salud logística: medicación crítica sin dosis y lactantes sin su ítem. Agregado, sin datos personales.</p>
+  </div>
+  {% if abastecimiento.atencion %}
+  <div class="p-5 space-y-3">
+    {% for aviso in abastecimiento.atencion %}
+    {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto role="status" only %}
+    {% endfor %}
+  </div>
+  {% else %}
+  {% include "components/_estado_vacio.html" with icono="fa-circle-check" titulo="Nada pendiente" texto="Todos los dispositivos con gente cubren las próximas 48 h (estimado) y nadie espera medicación ni insumos de lactantes." only %}
+  {% endif %}
+</section>
+
+{# ===== AB3 · Qué mandar en las próximas 48 h (B14, RN-009-16 a 18) ===== #}
+<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-items-titulo">
+  <div class="px-5 py-4 border-b border-light">
+    <h2 id="abastecimiento-items-titulo" class="text-heading font-bold">Qué mandar en las próximas 48 h</h2>
+    <p class="mt-1 text-xs text-body-subtle">Por ítem, en toda la red. Faltan se suma dispositivo por dispositivo: lo preparado para uno no tapa el faltante de otro.</p>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full border-collapse">
+      <caption class="sr-only">Necesario estimado para 48 h, en camino, preparadas y faltan por ítem</caption>
+      <thead>
+        <tr class="nodo-thead-row">
+          <th class="nodo-th" scope="col">Ítem</th>
+          <th class="nodo-th" scope="col">Regla</th>
+          <th class="nodo-th text-right" scope="col">Necesario 48 h (estimado)</th>
+          <th class="nodo-th text-right" scope="col">En camino</th>
+          <th class="nodo-th text-right" scope="col">Preparadas</th>
+          <th class="nodo-th text-right" scope="col">Faltan (estimado)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in abastecimiento.items %}
+        <tr class="hover:bg-secondary">
+          <td class="nodo-td text-heading font-medium">{{ fila.item }}<span class="block text-xs text-body-subtle">{{ fila.unidad }}</span></td>
+          {% if fila.con_regla %}
+          <td class="nodo-td">{{ fila.regla }}</td>
+          <td class="nodo-td text-right">{{ fila.necesario }}</td>
+          <td class="nodo-td text-right">{{ fila.en_camino }}</td>
+          <td class="nodo-td text-right">{{ fila.preparadas }}</td>
+          <td class="nodo-td text-right">{% if fila.falta %}<strong>{{ fila.faltan }}</strong>{% else %}{{ fila.faltan }}{% endif %}</td>
+          {% else %}
+          <td class="nodo-td">Sin regla de consumo{% if abastecimiento.url_configuracion %} · <a href="{{ abastecimiento.url_configuracion }}" class="text-fg-brand hover:underline">Configurar</a>{% endif %}</td>
+          <td class="nodo-td text-right">—</td>
+          <td class="nodo-td text-right">—</td>
+          <td class="nodo-td text-right">—</td>
+          <td class="nodo-td text-right">—</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ===== AB4 · Dispositivos con faltantes (B15, RN-009-19 y 20), sin paginar ===== #}
+<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-dispositivos-titulo">
+  <div class="px-5 py-4 border-b border-light">
+    <h2 id="abastecimiento-dispositivos-titulo" class="text-heading font-bold">Dispositivos con faltantes</h2>
+    <p class="mt-1 text-xs text-body-subtle">Los que no cubren las próximas 48 h ni con lo en camino y lo preparado. Primero los de urgencia Crítica y los que nunca recibieron.</p>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full border-collapse">
+      <caption class="sr-only">Dispositivos sin cobertura para 48 h, por urgencia de abastecimiento</caption>
+      <thead>
+        <tr class="nodo-thead-row">
+          <th class="nodo-th" scope="col">Abastecimiento</th>
+          <th class="nodo-th" scope="col">Dispositivo</th>
+          <th class="nodo-th text-right" scope="col">Personas</th>
+          <th class="nodo-th" scope="col">Última recepción</th>
+          <th class="nodo-th" scope="col">Qué necesita en 48 h (estimado)</th>
+          {% if abastecimiento.con_accion %}
+          <th class="nodo-th nodo-col-acciones text-right" scope="col"><span class="sr-only">Acciones</span></th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in abastecimiento.dispositivos %}
+        <tr class="hover:bg-secondary">
+          <td class="nodo-td"><span class="badge badge-{{ fila.urgencia.tono }} whitespace-nowrap"><i class="fas {{ fila.urgencia.icono }}" aria-hidden="true"></i> {{ fila.urgencia.texto }}</span></td>
+          <td class="nodo-td text-heading font-medium">
+            {{ fila.nombre }}
+            {% if fila.estado %}<span class="block text-xs text-body-subtle">{{ fila.estado }}</span>{% endif %}
+          </td>
+          <td class="nodo-td text-right whitespace-nowrap">{{ fila.personas }}</td>
+          <td class="nodo-td whitespace-nowrap">{{ fila.ultima }}</td>
+          <td class="nodo-td">{{ fila.necesita }}</td>
+          {% if abastecimiento.con_accion %}
+          <td class="nodo-td nodo-col-acciones text-right">
+            {% if fila.url_preparar %}<a href="{{ fila.url_preparar }}" class="btn-nodo btn-secondary btn-sm btn-fit" aria-label="Preparar entrega para {{ fila.nombre }}">Preparar entrega</a>{% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="{% if abastecimiento.con_accion %}6{% else %}5{% endif %}" class="p-0">
+            {% include "components/_estado_vacio.html" with icono="fa-circle-check" titulo="Ningún dispositivo con faltantes" texto="Con lo recibido, en camino y preparado, todos los dispositivos con gente cubren las próximas 48 h (estimado)." only %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ===== AB6 · Cómo se calcula ===== #}
+<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-calculo-titulo">
+  <details class="px-5 py-4">
+    <summary class="cursor-pointer text-sm font-semibold text-fg-brand"><span id="abastecimiento-calculo-titulo">Cómo se calcula</span></summary>
+    <div class="mt-3 space-y-2 text-sm text-body">
+      <p><strong>Es una estimación: no es un inventario.</strong> Lo recibido se da por consumido según la regla de cada ítem. No sabe lo que llegó por fuera de la mesa ni lo que se perdió.</p>
+      <p><strong>Dotación</strong> (una vez por unidad): necesario = unidades de hoy × cantidad − recibido. Ej.: 64 personas, colchón 1 por persona, 40 recibidos → 24.</p>
+      <p><strong>Reposición</strong> (cada N días): se descuenta lo consumido por las personas, familias o lactantes que de verdad estuvieron desde la primera recepción del ítem; necesario = consumo de 48 h − lo que queda. Ej.: agua 0,5 por persona por día, 40 personas, 60 bidones recibidos hace 2 días → quedan 20, necesario 20 (cubre ≈ 24 h).</p>
+      <p><strong>Desde el inicio del evento:</strong> lo recibido, lo en camino, lo preparado y la gente que pasó se cuentan desde la fecha de inicio cargada en Configuración de la mesa. Se cuenta lo recibido, no lo enviado; las entregas canceladas no cuentan.</p>
+      <p><strong>Faltan</strong> = necesario − en camino − preparadas, dispositivo por dispositivo, redondeado hacia arriba. Un ítem sin regla nunca deja a un dispositivo sin cobertura.</p>
+      <p><strong>Familias y lactantes:</strong> una familia cuenta entera en el dispositivo de su integrante alojado de menor número. Los lactantes son los declarados al relevar.{% if not abastecimiento.hay_regla_lactante %} Ningún ítem tiene regla por lactante: no se alerta sobre lactantes.{% endif %}</p>
+      <p><strong>Límite conocido:</strong> si una persona se traslada y cambia de estadía, su consumo anterior deja de contarse en el dispositivo de origen.</p>
+      {% if abastecimiento.reglas %}
+      <p><strong>Reglas vigentes:</strong></p>
+      <ul class="list-disc pl-5 space-y-1">
+        {% for regla in abastecimiento.reglas %}<li>{{ regla }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </details>
+</section>
+{% endif %}

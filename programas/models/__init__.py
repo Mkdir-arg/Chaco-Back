@@ -6432,6 +6432,9 @@ class EntregaKit(TimeStamped):
             # en vez de recorrer la tabla (EXPLAIN del Cambio 509).
             models.Index(fields=["despachada_en"], name="entrega_kit_despachada_en_idx"),
             models.Index(fields=["estado"], name="entrega_kit_estado_idx"),
+            # Lo recibido desde el inicio del evento (A2 de Abastecimiento, E8): sin él, las recibidas de
+            # eventos anteriores se recorren enteras (EXPLAIN del Cambio 510).
+            models.Index(fields=["recibida_en"], name="entrega_kit_recibida_en_idx"),
         ]
 
     def __str__(self):
