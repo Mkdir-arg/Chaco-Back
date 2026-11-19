@@ -2284,3 +2284,69 @@ class BarrasPareadasTest(SimpleTestCase):
             encoding="utf-8"
         )
         self.assertIn("custom/css/nodo-barras.css", base)
+
+
+class ItemListaTest(SimpleTestCase):
+    """Ítem de lista de selección (``components/_item_lista.html``): contrato de la pieza."""
+
+    PLANTILLA = "components/_item_lista.html"
+
+    def _render(self, **extra):
+        contexto = {"nombre": "Juan José Castelli", "meta": "Dpto. General Güemes", **extra}
+        return render_to_string(self.PLANTILLA, contexto)
+
+    def test_nombre_dato_secundario_y_badge_con_icono_y_texto(self):
+        html = self._render(dato="6,5×", etiqueta="Crítica", tono="danger", clave="castelli")
+
+        self.assertIn('<button type="button" class="nodo-item-lista"', html)
+        self.assertIn('data-item="castelli"', html)
+        self.assertIn('<span class="nodo-item-lista__nombre">Juan José Castelli</span>', html)
+        self.assertIn('<span class="nodo-item-lista__meta">Dpto. General Güemes</span>', html)
+        self.assertIn('class="badge badge-danger"', html)
+        self.assertIn("fa-circle-exclamation", html)
+        self.assertIn("6,5×", html)
+        self.assertIn('<span class="sr-only"> · Crítica</span>', html)
+
+    def test_sin_dato_la_etiqueta_va_visible(self):
+        html = self._render(etiqueta="Exigida", tono="warning")
+
+        self.assertIn("badge-warning", html)
+        self.assertIn("fa-triangle-exclamation", html)
+        self.assertNotIn("sr-only", html)
+        self.assertRegex(html, r"</i>\s*Exigida</span>")
+
+    def test_sin_dato_ni_etiqueta_no_hay_badge(self):
+        html = self._render()
+
+        self.assertNotIn("badge", html)
+
+    def test_tono_desconocido_o_ausente_es_gris(self):
+        for extra in ({}, {"tono": "otro"}):
+            html = self._render(dato="3", **extra)
+            self.assertIn("badge-gray", html)
+            self.assertIn("fa-circle-minus", html)
+
+    def test_aria_pressed_refleja_activo(self):
+        self.assertIn('aria-pressed="false"', self._render())
+        self.assertIn('aria-pressed="true"', self._render(activo=True))
+
+    def test_nombre_largo_conserva_title_y_se_escapa(self):
+        html = self._render(nombre="Libertador General San Martín <b>", dato="0,7×")
+
+        self.assertIn('title="Libertador General San Martín &lt;b&gt;"', html)
+        self.assertNotIn("<b>", html)
+
+    def test_sin_hex_ni_style(self):
+        html = self._render(dato="6,5×", etiqueta="Crítica", tono="danger")
+
+        self.assertNotRegex(html, r"#[0-9a-fA-F]{3,6}\b")
+        self.assertNotIn("style=", html)
+
+    def test_el_css_marca_el_seleccionado_por_aria_pressed_y_el_shell_lo_carga(self):
+        raiz = Path(__file__).resolve().parents[2]
+        css = (raiz / "static" / "custom" / "css" / "nodo-item-lista.css").read_text(encoding="utf-8")
+        base = (raiz / "templates" / "includes" / "base.html").read_text(encoding="utf-8")
+
+        self.assertIn('.nodo-item-lista[aria-pressed="true"]', css)
+        self.assertIn(".nodo-item-lista:focus-visible", css)
+        self.assertIn("custom/css/nodo-item-lista.css", base)

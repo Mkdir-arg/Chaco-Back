@@ -1,0 +1,18 @@
+{% comment %}
+Ítem de una lista de selección: nombre, dato secundario y badge. Es un botón; el seleccionado se pinta por
+`aria-pressed="true"`. La lista la envuelve el consumidor: <div role="group" aria-label="Localidades con más presión">.
+  {% include "components/_item_lista.html" with nombre=l.nombre meta=l.meta dato=l.dato_badge etiqueta=l.etiqueta tono=l.tono clave=l.id activo=l.seleccionada only %}
+Contexto:
+  nombre    texto principal (una línea; si es largo se recorta y `title` lo dice completo).
+  meta      opcional, dato secundario bajo el nombre («Dpto. San Fernando», «Hogar · Resistencia»).
+  dato      opcional, cifra visible del badge («6,5×», «92 %»). Sin ella el badge muestra solo `etiqueta`.
+  etiqueta  opcional, nivel en palabras (`Tension.etiqueta`: «Crítica»): va visible si no hay `dato` y sr-only si lo hay.
+  tono      opcional, `Tension.tono` (success, warning, danger, gray): color e ícono del badge. Sin tono, gris.
+  clave     opcional, identificador para el JS del consumidor (`data-item`).
+  activo    opcional, True deja el ítem seleccionado al cargar.
+Sin `dato` ni `etiqueta` no hay badge. No calcula el nivel: lo trae la vista. La selección (alternar `aria-pressed`,
+abrir el panel, centrar el mapa) es JS del consumidor; sin JS la lista se ve completa. Clases en nodo-item-lista.css.
+{% endcomment %}<button type="button" class="nodo-item-lista" aria-pressed="{% if activo %}true{% else %}false{% endif %}"{% if clave %} data-item="{{ clave }}"{% endif %}>
+  <span class="nodo-item-lista__texto" title="{{ nombre }}"><span class="nodo-item-lista__nombre">{{ nombre }}</span>{% if meta %}<span class="nodo-item-lista__meta">{{ meta }}</span>{% endif %}</span>
+  {% if dato or etiqueta %}<span class="badge {% if tono == 'success' %}badge-success{% elif tono == 'warning' %}badge-warning{% elif tono == 'danger' %}badge-danger{% else %}badge-gray{% endif %}"><i class="fas {% if tono == 'success' %}fa-circle-check{% elif tono == 'warning' %}fa-triangle-exclamation{% elif tono == 'danger' %}fa-circle-exclamation{% else %}fa-circle-minus{% endif %}" aria-hidden="true"></i> {% if dato %}{{ dato }}{% if etiqueta %}<span class="sr-only"> · {{ etiqueta }}</span>{% endif %}{% else %}{{ etiqueta }}{% endif %}</span>{% endif %}
+</button>

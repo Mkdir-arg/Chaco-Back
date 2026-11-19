@@ -95,6 +95,8 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
 - El shell carga `static/custom/css/nodo-barras.css`: las clases `.nodo-barras*` del gráfico de barras
   pareadas (`components/_barras_pareadas.html`), con la altura por la custom property `--alto`. Ninguna
   pantalla las usa a mano.
+- El shell carga `static/custom/css/nodo-item-lista.css`: las clases `.nodo-item-lista*` del ítem de lista de
+  selección (`components/_item_lista.html`); el seleccionado es `aria-pressed="true"`. Ninguna pantalla las usa a mano.
 - El shell carga `static/custom/js/nodo-tabs.js`: flechas ← →, Home/End y `tabindex`
   itinerante sobre toda `[role="tablist"]` con `[role="tab"]`, en cualquier pantalla. Es
   **mejora progresiva** —activa la solapa disparando su propio `click()`, así que no toca el

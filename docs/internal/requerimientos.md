@@ -625,6 +625,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 505 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -58596,3 +58597,79 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 
 - **19/11/2026:** auditoría del PR #1211 (aprobado, tres MINOR): barras y muestras con `print-color-adjust: exact` al imprimir; fallback de `beforeprint`/`afterprint` en `nodo-tables.js` para abrir la tabla en navegadores sin `::details-content`; la normalización queda solo en `resumen_barras`, que devuelve los períodos con `alto_a`/`alto_b` y acepta dicts u objetos (un valor no entero o negativo cuenta 0 igual en barra, tabla y total).
+
+---
+
+# Cambio 505 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · UI (consumidores: Emergencia E8 y tablero de Dispositivos) |
+| **Etiquetas** | `#ui` `#emergencia` |
+| **Solicitante** | PM — análisis 009, pieza C5 |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1177 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+C5 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §8.3 y §8.4): lista de ítems
+seleccionables (nombre, dato secundario y badge) que acompaña al mapa: «Localidades con más presión» en E8 y
+«Más tensionados» en el tablero de Dispositivos (pieza 10 del spec), con estado seleccionado y foco con teclado.
+
+## Alcance acordado
+
+Entra: el include de un ítem, su CSS, la ficha, la fila del inventario y los tests de render. Queda afuera: los
+consumidores y el JS que alterna la selección, abre el panel y centra el mapa (E-6 y el tablero).
+
+## Decisiones tomadas
+
+- **Un ítem, no una lista:** el include dibuja un botón; la envoltura (`role="group"` con `aria-label`) y el
+  estado vacío son de la pantalla, porque cada consumidor tiene su título y su vacío.
+- **El estado seleccionado es `aria-pressed`**, no una clase (el mockup usa `.is-active`): el consumidor alterna un
+  atributo que ya necesita por accesibilidad y el CSS lo sigue; no hay dos fuentes de verdad.
+- **Nombre `nodo-item-lista`** (convención `nodo-*` de los CSS del shell) en vez del `item-lista` del mockup.
+- **Badge como el de `_barra_umbral`:** `tono` y `etiqueta` de `Tension`, ícono por tono; con `dato` («6,5×») visible
+  y el nivel en `sr-only`, como el mockup. El nivel lo calcula la vista.
+- **Sin JS ni librería:** el botón nativo da Tab, Enter y Espacio; el foco usa `:focus-visible`.
+- **Nombre largo:** se recorta con «…» y `title` lo dice completo; el badge no se achica.
+
+## Implementación
+
+- `templates/components/_item_lista.html` y `static/custom/css/nodo-item-lista.css` + `<link>` en
+  `templates/includes/base.html` (con snapshots del detalle de Becas regenerados).
+
+## Archivos
+
+- `templates/components/_item_lista.html` (nuevo), `static/custom/css/nodo-item-lista.css` (nuevo),
+  `templates/includes/base.html`
+- `.claude/design/componentes/item_lista.md` (nueva), `.claude/agents/chaco-design-system.md` (fila),
+  `.claude/design/shells.md` (el shell carga el CSS)
+- `core/tests/test_nodo_ui_piezas.py` (`ItemListaTest`), `programas/tests/snapshots/formulario_detalle/*`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `ItemListaTest` (8): nombre, meta y badge con ícono y texto; etiqueta visible sin dato; sin badge; tono
+  desconocido gris; `aria-pressed`; nombre largo con `title` y escape; sin hex ni `style=`; CSS por
+  `aria-pressed` y foco, y que el shell lo carga.
+- `manage.py check`, `ruff`, `design_audit.py --ratchet`, `compile_templates.py --bloques`,
+  `check_design_agent.py --changed` y `--limites`, `requerimientos.py --check`: ver el PR.
+
+## Puesta en marcha en el servidor
+
+No requiere (`collectstatic` del deploy publica el CSS nuevo).
+
+## Pendientes / a definir
+
+- Consumirla en «Localidades con más presión» (E-6) y «Más tensionados» (T10 de Dispositivos), con el JS de selección.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
