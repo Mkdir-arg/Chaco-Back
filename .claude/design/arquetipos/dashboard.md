@@ -82,10 +82,10 @@ la solapa no es un filtro.
 | `titulo`, `eyebrow`, `resumen` | hero: título, línea de contexto y bajada **ya armada** («538 de 554 plazas ocupadas…»; con filtro vacío, «Ningún dispositivo coincide con el filtro.») |
 | `url_accion`, `accion_texto`, `accion_icono` | la única acción del hero |
 | `pildoras`, `ocultos` | contrato de `_filtro_pildora.html`; `ocultos` incluye `("tab", solapa_actual)` |
-| `url_limpiar`, `actualizado` | URL sin filtros y hora `HH:MM` del cálculo |
-| `tarjetas` | lista de dicts `etiqueta`, `valor`, `sufijo`, `nota`, `icono`, `tono` |
-| `atencion`, `atencion_resumen` | avisos (`tono`, `icono`, `titulo`, `texto`, `url`, `accion`) ya ordenados y recortados; texto del contador |
-| `filas`, `red_resumen`, `url_listado` | filas de la tabla con `nombre`, `url`, `tipo`, `localidad`, `ocupacion` y `relevamiento` (`texto`, `tono`, `icono`), `libres` |
+| `url_limpiar`, `actualizado` | URL sin filtros **y sin querystring** (la golden le suma `?tab=`) y hora `HH:MM` del cálculo |
+| `tarjetas` | lista de dicts `etiqueta`, `valor`, `sufijo`, `nota`, `icono` (**con** `fa-`, como pide `_stat_card`), `tono` |
+| `atencion`, `atencion_resumen` | avisos (`tono`, `icono` **sin** prefijo —`triangle-exclamation`—, como pide `_alerta`, `titulo`, `texto`, `url`, `accion`) ya ordenados y recortados; texto del contador |
+| `filas`, `red_resumen`, `url_listado` | filas de la tabla con `nombre`, `url`, `tipo`, `localidad`, `ocupacion` y `relevamiento` (`texto`, `tono`, `icono` con `fa-`), `libres` |
 
 ## Límites y rendimiento (la vista, no el template)
 
@@ -95,8 +95,10 @@ la solapa no es un filtro.
 - Agrupar por día **en Python**, nunca con `Trunc*` (ECOM no tiene tablas de timezone).
 - Las listas («Necesita atención», la tabla) llegan **recortadas**, con su total contado aparte y el enlace al
   listado completo; el template no pagina ni corta.
-- Lo que solo se ve en otra solapa (mapa, abastecimiento) se calcula cuando esa solapa está activa o se pide
-  aparte (`componentes/tabs.md`, *Prohibido*).
+- Lo que solo se ve en otra solapa (mapa, abastecimiento) se pide aparte al abrir la solapa (carga diferida
+  con `$dispatch`, `componentes/tabs.md`) o se calcula solo cuando llega `?tab=` de esa solapa, con un estado
+  vacío que lo pida en las demás (`componentes/tabs.md`, *Prohibido*): las solapas de la golden cambian en el
+  navegador sin pedir nada al servidor.
 - Los números se dicen «de tu alcance» cuando el usuario no ve la red completa.
 
 ## Impresión

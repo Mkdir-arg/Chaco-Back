@@ -19,7 +19,7 @@ Todos los números, textos, tonos y URL llegan armados de la vista: el template 
     {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
     <div class="flex flex-wrap items-center gap-3 text-xs text-body-subtle">
       {% if request.GET|hay_filtros:"page,tab" %}
-      <a href="{{ url_limpiar }}" :href="'{{ url_limpiar }}?tab=' + tab" class="btn-nodo btn-tertiary btn-sm">Limpiar</a>
+      <a href="{{ url_limpiar }}" :href="'{{ url_limpiar|escapejs }}?tab=' + encodeURIComponent(tab)" class="btn-nodo btn-tertiary btn-sm">Limpiar</a>
       {% endif %}
       <span><i class="fas fa-clock" aria-hidden="true"></i> Actualizado a las {{ actualizado }}</span>
     </div>
