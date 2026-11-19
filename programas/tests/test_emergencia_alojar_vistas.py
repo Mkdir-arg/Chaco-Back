@@ -41,7 +41,7 @@ from programas.models import (
 from programas.selectors import emergencia_mesa
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
-from programas.tests.test_emergencia_alojar_base import BaseAlojar
+from programas.tests.test_emergencia_alojar_base import DNI_DE_LOS_RESPONSABLES, BaseAlojar
 from programas.tests.test_emergencia_casos import JPEG
 
 Estado = CasoEmergencia.Estado
@@ -55,8 +55,8 @@ def ficha_post(dni, **cambios):
     datos = {
         "parentesco": "HIJO",
         "dni": dni,
-        "nombre": "Juan",
-        "apellido": "Pérez",
+        "nombre": "Rosa" if dni in DNI_DE_LOS_RESPONSABLES else "Juan",
+        "apellido": "Benítez" if dni in DNI_DE_LOS_RESPONSABLES else "Pérez",
         "sexo": "M",
         "fecha_nacimiento": "2006-03-10",
         "embarazo": "no",
@@ -739,6 +739,8 @@ class RecorridoCompletoTests(BaseLlegadas):
             ficha = self.client.get(self._url("ficha", caso.pk, orden))
             plaza = ficha.context["form"].initial["plaza"]
             datos = ficha_post(dni, plaza=str(plaza), parentesco="JEFE" if orden == 1 else "CONYUGE")
+            if orden == 1:  # el legajo del responsable es el que cargó el formulario
+                datos.update(nombre="Marta", apellido="Ríos")
             self.client.post(self._url("ficha", caso.pk, orden), datos)
         alojada = self.client.post(self._url("alojar", caso.pk), {"aula": "Salón"})
 

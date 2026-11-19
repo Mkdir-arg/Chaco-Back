@@ -29,6 +29,11 @@ Accion = TrazaCaso.Accion
 GUARDIA = ("dispositivo.ver", "dispositivo.admitir", "dispositivo.egresar")
 
 
+#: Los DNI de los responsables que siembran las bases de test: ya están en el legajo como
+#: «Rosa Benítez», y confirmar a esa persona con otro nombre se rechaza (E-ERR-01).
+DNI_DE_LOS_RESPONSABLES = {"30111222", "30222333"}
+
+
 def ficha_minima(dni, **cambios):
     """Una ficha con el mínimo: hija de 20 años, las cinco preguntas en «no»."""
 
@@ -49,6 +54,8 @@ def ficha_minima(dni, **cambios):
             "alergias_graves": False,
         },
     }
+    if dni in DNI_DE_LOS_RESPONSABLES:
+        ficha["datos_personales"].update(nombre="Rosa", apellido="Benítez")
     for seccion, datos in cambios.items():
         ficha.setdefault(seccion, {}).update(datos)
     return ficha
