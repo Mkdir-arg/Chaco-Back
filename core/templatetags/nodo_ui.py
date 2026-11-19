@@ -119,6 +119,42 @@ def menos(valor, otro):
         return None
 
 
+@register.simple_tag
+def porcentaje_barra(valor, maximo, porcentaje=None):
+    """El porcentaje entero que dibuja ``components/_barra_umbral.html``, o ``None`` si no hay cifra.
+
+    Si llega ``porcentaje`` ya calculado (``Tension.porcentaje``) gana, para que la barra diga el mismo
+    número que el resto de la pantalla. Si no, redondea ``valor * 100 / maximo`` como
+    ``tension_de_ocupacion``. Sin máximo positivo o sin valor no hay porcentaje: ``None``, nunca 0.
+    """
+    if porcentaje is not None and porcentaje != "":
+        try:
+            return int(porcentaje)
+        except (TypeError, ValueError):
+            return None
+    try:
+        valor, maximo = int(valor), int(maximo)
+    except (TypeError, ValueError):
+        return None
+    if maximo <= 0:
+        return None
+    return round(valor * 100 / maximo)
+
+
+@register.filter
+def entero_o_none(valor):
+    """Entero para dibujar (un umbral de ``_barra_umbral.html``), o ``None`` si no es un número.
+
+    Distingue «no hay umbral» de «el umbral es 0»: el template condiciona por ``is not None``.
+    """
+    if valor is None or valor == "":
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
 def _entero(valor):
     """Entero no negativo para dibujar; lo que falta o no es entero cuenta como 0."""
     try:
