@@ -85,8 +85,8 @@ Relaciones que NO se fusionaron (misma familia, otro archivo o otra causa; van c
 
 | ID | Título | Sev. | Estado | Esf. | Ola | Archivo |
 |---|---|---|---|---|---|---|
-| E-SEG-01 | El reenvío de «Ingresar igual» devuelve los integrantes de un caso ajeno al dispositivo de la… | ALTA | CONFIRMADO con test | S-M | 0 | `programas/api/views_emergencia_sin_derivacion.py` |
-| E-ERR-01 | Confirmar con el DNI de un legajo existente no valida la identidad: aloja y escribe en el lega… | ALTA | CONFIRMADO con test | S-M | 0 | `programas/services/emergencia_confirmacion.py` |
+| E-SEG-01 | El reenvío de «Ingresar igual» devuelve los integrantes de un caso ajeno al dispositivo de la… | ALTA | RESUELTO (#1204) | S-M | 0 | `programas/api/views_emergencia_sin_derivacion.py` |
+| E-ERR-01 | Confirmar con el DNI de un legajo existente no valida la identidad: aloja y escribe en el lega… | ALTA | RESUELTO (#1205) | S-M | 0 | `programas/services/emergencia_confirmacion.py` |
 | E-LIM-01 | Las vistas de la guardia y de kits reescriben reglas de dominio que ya tiene el servicio | ALTA | CONFIRMADO | M | 4 | `programas/views/emergencia_kits.py` |
 | E-ERR-02 | Cerrar con diferencia, cancelar el ingreso y «Familia alojada» desde la web no mandan `derivac… | MEDIA | CONFIRMADO | S-M | 1 | `programas/views/emergencia_dispositivo.py` |
 | E-ERR-03 | Los vencimientos de Emergencia corren una vez por día: las derivaciones vencidas quedan pendie… | MEDIA | CONFIRMADO | S | 3 | `docker/cron/procesar_vencimientos.cron` |

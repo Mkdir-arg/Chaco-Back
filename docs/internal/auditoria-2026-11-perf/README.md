@@ -36,7 +36,7 @@ Esfuerzo con S = 2 h, S-M = 4 h, M = 8 h, L = 20 h. Ninguna ficha es CRÍTICA.
 
 ## Qué sale a issues y qué es limpieza opcional
 
-- **A issues (una por ola, no por ficha):** corrección, seguridad, rendimiento medible y las olas «de fondo» que mueven reglas de dominio fuera de las vistas. Son 208 fichas y unas 758 h.
+- **A issues (una por ola, no por ficha):** corrección, seguridad, rendimiento medible y las olas «de fondo» que mueven reglas de dominio fuera de las vistas. Son 208 fichas y unas 758 h (incluye 3 fichas y 10 h ya resueltas: quedan 205 fichas y 748 h).
 - **Limpieza opcional (backlog):** helpers duplicados, constantes, tamaño de archivos, JS inline y mapeos de tono. Son 129 fichas y unas 496 h; entran cuando una ola de corrección toca el mismo archivo, no antes.
 - **Orden:** la seguridad confirmada primero; lo de rendimiento va **después de medir** (ver «Mediciones pendientes»); las olas de fondo van después de las correcciones que tocan los mismos archivos.
 
@@ -84,7 +84,7 @@ Cada informe consolida las suyas en la sección 4: 76 en Becas (28 control mecá
 |---|---|---|---|---|
 | RP-1 | skill + rúbrica | `.claude/skills/seguridad-django/SKILL.md` (API de campo) y `.claude/skills/auditoria/rubricas/` (seguridad) | **La idempotencia por `uuid_cliente` pasa la guarda de alcance en todas las ramas `ya_existia`.** Es un atajo de lectura: el objeto que devuelve el reenvío pasa la misma guarda que un GET de ese objeto (dispositivo de la URL, alcance vigente), también en la rama de carrera del `UNIQUE`. En la revisión: por cada `ya_existia`/`ya_estaba`, ¿qué alcance se exigió sobre el objeto **encontrado**, no sobre el de la URL? | E-SEG-01 (#1204) y su seguimiento 1 |
 | RP-2 | skill | `.claude/skills/seguridad-django/SKILL.md` (datos personales) | **Toda resolución por DNI que escribe compara el nombre** (`nombre_en_conflicto`): toda resolución de persona por DNI que escribe sobre el legajo o le abre una estadía compara nombre y apellido declarados con el legajo encontrado; el DNI solo identifica, no autoriza a escribir. | E-ERR-01 (#1205) |
-| RP-3 | control mecánico + skill | `users/tests/` o `programas/tests/test_roles_atajos.py` (ratchet) y `.claude/skills/seguridad-django/SKILL.md` | **Todo atajo que otorga roles pasa por `roles_propios_bloqueados`** (`users/selectors/usuarios.py:93`, patrón de #1114): `user.groups.add(`, `sumar_rol_de_agente`, `RolMeta`. El test recorre `programas/services` y `programas/views` buscando `groups.add`/`.set(` y exige que el módulo importe la guarda, con lista congelada; y un test de comportamiento por atajo: quien tiene `<modulo>.crear` intenta sumarse a sí mismo y recibe un rechazo. | D-SEG-01 (R-2 de dispositivos.md) |
+| RP-3 | control mecánico + skill | `users/tests/` o `programas/tests/test_roles_atajos.py` (ratchet) y `.claude/skills/seguridad-django/SKILL.md` | **Todo atajo que otorga roles pasa por `roles_propios_bloqueados`** (`users/selectors/usuarios.py:93`, patrón de #1114): `user.groups.add(`, `sumar_rol_de_agente`, `RolMeta`. El test recorre `programas/services` y `programas/views` buscando `groups.add`/`.set(` y exige que el módulo importe la guarda, con lista congelada; y un test de comportamiento por atajo, con mutación. | D-SEG-01 (R-2 de dispositivos.md) |
 
 ## Archivos
 

@@ -749,7 +749,7 @@ Rutas a sumar a `_extra_targets()` de `bench_mysql.py` y a `perf_budgets.json`: 
 Ordenadas por severidad y eje. Los IDs son los finales `B-<EJE>-NN`; el ID de la pasada 1 figura en cada ficha.
 
 ### B-SEG-01 · El 400 del export del dashboard refleja el parámetro como HTML (XSS reflejado)
-**Severidad:** ALTA · **Estado:** CONFIRMADO (lectura; el mensaje se verificó con `.venv312`; el juez verificó que es el único caso del patrón en el repo) · **Eje:** SEG · **Origen:** nuevo (no está en la auditoría de octubre) · **Ola:** 0 · **Esfuerzo:** S
+**Severidad:** ALTA · **Estado:** RESUELTO (#1202, Cambio 494) · **Eje:** SEG · **Origen:** nuevo (no está en la auditoría de octubre) · **Ola:** 0 · **Esfuerzo:** S
 - **Resuelto:** PR #1202 (merge `b091e8de`, Cambio 494), 19-nov-2026, con test de mutación.
 - **ID de la pasada 1:** B2-SEG-01
 - **Verificación del juez:** CONFIRMADO por lectura. Es el único caso del patrón en el repo (`HttpResponseBadRequest` con el texto de error del form sin escapar). Va en la Ola 0.
@@ -1145,59 +1145,42 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) · esfuerzo S-M._
 ### B-SEG-02 · Corregir el sexo desde un caso sin validar pisa la identidad de un legajo ya validado en otro caso, aun fuera del alcance de quien lo hace
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** nuevo · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** B1-SEG-01
-- **Ubicación:** `programas/views/revision.py:906-924` (`formulario_actualizar_genero`).
-- **Escenario:** la ciudadana DNI 30.111.222 tiene el caso A (segmento S1) validado por Base de Personas con sexo `F`, aprobado e informado a SIIS; se reinscribe en una convocatoria del segmento S2 y entra el caso B, todavía sin validar. El Coordinador de S2 (con `becas.revision.identidad`, sin alcance sobre S1) abre B: la guarda de `:906` solo mira `formulario.validado_renaper` **del caso B**, así que permite cambiar el sexo. `ciudadano.genero` es del legajo compartido: el caso A —fuera de su alcance— pasa a decir `M`, contradiciendo la fuente oficial con la que se validó, y el próximo reenvío a SIIS de A sale con ese sexo. La traza queda solo en B.
-- **Causa raíz:** la regla «identidad validada ⇒ sexo de solo lectura» se evalúa por caso, pero el dato que protege vive en `Ciudadano`, compartido por todos los casos de la persona.
+- **Escenario:** Se puede cambiar un dato de identidad ya validado de una persona desde un caso de otro segmento.
+- **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
 - **Solución:** `DECISIÓN CLIENTE: por defecto, el sexo es de solo lectura si **cualquier** caso del ciudadano tiene la identidad validada por una fuente (origen PERSONAS o PADRON)`. Implementación: en la guarda, además de `formulario.validado_renaper`, `Formulario.objects.filter(ciudadano_id=ciudadano.pk, validado_renaper=True).exclude(origen_validacion=Formulario.OrigenValidacion.FORZADA).exclude(pk=formulario.pk).exists()` (índice por `ciudadano_id`; una consulta solo en el POST). El mismo predicado en `contexto_identidad` para no dibujar el selector que va a contestar «solo lectura».
-- **Lo que NO hay que hacer:** acotar la guarda al alcance del usuario (dejaría pisar el sexo validado de un caso que el usuario sí ve); copiar el sexo al `Formulario` (cambio de modelo, otra decisión).
 - **Tests a agregar:** `programas/tests/test_revision_identidad.py::ActualizarGeneroTests.test_no_cambia_sexo_validado_en_otro_caso_del_ciudadano`.
 - **Verificación:** el test; verificar por mutación (quitar el `exists()` → rojo).
 - **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md` · «Un dato de `Ciudadano` (legajo transversal) que se edita desde un caso de programa se protege con las reglas de **todos** los casos de la persona, no solo con el del caso abierto: el alcance del caso no acota el efecto de escribir en el legajo».
-
 ---
 
 ### B-SEG-03 · El cupo del link público se agota con inscripciones basura y rechazar no lo libera
 **Severidad:** MEDIA · **Estado:** PLAUSIBLE · **Eje:** SEG · **Origen:** Origen oct.: SIIS-13 (🟡 abierto: opción (a) en Cambio 174, opción (b) pendiente de D-S13); esta ficha es el mismo conteo de cupo con RECHAZADO; (no lo cubre ningún hallazgo de oct.) · **Ola:** 0 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** B6-SEG-01
-- **Ubicación:** `programas/services/inscripcion_publica.py:155` (`_insertar_formulario`), `portal/services/inscripcion.py:77-84` (`relevamiento_disponible` / `cupo_completo`)
-- **Escenario:**
-  1. Hay un relevamiento con link abierto, sin padrón y con `cupo_maximo` de N.
-  2. Un atacante resuelve un captcha por inscripción. El bucket por IP es de 10 cada 10 min y se esquiva rotando IP.
-  3. Envía DNIs aleatorios hasta llegar a N.
-  4. El link pasa a «cupo completo» para los ciudadanos reales.
-  5. El operador rechaza los casos basura, pero `rel.formularios.count()` los sigue contando.
-- **Causa raíz:** el cupo cuenta todos los formularios, incluidos los RECHAZADO. Además, en un link sin padrón no hay nada que ate el DNI a una persona real antes de consumir cupo.
+- **Escenario:** El cupo de un link público puede agotarse con inscripciones sin valor.
+- **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
 - **Solución:**
   - `DECISIÓN CLIENTE`. Propuesta por defecto: excluir del conteo los casos RECHAZADO, igual que la exclusión de SIIS-13 para duplicados.
   - El filtro va en `_insertar_formulario` y en `cupo_completo`, y los dos tienen que contar igual.
   - Opcional: una alerta al operador cuando el ritmo de inscripciones de un link supera X por hora.
-- **Lo que NO hay que hacer:** borrar los casos basura para liberar cupo. Se pierde la traza y se rompe la auditoría.
 - **Tests a agregar:** `programas/tests/test_inscripcion_publica.py::CupoTest.test_rechazado_no_consume_cupo`
 - **Verificación:** test en verde. Con el cupo lleno y un caso rechazado, el link vuelve a aceptar una inscripción.
 - **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` (inscripción pública) · «Todo recurso finito que se consume desde la superficie anónima (cupo, turnos) se puede agotar con captchas resueltos: definir qué estados lo liberan.»
-
 ---
 
 ### B-SEG-04 · El link anónimo crea legajos con identidad no verificada y escribe contacto en legajos reales
-**Severidad:** MEDIA · **Estado:** PLAUSIBLE · **Eje:** SEG · **Origen:** mismo vector que G1-01 (cerrado para conversaciones), por otra puerta. SIIS-08 solo cubre identidades validadas. cruce oct.: G1-01 (✅ #663, Cambio 198) cerró el vector solo apagando conversaciones; octubre no cubrió ni descartó el link público (`_completar_contacto`, `get_or_create` del apoderado). SIIS-08 (✅ opción mínima D-S08) deja sin decidir la parte de fondo (`Ciudadano.identidad_origen`) · **Ola:** 0 · **Esfuerzo:** S-M
+**Severidad:** MEDIA · **Estado:** PLAUSIBLE · **Eje:** SEG · **Origen:** cruce oct.: G1-01 (✅ #663, Cambio 198) y SIIS-08 · **Ola:** 0 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** B6-SEG-02
-- **Ubicación:** `programas/services/becas.py` `resolver_ciudadano_offline` (~l.441-532) y `_completar_contacto` (~l.360), invocados desde `programas/services/inscripcion_publica.py:248` (`_completar_envio`)
-- **Escenario (tres variantes):**
-  1. **Titular manual sin padrón:** se crea un `Ciudadano` con un DNI y un nombre tipeados por un anónimo.
-  2. **Apoderado:** se hace `get_or_create` con cualquier DNI y nombre. Puede ser el DNI de un tercero que todavía no tiene legajo, y su legajo nace con el nombre inventado.
-  3. **Legajo existente:** si el ciudadano ya existe y su celular o email están vacíos, `_completar_contacto` le escribe el teléfono y el correo del atacante. Las comunicaciones posteriores llegan al atacante.
-- **Causa raíz:** el alta de legajos desde el link reutiliza el camino offline del agente de campo, que es de confianza. No distingue el origen anónimo ni espera a que la identidad se valide.
+- **Escenario:** El link público puede crear o completar legajos con datos no verificados.
+- **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
 - **Solución:**
-  - `DECISIÓN CLIENTE`. Propuesta por defecto: para formularios de un relevamiento público con identidad no validada (sin padrón ni RENAPER), no correr `_completar_contacto` ni crear el legajo del apoderado en `_completar_envio`.
+  - `DECISIÓN CLIENTE`. Propuesta por defecto: en los formularios de un relevamiento público con identidad no validada, diferir a la aprobación del caso (que ya pasa por un operador) la escritura sobre el legajo y el alta de legajos nuevos.
   - Diferir las dos cosas a la aprobación del caso, que ya pasa por un operador.
   - Los datos siguen guardados en `datos_identificacion`, así que no se pierde nada.
-- **Lo que NO hay que hacer:** pisar el contacto existente con el más nuevo. Agrava el problema.
 - **Tests a agregar:** `programas/tests/test_inscripcion_publica.py::LegajoAnonimoTest.test_link_publico_no_completa_contacto_de_legajo_existente`, `...test_link_publico_no_crea_legajo_de_apoderado`
 - **Verificación:**
   - Los tests están en verde.
   - Una inscripción pública sobre el DNI de un legajo sin email deja el email vacío.
 - **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Ningún dato tipeado en una superficie anónima escribe en un legajo (`Ciudadano`) existente ni crea uno ajeno sin validación de identidad o revisión humana.»
-
 ---
 
 ### B-ERR-02 · «Revalidar con Base de Personas» guarda el sexo sin normalizar y da 500 con `FEMENINO`/`MASCULINO`
