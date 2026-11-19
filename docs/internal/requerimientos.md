@@ -241,7 +241,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 92 | Reportes de Becas sin recorrer todo el padrón (avance, embudo, beneficiarios) y banco MySQL de 20.000 casos para medir | Becas · reportes transversales · infraestructura de medición | `#performance` `#relevamientos` `#metodo` | PM — en sesión: «un análisis de cuellos de botella y errores de perfo que podamos mejorar, y también mejorando la perfo del código» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 | 93 | Revisión fina de performance en cinco frentes: alta de la app fuera del lock, bandejas y detalle por pk, Excel del dashboard sin instanciar modelos, comandos por lotes y conversaciones | Transversal (Becas, API de campo, portal, conversaciones, núcleo) | `#performance` `#relevamientos` `#api` `#siis` | PM — en sesión: «hacé otra revisión más fina del código y de la performance; dispará varios para optimizar el código y las query sin romper nada» | 25/09/2026 | 🟡 **Hecho — sin desplegar** | No requiere |
 | 94 | El celular viaja a SIIS en los 10 dígitos que admite la tabla intermedia | Becas · alta de beneficiarios en SIIS | `#siis` `#relevamientos` | PM — en sesión: «dale arreglá lo del celular y después desplegá en el ambiente de test y de prd de ECOM» | 28/09/2026 | 🟢 **Hecho** | No requiere |
-| 95 | Datos del ciudadano fuera de los handlers inline: acciones del cupo y reactivar convocatoria | Becas · cupo y convocatorias · Legajos | `#cupos` `#convocatorias` `#ui` `#datos` | Revisión de seguridad independiente (H1-H3), hotfix pedido en sesión | 29/09/2026 | 🟢 **Hecho** | No requiere |
+| 95 | Datos del ciudadano fuera de los handlers inline: acciones del cupo y reactivar convocatoria | Becas · cupo y convocatorias · Legajos | `#cupos` `#convocatorias` `#ui` `#datos` `#seguridad` | Revisión de seguridad independiente (H1-H3), hotfix pedido en sesión | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96 | Ajustes de diseño de Becas (auditoría 29/09/2026) | Becas · transversal | `#ui` `#textos` `#relevamientos` | PM — auditoría de diseño de Becas y decisiones aprobadas en sesión | 29/09/2026 | 🟢 **Hecho (tanda 1)** | No requiere |
 | 96.1 | La etiqueta gris vuelve a tener estilo en todo el sistema | Transversal | `#ui` `#textos` | PM — auditoría de diseño de Becas (CMP-N3) | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 96.2 | «Guardar y configurar» muestra la confirmación al llegar y los avisos de Django tienen su color | Becas · transversal | `#ui` `#relevamientos` `#convocatorias` | PM — auditoría de diseño de Becas (ALR-5) | 29/09/2026 | 🟢 **Hecho** | No requiere |
@@ -282,22 +282,22 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 97 | El check de seguridad (pip-audit) deja de bloquear los PRs: DRF 3.17.2 y anyio 4.14.2 | Transversal | `#infra` `#api` | Juez de la sesión — gate «Security / Pip Audit» rojo en todos los PRs | 29/09/2026 | 🟢 **Hecho** | No requiere |
 | 98 | Corregir los datos que impiden informar un caso a SIIS (localidad, barrio, nacimiento, apoderado) | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` `#relevamientos` | PM — en sesión, sobre los rechazos de la corrida del 23/09: «quiero solucionar los casos que nosotros podemos solucionar» | 30/09/2026 | 🟢 **Hecho** | No requiere |
 | 99 | El alta de un relevamiento público deja de dar 500 en MariaDB: `token_publico` admite el UUID con guiones | Becas · relevamientos públicos y portal de inscripción | `#relevamientos` `#datos` `#infra` | PM — en sesión: 500 en `POST /becas/relevamientos/nuevo/` en el testing de ECOM | 29/09/2026 | 🟢 **Hecho** | `programas.0073` |
-| 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
-| 101 | Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login | Conversaciones · chat público · Portal ciudadano | `#rbac` `#datos` `#ui` | Auditoría integral oct-2026 (G1-01 y G1-02, severidad ALTA, ola 0) | 01/10/2026 | 🟢 **Hecho** | No requiere |
-| 102 | Apagar el registro y el perfil del portal ciudadano | Portal ciudadano | `#sesion` `#usuarios` `#ui` `#datos` | Auditoría integral oct-2026 — hallazgo SEC-29 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
-| 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 100 | La API del backoffice solo por sesión, y se retira la consulta RENAPER anónima | Transversal · API DRF · Legajos | `#api` `#sesion` `#rbac` `#seguridad` | Auditoría integral oct-2026 — SEC-01 y SEC-04 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 101 | Desmontar las rutas públicas de conversaciones: creaban legajos de cualquier DNI y filtraban RENAPER sin login | Conversaciones · chat público · Portal ciudadano | `#rbac` `#datos` `#ui` `#seguridad` | Auditoría integral oct-2026 (G1-01 y G1-02, severidad ALTA, ola 0) | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 102 | Apagar el registro y el perfil del portal ciudadano | Portal ciudadano | `#sesion` `#usuarios` `#ui` `#datos` `#seguridad` | Auditoría integral oct-2026 — hallazgo SEC-29 (Ola 0, hotfix de seguridad) | 01/10/2026 | 🟢 **Hecho** | No requiere |
+| 103 | El nombre de un rol ya no inyecta código en el backoffice (SEC-08) | Transversal · shell del backoffice | `#usuarios` `#rbac` `#ui` `#seguridad` | Auditoría de seguridad oct-2026 (SEC-08), Ola 0 | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 104 | Los seeds de arranque ya no pisan lo configurado en Roles: las capacidades opt-in sobreviven y se respetan nombre, activo y estado del programa | Transversal — bootstrap y RBAC | `#rbac` `#infra` `#datos` | Auditoría de código oct-2026, hallazgo OPS-06 (Ola 0, PR H5) | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 105 | Los tests del coordinador regional no dependen de la fecha de hoy | Transversal | `#infra` `#convocatorias` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026: el Backend CI quedó rojo en todos los PRs | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 106 | Un comando único corre el alta en SIIS de punta a punta, y las consultas de ids dejan de morir por timeout | Becas · alta de beneficiarios en SIIS | `#siis` `#infra` `#performance` | PM — en sesión, después de la corrida del 01/10: «quiero armar un comando único que haga todos los pasos» y «¿tenemos forma de evitar el Lost connection?» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 107 | El estado civil que SIIS no tiene deja de dejar casos afuera, y el resto queda verificado contra el manual | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, al revisar el hallazgo de la revisión independiente: «a esos casos ponele Soltero/a los de Separado/a» | 01/10/2026 | 🟢 **Hecho** | No requiere |
 | 108 | El alta puede ir a una tabla intermedia propia en vez de a SIIS, y nada se queda ahí | Becas · alta de beneficiarios en SIIS | `#siis` `#datos` | PM — en sesión, pedido del cliente: «tener la opción de enviarlo a una tabla local o enviarlo a SIIS» | 01/10/2026 | 🟢 **Hecho** | `0074_altaintermediasiis` |
-| 109 | Un permiso base `BackofficeAutenticado` para las vistas de la API que no heredan el default | Transversal · API DRF (`/api/`) | `#api` `#rbac` `#sesion` | Auditoría integral oct-2026 — SEC-01 punto 2 (Ola 0, segunda tanda, PR H7) | 03/10/2026 | 🟢 **Hecho** | No requiere |
-| 110 | El admin de un programa no toma cuentas ajenas: ni superusuarios, ni admins globales, ni usuarios de otro programa | Transversal · ABM de Usuarios | `#rbac` `#usuarios` `#sesion` | Auditoría integral oct-2026 — SEC-03 (severidad crítica, confirmado con test), Ola 0 | 03/10/2026 | 🟢 **Hecho** | No requiere |
-| 111 | Fuera las rutas de debug de Legajos y la evaluación anónima del chat | Legajos · Conversaciones | `#rbac` `#ui` `#api` | Auditoría integral oct-2026 — SEC-19 y R0-01 (Ola 0, segunda tanda) | 03/10/2026 | 🟢 **Hecho** | No requiere |
-| 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
-| 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
-| 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
-| 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 109 | Un permiso base `BackofficeAutenticado` para las vistas de la API que no heredan el default | Transversal · API DRF (`/api/`) | `#api` `#rbac` `#sesion` `#seguridad` | Auditoría integral oct-2026 — SEC-01 punto 2 (Ola 0, segunda tanda, PR H7) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 110 | El admin de un programa no toma cuentas ajenas: ni superusuarios, ni admins globales, ni usuarios de otro programa | Transversal · ABM de Usuarios | `#rbac` `#usuarios` `#sesion` `#seguridad` | Auditoría integral oct-2026 — SEC-03 (severidad crítica, confirmado con test), Ola 0 | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 111 | Fuera las rutas de debug de Legajos y la evaluación anónima del chat | Legajos · Conversaciones | `#rbac` `#ui` `#api` `#seguridad` | Auditoría integral oct-2026 — SEC-19 y R0-01 (Ola 0, segunda tanda) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 112 | Los archivos subidos dejan de bajarse sin sesión | Transversal · archivos | `#infra` `#rbac` `#datos` `#seguridad` | Juez de la sesión — Ola 0 de la auditoría integral oct-2026 (SEC-09, etapa 1) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 113 | La API REST de usuarios y roles queda apagada salvo `me` | Transversal · API DRF (`/api/users/`) | `#api` `#rbac` `#usuarios` `#seguridad` | Auditoría integral oct-2026 — SEC-05, SEC-16 y SEC-17, decisión D-05 (Ola 0, segunda tanda, PR H11) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 114 | La API de ciudadanos es de solo lectura, pide capacidad y solo contesta búsquedas | Legajos · API DRF (`/api/legajos/`) | `#api` `#rbac` `#datos` `#seguridad` | Auditoría integral oct-2026 — SEC-02 (+ V1-NEW-03) y SEC-01 punto 2 en legajos (Ola 0, segunda tanda, PR H12) | 03/10/2026 | 🟢 **Hecho** | No requiere |
+| 115 | El catálogo geográfico de la API es de solo lectura y las APIs del dashboard piden capacidad | Transversal · API DRF (`/api/core/`, `/api/` del dashboard) · home del backoffice | `#api` `#rbac` `#sesion` `#ui` `#seguridad` | Auditoría integral oct-2026 — SEC-13 y SEC-14 (Ola 0, segunda tanda, PR H13) | 03/10/2026 | 🟢 **Hecho** | No requiere |
 | 116 | Los volcados de personas salen del repo y de la imagen | Transversal · alta en SIIS · repositorio, release e imagen | `#datos` `#infra` `#siis` | Auditoría integral oct-2026 — RED-01, decisión D-RED-01 (Ola R, PR R-01) | 04/10/2026 | 🟡 **Parcial** (la purga del historial y el repo privado los hace el PM) | No requiere |
 | 117 | El rollback de producción tiene un procedimiento escrito, y las migraciones que no se pueden revertir avisan antes de romper nada | Transversal · operación y deploy · migraciones | `#infra` `#datos` | Auditoría integral oct-2026 — RED-60 y RED-15 (Ola R «Red de seguridad», PR R-02) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 118 | `/api/docs/` vuelve a andar y el esquema de la API dice la verdad | Transversal · API DRF · documentación (`/api/schema/`, `/api/docs/`, `/api/redoc/`) | `#api` `#mobile` `#infra` | Auditoría integral oct-2026 — RED-36 y RED-37 (Ola R, red de seguridad, PR R-04) | 04/10/2026 | 🟢 **Hecho** | No requiere |
@@ -308,7 +308,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 123 | Caracterizar lo que la Ola 1 va a reescribir, y que Becas y SIIS fallen cerrados | Becas · comandos SIIS/RENAPER · revisión de casos · alcance RBAC de Becas · configuración de entorno | `#siis` `#rbac` `#infra` `#datos` | Auditoría integral oct-2026 — RED-32, RED-54, RED-47, RED-56, RED-61, RED-69 y RED-87 (Ola R, red de seguridad, PR R-06) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 124 | Cupo y lista de espera: la guarda del cupo 0, el contrato de los candados y la posición | Becas · cupo y lista de espera · Portal (link público) · API de campo | `#cupos` `#api` `#mobile` `#datos` | Auditoría integral oct-2026 — RED-27, RED-67 y RED-68 (Ola R, red de seguridad, PR R-09) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 125 | El CI ve la forma del SQL que le llega al motor de producción | Transversal · dashboards · link público · Dispositivos (reportes) | `#performance` `#infra` `#datos` `#relevamientos` | Auditoría integral oct-2026 — RED-07, RED-08 y RED-09 (Ola R, red de seguridad, PR R-10) | 04/10/2026 | 🟢 **Hecho** | No requiere |
-| 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
+| 126 | Un usuario sin rol dejaba de ser inofensivo: borraba documentos del ciudadano y silenciaba alertas | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) | `#rbac` `#api` `#ui` `#datos` `#seguridad` | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R, red de seguridad, PR R-19) | 04/10/2026 | 🟢 **Hecho** | No requiere |
 | 127 | Un alta por caso en SIIS: resultado incierto que no se reintenta y conciliación con ECOM | Becas · alta de beneficiarios en SIIS (pantalla, masivo, comandos y tabla intermedia) | `#siis` `#datos` `#relevamientos` `#ui` | Auditoría integral oct-2026 — SIIS-01, SIIS-02, SIIS-04, SIIS-05, BEC-14 y RED-53 (Ola 1 «Integridad SIIS», PR 2) | 05/10/2026 | 🟢 **Hecho** | `programas.0075_enviosiis_vigente` |
 | 128 | Nada sale a producción sin que algo lo haya verificado: contratos del repo en el CI, release con CI verde y espejo a ECOM en dos pasos | Transversal · CI de GitHub Actions · release y espejo a ECOM | `#infra` `#metodo` `#gestion` | Auditoría integral oct-2026 — RED-24, RED-21, RED-65, RED-23 y RED-22 (Ola R, red de seguridad, PR R-14) | 05/10/2026 | 🟡 **Parcial** (falta enviar la propuesta a ECOM y copiar los dos comandos a `.claude/`) | No requiere |
 | 129 | Que una pantalla nueva no pueda nacer sucia: ratchet, marcadores de arquetipo y gate de build | Transversal · herramientas de diseño · CI de GitHub Actions · CSS compilado | `#ui` `#metodo` `#infra` | Auditoría integral oct-2026 — FE-13, V5A-NEW-01 y V5A-NEW-08 (Ola 6 «Agente de diseño», pasos 0-2) | 05/10/2026 | 🟢 **Hecho** | No requiere |
@@ -352,26 +352,26 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 176 | El link público deja de romperse con un token duplicado, el padrón deja de escribir fechas imposibles y el alta a SIIS manda el CUIL real | Becas (link público de inscripción, carga de padrón, revisión de casos, alta a SIIS) · Legajos (cliente RENAPER) · Transversal (`core/db.py`) | `#relevamientos` `#siis` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-11, G1-12, G1-13, G1-14, R0-06, R0-07 y la 2.ª parte de RED-09 (Ola 3, PR 7b), más los tres seguimientos de la revisión del PR 7a | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 177 | El alcance de Becas vale también fuera de la pantalla: cupo, reportes, exports y la solapa del legajo | Becas (cupo, revisión, relevamientos, reportes, tablero del programa, configuración de segmentos) · Legajos (padrón de ciudadanos, solapa Becas, CSV de reportes) · Transversal (catálogo de capacidades) | `#rbac` `#cupos` `#relevamientos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas SEC-20, SEC-21, SEC-22, SEC-30, BEC-19 y BEC-23, más la segunda parte de RED-79 (Ola 2, PR 5) | 08/10/2026 | 🟢 **Hecho** (D-22 y D-B23 por default; **D-20 la resolvió el PM**: la exportación se siembra a quienes tienen `ciudadano.ver`) | `users.0027` y `users.0028`, las dos sin DDL; la segunda se revierte quitando la capacidad de todos los roles |
 | 178 | Una foto por campo, y el servidor sabe con qué versión del formulario se capturó | Becas — API de campo (`POST …/adjuntos/` y alta de casos) · Revisión de casos (qué adjunto se muestra) · Cron de vencimientos (línea de log) | `#api` `#relevamientos` `#requisitos` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas G1-07 y G1-16, más los tres MINOR de la revisión del PR 5 (Ola 3, PR 5b — **cierra el ítem 5**) | 08/10/2026 | 🟢 **Hecho** (G1-16 cierra del lado del servidor; mandar el dato es un release de `Chaco-mobile`) | `programas.0081` — una columna nullable en `programas_formulario` (expand puro) |
-| 179 | El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) | `#rbac` `#api` `#sesion` `#ui` | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04, R0b-05, R0b-09, G1c-04, G1c-17 y G3-03 (Ola 2, PRs 3 y 4 en un solo PR) | 08/10/2026 | 🟢 **Hecho** (D-11 y D-12 aplicadas por default) | No requiere |
+| 179 | El timeline, las alertas y el riesgo del ciudadano dejan de verse con la capacidad de consulta, y una derivación deja de aceptarse abriendo un link | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) | `#rbac` `#api` `#sesion` `#ui` `#seguridad` | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04, R0b-05, R0b-09, G1c-04, G1c-17 y G3-03 (Ola 2, PRs 3 y 4 en un solo PR) | 08/10/2026 | 🟢 **Hecho** (D-11 y D-12 aplicadas por default) | No requiere |
 | 180 | Las escrituras que fallan no dejan nada a medias: ni medio caso, ni un padrón vacío, ni un adjunto huérfano | Becas (aprobación de casos, link público de inscripción, padrón propio del relevamiento) · Dispositivos (admisión, lista de espera y traslado) · Transversal (`core/archivos.py`) | `#datos` `#cupos` `#relevamientos` `#metodo` | Auditoría integral oct-2026 — 2.ª parte de la ficha RED-35 (Ola 3, PR 9 — **cierra la ola**) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 181 | Una cuenta ya no se toma sin conocer su clave: cambio de contraseña, intentos, token de la app y el alcance del ABM de usuarios | Transversal — login, recupero y cambio de contraseña · ABM de usuarios y roles · API de la app de campo (`/api/becas/auth/token/`) · Correo de credenciales | `#sesion` `#usuarios` `#rbac` `#correo` `#api` | Auditoría integral oct-2026 — fichas G1b-05, G1b-07, G1b-08, G2-03, SEC-26, R0b-01, R0b-02, R0b-03 y R0b-10, más la segunda parte de RED-52 (Ola 2, PR 2) | 08/10/2026 | 🟢 **Hecho** (**D-26 = (b)** por default: link de reseteo, sin release de la app; de SEC-26 queda abierto `/admin/` por IP, que es de infraestructura) | No requiere |
 | 182 | Subir el padrón y abrir el cupo dejan de rozar el timeout, y «cupo disponible» pasa a ser tres nombres distintos | Becas (carga de padrón y cruce automático, pantalla de cupo y lista de espera, configuración de segmentos, API de la app de campo) · Transversal (caché de ciudadanos, paginación de bandejas, presupuestos de performance) | `#performance` `#cupos` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-04, PERF-16, PERF-02 y la 2.ª parte de RED-49 (Ola 4, PRs 1 y 2) | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 183 | MVP de la Versión 2 de Dispositivos: los cuatro bloques del cliente, 700 h | Dispositivos · documentación | `#gestion` `#ui` `#datos` | Cliente, con su propio consumo de horas; PM: «armá un pequeño documento de MVP V2 en base a lo que nos pide el cliente y sus horas» | 08/10/2026 | 🟢 **Hecho — publicado** | No requiere |
-| 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
-| 185 | La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) | `#sesion` `#rbac` `#api` `#infra` | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) | 08/10/2026 | 🟢 **Hecho** (D-27 y D-37 aplicadas por default; quedan tres pendientes de infraestructura) | No requiere |
+| 184 | El caso que la app ya cargó no se edita, la identidad la acredita el servidor y la consulta de personas tiene tope | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) | `#api` `#rbac` `#relevamientos` `#datos` `#seguridad` | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6 — **cierra el ítem 6**) | 08/10/2026 | 🟢 **Hecho** (D-24 y D-25 aplicadas por default) | No requiere |
+| 185 | La sesión se cierra sola del lado del servidor, el catálogo de programas pide permiso y RENAPER deja de viajar sin verificar | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) | `#sesion` `#rbac` `#api` `#infra` `#seguridad` | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) | 08/10/2026 | 🟢 **Hecho** (D-27 y D-37 aplicadas por default; quedan tres pendientes de infraestructura) | No requiere |
 | 186 | El circuito de SIIS deja de pagar por caso lo que es igual para todos | Becas (proceso masivo a SIIS, pantalla del masivo, comandos `procesar_casos_siis` y `validar_casos_siis`) · Transversal (presupuestos de performance, seed de performance, caché de ciudadanos) | `#siis` `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — fichas PERF-01 (+V4-NEW-02), PERF-19, PERF-07 y PERF-06 (Ola 4, PR 3) | 08/10/2026 | 🟢 **Hecho** | `programas.0082` (dos índices, online) |
 | 187 | La pasada horaria de alertas deja de recorrer el padrón y de recrear lo que ya existe | Legajos (comando `generar_alertas`, servicio de alertas, señal de legajo) · Becas (pantalla del proceso masivo) · Transversal (seed de performance) | `#performance` `#datos` `#ui` | Auditoría integral oct-2026 — fichas PERF-20 y LEG-01 (Ola 4, PR 4) + 3 seguimientos MINOR de #639 | 08/10/2026 | 🟢 **Hecho** | No requiere |
-| 188 | `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra | Transversal — descarga de `/media/` (adjuntos, fotos, contactos, F-00, merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) | `#rbac` `#datos` `#infra` `#api` | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) | 08/10/2026 | 🟢 **Hecho** (**D-15 = PDF e imagen**; `X-Accel-Redirect` preparado y apagado tras `MEDIA_X_ACCEL`, D-09/H-05) | `legajos.0010` y `programas.0083` (las dos sin DDL) |
+| 188 | `/media/` deja de ser «cualquiera con sesión baja cualquier archivo», y los uploads miran lo que entra | Transversal — descarga de `/media/` (adjuntos, fotos, contactos, F-00, merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) | `#rbac` `#datos` `#infra` `#api` `#seguridad` | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) | 08/10/2026 | 🟢 **Hecho** (**D-15 = PDF e imagen**; `X-Accel-Redirect` preparado y apagado tras `MEDIA_X_ACCEL`, D-09/H-05) | `legajos.0010` y `programas.0083` (las dos sin DDL) |
 | 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
 | 192 | Configuración, admin y las tres fichas de performance que se cerraron midiendo | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) | `#performance` `#infra` `#sesion` `#datos` | Auditoría integral oct-2026 — fichas PERF-08, PERF-10, G1c-09, G1c-11, PERF-12, PERF-13 y PERF-15 (Ola 4, PRs 6, 7 y 8) | 08/10/2026 | 🟢 **Hecho** (PERF-12, PERF-13 y PERF-15 cerradas con la medición como evidencia: **ningún índice entra**; `REDIS_SESSIONS_DB` preparada y apagada, H-06) | No requiere |
-| 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
+| 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` `#seguridad` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
 | 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
 | 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
 | 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
 | 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
-| 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
+| 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` `#seguridad` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
 | 199 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0034` (sin DDL) y `users.0035` (datos, con reversa) |
 | 200 | Lote de pantallas: se relevan todas las piezas y se construyen las que faltan antes de la primera | Diseño · contrato del agente | `#ui` | PM — en sesión: «esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 201 | Backlog del MVP de Dispositivos: 40 tasks numeradas por orden, y cierre de las 45 de la v2 | Dispositivos · gestión | `#gestion` | PM — en sesión: «actualizamos todos los task, en el título ponele un número que va a ser el número de orden, asignámelos a mí en esta iteración y agregalos al backlog» | 09/10/2026 | 🟢 **Hecho** | No requiere |
@@ -616,7 +616,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 | 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
-| 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` `#ui` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
@@ -626,6 +626,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 505 | Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#performance` `#seguridad` `#metodo` `#gestion` | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -10785,7 +10786,7 @@ Entrada nueva. Sale del relevamiento exhaustivo de casos no enviados en testing 
 | | |
 |---|---|
 | **Programa / módulo** | Becas · cupo del segmento y listado de convocatorias · Legajos (detalle de programa, legajo del ciudadano y alertas en tiempo real) |
-| **Etiquetas** | `#cupos` `#convocatorias` `#ui` `#datos` |
+| **Etiquetas** | `#cupos` `#convocatorias` `#ui` `#datos` `#seguridad` |
 | **Solicitante** | Revisión de seguridad independiente, derivada como hotfix en sesión de trabajo (hallazgos H1, H2 y H3) |
 | **Fecha del pedido** | 29/09/2026 |
 | **Issue / épica** | Sin issue (hotfix pedido en sesión) · PR contra `development` desde `hotfix/becas-cupo-xss` |
@@ -13156,7 +13157,7 @@ el alta vuelve a dar 500.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · API DRF (`/api/`) · Legajos |
-| **Etiquetas** | `#api` `#sesion` `#rbac` |
+| **Etiquetas** | `#api` `#sesion` `#rbac` `#seguridad` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-01** y **SEC-04**, los dos CRÍTICOS y confirmados con test de reproducción. Ola 0 (hotfix de seguridad) |
 | **Fecha del pedido** | 01/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
@@ -13295,7 +13296,7 @@ archivos de `legajos/` son SEC-04. No se pierden datos en ninguno de los dos cas
 | | |
 |---|---|
 | **Programa / módulo** | Conversaciones · chat público · Portal ciudadano (perfil y detalle de consulta) |
-| **Etiquetas** | `#rbac` `#datos` `#ui` |
+| **Etiquetas** | `#rbac` `#datos` `#ui` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026, hallazgos **G1-01** y **G1-02** (severidad ALTA, ola 0 — hotfix de seguridad) |
 | **Fecha del pedido** | 01/10/2026 |
 | **Issue / épica** | Sin issue · PR contra `development` desde `fix/ola0-conversaciones-publicas` |
@@ -13404,7 +13405,7 @@ ellas los dos hallazgos. No hay datos que migrar: las conversaciones y los legaj
 | | |
 |---|---|
 | **Programa / módulo** | Portal ciudadano |
-| **Etiquetas** | `#sesion` `#usuarios` `#ui` `#datos` |
+| **Etiquetas** | `#sesion` `#usuarios` `#ui` `#datos` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — hallazgo **SEC-29** (Ola 0, hotfix de seguridad) |
 | **Fecha del pedido** | 01/10/2026 |
 | **Issue / épica** | Sin issue (plan de olas de la auditoría, `docs/internal/auditoria-2026-10/`) |
@@ -13502,7 +13503,7 @@ documentos de `/media/` (SEC-09).
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · shell del backoffice (`templates/includes/base.html`) |
-| **Etiquetas** | `#usuarios` `#rbac` `#ui` |
+| **Etiquetas** | `#usuarios` `#rbac` `#ui` `#seguridad` |
 | **Solicitante** | Auditoría de seguridad oct-2026, hallazgo SEC-08 (severidad alta, confirmado con test), Ola 0 de hotfixes |
 | **Fecha del pedido** | 01/10/2026 |
 | **Issue / épica** | Sin issue · PR H4 de la Ola 0 |
@@ -14184,7 +14185,7 @@ que vaciarla antes, o las filas sin sincronizar se pierden de vista.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · API DRF (`/api/`) |
-| **Etiquetas** | `#api` `#rbac` `#sesion` |
+| **Etiquetas** | `#api` `#rbac` `#sesion` `#seguridad` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **SEC-01**, punto 2 de la propuesta (Ola 0, segunda tanda, PR H7) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
@@ -14284,7 +14285,7 @@ revertir este cambio rompe el import de esas vistas.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · ABM de Usuarios del backoffice (`/usuarios/`) |
-| **Etiquetas** | `#rbac` `#usuarios` `#sesion` |
+| **Etiquetas** | `#rbac` `#usuarios` `#sesion` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026, hallazgo SEC-03 (severidad crítica, confirmado con test; absorbe A5-03 y G1b-01), Ola 0 de hotfixes |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Sin issue · PR H8 de la Ola 0 |
@@ -14416,7 +14417,7 @@ default de la decisión D-03 de la auditoría oct-2026. El resto del Cambio 67 s
 | | |
 |---|---|
 | **Programa / módulo** | Legajos · Conversaciones |
-| **Etiquetas** | `#rbac` `#ui` `#api` |
+| **Etiquetas** | `#rbac` `#ui` `#api` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — hallazgos SEC-19 y R0-01 (Ola 0, segunda tanda) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | sin issue |
@@ -14536,7 +14537,7 @@ Revertir el commit devuelve las cuatro rutas de Legajos con sus vistas y la ruta
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · archivos subidos (`/media/`) |
-| **Etiquetas** | `#infra` `#rbac` `#datos` |
+| **Etiquetas** | `#infra` `#rbac` `#datos` `#seguridad` |
 | **Solicitante** | Juez de la sesión — Ola 0 de la auditoría integral oct-2026, hallazgo **SEC-09** (etapa 1) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | sin issue — se sigue por `docs/internal/auditoria-2026-10/` |
@@ -14684,7 +14685,7 @@ se pierde ningún dato: los archivos no se mueven ni se renombran. La reversión
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · API DRF (`/api/users/`) |
-| **Etiquetas** | `#api` `#rbac` `#usuarios` |
+| **Etiquetas** | `#api` `#rbac` `#usuarios` `#seguridad` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-05** (CRÍTICA), **SEC-16** y **SEC-17**, decisión **D-05** (Ola 0, segunda tanda, PR H11) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
@@ -14839,7 +14840,7 @@ involucrados: el cambio es solo de ruteo y permisos.
 | | |
 |---|---|
 | **Programa / módulo** | Legajos · API DRF (`/api/legajos/`) |
-| **Etiquetas** | `#api` `#rbac` `#datos` |
+| **Etiquetas** | `#api` `#rbac` `#datos` `#seguridad` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgo **SEC-02** (incluye **V1-NEW-03**) y el punto 2 de **SEC-01** aplicado a legajos (Ola 0, segunda tanda, PR H12) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
@@ -14979,7 +14980,7 @@ datos ni migraciones de por medio.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal · API DRF (`/api/core/` y las 5 vistas de `/api/` del dashboard) · home del backoffice |
-| **Etiquetas** | `#api` `#rbac` `#sesion` `#ui` |
+| **Etiquetas** | `#api` `#rbac` `#sesion` `#ui` `#seguridad` |
 | **Solicitante** | Auditoría integral de octubre 2026 — hallazgos **SEC-13** y **SEC-14** (Ola 0, segunda tanda, PR H13) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Sin issue — auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
@@ -16907,7 +16908,7 @@ No aplica: entrada nueva.
 | | |
 |---|---|
 | **Programa / módulo** | Legajos (adjuntos, alertas, APIs del detalle) · Transversal (barrido del URLconf) · Usuarios (ABM de Roles) |
-| **Etiquetas** | `#rbac` `#api` `#ui` `#datos` |
+| **Etiquetas** | `#rbac` `#api` `#ui` `#datos` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — RED-89, SEC-10, SEC-18, SEC-11, RED-04 y RED-06 (Ola R «Red de seguridad», PR R-19) |
 | **Fecha del pedido** | 04/10/2026 |
 | **Issue / épica** | sin issue (plan de la auditoría, `docs/internal/auditoria-2026-10/README.md` §6) |
@@ -26559,7 +26560,7 @@ la referencia de otro segmento, que es el rechazo que queda.
 | | |
 |---|---|
 | **Programa / módulo** | Legajos (APIs del detalle del ciudadano, bandeja de derivaciones, inscripción directa, API de ciudadanos) · Inicio (feed de actividad reciente, campana de alertas) · Transversal (WebSocket `/ws/alertas/`, shell del backoffice) |
-| **Etiquetas** | `#rbac` `#api` `#sesion` `#ui` |
+| **Etiquetas** | `#rbac` `#api` `#sesion` `#ui` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas SEC-12, la 2.ª mitad de SEC-11, R0b-04 (+ R0b-05), R0b-09, G1c-04, G1c-17 y G3-03 |
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítems 3 y 4, en un solo PR |
@@ -27701,7 +27702,7 @@ en la misma rama.
 | | |
 |---|---|
 | **Programa / módulo** | Becas — API de campo (`/api/becas/formularios/`, alta de casos, adjuntos y consulta de identidad) · Transversal (tasas de throttle de DRF, presupuesto de llamadas externas) |
-| **Etiquetas** | `#api` `#rbac` `#relevamientos` `#datos` |
+| **Etiquetas** | `#api` `#rbac` `#relevamientos` `#datos` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas SEC-23 (+G1-15), SEC-24, SEC-25 y R0-05 (Ola 2, PR 6) |
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítem 6 — **lo cierra** |
@@ -27972,7 +27973,7 @@ igual.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal (sesión, cookies, system checks, API del backoffice) · Legajos (consulta RENAPER) · Dispositivos (admisión) · Becas (mapa del caso) |
-| **Etiquetas** | `#sesion` `#rbac` `#api` `#infra` |
+| **Etiquetas** | `#sesion` `#rbac` `#api` `#infra` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas SEC-27, SEC-32, SEC-33, SEC-34, SEC-35, SEC-36, SEC-37, G1c-10, G1c-16 y el resto de SEC-01 (Ola 2, PR 8) |
 | **Fecha del pedido** | 03/10/2026 |
 | **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización), ítem 8 |
@@ -28581,7 +28582,7 @@ exactamente lo que hacía antes.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal — descarga de `/media/` (adjuntos del legajo, foto del ciudadano, archivos de contacto, F-00 de Dispositivos, documentación de Merenderos, adjuntos y padrones de Becas) · Dispositivos (campo ARCHIVO del F-00) · Merenderos (solicitud) · Becas (carga del padrón) |
-| **Etiquetas** | `#rbac` `#datos` `#infra` `#api` |
+| **Etiquetas** | `#rbac` `#datos` `#infra` `#api` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — fichas SEC-09 etapa 2, SEC-15, SEC-31, R0b-07 y R0b-08 (Ola 2, PR 7) |
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | Auditoría oct-2026, Ola 2 (Autorización) ítem 7 |
@@ -29332,7 +29333,7 @@ quien esté logueado vuelve al login una vez.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal — RBAC (catálogo, ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) |
-| **Etiquetas** | `#rbac` `#usuarios` `#datos` `#infra` |
+| **Etiquetas** | `#rbac` `#usuarios` `#datos` `#infra` `#seguridad` |
 | **Solicitante** | Auditoría oct-2026, Ola 2 PR 1 (fichas SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) |
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | Auditoría oct-2026 — `docs/internal/auditoria-2026-10/` |
@@ -30443,7 +30444,7 @@ generados.
 | | |
 |---|---|
 | **Programa / módulo** | Transversal (shell del backoffice, context processor de identidad, routing de Channels, presupuestos de performance) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle del ciudadano, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») |
-| **Etiquetas** | `#infra` `#ui` `#rbac` `#performance` |
+| **Etiquetas** | `#infra` `#ui` `#rbac` `#performance` `#seguridad` |
 | **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 4 |
 | **Fecha del pedido** | 09/10/2026 |
 | **Issue / épica** | Auditoría oct-2026 — fichas G1-01 fase 2 y la segunda parte de RED-13 |
@@ -57954,7 +57955,7 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
 | | |
 |---|---|
 | **Programa / módulo** | Becas · dashboard |
-| **Etiquetas** | `#seguridad` |
+| **Etiquetas** | `#seguridad` `#ui` |
 | **Solicitante** | Auditoría — hallazgo B2-SEG-01 (autorizado por el usuario: «PR sí») |
 | **Fecha del pedido** | 19/11/2026 |
 | **Issue / épica** | sin issue |
@@ -58705,3 +58706,59 @@ cargar con el comando).
   las coordenadas se validan contra la caja del Chaco ± 0,5° (lat −28,5 a −23,6, lon −63,8 a −58,0), lo que corta
   latitud y longitud invertidas; el reporte marca las ambiguas y no conciliadas que conservan una ubicación de una
   carga anterior («conserva ubicación anterior (id_fuente …)»), con una sola consulta y sin borrar nada. 21 tests.
+
+# Cambio 505 — Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) |
+| **Etiquetas** | `#performance` `#seguridad` `#metodo` `#gestion` |
+| **Solicitante** | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ninguna del producto: solo documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+Auditar la performance y el código de los tres módulos que más crecieron (Becas, Emergencia y Dispositivos) con el método de `/auditoria completa`, y dejar los informes en el repo para que las olas de arreglo salgan de ahí.
+
+## Alcance acordado
+Entra: el método de la serie, los tres informes con sus fichas (151 + 93 + 93 = 337, unas 1.254 h) y un README que resume la serie. Queda afuera: el código de los arreglos (cada ola es su propio PR, con su issue) y las mediciones del banco de Emergencia y Dispositivos, que llegan en el PR `perf/banco-emergencia-dispositivos`. Las reglas nuevas para las skills se **proponen** en el README; no se editó nada bajo `.claude/`.
+
+## Decisiones tomadas
+- **Becas:** B-PERF-25 (XLSX de respuestas, 12,2 → 2,9 s medido) **reabre A4-03 de octubre**; B-PERF-16 se **descarta** (PERF-13 de octubre midió el mismo mecanismo); B-PERF-02, B-PERF-03, B-PERF-18 y B-PERF-26 se quedan en sus olas y citan PERF-11 (si se retoma, las absorbe); B-LIM-02 (unificar los estados del relevamiento) y B-LIM-15 (cupo ocupado del dashboard) son **decisión del cliente**, y B-LIM-02 va en un PR coordinado con Chaco-mobile y con los tests de contrato RED-11/RED-03 en el mismo diff.
+- **Emergencia:** E-SEG-01 y E-ERR-01 ya están resueltas (#1204, Cambio 496, y #1205, Cambio 497); el seguimiento que dejaron esos PRs va en la sección 10 de `emergencia.md` para el próximo PR de Emergencia.
+- **Dispositivos (8 contradicciones):** se adopta el orden global de candados (entrada de bitácora → estadías → plazas → reservas → ciudadano → dispositivo → sector), que el PR debe verificar contra ingreso, egreso, cambio de plaza y reserva; «cerrado» contra «no ACTIVO» es decisión del cliente con default «cerrado»; los formateadores van a `core/texto.py` solo si se usan fuera de `programas/`, si no a `programas/services/formato.py`; `ve_la_asignacion_en_lote` y MEDIA para el motivo libre; D-FE-02 **no** promueve `_ajax_js` (descartado en octubre) y usa el handler `data-ajax` canónico; el banco se siembra con el volumen mayor (500 plazas, 20.000 estadías). D-ERR-06 cubre también `views/diseno.py:287` de Becas.
+- **Los informes no llevan datos de personas:** los DNI de las PoC se reemplazaron por marcadores y las rutas del entorno local, por «PoC reproducida; test en el PR que la arregla».
+- **Publicación:** docs/internal no sale a Pages ni a main, pero el repo es público: las fichas de seguridad abiertas van sin detalle técnico (el detalle se agrega al informe con el PR que cada una cierra).
+
+## Implementación
+Se agregan `README.md`, `METODO.md`, `becas.md`, `emergencia.md` y `dispositivos.md` en `docs/internal/auditoria-2026-11-perf/`, con el molde de `auditoria-2026-10/`: resumen, índice, plan por olas, reglas para no repetirlo, descartados, línea de base, decisiones del cliente, plan de la pasada 2 y fichas. En las dos ALTA ya resueltas y en B-SEG-01 (#1202, Cambio 494) la ficha dice el PR y el Cambio.
+
+## Archivos
+`docs/internal/auditoria-2026-11-perf/` (cinco archivos), `.gitattributes` (la carpeta nueva con `text eol=lf`, como la de octubre) y este archivo.
+
+También se cierra el pendiente de la auditoría de #1202: el Cambio 494 suma una segunda etiqueta (`#ui`) y `#seguridad` se agrega a los Cambios de seguridad que no la tenían (95, 100, 101, 102, 103, 109, 110, 111, 112, 113, 114, 115, 126, 179, 184, 185, 188, 193 y 198), para que `--tag seguridad` devuelva todo lo de seguridad. Los Cambios 177 y 181 también lo son, pero ya tienen cinco etiquetas y no se tocaron.
+
+## Base de datos
+No requiere.
+
+## Validación
+`scripts/requerimientos.py --check` en OK; `scripts/check_docs_client.py` en 0 hallazgos (el alcance estricto mira solo `docs/client/`); los informes pesan menos que el tope de 512 KB de `scripts/check_datos_personales.py`. Ningún código ni plantilla cambió, así que no corren `manage.py check` ni la auditoría de diseño.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- Las **decisiones del cliente** de cada informe (sección 7): 19 en Becas, 12 en Emergencia (una es del juez) y 16 en Dispositivos; cada una trae su propuesta por defecto.
+- La **medición de Emergencia y Dispositivos** en el banco (PR `perf/banco-emergencia-dispositivos`): las secciones de pasada 2 dicen «pendiente de medición» y no traen números.
+- Los **issues** de las olas 0 a 7 (Becas), 0 a 6 (Emergencia) y 0 a 10 (Dispositivos): se abren en Backlog, Iteration 7, con las fichas y los casos de QA. La limpieza (olas 8 a 13, 7 a 9 y 11 y 12) queda como backlog opcional.
+- Las **reglas propuestas** para las skills (README, «Reglas propuestas»), que aplica quien edita `.claude/`.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
