@@ -1156,7 +1156,7 @@ indica qué ítems no conviene cerrar sin la respuesta.
 | D-05 | ¿Se conserva la API REST `/api/users/`? | No: apagarla y dejar `me`. ✅ Aplicado el default (03-oct): #540, Cambio 113 | SEC-05, SEC-16, SEC-17 |
 | D-06 | ¿Algún rol de otro programa usa capacidades de Becas a propósito? | No; correr P-02 antes de la migración | SEC-06 (migración) |
 | D-07 | ¿El admin de un programa edita el wizard de **su** programa? | Sí, solo el suyo; crear programas, solo roles sin programa | SEC-07 |
-| D-09 | Coordinación con ECOM de `/media/` protegido | Etapa 1 en DEV ya; etapa 2 en el próximo release a ECOM. 🟡 03-oct: etapa 1 mergeada (#538), falta desplegarla en icore (R0b-11) | SEC-09 etapa 2 |
+| D-09 | Coordinación con ECOM de `/media/` protegido | Etapa 1 mergeada; etapa 2 en el próximo release a ECOM. 🟡 03-oct: etapa 1 mergeada (#538), falta desplegarla en icore (R0b-11) | SEC-09 etapa 2 |
 | D-11 | ¿Timeline y alertas del legajo requieren `ciudadano.sensible`? | Sí | SEC-11, G1c-04 |
 | D-12 | ¿Capacidad nueva `ciudadano.derivar` o reusar `ciudadano.editar`? | Reusar `ciudadano.editar` | SEC-12 |
 | D-15 | ¿El F-00 necesita `.doc/.docx`? | No: PDF e imagen | SEC-15 |
@@ -1739,7 +1739,7 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   SEC-05 → 403/404, SEC-08 → sin `</script>` literal, SEC-13 → 405, SEC-14 → 403, SEC-16/17 → 404, SEC-19 →
   `NoReverseMatch`); `test_repro_admin_cron_renaper.py::G1c02…` invertido pasa; `resolve("/portal/mi-perfil/registro/")`
   → 404 y la inscripción pública sigue (`manage.py test portal`); `test_becas_api` en verde (la app sigue autenticando con
-  Token); en DEV, `curl -I` de un `/media/` sin cookie → 302.
+  Token); la comprobación en DEV queda reservada hasta el cierre de R0b-11.
 - **Riesgo de deploy:** bajo. Sin migraciones de esquema (salvo la migración de datos opcional de SEC-29 para desactivar
   ciudadanos, tabla chica). SEC-01 puede romper un consumidor desconocido con Basic (H-08). Después del deploy de OPS-06,
   el PM verifica P-05 y vuelve a tildar en PRD lo que el seed haya borrado. SEC-09 etapa 1 reinicia nginx en icore
