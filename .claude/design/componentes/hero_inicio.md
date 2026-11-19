@@ -7,8 +7,10 @@
 **Consumidores de referencia:** el tablero del supervisor de Emergencia (E1,
 `programas/templates/programas/emergencia/tablero.html`): nombre del evento como título, los tres números
 del programa en `<strong>` dentro del `{% bajada %}` y «Actualizar» como la única acción. Es un Detalle
-apilado (`{# arquetipo: detalle + apilado #}`) en el que el hero ocupa el lugar del `page_header`. El
-tablero de la red de Dispositivos (P1 del mockup v2) todavía no lo usa. El Inicio (`templates/inicio.html`) lo tuvo hasta que FE-22 lo retiró
+apilado (`{# arquetipo: detalle + apilado #}`) en el que el hero ocupa el lugar del `page_header`. La
+golden del arquetipo Dashboard (`programas/templates/programas/dispositivos/tablero/tablero_referencia.html`,
+ficha `arquetipos/dashboard.md`) lo usa como encabezado del tablero de programa; el tablero real de
+Dispositivos todavía no existe. El Inicio (`templates/inicio.html`) lo tuvo hasta que FE-22 lo retiró
 y hoy usa `{% page_header %}`: volver a ponerlo es una decisión de producto, no un efecto de esta pieza.
 
 ## Regla de uso (taxativa)
@@ -29,8 +31,8 @@ se rechaza citando esta ficha y la fila del inventario del agente.
   `variante="tablero"`). No se copia el gradiente a otras piezas ni se arma un hero a mano.
 - Uno por pantalla, arriba de todo; no se repite en solapas ni en modales.
 - **Se hace cumplir en dos lugares.** `scripts/design_audit.py` tiene la regla P1 `HEROFUERA`: marca
-  `{% hero_inicio %}` o clases `nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS` (hoy vacía;
-  corta en `--ratchet`, hook y CI). Y `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan` contrasta
+  `{% hero_inicio %}` o clases `nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS` (hoy E1 y la
+  golden del Dashboard; corta en `--ratchet`, hook y CI). Y `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan` contrasta
   esa misma lista contra los templates reales. Incorporar una pantalla es agregar su ruta a
   `HERO_PANTALLAS`, a la vista de quien revisa.
 

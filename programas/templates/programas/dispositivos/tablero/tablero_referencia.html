@@ -1,0 +1,133 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Tablero{% endblock %}
+
+{% block main-content %}
+{% comment %}Golden del arquetipo «Dashboard de programa» (ficha .claude/design/arquetipos/dashboard.md).
+Referencia sin vista: no tiene URL. La pantalla real clona este archivo y le pone su vista; no lo edita.
+Todos los números, textos, tonos y URL llegan armados de la vista: el template no cuenta ni decide.{% endcomment %}
+<div class="space-y-5"
+     x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'resumen' }">
+
+  {% hero_inicio titulo=titulo eyebrow=eyebrow accion_url=url_accion accion_texto=accion_texto accion_icono=accion_icono %}
+    {% bajada %}{{ resumen }}{% endbajada %}
+  {% endhero_inicio %}
+
+  {# Una sola barra arriba de las solapas: al enviar, el oculto «tab» toma la solapa que se está mirando. #}
+  <div class="flex flex-wrap items-center justify-between gap-3"
+       @submit.capture="$event.target.elements.tab && ($event.target.elements.tab.value = tab)">
+    {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
+    <div class="flex flex-wrap items-center gap-3 text-xs text-body-subtle">
+      {% if request.GET|hay_filtros:"page,tab" %}
+      <a href="{{ url_limpiar }}" :href="'{{ url_limpiar }}?tab=' + tab" class="btn-nodo btn-tertiary btn-sm">Limpiar</a>
+      {% endif %}
+      <span><i class="fas fa-clock" aria-hidden="true"></i> Actualizado a las {{ actualizado }}</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    {% for tarjeta in tarjetas %}
+    {% include "components/_stat_card.html" with etiqueta=tarjeta.etiqueta valor=tarjeta.valor sufijo=tarjeta.sufijo nota=tarjeta.nota icono=tarjeta.icono tono=tarjeta.tono variante="tablero" only %}
+    {% endfor %}
+  </div>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Vistas del tablero">
+      <button @click="tab='resumen'" type="button" role="tab" id="tab-resumen" aria-controls="panel-resumen"
+              :aria-selected="tab==='resumen'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='resumen' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-table-cells-large" aria-hidden="true"></i> Resumen
+      </button>
+      <button @click="tab='mapa'" type="button" role="tab" id="tab-mapa" aria-controls="panel-mapa"
+              :aria-selected="tab==='mapa'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='mapa' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-map-location-dot" aria-hidden="true"></i> Mapa
+      </button>
+    </div>
+  </div>
+
+  <div x-show="tab==='resumen'" x-cloak role="tabpanel" id="panel-resumen" aria-labelledby="tab-resumen" class="space-y-5">
+
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-atencion-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="tablero-atencion-titulo" class="text-heading font-bold">Necesita atención</h2>
+        <p class="mt-1 text-xs text-body-subtle">{{ atencion_resumen }}</p>
+      </div>
+      {% if atencion %}
+      <div class="p-5 space-y-3">
+        {% for aviso in atencion %}
+        {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto accion_url=aviso.url accion_texto=aviso.accion role="status" only %}
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-circle-check" titulo="Nada pendiente" texto="Con estos filtros ningún dispositivo pide atención." only %}
+      {% endif %}
+    </section>
+
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-red-titulo">
+      <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id="tablero-red-titulo" class="text-heading font-bold">Dispositivos de la red</h2>
+          <p class="mt-1 text-xs text-body-subtle">{{ red_resumen }}</p>
+        </div>
+        <a href="{{ url_listado }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-list" aria-hidden="true"></i> Ver listado completo</a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <caption class="sr-only">Dispositivos de la red con su ocupación y su relevamiento</caption>
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th" scope="col">Dispositivo</th>
+              <th class="nodo-th" scope="col">Localidad</th>
+              <th class="nodo-th" scope="col">Ocupación</th>
+              <th class="nodo-th text-right" scope="col">Plazas libres</th>
+              <th class="nodo-th" scope="col">Relevamiento</th>
+              <th class="nodo-th nodo-col-acciones text-right" scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">
+                <a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.nombre }}</a>
+                <span class="block text-xs text-body-subtle">{{ fila.tipo }}</span>
+              </td>
+              <td class="nodo-td">{{ fila.localidad }}</td>
+              <td class="nodo-td"><span class="badge badge-{{ fila.ocupacion.tono }}"><i class="fas {{ fila.ocupacion.icono }}" aria-hidden="true"></i> {{ fila.ocupacion.texto }}</span></td>
+              <td class="nodo-td text-right">{{ fila.libres }}</td>
+              <td class="nodo-td"><span class="badge badge-{{ fila.relevamiento.tono }}"><i class="fas {{ fila.relevamiento.icono }}" aria-hidden="true"></i> {{ fila.relevamiento.texto }}</span></td>
+              <td class="nodo-td nodo-col-acciones text-right">
+                <a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Ver {{ fila.nombre }}"><i class="fas fa-eye" aria-hidden="true"></i></a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="p-0">
+                {% if request.GET|hay_filtros:"page,tab" %}
+                {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún dispositivo coincide con el filtro" texto="Probá con otro tipo o con otra localidad." accion_url=url_limpiar only %}
+                {% else %}
+                {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todavía no hay dispositivos activos" texto="Cuando haya uno en tu alcance, acá vas a ver su ocupación." only %}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <div x-show="tab==='mapa'" x-cloak role="tabpanel" id="panel-mapa" aria-labelledby="tab-mapa">
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-mapa-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="tablero-mapa-titulo" class="text-heading font-bold">Mapa de la red</h2>
+      </div>
+      {% include "components/_estado_vacio.html" with icono="fa-map-location-dot" titulo="El mapa se carga a pedido" texto="La tabla del Resumen tiene los mismos dispositivos, con su ocupación." only %}
+    </section>
+  </div>
+
+</div>
+{% endblock %}

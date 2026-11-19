@@ -407,6 +407,14 @@ class ArquetipoCliTests(unittest.TestCase):
 
         self.assertEqual(design_audit.arquetipo_mode("listado", [golden]), 0)
 
+    def test_dashboard_es_un_arquetipo_y_su_golden_cumple(self) -> None:
+        golden = dict(design_audit.GOLDENS)["dashboard"]
+        if not (design_audit.REPO / golden).exists():
+            self.skipTest("falta la golden de dashboard")
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(design_audit.arquetipo_mode("dashboard", [golden]), 0)
+
     def test_marcador_faltante_corta(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "list.html"
