@@ -64,7 +64,7 @@ Dos scripts siembran la forma de producción de cada módulo sobre la base ya mi
 con `seed_perf` (hace falta que existan los programas EMERGENCIA y DISPOSITIVOS). Son
 **idempotentes**: cuentan lo que hay con el prefijo del banco (`BENCH-C-`, `BENCH-K-`,
 `BENCH-D-`, `BENCH-ED-`, usuarios `bench_*`) y crean solo lo que falta; volver a correrlos
-no duplica y sirve para subir el volumen. No borran nada. Comparten `_siembra_comun.py`
+no duplica y sirve para subir el volumen. **Exigen MariaDB 10.5+** (necesitan que `bulk_create` devuelva las pk; con MySQL 8 se detienen con un mensaje claro). Solo `escalar_dispositivos.py` borra algo: las trazas `ESTADIA_*` del banco cuando no coinciden con los movimientos, para rearmarlas. Comparten `_siembra_comun.py`
 (roles acotados, usuarios, ciudadanos, dispositivos y plazas).
 
 ```powershell
@@ -72,10 +72,10 @@ $env:DB_READ_TIMEOUT = "600"; $env:DB_WRITE_TIMEOUT = "600"   # solo para sembra
 & $env:PY_VENV scripts\perf_mysql\escalar_dispositivos.py    # ≈ 10 min: 200 dispositivos, 20.000 estadías, 100.000 movimientos, 5.000 edificios…
 & $env:PY_VENV scripts\perf_mysql\escalar_emergencia.py      # ≈ 15 min: 500.000 ciudadanos, 10.000 casos, 15.000 derivaciones, 20.000 entregas…
 Remove-Item Env:DB_READ_TIMEOUT, Env:DB_WRITE_TIMEOUT
-& $env:PY_VENV scripts\perf_mysqlench_mysql.py --salida resultado-ED.json
+& $env:PY_VENV scripts\perf_mysql\bench_mysql.py --salida resultado-ED.json
 ```
 
-- Los volúmenes se cambian por argumento (`--casos 100000 --entregas 200000` es la variante
+- Los volúmenes se cambian por argumento (`--egresadas-chicos` reparte la historia de estadías entre los chicos: el grande queda en torno al 20 % de las filas de `Estadia`/`MovimientoEstadia`; `--casos 100000 --entregas 200000` es la variante
   grande de E-PERF-03/04/05; ver `--help`). Cada bloque de Emergencia que arma casos corre en
   una transacción: un corte a la mitad no deja casos sin grupo ni derivación.
 - Las rutas están en `rutas_emergencia_dispositivos.py`, con un cliente por actor: la web va

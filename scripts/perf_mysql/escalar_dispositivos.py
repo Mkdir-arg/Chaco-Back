@@ -28,7 +28,6 @@ Uso (raíz del repo, ``DATABASE_*`` apuntando al banco; ver README.md). Primero
 import argparse
 import json
 import random
-import time as reloj
 from datetime import timedelta
 from pathlib import Path
 
@@ -40,6 +39,7 @@ exigir_base_descartable()
 import _siembra_comun as comun  # noqa: E402
 from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
+from django.db import connection  # noqa: E402
 from django.utils import timezone  # noqa: E402
 
 from programas.models import (  # noqa: E402
@@ -64,13 +64,13 @@ from programas.models import (  # noqa: E402
 
 comun.sin_auto_now(TrazaDispositivo, "creado_en")
 comun.sin_auto_now(TrazaInspeccion, "creado_en")
+comun.sin_auto_now(EntradaBitacora, "creado")
 
 GRANDE = "BENCH-D-GRANDE"
 PREFIJO_EDIFICIO = "BENCH-ED-"
 
 
-def paso(texto):
-    print(f"[{reloj.strftime('%H:%M:%S')}] {texto}", flush=True)
+paso = comun.paso
 
 
 def archivo_de_prueba(ruta_relativa):
@@ -86,28 +86,16 @@ def archivo_de_prueba(ruta_relativa):
 # ---------------------------------------------------------------------------
 def sembrar_dispositivos(args):
     tipo = comun.asegurar_tipo()
-    grande, creado = comun.asegurar_dispositivo(
+    grande, _ = comun.asegurar_dispositivo(
         GRANDE, "BENCH Centro grande", sectores=10, plazas_por_sector=args.plazas_grande // 10, turnos=3, tipo=tipo
     )
-    chicos = []
-    for i in range(1, args.dispositivos):
-        d, _ = comun.asegurar_dispositivo(
-            f"BENCH-D-{i:04d}", f"BENCH Dispositivo {i:04d}", sectores=2, plazas_por_sector=25, turnos=1, tipo=tipo
-        )
-        chicos.append(d)
+    chicos = comun.asegurar_chicos(args.dispositivos, tipo)
     paso(f"dispositivos: {Dispositivo.objects.filter(codigo__startswith='BENCH-D-').count()} (grande {grande.pk})")
     return grande, chicos
 
 
 def sembrar_actores(grande, chicos):
-    roles = {clave: comun.asegurar_rol(clave) for clave in comun.ROLES}
-    guardia = comun.asegurar_usuarios("bench_guardia", 1, roles["guardia"], token=True)[0]
-    admin = comun.asegurar_usuarios("bench_admin_disp", 1, roles["admin_dispositivos"], token=True)[0]
-    coordinador = comun.asegurar_usuarios("bench_coord", 1, roles["coordinador"], token=True)[0]
-    todos = [grande.pk] + [d.pk for d in chicos]
-    comun.asegurar_equipo(todos, guardia, roles["guardia"], responsable=True)
-    # El coordinador no admin ve los 40 primeros chicos y el grande: P21 con un alcance acotado.
-    comun.asegurar_equipo([grande.pk] + [d.pk for d in chicos[:40]], coordinador, roles["coordinador"])
+    roles, guardia, admin, coordinador = comun.asegurar_actores_de_dispositivos(grande, chicos)
     inspectores = comun.asegurar_usuarios("bench_inspector", 20, roles["operador"])
     paso(f"actores: guardia={guardia.username} admin={admin.username} coordinador={coordinador.username}")
     return roles, guardia, admin, coordinador, inspectores
@@ -203,6 +191,109 @@ def _mov(estadia, tipo, momento, usuario, *, plaza_origen_id=None, plaza_destino
     )
 
 
+def sembrar_egresadas_chicos(args, chicos, pool, guardia, rng):
+    """Historia de los chicos: ``--egresadas-chicos`` por dispositivo, con INGRESO, EGRESO y dos cambios de plaza.
+
+    Sin esto el centro grande concentraba el 95 % de las filas de ``Estadia`` y
+    ``MovimientoEstadia`` y el optimizador elegía planes que en producción, con la historia
+    repartida entre cientos de dispositivos, no elegiría. Así el grande queda en torno al 20 %.
+    """
+    ids = [d.pk for d in chicos]
+    ya = Estadia.objects.filter(dispositivo_id__in=ids, estado="EGRESADA").count()
+    por_dispositivo = max(0, args.egresadas_chicos * len(ids) - ya) // max(1, len(ids))
+    if por_dispositivo <= 0:
+        paso(f"egresadas de los chicos: {ya} (objetivo {args.egresadas_chicos} por dispositivo), nada que agregar")
+        return
+    ahora = comun.ahora()
+    total = 0
+    for d in chicos:
+        plazas = [p for p, _s in comun.plazas_de(d.pk)]
+        nuevas = []
+        for _ in range(por_dispositivo):
+            ingreso = comun.fecha_aleatoria(rng, ahora - timedelta(days=3 * 365), ahora - timedelta(days=2))
+            nuevas.append(
+                Estadia(
+                    ciudadano_id=rng.choice(pool),
+                    dispositivo=d,
+                    plaza_id=rng.choice(plazas),
+                    fecha_ingreso=ingreso,
+                    fecha_egreso=min(ingreso + timedelta(hours=rng.randint(6, 24 * 30)), ahora - timedelta(hours=1)),
+                    estado="EGRESADA",
+                    ingresada_por=guardia,
+                    egresada_por=guardia,
+                )
+            )
+        comun.en_lotes(Estadia, nuevas)
+        movs = []
+        for e in nuevas:
+            movs.append(_mov(e, "INGRESO", e.fecha_ingreso, guardia, plaza_destino_id=e.plaza_id))
+            movs.append(_mov(e, "EGRESO", e.fecha_egreso, guardia, plaza_origen_id=e.plaza_id))
+            actual = e.plaza_id
+            for _ in range(2):
+                destino = rng.choice([p for p in plazas if p != actual])
+                movs.append(
+                    MovimientoEstadia(
+                        estadia=e,
+                        dispositivo=d,
+                        tipo="CAMBIO_PLAZA",
+                        momento=comun.fecha_aleatoria(rng, e.fecha_ingreso, e.fecha_egreso),
+                        responsable=guardia,
+                        plaza_origen_id=actual,
+                        plaza_destino_id=destino,
+                    )
+                )
+                actual = destino
+        comun.en_lotes(MovimientoEstadia, movs)
+        total += len(nuevas)
+    paso(f"egresadas de los chicos: +{total}")
+
+
+ACCION_DE_MOVIMIENTO = {
+    "INGRESO": "ESTADIA_INGRESO",
+    "EGRESO": "ESTADIA_EGRESO",
+    "CAMBIO_PLAZA": "ESTADIA_CAMBIO_PLAZA",
+}
+
+
+def sembrar_trazas_de_movimientos():
+    """Una ``TrazaDispositivo`` ``ESTADIA_*`` por movimiento, como las deja el servicio real.
+
+    Si la cuenta no coincide se borran las del banco con esas acciones (y las inventadas por una
+    versión anterior de este script: ``CAMBIO_PLAZA`` y ``BITACORA``) y se rearman todas.
+    """
+    bench = Dispositivo.objects.filter(codigo__startswith="BENCH-D-")
+    n_mov = MovimientoEstadia.objects.filter(dispositivo__in=bench).count()
+    acciones = list(ACCION_DE_MOVIMIENTO.values())
+    if TrazaDispositivo.objects.filter(dispositivo__in=bench, accion__in=acciones).count() == n_mov:
+        paso(f"trazas de movimientos: {n_mov} (ya están)")
+        return
+    borrar = [*acciones, "CAMBIO_PLAZA", "BITACORA"]
+    with connection.cursor() as c:
+        c.execute(
+            "DELETE t FROM programas_trazadispositivo t JOIN programas_dispositivo d ON d.id = t.dispositivo_id "
+            "WHERE d.codigo LIKE 'BENCH-D-%%' AND t.accion IN (" + ", ".join(["%s"] * len(borrar)) + ")",
+            borrar,
+        )
+    lote = []
+    movimientos = MovimientoEstadia.objects.filter(dispositivo__in=bench).values_list(
+        "dispositivo_id", "tipo", "momento", "responsable_id"
+    )
+    for dispositivo_id, tipo, momento, responsable_id in movimientos.iterator(chunk_size=20000):
+        lote.append(
+            TrazaDispositivo(
+                dispositivo_id=dispositivo_id,
+                usuario_id=responsable_id,
+                creado_en=momento,
+                accion=ACCION_DE_MOVIMIENTO[tipo],
+            )
+        )
+        if len(lote) >= 20000:
+            comun.en_lotes(TrazaDispositivo, lote)
+            lote = []
+    comun.en_lotes(TrazaDispositivo, lote)
+    paso(f"trazas de movimientos: +{n_mov}")
+
+
 def sembrar_cambios_de_plaza(args, grande, guardia, rng):
     """Hasta ``--movimientos`` en total, con una plaza «caliente» de ``--salidas-caliente`` salidas."""
     total = MovimientoEstadia.objects.filter(dispositivo__codigo__startswith="BENCH-D-").count()
@@ -243,7 +334,7 @@ def sembrar_cambios_de_plaza(args, grande, guardia, rng):
 def sembrar_auditoria(args, grande, chicos, guardia, rng):
     """``TrazaDispositivo`` y ``EntradaBitacora`` (con correcciones), hasta el objetivo de cada dispositivo."""
     ahora = comun.ahora()
-    acciones = ("CREADO", "EDITADO", "VALIDADO", "ESTADIA_INGRESO", "ESTADIA_EGRESO", "CAMBIO_PLAZA", "BITACORA")
+    acciones = ("CREADO", "EDITADO", "VALIDADO")
 
     def trazas(dispositivo_id, cantidad, editados):
         filas = []
@@ -275,6 +366,7 @@ def sembrar_auditoria(args, grande, chicos, guardia, rng):
                     turno_id=rng.choice(turno_ids),
                     fecha_operativa=timezone.localdate(momento),
                     momento=momento,
+                    creado=momento,
                     responsable=guardia,
                     tipo="GENERAL",
                     texto=f"Novedad {i} del turno del banco: sin cambios relevantes.",
@@ -291,6 +383,7 @@ def sembrar_auditoria(args, grande, chicos, guardia, rng):
                     turno_id=o.turno_id,
                     fecha_operativa=o.fecha_operativa,
                     momento=o.momento + timedelta(minutes=5),
+                    creado=o.momento + timedelta(minutes=5),
                     responsable_id=o.responsable_id,
                     tipo=o.tipo,
                     texto=o.texto + " (corregida)",
@@ -579,6 +672,7 @@ def main():
     p.add_argument("--estadias", type=int, default=20_000, help="egresadas del grande")
     p.add_argument("--activas", type=int, default=300, help="activas del grande")
     p.add_argument("--activas-chicos", type=int, default=1_000)
+    p.add_argument("--egresadas-chicos", type=int, default=500, help="por cada dispositivo chico")
     p.add_argument("--movimientos", type=int, default=100_000)
     p.add_argument("--salidas-caliente", type=int, default=2_000)
     p.add_argument("--trazas-grande", type=int, default=20_000)
@@ -600,7 +694,9 @@ def main():
     roles, guardia, admin, coordinador, _inspectores = sembrar_actores(grande, chicos)
     pool = comun.asegurar_ciudadanos(args.ciudadanos)
     sembrar_estadias(args, grande, chicos, pool, guardia, rng)
+    sembrar_egresadas_chicos(args, chicos, pool, guardia, rng)
     sembrar_cambios_de_plaza(args, grande, guardia, rng)
+    sembrar_trazas_de_movimientos()
     sembrar_auditoria(args, grande, chicos, guardia, rng)
     sembrar_reservas(args, grande, chicos, pool, guardia, rng)
     sembrar_usuarios_alta(args, roles)

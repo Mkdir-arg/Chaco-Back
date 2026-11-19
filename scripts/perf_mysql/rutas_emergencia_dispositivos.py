@@ -51,7 +51,7 @@ def _t(clave, actor, url):
 
 
 def emergencia():
-    from programas.models import CasoEmergencia, Derivacion, Dispositivo, EntregaKit, IntegranteGrupo
+    from programas.models import CasoEmergencia, Derivacion, Dispositivo, EntregaKit, Estadia
 
     grande = Dispositivo.objects.filter(codigo="BENCH-E-GRANDE").first()
     if grande is None:
@@ -67,7 +67,7 @@ def emergencia():
         _t("E-caso_nuevo_form", "mesa", reverse("emergencia:caso_nuevo")),
         _t("E-tablero", "supervisor", reverse("emergencia:tablero")),
         _t("E-entregas_recibidas", "mesa", reverse("emergencia:entregas") + "?solapa=recibidas"),
-        _t("E-entregas_recibidas_ultima", "mesa", reverse("emergencia:entregas") + "?solapa=recibidas&page=last"),
+        _t("E-entregas_recibidas_ultima", "mesa", reverse("emergencia:entregas") + "?solapa=recibidas&page=99999"),
         _t("E-entregas_abiertas", "mesa", reverse("emergencia:entregas")),
         _t("E-entrega_nueva", "mesa", reverse("emergencia:entrega_nueva")),
         _t("E-llegadas_grande", "guardia_web", reverse("dispositivos:emergencia_llegadas", args=[grande.pk])),
@@ -106,19 +106,19 @@ def emergencia():
                 reverse("emergencia_api:dispositivo-plazas", args=[grande.pk]) + f"?caso={ingreso.caso_id}",
             )
         )
-    alojado = (
-        IntegranteGrupo.objects.filter(
-            orden=1, grupo__caso__estado=Estado.ALOJADO, grupo__caso__derivaciones__dispositivo=grande
-        )
+    # Un alojado de verdad: el responsable de un caso ALOJADO que tiene la estadía abierta en el grande.
+    responsables = casos.filter(estado=Estado.ALOJADO, derivaciones__dispositivo=grande).values("grupo__responsable_id")
+    estadia = (
+        Estadia.objects.filter(dispositivo=grande, estado="ACTIVA", ciudadano_id__in=responsables)
         .select_related("ciudadano")
         .first()
     )
-    if alojado and alojado.ciudadano_id:
+    if estadia:
         rutas.append(
             _t(
                 "E-api_dispositivo_buscar_alojado",
                 "guardia_api",
-                reverse("emergencia_api:dispositivo-buscar", args=[grande.pk]) + f"?dni={alojado.ciudadano.dni}",
+                reverse("emergencia_api:dispositivo-buscar", args=[grande.pk]) + f"?dni={estadia.ciudadano.dni}",
             )
         )
     entrega = EntregaKit.objects.filter(dispositivo=grande, estado="EN_CAMINO").order_by("pk").first()
@@ -153,7 +153,8 @@ def dispositivos():
         _t("D-alta_form", "admin_disp", reverse("dispositivos:crear")),
         _t("D-edificios", "admin_disp", reverse("dispositivos:edificios")),
         _t("D-edificios_pag_profunda", "admin_disp", reverse("dispositivos:edificios") + "?page=200"),
-        _t("D-edificios_estado", "admin_disp", reverse("dispositivos:edificios") + "?estado=ACTIVO"),
+        _t("D-edificios_estado_critico", "admin_disp", reverse("dispositivos:edificios") + "?estado=CRITICO"),
+        _t("D-edificios_estado_sin_relevar", "admin_disp", reverse("dispositivos:edificios") + "?estado=SIN_RELEVAR"),
         _t("D-relevamientos_p21_admin", "admin_disp", reverse("dispositivos:relevamientos")),
         _t("D-relevamientos_p21_coordinador", "coordinador", reverse("dispositivos:relevamientos")),
         _t("D-padron_csv", "admin_disp", reverse("dispositivos:exportar", args=["padron", "csv"])),

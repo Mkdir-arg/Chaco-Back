@@ -8,10 +8,12 @@ tocan ``seed_perf`` (lo usa el CI de performance) ni borran datos de otros: solo
 Importar este módulo exige haber llamado antes a ``_bootstrap.cargar_django()``.
 """
 
-from datetime import datetime, time, timedelta
+import time as reloj
+from datetime import time, timedelta
 
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 
@@ -113,6 +115,11 @@ def sin_auto_now(modelo, *campos):
 
 def en_lotes(modelo, objetos, lote=LOTE):
     """``bulk_create`` por lotes y devuelve los objetos con pk (MariaDB 10.5+ los devuelve)."""
+    if not connection.features.can_return_rows_from_bulk_insert:
+        raise RuntimeError(
+            "Los escaladores de Emergencia y Dispositivos exigen MariaDB 10.5+: necesitan que bulk_create "
+            "devuelva las pk, y este motor no lo hace (MySQL 8)."
+        )
     objetos = list(objetos)
     for i in range(0, len(objetos), lote):
         modelo.objects.bulk_create(objetos[i : i + lote])
@@ -164,10 +171,6 @@ def asegurar_usuarios(prefijo, cantidad, rol, *, token=False, staff=True):
                 usuario.set_unusable_password()
             nuevos.append(usuario)
     if nuevos:
-        # Las contraseñas con hash son lentas: una sola para toda la tanda, solo donde hay token.
-        if cantidad > 20 and not token:
-            for u in nuevos:
-                u.password = nuevos[0].password
         User.objects.bulk_create(nuevos, batch_size=LOTE)
     usuarios = list(User.objects.filter(username__in=usernames).order_by("username"))
     ya_en_rol = set(
@@ -192,14 +195,14 @@ def asegurar_ciudadanos(cantidad, *, con_puntos_pct=0.7):
     """Lleva el padrón del banco a ``cantidad`` filas con DNI ``10000000 + i``.
 
     ``con_puntos_pct`` % de las filas se guardan con puntos («12.345.678»), el formato que
-    obliga al ``REGEXP`` del alta (E-PERF-01). Devuelve ``(pk_inicial, pk_final)`` aproximados
-    como lista de pks en orden de alta: los de las primeras ``cantidad`` filas del banco.
+    obliga al ``REGEXP`` del alta (E-PERF-01). Devuelve las pk de las primeras ``cantidad``
+    filas del banco, en orden de alta.
     """
-    paso = max(1, round(100 / con_puntos_pct)) if con_puntos_pct else 0
+    cada = max(1, round(100 / con_puntos_pct)) if con_puntos_pct else 0
 
     def dni_de(i):
         n = PRIMER_DNI + i
-        return f"{n // 1_000_000}.{n // 1000 % 1000:03d}.{n % 1000:03d}" if paso and i % paso == 7 else f"{n}"
+        return f"{n // 1_000_000}.{n // 1000 % 1000:03d}.{n % 1000:03d}" if cada and i % cada == 7 else f"{n}"
 
     ya = Ciudadano.objects.filter(apellido__startswith=PREFIJO, dni__gte="10", dni__lt="11").count()
     if ya < cantidad:
@@ -304,5 +307,31 @@ def plazas_de(dispositivo_id):
     )
 
 
-def medianoche(dt):
-    return datetime.combine(timezone.localdate(dt), time.min, tzinfo=timezone.get_current_timezone())
+def paso(texto):
+    print(f"[{reloj.strftime('%H:%M:%S')}] {texto}", flush=True)
+
+
+def asegurar_chicos(total, tipo):
+    """Los dispositivos chicos ``BENCH-D-0001`` … (2 sectores × 25 camas, 1 turno); ``total`` cuenta al grande."""
+    return [
+        asegurar_dispositivo(
+            f"BENCH-D-{i:04d}", f"BENCH Dispositivo {i:04d}", sectores=2, plazas_por_sector=25, turnos=1, tipo=tipo
+        )[0]
+        for i in range(1, total)
+    ]
+
+
+def asegurar_actores_de_dispositivos(grande, chicos):
+    """Roles del banco y los tres actores de Dispositivos, cada uno en su Equipo.
+
+    La guardia (con token) en todos los dispositivos; el administrador (con token) con alcance
+    total; el coordinador, que no es admin, solo en el grande y los 40 primeros chicos.
+    Devuelve ``(roles, guardia, admin, coordinador)``.
+    """
+    roles = {clave: asegurar_rol(clave) for clave in ROLES}
+    guardia = asegurar_usuarios("bench_guardia", 1, roles["guardia"], token=True)[0]
+    admin = asegurar_usuarios("bench_admin_disp", 1, roles["admin_dispositivos"], token=True)[0]
+    coordinador = asegurar_usuarios("bench_coord", 1, roles["coordinador"], token=True)[0]
+    asegurar_equipo([grande.pk] + [d.pk for d in chicos], guardia, roles["guardia"], responsable=True)
+    asegurar_equipo([grande.pk] + [d.pk for d in chicos[:40]], coordinador, roles["coordinador"])
+    return roles, guardia, admin, coordinador

@@ -30,7 +30,6 @@ Uso (raíz del repo, ``DATABASE_*`` apuntando al banco; ver README.md). Con
 
 import argparse
 import random
-import time as reloj
 from datetime import timedelta
 
 from _bootstrap import cargar_django, exigir_base_descartable  # noqa: E402
@@ -69,40 +68,31 @@ comun.sin_auto_now(EntregaKit, "creado")
 E = CasoEmergencia.Estado
 
 
-def paso(texto):
-    print(f"[{reloj.strftime('%H:%M:%S')}] {texto}", flush=True)
+paso = comun.paso
 
 
 # ---------------------------------------------------------------------------
 # Actores y dispositivos
 # ---------------------------------------------------------------------------
-def sembrar_actores():
-    roles = {clave: comun.asegurar_rol(clave) for clave in comun.ROLES}
-    mesa = comun.asegurar_usuarios("bench_mesa", 20, roles["mesa"], token=False)
-    supervisores = comun.asegurar_usuarios("bench_sup", 2, roles["supervisor"])
-    agente = comun.asegurar_usuarios("bench_agente", 1, roles["agente"], token=True)[0]
-    guardia = comun.asegurar_usuarios("bench_guardia", 1, roles["guardia"], token=True)[0]
-    admin = comun.asegurar_usuarios("bench_admin_disp", 1, roles["admin_dispositivos"], token=True)[0]
-    paso(
-        f"actores: {len(mesa)} de mesa, {len(supervisores)} supervisores, agente, guardia, administrador de Dispositivos"
-    )
-    return roles, mesa, supervisores, agente, guardia, admin
-
-
-def sembrar_dispositivos(args, roles, guardia):
+def sembrar_dispositivos(args):
     tipo = comun.asegurar_tipo()
-    chicos = []
-    for i in range(1, args.dispositivos):
-        d, _ = comun.asegurar_dispositivo(
-            f"BENCH-D-{i:04d}", f"BENCH Dispositivo {i:04d}", sectores=2, plazas_por_sector=25, turnos=1, tipo=tipo
-        )
-        chicos.append(d)
-    grande, creado = comun.asegurar_dispositivo(
+    chicos = comun.asegurar_chicos(args.dispositivos, tipo)
+    grande, _ = comun.asegurar_dispositivo(
         GRANDE, "BENCH Centro de evacuados", sectores=6, plazas_por_sector=args.camas_grande // 6, turnos=1, tipo=tipo
     )
-    comun.asegurar_equipo([grande.pk] + [d.pk for d in chicos], guardia, roles["guardia"], responsable=True)
     paso(f"dispositivos: {len(chicos)} chicos + {GRANDE} (pk {grande.pk}, {args.camas_grande} camas)")
     return grande, chicos
+
+
+def sembrar_actores(grande, chicos):
+    roles, guardia, _admin, _coordinador = comun.asegurar_actores_de_dispositivos(grande, chicos)
+    mesa = comun.asegurar_usuarios("bench_mesa", 20, roles["mesa"])
+    supervisores = comun.asegurar_usuarios("bench_sup", 2, roles["supervisor"])
+    agente = comun.asegurar_usuarios("bench_agente", 1, roles["agente"], token=True)[0]
+    paso(
+        f"actores: {len(mesa)} de mesa, {len(supervisores)} supervisores, agente, guardia, administrador y coordinador"
+    )
+    return mesa, supervisores, agente, guardia
 
 
 def sembrar_estadias_del_grande(args, grande, pool, guardia, rng):
@@ -247,6 +237,46 @@ def sembrar_casos(args, mesa, supervisores, agente, grande, chicos, pool, rng):
     sembrar_trazas(casos, mesa, args, rng, ahora)
     sembrar_derivaciones(args, casos, ya, grande, dispositivos, operadores, rng, ahora)
     sembrar_contactos_y_adjuntos(args, casos, mesa, operadores, rng, ahora)
+
+
+def sembrar_estadias_de_alojados(grande, guardia, rng):
+    """Una estadía abierta para el responsable de cada ALOJADO del centro grande, mientras haya camas.
+
+    Un caso ALOJADO tiene a su gente en una cama: sin la ``Estadia`` el banco no se parece a
+    producción y la búsqueda por DNI del dispositivo (E-PERF-15) no encuentra a nadie alojado.
+    Se lee de la base, así completa también un banco sembrado antes de este paso.
+    """
+    alojados = list(
+        CasoEmergencia.objects.filter(
+            estado=E.ALOJADO, derivaciones__dispositivo=grande, derivaciones__estado="ACEPTADA"
+        )
+        .order_by("pk")
+        .values_list("grupo__responsable_id", "alojado_en")
+    )
+    con_activa = set(Estadia.objects.filter(estado="ACTIVA").values_list("ciudadano_id", flat=True))
+    ocupadas = set(Estadia.objects.filter(dispositivo=grande, estado="ACTIVA").values_list("plaza_id", flat=True))
+    libres = [p for p, _s in comun.plazas_de(grande.pk) if p not in ocupadas]
+    ahora = comun.ahora()
+    nuevas = []
+    for ciudadano_id, alojado_en in alojados:
+        if not libres:
+            break
+        if ciudadano_id in con_activa:
+            continue
+        con_activa.add(ciudadano_id)
+        nuevas.append(
+            Estadia(
+                ciudadano_id=ciudadano_id,
+                dispositivo=grande,
+                plaza_id=libres.pop(),
+                fecha_ingreso=alojado_en or ahora - timedelta(hours=rng.randint(1, 72)),
+                estado="ACTIVA",
+                clave_alojamiento=f"CIU-{ciudadano_id}",
+                ingresada_por=guardia,
+            )
+        )
+    comun.en_lotes(Estadia, nuevas)
+    paso(f"estadías abiertas de los alojados del {GRANDE}: +{len(nuevas)}")
 
 
 def sembrar_integrantes(casos, grupos, responsables, pool, ya, rng, args):
@@ -409,6 +439,7 @@ def sembrar_contactos_y_adjuntos(args, casos, mesa, operadores, rng, ahora):
 # ---------------------------------------------------------------------------
 # Kits
 # ---------------------------------------------------------------------------
+@transaction.atomic
 def sembrar_kits(args, mesa, guardia, grande, chicos, rng):
     ahora = comun.ahora()
     ya_tipos = TipoKit.objects.filter(nombre__startswith="BENCH ítem").count()
@@ -486,25 +517,14 @@ def sembrar_kits(args, mesa, guardia, grande, chicos, rng):
         armar(faltan, lambda n: dispositivos[n % len(dispositivos)], estado_general, 5, EntregaKit.objects.count())
         paso(f"entregas generales: +{faltan}")
 
-    ya_grande = EntregaKit.objects.filter(dispositivo=grande).count()
-    if ya_grande < args.entregas_grande_en_camino + args.entregas_grande_recibidas:
-        armar(
-            args.entregas_grande_en_camino,
-            lambda n: grande.pk,
-            lambda n: "EN_CAMINO",
-            8,
-            EntregaKit.objects.count(),
-        )
-        armar(
-            args.entregas_grande_recibidas,
-            lambda n: grande.pk,
-            lambda n: "RECIBIDA",
-            5,
-            EntregaKit.objects.count(),
-        )
-        paso(
-            f"entregas del {GRANDE}: +{args.entregas_grande_en_camino} EN_CAMINO, +{args.entregas_grande_recibidas} RECIBIDA"
-        )
+    for estado, objetivo, lineas in (
+        ("EN_CAMINO", args.entregas_grande_en_camino, 8),
+        ("RECIBIDA", args.entregas_grande_recibidas, 5),
+    ):
+        faltan = objetivo - EntregaKit.objects.filter(dispositivo=grande, estado=estado).count()
+        if faltan > 0:
+            armar(faltan, lambda n: grande.pk, lambda n, estado=estado: estado, lineas, EntregaKit.objects.count())
+            paso(f"entregas del {GRANDE}: +{faltan} {estado}")
 
 
 def reportar(grande):
@@ -546,11 +566,12 @@ def main():
     args = p.parse_args()
     rng = random.Random(11)
 
-    roles, mesa, supervisores, agente, guardia, _admin = sembrar_actores()
+    grande, chicos = sembrar_dispositivos(args)
+    mesa, supervisores, agente, guardia = sembrar_actores(grande, chicos)
     pool = comun.asegurar_ciudadanos(args.ciudadanos)
-    grande, chicos = sembrar_dispositivos(args, roles, guardia)
     sembrar_estadias_del_grande(args, grande, pool, guardia, rng)
     sembrar_casos(args, mesa, supervisores, agente, grande, chicos, pool, rng)
+    sembrar_estadias_de_alojados(grande, guardia, rng)
     sembrar_kits(args, mesa, guardia, grande, chicos, rng)
     reportar(grande)
 
