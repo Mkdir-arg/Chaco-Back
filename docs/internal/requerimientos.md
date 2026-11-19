@@ -620,6 +620,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 500 | Pieza de UI «barra con marcas de umbral» y su ficha (C3 del análisis 009; T4 del tablero de Dispositivos) | Transversal · sistema de diseño | `#emergencia` `#ui` | PM — análisis 009, task #1175 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 504 | Emergencia · E1: deuda del tablero que E8 reusa (camas, localidades homónimas, estado vacío, ingreso directo único, copias, `EXPLAIN` de la ventana) | Emergencia · tablero | `#emergencia` `#performance` `#ui` | PM — análisis 009 (§8.2, RF-009-18), task #1180 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
@@ -58215,6 +58216,99 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+
+# Cambio 500 — Pieza de UI «barra con marcas de umbral» y su ficha (C3)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · sistema de diseño (lo usan Emergencia E8 y el tablero de Dispositivos) |
+| **Etiquetas** | `#emergencia` `#ui` |
+| **Solicitante** | PM — análisis 009 (§8.3, §8.4, C3), task #1175 |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | #1175 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+C3 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`), que es la pieza 4 / T4 del
+spec del tablero de Dispositivos (`docs/superpowers/specs/2026-11-08-tablero-dispositivos-design.md` y su mockup):
+barra horizontal de ocupación con marcas en los umbrales de tensión (Exigida / Crítica), su variante sin marcas para
+el embudo, texto equivalente para lectores de pantalla, ficha e inventario.
+
+## Alcance acordado
+
+Entra: el include, su CSS, un tag de apoyo, la ficha, la fila del inventario y los tests de render. Queda afuera:
+usarla en una pantalla (E-5, «Capacidad de la red», «Más tensionados» y el embudo; y el tablero de Dispositivos).
+
+## Decisiones tomadas
+
+- **Nombre y contrato:** `templates/components/_barra_umbral.html` con `valor`, `maximo` y opcionales `porcentaje`,
+  `tono`, `etiqueta`, `umbral_exigida`, `umbral_critica`, `texto` y `nombre`. Sin umbrales es la variante sin marcas.
+- **El nivel no se calcula en la pieza:** `tono` y `etiqueta` llegan de `Tension` (`tension_de_ocupacion`), y
+  `porcentaje` (`Tension.porcentaje`) gana sobre `valor`/`maximo` para que la barra diga el mismo número que el resto
+  de la pantalla. Sin él, el tag `porcentaje_barra` redondea igual que `tension_de_ocupacion`.
+- **Sin cifra no es 0 %:** sin máximo positivo o sin valor, «—», barra vacía y el badge que mande la vista
+  («Sin plazas»), como `Tension` con `porcentaje=None`.
+- **Vocabulario del código**, no el del mockup: «Exigida desde N %» / «Crítica desde N %» (el mockup dice «alerta» y
+  «crítico»). Íconos del mockup: Normal `fa-circle-check`, Exigida `fa-triangle-exclamation`, Crítica
+  `fa-circle-exclamation`; Sin plazas `fa-circle-minus`.
+- **Colores con clases existentes** (`bg-tertiary`, `bg-{tono}`, `badge-{tono}`): los `--serie-*` del mockup no
+  existen en `chaco-tokens.css` y no se agregan. `nodo-barra-umbral.css` solo trae geometría (marcas por `--umbral`, muestra
+  de la leyenda) y el alto contraste (`forced-colors`); pista y relleno son utilidades + `.nodo-ficha-medidor`.
+- **Accesibilidad:** lo gráfico y la cifra visible van `aria-hidden`; una frase `sr-only` dice valor y nivel en
+  palabras («Capacidad de la red: 88 por ciento, nivel Crítica.»). La leyenda de umbrales es texto visible.
+- Cada umbral pasa por `|entero_o_none` y se condiciona por `is not None`: un umbral 0 se dibuja; uno que no es
+  número, no.
+
+## Implementación
+
+- `templates/components/_barra_umbral.html` (nuevo) con el contrato en la cabecera.
+- `static/custom/css/nodo-barra-umbral.css` (nuevo), cargado por `templates/includes/base.html`.
+- `core/templatetags/nodo_ui.py`: tag `porcentaje_barra(valor, maximo, porcentaje=None)` → entero o `None`, y
+  filtro `entero_o_none` para los umbrales.
+- Ficha `.claude/design/componentes/barra_umbral.md` y fila «Barra con marcas de umbral» en el inventario de
+  `.claude/agents/chaco-design-system.md`.
+
+## Archivos
+
+- `templates/components/_barra_umbral.html`, `static/custom/css/nodo-barra-umbral.css`, `templates/includes/base.html`
+- `core/templatetags/nodo_ui.py`, `core/tests/test_nodo_ui_emergencia.py` (`BarraUmbralTest`)
+- `.claude/design/componentes/barra_umbral.md`, `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `BarraUmbralTest` (12 tests): con umbrales 60/80 (TC-1175-01), umbrales del tipo 70/85 (TC-02), tono, ícono y texto
+  por nivel (TC-03), variante sin marcas (TC-04), vacía y llena (TC-05), sin plazas «—» (TC-06), texto equivalente
+  (TC-07), escape, umbral no numérico, umbral 0, el tag `porcentaje_barra` y el filtro `entero_o_none`. Módulo `core.tests.test_nodo_ui_emergencia` en verde.
+- `design_audit.py --ratchet` 0 nuevos; `compile_templates.py --bloques` 0; `check_design_agent.py --changed` y
+  `--limites` OK; `ruff` OK; `manage.py check` OK.
+
+## Puesta en marcha en el servidor
+
+`collectstatic` del deploy (CSS nuevo). Nada más.
+
+## Pendientes / a definir
+
+- E-5 la usa en la solapa Resumen de E8; el tablero de Dispositivos (T4), en «Ocupación por tipo».
+
+## Reversión
+
+Revertir el commit; ninguna pantalla la usa todavía.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026:** MINOR de la auditoría del PR #1210: los umbrales se convierten una vez con el filtro
+  `entero_o_none` y se condicionan por `is not None` (un umbral 0 se dibuja; uno no numérico, no), y la pista y el
+  relleno pasan a utilidades + `.nodo-ficha-medidor` (como `_contador_avance`); `nodo-barra-umbral.css` queda con
+  las marcas, la muestra de la leyenda y el alto contraste. Sin cambio visual.
 
 # Cambio 504 — Emergencia · E1: deuda del tablero que E8 reusa
 
