@@ -619,6 +619,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 499 | Dispositivos: `TipoDispositivo.ubicacion_reservada` (dispositivos de protección sin ubicación pública; C2 del análisis 009, T9b) | Dispositivos · configuración de tipos | `#datos` `#ui` `#emergencia` `#gps` | PM — análisis 009, task #1174 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0127` (1 `AddField`, solo expand) |
 
 **Notas del índice**
 
@@ -54805,7 +54806,6 @@ entrada; las demás remiten acá.
 |---|---|---|---|
 | [462](#cambio-462) | 0 | Piezas de UI del lote | — |
 | 463 | 1 | Programa, capacidades y E7 | `programas.0117`, `programas.0118`, `users.0047` |
-| 499 | Dispositivos: `TipoDispositivo.ubicacion_reservada` (dispositivos de protección sin ubicación pública; C2 del análisis 009, T9b) | Dispositivos · configuración de tipos | `#datos` `#ui` `#emergencia` `#gps` | PM — análisis 009, task #1174 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0127` (1 `AddField`, solo expand) |
 | [464](#cambio-464) | 2 | Modelo del caso y servicios de la mesa | `programas.0119` |
 | [465](#cambio-465) | 3 | Mesa en el backoffice: E2, E3 y «Nuevo caso» | — |
 | [466](#cambio-466) | 4 | Vencimientos de la mesa | — |
