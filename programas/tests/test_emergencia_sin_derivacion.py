@@ -128,6 +128,21 @@ class IngresoDirectoTests(BaseAlojar):
         self.assertEqual(CasoEmergencia.objects.count(), 1)
         self.assertEqual(ReservaPlaza.objects.filter(derivacion__caso=primero).count(), 3)
 
+    def test_reenviar_el_uuid_a_otro_dispositivo_es_uuid_en_uso(self):
+        """E-SEG-01: la idempotencia solo vale para el dispositivo del ingreso original."""
+
+        doble = self._guardia("guardia_doble", self.club, self.escuela)
+        envio = uuid.uuid4()
+        servicio.ingreso_directo(
+            dispositivo=self.club, usuario=doble, datos_formulario1=self._formulario(), uuid_cliente=envio
+        )
+
+        with self.assertRaises(mesa.UuidEnUso):
+            servicio.ingreso_directo(
+                dispositivo=self.escuela, usuario=doble, datos_formulario1=self._formulario(), uuid_cliente=envio
+            )
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
     def _ocupar_todo(self):
         for plaza in selectores.camas_libres(self.club):
             persona = Ciudadano.objects.create(dni=str(next(self._dnis)), nombre="Persona", apellido="Alojada")
@@ -186,6 +201,20 @@ class AvisarALaMesaTests(BaseAlojar):
 
         self.assertEqual(derivada.resultado, servicio.BUSQUEDA_DERIVACION)
         self.assertEqual(derivada.caso.pk, caso.pk)
+
+    def test_avisar_a_la_mesa_con_uuid_de_otro_dispositivo_es_uuid_en_uso(self):
+        """E-SEG-01: el reenvío en la puerta de otro dispositivo no devuelve el caso del primero."""
+
+        doble = self._guardia("guardia_doble", self.club, self.escuela)
+        envio = uuid.uuid4()
+        servicio.avisar_a_la_mesa(
+            dispositivo=self.club, usuario=doble, datos_formulario1=self._formulario(), uuid_cliente=envio
+        )
+
+        with self.assertRaises(mesa.UuidEnUso):
+            servicio.avisar_a_la_mesa(
+                dispositivo=self.escuela, usuario=doble, datos_formulario1=self._formulario(), uuid_cliente=envio
+            )
 
     def test_es_idempotente_y_exige_alcance(self):
         envio = uuid.uuid4()
