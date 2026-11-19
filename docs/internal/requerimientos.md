@@ -624,6 +624,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 500 | Pieza de UI «barra con marcas de umbral» y su ficha (C3 del análisis 009; T4 del tablero de Dispositivos) | Transversal · sistema de diseño | `#emergencia` `#ui` | PM — análisis 009, task #1175 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 506 | Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos | Transversal · documentación interna de la auditoría | `#seguridad` `#metodo` | PM | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -58511,3 +58512,78 @@ Revertir el commit; no hay datos involucrados.
 ## Historial
 
 Sin cambios posteriores.
+
+# Cambio 506 — Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · documentación interna de la auditoría de octubre |
+| **Etiquetas** | `#seguridad` `#metodo` |
+| **Solicitante** | PM |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin registrar |
+| **Partes afectadas** | `docs/internal/auditoria-2026-10/` (README y fichas de `hallazgos/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El repositorio `Mkdir-arg/Chaco-Back` es público. `docs/internal/` no sale a GitHub Pages ni a `main` (`export-ignore`),
+pero se lee en `development`. El PM decidió recortar de la auditoría de octubre el detalle de explotación de los
+hallazgos de seguridad que siguen abiertos.
+
+## Alcance acordado
+
+Solo los hallazgos que siguen abiertos, o parciales con un resto abierto: SEC-26, SEC-27, SEC-29, SEC-35, G1c-10,
+R0b-09, R0b-11, SIIS-13, SIIS-16 y RED-01. Los resueltos conservan su detalle.
+
+## Decisiones tomadas
+
+- En cada hallazgo abierto: título genérico en todos los lugares donde aparece, la columna de archivo pasa a decir el
+  módulo, y los campos de escenario, ubicación, causa, evidencia, PoC, solución, tests y verificación se reemplazan por
+  una línea de impacto, la frase «Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo
+  cierra.» y una propuesta por defecto sin mecanismo.
+- Las reglas y las decisiones de cliente del README (D-26, D-27, D-S13, D-RED-01) y las fichas de otros ejes que
+  citaban lo mismo se reescribieron sin el mecanismo.
+- El texto original completo se guarda fuera del repo, en el equipo del PM.
+- Cada PR que cierre uno de estos hallazgos agrega su detalle técnico al informe.
+
+## Implementación
+
+Solo documentación.
+
+## Archivos
+
+- `docs/internal/auditoria-2026-10/README.md`
+- `docs/internal/auditoria-2026-10/hallazgos/01-seguridad.md`
+- `docs/internal/auditoria-2026-10/hallazgos/02-siis-becas.md`
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `scripts/requerimientos.py --check` en OK y `scripts/check_docs_client.py` en 0 hallazgos.
+- Búsqueda de control sobre `docs/internal/auditoria-2026-10/`: lo que queda de las funciones y condiciones recortadas
+  pertenece a hallazgos resueltos.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Las entradas anteriores de este archivo que registran el cierre parcial de esos hallazgos conservan su texto
+  (la regla de este archivo es no reescribir): el PM decide si también se recortan.
+- Las PoC de `docs/internal/auditoria-2026-10/poc/` no se tocaron en este cambio.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.

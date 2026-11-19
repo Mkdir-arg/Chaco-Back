@@ -25,7 +25,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-12 | Derivaciones por GET (CSRF) sin capacidad; inscripción por `is_staff` | ALTA | CONF. test | 2 | S | ✅ |
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
-| SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S | 🟡 |
+| SEC-29 | Cuentas de ciudadano del portal heredadas de un flujo ya apagado | ALTA | CONF. test | 0 | S | 🟡 |
 | G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 / 7 | S | ✅ |
 | G1-02 | Segundo oráculo RENAPER anónimo en `/conversaciones/consultar-renaper/` | ALTA | CONF. lectura | 0 | S | ✅ |
 | SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ✅ |
@@ -39,18 +39,18 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-23 | App de campo: PATCH y adjuntos sobre casos resueltos | MEDIA | CONF. lectura | 2 | S | ✅ |
 | SEC-24 | La app se autovalida la identidad con `origen: personas` | MEDIA | CONF. lectura | 2 | M | ✅ |
 | SEC-25 | `consultar_persona_becas` sin throttle | MEDIA | CONF. lectura | 2 | S | ✅ |
-| SEC-26 | Login, admin, recupero, clave provisoria y token de campo sin límites ni rotación | MEDIA | CONF. test (parte) | 2 | M | 🟡 |
-| SEC-27 | RENAPER con `verify=False` | MEDIA | CONF. lectura | 2 | S | 🟡 |
+| SEC-26 | Autenticación del backoffice y de la app de campo: endurecimiento pendiente | MEDIA | CONF. test (parte) | 2 | M | 🟡 |
+| SEC-27 | Integración externa: verificación del transporte pendiente de ECOM | MEDIA | CONF. lectura | 2 | S | 🟡 |
 | G1c-04 | `/ws/alertas/` difunde fuera de alcance, sin Origin y sin revalidar | MEDIA | CONF. test | 2 | M | ✅ |
 | SEC-30 | Requisitos/subsegmentos/coordinadores validados solo contra el segmento (Regional) | BAJA | CONF. lectura (latente) | 2 | S | ✅ |
 | SEC-31 | Padrón .xlsx: límite solo sobre el comprimido (zip bomb) | BAJA | PLAUSIBLE | 2 | S | ✅ |
 | SEC-32 | Consulta RENAPER desde la admisión sin `ciudadano.*`, por GET | BAJA | CONF. lectura | 2 | S | ✅ |
 | SEC-33 | El mapa del caso manda GPS a OpenStreetMap en cada apertura | BAJA | CONF. lectura | 2 | S | ✅ |
 | SEC-34 | `EntregaMercaderiaCreateView` busca antes de autorizar | BAJA | CONF. lectura | 2 | S | ✅ |
-| SEC-35 | Cookies seguras y HSTS dependen de `ENVIRONMENT=prd`; inactividad solo en JS | BAJA | PLAUSIBLE | 2 | S | 🟡 |
+| SEC-35 | Configuración de transporte y de sesión sujeta al ambiente | BAJA | PLAUSIBLE | 2 | S | 🟡 |
 | SEC-36 | `programa_list` sin capacidad; errores con `str(exc)` al usuario | BAJA | CONF. lectura | 2 | S | ✅ |
 | SEC-37 | Link público, paso 2: muestra nombre y fecha a partir de DNI + sexo | BAJA | CONF. (riesgo aceptado, Cambio 71) | 2 | S | ✅ |
-| G1c-10 | `/admin/` y `admin/doc/` montados en todos los entornos | BAJA | CONF. ajustado | 2 | S | 🟡 |
+| G1c-10 | Superficie administrativa de Django sin restricción de red | BAJA | CONF. ajustado | 2 | S | 🟡 |
 | G1c-16 | Payload crudo de RENAPER en sesión (24 h) y caché (10 min) | BAJA | CONF. lectura | 2 | S | ✅ |
 | R0-01 | `/conversaciones/<id>/evaluar/` acepta escritura anónima | BAJA (MINOR) | revisión Ola 0 | 0 | S | ✅ |
 | R0-05 | `DEFAULT_THROTTLE_RATES["renaper"]` sin consumidor | BAJA (MINOR) | revisión Ola 0 | 2 (con SEC-25) | incluido en SEC-25 | ✅ |
@@ -59,8 +59,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | R0b-06 | `AlertasViewSet` sin capacidad decidida | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (con SEC-18) | incluido en SEC-18 | ✅ |
 | R0b-07 | `config/urls.py` monta `/media/` abierto con `DEBUG=True` antes del bloque `SERVE_MEDIA` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | S | ✅ |
 | R0b-08 | Comentarios que todavía dicen que nginx sirve `/media/` | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Media) | incluido en R0b-07 | ✅ |
-| R0b-09 | `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | 🟡 |
-| R0b-11 | Desplegar SEC-09 etapa 1 en icore-srv (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
+| R0b-09 | Alcance de un feed del inicio que no coincide con la capacidad que lo protege | BAJA (MINOR) | revisión Ola 0 (2ª tanda) | 2 (Legajos) | S | 🟡 |
+| R0b-11 | Despliegue pendiente en icore-srv de una restricción de acceso en DEV (`web` antes que `nginx`) | — (operativo, PM) | revisión Ola 0 (2ª tanda) | PM | — | ⬜ |
 
 ---
 
@@ -387,7 +387,7 @@ pierde un rol armado a mano con `ciudadano.ver` y sin `ciudadano.sensible`, como
 siembra `seed_rbac`: pierde el timeline, las alertas y el riesgo del ciudadano, el dashboard de alertas, **la
 campana del navbar** (y con ella el contador y el punto de estado) y **la solapa «Alertas» del detalle del
 ciudadano**. Lo que **no** pierde es el resto del detalle, que sigue abriendo con `ciudadano.ver`. En la otra
-dirección, el PR no le da acceso nuevo a nadie: `actividad_reciente` se quedó en `ciudadano.sensible`, la
+dirección, el PR no le da acceso nuevo a nadie: el feed del inicio conserva la
 capacidad que ya pedía (ver R0b-09). **Test permanente:**
 `legajos.tests.test_contactos_api_rbac.ContactosApiRbacTests.test_con_ciudadano_ver_las_tres_sensibles_ya_no_contestan`
 (y `test_con_ciudadano_sensible_las_tres_contestan`,
@@ -439,15 +439,13 @@ y `DerivarProgramaViewRbacTests.test_is_staff_sin_capacidad_ya_no_ofrece_inscrip
 - **Tests a agregar:** `dashboard/tests/test_api_rbac.py::test_buscar_ciudadanos_sin_capacidad_403` y `::test_con_ciudadano_ver_200`.
 - **Verificación:** V-STD + `manage.py test dashboard core`.
 
-### SEC-29 · Registro del portal: crea una cuenta sobre cualquier legajo existente con solo el DNI (puerta de entrada de SEC-01 y SEC-09)
-**Severidad:** ALTA (sube desde BAJA) · **Estado:** CONFIRMADO con test (paso 1 de `SEC01BasicAuthTests`) · **Origen:** A5-41 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** D-29
+### SEC-29 · Cuentas de ciudadano del portal heredadas de un flujo ya apagado
+**Severidad:** ALTA (sube desde BAJA) · **Estado:** 🟡 PARCIAL · **Origen:** A5-41 · **Ola:** 0 · **Esfuerzo:** S · **Decisión:** D-29
 
-**Resolución:** 🟡 Parcial en #511 (Cambio 102), 01-oct-2026 — `portal/urls.py` ya no publica `mi-perfil/*` (quedan `""`, `csrf/` y la inscripción por link); el middleware y `ciudadano_required` mandan a `portal:home`; comando nuevo `desactivar_usuarios_portal` (ensayo por defecto); tests en `portal/tests/test_portal_apagado.py`. Falta (operativo, PM): P-08 y `desactivar_usuarios_portal --aplicar` en PRD; no se corrió en ningún ambiente, así que las cuentas de ciudadano existentes siguen activas (ver SEC-09). Seguimiento: R0-02 (docs que nombran `portal:ciudadano_mi_perfil`).
-- **Ubicación:** `portal/services/ciudadano_auth.py:56-64` (si existe un `Ciudadano` con ese DNI sin usuario, el flujo `legajo_existente` no consulta RENAPER ni verifica sexo); `portal/views/ciudadano_auth.py:66-132`; `portal/templates/portal/ciudadano/registro_step2.html:33-36`.
-- **Escenario (reproducido):** step1 con DNI de un legajo existente → 302; step2 → 302 y queda logueado como dueño del legajo. Con cualquier DNI y sexo obtiene además el nombre completo de RENAPER.
-- **Propuesta:** el portal está sin uso (decisión del PM, 29-sep-2026). En `portal/urls.py`, quitar todas las rutas `mi-perfil/*` y dejar `""`, `csrf/` e `inscripcion/<uuid:token>/…` (la inscripción pública **sí** queda). `core/middleware.py:91` redirige a `portal:ciudadano_mi_perfil`: cambiarlo a `portal:home`. Grep `{% url 'portal:ciudadano_` y `compile_templates.py` para que no quede ninguna referencia. Datos (default D-29): `User.objects.filter(groups__name="Ciudadanos").update(is_active=False)` en una migración de datos o un comando, después de contar con P-08.
-- **Tests a agregar:** `portal/tests/test_portal_apagado.py::test_registro_no_existe` (`resolve("/portal/mi-perfil/registro/")` → 404) y `::test_inscripcion_publica_sigue`.
-- **Verificación:** V-STD + V-UI + `manage.py test portal`.
+**Resolución:** 🟡 Parcial en #511 (Cambio 102), 01-oct-2026 — el flujo público se apagó y hay un comando con ensayo por defecto; falta la acción operativa en PRD (PM, P-08), que no se corrió en ningún ambiente. Seguimiento: R0-02.
+- **Impacto:** las cuentas que creó ese flujo conservan acceso hasta que el PM decida qué hacer con ellas.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** decidir con el PM, a partir de P-08, qué cuentas se desactivan y ejecutar la acción en PRD.
 
 ### G1-01 · Chat público de conversaciones: cualquiera, sin login, crea el legajo de cualquier DNI con el nombre que quiera, y ese legajo después alimenta Becas y SIIS
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1-01; resuelve también A5-42 y A6-28 en su fase 2 · **Ola:** 0 (rutas públicas) / 7 (apagado completo) · **Esfuerzo:** S · **Decisión:** tomada (conversaciones sin uso, 29-sep-2026)
@@ -695,145 +693,22 @@ consulta y cae a carga manual, y esa llamada no pasa por la cola de sincronizaci
 `"personas_campo"`. El `DEFAULT_THROTTLE_RATES` vuelve a tener exactamente un consumidor por entrada;
 lo fija `ConsultaDePersonasConThrottleTests.test_la_tasa_configurada_es_la_de_d25`.
 
-### SEC-26 · Login, `/admin/`, recupero, clave provisoria y token de campo sin límite, validadores ni rotación
-**Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; token y clave provisoria con test `poc/test_repro_usuarios.py::G1b03y04TokenCampoTests`) · **Origen:** A5-15, A5-35, A5-37, G1b-03, G1b-04 · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-26 (clave provisoria del territorial)
-- **Ubicación:** `users/views/auth.py:13-38` y `users/forms/auth.py:29-41` (sin throttle); `config/urls.py:26` (`admin/`) y `:36-37` (`django.contrib.auth.urls` en la raíz); `programas/api/views.py:89-102` (`ObtainCampoToken`: `Token.get_or_create`, sin vencimiento, no mira `debe_cambiar_contrasena`); `users/middleware.py:46-48` (la clave provisoria no aplica en `/api/`); `users/api_views/__init__.py:73-90` y `users/serializers/__init__.py:105-115` (`change_password` sin `validate_password`); `users/services/correo.py:79-83`, `users/views/auth.py:57` (solo ahí se limpia el flag).
-- **Escenario:** fuerza bruta distribuida contra `/`, `/admin/login/`, `/api/becas/auth/token/`; un token filtrado del teléfono sirve indefinidamente (reproducido: el token viejo da 200 en `/api/becas/relevamientos/` después de `set_password`; ningún `Token…delete()` en el repo); un territorial (`territorial_mobile_only`) es rechazado por el login web pero `/api/becas/auth/token/` le da 200 con la clave provisoria y `debe_cambiar_contrasena` queda en True para siempre; además el correo `users/templates/user/email/credenciales_usuario.txt` le promete «el sistema te va a pedir que cambies la contraseña en tu primer ingreso», que para él es falso (contradice el Cambio 37).
-- **Propuesta:**
-  1. `UsuariosAuthenticationForm.clean`: `if rate_limit_excedido(self.request, "login", 10, 600) or rate_limit_excedido(self.request, "login_user", 10, 600, sufijo=username.lower(), incluir_ip=False): raise ValidationError(...)`. Lo mismo en una subclase propia de `PasswordResetView`.
-  2. Borrar el include de `django.contrib.auth.urls` (`config/urls.py:36-37`): no hay referencias a sus nombres; `users.urls` y portal definen `success_url` propios. Ojo con G2-03: el cambio voluntario de clave necesita un flujo propio con clave actual.
-  3. Token de campo: signal `post_save` de `User` (o llamada explícita en `_apply_user_data`, `entregar_credenciales_provisorias`, `CambioContrasenaObligatorioView` y el reset) que, si cambió el hash, haga `Token.objects.filter(user=user).delete()`; `ScopedRateThrottle` en `ObtainCampoToken`.
-  4. Clave provisoria del territorial (D-26): (a) `ObtainCampoToken` responde 403 `code=debe_cambiar_contrasena` + endpoint API para fijar clave (requiere release de la app), o (b) para usuarios solo-campo, mandar un link de reseteo en vez de la clave en texto plano. En ambos casos, `PasswordResetConfirmView` propio que limpie el flag, y corregir el texto del correo. Default: (b), sin release de la app.
-  5. `change_password` por API: desaparece si se apaga la API (SEC-05); si no, `validate_password`, `update_session_auth_hash`, borrar el Token y throttle.
-  6. Restringir `/admin/` por IP en nginx/ingress (ver también G1c-10).
-- **Tests a agregar:** N intentos → bloqueo; `test_token_viejo_401_tras_cambio_de_clave` (el de la PoC invertido); `test_territorial_con_provisoria_no_obtiene_token` o `test_correo_territorial_lleva_link_de_reset` según D-26; `resolve("/password_reset/")` → 404.
-- **Verificación:** V-STD + `manage.py test users programas.tests.test_becas_api`.
+### SEC-26 · Autenticación del backoffice y de la app de campo: endurecimiento pendiente
+**Severidad:** MEDIA · **Estado:** 🟡 PARCIAL · **Origen:** A5-15, A5-35, A5-37, G1b-03, G1b-04 · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-26
+
+**Resolución:** 🟡 Parcial en #631 (Cambio 181, Ola 2 PR 2), 08-oct-2026 — la parte de código está hecha; quedan abiertos un punto de infraestructura y otro que depende de un release de la app móvil.
+- **Impacto:** la defensa de las cuentas del backoffice y de la credencial de la app de campo no está completa.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** completar el endurecimiento con el PM y ECOM, sin cambios de contrato para la app instalada.
 - **Dependencias:** SEC-05, G2-03, G1b-08.
 
-**Resolución:** 🟡 Resuelta **la parte de código** en #631 (Cambio 181, Ola 2 PR 2), 08-10-2026.
-Quedan abiertos el punto 6, que es de infraestructura, y **la revocación automática del token al
-cambiar la clave, que espera un release de `Chaco-mobile` que reintente o re-loguee ante un 401**
-(ver el punto 3: hoy la revocación es una acción explícita del ABM). Punto por punto:
+### SEC-27 · Integración externa: verificación del transporte pendiente de ECOM
+**Severidad:** MEDIA · **Estado:** 🟡 PARCIAL · **Origen:** A2-10 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-27
 
-1. **Límite de intentos.** `UsuariosAuthenticationForm` y una `RecuperarContrasenaView` propia usan
-   `core.services.throttle`. **Desvío de la ficha:** solo cuentan los intentos **fallidos**, para lo
-   cual se agregó `rate_limit_bloqueado`, la mitad de solo lectura del helper (preguntar sin gastar
-   ficha). Con la receta literal, una repartición que sale por una IP única se quemaba la cuota con
-   el tráfico normal de la mañana. Recupero: 5/h por correo y 20/h por IP, y al pasarse **no manda
-   el correo pero devuelve la misma pantalla**, para no revelar nada.
-
-   **Corregido en la ronda 2 de la revisión** —la primera versión abría dos agujeros propios—:
-
-   * *Bloqueo de cuenta por tercero.* La cubeta por usuario no mira la IP (si no, rotar de proxy
-     devolvía la cuota) y se consultaba **antes** de autenticar: diez POST con el usuario de otra
-     persona la dejaban diez minutos afuera, y repitiéndolos, afuera indefinidamente. Ahora se
-     consulta **después**, y solo si la credencial estaba mal: el dueño con su clave correcta entra
-     siempre, esté la cubeta como esté. Vale para el login web y para `/api/becas/auth/token/`.
-
-     **Lo que esa cubeta es y lo que no.** Como se consulta después de autenticar y no interrumpe
-     nada, pasados los 10 fallos lo único que cambia es **el mensaje** («Demasiados intentos
-     fallidos…» en vez de «Credenciales inválidas»): el intento 11 contra esa cuenta se verifica
-     igual que el 1. No es, entonces, un límite por cuenta —no lo puede ser sin reabrir el bloqueo
-     por tercero—, y no hay que leerla como tal. **El techo real del adivinado online es la cubeta
-     por IP**, que sí rechaza antes de mirar la clave: 300 fallidos cada 10 minutos
-     (`AUTH_FALLIDOS_MAX_POR_IP`) para las dos puertas juntas. La de usuario queda como señal de
-     que esa cuenta está siendo barrida —hoy visible solo en el mensaje y en los logs—.
-   * *Techo por IP.* `/api/becas/auth/token/` no tenía ninguno y el del login web (30/10 min) se
-     fue con él: ahora hay **una sola cubeta por IP compartida por las dos puertas**,
-     `AUTH_FALLIDOS_MAX_POR_IP` (300 fallidos cada 10 min, por setting). Es holgada a propósito —el
-     argumento del NAT móvil se respeta con el número, no dejando la puerta sin techo— y es la
-     **única** que rechaza antes de verificar la clave, cosa que puede hacer porque la paga la IP
-     que ataca y no la cuenta atacada. Es lo que corta el password-spray, que la cubeta por usuario
-     no ve porque cambia de usuario en cada intento. La IP sale de `ip_cliente`, que lee
-     `X-Forwarded-For` solo si el salto anterior está en `TRUSTED_PROXY_NETS`.
-   * Y el usuario tipeado se recorta a 150 (el largo de `auth_user.username`) **antes** de armar la
-     clave de la caché: un POST con 400 caracteres escribía una clave de 400 caracteres en Redis por
-     intento.
-2. **`django.contrib.auth.urls` fuera de la raíz.** Con él se va `/password_change/`, que sin
-   plantilla moría en el GET pero en el POST cambiaba la clave y redirigía —sin pedir la actual y
-   sin límite—. El reemplazo con clave actual es `users:cambiar_contrasena` (G2-03), con su pantalla
-   y su link en el menú del avatar, que es la primera entrada que ese flujo tiene en el producto.
-3. **Token de campo — la revocación es explícita, no automática.** La primera versión colgaba el
-   borrado de un `post_save(User)`: cambiar la clave por cualquiera de los cuatro caminos borraba el
-   token. **Se dio marcha atrás en la ronda 2**, y el motivo está en la app instalada: ante un 401,
-   `Chaco-mobile @ a66c2d3` marca la operación `FAILED_PERMANENT` (`relevamientoService.js:1487`) y
-   `:1411`/`:1563` no la vuelven a tomar **nunca**, ni después de re-loguearse. Un territorial al que
-   le resetean la clave perdía, en silencio, todo lo que el teléfono todavía no había sincronizado.
-   Así que **cambiar la clave ya no toca el token** —las sesiones web se cierran como siempre— y
-   quien se quedó con el token viejo sigue pudiendo sincronizar lo que tenía pendiente.
-
-   En su lugar hay una acción explícita en el ABM de Usuarios, **«Cerrar sesión de la app»**
-   (`users/views/admin.py::UserCerrarSesionAppView` + `users/services/credenciales.py`), para cuando
-   el teléfono se perdió o la clave se filtró: ahí perder lo no sincronizado es el mal menor y quien
-   aprieta el botón lo decide avisado. POST con CSRF, confirmación con el modal estándar (SweetAlert2,
-   nunca `confirm()`) que dice textualmente que «los relevamientos que el teléfono no haya
-   sincronizado van a quedar trabados en la app», resultado por toast, y el mismo alcance que editarle
-   las credenciales a ese usuario (`puede_gestionar_credenciales`, el de R0b-02/R0b-10): fuera de
-   alcance contesta **403**. El botón se dibuja solo sobre quien de verdad tiene un token, con una
-   consulta por página sumada a la anotación en lote de R0b-10.
-
-   **Queda abierto:** la revocación automática al cambiar la clave espera un release de
-   `Chaco-mobile` que reintente o re-loguee ante un 401.
-4. **Clave provisoria del territorial — D-26 = (b), el default.** `entregar_credenciales_provisorias`
-   le manda un **link de reseteo** a quien solo tiene `becas.campo` (`rbac.es_solo_campo`, extraída
-   del propio login, que ya hacía esa pregunta), y una clave aleatoria larga que no conoce nadie
-   queda en la fila para que «Olvidé mi contraseña» siga funcionando si el link vence.
-   `EstablecerContrasenaView` limpia `debe_cambiar_contrasena`, y el correo dejó de prometerle al
-   territorial algo que para él era falso. **La app instalada no se toca:** `Chaco-mobile @ a66c2d3`
-   ya linkea `/recuperar-contrasena/` desde «Olvidé mi contraseña» y el contrato de
-   `/api/becas/auth/token/` (`{username, password}` → `{token, user_id, username}`) queda igual.
-5. **`change_password` por API:** ya no existe. Lo retiró SEC-05/D-05 (Cambio 100): `users/api_views`
-   quedó con `UsuarioActualView` de solo lectura. Nada que hacer.
-6. **`/admin/` por IP: sigue abierto.** Es nginx/ingress de ECOM, no código; va con G1c-10 (PR 8 de
-   esta ola) y con el PM.
-
-**Test permanente:** `users.tests.test_credenciales_ola2_pr2.CerrarSesionDeLaAppTests.test_la_accion_explicita_si_borra_el_token`
-(+ `test_un_admin_de_otro_programa_recibe_403_y_el_token_sigue_vivo`, `test_sin_capacidad_y_anonimo_no_cierran_nada`,
-`test_no_se_cierra_por_GET`, `test_el_boton_aparece_solo_sobre_quien_tiene_sesion_en_la_app`,
-`test_el_aviso_del_modal_dice_que_se_pierde_lo_no_sincronizado`;
-`TokenDeCampoYClaveDelTerritorialTests.test_cambiar_la_clave_no_cierra_la_sesion_de_la_app` —la contracara, con la app
-sincronizando con el token viejo—, `test_la_app_instalada_sigue_entrando_con_la_clave_nueva`,
-`test_el_login_de_la_app_frena_tras_diez_intentos_fallidos`, `test_la_cubeta_del_token_no_deja_afuera_al_dueno_de_la_cuenta`,
-`test_la_cubeta_del_token_no_mira_la_ip`, `test_un_username_gigante_no_arma_una_clave_de_cache_gigante`,
-`test_el_alta_del_territorial_manda_un_link_y_no_una_clave_en_claro`,
-`test_el_alta_de_un_usuario_de_backoffice_sigue_llevando_la_clave`, `test_el_link_limpia_la_marca_de_clave_provisoria`,
-`test_el_alta_rapida_de_un_territorial_avisa_que_mando_el_link`; `TechoPorIpTests` ×3,
-`LimiteDeIntentosTests` ×5 —incluido `test_la_cubeta_por_usuario_no_deja_afuera_al_dueno_de_la_cuenta`— y
-`SinRutasDeAuthDeDjangoTests` ×2).
-
-**Hallazgo lateral que destapó el punto 2.** Sacar `django.contrib.auth.urls` sacó también su
-`/logout/`, y con eso se descubrió que el barrido de RED-89
-(`core/tests/test_superficie_publica.py::SuperficieSinRolTests`) **se deslogueaba a sí mismo**: el
-recorrido reintenta con POST toda vista que conteste 405, el logout es una de ellas, y como las rutas
-van ordenadas por nombre, todo lo que caía después se medía contra un anónimo —que rebota siempre— y
-el test daba verde sin preguntar nada. El barrido ahora rehace la sesión antes de cada ruta.
-Aparecieron **siete rutas que contestaban 200 desde siempre**: cuatro catálogos de `/api/core/`
-(meses, provincias, municipios, sexos), de la misma familia que los dos que ya estaban en la
-allowlist, y las **tres pantallas de documentación de la API** (`/api/schema/`, `/api/docs/`,
-`/api/redoc/`), que la decisión del 26/08/2026 puso detrás de **login**, no detrás de capacidad. Las
-ocho entraron a la allowlist con su motivo; que la documentación de la API la vea un usuario de
-backoffice sin un solo rol es una decisión de producto que **nadie tomó explícitamente** y que
-conviene revisar fuera de esta ficha.
-
-### SEC-27 · RENAPER con `verify=False` y las advertencias TLS apagadas para todo el proceso
-**Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** A2-10 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** D-27 (ECOM confirma la cadena)
-
-**Resolución:** 🟡 Preparado y apagado en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026, con el
-default de **D-27** — el `verify=False` escrito en el código se fue: lo decide
-`legajos.services.consulta_renaper.verificacion_tls()` a partir de `RENAPER_CA_BUNDLE` (ruta a un .pem
-de una CA privada, implica verificar) y `RENAPER_VERIFY_TLS`. **El default es el comportamiento de hoy**
-—`False`—, porque encenderlo sin la cadena confirmada **corta el alta de ciudadanos en el acto**. Lo que
-sí cambió ya: el `urllib3.disable_warnings(InsecureRequestWarning)` del import, que silenciaba el aviso
-de **todo el proceso** (también el de SIIS, Personas y reCAPTCHA, que sí verifican). Queda para el PM:
-pedirle a ECOM la cadena del organismo, cargarla y encender la variable ambiente por ambiente, con
-`manage.py diagnosticar_integraciones` antes de PRD. **Nada se probó contra RENAPER real.**
-**Test permanente:** `legajos.tests.test_renaper_tls_y_payload.VerificacionTlsTests` y
-`.VerifyLlegaAlPedidoTests` (el kwarg que de verdad sale por la red, en GET y en POST) y
-`.AvisoTlsTests.test_el_modulo_no_apaga_el_aviso_de_tls_del_proceso`.
-- **Ubicación:** `legajos/services/consulta_renaper.py:19-20` (`urllib3.disable_warnings(InsecureRequestWarning)` al importar: silencia también SIIS, Personas y reCAPTCHA), `:268` y `:278` (`verify=False`).
-- **Propuesta:** `verify=getattr(settings, "RENAPER_CA_BUNDLE", "") or True` y borrar el `disable_warnings`. Variable nueva `RENAPER_CA_BUNDLE` en settings y en la plantilla de entornos. Riesgo: si RENAPER usa una CA privada, se corta hasta cargar el bundle: validar con `diagnosticar_integraciones` en cada ambiente antes de desplegar.
-- **Tests a agregar:** mock de `session.post` que afirme `kwargs["verify"] is not False` con la configuración por defecto.
-- **Verificación:** V-STD + `manage.py diagnosticar_integraciones` en DEV/QA.
+**Resolución:** 🟡 Preparado y apagado en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026, con el default de **D-27**: encenderlo sin el dato de ECOM corta el alta de ciudadanos en el acto. Queda para el PM pedir ese dato y activarlo ambiente por ambiente. Nada se probó contra el servicio real.
+- **Impacto:** la comunicación con un servicio externo de identidad no queda protegida de extremo a extremo hasta cerrar el punto.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** pedirle a ECOM el dato pendiente y activar el cambio por ambiente, con el diagnóstico de integraciones antes de PRD.
 
 ### G1c-04 · `/ws/alertas/` difunde fuera de alcance, no revalida la sesión ni la capacidad y no chequea el origen
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c04WsAlertasTests`) · **Origen:** G1c-04 (verificado en G3) · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** —
@@ -950,35 +825,13 @@ verificó y **no tocó código**: la ficha se cierra contra lo que ya está. **T
 `core.tests.test_superficie_publica` (el barrido de superficie que encontró el caso; el test original, anónimo → login y sin
 capacidad → 403 exista o no el objeto, se fue con `EntregaMercaderiaCreateView` al borrarse Merenderos, Cambio 452).
 
-### SEC-35 · Cookies seguras y HSTS dependen de `ENVIRONMENT=prd`; el timeout por inactividad es solo del cliente
-**Severidad:** BAJA · **Estado:** PLAUSIBLE (depende de las variables en ECOM) · **Origen:** A5-38 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** pregunta ECOM (variables)
-- **Ubicación:** `config/settings.py:23`, `:365-378`, `:604-622`. Sin `ENVIRONMENT=prd` quedan `SESSION_COOKIE_SECURE=False`, `CSRF_COOKIE_SECURE=False`, HSTS 0; `SESSION_IDLE_TIMEOUT_MINUTES` solo actúa en JS; `USE_X_FORWARDED_HOST=True` con nginx pasando el `X-Forwarded-Host` del cliente.
-- **Propuesta:** `SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG`; middleware de expiración por inactividad del lado del servidor (`last_activity` en sesión); `proxy_set_header X-Forwarded-Host $host;` en nginx. Ver OPS-12 (QA declara `prd`).
-- **Test:** `manage.py check --deploy` con `DEBUG=False` y `ENVIRONMENT` sin setear.
+### SEC-35 · Configuración de transporte y de sesión sujeta al ambiente
+**Severidad:** BAJA · **Estado:** 🟡 PARCIAL · **Origen:** A5-38 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** pregunta ECOM (variables)
 
-**Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que no depende de
-ECOM. (1) **Cookies:** `SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG`. Atarlas a
-`ENVIRONMENT == "prd"` las dejaba viajando en claro en cualquier ambiente servido que no declarara la
-variable, y `ENVIRONMENT` es una declaración, no un hecho (icore vale `prd` siendo DEV; QA lo pisa a
-`prd`, OPS-12). `DEBUG` sí es un hecho. Se ve en `check --deploy`: `security.W012` y `security.W016`
-dejaron de salir. **QA no se rompe:** ya servía por HTTPS y ya tenía las cookies seguras por
-`settings_production`. (2) **Inactividad del lado del servidor:**
-`core.middleware.ExpiracionPorInactividadMiddleware` guarda `last_activity` en la sesión y cierra la que
-pasó `SESSION_IDLE_TIMEOUT_MINUTES` sin pedir nada —el mismo número que ya usaba el JS—. Va **antes** de
-`PortalCiudadanoMiddleware`, `BackofficeSingleSessionMiddleware` y `CambioContrasenaObligatorioMiddleware`:
-una sesión vencida no paga el Profile ni termina en la pantalla de cambio de clave, termina en el login.
-`/api/` queda exento —la app de campo autentica por Token dentro de la vista y no tiene sesión que
-expirar—. **Lo que la ficha no pedía y sin lo cual el arreglo rompía trabajo real:** el contador del
-navegador mide mouse y teclado y el del servidor mide **pedidos**, así que veinte minutos tipeando un
-relevamiento largo terminaban en el login con el formulario perdido. `idle-logout.js` manda un latido
-(`POST /sesion/latido/`) como mucho una vez por minuto y **solo** con actividad real, y el servidor
-corta recién a los `SESSION_IDLE_TIMEOUT_MINUTES` + 60 s de margen, para no cortar antes que el aviso de
-la pantalla. La marca se reescribe como mucho una vez por minuto y se deja puesta en el `login`, así que
-no agrega consultas por request ni mueve los presupuestos. **Falta (ECOM):** `proxy_set_header
-X-Forwarded-Host $host` en nginx/ingress, con `USE_X_FORWARDED_HOST=True` (H-09). **Test permanente:**
-`core.tests.test_sesion_inactividad` (13: expira, no expira dentro de la ventana, el margen, el latido,
-la API con Token no expira, el timeout 0 apaga todo, una sesión vieja sin marca no se cae, y las dos
-cookies evaluando `config/settings.py` con `DEBUG=False` y sin `ENVIRONMENT`).
+**Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — hecho lo que no depende de ECOM, con tests permanentes en `core.tests.test_sesion_inactividad`. Falta un ajuste de configuración del proxy en ECOM (H-09).
+- **Impacto:** parte del endurecimiento depende de la configuración del proxy y de las variables de ambiente en ECOM.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** pedir a ECOM el ajuste pendiente (H-09) y verificarlo con `check --deploy`.
 
 ### SEC-36 · `programa_list` sin capacidad; errores internos al usuario
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** A5-39 (parte; el `run_phase2_tests_api` va en OPS-10), G1b-10 (texto crudo) · **Ola:** 2 · **Esfuerzo:** S
@@ -1019,20 +872,13 @@ se rompen: ahí el desafío aritmético es a propósito. **Test permanente:**
 `core.tests.test_checks_entorno.ChecksDeEntornoTests.test_el_captcha_aritmetico_en_produccion_es_error`
 (y sus dos hermanos: con claves no dice nada, fuera de producción tampoco).
 
-### G1c-10 · `/admin/` y `admin/doc/` montados en todos los entornos
-**Severidad:** BAJA (baja desde MEDIA) · **Estado:** CONFIRMADO-AJUSTADO (mayormente duplicado de DAT-02 y SEC-26) · **Origen:** G1c-10 · **Ola:** 2 · **Esfuerzo:** S
-- **Ubicación:** `config/urls.py:25-26` (`admin/` y `admin/doc/` en todos los entornos); `users/admin.py:9-33` (un `UserAdmin` estándar deja a un staff con `change_user` tildar `is_superuser`; hoy no existe ese staff: ningún flujo pone `is_staff`).
-- **Propuesta:** quitar `admin/doc/`; en `UserAdmin`, `readonly_fields` = `is_superuser`, `groups`, `user_permissions` para no superusuarios; restringir `/admin/` por IP (SEC-26); `has_delete_permission` en DAT-02.
+### G1c-10 · Superficie administrativa de Django sin restricción de red
+**Severidad:** BAJA (baja desde MEDIA) · **Estado:** 🟡 PARCIAL (mayormente duplicado de DAT-02 y SEC-26) · **Origen:** G1c-10 · **Ola:** 2 · **Esfuerzo:** S
 
-**Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que es código.
-`admin/doc/` salió de `config/urls.py`: publicaba el índice de modelos, vistas, templates y tags del
-proyecto, con sus docstrings, a cualquier `is_staff`, no lo enlazaba ninguna pantalla y no lo usa nadie.
-Y `OptimizedUserAdmin.get_readonly_fields` deja en solo lectura `is_superuser`, `is_staff`, `groups` y
-`user_permissions` para quien no sea superusuario —`is_staff` se suma a la lista de la ficha porque es
-la llave de esta misma pantalla—. Hoy no existe la cuenta que lo explotaba (ningún flujo pone
-`is_staff`) y de eso es de lo que deja de depender. **Falta, y no es código:** restringir `/admin/` por
-IP en nginx/ingress, que es el punto 6 de SEC-26 y va con el PM. **Test permanente:**
-`core.tests.test_bajos_ola2.AdminDeDjangoTests` (4).
+**Resolución:** 🟡 Parcial en #640 (Cambio 185, Ola 2 PR 8), 08-oct-2026 — lo que es código está hecho, con tests permanentes en `core.tests.test_bajos_ola2`. Falta un paso de infraestructura con el PM (va con SEC-26).
+- **Impacto:** la superficie administrativa del framework sigue accesible desde cualquier red.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** restringir el acceso en la capa de red junto con el PM y ECOM.
 
 ### G1c-16 · Payload crudo de RENAPER en sesión (24 h) y caché (10 min)
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-16 · **Ola:** 2 · **Esfuerzo:** S
@@ -1131,33 +977,17 @@ vistas de SEC-11. **Test permanente:** `legajos.tests.test_alertas_rbac.AlertasA
 - **Ubicación:** `.env.qa.example:77-79` («en la VM lo sirve nginx y esto queda en False»: falso desde #538, la VM usa `SERVE_MEDIA=True`); también `docs/client/architecture.md:203` («excepto `/static/` y `/media/`»: el middleware ya no exime `/media/`; ese mismo párrafo es el de R0-02).
 - **Propuesta:** reescribir los dos textos según SEC-09 etapa 1.
 
-### R0b-09 · `actividad_reciente` pide `ciudadano.sensible` pero muestra inscripciones y derivaciones sin alcance
-**Severidad:** BAJA (MINOR del revisor de #541) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** S
-- **Ubicación:** `dashboard/api_views/__init__.py:135-146` (`@permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])`; `InscripcionPrograma.objects…` y `DerivacionPrograma.objects…` globales; solo las alertas pasan por `FiltrosUsuarioService`).
-- **Escenario:** la capacidad no corresponde al contenido: quien tiene `ciudadano.sensible` ve las últimas inscripciones y derivaciones de todos los programas, y quien solo tiene `ciudadano.ver` no ve nada.
-- **Propuesta:** separar por tipo de evento: inscripciones y derivaciones con `ciudadano.ver` (acotadas como en SEC-12/D-12), alertas con `ciudadano.sensible` (D-11); o partir el feed en dos endpoints.
-- **Test:** con `ciudadano.ver` solo, el feed trae inscripciones y no alertas; sin capacidad → 403.
+### R0b-09 · Alcance de un feed del inicio que no coincide con la capacidad que lo protege
+**Severidad:** BAJA (MINOR del revisor de #541) · **Estado:** 🟡 PARCIAL · **Origen:** revisión de la Ola 0, 2ª tanda · **Ola:** 2 (PR 3, Legajos) · **Esfuerzo:** S
 
-**Resolución:** 🟡 Resuelta **la mitad del alcance** en #629 (Cambio 179), 08-oct-2026 - las inscripciones y
-derivaciones salen por `FiltrosUsuarioService.acotar_a_programas_del_usuario` (helper nuevo, mismo alcance que
-ya usan las alertas: los programas de los legajos propios; superusuario y `config.administrar` ven todo), así
-que el feed dejó de mostrar movimientos de programas ajenos. **Test permanente:**
-`dashboard.tests.test_api_rbac.ActividadRecienteAlcanceTests` (en particular
-`test_con_ciudadano_sensible_trae_lo_de_su_alcance_y_nada_ajeno` y `test_config_administrar_ve_todo`).
+**Resolución:** 🟡 Parcial en #629 (Cambio 179), 08-oct-2026 — resuelta la mitad del alcance, con tests permanentes en `dashboard.tests.test_api_rbac`. Queda la mitad de la capacidad: va a una ola posterior, con decisión del PM sobre qué ve el «Operador de backoffice» en el inicio.
+- **Impacto:** la capacidad que protege el feed no coincide del todo con su contenido.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** separar el feed por tipo de evento, con la capacidad que corresponde a cada uno, cuando el PM decida el alcance del inicio.
 
-**Pendiente — la mitad de la capacidad.** La ronda 1 del PR había bajado el endpoint a
-`RequiereCapacidad("ciudadano.ver")` dejando la rama de alertas detrás de `ciudadano.sensible`. La ronda 3 lo
-devolvió a `ciudadano.sensible`: **el PR era de endurecimiento y no tenía que darle acceso nuevo a nadie**. Con
-`ciudadano.ver` el feed se abría a roles que hoy no lo ven y, en particular, un rol con `config.administrar` y
-sin `ciudadano.sensible` —que `acotar_a_programas_del_usuario` trata como alcance global— pasaba a ver las
-inscripciones y derivaciones de **todo el sistema**. Nada se rompe por volver: es la capacidad que el endpoint
-pedía antes del PR. Lo que queda abierto es la mitad original de la ficha —que quien solo tiene `ciudadano.ver`
-siga sin ver nada del feed—, y resolverlo bien es partir el endpoint en dos (inscripciones/derivaciones con
-`ciudadano.ver`, alertas con `ciudadano.sensible`) o sacar la rama de alertas del feed. Va a una ola posterior,
-con decisión del PM sobre qué ve el «Operador de backoffice» en el inicio.
-
-### R0b-11 · Desplegar SEC-09 etapa 1 en icore-srv (operativo, PM)
+### R0b-11 · Despliegue pendiente en icore-srv de una restricción de acceso en DEV (operativo, PM)
 **Severidad:** — (operativo, sin código) · **Origen:** #538 (Cambio 112) · **Ola:** PM · **Esfuerzo:** —
-- **Qué:** hasta desplegarlo, DEV (`relevamiento-deshum.ecomdev.ar`) sigue sirviendo `/media/` por nginx sin login y con `expires 7d`.
+- **Impacto:** hasta desplegarlo, DEV mantiene un acceso más amplio del debido a los archivos de los ciudadanos.
 - **Orden:** pull → build y recrear **`web` primero** (con `SERVE_MEDIA=True`) → después `nginx` (el gotcha de IP cacheada obliga a reiniciarlo igual). Si `nginx` va antes, `/media/` cae en Django sin la ruta y los adjuntos dan 404.
-- **Verificación:** `curl -I https://relevamiento-deshum.ecomdev.ar/media/<ruta_conocida>` sin cookie → 302; con sesión de backoffice → 200. Los archivos que ya bajó alguien pueden seguir en cachés de navegador hasta 7 días.
+- **Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.**
+- **Propuesta por defecto:** desplegar en el orden indicado y verificar con una consulta sin sesión y otra con sesión de backoffice.
