@@ -508,11 +508,23 @@ class ConfirmarIntegranteTests(BaseAlojar):
         self.assertEqual((real.nombre, real.apellido), ("Pedro", "Gómez"), "pisó el legajo")
         self.assertEqual(Ciudadano.objects.filter(dni="30111222").count(), 1)
 
-        # Con otro nombre distinto de lo que declaró el alta, sigue rechazado.
-        caso2, _ = self._aceptado(dni="30222333", nombre="Ana", apellido="Ruiz", identidad_en_conflicto=True)
-        Ciudadano.objects.filter(dni="30222333").update(nombre="Otra", apellido="Persona")
-        with self.assertRaises(ValidationError):
-            self._confirmar(caso2, 1, "30222333", datos_personales={"nombre": "Zoe", "apellido": "Díaz"})
+    def test_el_responsable_con_identidad_a_revisar_no_se_confirma_con_un_tercer_nombre(self):
+        """La excepción es solo para lo que declaró el alta: otro nombre sigue siendo otra persona."""
+
+        self._turno(self.club)
+        real = Ciudadano.objects.create(dni="30111222", nombre="Rosa", apellido="Benítez")
+        caso, _derivacion = self._aceptado(nombre="Ana", apellido="López", identidad_en_conflicto=True)
+        self.assertEqual(caso.identidad_a_revisar, {"nombre": "Ana", "apellido": "López"})
+        estadias, vinculos = Estadia.objects.count(), VinculoFamiliar.objects.count()
+
+        with self.assertRaises(ValidationError) as error:
+            self._confirmar(caso, 1, "30111222", datos_personales={"nombre": "Carla", "apellido": "Díaz"})
+
+        self.assertIn("dni", error.exception.error_dict)
+        real.refresh_from_db()
+        self.assertEqual((real.nombre, real.apellido), ("Rosa", "Benítez"))
+        self.assertEqual(Estadia.objects.count(), estadias)
+        self.assertEqual(VinculoFamiliar.objects.count(), vinculos)
 
     def test_dni_existente_sin_nombre_completa_del_legajo(self):
         """Regresión: con el DNI de un legajo y sin nombre ni apellido, se toman del legajo."""
