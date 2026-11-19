@@ -1,0 +1,378 @@
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Emergencia · Situación{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-impresion.css' %}">{% endblock %}
+
+{% block main-content %}
+{% comment %}E8 · Situación (análisis 009). Clona la golden del arquetipo «Dashboard de programa»
+(programas/templates/programas/dispositivos/tablero/tablero_referencia.html). Todos los números, textos, tonos y URL
+llegan armados de la vista (services/pantalla_situacion_emergencia.py): el template no cuenta ni decide. No nominal:
+ni nombres, ni DNI, ni números de caso, ni coordenadas de familias. Sin auto-refresh.
+La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin JS (RNF-009-08).{% endcomment %}
+<div class="space-y-5" x-data="{ tab: '{{ solapa }}' }">
+
+  {# «Actualizar» vuelve a pedir la pantalla en la solapa que se está mirando: al hacer clic, el `tab` de su URL toma la visible (como «Limpiar»). #}
+  <div @click.capture="const a = $event.target.closest('a.nodo-hero__accion'); if (a) { const u = new URL(a.href, window.location.href); u.searchParams.set('tab', tab); a.href = u.toString(); }">
+  {% hero_inicio titulo=titulo eyebrow=eyebrow accion_url=url_accion accion_texto=accion_texto accion_icono=accion_icono %}
+    {% bajada %}{{ resumen }}{% endbajada %}
+  {% endhero_inicio %}
+  </div>
+
+  <p class="nodo-solo-impresion text-sm font-semibold text-heading">{{ alcance }}</p>
+
+  {# Una sola barra arriba de las solapas: al enviar, el oculto «tab» toma la solapa que se está mirando. #}
+  <div class="nodo-no-imprimir space-y-2">
+    <div class="flex flex-wrap items-center justify-between gap-3"
+         @submit.capture="$event.target.elements.tab && ($event.target.elements.tab.value = tab)">
+      {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
+      <div class="flex flex-wrap items-center gap-3 text-xs text-body-subtle">
+        {% if request.GET|hay_filtros:"page,tab,localidades_page" %}
+        <a href="{{ url_limpiar }}" :href="'{{ url_limpiar|escapejs }}?tab=' + encodeURIComponent(tab)" class="btn-nodo btn-tertiary btn-sm">Limpiar</a>
+        {% endif %}
+        <span><i class="fas fa-clock" aria-hidden="true"></i> Actualizado a las {{ actualizado }}</span>
+        <button type="button" x-cloak @click="window.print()" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-print" aria-hidden="true"></i> Imprimir</button>
+        {% if url_mesa %}
+        <a href="{{ url_mesa }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-arrow-right" aria-hidden="true"></i> Ir al tablero de la mesa</a>
+        {% endif %}
+      </div>
+    </div>
+    <p class="text-xs text-body-subtle">Los filtros acotan la demanda; las camas son siempre de toda la provincia.</p>
+    {% if localidad_ignorada %}
+    {% include "components/_alerta.html" with tono="info" titulo="La localidad elegida no es de ese departamento" texto="Se ignoró la localidad y se muestra todo el departamento." role="status" only %}
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    {% for tarjeta in tarjetas %}
+    {% include "components/_stat_card.html" with etiqueta=tarjeta.etiqueta valor=tarjeta.valor sufijo=tarjeta.sufijo nota=tarjeta.nota icono=tarjeta.icono tono=tarjeta.tono variante="tablero" only %}
+    {% endfor %}
+  </div>
+
+  <div class="nodo-no-imprimir bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Vistas de la situación">
+      <button @click="tab='resumen'" type="button" role="tab" id="tab-resumen" aria-controls="panel-resumen"
+              :aria-selected="tab==='resumen'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='resumen' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-table-cells-large" aria-hidden="true"></i> Resumen
+      </button>
+      <button @click="tab='mapa'" type="button" role="tab" id="tab-mapa" aria-controls="panel-mapa"
+              :aria-selected="tab==='mapa'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='mapa' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-map-location-dot" aria-hidden="true"></i> Mapa
+      </button>
+      <button @click="tab='abastecimiento'" type="button" role="tab" id="tab-abastecimiento" aria-controls="panel-abastecimiento"
+              :aria-selected="tab==='abastecimiento'"
+              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+              :class="tab==='abastecimiento' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+        <i class="fas fa-boxes-stacked" aria-hidden="true"></i> Abastecimiento
+      </button>
+    </div>
+  </div>
+
+  <div x-show="tab==='resumen'"{% if solapa != "resumen" %} x-cloak{% endif %} role="tabpanel" id="panel-resumen" aria-labelledby="tab-resumen" class="nodo-impresion-panel space-y-5">
+
+    {# ===== R1 · Necesita atención (RN-009-09) ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-atencion-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="situacion-atencion-titulo" class="text-heading font-bold">Necesita atención</h2>
+        <p class="mt-1 text-xs text-body-subtle">{{ atencion.resumen }}</p>
+      </div>
+      {% if atencion.avisos %}
+      <div class="p-5 space-y-3">
+        {% for aviso in atencion.avisos %}
+        {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto role="status" only %}
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-circle-check" titulo="Nada pendiente" texto="Con estos filtros ninguna alerta estratégica está encendida." only %}
+      {% endif %}
+      {% if atencion.url_avisos_operativos %}
+      <div class="nodo-no-imprimir px-5 py-3 border-t border-light">
+        <a href="{{ atencion.url_avisos_operativos }}" class="text-sm text-fg-brand hover:underline">Ver los avisos operativos en el tablero de la mesa →</a>
+      </div>
+      {% endif %}
+    </section>
+
+    {# ===== R2 · Presión por localidad (B7, RN-009-04 a 06) ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-presion-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="situacion-presion-titulo" class="text-heading font-bold">Presión por localidad</h2>
+        <p class="mt-1 text-xs text-body-subtle">Personas esperando sobre camas libres a menos de {{ radio_km }} km. Las camas cercanas no son exclusivas: una misma cama cuenta para todas las localidades que la tienen cerca.</p>
+      </div>
+      {% if presion.hay_filas %}
+      <div class="overflow-x-auto{% if pagina_localidades %} nodo-no-imprimir{% endif %}">
+        {% include "programas/emergencia/situacion/_tabla_presion.html" with filas=filas_presion total=presion.total caption="Presión por localidad: familias y personas esperando, alojadas y camas cercanas" only %}
+      </div>
+      {% if pagina_localidades %}
+      <div class="nodo-no-imprimir">
+        {% include "components/_paginacion.html" with page_obj=pagina_localidades entidad="localidad" entidad_plural="localidades" param=parametro_de_pagina extra_qs="tab=resumen" %}
+      </div>
+      {# En el papel va la tabla completa, con su encabezado y su Total: reemplaza al mapa (§3.8). #}
+      <div class="nodo-solo-impresion">
+        {% include "programas/emergencia/situacion/_tabla_presion.html" with filas=presion.filas total=presion.total caption="Presión por localidad, todas las filas" only %}
+      </div>
+      {% endif %}
+      {% elif filtrado %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Sin demanda con estos filtros" texto="Ninguna familia de esta zona espera lugar ni está alojada." accion_url=url_limpiar only %}
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-life-ring" titulo="Todavía no hay casos" texto="Cuando la mesa reciba el primero, acá vas a ver dónde está la demanda." only %}
+      {% endif %}
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {# ===== R3 · Evolución (B8) ===== #}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-evolucion-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="situacion-evolucion-titulo" class="text-heading font-bold">Evolución</h2>
+          <p class="mt-1 text-xs text-body-subtle">Casos nuevos y familias alojadas por período. Camas operativas hoy: {{ evolucion.camas_operativas_hoy }} (la capacidad no tiene historia).</p>
+        </div>
+        <div class="p-5 space-y-4">
+          {% include "components/_barras_pareadas.html" with id="evolucion" titulo=evolucion.titulo serie_a="Casos nuevos" serie_b="Familias alojadas" periodo=evolucion.periodo periodos=evolucion.periodos only %}
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <caption class="sr-only">Personas alojadas al cierre de cada período</caption>
+              <thead>
+                <tr class="nodo-thead-row">
+                  <th class="nodo-th" scope="col">{{ evolucion.periodo }}</th>
+                  <th class="nodo-th text-right" scope="col">Personas alojadas al cierre</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for periodo in evolucion.periodos %}
+                <tr class="hover:bg-secondary">
+                  <td class="nodo-td">{{ periodo.etiqueta }}</td>
+                  <td class="nodo-td text-right">{{ periodo.personas }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {# ===== R4 · Capacidad de la red (B9), siempre provincial ===== #}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-capacidad-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="situacion-capacidad-titulo" class="text-heading font-bold">Capacidad de la red</h2>
+          <p class="mt-1 text-xs text-body-subtle">Red provincial: camas de los dispositivos elegibles. Los filtros no la acotan.</p>
+        </div>
+        <div class="p-5 space-y-2">
+          {% include "components/_barra_umbral.html" with valor=capacidad.barra.valor maximo=capacidad.barra.maximo porcentaje=capacidad.barra.porcentaje tono=capacidad.barra.tono etiqueta=capacidad.barra.etiqueta umbral_exigida=capacidad.barra.umbral_exigida umbral_critica=capacidad.barra.umbral_critica nombre="Capacidad de la red" only %}
+          <p class="text-sm text-body">{{ capacidad.desglose }}</p>
+          <p class="text-xs text-body-subtle">{{ capacidad.aparte }}</p>
+        </div>
+        <div class="overflow-x-auto border-t border-light">
+          <table class="w-full border-collapse">
+            <caption class="sr-only">Los cinco dispositivos más tensionados, con las marcas de su tipo</caption>
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th" scope="col">Dispositivo</th>
+                <th class="nodo-th" scope="col">Ocupación</th>
+                <th class="nodo-th text-right" scope="col">Derivaciones pendientes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in capacidad.mas_tensionados %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td text-heading font-medium">
+                  {% if fila.url %}<a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.nombre }}</a>{% else %}{{ fila.nombre }}{% endif %}
+                  <span class="block text-xs text-body-subtle">{{ fila.tipo }} · {{ fila.localidad }}</span>
+                </td>
+                <td class="nodo-td">
+                  {% include "components/_barra_umbral.html" with valor=fila.barra.valor maximo=fila.barra.maximo porcentaje=fila.barra.porcentaje tono=fila.barra.tono etiqueta=fila.barra.etiqueta umbral_exigida=fila.barra.umbral_exigida umbral_critica=fila.barra.umbral_critica texto=fila.barra.texto nombre=fila.barra.nombre only %}
+                </td>
+                <td class="nodo-td text-right">{{ fila.derivaciones_pendientes }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="p-0">
+                  {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Sin dispositivos con camas" texto="Cuando un dispositivo elegible tenga camas operativas, acá vas a ver su ocupación." only %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {# ===== R5 · Embudo del circuito (B10, RN-009-08) ===== #}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-embudo-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="situacion-embudo-titulo" class="text-heading font-bold">Embudo del circuito</h2>
+          <p class="mt-1 text-xs text-body-subtle">Casos creados en la ventana, sin ingresos directos. Mediana y p90 de cada tramo contra su objetivo.</p>
+        </div>
+        {% if embudo.hay_casos %}
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <caption class="sr-only">Embudo del circuito: casos por paso, conversión y tiempos por tramo</caption>
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th" scope="col">Paso</th>
+                <th class="nodo-th" scope="col">Casos</th>
+                <th class="nodo-th text-right" scope="col">Conversión</th>
+                <th class="nodo-th" scope="col">Tramo</th>
+                <th class="nodo-th text-right" scope="col">Mediana</th>
+                <th class="nodo-th text-right" scope="col">p90</th>
+                <th class="nodo-th text-right" scope="col">Objetivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in embudo.filas %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td text-heading font-medium">{{ fila.paso }}</td>
+                <td class="nodo-td">{% include "components/_barra_umbral.html" with valor=fila.barra.valor maximo=fila.barra.maximo texto=fila.barra.texto nombre=fila.paso only %}</td>
+                <td class="nodo-td text-right">{{ fila.conversion }}</td>
+                <td class="nodo-td">{{ fila.tramo }}</td>
+                <td class="nodo-td text-right">{{ fila.mediana }}</td>
+                <td class="nodo-td text-right">{% if fila.p90_supera %}<strong>{{ fila.p90 }}</strong><span class="sr-only">{{ fila.p90_nota }}</span>{% else %}{{ fila.p90 }}{% endif %}</td>
+                <td class="nodo-td text-right">{{ fila.objetivo }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <ul class="px-5 py-4 border-t border-light space-y-1 text-sm text-body">
+          {% for salida in embudo.salidas %}<li>{{ salida }}</li>{% endfor %}
+        </ul>
+        {% elif filtrado %}
+        {% include "components/_estado_vacio.html" with con_filtros=True titulo="Sin casos nuevos con estos filtros" texto="Ningún caso de esta zona se creó en la ventana." accion_url=url_limpiar only %}
+        {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-life-ring" titulo="Todavía no hay casos" texto="El embudo se arma con los casos creados en la ventana." only %}
+        {% endif %}
+      </section>
+
+      {# ===== R6 · Perfil de las personas (B11, RN-009-11) ===== #}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-perfil-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="situacion-perfil-titulo" class="text-heading font-bold">Perfil de las personas</h2>
+          <p class="mt-1 text-xs text-body-subtle">Agregado. Con un filtro de localidad o departamento, los datos de salud no se muestran (solo para toda la provincia) y los valores de 1 a 4 se muestran como «menos de 5».</p>
+        </div>
+        {% if perfil.hay_datos %}
+        <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <h3 class="text-sm font-bold text-heading">Alojadas: {{ perfil.alojados_total }}</h3>
+            <p class="text-xs text-body-subtle">Ficha confirmada al ingresar.</p>
+            <dl class="mt-2 space-y-1 text-sm">
+              {% for item in perfil.alojados %}
+              <div class="flex justify-between gap-3"><dt class="text-body">{{ item.etiqueta }}</dt><dd class="text-heading font-semibold tabular-nums">{{ item.texto }}</dd></div>
+              {% endfor %}
+            </dl>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-heading">Esperando: {{ perfil.esperando_total }} en {{ perfil.esperando_familias }} familias</h3>
+            <p class="text-xs text-body-subtle">Declarado al relevar.</p>
+            <dl class="mt-2 space-y-1 text-sm">
+              {% for item in perfil.esperando %}
+              <div class="flex justify-between gap-3"><dt class="text-body">{{ item.etiqueta }}</dt><dd class="text-heading font-semibold tabular-nums">{{ item.texto }}</dd></div>
+              {% endfor %}
+            </dl>
+          </div>
+        </div>
+        {% if perfil.nota %}<p class="px-5 pb-4 text-sm text-body">{{ perfil.nota }}</p>{% endif %}
+        {% elif filtrado %}
+        {% include "components/_estado_vacio.html" with con_filtros=True titulo="Sin personas con estos filtros" texto="Nadie de esta zona está alojado ni esperando." accion_url=url_limpiar only %}
+        {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-life-ring" titulo="Todavía no hay casos" texto="Cuando haya personas alojadas o esperando, acá vas a ver su perfil." only %}
+        {% endif %}
+      </section>
+    </div>
+
+    {# ===== R7 · Logística de kits (B12), provincial ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-logistica-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="situacion-logistica-titulo" class="text-heading font-bold">Logística de kits</h2>
+        <p class="mt-1 text-xs text-body-subtle">Entregas despachadas en la ventana, de toda la provincia. Enviado y recibido sobre las recibidas.</p>
+      </div>
+      <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {% for tarjeta in logistica.tarjetas %}
+        {% include "components/_stat_card.html" with etiqueta=tarjeta.etiqueta valor=tarjeta.valor nota=tarjeta.nota icono=tarjeta.icono tono=tarjeta.tono only %}
+        {% endfor %}
+      </div>
+      <div class="overflow-x-auto border-t border-light">
+        <table class="w-full border-collapse">
+          <caption class="sr-only">Enviado, recibido y diferencia por ítem de las entregas recibidas</caption>
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th" scope="col">Ítem</th>
+              <th class="nodo-th text-right" scope="col">Enviado</th>
+              <th class="nodo-th text-right" scope="col">Recibido</th>
+              <th class="nodo-th text-right" scope="col">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in logistica.items %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">{{ item.item }}</td>
+              <td class="nodo-td text-right">{{ item.enviado }}</td>
+              <td class="nodo-td text-right">{{ item.recibido }}</td>
+              <td class="nodo-td text-right">{{ item.diferencia }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="p-0">
+                {% include "components/_estado_vacio.html" with icono="fa-truck" titulo="Sin entregas recibidas en la ventana" texto="Cuando un dispositivo confirme una recepción, acá vas a ver lo enviado y lo recibido." only %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="px-5 py-4 border-t border-light">
+        <h3 class="text-sm font-bold text-heading">Con gente y sin entrega recibida en 48 h</h3>
+        {% if logistica.sin_entrega %}
+        <ul class="mt-2 space-y-1 text-sm text-body">
+          {% for fila in logistica.sin_entrega %}
+          <li>{% if fila.url %}<a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.nombre }}</a>{% else %}{{ fila.nombre }}{% endif %}: {{ fila.detalle }}</li>
+          {% endfor %}
+        </ul>
+        {% if logistica.sin_entrega_resumen %}<p class="mt-2 text-xs text-body-subtle">{{ logistica.sin_entrega_resumen }}</p>{% endif %}
+        {% else %}
+        <p class="mt-2 text-sm text-body">Todos los dispositivos con gente recibieron una entrega en las últimas 48 h.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ===== R8 · Cómo se calcula ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-calculo-titulo">
+      <details class="nodo-impresion-desplegar px-5 py-4">
+        <summary class="cursor-pointer text-sm font-semibold text-fg-brand"><span id="situacion-calculo-titulo">Cómo se calcula</span></summary>
+        <div class="mt-3 space-y-2 text-sm text-body">
+          <p><strong>Camas:</strong> plazas de tipo cama operativas de los dispositivos elegibles; libres = operativas − ocupadas − reservadas. Los cupos y turnos no suman. La ocupación usa los umbrales del tipo de cada dispositivo; la red, 60 % y 80 %.</p>
+          <p><strong>Esperando:</strong> personas declaradas de los casos abiertos sin alojar (nuevos, en gestión, derivados e ingresando).</p>
+          <p><strong>Camas cercanas:</strong> camas libres de los dispositivos a menos de {{ radio_km }} km del centro de la localidad, o de su misma localidad si no tienen ubicación y el nombre no se repite en el Chaco. No son exclusivas: el total real son las camas libres de la red.</p>
+          <p><strong>Presión:</strong> personas esperando sobre camas cercanas. Crítica con más de 1 (o sin camas cercanas), Exigida desde 0,5, Normal por debajo.</p>
+          <p><strong>Horas hasta saturar:</strong> camas libres sobre el ritmo neto de ingresos y egresos en camas de las últimas {{ horas_del_ritmo }} h. Es una proyección al ritmo actual, no un pronóstico.</p>
+          <p><strong>Períodos:</strong> el día operativo va de 06:00 a 06:00 (hora argentina); la ventana de 72 h se parte en bloques de 6 h desde las 06:00.</p>
+          <p><strong>Filtros:</strong> acotan la demanda por la localidad del caso. La capacidad, las horas hasta saturar, la logística y las alertas de la red son siempre de toda la provincia.</p>
+          <p><strong>Fuentes:</strong> las localidades y sus centros salen de BAHRA/Georef; el fondo del mapa, de OpenStreetMap.</p>
+        </div>
+      </details>
+    </section>
+
+    <p class="nodo-solo-impresion text-xs text-body-subtle">Documento de trabajo · datos agregados, sin datos personales · impreso el {{ impreso }}</p>
+  </div>
+
+  <div x-show="tab==='mapa'"{% if solapa != "mapa" %} x-cloak{% endif %} role="tabpanel" id="panel-mapa" aria-labelledby="tab-mapa" class="nodo-no-imprimir">
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-mapa-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="situacion-mapa-titulo" class="text-heading font-bold">Mapa de la situación</h2>
+      </div>
+      {% include "components/_estado_vacio.html" with icono="fa-map-location-dot" titulo="El mapa todavía no está disponible" texto="La tabla «Presión por localidad» del Resumen tiene los mismos números." only %}
+    </section>
+  </div>
+
+  <div x-show="tab==='abastecimiento'"{% if solapa != "abastecimiento" %} x-cloak{% endif %} role="tabpanel" id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir">
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-abastecimiento-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="situacion-abastecimiento-titulo" class="text-heading font-bold">Abastecimiento</h2>
+      </div>
+      {% include "components/_estado_vacio.html" with icono="fa-boxes-stacked" titulo="El abastecimiento todavía no está disponible" texto="Mientras tanto, la logística de kits del Resumen muestra lo enviado y lo recibido." only %}
+    </section>
+  </div>
+
+</div>
+{% endblock %}

@@ -580,10 +580,11 @@
 
         {# ── Emergencia (grupo colapsable) ───────────────────── #}
         {% comment %}Grupo propio, separado de Programas (Becas). La bandeja y las entregas las abre quien
-        opera o supervisa la mesa; el tablero (E1) y la configuración (E7), solo quien supervisa. Sin alcance:
+        opera o supervisa la mesa; el tablero (E1) y la configuración (E7), solo quien supervisa; la situación (E8),
+        quien la ve o supervisa (con solo `ver_situacion`, el grupo trae solo ese ítem). Sin alcance:
         no suma consultas por página (sale del cache de capacidades); el alcance lo exige cada vista. Escrito
         con utilidades, como «Notificaciones»: colores y activo los pone .ds-snav.{% endcomment %}
-        {% if request.user|puede:"emergencia.operar" or request.user|puede:"emergencia.supervisar" %}
+        {% if request.user|puede:"emergencia.operar" or request.user|puede:"emergencia.supervisar" or request.user|puede:"emergencia.ver_situacion" %}
         <div x-data="{ open: {% if 'emergencia' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative mb-0.5">
 
@@ -606,9 +607,10 @@
                     </button>
 
                     <div x-show="open" x-transition class="mt-0.5 ml-5 flex flex-col gap-0.5">
+                        {% if request.user|puede:"emergencia.operar" or request.user|puede:"emergencia.supervisar" %}
                         <a href="{% url 'emergencia:bandeja' %}"
                            class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
-                           {% if 'emergencia' in pagina_actual and 'emergencia/config' not in pagina_actual and 'emergencia/entregas' not in pagina_actual and 'emergencia/tablero' not in pagina_actual and 'emergencia/dispositivos' not in pagina_actual %}aria-current="page"{% endif %}>
+                           {% if 'emergencia' in pagina_actual and 'emergencia/config' not in pagina_actual and 'emergencia/entregas' not in pagina_actual and 'emergencia/tablero' not in pagina_actual and 'emergencia/situacion' not in pagina_actual and 'emergencia/dispositivos' not in pagina_actual %}aria-current="page"{% endif %}>
                             {# inbox icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                                  width="16" height="16" aria-hidden="true" class="flex-shrink-0">
@@ -628,6 +630,20 @@
                             </svg>
                             Entregas de kits
                         </a>
+                        {% endif %}
+                        {% if request.user|puede:"emergencia.ver_situacion" or request.user|puede:"emergencia.supervisar" %}
+                        <a href="{% url 'emergencia:situacion' %}"
+                           class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
+                           {% if 'emergencia/situacion' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# globe-americas icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="m6.115 5.19.319 1.913A6 6 0 0 0 8.11 10.36L9.75 12l-.387.775c-.217.433-.132.956.21 1.298l1.348 1.348c.21.21.329.497.329.795v1.089c0 .426.24.815.622 1.006l.153.076c.433.217.956.132 1.298-.21l.723-.723a8.7 8.7 0 0 0 2.288-4.042 1.087 1.087 0 0 0-.358-1.099l-1.33-1.108c-.251-.21-.582-.299-.905-.245l-1.17.195a1.125 1.125 0 0 1-.98-.314l-.295-.295a1.125 1.125 0 0 1 0-1.591l.13-.132a1.125 1.125 0 0 1 1.3-.21l.603.302a.809.809 0 0 0 1.086-1.086L14.25 7.5l1.256-.837a4.5 4.5 0 0 0 1.528-1.732l.146-.292M6.115 5.19A9 9 0 1 0 17.18 4.64M6.115 5.19A8.965 8.965 0 0 1 12 3c1.929 0 3.716.607 5.18 1.64"/>
+                            </svg>
+                            Situación
+                        </a>
+                        {% endif %}
                         {% if request.user|puede:"emergencia.supervisar" %}
                         <a href="{% url 'emergencia:tablero' %}"
                            class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
@@ -657,7 +673,8 @@
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% url 'emergencia:bandeja' %}"
+                {# Colapsado: a la bandeja si opera la mesa; con solo `ver_situacion`, a la situación (la bandeja le daría 403). #}
+                <a href="{% if request.user|puede:"emergencia.operar" or request.user|puede:"emergencia.supervisar" %}{% url 'emergencia:bandeja' %}{% else %}{% url 'emergencia:situacion' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150 px-3.5 py-2.5 rounded-full"
                    title="Emergencia"
                    aria-label="Emergencia"

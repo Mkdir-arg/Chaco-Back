@@ -31,9 +31,12 @@ pedir la pantalla. Lo ve solo quien supervisa la mesa.{% endcomment %}
 
   {# ===== Casos por localidad ===== #}
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="tablero-localidades-titulo">
-    <div class="px-5 py-4 border-b border-light">
-      <h2 id="tablero-localidades-titulo" class="text-heading font-bold">Casos por localidad</h2>
-      <p class="mt-1 text-xs text-body-subtle">Las plazas libres son las de los dispositivos de cada localidad. El nombre abre la bandeja filtrada.</p>
+    <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 id="tablero-localidades-titulo" class="text-heading font-bold">Casos por localidad</h2>
+        <p class="mt-1 text-xs text-body-subtle">Las plazas libres son las de los dispositivos de cada localidad. El nombre abre la bandeja filtrada.</p>
+      </div>
+      <a href="{{ url_situacion }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-map-location-dot" aria-hidden="true"></i> Ver la situación</a>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full border-collapse">
