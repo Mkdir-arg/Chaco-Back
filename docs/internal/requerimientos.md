@@ -620,6 +620,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 499 | Dispositivos: `TipoDispositivo.ubicacion_reservada` (dispositivos de protección sin ubicación pública; C2 del análisis 009, T9b) | Dispositivos · configuración de tipos | `#datos` `#ui` `#emergencia` `#gps` | PM — análisis 009, task #1174 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0127` (1 `AddField`, solo expand) |
 | 500 | Pieza de UI «barra con marcas de umbral» y su ficha (C3 del análisis 009; T4 del tablero de Dispositivos) | Transversal · sistema de diseño | `#emergencia` `#ui` | PM — análisis 009, task #1175 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 504 | Emergencia · E1: deuda del tablero que E8 reusa (camas, localidades homónimas, estado vacío, ingreso directo único, copias, `EXPLAIN` de la ventana) | Emergencia · tablero | `#emergencia` `#performance` `#ui` | PM — análisis 009 (§8.2, RF-009-18), task #1180 | 19/11/2026 | 🟢 **Hecho** | No requiere |
@@ -58309,6 +58310,108 @@ Revertir el commit; ninguna pantalla la usa todavía.
   `entero_o_none` y se condicionan por `is not None` (un umbral 0 se dibuja; uno no numérico, no), y la pista y el
   relleno pasan a utilidades + `.nodo-ficha-medidor` (como `_contador_avance`); `nodo-barra-umbral.css` queda con
   las marcas, la muestra de la leyenda y el alto contraste. Sin cambio visual.
+
+# Cambio 499 — Dispositivos: `TipoDispositivo.ubicacion_reservada` (dispositivos de protección sin ubicación pública)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · configuración de tipos (consumido por Emergencia · E8 y el tablero de Dispositivos) |
+| **Etiquetas** | `#datos` `#ui` `#emergencia` `#gps` |
+| **Solicitante** | PM — respuesta a la decisión 8 del 08/11/2026 (tablero de Dispositivos, T9b) y análisis 009 (C2) |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | #1174 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | Sí — `programas.0127_tipodispositivo_ubicacion_reservada` (1 `AddField`, solo expand) |
+
+## Pedido original
+
+C2 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.6, RN-009-13, §8.4) y T9b
+del spec del tablero de Dispositivos (`docs/superpowers/specs/2026-11-08-tablero-dispositivos-design.md`): marcar
+los tipos de dispositivo cuya ubicación no se publica (refugios de protección) para que ningún mapa los dibuje ni
+ningún listado por distancia o tensión los nombre; sus camas siguen sumando en los totales.
+
+## Alcance acordado
+
+Entra: el campo, la migración, la casilla en la configuración del tipo y un helper de servicio reutilizable. Queda
+afuera: los puntos del mapa y «más tensionados» de E8 (E-4, E-6) y del tablero de Dispositivos, que todavía no
+existen y van a usar el helper.
+
+## Decisiones tomadas
+
+- **`ubicacion_reservada`** (`BooleanField`, `default=False`, `db_default=False`): los tipos existentes y los nuevos
+  nacen sin reservar; el `DEFAULT` real en la base deja que la release vieja siga dando de alta tipos.
+- **Casilla «Ubicación reservada»** en el formulario del tipo (alta y modal de edición, `_tipo_form_fields.html`),
+  con el mismo marcado que «Maneja sectores y plazas» (label, ayuda, `data-error`); fuera del bloque de plazas
+  porque no depende de él. La autoriza lo mismo que el resto del tipo (`programa.configurar`).
+- **Helper único en `programas/services/ubicacion_reservada.py`:** `q_sin_ubicacion_reservada(prefijo="")` para
+  filtrar en la consulta, `es_de_ubicacion_reservada(dispositivo)` y
+  `separar_por_ubicacion_reservada(elementos, dispositivo=…)` → `(publicables, reservados)` en Python, sin consultas
+  con el `select_related("tipo")` de la red. Los puntos y los listados ordenados salen de `publicables`; los totales
+  suman los dos y la línea «N camas en dispositivos de ubicación reservada» sale de `reservados`.
+- **No se aplica al panel «Derivar» de la mesa** (`selectors.emergencia.dispositivos_para_derivar`, el único listado
+  vivo que ordena por `distancia_km`): es interno de la mesa (`emergencia.operar`), que es quien tiene que poder
+  derivar una familia a un refugio de protección, y el análisis 009 (§5, lista de dispositivos) acepta que E4 se los
+  muestre a la mesa. Tampoco a la ficha y al formulario del propio dispositivo (`detalle_dispositivo`, `edificios`):
+  muestran la ubicación de una sola institución a quien ya la ve por `dispositivo.ver`; la asunción de QA del #1174
+  deja abierto si el tipo reservado debe ocultarse también ahí.
+- `red_de_dispositivos` (E1) no cambia: no dibuja ni ordena por distancia o tensión; E-4 le sumará el indicador.
+
+## Implementación
+
+- `programas/models/__init__.py`: campo `TipoDispositivo.ubicacion_reservada`.
+- `programas/migrations/0127_tipodispositivo_ubicacion_reservada.py`: `AddField` con `db_default=False`.
+- `programas/forms.py`: `TipoDispositivoForm` suma el campo (`CheckboxInput` con `CHECKBOX_CLASS`).
+- `programas/templates/programas/dispositivos/config/_tipo_form_fields.html`: la casilla con su ayuda.
+- `programas/services/ubicacion_reservada.py` (nuevo): el helper.
+- `.claude/design/componentes/field.md`: consumidor nuevo (lo exige `check_design_agent.py`).
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0127_tipodispositivo_ubicacion_reservada.py`
+- `programas/forms.py`, `programas/templates/programas/dispositivos/config/_tipo_form_fields.html`
+- `programas/services/ubicacion_reservada.py` (nuevo)
+- `programas/tests/test_ubicacion_reservada.py` (nuevo)
+- `.claude/design/componentes/field.md`
+
+## Base de datos
+
+`programas.0127_tipodispositivo_ubicacion_reservada`: columna nueva `programas_tipodispositivo.ubicacion_reservada`
+(`bool NOT NULL DEFAULT 0`), solo expand. Sin migración de datos.
+
+## Validación
+
+- 10 tests nuevos (`programas.tests.test_ubicacion_reservada`): el campo nace en False; la migración depende de la
+  0126 y lleva `default` y `db_default` False sin `null`; la `Q` excluye los reservados (y acepta prefijo);
+  `separar_por_ubicacion_reservada` no consulta con el tipo traído y deja sumar las camas de los reservados; la casilla
+  aparece en la edición, se guarda y se destilda; el alta sin la casilla nace sin reservar; sin capacidad no cambia.
+- `test_dispositivos_config`, `test_dispositivos_formularios_tipo` y `test_models_contrato` en verde;
+  `manage.py check` OK; `makemigrations --check --dry-run` sin cambios; `check_migraciones.py` OK; `ruff` OK;
+  `design_audit.py --ratchet` 0 nuevos; `compile_templates.py --bloques` 0; `check_design_agent.py --changed` OK.
+
+## Puesta en marcha en el servidor
+
+Migrar. Después, el PM marca en *Dispositivos → Configuración* los tipos de protección.
+
+## Pendientes / a definir
+
+- E-4 / E-6 (análisis 009) y el tablero de Dispositivos: usar el helper en los puntos del mapa, «más tensionados»,
+  «tres más cercanos» y AE-5, con el test de mutación sobre la respuesta.
+- Definir si un tipo reservado oculta también la ubicación en la ficha y el listado propios de Dispositivos (asunción
+  de QA del #1174).
+
+## Reversión
+
+1. Desplegar el código anterior: la columna queda (con `DEFAULT 0` el alta de tipos de la release vieja sigue
+   andando) y el código viejo la ignora; mientras tanto la casilla no se ve.
+2. Solo si hace falta volver el esquema: `manage.py migrate programas 0126` borra
+   `programas_tipodispositivo.ubicacion_reservada`. Se pierde qué tipos estaban marcados como de ubicación reservada
+   (anotarlos antes si se va a volver a subir la release).
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
 
 # Cambio 504 — Emergencia · E1: deuda del tablero que E8 reusa
 

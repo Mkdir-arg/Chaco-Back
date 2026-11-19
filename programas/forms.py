@@ -734,6 +734,7 @@ class TipoDispositivoForm(forms.ModelForm):
         "plaza_obligatoria_al_ingresar",
         "umbral_ocupacion_amarillo",
         "umbral_ocupacion_rojo",
+        "ubicacion_reservada",
         "activo",
     ]
 
@@ -746,6 +747,7 @@ class TipoDispositivoForm(forms.ModelForm):
             "plaza_obligatoria_al_ingresar",
             "umbral_ocupacion_amarillo",
             "umbral_ocupacion_rojo",
+            "ubicacion_reservada",
             "activo",
         ]
         widgets = {
@@ -755,6 +757,7 @@ class TipoDispositivoForm(forms.ModelForm):
             "plaza_obligatoria_al_ingresar": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "umbral_ocupacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "umbral_ocupacion_rojo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
+            "ubicacion_reservada": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
         }
 
