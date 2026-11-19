@@ -163,6 +163,8 @@
     }
     function ubicar() {
       if (!campoDomicilio.value.trim()) {
+        // Pudo vaciarse mientras cargaba Google, con el botón ya en «Buscando…»: se libera.
+        ocupado(false);
         errorDomicilio('Escribí calle y número para buscar.');
         campoDomicilio.focus();
         return;
