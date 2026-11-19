@@ -138,8 +138,15 @@ def eliminar(objeto, usuario):
     return {nivel: modelo.objects.filter(pk__in=ids[nivel]).update(**marca) for nivel, modelo in _ORDEN}
 
 
-def resumen_cascada(marcados):
-    """Texto para el mensaje de éxito: qué más se eliminó junto con el elemento."""
+def resumen_cascada(marcados, propio=None):
+    """Texto para el mensaje de éxito: qué más se eliminó junto con el elemento.
+
+    ``marcados`` incluye al propio elemento (``eliminar`` lo cuenta en su clave); ``propio`` es esa
+    clave, para no anunciarlo como si fuera un hijo.
+    """
+    marcados = dict(marcados)
+    if propio and marcados.get(propio):
+        marcados[propio] -= 1
     etiquetas = (
         ("segmentos", "segmento", "segmentos"),
         ("subsegmentos", "subsegmento", "subsegmentos"),
