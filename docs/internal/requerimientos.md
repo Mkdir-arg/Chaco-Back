@@ -618,6 +618,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 498 | Emergencia · E8: centroides de localidades `core.UbicacionLocalidad` + carga desde BAHRA/Georef (E-2 del análisis 009) | Transversal · geografía (core) | `#emergencia` `#datos` `#gps` | PM — análisis 009, task #1181 | 19/11/2026 | 🟢 **Hecho** | Sí — `core.0004_ubicacion_localidad` (tabla nueva, solo expand) |
 
 **Notas del índice**
 
@@ -58033,3 +58034,108 @@ Revertir el commit; no hay datos involucrados.
 
 ## Historial
 Sin cambios posteriores.
+
+---
+
+# Cambio 498 — Emergencia · E8: centroides de localidades `core.UbicacionLocalidad` + carga desde BAHRA/Georef
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · geografía (core); lo consume Emergencia E8 |
+| **Etiquetas** | `#emergencia` `#datos` `#gps` |
+| **Solicitante** | PM — análisis 009 (E8 «Situación»), task E-2 |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | #1181 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Base de datos y comando de administración (sin pantalla) |
+| **Migración** | Sí — `core.0004_ubicacion_localidad` (tabla nueva, solo expand) |
+
+## Pedido original
+
+E-2 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.5, §8.1, RF-009-17,
+preguntas 8 y 9 de §10): darle a cada localidad del Chaco un centroide (latitud, longitud y departamento) para dibujar
+la presión por localidad en el mapa de E8 sin usar coordenadas de familias.
+
+## Alcance acordado
+
+Entra: el modelo, la migración, el CSV versionado con su atribución, el comando de carga idempotente con reporte de
+conciliación y los tests. Queda afuera: el uso en E8 (E-6 y siguientes), en RN-2.4 (distancia del panel Derivar) y
+en «Cerca de» de Dispositivos (pregunta 11, otro cambio). Sin admin ni pantalla.
+
+## Decisiones tomadas
+
+- **Tabla aparte, no columnas en `core.Localidad`:** `UbicacionLocalidad(TimeStamped)` con `localidad` (OneToOne,
+  `related_name="ubicacion"`, `CASCADE`), `latitud`/`longitud` `DecimalField(9,6)`, `departamento`, `fuente` e
+  `id_fuente` (código BAHRA). Una localidad sin fila no tiene posición (pregunta 9).
+- **Fuente: el recurso `asentamientos` de Georef (BAHRA completo), no `localidades`.** `localidades?provincia=chaco`
+  devuelve solo las 91 localidades censales y concilia 89 de las 778 del catálogo; `asentamientos` trae las 796 de
+  BAHRA (localidades simples, componentes y 705 parajes) y concilia 761. El catálogo del Chaco es mayormente de parajes.
+- **El CSV suma la columna `municipio`** (además de id_fuente, nombre, departamento, latitud, longitud): sin ella no
+  se puede conciliar por nombre **y** municipio, que es lo que separa los 63 nombres repetidos del catálogo.
+- **Conciliación por nombre y municipio normalizados** (sin acentos ni eñe, minúsculas, sin signos), contra
+  `localidades_operativas()` (provincia del Chaco). Una fila exacta → se asigna. **Ambigua** (no se asigna a ciegas):
+  más de una fila con el mismo nombre y municipio, o el nombre existe en la fuente pero solo en otro municipio.
+  **No conciliada:** el nombre no está en la fuente. Ambas quedan sin punto y salen en el reporte.
+- **Atribución (pregunta 8):** encabezado de comentarios `#` del CSV, con la URL de descarga, la fecha y la fórmula
+  «Fuente: BAHRA / Georef, datos.gob.ar» (mismo patrón que `programas/data/siis_*.csv`).
+- **Idempotente y sin borrar:** actualiza solo si cambió algún valor (cuenta creadas / actualizadas / sin cambios); una
+  localidad que deja de conciliar conserva la fila que tuviera. `--simular` reporta sin escribir; `--archivo` lee otro
+  CSV. Un CSV ausente o mal formado corta con `CommandError` sin escribir nada.
+- La lógica vive en `core/services/ubicaciones_localidades.py` (`conciliar` es pura); el comando solo orquesta.
+
+## Implementación
+
+- `core/models/ubicacion.py` (nuevo) y su import en `core/models/__init__.py`.
+- `core/migrations/0004_ubicacion_localidad.py`: `CreateModel`.
+- `core/services/ubicaciones_localidades.py`: `clave`, `leer_csv`, `conciliar`, `cargar_ubicaciones`.
+- `core/management/commands/cargar_ubicaciones_localidades.py`: carga y reporte.
+- `core/data/localidades_chaco_georef.csv`: 796 asentamientos BAHRA del Chaco, bajados de Georef el 19/11/2026.
+
+## Archivos
+
+- `core/models/ubicacion.py`, `core/models/__init__.py`, `core/migrations/0004_ubicacion_localidad.py`
+- `core/services/ubicaciones_localidades.py`, `core/management/commands/cargar_ubicaciones_localidades.py`
+- `core/data/localidades_chaco_georef.csv`
+- `core/tests/test_ubicaciones_localidades.py` (nuevo)
+
+## Base de datos
+
+`core.0004_ubicacion_localidad`: tabla nueva `core_ubicacionlocalidad` (solo expand; no toca `core_localidad`). La
+reversa es el `DROP TABLE` de Django. Sin migración de datos: los carga el comando.
+
+## Validación
+
+- 15 tests nuevos: `__str__`, normalización, alta con todos los campos, otra provincia no se toca, dos corridas dejan
+  el mismo resultado, dato cambiado actualiza sin duplicar, ambigua no asignada y reportada con candidatos, nombre
+  repetido que concilia por municipio sí se asigna, nombre solo en otro municipio es ambiguo, no conciliada sin punto y
+  reportada, `--simular` no escribe, OneToOne rechaza la segunda, CSV mal formado y ausente; y el CSV versionado contra
+  el fixture real (778 localidades, todas las posiciones dentro de la caja del Chaco, departamentos de Barranqueras,
+  Resistencia, Juan José Castelli y Las Breñas).
+- Contra el fixture `localidad_municipio_provincia`: **761 conciliadas, 4 ambiguas, 13 no conciliadas**; la segunda
+  corrida da 0 creadas, 0 actualizadas, 761 sin cambios.
+- `manage.py check` OK; `makemigrations --check --dry-run` sin cambios; `scripts/check_migraciones.py` OK; ruff OK.
+
+## Puesta en marcha en el servidor
+
+Migrar y correr una vez `python manage.py cargar_ubicaciones_localidades` (antes, `--simular` para ver el reporte).
+Repetirlo es inocuo.
+
+## Pendientes / a definir
+
+- Reporte de conciliación para revisión del PM (adjunto al PR). Ambiguas: El Paraisal (Basail y Quitilipi; BAHRA solo
+  lo tiene en Juan José Castelli), El Tacuruzal (Quitilipi, dos en BAHRA) y El Ñandubay (Santa Sylvina, dos en BAHRA).
+  No conciliadas: General Güemes; Costa Alegre y Rodeo Tapití (Laguna Blanca); Puerto Libertad, San Cayetano y Villa
+  Cooperativa (municipio «Libertad», que BAHRA no tiene); La Higuerita, Libertador General San Martín, Mesada de las
+  Colmenas, Palos Blancos, Paulina y Pueblo Ledesma (municipio «Libertador General San Martín», que BAHRA llama
+  «General San Martín»); Colonia La Matanza (Tres Isletas). Si el PM decide equivalencias, entran como otro cambio.
+- El Cambio 493 lleva los mapas a Google Maps; los centroides sirven igual a cualquier pieza de mapa.
+
+## Reversión
+
+Revertir el commit y desaplicar `core.0004` (se borra la tabla y con ella las ubicaciones cargadas, que se vuelven a
+cargar con el comando).
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
