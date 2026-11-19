@@ -622,6 +622,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 499 | Dispositivos: `TipoDispositivo.ubicacion_reservada` (dispositivos de protección sin ubicación pública; C2 del análisis 009, T9b) | Dispositivos · configuración de tipos | `#datos` `#ui` `#emergencia` `#gps` | PM — análisis 009, task #1174 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0127` (1 `AddField`, solo expand) |
 | 500 | Pieza de UI «barra con marcas de umbral» y su ficha (C3 del análisis 009; T4 del tablero de Dispositivos) | Transversal · sistema de diseño | `#emergencia` `#ui` | PM — análisis 009, task #1175 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 502 | Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009) | Transversal · sistema de diseño | `#ui` `#metodo` `#emergencia` | PM — análisis 009, task #1178 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -58411,3 +58412,102 @@ Migrar. Después, el PM marca en *Dispositivos → Configuración* los tipos de 
 ## Historial
 
 - **19/11/2026:** alta del cambio.
+
+# Cambio 502 — Sistema de diseño: arquetipo «Dashboard de programa» con golden de referencia (C6 del análisis 009)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · sistema de diseño |
+| **Etiquetas** | `#ui` `#metodo` `#emergencia` |
+| **Solicitante** | PM — análisis 009 (E8 «Situación» de Emergencia), tarea compartida C6 = pieza 1 / T11 del spec del tablero de Dispositivos |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | #1178 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Sistema de diseño (agente canónico, fichas, auditoría); sin pantalla productiva |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Declarar el arquetipo «Dashboard de programa» con su golden (el tablero de Dispositivos) y la ficha
+`.claude/design/arquetipos/dashboard.md` con el esqueleto: hero, filtros en píldora, franja de stat cards,
+solapas, «Necesita atención», tablas e impresión; fila en la tabla *Arquetipos* del agente canónico; sacarlo de
+`pendientes.md`; que `design_audit.py --arquetipo` lo reconozca para que E-5 (E8) lo use.
+
+## Alcance acordado
+
+Entra: ficha, golden, marcadores del audit, `HERO_PANTALLAS`, fila del núcleo, `pendientes.md`, las notas de
+`filtros.md`, `tabs.md` y `hero_inicio.md`, y sus tests. Queda afuera: el tablero real de Dispositivos (T3-T10),
+las piezas nuevas del spec (barra con umbral, barras pareadas, mapa, `item-lista`…) y la hoja de impresión.
+
+## Decisiones tomadas
+
+- **La golden es una referencia sin vista**, `programas/templates/programas/dispositivos/tablero/tablero_referencia.html`,
+  con el mismo contrato que la de Revisión (Cambio 236): el esqueleto del tablero de Dispositivos con los datos de
+  ejemplo del mockup, renderizado por `TableroReferenciaTest`. Motivo: el tablero de Dispositivos todavía no existe y
+  `design_audit.py --goldens` exige que la golden exista y dé 0. Se descartó el dashboard de Becas como golden
+  provisoria: `pendientes.md` ya decía que no es molde, es una solapa del detalle del programa (no una pantalla) y
+  tiene 3 P1 (`<style>` de impresión y dos `style=`), así que `--goldens` saldría en rojo; además el análisis 009
+  (§3.3) prohíbe clonarlo. Dejar el arquetipo en `pendientes.md` frenaba E-5, que depende de C6. Cuando exista el
+  tablero real, clona la referencia; la golden puede pasar a él en su T11 cambiando la fila y `GOLDENS`.
+- **Una sola barra de filtros arriba de las solapas** (decisión del 08-nov del spec y §3.3 del análisis), apartándose
+  de `filtros.md` solo en este arquetipo: el envoltorio copia la solapa visible al oculto `tab` con
+  `@submit.capture`, y «Limpiar» la conserva con `:href`. `hay_filtros:"page,tab"`: la solapa no es filtro.
+- **La barra de solapas va sola en su surface y cada panel es una pila de surfaces** (como el mockup): un tablero
+  tiene varios bloques con título y no se anidan cards. Nota en `tabs.md`.
+- **Franja**: `lg:grid-cols-4`, porque `lg:grid-cols-5` no está compilada; el tablero de cinco tarjetas la suma con
+  `npm run build:tailwind` en su PR.
+- **Impresión**: la ficha fija el contrato (qué se oculta y qué se imprime), pero no hay pieza canónica
+  (`.no-print` vive en `responsive.css`, clasificado conflictivo, y el `dash-no-print` de Becas es local): la
+  construye con su ficha el primer tablero que imprima (E8).
+- **Marcadores `dashboard`** en `design_audit.ARQUETIPOS`: shell, `space-y-5`, hero, `_filtro_pildora`, `_stat_card`
+  con `variante="tablero"`, ARIA de solapas, `_alerta`, tabla canónica y estado vacío; prohibidos `<h1>`,
+  `page_header`, `<style>`, la tarjeta `data-dynamic-list-filters` y filtrar al cambiar el valor.
+- `pendientes.md` queda como «Composiciones sin molde» (revisión compleja y dashboard de Becas); su fila del núcleo
+  pasa a «Pendiente · sin molde».
+
+## Implementación
+
+- Golden nueva y su ruta en `HERO_PANTALLAS` y en `GOLDENS`; `ARQUETIPOS["dashboard"]`; el uso de `--arquetipo`
+  lista los arquetipos reales.
+- Ficha `arquetipos/dashboard.md` (estructura, filtros y solapas, contrato de contexto, límites, impresión, qué no
+  cubre, prohibido, checklist).
+- Núcleo: fila «Arquetipo · Dashboard» y paso 3 del protocolo; `pendientes.md`, `filtros.md`, `tabs.md`,
+  `hero_inicio.md`.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/tablero/tablero_referencia.html` (nuevo)
+- `scripts/design_audit.py`, `scripts/test_design_audit.py`
+- `core/tests/test_nodo_ui_piezas.py` (`TableroReferenciaTest`), `core/tests/test_design_audit_estructura.py`
+- `.claude/agents/chaco-design-system.md`, `.claude/design/arquetipos/dashboard.md` (nuevo),
+  `.claude/design/arquetipos/pendientes.md`, `.claude/design/componentes/filtros.md`,
+  `.claude/design/componentes/tabs.md`, `.claude/design/componentes/hero_inicio.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `design_audit.py --arquetipo dashboard` sobre la golden: OK; `--goldens`: 0 hallazgos en 8 goldens; `--ratchet`:
+  0 nuevos; `check_design_agent.py --changed --limites`: OK; `compile_templates.py --bloques`: 0; `manage.py check` OK.
+- `TableroReferenciaTest` (5), `test_dashboard_exige_la_barra_de_pildoras_y_rechaza_page_header`,
+  `HeroInicioTest` (la golden entra en `HERO_PANTALLAS`) y `scripts/test_design_audit.py` en verde; ruff OK.
+
+## Puesta en marcha en el servidor
+
+No requiere: la golden no tiene URL.
+
+## Pendientes / a definir
+
+- El tablero real de Dispositivos (T3-T10) y E8 (E-5) clonan la golden; la hoja de impresión, con E8.
+- `lg:grid-cols-5` para la franja de cinco tarjetas, con el build de Tailwind del PR que la use.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+Sin cambios posteriores.

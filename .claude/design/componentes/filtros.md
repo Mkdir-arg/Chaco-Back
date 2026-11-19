@@ -112,6 +112,10 @@ include con `ocultos=(("tab", <su clave>),)`, y la vista le arma a cada uno las 
 `programas/templates/programas/dispositivos/legajo/detail.html` (P4).
 La barra de solapas de esas dos pantallas usa la estructura con envoltorio y scroll horizontal de `tabs.md`.
 
+**Excepción: el arquetipo Dashboard.** En un tablero los filtros acotan todos los paneles, así que va **una
+sola barra arriba de las solapas** y su envoltorio copia la solapa visible al oculto `tab` al enviar
+(`@submit.capture`); ver `arquetipos/dashboard.md`, *Filtros y solapas*. Fuera de ese arquetipo vale la regla de arriba.
+
 En P21, «Revisados» filtra completados con fecha de revisión; su contador y «Asignado a»
 conservan el mismo alcance que las demás solapas. Las opciones de «Asignado a» se limitan a relevamientos cuya asignación puede ver
 quien mira: coordina ese edificio o es el agente asignado. Leer el edificio por

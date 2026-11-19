@@ -299,6 +299,26 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
                     self.assertEqual(codigo, 1)
                     self.assertIn("campos con el include _field.html", salida)
 
+    def test_dashboard_exige_la_barra_de_pildoras_y_rechaza_page_header(self):
+        """La golden cumple; sin la barra de píldoras o con un page_header bajo el hero, corta."""
+        ruta = self.GOLDENS["dashboard"]
+        texto = (design_audit.REPO / ruta).read_text(encoding="utf-8")
+        self.assertEqual(self.marcadores("dashboard", [ruta])[0], 0)
+        include = '{% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}'
+        self.assertIn(include, texto)
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "tablero.html"
+            p.write_text(texto.replace(include, ""), encoding="utf-8")
+            codigo, salida = self.marcadores("dashboard", [str(p)])
+            self.assertEqual(codigo, 1)
+            self.assertIn("barra de filtros en píldora", salida)
+            p.write_text(
+                texto.replace(include, include + '{% page_header titulo="x" %}{% endpage_header %}'), encoding="utf-8"
+            )
+            codigo, salida = self.marcadores("dashboard", [str(p)])
+            self.assertEqual(codigo, 1)
+            self.assertIn("page_header debajo del hero", salida)
+
     def test_cada_arquetipo_declarado_tiene_su_ficha(self):
         # Sin lista escrita a mano: lo que importa es que ninguno entre al audit sin
         # su ficha, no cuantos hay. Asi el contrato sobrevive a cada arquetipo nuevo

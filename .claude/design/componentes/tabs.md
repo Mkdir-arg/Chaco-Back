@@ -35,7 +35,8 @@ No hay include ni tag: las solapas se clonan de la golden de detalle con su ARIA
 </div>
 ```
 
-- Las solapas van **dentro de una surface**, como primera fila.
+- Las solapas van **dentro de una surface**, como primera fila. En el arquetipo Dashboard la barra
+  ocupa sola su surface y cada panel es una pila de surfaces debajo (`arquetipos/dashboard.md`).
 - Barra: `border-b border-base flex gap-1 px-2 flex-wrap` con `role="tablist"` y `aria-label`. Con 4 o más solapas o etiquetas largas (relevamientos, detalle del dispositivo) la barra se parte en dos: envoltorio `border-b border-base` y, adentro, `flex gap-1 px-2 overflow-x-auto -mb-px` con el `role="tablist"`; las solapas van **sin** `-mb-px` y con `shrink-0` (junto con `whitespace-nowrap`): sin `shrink-0` el flex las comprime y el ícono y el contador quedan encimados sobre la etiqueta. A 390 px quedan en una fila con scroll horizontal. Con `overflow-x-auto` en la misma barra que lleva el borde y solapas con `-mb-px`, el navegador fuerza `overflow-y:auto`: aparece una barra vertical y se recorta el subrayado activo.
 - Ítem: `px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5`; activo
   `text-fg-brand border-brand font-bold`; inactivo
@@ -72,6 +73,7 @@ declarar el ARIA del contrato de arriba.
 - Un `<form method="get">` dentro de una solapa —filtros en píldora, un buscador— lleva **su**
   clave en el oculto `tab`, no la que resolvió el servidor: si no, filtrar desde cualquier solapa
   que no sea la activa devuelve a la activa. Ver `componentes/filtros.md`.
+  En el arquetipo Dashboard la barra es una sola, arriba, y copia la solapa visible al enviar.
 
 ## Prohibido
 
