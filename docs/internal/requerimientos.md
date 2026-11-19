@@ -621,6 +621,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 501 | Pieza de UI «gráfico de barras pareadas» y su ficha (C4 del análisis 009) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1176 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -58135,6 +58136,85 @@ Revertir el commit; no hay datos involucrados.
 
 ## Historial
 Sin cambios posteriores.
+
+# Cambio 503 — Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · ocupación (compartido con Emergencia) |
+| **Etiquetas** | `#emergencia` `#datos` `#performance` |
+| **Solicitante** | PM — análisis 009 (§8.2 pendiente 1, §8.4 C7) |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | #1179 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (servicio interno, sin pantalla propia) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+C7 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`): que la cuenta única de
+ocupación pueda pedir solo un tipo de plaza. Emergencia aloja familias en camas (RN-2.3), así que «Camas libres» de
+E1, E8 y el panel «Derivar» de E3 piden `ocupacion_de_plazas(dispositivos, tipos=(Plaza.Tipo.CAMA,))`; la T7 de
+Dispositivos lo usa para «Encontrar plaza libre» por `Plaza.tipo`.
+
+## Alcance acordado
+
+Solo el parámetro en el servicio y sus tests. Ninguna pantalla cambia: los consumidores (E-1 #1180 y la T7 de
+Dispositivos) lo adoptan en su propio PR.
+
+## Decisiones tomadas
+
+- `ocupacion_de_plazas(dispositivos, momento=None, tipos=None)`: `None` cuenta todas, igual que antes (Dispositivos
+  no cambia). Acepta cualquier iterable de `Plaza.Tipo`.
+- **Sin consultas extra:** el filtro `tipo__in` va dentro de las tres consultas en lote que ya existían (el `Count`
+  con `filter` de las plazas por sector, las estadías que ocupan y las reservas que cuentan). Un helper
+  `_de_los_tipos` arma el `Q` para los dos caminos del JOIN (`plazas__` desde `Sector`, `plaza__` desde movimientos).
+- Los sectores siguen apareciendo todos aunque no tengan plazas de los tipos pedidos: llegan en cero, como el sector
+  sin plazas. Un dispositivo sin camas da 0 camas y `tension_de_ocupacion` lo lee «sin plazas» (sin división por cero).
+- `tipos=()` (vacío, sin definir en el análisis) no cuenta ninguna plaza: es lo que pide literalmente; no hay
+  consumidor que lo pase.
+
+## Implementación
+
+- `programas/services/ocupacion.py`: `_de_los_tipos`, `tipos` en `_ocupadas_por_sector`, `_reservadas_por_sector` y
+  `ocupacion_de_plazas` (docstring).
+
+## Archivos
+
+- `programas/services/ocupacion.py`
+- `programas/tests/test_dispositivos_ocupacion.py` (`OcupacionPorTipoDePlazaTests`, 5 tests)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- 5 tests nuevos: solo camas (dispositivo y sector: totales, fuera de servicio, ocupadas, reservadas, prestadas,
+  disponibles), sin `tipos` cuenta todas, varios tipos, dispositivo sin camas en cero sin fallar, y el mismo número
+  de consultas (3) con y sin `tipos`.
+- `test_dispositivos_ocupacion` completo (incluido el presupuesto de `perf_budgets.json`, sin tocarlo), los demás
+  módulos que usan `ocupacion_de_plazas` (`test_dispositivos_*`, `test_emergencia_casos`) y
+  `test_models_contrato`: 656 tests en verde. `manage.py check` OK, `makemigrations --check` sin cambios, `ruff`
+  check/format OK.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- E-1 (#1180): «Camas libres» de E1 y del panel «Derivar» pasan a `tipos=(Plaza.Tipo.CAMA,)`.
+- T7 de Dispositivos: «Encontrar plaza libre» por tipo.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
 
 # Cambio 501 — Pieza de UI «gráfico de barras pareadas» y su ficha (C4)
 
