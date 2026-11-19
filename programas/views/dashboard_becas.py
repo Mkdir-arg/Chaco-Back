@@ -145,7 +145,9 @@ def programa_dashboard_exportar(request, pk, formato):
     programa = _programa_o_403(request, pk, CAP_EXPORTAR)
     form = DashboardBecasFiltroForm(request.GET, user=request.user, programa=programa)
     if not form.is_valid():
-        return HttpResponseBadRequest(" ".join(_errores(form)))
+        # text/plain: el mensaje de un ChoiceField inválido repite el valor crudo del GET,
+        # y como text/html (el default) se ejecutaría en el navegador (XSS reflejado).
+        return HttpResponseBadRequest(" ".join(_errores(form)), content_type="text/plain; charset=utf-8")
     filtros = form.filtros()
     codigo = request.GET.get("bloque", "resumen")
     try:

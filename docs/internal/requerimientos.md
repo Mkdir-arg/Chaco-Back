@@ -58,6 +58,7 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 | `#gestion` | Tablero del Project, trazabilidad de issues y planes de prueba: qué se entregó y dónde figura |
 | `#metodo` | Método de trabajo de los agentes: `AGENTS.md`, `QA.md`, `PM.md` y las convenciones que deben cumplir al crear issues |
 | `#emergencia` | Módulo Emergencia: la mesa de casos, la derivación y el alojamiento de familias evacuadas en dispositivos, las entregas de kits, el tablero y su API de campo |
+| `#seguridad` | Correcciones de seguridad: XSS, inyección, fuga de datos y endurecimiento de respuestas |
 
 ## Regla de oro
 
@@ -615,6 +616,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
 | 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
+| 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57933,3 +57935,53 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
 - **18/11/2026:** al traer `development` para abrir el PR, el número 483 ya era de Edificios: esta entrada pasó a ser el Cambio 489 y la migración de capacidades, `users.0049`.
 - **18/11/2026:** al volver a traer `development`, el 489 y `users.0049` ya eran de Becas (baja lógica): esta entrada pasó a ser el Cambio 490 y la migración, `users.0050`.
 - **19/11/2026:** al traer `development` otra vez, el 490 era de Becas y el 492 de Emergencia: esta entrada pasa a ser el **Cambio 493** (la migración sigue siendo `users.0050`).
+
+---
+
+# Cambio 494 — Becas · dashboard: el error de filtro del export sale como texto plano
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · dashboard |
+| **Etiquetas** | `#seguridad` |
+| **Solicitante** | Auditoría — hallazgo B2-SEG-01 (autorizado por el usuario: «PR sí») |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Corregir B2-SEG-01: `programa_dashboard_exportar` devolvía el error de validación del filtro como `text/html`.
+
+## Alcance acordado
+Solo la respuesta 400 de filtros inválidos. Los demás 400 del export tienen texto fijo, sin input reflejado, y no se tocan.
+
+## Decisiones tomadas
+- `content_type="text/plain; charset=utf-8"` sin cambiar texto ni status: el mensaje de un `ChoiceField` inválido (`periodo`, `canal`) incluye el valor crudo del GET y, como HTML, se ejecutaba en el navegador de un usuario con capacidad de exportar que abriera un link armado. La CSP tiene `'unsafe-inline'` y no lo frenaba.
+- Es el único caso de este patrón en el repo.
+
+## Implementación
+La respuesta 400 por filtros inválidos del export se sirve como texto plano.
+
+## Archivos
+`programas/views/dashboard_becas.py`, `programas/tests/test_dashboard_exports.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`test_el_error_de_filtro_no_se_sirve_como_html` (periodo y canal con `<script>`): verificado por mutación, con el arreglo revertido falla con `text/html`. Suite del módulo, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
