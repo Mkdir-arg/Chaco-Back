@@ -19,12 +19,13 @@
 
 from datetime import datetime, timedelta
 
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from core.models import Localidad
+from core.models import Localidad, Municipio
 from core.services import vencimientos
 from legajos.models import Ciudadano
 from programas.models import (
@@ -42,6 +43,7 @@ from programas.models import (
     TrazaEntrega,
 )
 from programas.selectors import emergencia_tablero as tablero
+from programas.selectors.emergencia import dispositivos_para_derivar
 from programas.services import avisos_emergencia
 from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
@@ -484,7 +486,7 @@ class TiemposTests(EscenarioTablero):
 
 class EntregasEnCaminoTests(EscenarioTablero):
     def test_la_mas_vieja_primero_con_su_resumen(self):
-        filas, total = tablero.entregas_en_camino(T0)
+        filas, total = tablero.entregas_en_camino(self.sla, T0)
         self.assertEqual(total, 2)
         self.assertEqual([fila["numero"] for fila in filas], [self.en_camino_1.numero, self.en_camino_2.numero])
         primera = filas[0]
@@ -494,8 +496,17 @@ class EntregasEnCaminoTests(EscenarioTablero):
         self.assertEqual(primera["url"], reverse("emergencia:entrega_detalle", args=[self.en_camino_1.pk]))
 
     def test_acotadas_al_tope(self):
-        filas, total = tablero.entregas_en_camino(T0, tope=1)
+        filas, total = tablero.entregas_en_camino(self.sla, T0, tope=1)
         self.assertEqual((len(filas), total), (1, 2))
+
+    def test_recorta_en_la_base_y_el_total_sale_de_la_foto(self):
+        """Pendiente 6 del Cambio 472: trae solo ``tope`` entregas y no las vuelve a contar."""
+        foto = tablero.foto_del_tablero(self.sla, T0)
+        with CaptureQueriesContext(connection) as capturadas:
+            filas, total = tablero.entregas_en_camino(self.sla, T0, foto=foto, tope=1)
+        self.assertEqual((len(filas), total), (1, foto.entregas_en_camino))
+        self.assertEqual(len(capturadas), 2)
+        self.assertIn("limit", capturadas.captured_queries[0]["sql"].lower())
 
 
 class ProgramaVacioTests(BaseTablero):
@@ -511,7 +522,7 @@ class ProgramaVacioTests(BaseTablero):
                 self.assertEqual(
                     (fila["casos"], fila["mediana"], fila["p90"], fila["fuera_de_objetivo"]), (0, "—", "—", 0)
                 )
-        self.assertEqual(tablero.entregas_en_camino(T0), ([], 0))
+        self.assertEqual(tablero.entregas_en_camino(self.sla, T0), ([], 0))
         self.assertEqual(self._avisos(), [])
 
     def test_la_pantalla_dice_que_todavia_no_hay_casos(self):
@@ -673,7 +684,7 @@ class SinZonaHorariaEnLaBaseTests(EscenarioTablero):
             tablero.resumen(self.sla, T0, foto=foto)
             tablero.por_localidad(self.sla, T0, foto=foto)
             tablero.tiempos(self.sla, T0, foto=foto)
-            tablero.entregas_en_camino(T0)
+            tablero.entregas_en_camino(self.sla, T0, foto=foto)
             avisos_emergencia.avisos_del_tablero(self.sla, T0, usuario=self.supervisor, foto=foto)
         sql = " ".join(consulta["sql"] for consulta in capturadas.captured_queries).lower()
         self.assertTrue(sql)
@@ -732,6 +743,136 @@ class TableroVistaTests(EscenarioTablero):
         self.sla.save()
         self.client.force_login(self.supervisor)
         self.assertContains(self.client.get(URL_TABLERO), '<h1 class="nodo-hero__titulo">Crecida del río</h1>')
+
+
+# ---------------------------------------------------------------------------
+# Deuda de E1 que E8 reusa (Cambio 504 · E-1 #1180)
+# ---------------------------------------------------------------------------
+
+
+class BaseDeudaE1(BaseTablero):
+    """Los casos y personas de estos tests usan DNIs de prueba (90000001–90000099)."""
+
+    def setUp(self):
+        super().setUp()
+        self._dnis = iter(range(90_000_001, 90_000_100))
+
+    def _cupos(self, dispositivo, cuantos):
+        sector = Sector.objects.create(dispositivo=dispositivo, nombre="Cupos", capacidad=cuantos)
+        Plaza.objects.bulk_create(
+            [Plaza(sector=sector, codigo=f"U{n:03d}", tipo=Plaza.Tipo.CUPO) for n in range(1, cuantos + 1)]
+        )
+        Plaza.objects.create(sector=sector, codigo="T001", tipo=Plaza.Tipo.TURNO)
+
+
+class CamasLibresTests(BaseDeudaE1):
+    """Pendiente 1 del Cambio 472: E1 y el panel «Derivar» de E3 cuentan solo camas (RN-2.3)."""
+
+    def setUp(self):
+        super().setUp()
+        self.solo_cupos = self._dispositivo("Comedor Norte", localidad="Resistencia")
+        self._cupos(self.solo_cupos, 20)
+        self.mixto = self._dispositivo("Club Mixto", camas=10, localidad="Resistencia")
+        self._ocupar(self.mixto, 7)
+        self._cupos(self.mixto, 20)
+        self.caso = self._sembrar(Estado.EN_GESTION, tomado_en=T0)
+
+    def _derivar_panel(self):
+        filas = dispositivos_para_derivar(self.caso, self.supervisor, momento=T0)
+        return {fila["id"]: fila["libres"] for fila in filas}
+
+    def test_e1_los_cupos_no_suman_a_camas_libres(self):
+        foto = tablero.foto_del_tablero(self.sla, T0)
+        self.assertEqual(foto.red.libres_de(self.solo_cupos.pk), 0)
+        self.assertEqual(foto.red.libres_de(self.mixto.pk), 3)
+        self.assertEqual(tablero.resumen(self.sla, T0, foto=foto)["hero"]["libres"], 3)
+
+    def test_e3_el_panel_derivar_cuenta_solo_camas_y_coincide_con_e1(self):
+        foto = tablero.foto_del_tablero(self.sla, T0)
+        panel = self._derivar_panel()
+        self.assertEqual(panel, {self.solo_cupos.pk: 0, self.mixto.pk: 3})
+        self.assertEqual(panel, {pk: foto.red.libres_de(pk) for pk in panel})
+
+    def test_no_se_deriva_a_un_dispositivo_que_solo_tiene_cupos(self):
+        with self.assertRaises(ValidationError) as error:
+            servicio.derivar_caso(self.caso, self.supervisor, self.solo_cupos, 2)
+        self.assertEqual(error.exception.message_dict["dispositivo"], [servicio.SIN_PLAZAS])
+
+
+class LocalidadesHomonimasTests(BaseDeudaE1):
+    """Pendiente 3 del Cambio 472 (RN-009-04): los casos se agrupan por ``localidad_id``."""
+
+    def setUp(self):
+        super().setUp()
+        self.norte = Localidad.objects.create(nombre="La Esperanza", municipio=Municipio.objects.create(nombre="Norte"))
+        self.sur = Localidad.objects.create(nombre="La Esperanza", municipio=Municipio.objects.create(nombre="Sur"))
+        self.fontana = Localidad.objects.create(nombre="Fontana", municipio=None)
+        for localidad in (self.norte, self.norte, self.sur, self.fontana):
+            self._sembrar(Estado.NUEVO, localidad=localidad, creado=_hora(9, 55))
+
+    def _filas(self):
+        return tablero.por_localidad(self.sla, T0)
+
+    def test_dos_localidades_homonimas_no_se_mezclan(self):
+        filas = {fila["localidad_id"]: fila for fila in self._filas() if fila["localidad_id"]}
+        self.assertEqual((filas[self.norte.pk]["nuevos"], filas[self.sur.pk]["nuevos"]), (2, 1))
+        self.assertEqual(filas[self.norte.pk]["url"], f"/emergencia/casos/?localidad={self.norte.pk}")
+        self.assertEqual(filas[self.sur.pk]["url"], f"/emergencia/casos/?localidad={self.sur.pk}")
+        self.assertEqual(sum(fila["nuevos"] for fila in self._filas()), 4)
+
+    def test_las_camas_de_un_nombre_ambiguo_van_aparte_y_sin_enlace(self):
+        self._dispositivo("Escuela 5", camas=4, localidad="La Esperanza")
+        self._dispositivo("Club Fontana", camas=3, localidad=" fontana ")
+        filas = self._filas()
+        por_id = {fila["localidad_id"]: fila for fila in filas if fila["localidad_id"]}
+        aparte = [fila for fila in filas if not fila["localidad_id"]]
+        self.assertEqual((por_id[self.norte.pk]["plazas_libres"], por_id[self.sur.pk]["plazas_libres"]), (0, 0))
+        self.assertEqual(por_id[self.fontana.pk]["plazas_libres"], 3)
+        self.assertEqual(
+            [(fila["localidad"], fila["plazas_libres"], fila["nuevos"], fila["url"]) for fila in aparte],
+            [("La Esperanza", 4, 0, "")],
+        )
+
+
+class EstadoVacioConRedTests(BaseDeudaE1):
+    """Pendiente 4 del Cambio 472: con red cargada y sin casos, la tabla dice «Todavía no hay casos»."""
+
+    def setUp(self):
+        super().setUp()
+        for n, localidad in enumerate(("Resistencia", "Barranqueras", "Fontana")):
+            self._dispositivo(f"Dispositivo {n}", camas=5, localidad=localidad)
+        self.client.force_login(self.supervisor)
+
+    def test_sin_casos_aparece_el_estado_vacio(self):
+        self.assertContains(self.client.get(URL_TABLERO), "Todavía no hay casos")
+
+    def test_con_un_caso_no_aparece(self):
+        localidad = self._localidad("Resistencia")
+        self._sembrar(Estado.NUEVO, localidad=localidad, creado=_hora(9, 55))
+        respuesta = self.client.get(URL_TABLERO)
+        self.assertNotContains(respuesta, "Todavía no hay casos")
+        self.assertContains(respuesta, f'href="/emergencia/casos/?localidad={localidad.pk}"')
+
+
+class IngresoDirectoUnicoTests(BaseDeudaE1):
+    """Pendiente 7 del Cambio 472: E1 usa ``CasoEmergencia.es_ingreso_directo`` (en SQL, su ``Q``)."""
+
+    def test_la_foto_dice_lo_mismo_que_el_modelo(self):
+        en_la_puerta = {CasoEmergencia.SITUACION_EN_LA_PUERTA: {"dispositivo": "Escuela 12"}}
+        casos = [
+            # «Ingresar igual» con el tomado corrido: la regla vieja (tomado == creado) no lo veía.
+            self._sembrar(
+                Estado.ALOJADO, origen=Origen.DISPOSITIVO, creado=_hora(8), tomado_en=_hora(8, 1), alojado_en=_hora(9)
+            ),
+            # Aviso a la mesa tomado en el mismo instante: la regla vieja lo contaba como directo.
+            self._sembrar(Estado.EN_GESTION, origen=Origen.DISPOSITIVO, tomado_en=T0, situacion=en_la_puerta),
+            self._sembrar(Estado.NUEVO, creado=_hora(9, 30)),
+        ]
+        CasoEmergencia.objects.filter(pk=casos[1].pk).update(creado=T0)
+        filas = {fila.id: fila.ingreso_directo for fila in tablero.foto_del_tablero(self.sla, T0).casos}
+        esperado = {caso.pk: CasoEmergencia.objects.get(pk=caso.pk).es_ingreso_directo for caso in casos}
+        self.assertEqual(filas, esperado)
+        self.assertEqual(list(esperado.values()), [True, False, False])
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +986,7 @@ class PresupuestoTableroTests(BaseTablero):
             resumen = tablero.resumen(sla, T0, foto=foto)
             tablero.por_localidad(sla, T0, foto=foto)
             tablero.tiempos(sla, T0, foto=foto)
-            entregas, total = tablero.entregas_en_camino(T0)
+            entregas, total = tablero.entregas_en_camino(sla, T0, foto=foto)
         self.assertEqual(resumen["hero"]["abiertos"], self.CASOS)
         self.assertEqual(len(foto.red.dispositivos), self.DISPOSITIVOS)
         self.assertEqual((len(entregas), total), (tablero.TOPE_ENTREGAS, self.ENTREGAS // 2))
@@ -860,7 +1001,7 @@ class PresupuestoTableroTests(BaseTablero):
             tablero.resumen(sla, T0, foto=foto)
             tablero.por_localidad(sla, T0, foto=foto)
             tablero.tiempos(sla, T0, foto=foto)
-            tablero.entregas_en_camino(T0)
+            tablero.entregas_en_camino(sla, T0, foto=foto)
             avisos = avisos_emergencia.avisos_del_tablero(sla, T0, usuario=self.supervisor, foto=foto)
         self.assertEqual(len(capturadas), 10)
         self.assertLessEqual(len(capturadas), 12)

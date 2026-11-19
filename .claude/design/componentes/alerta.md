@@ -76,7 +76,8 @@ corresponde, el par de la acción; el template no decide la severidad ni cuenta.
 
 Consumidores: las alertas del dispositivo en
 `programas/templates/programas/dispositivos/legajo/detail.html` (referencia) y los avisos del tablero de
-Emergencia (`programas/templates/programas/emergencia/tablero.html`, armados por `programas/services/avisos_emergencia.py`). La composición no se extrae a un include propio.
+Emergencia (`programas/templates/programas/emergencia/tablero.html`, armados por `programas/services/avisos_emergencia.py`). La composición no se extrae a un include propio. El aviso
+«sin plazas» de E1 cuenta solo camas con la misma función que el panel «Derivar» (`camas_libres`, `programas/selectors/emergencia.py`).
 Los avisos de la mesa arriba de la ficha del caso (`programas/templates/programas/emergencia/casos/detail.html`,
 armados por `avisos_de_la_mesa` de `programas/selectors/emergencia_mesa.py`) van uno por include con `only`. La
 condición de cada aviso es una sola y la comparten el tablero, la fila de la bandeja y la ficha
