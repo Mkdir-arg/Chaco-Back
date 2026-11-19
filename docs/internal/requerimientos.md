@@ -58057,9 +58057,10 @@ Rechazar la confirmación cuando la ficha trae nombre o apellido que no coincide
 
 ## Decisiones tomadas
 - **Rechazar, no avisar:** `ValidationError({"dni": …})` antes de completar la ficha con el legajo. No se pisa el legajo ni se da de alta un segundo `Ciudadano` con el mismo DNI.
-- **Mismo criterio que el alta del caso:** se reutiliza `_nombre_en_conflicto` de `emergencia_alta` (el de `DniRegistrado`, Cambio 486): compara normalizado y un campo vacío de un lado o del otro no cuenta.
+- **Mismo criterio que el alta del caso:** se reutiliza `nombre_en_conflicto` (hecha pública) de `emergencia_alta` (el de `DniRegistrado`, Cambio 486): compara normalizado y un campo vacío de un lado o del otro no cuenta.
 - **El mensaje no revela el nombre** del legajo: la confirmación no pasa por la cubeta de consultas de identidad de la API (Cambio 486), así que no se filtra a quién pertenece el DNI.
-- No hay variante «identidad a revisar» en la confirmación: si el DNI es de otra persona, se corrige el número o el nombre.
+- **Excepción: el responsable con identidad a revisar (Cambio 486).** Si la persona es el responsable del grupo y el nombre y apellido declarados coinciden (`texto_comparable`) con lo que guardó el caso en `identidad_a_revisar`, la confirmación no bloquea: el alta ya dejó pasar ese nombre y el legajo no se toca. Con cualquier otro nombre, o en otro integrante, se rechaza.
+- No hay variante «identidad a revisar» propia en la confirmación: si el DNI es de otra persona, se corrige el número o el nombre.
 
 ## Implementación
 `confirmar_integrante` compara contra el legajo encontrado, entre `buscar_ciudadano_por_dni` y `_con_lo_del_legajo`. La web (`agregar_errores_del_servicio`, 400 bajo el campo DNI) y la API de campo (`ValidationError` → 400 `VALIDACION`) ya traducen el error.

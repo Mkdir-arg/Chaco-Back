@@ -21,7 +21,7 @@ from programas.models import (
 )
 from programas.selectors.emergencia_alojar import camas_libres
 from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_alta import _como_uuid, _nombre_en_conflicto
+from programas.services.emergencia_alta import _como_uuid, nombre_en_conflicto
 from programas.services.emergencia_comun import _trazar
 from programas.services.emergencia_ficha import (
     SECCION_DATOS,
@@ -43,6 +43,7 @@ from programas.services.emergencia_ingreso_comun import (
     _filas_de,
 )
 from programas.services.estadias import AlojamientoEnLaRed, ingresar_persona, liberar_reserva
+from programas.services.identidad import texto_comparable
 from programas.services.ingreso import (
     MOTIVO_RESERVA_CERRADA_POR_INGRESO,
     RESERVA_NUEVA_DURANTE_EL_INGRESO,
@@ -103,9 +104,27 @@ VINCULO_DE_PARENTESCO = {
 }
 
 
+def _es_el_responsable_con_identidad_a_revisar(caso, grupo, ciudadano, datos):
+    """El responsable que el alta dejó con identidad a revisar (Cambio 486) y se confirma con lo mismo.
+
+    ``crear_caso`` dejó pasar ese nombre contra el legajo; la confirmación no lo vuelve a bloquear
+    mientras lo declarado sea **exactamente** lo que guardó el caso. El legajo no se toca.
+    """
+
+    if ciudadano.pk != grupo.responsable_id:
+        return False
+    guardado = caso.identidad_a_revisar
+    if not guardado:
+        return False
+    return all(
+        texto_comparable(datos.get(campo) or "") == texto_comparable(guardado.get(campo) or "")
+        for campo in ("nombre", "apellido")
+    )
+
+
 MENSAJE_DNI_DE_OTRA_PERSONA = (
-    "Ese DNI ya está registrado a nombre de otra persona. Revisá el número: si está mal, corregilo; "
-    "si el nombre está mal, corregilo; si no cargás nombre ni apellido, se toman del legajo."
+    "Ese DNI ya está registrado a nombre de otra persona. Revisá el número y el nombre: si alguno está mal, "
+    "corregilo; si no cargás nombre ni apellido, se toman del legajo."
 )
 
 
@@ -389,8 +408,11 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
     existente = buscar_ciudadano_por_dni(dni)
     # El DNI identifica, no autoriza a escribir: si la guardia declaró otro nombre, el legajo es de
     # otra persona (E-ERR-01). Mismo criterio que `crear_caso` para `DniRegistrado` (Cambio 486).
-    if existente is not None and _nombre_en_conflicto(
-        existente, ficha[SECCION_DATOS].get("nombre"), ficha[SECCION_DATOS].get("apellido")
+    datos = ficha[SECCION_DATOS]
+    if (
+        existente is not None
+        and nombre_en_conflicto(existente, datos.get("nombre"), datos.get("apellido"))
+        and not _es_el_responsable_con_identidad_a_revisar(caso, grupo, existente, datos)
     ):
         raise ValidationError({"dni": MENSAJE_DNI_DE_OTRA_PERSONA})
     ficha = ficha_minima_valida(_con_lo_del_legajo(ficha, existente))
