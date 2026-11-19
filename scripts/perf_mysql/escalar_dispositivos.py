@@ -39,7 +39,7 @@ exigir_base_descartable()
 import _siembra_comun as comun  # noqa: E402
 from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
-from django.db import connection  # noqa: E402
+from django.db import connection, transaction  # noqa: E402
 from django.utils import timezone  # noqa: E402
 
 from programas.models import (  # noqa: E402
@@ -191,6 +191,53 @@ def _mov(estadia, tipo, momento, usuario, *, plaza_origen_id=None, plaza_destino
     )
 
 
+def _egresadas_de(d, cantidad, pool, guardia, rng, ahora):
+    """Estadías EGRESADAS de un chico, con sus movimientos; la plaza de la estadía es la final del encadenado."""
+    plazas = [p for p, _s in comun.plazas_de(d.pk)]
+    nuevas, cadenas = [], []
+    for _ in range(cantidad):
+        ingreso = comun.fecha_aleatoria(rng, ahora - timedelta(days=3 * 365), ahora - timedelta(days=2))
+        egreso = min(ingreso + timedelta(hours=rng.randint(6, 24 * 30)), ahora - timedelta(hours=1))
+        inicial = rng.choice(plazas)
+        pasos, actual = [], inicial
+        for momento in sorted(comun.fecha_aleatoria(rng, ingreso, egreso) for _ in range(2)):
+            destino = rng.choice([p for p in plazas if p != actual])
+            pasos.append((momento, actual, destino))
+            actual = destino
+        cadenas.append((inicial, pasos))
+        nuevas.append(
+            Estadia(
+                ciudadano_id=rng.choice(pool),
+                dispositivo=d,
+                plaza_id=actual,
+                fecha_ingreso=ingreso,
+                fecha_egreso=egreso,
+                estado="EGRESADA",
+                ingresada_por=guardia,
+                egresada_por=guardia,
+            )
+        )
+    comun.en_lotes(Estadia, nuevas)
+    movs = []
+    for e, (inicial, pasos) in zip(nuevas, cadenas):
+        movs.append(_mov(e, "INGRESO", e.fecha_ingreso, guardia, plaza_destino_id=inicial))
+        movs.append(_mov(e, "EGRESO", e.fecha_egreso, guardia, plaza_origen_id=e.plaza_id))
+        for momento, origen, destino in pasos:
+            movs.append(
+                MovimientoEstadia(
+                    estadia=e,
+                    dispositivo=d,
+                    tipo="CAMBIO_PLAZA",
+                    momento=momento,
+                    responsable=guardia,
+                    plaza_origen_id=origen,
+                    plaza_destino_id=destino,
+                )
+            )
+    comun.en_lotes(MovimientoEstadia, movs)
+    return len(nuevas)
+
+
 def sembrar_egresadas_chicos(args, chicos, pool, guardia, rng):
     """Historia de los chicos: ``--egresadas-chicos`` por dispositivo, con INGRESO, EGRESO y dos cambios de plaza.
 
@@ -207,46 +254,12 @@ def sembrar_egresadas_chicos(args, chicos, pool, guardia, rng):
     ahora = comun.ahora()
     total = 0
     for d in chicos:
-        plazas = [p for p, _s in comun.plazas_de(d.pk)]
-        nuevas = []
-        for _ in range(por_dispositivo):
-            ingreso = comun.fecha_aleatoria(rng, ahora - timedelta(days=3 * 365), ahora - timedelta(days=2))
-            nuevas.append(
-                Estadia(
-                    ciudadano_id=rng.choice(pool),
-                    dispositivo=d,
-                    plaza_id=rng.choice(plazas),
-                    fecha_ingreso=ingreso,
-                    fecha_egreso=min(ingreso + timedelta(hours=rng.randint(6, 24 * 30)), ahora - timedelta(hours=1)),
-                    estado="EGRESADA",
-                    ingresada_por=guardia,
-                    egresada_por=guardia,
-                )
-            )
-        comun.en_lotes(Estadia, nuevas)
-        movs = []
-        for e in nuevas:
-            movs.append(_mov(e, "INGRESO", e.fecha_ingreso, guardia, plaza_destino_id=e.plaza_id))
-            movs.append(_mov(e, "EGRESO", e.fecha_egreso, guardia, plaza_origen_id=e.plaza_id))
-            actual = e.plaza_id
-            for _ in range(2):
-                destino = rng.choice([p for p in plazas if p != actual])
-                movs.append(
-                    MovimientoEstadia(
-                        estadia=e,
-                        dispositivo=d,
-                        tipo="CAMBIO_PLAZA",
-                        momento=comun.fecha_aleatoria(rng, e.fecha_ingreso, e.fecha_egreso),
-                        responsable=guardia,
-                        plaza_origen_id=actual,
-                        plaza_destino_id=destino,
-                    )
-                )
-                actual = destino
-        comun.en_lotes(MovimientoEstadia, movs)
-        total += len(nuevas)
+        with transaction.atomic():
+            total += _egresadas_de(d, por_dispositivo, pool, guardia, rng, ahora)
     paso(f"egresadas de los chicos: +{total}")
 
+
+ACCIONES_SIEMBRA = ("CREADO", "EDITADO", "VALIDADO")
 
 ACCION_DE_MOVIMIENTO = {
     "INGRESO": "ESTADIA_INGRESO",
@@ -295,8 +308,8 @@ def sembrar_trazas_de_movimientos():
 
 
 def sembrar_cambios_de_plaza(args, grande, guardia, rng):
-    """Hasta ``--movimientos`` en total, con una plaza «caliente» de ``--salidas-caliente`` salidas."""
-    total = MovimientoEstadia.objects.filter(dispositivo__codigo__startswith="BENCH-D-").count()
+    """Hasta ``--movimientos`` del grande, con una plaza «caliente» de ``--salidas-caliente`` salidas."""
+    total = MovimientoEstadia.objects.filter(dispositivo=grande).count()
     faltan = args.movimientos - total
     if faltan <= 0:
         paso(f"movimientos: {total} (objetivo {args.movimientos}), nada que agregar")
@@ -334,7 +347,7 @@ def sembrar_cambios_de_plaza(args, grande, guardia, rng):
 def sembrar_auditoria(args, grande, chicos, guardia, rng):
     """``TrazaDispositivo`` y ``EntradaBitacora`` (con correcciones), hasta el objetivo de cada dispositivo."""
     ahora = comun.ahora()
-    acciones = ("CREADO", "EDITADO", "VALIDADO")
+    acciones = ACCIONES_SIEMBRA
 
     def trazas(dispositivo_id, cantidad, editados):
         filas = []
@@ -396,7 +409,7 @@ def sembrar_auditoria(args, grande, chicos, guardia, rng):
         return filas
 
     # Grande: 20.000 trazas (2.000 EDITADO) y 10.000 entradas. Chicos: el resto, repartido.
-    ya = TrazaDispositivo.objects.filter(dispositivo=grande).count()
+    ya = TrazaDispositivo.objects.filter(dispositivo=grande, accion__in=ACCIONES_SIEMBRA).count()
     comun.en_lotes(TrazaDispositivo, trazas(grande.pk, max(0, args.trazas_grande - ya), 2000 if ya == 0 else 0))
     turnos = list(Turno.objects.filter(dispositivo=grande).values_list("pk", flat=True))
     ya = EntradaBitacora.objects.filter(dispositivo=grande, version=1).count()
@@ -405,7 +418,7 @@ def sembrar_auditoria(args, grande, chicos, guardia, rng):
     paso("trazas y bitácora del grande listas")
 
     ids = [d.pk for d in chicos]
-    ya_t = TrazaDispositivo.objects.filter(dispositivo__in=ids).count()
+    ya_t = TrazaDispositivo.objects.filter(dispositivo__in=ids, accion__in=ACCIONES_SIEMBRA).count()
     ya_e = EntradaBitacora.objects.filter(dispositivo__in=ids, version=1).count()
     por_t = max(0, args.trazas_chicos - ya_t) // len(ids)
     por_e = max(0, args.bitacora_chicos - ya_e) // len(ids)
@@ -673,7 +686,9 @@ def main():
     p.add_argument("--activas", type=int, default=300, help="activas del grande")
     p.add_argument("--activas-chicos", type=int, default=1_000)
     p.add_argument("--egresadas-chicos", type=int, default=500, help="por cada dispositivo chico")
-    p.add_argument("--movimientos", type=int, default=100_000)
+    p.add_argument(
+        "--movimientos", type=int, default=100_000, help="movimientos del centro grande (los de los chicos van aparte)"
+    )
     p.add_argument("--salidas-caliente", type=int, default=2_000)
     p.add_argument("--trazas-grande", type=int, default=20_000)
     p.add_argument("--trazas-chicos", type=int, default=120_000)
