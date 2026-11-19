@@ -628,6 +628,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 503 | Ocupación: parámetro `tipos` en `ocupacion_de_plazas` para contar solo camas (C7 del análisis 009) | Dispositivos · ocupación (compartido con Emergencia) | `#emergencia` `#datos` `#performance` | PM — análisis 009, task #1179 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 504 | Emergencia · E1: deuda del tablero que E8 reusa (camas, localidades homónimas, estado vacío, ingreso directo único, copias, `EXPLAIN` de la ventana) | Emergencia · tablero | `#emergencia` `#performance` `#ui` | PM — análisis 009 (§8.2, RF-009-18), task #1180 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 505 | Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#performance` `#seguridad` `#metodo` `#gestion` | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
 
 **Notas del índice**
@@ -59064,3 +59065,77 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
   fuente del vocabulario y los tonos para `Tension` y `Presion`; `CasoEmergencia.q_en_la_ventana` es la ventana de E1 y
   E8; `DispositivoDeLaRed.tipo` y `conteo` son obligatorios. Scripts: sin `--probar-indices`, `medir` directo,
   `explain_situacion.py` exige la base descartable. `EXPLAIN` corrido (arriba).
+
+# Cambio 507 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · UI (consumidores: Emergencia E8 y tablero de Dispositivos) |
+| **Etiquetas** | `#ui` `#emergencia` |
+| **Solicitante** | PM — análisis 009, pieza C5 |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1177 · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+C5 del análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §8.3 y §8.4): lista de ítems
+seleccionables (nombre, dato secundario y badge) que acompaña al mapa: «Localidades con más presión» en E8 y
+«Más tensionados» en el tablero de Dispositivos (pieza 10 del spec), con estado seleccionado y foco con teclado.
+
+## Alcance acordado
+
+Entra: el include de un ítem, su CSS, la ficha, la fila del inventario y los tests de render. Queda afuera: los
+consumidores y el JS que alterna la selección, abre el panel y centra el mapa (E-6 y el tablero).
+
+## Decisiones tomadas
+
+- **Un ítem, no una lista:** el include dibuja un botón; la envoltura (`role="group"` con `aria-label`) y el
+  estado vacío son de la pantalla, porque cada consumidor tiene su título y su vacío.
+- **El estado seleccionado es `aria-pressed`**, no una clase (el mockup usa `.is-active`): el consumidor alterna un
+  atributo que ya necesita por accesibilidad y el CSS lo sigue; no hay dos fuentes de verdad.
+- **Nombre `nodo-item-lista`** (convención `nodo-*` de los CSS del shell) en vez del `item-lista` del mockup.
+- **Badge como el de `_barra_umbral`:** `tono` y `etiqueta` de `Tension`, ícono por tono; con `dato` («6,5×») visible
+  y el nivel en `sr-only`, como el mockup. El nivel lo calcula la vista.
+- **Sin JS ni librería:** el botón nativo da Tab, Enter y Espacio; el foco usa `:focus-visible`.
+- **Nombre largo:** se recorta con «…» y `title` lo dice completo; el badge no se achica.
+
+## Implementación
+
+- `templates/components/_item_lista.html` y `static/custom/css/nodo-item-lista.css` + `<link>` en
+  `templates/includes/base.html` (con snapshots del detalle de Becas regenerados).
+
+## Archivos
+
+- `templates/components/_item_lista.html` (nuevo), `static/custom/css/nodo-item-lista.css` (nuevo),
+  `templates/includes/base.html`
+- `.claude/design/componentes/item_lista.md` (nueva), `.claude/agents/chaco-design-system.md` (fila),
+  `.claude/design/shells.md` (el shell carga el CSS)
+- `core/tests/test_nodo_ui_piezas.py` (`ItemListaTest`), `programas/tests/snapshots/formulario_detalle/*`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `ItemListaTest` (8): nombre, meta y badge con ícono y texto; etiqueta visible sin dato; sin badge; tono
+  desconocido gris; `aria-pressed`; nombre largo con `title` y escape; sin hex ni `style=`; CSS por
+  `aria-pressed` y foco, y que el shell lo carga.
+- `manage.py check`, `ruff`, `design_audit.py --ratchet`, `compile_templates.py --bloques`,
+  `check_design_agent.py --changed` y `--limites`, `requerimientos.py --check`: ver el PR.
+
+## Puesta en marcha en el servidor
+
+No requiere (`collectstatic` del deploy publica el CSS nuevo).
+
+## Pendientes / a definir
+
+- Consumirla en «Localidades con más presión» (E-6) y «Más tensionados» (T10 de Dispositivos), con el JS de selección.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
