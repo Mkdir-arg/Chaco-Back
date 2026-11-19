@@ -770,6 +770,8 @@ HERO_PANTALLAS: frozenset[str] = frozenset(
     {
         # E1, el tablero del supervisor de Emergencia (plan de Emergencia, C3).
         "programas/templates/programas/emergencia/tablero.html",
+        # Golden del arquetipo «Dashboard de programa» (ficha arquetipos/dashboard.md).
+        "programas/templates/programas/dispositivos/tablero/tablero_referencia.html",
     }
 )
 # El include directo del componente es la forma mas obvia de saltearse el tag, y el
@@ -1438,6 +1440,43 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             ("[🔒📎]", "emoji como ícono: Font Awesome con aria-hidden"),
         ],
     },
+    "dashboard": {
+        # Ficha `dashboard.md`: hero en lugar del page_header, una sola barra de píldoras
+        # arriba de las solapas, una franja grande de stat cards, la barra de solapas en su
+        # propia surface y los paneles como pilas de surfaces; «Necesita atención» y la tabla
+        # de la red viven en el panel Resumen.
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*hero_inicio\b", False, "{% hero_inicio %} en lugar del page_header"),
+            (r"\{%\s*endhero_inicio\s*%\}", False, "{% endhero_inicio %}"),
+            (r"components/_filtro_pildora\.html", False, "barra de filtros en píldora con _filtro_pildora"),
+            (
+                r'components/_stat_card\.html"[^%]*variante="tablero"',
+                False,
+                'franja de métricas con _stat_card variante="tablero"',
+            ),
+            (r'role="tablist"', False, 'contenedor de solapas con role="tablist"'),
+            (r'aria-label="', False, "tablist con nombre accesible"),
+            (r'role="tab"', False, 'solapa con role="tab"'),
+            (r'aria-controls="', False, "solapa que apunta a su panel"),
+            (r':aria-selected="', False, "estado seleccionado de la solapa"),
+            (r'role="tabpanel"', False, 'panel con role="tabpanel"'),
+            (r'aria-labelledby="', False, "panel que nombra a su solapa"),
+            (r"components/_alerta\.html", False, "«Necesita atención» con _alerta"),
+            (r'<table class="w-full border-collapse">', False, "tabla canónica"),
+            (r'<tr class="nodo-thead-row">', False, "fila de encabezado nodo-thead-row"),
+            (r"components/_estado_vacio\.html", False, "include de estado vacío"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es el h1 de {% hero_inicio %}"),
+            (r"\{%\s*page_header\b", "page_header debajo del hero: el hero ocupa su lugar"),
+            (r"<style\b", "<style> local"),
+            (r"data-dynamic-list-filters", "tarjeta de filtros: el tablero usa solo las píldoras (filtros.md)"),
+            (r"onchange=|@change=\"[^\"]*submit", "filtrar al cambiar el valor: se aplica con «Filtrar» (WCAG 3.2.2)"),
+        ],
+    },
     "modal": {
         "marcadores": [
             (r"x-becas-modal=", False, "x-becas-modal (foco, Tab atrapado, Escape, scroll)"),
@@ -1567,6 +1606,7 @@ GOLDENS: list[tuple[str, str]] = [
     ("modal", "programas/templates/programas/becas/config/programa_list.html"),
     ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
     ("revision", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
+    ("dashboard", "programas/templates/programas/dispositivos/tablero/tablero_referencia.html"),
 ]
 
 
@@ -1718,7 +1758,7 @@ def main(argv: list[str]) -> int:
     if "--arquetipo" in argv:
         i = argv.index("--arquetipo")
         if len(argv) < i + 3:
-            print("uso: design_audit.py --arquetipo {listado|detalle|formulario|modal} ARCHIVO [ARCHIVO...]")
+            print(f"uso: design_audit.py --arquetipo {{{'|'.join(sorted(ARQUETIPOS))}}} ARCHIVO [ARCHIVO...]")
             return 1
         return arquetipo_mode(argv[i + 1], argv[i + 2 :])
 

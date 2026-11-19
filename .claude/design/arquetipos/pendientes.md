@@ -1,9 +1,11 @@
-# Arquetipos pendientes dashboard
+# Composiciones sin molde
 
-**No hay golden. La instrucción es frenar y devolver la tarea al llamador** con el motivo y lo
-que haga falta decidir. No se elige «el que más se parece» ni se clona una pantalla hermana.
+Lo que figura acá **no tiene golden**. La instrucción es frenar y devolver la tarea al llamador
+con el motivo y lo que haga falta decidir. No se elige «el que más se parece» ni se clona una
+pantalla hermana.
 
-El wizard **ya tiene golden**: ficha `.claude/design/arquetipos/wizard.md`.
+El wizard **ya tiene golden**: ficha `.claude/design/arquetipos/wizard.md`. El dashboard de
+programa **ya tiene golden**: ficha `.claude/design/arquetipos/dashboard.md`.
 
 ## Revisión de caso compleja
 
@@ -21,21 +23,24 @@ esté partida **no la convierte en molde**: los includes son secciones de este d
 reutilizables, y no se incluyen desde ninguna otra pantalla.
 `_siis_resultado` y `_siis_envio` se incluyen solo con `siis_aplica` (programa que valida con SIIS).
 
-## Dashboard
+## Dashboard de Becas
 
+El arquetipo **ya tiene golden** (`arquetipos/dashboard.md`, el esqueleto del tablero de
+Dispositivos). Lo que sigue sin ser molde es el tablero del programa Becas:
 `programas/templates/programas/becas/config/_dashboard_panel.html` y
-`static/custom/js/becas-dashboard.js` son el tablero del programa Becas. **No es molde**: tiene
-deuda propia (KPIs en línea, títulos con tamaño fijo y un modal que todavía no usa el helper de
-modales) y su contrato está atado a los datos de Becas.
+`static/custom/js/becas-dashboard.js`. Tiene deuda propia (`<style>` de impresión, `style=`,
+títulos con tamaño fijo y un modal que todavía no usa el helper de modales), vive como solapa del
+detalle del programa y su contrato está atado a los datos de Becas. Un tablero nuevo se declara
+del arquetipo Dashboard y clona su golden; de Becas solo toma el patrón de caché del servicio
+(`programas/services/dashboard_becas.py`).
 
-Para una pantalla con números el arquetipo correcto suele ser Detalle con su franja de métricas
-(`templates/components/_stat_card.html`). Un tablero con gráficos es una **novedad**: frená. Lo que sí existe para abrir un tablero de programa es
-`{% hero_inicio %}` (ficha `componentes/hero_inicio.md`), solo ahí y en el Inicio.
+Un gráfico que no tenga ficha (barras pareadas, barra con marcas de umbral, mapa) sigue siendo
+**novedad**: frená.
 
 ## Qué devolver cuando frenás
 
 ```
-Tipo: B · Arquetipo: PENDIENTE (< dashboard>)
+Tipo: B · Arquetipo: PENDIENTE (<composición>)
 Motivo: no hay golden para este arquetipo; la ficha de pendientes pide frenar.
 Lo más cercano que existe: <pantalla> — qué sirve y qué no.
 Novedades que habría que aprobar: <lista>
