@@ -619,6 +619,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 497 | Emergencia: confirmar a un integrante con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01) | Emergencia · alojamiento de familias (confirmación de integrantes) | `#emergencia` `#datos` `#api` | Auditoría — hallazgo E-ERR-01 (ALTA) | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 498 | Emergencia · E8: centroides de localidades `core.UbicacionLocalidad` + carga desde BAHRA/Georef (E-2 del análisis 009) | Transversal · geografía (core) | `#emergencia` `#datos` `#gps` | PM — análisis 009, task #1181 | 19/11/2026 | 🟢 **Hecho** | Sí — `core.0004_ubicacion_localidad` (tabla nueva, solo expand) |
 
 **Notas del índice**
@@ -58071,6 +58072,57 @@ No requiere.
 
 ## Validación
 5 tests nuevos de API y 2 de servicio. Verificado por mutación: sin la guarda de `ingreso_directo` fallan 3, sin la de `avisar_a_la_mesa` fallan 2, sin la de la vista falla 1; restauradas, verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+Sin cambios posteriores.
+
+# Cambio 497 — Emergencia: confirmar con el DNI de otro legajo y otro nombre se rechaza (E-ERR-01)
+
+🟢 **HECHO — 19/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · alojamiento de familias (confirmación de integrantes) |
+| **Etiquetas** | `#emergencia` `#datos` `#api` |
+| **Solicitante** | Auditoría — hallazgo E-ERR-01 (ALTA), decisión del cliente |
+| **Fecha del pedido** | 19/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice y API de campo |
+| **Migración** | No requiere |
+
+## Pedido original
+`confirmar_integrante` resolvía a la persona solo por DNI. Si la guardia tipeaba el DNI de otro legajo con otro nombre, alojaba a esa otra persona, le creaba el vínculo familiar y completaba datos en su legajo.
+
+## Alcance acordado
+Rechazar la confirmación cuando la ficha trae nombre o apellido que no coinciden con el legajo del DNI. Si la ficha no trae nombre ni apellido, se completa del legajo como hasta ahora.
+
+## Decisiones tomadas
+- **Rechazar, no avisar:** `ValidationError({"dni": …})` antes de completar la ficha con el legajo. No se pisa el legajo ni se da de alta un segundo `Ciudadano` con el mismo DNI.
+- **Mismo criterio que el alta del caso:** se reutiliza `nombre_en_conflicto` (hecha pública) de `emergencia_alta` (el de `DniRegistrado`, Cambio 486): compara normalizado y un campo vacío de un lado o del otro no cuenta.
+- **El mensaje no revela el nombre** del legajo: la confirmación no pasa por la cubeta de consultas de identidad de la API (Cambio 486), así que no se filtra a quién pertenece el DNI.
+- **Excepción: el responsable con identidad a revisar (Cambio 486).** Si la persona es el responsable del grupo y el nombre y apellido declarados coinciden (`texto_comparable`) con lo que guardó el caso en `identidad_a_revisar`, la confirmación no bloquea: el alta ya dejó pasar ese nombre y el legajo no se toca. Con cualquier otro nombre, o en otro integrante, se rechaza.
+- No hay variante «identidad a revisar» propia en la confirmación: si el DNI es de otra persona, se corrige el número o el nombre.
+
+## Implementación
+`confirmar_integrante` compara contra el legajo encontrado, entre `buscar_ciudadano_por_dni` y `_con_lo_del_legajo`. La web (`agregar_errores_del_servicio`, 400 bajo el campo DNI) y la API de campo (`ValidationError` → 400 `VALIDACION`) ya traducen el error.
+
+## Archivos
+`programas/services/emergencia_confirmacion.py`, `programas/tests/test_emergencia_confirmacion.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`test_dni_de_otro_legajo_con_otro_nombre_no_confirma` y la regresión `test_dni_existente_sin_nombre_completa_del_legajo`. Mutación (sin la comparación) hace fallar el primero. Cinco tests existentes declaraban un nombre distinto al del legajo: se les puso el nombre correcto.
 
 ## Puesta en marcha en el servidor
 No requiere.
