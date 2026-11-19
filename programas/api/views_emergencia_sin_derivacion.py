@@ -8,6 +8,7 @@ base (``views_emergencia``) ni las llegadas (``views_emergencia_llegadas``) impo
 Las dos son **idempotentes** por ``uuid_cliente``: es lo único de M2 que la app encola sin señal.
 """
 
+from django.core.exceptions import PermissionDenied
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -75,13 +76,26 @@ class IngresoDirectoView(_VistaDeLlegadas):
         if respuesta is not None:
             return respuesta
         caso_leido, datos = _filas(caso.pk)
+        integrantes = datos["integrantes"]
+        if caso.ya_existia and not self._opera_el_ingreso(request, caso.pk):
+            # El reenvío no trae personas de un ingreso al que el usuario ya no tiene alcance (RU-9).
+            integrantes = []
         cuerpo = {
             "caso": caso_leido,
             "reservadas": caso.reservadas,
             "faltantes": caso.faltantes,
-            "integrantes": datos["integrantes"],
+            "integrantes": integrantes,
         }
         return Response(IngresoDirectoSerializer(cuerpo).data, status=_creado_o_reenvio(caso.ya_existia))
+
+    @staticmethod
+    def _opera_el_ingreso(request, caso_pk):
+        """¿Hoy el usuario tiene alcance sobre la última derivación del caso? (la guarda de un GET del caso)."""
+        try:
+            servicio_alojar.ingreso_sin_candado(caso_pk, request.user)
+        except PermissionDenied:
+            return False
+        return True
 
 
 class AvisarALaMesaView(_VistaDeLlegadas):
