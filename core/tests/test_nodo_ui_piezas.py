@@ -18,7 +18,7 @@ from django.core.paginator import Paginator
 from django.http import QueryDict
 from django.template import Context, Template
 from django.template.loader import render_to_string
-from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from core.templatetags.nodo_ui import hay_filtros, sin_parametros
@@ -910,6 +910,114 @@ class UbicacionTest(SimpleTestCase):
 
         enlace = html[html.index("/p.pdf") :]
         self.assertIn("se abre en una pestaña nueva", enlace)
+
+
+class GoogleMapsCargadorTest(SimpleTestCase):
+    """``components/_google_maps.html``: configuración por settings y cargador propio, sin CDN en la plantilla."""
+
+    TEMPLATE = "components/_google_maps.html"
+
+    def config(self, html):
+        inicio = html.index('id="nodo-mapa-config"')
+        bloque = html[html.index(">", inicio) + 1 : html.index("</script>", inicio)]
+        return json.loads(bloque)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba", GOOGLE_MAPS_MAP_ID="mapa-chaco")
+    def test_con_key_publica_key_map_id_e_idioma(self):
+        html = render_to_string(self.TEMPLATE)
+
+        self.assertEqual(
+            self.config(html), {"key": "AIza-prueba", "mapId": "mapa-chaco", "idioma": "es", "region": "AR"}
+        )
+        self.assertIn("custom/js/nodo-mapa.js", html)
+        self.assertNotIn("googleapis.com", html)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="", GOOGLE_MAPS_MAP_ID="mapa-chaco")
+    def test_sin_key_no_expone_el_map_id(self):
+        self.assertEqual(
+            self.config(render_to_string(self.TEMPLATE)), {"key": "", "mapId": "", "idioma": "es", "region": "AR"}
+        )
+
+    @override_settings(GOOGLE_MAPS_API_KEY="</script><script>alert(1)</script>", GOOGLE_MAPS_MAP_ID="x")
+    def test_la_key_sale_escapada(self):
+        html = render_to_string(self.TEMPLATE)
+
+        self.assertNotIn("<script>alert(1)", html)
+        self.assertEqual(self.config(html)["key"], "</script><script>alert(1)</script>")
+
+
+class UbicacionDomicilioTest(SimpleTestCase):
+    """``components/_ubicacion_domicilio.html``: mejora progresiva sobre los campos reales del form."""
+
+    TEMPLATE = "components/_ubicacion_domicilio.html"
+
+    class Form(forms.Form):
+        localidad = forms.CharField(required=False)
+        domicilio = forms.CharField(required=False, label="Domicilio")
+        latitud = forms.DecimalField(required=False, max_digits=9, decimal_places=6, label="Latitud")
+        longitud = forms.DecimalField(required=False, max_digits=9, decimal_places=6, label="Longitud")
+
+    def render(self, form, **extra):
+        return render_to_string(
+            self.TEMPLATE,
+            {
+                "domicilio": form["domicilio"],
+                "latitud": form["latitud"],
+                "longitud": form["longitud"],
+                "localidad_id": form["localidad"].id_for_label,
+                **extra,
+            },
+        )
+
+    def test_sin_js_quedan_los_tres_campos_a_mano(self):
+        html = self.render(self.Form(initial={"latitud": "-27.451198", "longitud": "-58.986695"}))
+
+        for nombre in ("domicilio", "latitud", "longitud"):
+            self.assertIn(f'name="{nombre}"', html)
+        self.assertIn('value="-27.451198"', html)
+        # Lo que necesita JS arranca oculto; los campos manuales, visibles.
+        self.assertRegex(html, r"<button[^>]*data-ubicacion-buscar hidden")
+        self.assertRegex(html, r"data-ubicacion-marco hidden")
+        self.assertNotRegex(html, r"data-ubicacion-manual hidden")
+        self.assertNotIn("googleapis.com", html)
+
+    def test_cablea_los_ids_de_los_campos_y_la_localidad(self):
+        html = self.render(self.Form(), provincia="Corrientes")
+
+        for atributo in (
+            'data-domicilio="id_domicilio"',
+            'data-latitud="id_latitud"',
+            'data-longitud="id_longitud"',
+            'data-localidad="id_localidad"',
+            'data-provincia="Corrientes"',
+        ):
+            self.assertIn(atributo, html)
+        self.assertIn('class="sm:col-span-2 nodo-ubicacion"', html)
+
+    def test_trae_las_tres_alertas_canonicas_para_el_js(self):
+        html = self.render(self.Form())
+
+        for clave in ("no-encontrado", "sin-mapa", "error"):
+            self.assertIn(f'data-ubicacion-alerta="{clave}"', html)
+        self.assertIn("No encontramos ese domicilio.", html)
+
+    def test_a_pedido_marca_la_pieza_y_trae_ver_en_el_mapa(self):
+        html = self.render(self.Form(), a_pedido=True, provincia_id="id_provincia")
+
+        self.assertIn("data-a-pedido", html)
+        self.assertIn('data-provincia-id="id_provincia"', html)
+        self.assertRegex(html, r"<button[^>]*data-ubicacion-ver hidden")
+        self.assertNotIn("data-a-pedido", self.render(self.Form()))
+
+    def test_con_error_en_las_coordenadas_los_campos_manuales_quedan_abiertos(self):
+        form = self.Form(data={"latitud": "no-es-numero", "longitud": ""})
+        form.is_valid()
+
+        html = self.render(form)
+
+        self.assertIn("data-manual-abierto", html)
+        self.assertIn('aria-invalid="true"', html)
+        self.assertNotIn("data-manual-abierto", self.render(self.Form()))
 
 
 class LineaTiempoTest(SimpleTestCase):

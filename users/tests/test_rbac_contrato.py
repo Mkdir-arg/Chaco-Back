@@ -104,6 +104,11 @@ CAPACIDADES_SIN_USO = {
     # la exige `recibir_entrega` (`programas/services/kits.py`) sobre el dispositivo destino.
     # `edificio.ver` estuvo acá entre #1165 y #1167: la capacidad fue primero para que la migración
     # la sembrara, y salió cuando el listado de Edificios la empezó a evaluar.
+    # Mapa de Google Maps, fase 1 (`docs/mapa.md`): el catálogo va primero para que el PM pueda
+    # armar los roles; `/mapa/` y su API las empiezan a evaluar en la fase 3, y cada una sale
+    # de acá en ese PR.
+    "mapa.ver": "la evalúa `/mapa/`, que llega en la fase 3 del mapa (docs/mapa.md)",
+    "mapa.editar": "la evalúa la API de puntos de `/mapa/`, fase 3 del mapa (docs/mapa.md)",
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro

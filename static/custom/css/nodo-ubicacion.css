@@ -1,0 +1,28 @@
+/* Domicilio con mapa (components/_ubicacion_domicilio.html + nodo-ubicacion.js). */
+.nodo-ubicacion [hidden] { display: none !important; }
+.nodo-ubicacion__fila { display: flex; gap: 8px; }
+.nodo-ubicacion__fila .nodo-field { flex: 1; min-width: 0; }
+.nodo-ubicacion__fila .btn-nodo { flex: none; white-space: nowrap; }
+@media (max-width: 640px) { .nodo-ubicacion__fila { flex-direction: column; } }
+
+.nodo-ubicacion__marco { position: relative; border: 1px solid var(--border-base); border-radius: 12px; overflow: hidden; }
+.nodo-ubicacion__mapa { height: 320px; width: 100%; background: var(--color-gray-100); }
+.nodo-ubicacion__vacio {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 16px; text-align: center; font-size: 13px; color: var(--text-body-subtle);
+  background: rgba(255, 255, 255, .6); pointer-events: none;
+}
+.nodo-ubicacion__vacio i { font-size: 26px; color: var(--text-fg-brand); }
+
+.nodo-ubicacion__coords { display: flex; gap: 28px; margin: 0; }
+.nodo-ubicacion__coords dt { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-body-subtle); }
+.nodo-ubicacion__coords dd { margin: 2px 0 0; font-size: 14px; font-weight: 600; color: var(--text-heading); font-variant-numeric: tabular-nums; }
+
+.nodo-ubicacion__candidatos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nodo-ubicacion__candidato {
+  display: flex; gap: 10px; align-items: flex-start; width: 100%; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--border-base); border-radius: 10px; background: var(--bg-white, #fff);
+}
+.nodo-ubicacion__candidato:hover, .nodo-ubicacion__candidato:focus-visible { border-color: var(--border-brand); background: var(--bg-brand-softer); }
+.nodo-ubicacion__candidato i { margin-top: 3px; color: var(--text-fg-brand); }
+.nodo-ubicacion__candidato span { font-size: 13.5px; font-weight: 600; color: var(--text-heading); }

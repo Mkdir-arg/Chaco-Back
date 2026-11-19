@@ -614,6 +614,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
+| 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
 
 **Notas del índice**
 
@@ -57736,3 +57737,199 @@ cargadas).
 - **18/11/2026:** auditoría del PR #1199: la dotación con días se rechaza en E7 en vez de vaciarse (TC-1186-08); `CAMPOS_TIPO_KIT` se arma con `CAMPOS_REGLA`.
 
 ---
+
+---
+
+# Cambio 493 — Mapa con Google Maps y domicilio → coordenadas
+
+🟡 **EN CURSO — fases 1 y 2 (Dispositivo, Ciudadano y Emergencia) hechas el 18/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal |
+| **Etiquetas** | `#gps` `#rbac` `#infra` `#ui` |
+| **Solicitante** | Usuario (PM) — pedido en sesión de trabajo, con un prompt de referencia y un mockup aprobado |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API · Infra/ECOM |
+| **Migración** | `users.0050` (fase 1), `legajos.0012` (fase 2, Ciudadano) |
+
+## Pedido original
+
+«En Chaco vamos a implementar el mapa de Google […] vamos a reemplazar los mapas que usamos.» Con un
+prompt de referencia: módulo de mapa para registrar y ver la ubicación de equipos, vehículos y sedes,
+con Advanced Markers, panel con filtros, alta con un clic, marcadores arrastrables y API JSON. Después:
+«a partir de ahora cuando se pida un domicilio use el servicio de Google para pasarle esos datos y
+conseguir las coordenadas para mostrar ese punto».
+
+## Alcance acordado
+
+Cuatro fases, en este orden:
+
+1. **Base común** (esta entrega): configuración por entorno, CSP, capacidades y el cargador de Google Maps.
+2. **Domicilio → coordenadas** en los formularios del backoffice, empezando por Dispositivo; después
+   Ciudadano (con migración de latitud y longitud) y Caso de Emergencia.
+3. **Mapa general `/mapa/`** (opción C): capas de Dispositivos, Edificios y Casos de Emergencia, más un
+   modelo `Punto` para lo que no tiene ficha propia (vehículos, equipos, sedes), con su API.
+4. **Reemplazos**: el mapa del lugar de la toma de Becas y el enlace «Ver en el mapa» de
+   `components/_ubicacion.html` pasan a Google.
+
+Afuera: el formulario público de inscripción del portal **no** geocodifica el domicilio.
+
+## Decisiones tomadas
+
+- **Opción C para el mapa general** (18/11/2026): capas sobre lo que ya tiene coordenadas + puntos
+  sueltos. Motivo: no cargar dos veces la ubicación de un dispositivo y que el mapa siga a la ficha.
+- **El portal no geocodifica.** Cualquiera podría usarlo para consumir la cuota de la key, que se cobra
+  por uso, y ahí carga datos la propia persona.
+- **El domicilio del ciudadano sí** (decisión del PM, 18/11/2026), sabiendo que la dirección de la
+  persona pasa por Google, que es lo que SEC-33 había limitado para Becas.
+- **Becas pasa a Google pero sigue a pedido** (SEC-33): el cargador no pide nada a Google hasta que una
+  pantalla crea su primer mapa.
+- **Geocodificación en el navegador**, con la misma key: no hace falta una key de servidor ni salida a
+  Google desde ECOM, y el operador confirma el punto antes de guardar.
+- **CSP abierta solo con key**, con los hosts de la política *allowlist* de la guía de Google (la de
+  nonce no aplica mientras la base use `'unsafe-inline'`). Los hosts sin esquema de la guía se
+  escribieron con `https://`.
+- **`DEMO_MAP_ID` solo en `dev`**; `core.W005` avisa si `qa`/`prd` tienen key sin Map ID propio, porque
+  sin Map ID los Advanced Markers no cargan y no hay error visible.
+- **Capacidades globales `mapa.ver` y `mapa.editar`**, sembradas al Administrador. Las capas tienen que
+  filtrarse además por la capacidad de lectura de cada módulo.
+- **Marcadores con `AdvancedMarkerElement`**, nunca `google.maps.Marker` (deprecado).
+- **Referente solo para el mapa** (auditoría del PR #1197): Django manda `Referrer-Policy: same-origin` y
+  sin `Referer` Google rechaza la key restringida por referente. En vez de cambiar la política de todo el
+  sitio, `nodo-mapa.js` la pasa a `strict-origin-when-cross-origin` en la página que pide el mapa y recién
+  cuando lo pide: viaja el origen, nunca la ruta.
+- **Un solo rango y una sola regla de par** para las coordenadas cargadas a mano (`core/coordenadas.py`):
+  ±90 / ±180 y «las dos o ninguna», en Ciudadano (validadores del modelo + `clean()`) y en el Formulario 1
+  de Emergencia.
+
+## Implementación
+
+Fase 1. No hay nada visible todavía: queda la infraestructura que usan las fases siguientes.
+
+- `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en settings y en los `.env` de ejemplo.
+- La CSP suma los hosts de Google Maps cuando hay key.
+- Pieza `components/_google_maps.html` + `static/custom/js/nodo-mapa.js`: expone `window.NodoMapa`
+  (`configurado`, `crearMapa`, `importar`) y carga la API con `loading=async` en la primera llamada.
+  Si la key no vale para el sitio, dispara `nodo-mapa:error`.
+- Módulo «Mapa» en el ABM de Roles con `mapa.ver` y `mapa.editar`.
+- Guía operativa `docs/mapa.md`: crear y restringir la key, el Map ID y su estilo, variables, CSP,
+  permisos y costos.
+
+Fase 2, en Dispositivo (alta y edición del legajo), con el diseño aprobado en el mockup:
+
+- Pieza `components/_ubicacion_domicilio.html` + `nodo-ubicacion.js` + `nodo-ubicacion.css`. El operador
+  escribe el domicilio y toca «Ubicar en el mapa» (o Enter): Google busca «domicilio, localidad, Chaco,
+  Argentina», restringido a Argentina. Un resultado pone el marcador; varios se eligen de una lista; ninguno
+  muestra un aviso y el punto se marca tocando el mapa.
+- El marcador se arrastra y un clic en el mapa lo mueve. Latitud y longitud son los campos reales del form y se
+  completan con 6 decimales; «Cargar coordenadas a mano» los abre y escribir en ellos mueve el marcador.
+- Un badge dice el estado (Sin ubicar, Con ubicación, Ubicado con Google, Ajustado a mano, Elegí una opción,
+  El domicilio cambió, No encontrado). Si cambia el domicilio, las coordenadas no se borran: el badge avisa.
+- Sin JS, sin key, con la key rechazada o si falla la búsqueda, quedan domicilio, latitud y longitud a mano,
+  como antes, con una alerta.
+
+Fase 2, en Ciudadano: `Ciudadano` suma `latitud` y `longitud` (opcionales, 6 decimales) y la misma pieza
+reemplaza al domicilio en el alta manual, en la confirmación con RENAPER y en la edición. En la edición va
+debajo de provincia, municipio y localidad, y la búsqueda usa las elegidas. Siempre **a pedido**: abrir el
+legajo no le pide nada a Google; el mapa carga con «Ubicar en el mapa» o, si ya hay coordenadas, con «Ver en
+el mapa». El portal no las pide ni las toca, y la API no las expone (sus serializadores listan campos).
+
+Fase 2, en Emergencia: la dirección del Formulario 1 usa la misma pieza, a pedido, en «Nuevo caso» de la mesa
+y en el Formulario 1 de la puerta del dispositivo (los dos comparten `_formulario1_bloques.html`). El form suma
+`latitud` y `longitud` opcionales, con rango validado, que llegan a `crear_caso` como la posición del GPS de la
+app y sin `precision_m`. Con ese punto, el panel «Derivar» de la ficha ya calcula la distancia a cada
+dispositivo (`selectors.emergencia.distancia_km`), que en los casos de la mesa hasta ahora quedaba
+«desconocida». La app de campo no cambia: sigue mandando su GPS.
+
+## Archivos
+
+`config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
+`core/templatetags/nodo_ui.py`, `templates/components/_google_maps.html`, `static/custom/js/nodo-mapa.js`,
+`users/migrations/0050_capacidades_mapa.py`, `.env.qa.example`, `.env.local.example`, `docs/mapa.md`,
+`.claude/agents/chaco-design-system.md`, `.claude/design/componentes/mapa_google.md`,
+`core/tests/test_google_maps.py`, `core/tests/test_nodo_ui_piezas.py`, `users/tests/test_rbac_contrato.py`.
+
+Fase 2: `templates/components/_ubicacion_domicilio.html`, `static/custom/js/nodo-ubicacion.js`,
+`static/custom/css/nodo-ubicacion.css`, `programas/templates/programas/dispositivos/legajo/form.html`,
+`.claude/agents/chaco-design-system.md`, `.claude/design/componentes/ubicacion_domicilio.md`,
+`.claude/design/arquetipos/formulario.md`, `core/tests/test_nodo_ui_piezas.py` (`UbicacionDomicilioTest`),
+`programas/tests/test_dispositivos_ubicacion_mapa.py`.
+
+Fase 2, Ciudadano: `legajos/models/base.py`, `legajos/migrations/0012_ciudadano_coordenadas.py`,
+`legajos/forms/ciudadanos.py`, `legajos/templates/legajos/ciudadano_manual_form.html`,
+`ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`, `legajos/tests/test_ciudadano_ubicacion_mapa.py`;
+la pieza suma `provincia_id` y `a_pedido` (`_ubicacion_domicilio.html`, `nodo-ubicacion.js`, su ficha y su fila).
+
+Fase 2, Emergencia: `programas/forms_emergencia.py`, `programas/templates/programas/emergencia/_formulario1_bloques.html`,
+`casos/form.html`, `dispositivo/formulario1.html`, `programas/tests/test_emergencia_ubicacion_mapa.py`,
+`.claude/design/componentes/ubicacion_domicilio.md`.
+
+## Base de datos
+
+`legajos.0012`: `latitud` y `longitud` en `legajos_ciudadano`, `DECIMAL(9,6) NULL` sin default. Los legajos
+existentes quedan sin punto; el código viejo no las nombra y sigue dando de alta. `ADD COLUMN` instantáneo en
+MySQL 8 y MariaDB 10.3+. Reversa: `migrate legajos 0011` borra las dos columnas y lo que se haya cargado.
+
+
+`users.0050`: declara las dos capacidades (`AlterModelOptions` sobre el modelo ancla `managed = False`,
+no toca el esquema) y se las da al Administrador. Segura sobre datos existentes; reversa real.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` y `scripts/check_migraciones.py`: OK.
+- `core.tests.test_google_maps` (CSP con y sin key, `core.W005`, catálogo), `GoogleMapsCargadorTest`
+  (configuración, sin Map ID sin key, key escapada) y `users.tests.test_rbac_contrato`: OK.
+- `manage.py test core users portal`: las mismas fallas que en la base, todas por falta de `mysqlclient`
+  en la máquina de desarrollo (`test_sql_motor_real` y afines); ninguna nueva.
+- `design_audit.py --ratchet`: 0 nuevos. `compile_templates.py --bloques`: 0. `check_design_agent.py`: OK.
+- Sin verificar: la carga real del mapa, que necesita una key válida.
+- Fase 2: `UbicacionDomicilioTest` y `test_dispositivos_ubicacion_mapa` OK; la suite de Dispositivos, `core` y
+  `portal` sin fallas nuevas (las que fallan son las que necesitan `mysqlclient`). Además, una prueba de punta a
+  punta con Playwright sobre la pantalla real de alta, con Google Maps reemplazado por un doble: 26 de 26
+  escenarios (búsqueda, coincidencias, sin resultados, arrastre, clic, carga a mano, sin key, key rechazada,
+  error de Google, edición con punto guardado). `design_audit.py --ratchet` y `--goldens`: 0.
+- Fase 2, Ciudadano: `test_ciudadano_ubicacion_mapa` (modelo, formularios, portal sin coordenadas, las tres
+  pantallas y el guardado) OK; prueba de punta a punta sobre la edición real: 16 de 16 (no carga Google al
+  abrir, «Ver en el mapa», búsqueda con provincia y localidad elegidas, carga a mano antes de abrir el mapa).
+  Suites de `legajos`, `core`, `portal`, `users` y Dispositivos sin fallas nuevas.
+- Fase 2, Emergencia: `test_emergencia_ubicacion_mapa` (pieza a pedido en las dos pantallas, el punto llega al
+  caso sin precisión, coordenada fuera de rango vuelve al campo, aviso a la mesa desde la puerta) y los 990 tests
+  de Emergencia OK; punta a punta sobre «Nuevo caso» real: 5 de 5 (no carga Google al abrir, busca con la
+  localidad elegida, Enter no envía).
+
+## Puesta en marcha en el servidor
+
+Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`).
+Sin ellas no cambia nada.
+
+## Pendientes / a definir
+
+- Fases 3 y 4.
+- El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
+- `Dispositivo.latitud/longitud` siguen sin rango ni par (previo a este cambio): aplicarle `core/coordenadas.py`.
+- Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
+  cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
+- `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
+- La ficha de `components/_ubicacion.html` prohíbe mapas y orígenes en la CSP: se actualiza en la fase 4.
+
+## Reversión
+
+Revertir el commit y desaplicar `users.0050` (`migrate users 0049`). No se pierden datos: solo salen las
+dos capacidades del Administrador.
+Fase 2: revertir sus commits; en Ciudadano, además, `migrate legajos 0011`, que borra las dos columnas y las
+coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coordenadas ya existían.
+
+## Historial
+
+- **18/11/2026:** alta del cambio con la fase 1.
+- **18/11/2026:** fase 2 en Dispositivo, después de aprobar el mockup sobre la pantalla real.
+- **18/11/2026:** fase 2 en Ciudadano, con `legajos.0012` y el mapa a pedido.
+- **18/11/2026:** fase 2 en Emergencia (mesa y puerta del dispositivo). Cierra la fase 2.
+- **18/11/2026:** auditoría del PR #1197 (CHANGES NEEDED): política de referente para el mapa, rango y par
+  de coordenadas en Ciudadano y Emergencia, `CAMPOS_DE_UBICACION` sin uso borrado y Enter sin búsquedas
+  repetidas. Corregido en el mismo PR.
+- **18/11/2026:** al traer `development` para abrir el PR, el número 483 ya era de Edificios: esta entrada pasó a ser el Cambio 489 y la migración de capacidades, `users.0049`.
+- **18/11/2026:** al volver a traer `development`, el 489 y `users.0049` ya eran de Becas (baja lógica): esta entrada pasó a ser el Cambio 490 y la migración, `users.0050`.
+- **19/11/2026:** al traer `development` otra vez, el 490 era de Becas y el 492 de Emergencia: esta entrada pasa a ser el **Cambio 493** (la migración sigue siendo `users.0050`).
