@@ -21,7 +21,7 @@ from programas.models import (
 )
 from programas.selectors.emergencia_alojar import camas_libres
 from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_alta import _como_uuid
+from programas.services.emergencia_alta import _como_uuid, _nombre_en_conflicto
 from programas.services.emergencia_comun import _trazar
 from programas.services.emergencia_ficha import (
     SECCION_DATOS,
@@ -101,6 +101,12 @@ VINCULO_DE_PARENTESCO = {
     Parentesco.OTRO: TipoVinculo.OTRO,
     Parentesco.JEFE: TipoVinculo.OTRO,
 }
+
+
+MENSAJE_DNI_DE_OTRA_PERSONA = (
+    "Ese DNI ya está registrado a nombre de otra persona. Revisá el número: si está mal, corregilo; "
+    "si el nombre está mal, corregilo; si no cargás nombre ni apellido, se toman del legajo."
+)
 
 
 def _con_lo_del_legajo(ficha, ciudadano):
@@ -381,6 +387,12 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
     if repetida is not None:
         raise repetida
     existente = buscar_ciudadano_por_dni(dni)
+    # El DNI identifica, no autoriza a escribir: si la guardia declaró otro nombre, el legajo es de
+    # otra persona (E-ERR-01). Mismo criterio que `crear_caso` para `DniRegistrado` (Cambio 486).
+    if existente is not None and _nombre_en_conflicto(
+        existente, ficha[SECCION_DATOS].get("nombre"), ficha[SECCION_DATOS].get("apellido")
+    ):
+        raise ValidationError({"dni": MENSAJE_DNI_DE_OTRA_PERSONA})
     ficha = ficha_minima_valida(_con_lo_del_legajo(ficha, existente))
     cama = _cama_del_dispositivo(plaza, dispositivo, derivacion)
 

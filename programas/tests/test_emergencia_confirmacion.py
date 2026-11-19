@@ -160,7 +160,13 @@ class ConfirmarIntegranteTests(BaseAlojar):
         reservas = self._reservas(derivacion)
         self._confirmar(caso, 2, "45000111", plaza=reservas[0].plaza, datos_personales={"documento_extraviado": True})
         previa = Ciudadano.objects.create(dni="45000222", nombre="Lía", apellido="Sosa", dni_fisico="TIENE")
-        self._confirmar(caso, 3, "45000222", plaza=reservas[1].plaza, datos_personales={"documento_extraviado": True})
+        self._confirmar(
+            caso,
+            3,
+            "45000222",
+            plaza=reservas[1].plaza,
+            datos_personales={"nombre": "Lía", "apellido": "Sosa", "documento_extraviado": True},
+        )
 
         self.assertEqual(Ciudadano.objects.get(dni="45000111").dni_fisico, Ciudadano.DniFisico.NO_TIENE)
         previa.refresh_from_db()
@@ -213,7 +219,7 @@ class ConfirmarIntegranteTests(BaseAlojar):
         alojada = Estadia.objects.get().ciudadano
 
         with self.assertRaises(servicio.PersonaYaAlojada) as error:
-            self._confirmar(caso, 2, alojada.dni)
+            self._confirmar(caso, 2, alojada.dni, datos_personales={"nombre": "Persona", "apellido": "Alojada"})
 
         mensaje = error.exception.message_dict["dni"][0]
         self.assertIn("figura alojado en otro dispositivo de la red", mensaje)
@@ -229,7 +235,9 @@ class ConfirmarIntegranteTests(BaseAlojar):
         alojada = Estadia.objects.get().ciudadano
 
         with self.assertRaises(servicio.PersonaYaAlojada) as error:
-            self._confirmar(caso, 2, alojada.dni, usuario=de_los_dos)
+            self._confirmar(
+                caso, 2, alojada.dni, usuario=de_los_dos, datos_personales={"nombre": "Persona", "apellido": "Alojada"}
+            )
 
         self.assertIn("figura alojado en Escuela 12 desde el 11/11", error.exception.message_dict["dni"][0])
 
@@ -463,6 +471,42 @@ class ConfirmarIntegranteTests(BaseAlojar):
                 caso=caso, orden=1, usuario=self.guardia, ficha=ficha_minima("45000111"), plaza=self._cama_libre()
             )
 
+    def test_dni_de_otro_legajo_con_otro_nombre_no_confirma(self):
+        """E-ERR-01: el DNI tipeado es de otra persona; no se la aloja ni se le escribe el legajo."""
+
+        self._turno(self.club)
+        caso, derivacion = self._aceptado()
+        real = Ciudadano.objects.create(dni="45111223", nombre="Persona", apellido="Real")
+        estadias = Estadia.objects.count()
+        vinculos = VinculoFamiliar.objects.count()
+
+        with self.assertRaises(ValidationError) as error:
+            self._confirmar(caso, 2, "45111223", datos_personales={"nombre": "Juan", "apellido": "Benítez"})
+
+        self.assertIn("dni", error.exception.error_dict)
+        real.refresh_from_db()
+        self.assertEqual((real.nombre, real.apellido), ("Persona", "Real"))
+        self.assertFalse(real.genero)
+        self.assertIsNone(real.fecha_nacimiento)
+        self.assertEqual(Ciudadano.objects.filter(dni="45111223").count(), 1)
+        self.assertEqual(Estadia.objects.count(), estadias)
+        self.assertEqual(VinculoFamiliar.objects.count(), vinculos)
+        self.assertFalse(IntegranteGrupo.objects.filter(orden=2, confirmada_en__isnull=False).exists())
+
+    def test_dni_existente_sin_nombre_completa_del_legajo(self):
+        """Regresión: con el DNI de un legajo y sin nombre ni apellido, se toman del legajo."""
+
+        self._turno(self.club)
+        caso, derivacion = self._aceptado()
+        real = Ciudadano.objects.create(dni="45111223", nombre="Juan", apellido="Pérez")
+
+        integrante = self._confirmar(caso, 2, "45111223", datos_personales={"nombre": "", "apellido": ""})
+
+        self.assertEqual(integrante.ciudadano, real)
+        self.assertEqual(integrante.ficha["datos_personales"]["nombre"], "Juan")
+        self.assertEqual(integrante.ficha["datos_personales"]["apellido"], "Pérez")
+        self.assertTrue(Estadia.objects.filter(ciudadano=real, fecha_egreso__isnull=True).exists())
+
 
 class CompletarFichaTests(BaseAlojar):
     def test_completar_las_secciones_que_faltan_deja_la_ficha_completa(self):
@@ -496,7 +540,13 @@ class CompletarFichaTests(BaseAlojar):
 
     def test_tambien_con_la_familia_ya_alojada(self):
         caso, _derivacion = self._aceptado(menores_f=0, menores_m=0, adultos_m=0)
-        self._confirmar(caso, 1, "30111222", parentesco={"parentesco": "JEFE"})
+        self._confirmar(
+            caso,
+            1,
+            "30111222",
+            parentesco={"parentesco": "JEFE"},
+            datos_personales={"nombre": "Rosa", "apellido": "Benítez"},
+        )
         servicio.alojar_familia(caso=caso, usuario=self.guardia)
 
         integrante = servicio.completar_ficha(
