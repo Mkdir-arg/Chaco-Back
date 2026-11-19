@@ -140,6 +140,20 @@ def porcentaje_barra(valor, maximo, porcentaje=None):
     return round(valor * 100 / maximo)
 
 
+@register.filter
+def entero_o_none(valor):
+    """Entero para dibujar (un umbral de ``_barra_umbral.html``), o ``None`` si no es un número.
+
+    Distingue «no hay umbral» de «el umbral es 0»: el template condiciona por ``is not None``.
+    """
+    if valor is None or valor == "":
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3

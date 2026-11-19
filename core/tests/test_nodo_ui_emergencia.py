@@ -7,7 +7,7 @@ import re
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 
-from core.templatetags.nodo_ui import menos, porcentaje_barra
+from core.templatetags.nodo_ui import entero_o_none, menos, porcentaje_barra
 from programas.services.ocupacion import Conteo, tension_de_ocupacion
 
 SEMAFORO = "components/_semaforo_sla.html"
@@ -388,7 +388,9 @@ class BarraUmbralTest(SimpleTestCase):
         html = self._de_tension(1633, 1850, umbral_exigida=60, umbral_critica=80)
 
         self.assertIn('style="--avance:88%"', html)
-        self.assertIn('class="nodo-barra-umbral-relleno bg-danger"', html)
+        self.assertIn(
+            'class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full bg-danger"', html
+        )
         self.assertIn('style="--umbral:60%" title="Exigida desde 60 %" data-marca="exigida"', html)
         self.assertIn('style="--umbral:80%" title="Crítica desde 80 %" data-marca="critica"', html)
         self.assertIn('<span class="badge badge-danger whitespace-nowrap">', html)
@@ -423,7 +425,9 @@ class BarraUmbralTest(SimpleTestCase):
             with self.subTest(ocupadas=ocupadas):
                 html = self._de_tension(ocupadas, 100, tipo=tipo, umbral_exigida=70, umbral_critica=85)
 
-                self.assertIn(f"nodo-barra-umbral-relleno {relleno}", html)
+                self.assertIn(
+                    f"nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full {relleno}", html
+                )
                 self.assertIn(f"badge {badge}", html)
                 self.assertIn(f'<i class="fas {icono}" aria-hidden="true"></i> {etiqueta}', html)
 
@@ -435,7 +439,10 @@ class BarraUmbralTest(SimpleTestCase):
         self.assertNotIn("nodo-barra-umbral-muestra", html)
         self.assertNotIn("desde", html)
         self.assertNotIn("badge", html)
-        self.assertIn('class="nodo-barra-umbral-relleno bg-brand" style="--avance:96%"', html)
+        self.assertIn(
+            'class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full bg-brand" style="--avance:96%"',
+            html,
+        )
         self.assertIn(">204 casos</span>", html)
         self.assertEqual(self._sr(html), "Tomados: 96 por ciento (204 casos).")
 
@@ -477,11 +484,31 @@ class BarraUmbralTest(SimpleTestCase):
         self.assertNotIn("<script>", html)
         self.assertNotIn("<i>y</i>", html)
 
-    def test_un_umbral_que_no_es_numero_no_entra_al_estilo(self):
-        html = self._render(valor=1, maximo=2, umbral_exigida="50%;background:red", umbral_critica=80)
+    def test_un_umbral_que_no_es_numero_no_se_dibuja(self):
+        for basura in ("50%;background:red", "x", ""):
+            with self.subTest(umbral=basura):
+                html = self._render(valor=1, maximo=2, umbral_exigida=basura, umbral_critica=80)
 
-        self.assertNotIn("background:red", html)
-        self.assertIn('style="--umbral:80%"', html)
+                self.assertNotIn("background:red", html)
+                self.assertNotIn('data-marca="exigida"', html)
+                self.assertNotIn("Exigida desde", html)
+                self.assertNotIn("--umbral:%", html)
+                self.assertIn('style="--umbral:80%"', html)
+                self.assertIn("Crítica desde 80 %", html)
+
+    def test_un_umbral_cero_dibuja_marca_y_leyenda(self):
+        # MinValueValidator(0): un umbral amarillo 0 es válido y el nivel Exigida lo usó.
+        html = self._render(valor=1, maximo=2, umbral_exigida=0, umbral_critica=80)
+
+        self.assertIn('style="--umbral:0%" title="Exigida desde 0 %" data-marca="exigida"', html)
+        self.assertIn("Exigida desde 0 %</span>", html)
+
+    def test_entero_o_none(self):
+        self.assertEqual(entero_o_none(0), 0)
+        self.assertEqual(entero_o_none("70"), 70)
+        self.assertIsNone(entero_o_none(None))
+        self.assertIsNone(entero_o_none(""))
+        self.assertIsNone(entero_o_none("50%;x"))
 
     def test_porcentaje_barra(self):
         self.assertEqual(porcentaje_barra(1633, 1850), 88)

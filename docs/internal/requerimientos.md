@@ -58074,17 +58074,19 @@ usarla en una pantalla (E-5, «Capacidad de la red», «Más tensionados» y el 
   «crítico»). Íconos del mockup: Normal `fa-circle-check`, Exigida `fa-triangle-exclamation`, Crítica
   `fa-circle-exclamation`; Sin plazas `fa-circle-minus`.
 - **Colores con clases existentes** (`bg-tertiary`, `bg-{tono}`, `badge-{tono}`): los `--serie-*` del mockup no
-  existen en `chaco-tokens.css` y no se agregan. `nodo-barra-umbral.css` solo trae geometría (pista, relleno, marcas
-  por `--avance`/`--umbral`) y el alto contraste (`forced-colors`).
+  existen en `chaco-tokens.css` y no se agregan. `nodo-barra-umbral.css` solo trae geometría (marcas por `--umbral`, muestra
+  de la leyenda) y el alto contraste (`forced-colors`); pista y relleno son utilidades + `.nodo-ficha-medidor`.
 - **Accesibilidad:** lo gráfico y la cifra visible van `aria-hidden`; una frase `sr-only` dice valor y nivel en
   palabras («Capacidad de la red: 88 por ciento, nivel Crítica.»). La leyenda de umbrales es texto visible.
-- Los umbrales se fuerzan a entero (`|add:0`) antes del `style`: un valor que no es número no se dibuja.
+- Cada umbral pasa por `|entero_o_none` y se condiciona por `is not None`: un umbral 0 se dibuja; uno que no es
+  número, no.
 
 ## Implementación
 
 - `templates/components/_barra_umbral.html` (nuevo) con el contrato en la cabecera.
 - `static/custom/css/nodo-barra-umbral.css` (nuevo), cargado por `templates/includes/base.html`.
-- `core/templatetags/nodo_ui.py`: tag `porcentaje_barra(valor, maximo, porcentaje=None)` → entero o `None`.
+- `core/templatetags/nodo_ui.py`: tag `porcentaje_barra(valor, maximo, porcentaje=None)` → entero o `None`, y
+  filtro `entero_o_none` para los umbrales.
 - Ficha `.claude/design/componentes/barra_umbral.md` y fila «Barra con marcas de umbral» en el inventario de
   `.claude/agents/chaco-design-system.md`.
 
@@ -58100,9 +58102,9 @@ No requiere.
 
 ## Validación
 
-- `BarraUmbralTest` (10 tests): con umbrales 60/80 (TC-1175-01), umbrales del tipo 70/85 (TC-02), tono, ícono y texto
+- `BarraUmbralTest` (12 tests): con umbrales 60/80 (TC-1175-01), umbrales del tipo 70/85 (TC-02), tono, ícono y texto
   por nivel (TC-03), variante sin marcas (TC-04), vacía y llena (TC-05), sin plazas «—» (TC-06), texto equivalente
-  (TC-07), escape, umbral no numérico y el tag `porcentaje_barra`. Módulo `core.tests.test_nodo_ui_emergencia` en verde.
+  (TC-07), escape, umbral no numérico, umbral 0, el tag `porcentaje_barra` y el filtro `entero_o_none`. Módulo `core.tests.test_nodo_ui_emergencia` en verde.
 - `design_audit.py --ratchet` 0 nuevos; `compile_templates.py --bloques` 0; `check_design_agent.py --changed` y
   `--limites` OK; `ruff` OK; `manage.py check` OK.
 
@@ -58120,4 +58122,8 @@ Revertir el commit; ninguna pantalla la usa todavía.
 
 ## Historial
 
-Sin cambios posteriores.
+- **19/11/2026:** alta del cambio.
+- **19/11/2026:** MINOR de la auditoría del PR #1210: los umbrales se convierten una vez con el filtro
+  `entero_o_none` y se condicionan por `is not None` (un umbral 0 se dibuja; uno no numérico, no), y la pista y el
+  relleno pasan a utilidades + `.nodo-ficha-medidor` (como `_contador_avance`); `nodo-barra-umbral.css` queda con
+  las marcas, la muestra de la leyenda y el alto contraste. Sin cambio visual.
