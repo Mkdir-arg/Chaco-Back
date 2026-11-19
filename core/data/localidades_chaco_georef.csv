@@ -1,0 +1,816 @@
+# Centroides de las localidades (asentamientos) de la provincia del Chaco.
+#
+# Fuente: Base de Asentamientos Humanos de la República Argentina (BAHRA, INDEC /
+# IGN), servida por la API Georef de datos.gob.ar:
+#   https://apis.datos.gob.ar/georef/api/asentamientos?provincia=chaco&max=5000
+#     &campos=id,nombre,centroide,departamento,municipio
+# Descargado el 19/11/2026. Licencia abierta con atribución: «Fuente: BAHRA /
+# Servicio de Normalización de Datos Geográficos de Argentina (Georef),
+# datos.gob.ar». Cada fila conserva su id_fuente (código BAHRA).
+#
+# Se usa el recurso `asentamientos` (BAHRA completo: localidades simples, componentes
+# de localidad compuesta y parajes) y no `localidades`, que solo trae las 91
+# localidades censales: el catálogo core.Localidad del Chaco tiene 778 filas y la
+# mayoría son parajes.
+#
+# id_fuente es el código BAHRA del asentamiento. Lo carga en core.UbicacionLocalidad
+# `manage.py cargar_ubicaciones_localidades` (Cambio 498), que concilia por nombre y
+# municipio normalizados. Es un archivo de datos: se reemplaza entero bajando el
+# dataset otra vez, no se edita a mano.
+id_fuente,nombre,municipio,departamento,latitud,longitud
+22007010,Concepción del Bermejo,Concepción del Bermejo,Almirante Brown,-26.600331,-60.946177
+22007020,Los Frentones,Los Frentones,Almirante Brown,-26.407068,-61.412881
+22007030,Pampa del Infierno,Pampa del Infierno,Almirante Brown,-26.503558,-61.176572
+22007040,Río Muerto,Los Frentones,Almirante Brown,-26.307126,-61.655759
+22007050,Taco Pozo,Taco Pozo,Almirante Brown,-25.615035,-63.264858
+22007A00,Alta Esperanza,Taco Pozo,Almirante Brown,-25.397933,-62.286868
+22007A01,Castelli,Taco Pozo,Almirante Brown,-25.451102,-62.720276
+22007A02,Chaco Porá,Taco Pozo,Almirante Brown,-25.497147,-63.287633
+22007A03,Colonia Pampa Bolsa Norte,Pampa del Infierno,Almirante Brown,-26.417068,-61.087232
+22007A04,Colonia Pampa Bolsa Sur,Pampa del Infierno,Almirante Brown,-26.507816,-61.082973
+22007A05,Colonia Pampa Unida,Pampa del Infierno,Almirante Brown,-26.296329,-60.956541
+22007A06,Cuatro Bocas,Los Frentones,Almirante Brown,-25.906258,-61.325761
+22007A07,El Arenal,Los Frentones,Almirante Brown,-26.594286,-61.462750
+22007A08,El Brasil,Taco Pozo,Almirante Brown,-24.992927,-62.635995
+22007A09,El Cañon,Taco Pozo,Almirante Brown,-25.491159,-62.787938
+22007A10,El Indio,Taco Pozo,Almirante Brown,-25.629503,-62.538496
+22007A11,El Lebretón,Taco Pozo,Almirante Brown,-25.615735,-62.881457
+22007A12,El Palo Blanco,Los Frentones,Almirante Brown,-26.611767,-61.592445
+22007A13,El Palo Santo 2,Taco Pozo,Almirante Brown,-24.912155,-62.245684
+22007A14,El Pintado,Taco Pozo,Almirante Brown,-25.297188,-63.022953
+22007A15,El Quinto,Taco Pozo,Almirante Brown,-25.175173,-62.605378
+22007A16,El Rosillo,Taco Pozo,Almirante Brown,-25.556848,-62.915371
+22007A17,El Silencio,Pampa del Infierno,Almirante Brown,-26.141534,-61.003511
+22007A18,General Roca,Taco Pozo,Almirante Brown,-25.510215,-61.981553
+22007A19,Kilómetro 27,Taco Pozo,Almirante Brown,-25.515162,-63.020105
+22007A20,Kilómetro 77,Los Frentones,Almirante Brown,-25.590508,-61.449311
+22007A21,La Aguada,Taco Pozo,Almirante Brown,-25.382032,-62.356445
+22007A22,La Aurora,Taco Pozo,Almirante Brown,-25.284622,-62.225208
+22007A23,La Ilusión,Taco Pozo,Almirante Brown,-25.538539,-62.387123
+22007A24,La Paloma,Taco Pozo,Almirante Brown,-25.402487,-62.746803
+22007A25,La Pinta,Taco Pozo,Almirante Brown,-25.490878,-62.416295
+22007A26,La Ralera,Concepción del Bermejo,Almirante Brown,-26.492439,-60.925310
+22007A27,La Sara,Taco Pozo,Almirante Brown,-25.530010,-62.576765
+22007A28,Las Flores,Taco Pozo,Almirante Brown,-25.446394,-62.702362
+22007A29,Los Magos,Taco Pozo,Almirante Brown,-25.320856,-62.893794
+22007A30,Lote 9 Pampa Grande,Corzuela,Almirante Brown,-26.659220,-61.233056
+22007A31,Lote 23 Pampa Grande,Pampa del Infierno,Almirante Brown,-26.658478,-61.299509
+22007A32,Lote 30,Concepción del Bermejo,Almirante Brown,-26.663309,-60.929898
+22007A33,Lote 34,Taco Pozo,Almirante Brown,-25.649356,-62.788252
+22007A34,Luján,Taco Pozo,Almirante Brown,-25.205109,-62.274706
+22007A35,Madre de Dios,Taco Pozo,Almirante Brown,-25.404927,-62.341803
+22007A36,Nueva York,Taco Pozo,Almirante Brown,-25.247573,-62.769198
+22007A37,Ojo de Agua,Taco Pozo,Almirante Brown,-25.401344,-62.801781
+22007A38,Pampa Cuvalo,Concepción del Bermejo,Almirante Brown,-26.660352,-61.055539
+22007A39,Pampa El Mangrullo,Pampa del Infierno,Almirante Brown,-26.166864,-61.147714
+22007A40,Pampa El Mollal,Concepción del Bermejo,Almirante Brown,-26.532794,-61.029811
+22007A41,Pampa Grande,Pampa del Infierno,Almirante Brown,-26.637442,-61.188435
+22007A42,Pampa Guanaco,Pampa del Infierno,Almirante Brown,-26.235751,-61.029441
+22007A43,Pampa Juanita,Pampa del Infierno,Almirante Brown,-26.592910,-61.101009
+22007A44,Pampa Pereyra,Concepción del Bermejo,Almirante Brown,-26.462988,-60.966851
+22007A45,Pampa Quimilí,Los Frentones,Almirante Brown,-26.277430,-61.157240
+22007A46,Pampa Virgen,Concepción del Bermejo,Almirante Brown,-26.425493,-60.904068
+22007A47,Paraje Santa Rosa,Los Frentones,Almirante Brown,-26.050097,-61.309279
+22007A48,Pozo Hondo,Taco Pozo,Almirante Brown,-25.591874,-63.036952
+22007A49,Primavera,Taco Pozo,Almirante Brown,-25.030782,-62.609743
+22007A50,Puesto Santa Cruz,Taco Pozo,Almirante Brown,-25.353433,-62.632673
+22007A51,Puesto Santa Cruz Norte,Taco Pozo,Almirante Brown,-25.428954,-63.137093
+22007A52,San Agustín,Taco Pozo,Almirante Brown,-25.606784,-62.461148
+22007A53,San Antonio,Taco Pozo,Almirante Brown,-25.469196,-62.192922
+22007A54,San José,Los Frentones,Almirante Brown,-25.642258,-61.319100
+22007A55,San Telmo,Taco Pozo,Almirante Brown,-25.140247,-62.936104
+22007A56,Santa Elena,Taco Pozo,Almirante Brown,-25.319716,-62.812752
+22007A57,Santa Lucía,Taco Pozo,Almirante Brown,-24.900581,-62.637658
+22007A58,Santa Rita,Taco Pozo,Almirante Brown,-24.898166,-62.495391
+22007A59,Santa Rosa,Taco Pozo,Almirante Brown,-25.401371,-62.314843
+22007A60,Santa Teresa de Carballo,Taco Pozo,Almirante Brown,-25.586322,-63.196062
+22007A61,Sol de Mayo,Taco Pozo,Almirante Brown,-25.004881,-62.422529
+22007A62,3 de Mayo,Taco Pozo,Almirante Brown,-25.505105,-62.992811
+22014010,General Vedia,General Vedia,Bermejo,-26.937934,-58.661970
+22014020,Isla del Cerrito,Isla del Cerrito,Bermejo,-27.291499,-58.619429
+22014030,La Leonesa,La Leonesa,Bermejo,-27.038149,-58.707249
+22014040,Las Palmas,Las Palmas,Bermejo,-27.048751,-58.682396
+22014050,Puerto Bermejo Nuevo,Puerto Bermejo,Bermejo,-26.907786,-58.541701
+22014060,Puerto Bermejo Viejo,Puerto Bermejo,Bermejo,-26.926936,-58.509116
+22014070,Puerto Eva Perón,Puerto Eva Perón,Bermejo,-26.663700,-58.632397
+22014A00,Cancha Larga,Las Palmas,Bermejo,-27.078332,-58.731824
+22014A01,Colonia Cabral Cué,La Leonesa,Bermejo,-26.918658,-58.783196
+22014A02,Colonia El Mirasol,Puerto Bermejo,Bermejo,-26.848285,-58.581494
+22014A03,Colonia San Eduardo,General Vedia,Bermejo,-26.902883,-58.632044
+22014A04,Colonia Vélaz,Puerto Eva Perón,Bermejo,-26.691744,-58.659816
+22014A05,El Atajito,Isla del Cerrito,Bermejo,-27.305786,-58.715518
+22014A06,El 14,General Vedia,Bermejo,-26.889810,-58.726248
+22014A07,El Palmar,Las Palmas,Bermejo,-27.172007,-58.739801
+22014A08,El Retiro Norte,General Vedia,Bermejo,-26.828280,-58.850686
+22014A09,La Esperanza,La Leonesa,Bermejo,-26.868850,-58.835219
+22014A10,La Posta,Puerto Bermejo,Bermejo,-26.853940,-58.508002
+22014A11,La Textil,La Eduvigis,Bermejo,-26.619933,-58.720306
+22014A12,Lapacho,La Leonesa,Bermejo,-26.982588,-58.865527
+22014A13,Las Rosas,La Leonesa,Bermejo,-26.941851,-58.752152
+22014A14,Limita,Las Palmas,Bermejo,-27.232793,-58.751065
+22014A15,Loma Alta,General Vedia,Bermejo,-26.779683,-58.816280
+22014A16,Lote Fiscal 16,General Vedia,Bermejo,-26.865916,-58.805529
+22014A17,Maipú,La Leonesa,Bermejo,-27.022970,-58.707559
+22014A18,Mongay,Las Palmas,Bermejo,-27.036431,-58.646032
+22014A19,Pindo,La Leonesa,Bermejo,-27.141455,-58.820250
+22014A20,Puerto Las Palmas,Las Palmas,Bermejo,-27.118499,-58.645404
+22014A21,Quia,La Leonesa,Bermejo,-26.955789,-58.926007
+22014A22,Rincón del Zorro,La Leonesa,Bermejo,-27.029874,-58.810572
+22014A23,San Carlos,General Vedia,Bermejo,-26.959199,-58.667035
+22014A24,Tres Horquetas,General Vedia,Bermejo,-26.966666,-58.598800
+22014A25,Yatay,La Leonesa,Bermejo,-27.135458,-58.784880
+22021010,Presidencia Roque Sáenz Peña,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.790972,-60.441248
+22021A00,Bajo Hondo,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.942641,-60.379593
+22021A01,Bajo Hondo Chico,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.910144,-60.419445
+22021A02,Bajo Hondo Grande,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.954768,-60.515042
+22021A03,Colonia Bajo Hondo,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.880046,-60.556427
+22021A04,Colonia El Toba,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.932218,-60.581089
+22021A05,Colonia Napenay,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.842618,-60.604418
+22021A06,Colonia Pampa Galpón,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.653513,-60.478449
+22021A07,Colonia Pampa Loca,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.703207,-60.502185
+22021A08,Colonia Rivadavia,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.827127,-60.345981
+22021A09,Colonia Sarmiento,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.637013,-60.254636
+22021A10,Ensanche Norte,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.733178,-60.439346
+22021A11,Girasol,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.669066,-60.376968
+22021A12,La Chiquita Norte,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.744607,-60.306776
+22021A13,La Mascota,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.800394,-60.629374
+22021A14,La Negrita,Villa Berthet,Comandante Fernández,-27.013414,-60.506101
+22021A15,La Pobladora,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.546996,-60.465458
+22021A16,Lote 17,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.738569,-60.406950
+22021A17,Lote 45,Villa Berthet,Comandante Fernández,-27.019888,-60.487208
+22021A18,Pampa Alegría,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.683118,-60.395307
+22021A19,Pampa Florida,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.612416,-60.407010
+22021A20,Pampa Gamba,Presidencia Roque Sáenz Peña,Comandante Fernández,-26.584791,-60.510358
+22028010,Charata,Charata,Chacabuco,-27.217922,-61.187348
+22028A00,Colonia General Lavalle,Charata,Chacabuco,-27.377665,-60.857631
+22028A01,Colonia General Lavalle Norte,Charata,Chacabuco,-27.262093,-61.028331
+22028A02,Colonia General Necochea,Charata,Chacabuco,-27.383319,-61.015268
+22028A03,El Fisco,Charata,Chacabuco,-27.252486,-61.176484
+22028A04,El Picaso,Charata,Chacabuco,-26.834216,-61.618892
+22028A05,Laguna del Sargento,Charata,Chacabuco,-27.129051,-61.223234
+22028A06,Las Tolderias,Charata,Chacabuco,-27.318730,-60.978772
+22028A07,Pampa Ávila,Charata,Chacabuco,-26.988746,-61.525527
+22028A08,Pampa Barrera,Charata,Chacabuco,-27.217972,-61.264987
+22028A09,Pampa Cabrera,Charata,Chacabuco,-27.097043,-61.369176
+22028A10,Pampa Cejas,Charata,Chacabuco,-26.967606,-61.452617
+22028A11,Pampa del Cielo,Charata,Chacabuco,-27.156802,-61.140805
+22028A12,Pampa Galván,Charata,Chacabuco,-27.284898,-61.161016
+22028A13,Pampa Moreno,Charata,Chacabuco,-27.036895,-61.357353
+22028A14,Pampa Páez,Charata,Chacabuco,-27.370777,-60.967191
+22028A15,Pampa Roldán,Charata,Chacabuco,-27.140918,-61.272001
+22028A16,Pampa Sommer,Charata,Chacabuco,-27.083379,-61.255475
+22028A17,Tres Estacas,Charata,Chacabuco,-26.921751,-61.625116
+22036010,Gancedo,Gancedo,12 de Octubre,-27.487414,-61.676697
+22036020,General Capdevila,General Capdevila,12 de Octubre,-27.422571,-61.476142
+22036030,General Pinedo,General Pinedo,12 de Octubre,-27.325386,-61.280998
+22036040,Mesón de Fierro,General Pinedo,12 de Octubre,-27.429813,-61.017099
+22036050,Pampa Landriel,General Pinedo,12 de Octubre,-27.394684,-61.102563
+22036A00,Campo del Cielo,Gancedo,12 de Octubre,-27.610031,-61.681673
+22036A01,Campo Marcelino Ugarte,General Capdevila,12 de Octubre,-27.345485,-61.434536
+22036A02,Colonia Bravo,General Pinedo,12 de Octubre,-27.359741,-61.188064
+22036A03,Colonia San Antonio,General Pinedo,12 de Octubre,-27.227996,-61.368542
+22036A04,Colonia Welbers,General Pinedo,12 de Octubre,-27.347345,-61.363003
+22036A05,Colonia Welbers Sur,General Pinedo,12 de Octubre,-27.361606,-61.383535
+22036A06,El Cuadrado Oeste,Gancedo,12 de Octubre,-27.313209,-61.708826
+22036A07,El Palmar,General Pinedo,12 de Octubre,-27.140114,-61.549337
+22036A08,El Palmar Central,General Pinedo,12 de Octubre,-27.074893,-61.569698
+22036A09,El Palmar Norte,General Pinedo,12 de Octubre,-27.165370,-61.468246
+22036A10,El Palmar Sur,General Pinedo,12 de Octubre,-27.218911,-61.465353
+22036A11,La Bolsa,Gancedo,12 de Octubre,-27.382114,-61.626684
+22036A12,La Picada,General Pinedo,12 de Octubre,-27.276725,-61.243738
+22036A13,La Tota,Gancedo,12 de Octubre,-27.557482,-61.690114
+22036A14,Las Leonas,General Pinedo,12 de Octubre,-27.042145,-61.708814
+22036A15,Las Víboras,Gancedo,12 de Octubre,-27.644543,-61.680307
+22036A16,Pampa Dorotier,General Pinedo,12 de Octubre,-27.228050,-61.410296
+22036A17,Pampa Galván,General Pinedo,12 de Octubre,-27.364347,-61.112447
+22036A18,Pampa González,General Pinedo,12 de Octubre,-27.253592,-61.316811
+22036A19,Pampa Schmidt,General Pinedo,12 de Octubre,-27.173022,-61.358213
+22039010,Hermoso Campo,Hermoso Campo,2 de Abril,-27.610016,-61.344236
+22039020,Itín,Hermoso Campo,2 de Abril,-27.487432,-61.324482
+22039A00,Colonia Campo Hermoso,Hermoso Campo,2 de Abril,-27.596955,-61.132059
+22039A01,Colonia Jacarandá I,Hermoso Campo,2 de Abril,-27.760147,-61.298564
+22039A02,Colonia Jacarandá II,Hermoso Campo,2 de Abril,-27.657830,-61.336816
+22039A03,Colonia Puerta del León,Hermoso Campo,2 de Abril,-27.559825,-61.072753
+22039A04,Colonia Puerta del León Sur,Hermoso Campo,2 de Abril,-27.616505,-61.070146
+22039A05,Colonia Tañigo,Hermoso Campo,2 de Abril,-27.546169,-61.373319
+22039A06,El Ñandubay,Santa Sylvina,2 de Abril,-27.707055,-61.183468
+22039A07,El Tizón,Hermoso Campo,2 de Abril,-27.648552,-61.423934
+22039A08,Lote 14,Hermoso Campo,2 de Abril,-27.657853,-61.252980
+22039A09,Lote 15,Hermoso Campo,2 de Abril,-27.760184,-61.261494
+22039A10,Lote 19,Hermoso Campo,2 de Abril,-27.637817,-61.130915
+22039A11,Lote 33,Hermoso Campo,2 de Abril,-27.546563,-61.438059
+22039A12,Lote 40,Hermoso Campo,2 de Abril,-27.678350,-61.296068
+22039A13,Tañigo,Hermoso Campo,2 de Abril,-27.501564,-61.418655
+22039A14,Zuberbühler,Hermoso Campo,2 de Abril,-27.717225,-61.365156
+22043010,Chorotis,Chorotis,Fray Justo Santa María de Oro,-27.914645,-61.401399
+22043020,Santa Sylvina,Santa Sylvina,Fray Justo Santa María de Oro,-27.831611,-61.136000
+22043030,Venados Grandes,Chorotis,Fray Justo Santa María de Oro,-27.816348,-61.382884
+22043A00,Campo Las Puertas,Santa Sylvina,Fray Justo Santa María de Oro,-27.867539,-61.324649
+22043A01,Colonia Cabeza de Tigre,Santa Sylvina,Fray Justo Santa María de Oro,-27.926224,-61.179655
+22043A02,Colonia Campo del Banco,Santa Sylvina,Fray Justo Santa María de Oro,-27.764128,-61.210473
+22043A03,Colonia El Urunday,Santa Sylvina,Fray Justo Santa María de Oro,-27.797678,-60.960490
+22043A04,Colonia Jacarandá Sur,Santa Sylvina,Fray Justo Santa María de Oro,-27.751083,-61.130971
+22043A05,El Aguaray,Chorotis,Fray Justo Santa María de Oro,-27.864116,-61.687795
+22043A06,El Ñandubay,Santa Sylvina,Fray Justo Santa María de Oro,-27.742632,-61.052275
+22043A07,Tres Mojones,Chorotis,Fray Justo Santa María de Oro,-27.974371,-61.515973
+22043A08,Tres Mojones Este,Chorotis,Fray Justo Santa María de Oro,-27.965363,-61.618109
+22043A09,Tres Mojones Oeste,Chorotis,Fray Justo Santa María de Oro,-27.968325,-61.694439
+22049010,Corzuela,Corzuela,General Belgrano,-26.951307,-60.970338
+22049A00,Campo Cantón,Corzuela,General Belgrano,-26.965565,-61.030250
+22049A01,Corzuela Norte,Corzuela,General Belgrano,-26.898192,-61.028091
+22049A02,Loro Blanco,Corzuela,General Belgrano,-26.853802,-61.125037
+22049A03,Lote 4 El Loro Blanco,Corzuela,General Belgrano,-26.706976,-61.187780
+22049A04,Pampa Alsina,Corzuela,General Belgrano,-26.993123,-60.857603
+22049A05,Pampa La Porteña,Corzuela,General Belgrano,-26.892203,-61.119802
+22049A06,Pampa Villordo,Corzuela,General Belgrano,-27.106273,-60.857325
+22049A07,Pampa Zappa,Corzuela,General Belgrano,-26.960129,-61.071875
+22049A08,San Antonio,Corzuela,General Belgrano,-26.842854,-61.172966
+22056010,La Escondida,La Escondida,General Donovan,-27.105349,-59.446377
+22056020,La Verde,La Verde,General Donovan,-27.130418,-59.376198
+22056030,Lapachito,Lapachito,General Donovan,-27.159332,-59.385415
+22056040,Makallé,Makallé,General Donovan,-27.205785,-59.287086
+22056A00,Campo Philipon,Makallé,General Donovan,-27.173985,-59.260744
+22056A01,Colonia El Cacique Llorón,La Escondida,General Donovan,-27.048102,-59.437831
+22056A02,Colonia Mixta,Makallé,General Donovan,-26.997829,-59.138106
+22056A03,Legua 41,La Verde,General Donovan,-27.081694,-59.386140
+22056A04,Makallé Viejo,Makallé,General Donovan,-27.175110,-59.295490
+22063010,El Espinillo,Villa Río Bermejito,General Güemes,-25.408798,-60.447785
+22063020,El Sauzal,El Sauzalito,General Güemes,-24.578514,-61.534955
+22063030,El Sauzalito,El Sauzalito,General Güemes,-24.427973,-61.683233
+22063040,Fortín Lavalle,Villa Río Bermejito,General Güemes,-25.704490,-60.201486
+22063050,Fuerte Esperanza,Fuerte Esperanza,General Güemes,-25.160514,-61.841372
+22063060,Juan José Castelli,Juan José Castelli,General Güemes,-25.946579,-60.620067
+22063070,Miraflores,Miraflores,General Güemes,-25.649425,-60.930187
+22063080,Nueva Pompeya,Misión Nueva Pompeya,General Güemes,-24.933075,-61.483145
+22063100,Villa Río Bermejito,Villa Río Bermejito,General Güemes,-25.637555,-60.265437
+22063110,Wichi,El Sauzalito,General Güemes,-24.690329,-61.426130
+22063120,Zaparinqui,Juan José Castelli,General Güemes,-26.065792,-60.561927
+22063A00,Alberdi,Juan José Castelli,General Güemes,-25.802848,-60.596123
+22063A01,Alto Alegre,El Sauzalito,General Güemes,-24.908703,-61.387625
+22063A02,Bajada Alta,Miraflores,General Güemes,-25.382546,-60.892925
+22063A03,Bajo Hondo,Misión Nueva Pompeya,General Güemes,-25.121786,-61.198679
+22063A04,Bajo Verde,El Sauzalito,General Güemes,-24.316607,-61.875748
+22063A05,Bajos de Alvarado,Fuerte Esperanza,General Güemes,-24.612421,-62.138205
+22063A06,Balbuena,Miraflores,General Güemes,-25.722075,-60.976791
+22063A07,Bella Vista,Juan José Castelli,General Güemes,-26.116845,-60.570062
+22063A08,Cabeza de Buey,Villa Río Bermejito,General Güemes,-25.645617,-60.473667
+22063A09,Campo Alto,Juan José Castelli,General Güemes,-25.999724,-60.235583
+22063A10,Campo Bedogni,Juan José Castelli,General Güemes,-25.877378,-60.856339
+22063A11,Campo de Mayo,Juan José Castelli,General Güemes,-25.499317,-60.612366
+22063A12,Campo Florido,Juan José Castelli,General Güemes,-26.095359,-60.394403
+22063A13,Campo Grande,Fuerte Esperanza,General Güemes,-24.731615,-61.935820
+22063A14,Campo La China,Miraflores,General Güemes,-25.477374,-60.977826
+22063A15,Central Norte,Miraflores,General Güemes,-25.609545,-60.933843
+22063A16,Colonia Castelli,Juan José Castelli,General Güemes,-26.010801,-60.603174
+22063A17,Colonia El 44,Juan José Castelli,General Güemes,-25.975513,-60.538967
+22063A18,Comandancia Frías,Fuerte Esperanza,General Güemes,-24.564887,-62.237950
+22063A19,Costa Rica,Miraflores,General Güemes,-25.596430,-60.695061
+22063A20,Cruce Peñaloza,Miraflores,General Güemes,-25.475484,-61.093963
+22063A21,4 de Febrero,Miraflores,General Güemes,-25.575169,-60.791381
+22063A22,10 de Mayo,Villa Río Bermejito,General Güemes,-25.793834,-60.101576
+22063A23,El Algarrobal,Villa Río Bermejito,General Güemes,-25.300537,-60.545858
+22063A24,El Asustado,Juan José Castelli,General Güemes,-25.975801,-60.277113
+22063A25,El Atento,Misión Nueva Pompeya,General Güemes,-24.943251,-61.485223
+22063A26,El Ballado,El Sauzalito,General Güemes,-24.458887,-61.610730
+22063A27,El Cañón,Miraflores,General Güemes,-25.734232,-60.936655
+22063A28,El Cebilar,El Sauzalito,General Güemes,-24.155551,-62.221962
+22063A29,El Colchón,Villa Río Bermejito,General Güemes,-25.643482,-60.364562
+22063A30,El Colorado,El Sauzalito,General Güemes,-24.805421,-61.444113
+22063A31,El Corredero,Villa Río Bermejito,General Güemes,-25.754156,-60.395484
+22063A32,El Cruce,Juan José Castelli,General Güemes,-25.777987,-60.249258
+22063A33,El Descanso,Miraflores,General Güemes,-25.640899,-61.016462
+22063A34,El Destierro,Juan José Castelli,General Güemes,-26.114040,-60.311332
+22063A35,El Escondido,Villa Río Bermejito,General Güemes,-25.579758,-60.524225
+22063A36,El Estanque,Villa Río Bermejito,General Güemes,-25.713863,-60.501942
+22063A37,El Gramillar,Juan José Castelli,General Güemes,-26.079176,-60.149116
+22063A38,El Juramento,Juan José Castelli,General Güemes,-25.934156,-60.410571
+22063A39,El Milagro,Miraflores,General Güemes,-25.499264,-61.023366
+22063A40,El Mojo,Villa Río Bermejito,General Güemes,-25.213823,-60.640122
+22063A41,El Ñandú,Juan José Castelli,General Güemes,-25.942626,-60.326624
+22063A42,El Ñandubay,Villa Río Bermejito,General Güemes,-25.357529,-60.629375
+22063A43,El Palmar,Villa Río Bermejito,General Güemes,-25.289362,-60.685522
+22063A44,El Palo Santo,Misión Nueva Pompeya,General Güemes,-24.873714,-61.680953
+22063A45,El Palomo,Juan José Castelli,General Güemes,-25.816705,-61.148013
+22063A46,El Paraisal,Juan José Castelli,General Güemes,-26.027952,-60.650161
+22063A47,El Pintado,El Sauzalito,General Güemes,-24.625481,-61.422053
+22063A48,El Polenom,Misión Nueva Pompeya,General Güemes,-24.950167,-61.464200
+22063A49,El Pozo de los Suris,Misión Nueva Pompeya,General Güemes,-25.044869,-61.444629
+22063A50,El Progreso,Juan José Castelli,General Güemes,-25.999623,-60.900946
+22063A51,El Quebrachal,El Sauzalito,General Güemes,-24.503809,-61.656207
+22063A52,El Quebracho,Miraflores,General Güemes,-25.238002,-61.279425
+22063A53,El Quebracho Baleado,Miraflores,General Güemes,-25.356960,-60.919584
+22063A54,El Quirquincho,Misión Nueva Pompeya,General Güemes,-25.113596,-61.373309
+22063A55,El Recreo,El Sauzalito,General Güemes,-24.608456,-62.068627
+22063A56,El Recreo Sur,Juan José Castelli,General Güemes,-25.886144,-61.125104
+22063A57,El Refucilo,Fuerte Esperanza,General Güemes,-25.134286,-61.766009
+22063A58,El Retiro,Miraflores,General Güemes,-25.587786,-60.968406
+22063A59,El Retiro Norte,El Sauzalito,General Güemes,-24.789471,-61.440907
+22063A60,El Rincón Dichoso,Juan José Castelli,General Güemes,-25.979854,-60.764123
+22063A61,El Rosario,Juan José Castelli,General Güemes,-25.716721,-61.136405
+22063A62,El Silencio,Juan José Castelli,General Güemes,-26.092296,-60.952304
+22063A63,El Simbolar,Villa Río Bermejito,General Güemes,-25.457033,-60.513426
+22063A64,El Telasco,Juan José Castelli,General Güemes,-25.682630,-60.550954
+22063A65,El Toroltay,Villa Río Bermejito,General Güemes,-25.795088,-60.410412
+22063A66,El Triunfo,Fuerte Esperanza,General Güemes,-24.655652,-62.426624
+22063A67,El Vizcacheral,El Sauzalito,General Güemes,-24.391713,-61.716817
+22063A68,El Zanjón,Miraflores,General Güemes,-25.708645,-60.724220
+22063A69,Ex Fortín Arenales,Misión Nueva Pompeya,General Güemes,-25.076188,-61.251580
+22063A70,Fortín Belgrano,El Sauzalito,General Güemes,-24.123351,-62.337587
+22063A71,Güemes,Miraflores,General Güemes,-25.774417,-60.815527
+22063A72,Güemes Norte,El Sauzalito,General Güemes,-24.875179,-61.510399
+22063A73,Kilómetro 40,Miraflores,General Güemes,-25.719452,-61.110255
+22063A74,La Argentina,Juan José Castelli,General Güemes,-25.884747,-60.552526
+22063A75,La Armonía,Miraflores,General Güemes,-25.179974,-61.096897
+22063A76,La Barraca,Misión Nueva Pompeya,General Güemes,-24.911763,-61.579339
+22063A77,La Bolsa,Villa Río Bermejito,General Güemes,-25.202582,-60.558586
+22063A78,La Cangayé,Villa Río Bermejito,General Güemes,-25.580296,-60.591158
+22063A79,La Cheogue,Miraflores,General Güemes,-25.552048,-60.841932
+22063A80,La Ensenada,El Sauzalito,General Güemes,-24.823866,-61.655505
+22063A81,La Entrada,El Sauzalito,General Güemes,-24.677343,-61.956555
+22063A82,La Esmeralda,Villa Río Bermejito,General Güemes,-25.345423,-60.787764
+22063A83,La Esperanza,Juan José Castelli,General Güemes,-26.040159,-60.401501
+22063A84,La Estación,El Sauzalito,General Güemes,-24.254128,-61.988997
+22063A85,La Fidelidad,Miraflores,General Güemes,-25.170132,-61.353190
+22063A86,La Florida,Juan José Castelli,General Güemes,-25.845809,-60.778113
+22063A87,La Florida Grande,Juan José Castelli,General Güemes,-25.825857,-60.837520
+22063A88,La Fortuna,El Sauzalito,General Güemes,-24.648719,-61.994042
+22063A89,La Gerónima,Juan José Castelli,General Güemes,-26.076682,-60.337744
+22063A90,La Gloria,Juan José Castelli,General Güemes,-26.051581,-60.207824
+22063A91,La Indiana,Juan José Castelli,General Güemes,-25.866883,-60.656645
+22063A92,La Invernada,El Sauzalito,General Güemes,-24.339979,-61.797735
+22063A93,La Mesada,El Sauzalito,General Güemes,-24.846381,-61.620044
+22063A94,La Mora,Juan José Castelli,General Güemes,-25.645328,-60.605893
+22063A95,La Nación,Fuerte Esperanza,General Güemes,-24.656257,-62.034126
+22063A96,La Nueva Unión,Juan José Castelli,General Güemes,-25.791522,-60.977346
+22063A97,La Pampa,Miraflores,General Güemes,-25.311500,-61.214513
+22063A98,La Rinconada,Juan José Castelli,General Güemes,-25.986838,-60.362430
+22063A99,La Selva,Juan José Castelli,General Güemes,-25.807363,-60.193830
+22063B00,La Unión,Juan José Castelli,General Güemes,-25.747659,-61.027399
+22063B01,La Unión Sur,Juan José Castelli,General Güemes,-26.013360,-60.492373
+22063B02,La Zanja,El Sauzalito,General Güemes,-24.454475,-61.806116
+22063B03,Laguna Araujo,Misión Nueva Pompeya,General Güemes,-24.912496,-61.489740
+22063B04,Laguna Ayarde,El Sauzalito,General Güemes,-24.766180,-61.379780
+22063B05,Lagunita,El Sauzalito,General Güemes,-24.803438,-61.703109
+22063B06,Las Cuatro Bocas,Miraflores,General Güemes,-25.753300,-60.876573
+22063B07,Las Delicias,Juan José Castelli,General Güemes,-25.923055,-60.949790
+22063B08,Las Hacheras,Miraflores,General Güemes,-25.386913,-60.990868
+22063B09,Las Maravillas,Juan José Castelli,General Güemes,-25.867588,-60.396833
+22063B10,Las Margaritas,Los Frentones,General Güemes,-25.674992,-61.196024
+22063B11,Las Palomas,Villa Río Bermejito,General Güemes,-25.316898,-60.585640
+22063B12,Las Puertas,Miraflores,General Güemes,-25.566591,-61.157633
+22063B13,Las Tunillas,Villa Río Bermejito,General Güemes,-25.329032,-60.472554
+22063B14,Las Vertientes,Villa Río Bermejito,General Güemes,-25.798646,-60.139492
+22063B15,Los Chorros,Misión Nueva Pompeya,General Güemes,-25.006451,-61.516106
+22063B16,Los Ciénagos,Misión Nueva Pompeya,General Güemes,-25.142528,-61.258160
+22063B17,Los Madrejones,Fuerte Esperanza,General Güemes,-24.456173,-62.325734
+22063B18,Los Milagros,Villa Río Bermejito,General Güemes,-25.758725,-60.156239
+22063B19,Los Pereyras,Miraflores,General Güemes,-25.475514,-61.176686
+22063B20,Los Placeres,Miraflores,General Güemes,-25.482041,-61.283686
+22063B21,Los Porongos,Miraflores,General Güemes,-25.427037,-60.988870
+22063B22,Los Potreros,Miraflores,General Güemes,-25.663504,-60.744441
+22063B23,Los Quirquinchos,Miraflores,General Güemes,-25.697560,-60.915955
+22063B24,Los Rosales,Miraflores,General Güemes,-25.308581,-61.168091
+22063B25,Lote 39,Villa Río Bermejito,General Güemes,-25.651868,-60.294369
+22063B26,Lote 71,Miraflores,General Güemes,-25.642469,-60.905134
+22063B27,Lote 76,Miraflores,General Güemes,-25.640141,-60.945111
+22063B28,Lote 126,Miraflores,General Güemes,-25.676872,-60.955182
+22063B29,Manantiales,Villa Río Bermejito,General Güemes,-25.147849,-60.730848
+22063B30,Media Luna,Villa Río Bermejito,General Güemes,-25.213846,-60.861640
+22063B31,Miramar,Villa Río Bermejito,General Güemes,-25.525842,-60.547522
+22063B32,Monte Caseros,Miraflores,General Güemes,-25.589994,-61.094070
+22063B33,Monte Quemado,Juan José Castelli,General Güemes,-25.929348,-60.738297
+22063B34,Monte Redondo,Miraflores,General Güemes,-25.717167,-60.774600
+22063B35,Montevideo,El Sauzalito,General Güemes,-24.565714,-62.151120
+22063B36,Nueva Población,Misión Nueva Pompeya,General Güemes,-24.967631,-61.365797
+22063B37,Olla Quebrada,Villa Río Bermejito,General Güemes,-25.463630,-60.467253
+22063B38,Palo Flojal,Misión Nueva Pompeya,General Güemes,-24.995552,-61.472145
+22063B39,Palo Marcado,Miraflores,General Güemes,-25.406254,-60.729264
+22063B40,Pampa Almirón,Juan José Castelli,General Güemes,-25.755027,-60.714366
+22063B41,Pampa Castro,Juan José Castelli,General Güemes,-25.855746,-60.928999
+22063B42,Pampa Cruz,Juan José Castelli,General Güemes,-25.864479,-60.256984
+22063B43,Pampa Nueva,Juan José Castelli,General Güemes,-25.952736,-60.858915
+22063B44,Pampa San Martín,Juan José Castelli,General Güemes,-25.965072,-60.697573
+22063B45,Pampa Tolosa,Juan José Castelli,General Güemes,-26.072101,-60.739265
+22063B46,Pampa Tolosa Chica,Juan José Castelli,General Güemes,-26.101061,-60.869266
+22063B47,Paraje El Estanque,Misión Nueva Pompeya,General Güemes,-25.086067,-61.495547
+22063B48,Paraje Las Vertientes,Misión Nueva Pompeya,General Güemes,-24.841488,-61.737744
+22063B49,Paso de la Cruz,Miraflores,General Güemes,-25.262703,-61.077781
+22063B50,Paso Sosa,Villa Río Bermejito,General Güemes,-25.561865,-60.417016
+22063B51,Pozo Colorado,Juan José Castelli,General Güemes,-26.066986,-60.507295
+22063B52,Pozo del Anta,El Sauzalito,General Güemes,-24.758054,-61.289261
+22063B53,Pozo del Bayo,Villa Río Bermejito,General Güemes,-25.430029,-60.415248
+22063B54,Pozo del Gato,El Sauzalito,General Güemes,-24.771052,-61.823429
+22063B55,Pozo del Mataco,Misión Nueva Pompeya,General Güemes,-24.791838,-61.857811
+22063B56,Pozo del Salado,Misión Nueva Pompeya,General Güemes,-25.095760,-61.386929
+22063B57,Pozo del Toro,Miraflores,General Güemes,-25.801307,-60.736241
+22063B58,Pozo El Gallo,El Sauzalito,General Güemes,-24.345570,-62.262395
+22063B59,Pozo El Toba,Misión Nueva Pompeya,General Güemes,-24.928760,-61.512300
+22063B60,Pozo El Zapallar,Villa Río Bermejito,General Güemes,-25.269161,-60.852454
+22063B61,Pozo La Gringa,Miraflores,General Güemes,-25.318271,-60.984994
+22063B62,1° de Mayo,Miraflores,General Güemes,-25.704020,-61.032947
+22063B63,Puerta Negra,Juan José Castelli,General Güemes,-25.775225,-60.650334
+22063B64,Puerto Lavalle,Villa Río Bermejito,General Güemes,-25.658575,-60.131835
+22063B65,Puesto Grande,El Sauzalito,General Güemes,-24.662580,-61.466531
+22063B66,Río Muerto,Villa Río Bermejito,General Güemes,-25.421572,-60.482262
+22063B67,Río Muerto Cruz,Juan José Castelli,General Güemes,-25.839875,-61.049129
+22063B68,San Agustín,Juan José Castelli,General Güemes,-25.818365,-60.452667
+22063B69,San Antonio,Miraflores,General Güemes,-25.642732,-60.860973
+22063B70,San Juancito,El Sauzalito,General Güemes,-24.472179,-62.267015
+22063B71,San Lorenzo,Miraflores,General Güemes,-25.696100,-61.091831
+22063B72,San Luis,Villa Río Bermejito,General Güemes,-25.570901,-60.442667
+22063B73,San Manuel,Villa Río Bermejito,General Güemes,-25.445362,-60.639746
+22063B74,San Vicente,Juan José Castelli,General Güemes,-25.710871,-60.678031
+22063B75,Santa Carmen,Juan José Castelli,General Güemes,-25.872407,-60.117350
+22063B76,Santa María,Fuerte Esperanza,General Güemes,-25.373677,-62.025986
+22063B77,Santa Rita,El Sauzalito,General Güemes,-24.536589,-61.831723
+22063B78,Santa Victoria,Miraflores,General Güemes,-25.497647,-60.891224
+22063B79,Santo Tomás,Fuerte Esperanza,General Güemes,-24.785864,-62.497742
+22063B80,Tartagal,El Sauzalito,General Güemes,-24.222137,-62.148413
+22063B81,Techat,Miraflores,General Güemes,-25.548503,-60.893770
+22063B82,Torre del Mirador,Los Frentones,General Güemes,-25.563586,-61.293477
+22063B83,Tres Pozos,El Sauzalito,General Güemes,-24.308504,-61.902147
+22063B84,Valdocco,El Sauzalito,General Güemes,-24.542226,-62.225779
+22063B85,Víboras Blancas,Villa Río Bermejito,General Güemes,-25.478432,-60.413794
+22063B86,Villa Fortuny,Juan José Castelli,General Güemes,-25.893582,-60.607551
+22063B87,Yapeyú,Miraflores,General Güemes,-25.707305,-60.866250
+22070010,Avia Terai,Avia Terai,Independencia,-26.686652,-60.728031
+22070020,Campo Largo,Campo Largo,Independencia,-26.800310,-60.839018
+22070030,Fortín Las Chuñas,Campo Largo,Independencia,-26.884353,-60.909563
+22070040,Napenay,Napenay,Independencia,-26.729587,-60.616776
+22070A00,Colonia José Mármol,Campo Largo,Independencia,-26.995251,-60.678382
+22070A01,La Flecha,Campo Largo,Independencia,-26.994938,-60.736936
+22070A02,La Montenegrina,Campo Largo,Independencia,-26.993902,-60.777576
+22070A03,Lote 1,Campo Largo,Independencia,-26.957921,-60.715745
+22070A04,Lote 9,Avia Terai,Independencia,-26.529929,-60.639661
+22070A05,Lote 13,Avia Terai,Independencia,-26.581902,-60.762318
+22070A06,Lote 14,Avia Terai,Independencia,-26.618797,-60.676847
+22070A07,Lote 27,Napenay,Independencia,-26.737257,-60.689249
+22070A08,Lote 29,Avia Terai,Independencia,-26.669915,-60.789900
+22070A09,Lote 33,Campo Largo,Independencia,-26.802637,-60.696128
+22070A10,Lote 48,Campo Largo,Independencia,-26.904679,-60.676948
+22070A11,Lote 50,Campo Largo,Independencia,-26.804245,-60.903954
+22070A12,Lote 91 y 101,Campo Largo,Independencia,-27.040314,-60.655130
+22070A13,Pampa Grande,Avia Terai,Independencia,-26.523618,-60.573296
+22070A14,Pampa La Desatinada,Napenay,Independencia,-26.634441,-60.610854
+22070A15,Pampa Oculta,Campo Largo,Independencia,-26.756957,-60.925639
+22070A16,Pampa Regimiento,Avia Terai,Independencia,-26.488126,-60.703302
+22070A17,Pampa Verde,Avia Terai,Independencia,-26.556337,-60.716542
+22077010,Colonia Popular,Colonia Popular,Libertad,-27.275192,-59.151476
+22077020,Estación General Obligado,Puerto Tirol,Libertad,-27.411626,-59.419346
+22077030,Laguna Blanca,Laguna Blanca,Libertad,-27.255430,-59.233016
+22077040,Puerto Tirol,Puerto Tirol,Libertad,-27.374041,-59.089276
+22077A00,Arroyo Saladillo,Laguna Blanca,Libertad,-27.269567,-59.211998
+22077A01,Colonia Cruce Viejo,Puerto Tirol,Libertad,-27.346429,-59.071752
+22077A02,Colonia Suriz,Laguna Blanca,Libertad,-27.209675,-59.228453
+22077A03,Fortín Cardoso,Puerto Tirol,Libertad,-27.409015,-59.233852
+22077A04,General Donovan,Puerto Tirol,Libertad,-27.385690,-59.108110
+22077A05,Kilómetro 501,Puerto Tirol,Libertad,-27.458446,-59.491313
+22077A06,Kilómetro 519,Puerto Tirol,Libertad,-27.411906,-59.337556
+22077A07,La Choza,Puerto Tirol,Libertad,-27.361203,-59.215755
+22077A08,Puerto Bastiani,Colonia Popular,Libertad,-27.319989,-59.091396
+22077A09,Villa Jalón,Puerto Tirol,Libertad,-27.343769,-59.092037
+22084010,Ciervo Petiso,Ciervo Petiso,Libertador General San Martín,-26.580142,-59.630034
+22084020,General José de San Martín,General San Martín,Libertador General San Martín,-26.536302,-59.341321
+22084030,La Eduvigis,La Eduvigis,Libertador General San Martín,-26.836462,-59.062321
+22084040,Laguna Limpia,Laguna Limpia,Libertador General San Martín,-26.495840,-59.680357
+22084050,Pampa Almirón,Pampa Almirón,Libertador General San Martín,-26.701149,-59.124045
+22084060,Pampa del Indio,Pampa del Indio,Libertador General San Martín,-26.049025,-59.942754
+22084070,Presidencia Roca,Presidencia Roca,Libertador General San Martín,-26.143715,-59.595029
+22084080,Selvas del Río de Oro,La Eduvigis,Libertador General San Martín,-26.802353,-58.957027
+22084A00,Buena Vista,General San Martín,Libertador General San Martín,-26.515258,-59.225429
+22084A01,Campo Alemany,Pampa del Indio,Libertador General San Martín,-26.051725,-59.970787
+22084A02,Campo Antonieli,La Eduvigis,Libertador General San Martín,-26.796350,-59.023596
+22084A03,Campo Araoz,General San Martín,Libertador General San Martín,-26.382867,-59.215763
+22084A04,Campo Blanco,General San Martín,Libertador General San Martín,-26.228054,-59.448837
+22084A05,Campo Los Toros,Pampa del Indio,Libertador General San Martín,-25.889758,-60.055913
+22084A06,Campo Medina,Presidencia Roca,Libertador General San Martín,-26.154275,-59.820100
+22084A07,Campo Nuevo,Presidencia Roca,Libertador General San Martín,-26.175751,-59.840148
+22084A08,Campo Pitteri,General San Martín,Libertador General San Martín,-26.635627,-59.403947
+22084A09,Campo Roffo,General San Martín,Libertador General San Martín,-26.402588,-59.376857
+22084A10,Cancha Larga,Pampa del Indio,Libertador General San Martín,-26.260877,-59.961969
+22084A11,Colonia Alcalá,Presidencia Roca,Libertador General San Martín,-26.283981,-59.714673
+22084A12,Colonia El Fiscal,La Eduvigis,Libertador General San Martín,-26.640028,-58.791021
+22084A13,Colonia La Aurora,General San Martín,Libertador General San Martín,-26.385683,-59.018400
+22084A14,Colonia La Florida,Laguna Limpia,Libertador General San Martín,-26.514713,-59.609200
+22084A15,Colonia Mixta,Pampa del Indio,Libertador General San Martín,-26.085159,-59.940771
+22084A16,Colonia Oeste,General San Martín,Libertador General San Martín,-26.446852,-59.428488
+22084A17,Colonia Ombú,Pampa del Indio,Libertador General San Martín,-25.956195,-59.899091
+22084A18,Colonia San Francisco,Presidencia Roca,Libertador General San Martín,-26.179180,-59.584822
+22084A19,Colonia San Isidro,Presidencia Roca,Libertador General San Martín,-26.168452,-59.600514
+22084A20,Colonia Winter,General San Martín,Libertador General San Martín,-26.368388,-59.265637
+22084A21,Costa Guaycurú,General San Martín,Libertador General San Martín,-26.593942,-59.380679
+22084A22,Cuarta Legua,Pampa del Indio,Libertador General San Martín,-26.057331,-59.888692
+22084A23,10 de Mayo,Pampa del Indio,Libertador General San Martín,-25.808968,-60.077517
+22084A24,El Correntoso,General San Martín,Libertador General San Martín,-26.688333,-59.251678
+22084A25,El Fiscalito,General San Martín,Libertador General San Martín,-26.528826,-59.285133
+22084A26,El Lunar,General San Martín,Libertador General San Martín,-26.370263,-59.093798
+22084A27,El Perdido,Pampa Almirón,Libertador General San Martín,-26.538312,-58.988290
+22084A28,El Salvaje,Pampa del Indio,Libertador General San Martín,-25.896578,-60.017508
+22084A29,El Tacuruzal,Quitilipi,Libertador General San Martín,-26.303592,-60.083073
+22084A30,Fortín Brown,Pampa del Indio,Libertador General San Martín,-25.872158,-59.970259
+22084A31,Kilómetro 62,Pampa Almirón,Libertador General San Martín,-26.652189,-59.049269
+22084A32,La Blanca,Pampa Almirón,Libertador General San Martín,-26.730145,-59.054814
+22084A33,La Entrerriana,Laguna Limpia,Libertador General San Martín,-26.420925,-59.679014
+22084A34,La Loma,Pampa del Indio,Libertador General San Martín,-25.824774,-60.037404
+22084A35,La Palmira,General San Martín,Libertador General San Martín,-26.487730,-59.441153
+22084A36,Laguna Lobo,General San Martín,Libertador General San Martín,-26.478720,-59.307483
+22084A37,Las Bravas,Pampa del Indio,Libertador General San Martín,-25.740446,-60.010176
+22084A38,Las Chuñas,Pampa del Indio,Libertador General San Martín,-25.852056,-60.081606
+22084A39,Las Tablas,Presidencia Roca,Libertador General San Martín,-26.300756,-59.676514
+22084A40,Legua 131,General San Martín,Libertador General San Martín,-26.579006,-59.143963
+22084A41,Loma Alta,Laguna Limpia,Libertador General San Martín,-26.389634,-59.677937
+22084A42,Loma Florida,La Eduvigis,Libertador General San Martín,-26.816053,-59.112614
+22084A43,Lote 4,Pampa del Indio,Libertador General San Martín,-26.180614,-59.869617
+22084A44,Lote 7,Pampa del Indio,Libertador General San Martín,-26.009421,-59.972301
+22084A45,Lote 82,Pampa del Indio,Libertador General San Martín,-26.148882,-59.905027
+22084A46,Lote 92,General San Martín,Libertador General San Martín,-26.460853,-59.347796
+22084A47,Lote 96,Pampa del Indio,Libertador General San Martín,-26.162261,-59.849424
+22084A48,Pampa Chica,Pampa del Indio,Libertador General San Martín,-26.107818,-59.831290
+22084A49,Pampa Chica Sur,Presidencia Roca,Libertador General San Martín,-26.135444,-59.815454
+22084A50,Paraje San Antonio,General San Martín,Libertador General San Martín,-26.605471,-59.315998
+22084A51,Puerto El Zapallar,General San Martín,Libertador General San Martín,-26.312970,-59.380307
+22084A52,Puesto Expedición,General San Martín,Libertador General San Martín,-26.466885,-58.907155
+22084A53,San Antonio,La Eduvigis,Libertador General San Martín,-26.720967,-58.910007
+22084A54,Santa Rita,Pampa del Indio,Libertador General San Martín,-25.957661,-60.011860
+22084A55,Santos Lugares,Pampa del Indio,Libertador General San Martín,-25.917018,-60.093443
+22084A56,Siete Árboles,General San Martín,Libertador General San Martín,-26.420415,-59.423321
+22084A57,Tres Banderas,General San Martín,Libertador General San Martín,-26.500303,-59.384854
+22084A58,Tres Lagunas,Pampa del Indio,Libertador General San Martín,-25.897937,-59.942242
+22084A59,Villa Jardín,Pampa Almirón,Libertador General San Martín,-26.682017,-59.147758
+22084A60,Zapallar Norte,General San Martín,Libertador General San Martín,-26.454970,-59.373181
+22091010,Tres Isletas,Tres Isletas,Maipú,-26.340325,-60.431262
+22091A00,Cabañaro,Tres Isletas,Maipú,-26.303954,-60.302298
+22091A01,Colonia Lalelay,Tres Isletas,Maipú,-26.338967,-60.243175
+22091A02,Colonia Pampa El 11,Tres Isletas,Maipú,-26.348782,-60.658682
+22091A03,Colonia Tacuruzal,Tres Isletas,Maipú,-26.266163,-60.165612
+22091A04,Colonia Tres Naciones,Tres Isletas,Maipú,-26.445090,-60.540943
+22091A05,Colonia Vélez Sarsfield,Tres Isletas,Maipú,-26.292151,-60.442607
+22091A06,2 de Abril,Tres Isletas,Maipú,-26.164497,-60.552445
+22091A07,El 45,Tres Isletas,Maipú,-26.405017,-60.415436
+22091A08,El Aguacerito,Tres Isletas,Maipú,-26.153910,-60.200512
+22091A09,El Boquerón,Tres Isletas,Maipú,-26.214342,-60.252368
+22091A10,El 50,Tres Isletas,Maipú,-26.360513,-60.424038
+22091A11,El Martillo,Tres Isletas,Maipú,-26.208288,-60.723024
+22091A12,El Palmar Chico,Tres Isletas,Maipú,-26.167975,-60.303897
+22091A13,Kilómetro 841,Tres Isletas,Maipú,-26.562381,-60.392045
+22091A14,Kilómetro 855,Tres Isletas,Maipú,-26.435376,-60.410801
+22091A15,Kilómetro 884,Tres Isletas,Maipú,-26.185775,-60.497042
+22091A16,La Curva,Tres Isletas,Maipú,-26.341030,-60.334115
+22091A17,La Llave,Tres Isletas,Maipú,-26.392643,-60.302239
+22091A18,La Matanza,Tres Isletas,Maipú,-26.495661,-60.264475
+22091A19,La Media Luna,Tres Isletas,Maipú,-26.125135,-60.102155
+22091A20,La Peligrosa,Tres Isletas,Maipú,-26.196114,-60.118327
+22091A21,La Rinconada,Tres Isletas,Maipú,-26.266344,-60.402534
+22091A22,Las Gomas,Tres Isletas,Maipú,-26.143972,-60.730966
+22091A23,Lote 10,Tres Isletas,Maipú,-26.259451,-60.690274
+22091A24,Lote 12,Tres Isletas,Maipú,-26.362040,-60.503916
+22091A25,Lote 18,Tres Isletas,Maipú,-26.481928,-60.427239
+22091A26,Lote 20 Legua A,Tres Isletas,Maipú,-26.434265,-60.685864
+22091A27,Monte Quemado Chico,Tres Isletas,Maipú,-26.210178,-60.568443
+22091A28,Monte Quemado Grande,Tres Isletas,Maipú,-26.135449,-60.639752
+22091A29,Pampa Aguará,Tres Isletas,Maipú,-26.565001,-60.334532
+22091A30,Pampa El Gallo,Tres Isletas,Maipú,-26.472030,-60.304829
+22091A31,Pampa Ghan,Tres Isletas,Maipú,-26.301769,-60.362644
+22091A32,Pampa Laglaive,Tres Isletas,Maipú,-26.463182,-60.606424
+22091A33,Pampa Nardelli,Tres Isletas,Maipú,-26.336122,-60.582011
+22091A34,Pampa Sena,Tres Isletas,Maipú,-26.370840,-60.608238
+22091A35,Pampa Vargas,Tres Isletas,Maipú,-26.283234,-60.523394
+22091A36,Pato Real,Tres Isletas,Maipú,-26.587892,-60.225342
+22091A37,Río Muerto,Tres Isletas,Maipú,-26.261696,-60.603588
+22091A38,Toundaian,Tres Isletas,Maipú,-26.297410,-60.755646
+22098010,Coronel Du Graty,Coronel Du Graty,Mayor Luis J. Fontana,-27.682213,-60.904342
+22098020,Enrique Urien,Enrique Urién,Mayor Luis J. Fontana,-27.556672,-60.526967
+22098030,Villa Angela,Villa Ángela,Mayor Luis J. Fontana,-27.576878,-60.711126
+22098A00,Campo Ugarte,Coronel Du Graty,Mayor Luis J. Fontana,-27.689631,-60.833844
+22098A01,Colonia Juan José Paso,Villa Ángela,Mayor Luis J. Fontana,-27.544936,-60.846515
+22098A02,Colonia Juan José Paso Norte,Villa Ángela,Mayor Luis J. Fontana,-27.490611,-60.875545
+22098A03,Colonia La Avanzada,Coronel Du Graty,Mayor Luis J. Fontana,-27.785824,-60.892040
+22098A04,Colonia La Chaqueña,Villa Ángela,Mayor Luis J. Fontana,-27.510564,-60.671144
+22098A05,Colonia La Colorada,Coronel Du Graty,Mayor Luis J. Fontana,-27.625216,-60.885583
+22098A06,Colonia Pegouriel,Villa Ángela,Mayor Luis J. Fontana,-27.617272,-60.811487
+22098A07,El Caburé,Villa Ángela,Mayor Luis J. Fontana,-27.480532,-60.996062
+22098A08,El Palmar,Coronel Du Graty,Mayor Luis J. Fontana,-27.924145,-60.846433
+22098A09,El Pastoril,Villa Ángela,Mayor Luis J. Fontana,-27.628463,-60.754063
+22098A10,La Carlota,Villa Ángela,Mayor Luis J. Fontana,-27.645067,-60.706822
+22098A11,La Manuela,Villa Ángela,Mayor Luis J. Fontana,-27.875349,-60.648101
+22098A12,La Viruela,Enrique Urién,Mayor Luis J. Fontana,-27.864945,-60.368275
+22098A13,Las Avispas,Villa Ángela,Mayor Luis J. Fontana,-27.920299,-60.648595
+22098A14,Las Golondrinas,Coronel Du Graty,Mayor Luis J. Fontana,-27.557239,-60.910924
+22098A15,Las Golondrinas Norte,Coronel Du Graty,Mayor Luis J. Fontana,-27.558712,-60.958774
+22098A16,Las Golondrinas Sur,Coronel Du Graty,Mayor Luis J. Fontana,-27.615914,-60.929664
+22098A17,Los Fortines,Coronel Du Graty,Mayor Luis J. Fontana,-27.768742,-60.768809
+22098A18,Los Gansos,Villa Ángela,Mayor Luis J. Fontana,-27.828599,-60.703501
+22098A19,Lote 11,Villa Ángela,Mayor Luis J. Fontana,-27.952808,-60.648886
+22098A20,Lote 88,Villa Ángela,Mayor Luis J. Fontana,-27.508573,-60.752222
+22098A21,Mesón de Fierro,Villa Ángela,Mayor Luis J. Fontana,-27.465795,-60.922893
+22098A22,Pueblo Coronel Díaz,Villa Ángela,Mayor Luis J. Fontana,-27.635429,-60.793274
+22098A23,Tres Boliches,Villa Ángela,Mayor Luis J. Fontana,-27.489671,-60.843529
+22105010,Las Breñas,Las Breñas,9 de Julio,-27.086438,-61.085823
+22105A00,Campo Cantón,Las Breñas,9 de Julio,-27.063591,-60.952456
+22105A01,Colonia General Necochea,Las Breñas,9 de Julio,-27.107470,-61.189520
+22105A02,Colonia Juan Lavalle,Las Breñas,9 de Julio,-27.202798,-60.901389
+22105A03,Curva de Novoa,Las Breñas,9 de Julio,-27.172314,-60.964465
+22105A04,2 de Mayo,Las Breñas,9 de Julio,-27.017559,-61.187948
+22105A05,El Arenal,Las Breñas,9 de Julio,-26.793887,-61.444869
+22105A06,El Estero,Las Breñas,9 de Julio,-26.740063,-61.562022
+22105A07,El Pucá,Las Breñas,9 de Julio,-27.040957,-61.285082
+22105A08,El Recoveco,Las Breñas,9 de Julio,-26.839715,-61.420445
+22105A09,El Triángulo,Las Breñas,9 de Julio,-27.166249,-60.868934
+22105A10,India Muerta,Las Breñas,9 de Julio,-27.266367,-60.956376
+22105A11,La Esterlina,Las Breñas,9 de Julio,-27.143498,-60.901638
+22105A12,La Selva,Las Breñas,9 de Julio,-27.026011,-61.073775
+22105A13,Las Piedritas,Las Breñas,9 de Julio,-26.823384,-61.565387
+22105A14,Los Arenales,Las Breñas,9 de Julio,-26.701664,-61.455794
+22105A15,Los Cerritos,Las Breñas,9 de Julio,-26.918014,-61.231255
+22105A16,Lote 47,Las Breñas,9 de Julio,-27.316041,-60.882786
+22105A17,Lote 90,Las Breñas,9 de Julio,-27.238741,-60.896153
+22105A18,Lote Norassi,Las Breñas,9 de Julio,-27.208684,-61.039001
+22105A19,Pampa Brugnoli,Las Breñas,9 de Julio,-26.973245,-61.251614
+22105A20,Pampa Cantón,Las Breñas,9 de Julio,-27.060181,-61.007292
+22105A21,Pampa Carnevale,Las Breñas,9 de Julio,-27.079857,-61.128985
+22105A22,Pampa Castro,Las Breñas,9 de Julio,-27.129798,-61.021630
+22105A23,Pampa del Zorro,Las Breñas,9 de Julio,-26.903303,-61.452756
+22105A24,Pampa Gómez,Las Breñas,9 de Julio,-26.853721,-61.507087
+22105A25,Pampa Hermosa,Las Breñas,9 de Julio,-26.732317,-61.365670
+22105A26,Pampa Iporá Guazú,Las Breñas,9 de Julio,-26.884009,-61.379704
+22105A27,Pampa Las Flores,Las Breñas,9 de Julio,-27.191519,-60.819126
+22105A28,Pampa Leguizamón,Las Breñas,9 de Julio,-26.862082,-61.259062
+22105A29,Pampa Mitre,Las Breñas,9 de Julio,-26.962446,-61.166419
+22105A30,Pampa San Martín,Las Breñas,9 de Julio,-27.023358,-61.142991
+22105A31,Pampa Sandi,Las Breñas,9 de Julio,-26.949570,-61.385943
+22105A32,Pampa Suárez,Las Breñas,9 de Julio,-26.912819,-61.172325
+22105A33,Pampa Zanata,Las Breñas,9 de Julio,-26.939279,-61.300133
+22105A34,Pozo del Indio,Las Breñas,9 de Julio,-27.013405,-61.018011
+22105A35,San Antonio,Las Breñas,9 de Julio,-26.672883,-61.584950
+22105A36,Santa Elena,Las Breñas,9 de Julio,-27.022771,-61.230670
+22105A37,Santa Justina,Las Breñas,9 de Julio,-27.063042,-61.186627
+22112010,La Clotilde,La Clotilde,O'Higgins,-27.177337,-60.632670
+22112020,La Tigra,La Tigra,O'Higgins,-27.114230,-60.587658
+22112030,San Bernardo,San Bernardo,O'Higgins,-27.286719,-60.712849
+22112A00,Colonia Domingo Matheu,San Bernardo,O'Higgins,-27.426642,-60.844160
+22112A01,Colonia General Urquiza,La Clotilde,O'Higgins,-27.134632,-60.767023
+22112A02,Colonia José Mármol,La Clotilde,O'Higgins,-27.167622,-60.696104
+22112A03,Colonia Nicolás Avellaneda,La Tigra,O'Higgins,-27.163479,-60.518058
+22112A04,El Tabacal,La Clotilde,O'Higgins,-27.170802,-60.574055
+22112A05,La Cuchilla,La Tigra,O'Higgins,-27.086353,-60.621283
+22112A06,La Sirena,San Bernardo,O'Higgins,-27.210405,-60.717395
+22112A07,Lote 1,San Bernardo,O'Higgins,-27.318642,-60.638904
+22112A08,Lote 5,San Bernardo,O'Higgins,-27.282827,-60.801847
+22112A09,Lote 6,La Clotilde,O'Higgins,-27.229142,-60.632376
+22112A10,Lote 10,San Bernardo,O'Higgins,-27.374844,-60.640628
+22112A11,Lote 10 Sur,San Bernardo,O'Higgins,-27.450617,-60.670753
+22112A12,Lote 11,La Tigra,O'Higgins,-27.049729,-60.534735
+22112A13,Lote 12,La Tigra,O'Higgins,-27.123670,-60.554830
+22112A14,Lote 13,La Clotilde,O'Higgins,-27.229717,-60.577125
+22112A15,Pampa Las Flores,San Bernardo,O'Higgins,-27.192247,-60.817141
+22119010,Presidencia de la Plaza,Presidencia de la Plaza,Presidencia de la Plaza,-26.998643,-59.846377
+22119A00,Colonia Brandsen Norte,Presidencia de la Plaza,Presidencia de la Plaza,-26.883990,-59.826584
+22119A01,Colonia Brandsen Sur,Presidencia de la Plaza,Presidencia de la Plaza,-27.094677,-60.000709
+22119A02,Colonia El Curundú,Presidencia de la Plaza,Presidencia de la Plaza,-26.939188,-59.654495
+22119A03,Colonia El Raigonal,Presidencia de la Plaza,Presidencia de la Plaza,-26.938384,-59.751550
+22119A04,Colonia Hipólito Vieytes,Presidencia de la Plaza,Presidencia de la Plaza,-26.947983,-59.893528
+22119A05,Colonia Pastoril,Presidencia de la Plaza,Presidencia de la Plaza,-26.889194,-59.741985
+22119A06,Colonia Santa Elena,Presidencia de la Plaza,Presidencia de la Plaza,-26.921847,-59.773418
+22119A07,Cuatro Árboles,Presidencia de la Plaza,Presidencia de la Plaza,-26.902941,-59.899747
+22119A08,El Palmar,Presidencia de la Plaza,Presidencia de la Plaza,-26.817715,-59.753691
+22119A09,Fortín Aguilar,Presidencia de la Plaza,Presidencia de la Plaza,-27.072759,-59.648460
+22119A10,Guayaibí,Presidencia de la Plaza,Presidencia de la Plaza,-26.970737,-59.940069
+22126010,Barrio de los Pescadores,Colonia Benítez,1° de Mayo,-27.461060,-58.867574
+22126020,Colonia Benítez,Colonia Benítez,1° de Mayo,-27.332601,-58.946389
+22126030,Margarita Belén,Margarita Belén,1° de Mayo,-27.259057,-58.970555
+22126A00,Campo Rossi,Colonia Benítez,1° de Mayo,-27.228170,-58.905621
+22126A01,Colonia Amadeo,Margarita Belén,1° de Mayo,-27.278995,-59.021752
+22126A02,Costa Iné,Margarita Belén,1° de Mayo,-27.187313,-58.934972
+22126A03,Isla Antequera,Colonia Benítez,1° de Mayo,-27.408392,-58.827015
+22126A04,Lote 1,Colonia Benítez,1° de Mayo,-27.315540,-58.991820
+22126A05,Puente San Pedro,Colonia Benítez,1° de Mayo,-27.318577,-58.766752
+22126A06,Puerto Antequera,Colonia Benítez,1° de Mayo,-27.441796,-58.850844
+22126A07,San Miguel,Margarita Belén,1° de Mayo,-26.917045,-58.986902
+22133010,Quitilipi,Quitilipi,Quitilipi,-26.870791,-60.215200
+22133020,Villa El Palmar,Quitilipi,Quitilipi,-26.454504,-60.164405
+22133A00,Bajo Hondo Chico,Quitilipi,Quitilipi,-26.996889,-60.338699
+22133A01,Cacique Dominga,Machagai,Quitilipi,-26.998098,-60.255726
+22133A02,Campo Feldman,Quitilipi,Quitilipi,-26.912666,-60.268527
+22133A03,Campo Feldman Sur,Quitilipi,Quitilipi,-26.958959,-60.315507
+22133A04,Colonia Blas Parera,Quitilipi,Quitilipi,-27.047871,-60.277407
+22133A05,Colonia El Paraisal,Quitilipi,Quitilipi,-26.499962,-60.068453
+22133A06,Colonia General Paz,Quitilipi,Quitilipi,-26.705743,-60.144566
+22133A07,Colonia General Paz Norte,Quitilipi,Quitilipi,-26.651923,-60.156655
+22133A08,Colonia Uriburu,Quitilipi,Quitilipi,-26.895390,-60.228200
+22133A09,Cuatro Bocas,Quitilipi,Quitilipi,-26.658952,-60.136493
+22133A10,El Tacuruzal,Quitilipi,Quitilipi,-26.377750,-60.156494
+22133A11,El Zanjón,Quitilipi,Quitilipi,-26.538416,-60.087465
+22133A12,La Chiquita,Quitilipi,Quitilipi,-26.837250,-60.317765
+22133A13,La Matanza,Quitilipi,Quitilipi,-26.521400,-60.164327
+22133A14,Legua 19,Quitilipi,Quitilipi,-26.743088,-60.173680
+22133A15,Lote 17,Quitilipi,Quitilipi,-26.574423,-60.164965
+22133A16,Lote 106,Quitilipi,Quitilipi,-26.696113,-60.251720
+22133A17,Lote 176,Quitilipi,Quitilipi,-26.792988,-60.195644
+22133A18,Nueva Población,Machagai,Quitilipi,-26.978055,-60.232268
+22133A19,Pampa Esperanza,Quitilipi,Quitilipi,-26.412711,-60.104050
+22133A20,Pampa Verde,Quitilipi,Quitilipi,-26.456934,-60.051071
+22140010,Barranqueras,Barranqueras,San Fernando,-27.485106,-58.930736
+22140020,Basail,Basail,San Fernando,-27.887604,-59.281472
+22140030,Colonia Baranda,Resistencia,San Fernando,-27.559707,-59.307924
+22140040,Fontana,Fontana,San Fernando,-27.420237,-59.037391
+22140050,Puerto Vilelas,Puerto Vilelas,San Fernando,-27.510839,-58.941716
+22140060,Resistencia,Resistencia,San Fernando,-27.451076,-58.986484
+22140A00,Balneario Paranacito,Puerto Vilelas,San Fernando,-27.649262,-58.904271
+22140A01,Colonia El Paraisal,Basail,San Fernando,-27.953089,-59.231267
+22140A02,Colonia Florencia,Basail,San Fernando,-27.980012,-59.312212
+22140A03,Colonia Las Mercedes,Basail,San Fernando,-27.990056,-59.340097
+22140A04,Colonia Palmira,Basail,San Fernando,-27.914349,-59.313656
+22140A05,Colonia Tacuarí,Basail,San Fernando,-27.881692,-59.125793
+22140A06,El Naranjito,Puerto Vilelas,San Fernando,-27.702206,-59.015227
+22140A07,El Palmar,Resistencia,San Fernando,-27.518756,-59.004328
+22140A08,El Saladillo,Basail,San Fernando,-27.818796,-59.289788
+22140A09,El Salado,Resistencia,San Fernando,-27.529205,-59.146826
+22140A10,Isla Soto,Puerto Vilelas,San Fernando,-27.835519,-58.834055
+22140A11,La Querencia,Resistencia,San Fernando,-27.668662,-59.172580
+22140A12,Las Mercedes,Basail,San Fernando,-27.964856,-59.367287
+22140A13,Loma Alta,Basail,San Fernando,-27.767501,-59.258967
+22140A14,Los Palmares,Resistencia,San Fernando,-27.576835,-59.164367
+22140A15,María Sara,Resistencia,San Fernando,-27.574529,-59.218200
+22140A16,Paralelo 28,Florencia,San Fernando,-28.004098,-59.230670
+22140A17,Playa Ford,Basail,San Fernando,-27.953954,-59.298291
+22140A18,Tres Horquetas,Resistencia,San Fernando,-27.355158,-58.978543
+22147010,Samuhú,Samuhú,San Lorenzo,-27.519108,-60.394026
+22147020,Villa Berthet,Villa Berthet,San Lorenzo,-27.285323,-60.415974
+22147A00,Kilómetro 525,Villa Berthet,San Lorenzo,-27.333276,-60.331388
+22147A01,Lote 3,Villa Berthet,San Lorenzo,-27.345224,-60.516872
+22147A02,Lote 4,Villa Berthet,San Lorenzo,-27.353457,-60.414801
+22147A03,Lote 5,Villa Berthet,San Lorenzo,-27.338723,-60.277261
+22147A04,Lote 8,Villa Berthet,San Lorenzo,-27.379012,-60.427690
+22147A05,Lote 14,Villa Berthet,San Lorenzo,-27.213162,-60.476278
+22147A06,Lote 15,Villa Berthet,San Lorenzo,-27.195310,-60.415512
+22147A07,Lote 17,Villa Berthet,San Lorenzo,-27.070428,-60.365105
+22147A08,Lote 18,Villa Berthet,San Lorenzo,-27.138901,-60.403198
+22147A09,Lote 19,Villa Berthet,San Lorenzo,-27.218516,-60.333591
+22147A10,Lote 20,Villa Berthet,San Lorenzo,-27.196851,-60.280903
+22147A11,Lote 21,Villa Berthet,San Lorenzo,-27.110643,-60.293774
+22147A12,Lote 23,Samuhú,San Lorenzo,-27.663500,-60.480603
+22147A13,Lote 25,Samuhú,San Lorenzo,-27.669260,-60.269410
+22154010,Capitán Solari,Capitán Solari,Sargento Cabral,-26.802388,-59.557083
+22154020,Colonia Elisa,Colonia Elisa,Sargento Cabral,-26.931636,-59.518811
+22154030,Colonias Unidas,Colonias Unidas,Sargento Cabral,-26.698348,-59.632210
+22154040,Ingeniero Barbet,Colonia Elisa,Sargento Cabral,-27.002425,-59.482623
+22154050,Las Garcitas,Las Garcitas,Sargento Cabral,-26.618068,-59.799042
+22154A00,Campo del Blanco,Las Garcitas,Sargento Cabral,-26.600219,-59.749218
+22154A01,Campo Grande,Colonia Elisa,Sargento Cabral,-26.913243,-59.544717
+22154A02,Campo Novo,Colonia Elisa,Sargento Cabral,-26.904717,-59.574642
+22154A03,Campo Quijano,Capitán Solari,Sargento Cabral,-26.829837,-59.403761
+22154A04,Colonia El Cacique,Presidencia de la Plaza,Sargento Cabral,-26.991222,-59.554350
+22154A05,Colonia La Dificultad,Las Garcitas,Sargento Cabral,-26.662527,-59.726043
+22154A06,Colonia Mixta,Colonia Elisa,Sargento Cabral,-26.913771,-59.192995
+22154A07,Kilómetro 575,Colonia Elisa,Sargento Cabral,-26.869234,-59.529284
+22154A08,La Fortuna,Colonia Elisa,Sargento Cabral,-26.866053,-59.292032
+22154A09,La Pastoril,Colonias Unidas,Sargento Cabral,-26.753457,-59.606591
+22154A10,Legua 54,Colonia Elisa,Sargento Cabral,-26.900946,-59.453634
+22154A11,Lote 6,Capitán Solari,Sargento Cabral,-26.830774,-59.603352
+22154A12,Lote 7,Colonias Unidas,Sargento Cabral,-26.726445,-59.655373
+22154A13,Lote 9,Las Garcitas,Sargento Cabral,-26.550584,-59.821651
+22154A14,Lote 20,Colonia Elisa,Sargento Cabral,-26.876405,-59.479674
+22154A15,Lote 21,Las Garcitas,Sargento Cabral,-26.660230,-59.804716
+22154A16,Paso del Oso,Las Garcitas,Sargento Cabral,-26.692784,-59.845862
+22154A17,Salto de la Vieja,Colonia Elisa,Sargento Cabral,-26.927221,-59.594089
+22154A18,Tres Ceibos,Colonia Elisa,Sargento Cabral,-26.902725,-59.524737
+22161010,Charadai,Charadai,Tapenagá,-27.652364,-59.860351
+22161020,Cote Lai,Cote Lai,Tapenagá,-27.531429,-59.575050
+22161030,Haumonia,Charadai,Tapenagá,-27.507640,-60.178199
+22161040,Horquilla,Charadai,Tapenagá,-27.542386,-59.955783
+22161050,La Sabana,Charadai,Tapenagá,-27.871451,-59.936859
+22161A00,Don Ovidio,Cote Lai,Tapenagá,-27.705766,-59.515320
+22161A01,El 38,Cote Lai,Tapenagá,-27.779752,-59.605379
+22161A02,Kilómetro 25,Cote Lai,Tapenagá,-27.327835,-59.652252
+22161A03,Kilómetro 443,Charadai,Tapenagá,-27.778369,-59.903822
+22161A04,Kilómetro 474,Charadai,Tapenagá,-27.588071,-59.708816
+22161A05,La Vicuña,Charadai,Tapenagá,-27.977066,-59.976818
+22161A06,Las Unidas,Charadai,Tapenagá,-27.835200,-59.803661
+22161A07,Oetling,Charadai,Tapenagá,-27.416466,-59.996544
+22161A08,Río Tapenagá,Cote Lai,Tapenagá,-27.564420,-59.659280
+22168010,Colonia Aborigen,Machagai,25 de Mayo,-26.955888,-60.202873
+22168020,Machagai,Machagai,25 de Mayo,-26.926135,-60.048419
+22168030,Napalpí,Machagai,25 de Mayo,-26.902501,-60.129806
+22168A00,Campo Riaño,Machagai,25 de Mayo,-26.613850,-59.903930
+22168A01,Colonia Blas Parera,Machagai,25 de Mayo,-27.089324,-60.238187
+22168A02,Colonia General Arenales,Machagai,25 de Mayo,-26.909529,-59.941481
+22168A03,Colonia Gualtieri,Machagai,25 de Mayo,-26.557770,-59.937790
+22168A04,Colonia La Lola,Machagai,25 de Mayo,-26.703866,-60.068587
+22168A05,Colonia La Tambora,Machagai,25 de Mayo,-26.652239,-59.996248
+22168A06,Colonia Lamadrid,Machagai,25 de Mayo,-26.720887,-59.956907
+22168A07,Colonia Lamadrid Sur,Machagai,25 de Mayo,-26.746616,-59.887810
+22168A08,Colonia Tres Palmas,Machagai,25 de Mayo,-26.738037,-59.966447
+22168A09,El Aguará,Machagai,25 de Mayo,-27.072213,-60.075052
+22168A10,El Martillo,Machagai,25 de Mayo,-27.064596,-60.018836
+22168A11,El Totoral,Machagai,25 de Mayo,-26.822489,-60.055215
+22168A12,La Esperanza,Machagai,25 de Mayo,-26.803350,-59.944324
+22168A13,La Lomita,Machagai,25 de Mayo,-26.436115,-59.847563
+22168A14,Los Blanquizales,Machagai,25 de Mayo,-26.768155,-60.059177
+22168A15,Lote 22,Machagai,25 de Mayo,-27.199977,-60.126643
+22168A16,Lote 24,Machagai,25 de Mayo,-27.251920,-60.079475
+22168A17,Lote 39,Machagai,25 de Mayo,-26.988489,-60.105494
+22168A18,Pampa Bandera,Machagai,25 de Mayo,-26.352553,-59.941103
+22168A19,Pampa Ombú,Machagai,25 de Mayo,-26.308783,-59.940882
+22168A20,Pampa Verde,Machagai,25 de Mayo,-26.515212,-59.971196
+22168A21,Paso del Oso,Machagai,25 de Mayo,-26.695911,-59.904877
+22168A22,Santa Marta,Machagai,25 de Mayo,-26.845564,-59.999420
