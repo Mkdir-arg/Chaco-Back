@@ -5,7 +5,7 @@
 ## Resumen ejecutivo (para el PM)
 
 1. **151 fichas activas, 624 h.** Ninguna crítica; 9 altas. Se integraron 2 fichas medidas en el banco y se descartó 1 por coincidir con octubre.
-2. **Ola 0 (20 h):** el XSS del export ya está arreglado (#1202). Quedan las altas a SIIS que se saltean la lista «no enviar» (B-ERR-01) y el link anónimo que escribe en legajos (B-SEG-04).
+2. **Ola 0 (20 h):** el XSS del export ya está arreglado (#1202). Quedan las altas a SIIS que se saltean la lista «no enviar» (B-ERR-01) y B-SEG-04 (detalle reservado hasta el arreglo).
 3. **Riesgo operativo mayor:** cargar un padrón grande bloquea el link público más de 10 s y da error (B-PERF-01, Ola 1).
 4. **Medido con 20.000 casos:** el Excel de respuestas tarda 18,7 s y el de beneficiarios 8 s. Hoy no cortan; con 8 h y 4 h bajan a ~7 s y ~3 s (Ola 4).
 5. **De fondo (Ola 7, 72 h):** las reglas de aprobar casos y de estados del relevamiento viven en las pantallas. Unificar las reglas de estados entre backoffice y app (B-LIM-02) es **DECISIÓN CLIENTE** y un PR coordinado con Chaco-mobile, con los tests de contrato RED-11/RED-03 en el mismo diff.
@@ -77,7 +77,7 @@ Halladas al consolidar (mismo archivo:línea y mismo problema):
 | B-PERF-06 ← B3-PERF-01 | B4-ERR-03 | retención de hasta `--total` casos con sus JSON: `procesar_casos_siis.py:433` y `proceso_masivo.correr` (`:1098-1105`), el mismo patrón |
 | B-LIM-71 ← B6-LIM-10 | B6-PERF-04 | `catalogo_geografico.py:57-59`: `par_coherente_en_catalogo` consulta en vivo; la misma solución (usar el catálogo cacheado) cierra la divergencia y la consulta |
 
-Relaciones que NO se fusionaron (otro problema en el mismo archivo; van cruzadas en las fichas): B-FE-02/B-SEG-02 (guarda del sexo, plantilla vs vista), B-ERR-27/B-DAT-02 (`eliminacion.py`, hijo vivo vs COUNT bajo lock), B-PERF-19/B-PERF-06 (ids de todos los candidatos vs casos hidratados en `proceso_masivo.py:1098`), B-LIM-61 (`_lotes` y cierre de corrida, comparte `_lotes` con B-LIM-46), B-ERR-07/B-LIM-26 (drenaje de la tabla intermedia).
+Relaciones que NO se fusionaron (otro problema en el mismo archivo; van cruzadas en las fichas): B-FE-02/B-SEG-02 (misma regla de lectura en dos capas), B-ERR-27/B-DAT-02 (`eliminacion.py`, hijo vivo vs COUNT bajo lock), B-PERF-19/B-PERF-06 (ids de todos los candidatos vs casos hidratados en `proceso_masivo.py:1098`), B-LIM-61 (`_lotes` y cierre de corrida, comparte `_lotes` con B-LIM-46), B-ERR-07/B-LIM-26 (drenaje de la tabla intermedia).
 
 ## 2. Índice
 
@@ -92,9 +92,9 @@ Relaciones que NO se fusionaron (otro problema en el mismo archivo; van cruzadas
 | B-LIM-04 | «Aprobar → informar a SIIS → avisar al ciudadano» está escrito tres veces, con orden y regla d… | ALTA | CONFIRMADO | M | 7 | `programas/services/proceso_masivo.py` |
 | B-LIM-05 | Las reglas del catálogo y los reordenamientos escriben desde las vistas, no desde `services/` | ALTA | CONFIRMADO | M | 7 | `programas/views/configuracion.py` |
 | B-LIM-06 | La API de campo tiene el dominio del alta y de la identidad escrito en la vista | ALTA | CONFIRMADO | M | 7 | `programas/api/views.py` |
-| B-SEG-02 | Corregir el sexo desde un caso sin validar pisa la identidad de un legajo ya validado en otro… | MEDIA | CONFIRMADO | S | 0 | `programas/views/revision.py` |
-| B-SEG-03 | El cupo del link público se agota con inscripciones basura y rechazar no lo libera | MEDIA | PLAUSIBLE | S-M | 0 | `programas/services/inscripcion_publica.py` |
-| B-SEG-04 | El link anónimo crea legajos con identidad no verificada y escribe contacto en legajos reales | MEDIA | PLAUSIBLE | S-M | 0 | `programas/services/becas.py` |
+| B-SEG-02 | La identidad validada de una persona se puede modificar desde otro caso | MEDIA | CONFIRMADO | S | 0 | Becas · revisión |
+| B-SEG-03 | El cupo de un link público se puede agotar con inscripciones sin valor | MEDIA | PLAUSIBLE | S-M | 0 | Becas · inscripción pública |
+| B-SEG-04 | El link público escribe en legajos sin identidad validada | MEDIA | PLAUSIBLE | S-M | 0 | Becas · inscripción pública |
 | B-ERR-02 | «Revalidar con Base de Personas» guarda el sexo sin normalizar y da 500 con `FEMENINO`/`MASCUL… | MEDIA | CONFIRMADO | S | 5 | `programas/views/revision.py` |
 | B-ERR-03 | Editar el contacto del caso reescribe la fila entera y puede revertir una aprobación, un recha… | MEDIA | PLAUSIBLE | S | 5 | `programas/views/revision.py` |
 | B-ERR-04 | «Producción territorial» deja afuera los relevamientos que arrancan el último día del rango | MEDIA | CONFIRMADO | S | 4 | `programas/services/reportes_becas.py` |
@@ -265,9 +265,9 @@ El XSS (B-SEG-01) ya está mergeado (#1202, Cambio 494). Las tres SEG de Becas p
 
 - **B-SEG-01** [ALTA · S] El 400 del export del dashboard refleja el parámetro como HTML (XSS reflejado)
 - **B-ERR-01** [ALTA · M] Tres vías de alta a SIIS se saltean reglas que solo aplica el masivo (lista «no enviar», materias, pausa vigente)
-- **B-SEG-02** [MEDIA · S] Corregir el sexo desde un caso sin validar pisa la identidad de un legajo ya validado en otro caso, aun fuera del alcan…
-- **B-SEG-03** [MEDIA · S-M] El cupo del link público se agota con inscripciones basura y rechazar no lo libera
-- **B-SEG-04** [MEDIA · S-M] El link anónimo crea legajos con identidad no verificada y escribe contacto en legajos reales
+- **B-SEG-02** [MEDIA · S] La identidad validada de una persona se puede modificar desde otro caso
+- **B-SEG-03** [MEDIA · S-M] El cupo de un link público se puede agotar con inscripciones sin valor
+- **B-SEG-04** [MEDIA · S-M] El link público escribe en legajos sin identidad validada
 
 ### Ola 1 · Padrón y link público: lock, cola y app de campo (18 h, 5 fichas)
 
@@ -532,7 +532,7 @@ Una fila por regla distinta: **76 reglas** (28 control mecánico, 39 skill, 9 ch
 | R42 | skill | Listados por página pk-first + hidratación (`listados.hidratar_pagina`) | `rendimiento.md` trampa 4 | Sí | B-PERF-09, B-PERF-14 |
 | R43 | skill | Templates y JS deciden por flags y claves, no por strings de estado o etiquetas | `auditoria/rubricas/codigo-limpio.md` | No | B-FE-01, B-FE-02, B-FE-05, B-FE-13 |
 | R44 | skill | Un modal o formulario repetido es un include | `.claude/agents/chaco-design-system.md` | No | B-FE-04, B-FE-08 |
-| R45 | skill | «Todo recurso finito que se consume desde la superficie anónima (cupo, turnos) se puede agotar con captchas resueltos: definir qué estados lo liberan.» | `.claude/skills/seguridad-django/` (inscripción pública) | Parcial: el destino existe | B-SEG-03 |
+| R45 | skill | «Todo recurso finito que se consume desde la superficie anónima define qué estados lo liberan.» | `.claude/skills/seguridad-django/` (inscripción pública) | Parcial: el destino existe | B-SEG-03 |
 | R46 | skill | «Código que corre fuera de un request (hilos, comandos largos) y captura `OperationalError` llama a `connection.close_if_unusable_or_obsolete()` antes de volver a usar la base: Django solo lo hace solo al principio y al final de… | `.claude/skills/mysql-mariadb/SKILL.md` | Parcial: el destino existe | B-ERR-12 |
 | R47 | skill | «Un invariante entre filas (orden, pertenencia) se valida en el servicio, no en un solo form: toda escritura que mueva cualquiera de las filas pasa por la misma función.» | `.claude/skills/seguridad-django` (sección de invariantes) | Parcial: el destino existe | B-ERR-13 |
 | R48 | skill | «Toda guarda temporal de la API de campo evalúa la hora de la captura (`capturado_en`, o `creado` como respaldo), nunca `now()`: la sincronización llega tarde por diseño y un 4xx es permanente en la app.» | `.claude/skills/auditoria/rubricas/` (ERR) | No | B-ERR-15 |
@@ -642,9 +642,9 @@ Rutas de Becas por encima de 500 ms en caliente o de 1 s en frío (el resto qued
 
 Una línea por decisión: ficha · pregunta · propuesta por defecto (se aplica si el cliente no contesta).
 
-- **B-SEG-02** · ¿Se bloquea cambiar el sexo si otro caso de la persona ya tiene identidad validada? · Sí: solo lectura.
-- **B-SEG-03** · ¿Los casos rechazados dejan de ocupar cupo del link público? · Sí: excluir RECHAZADO del conteo, como los duplicados de SIIS-13.
-- **B-SEG-04** · ¿Una inscripción anónima sin identidad validada puede crear legajos y escribir contacto antes de aprobarse? · No: legajo del apoderado y contacto recién al aprobar.
+- **B-SEG-02** · ¿Qué regla protege el dato de identidad compartido entre los casos de una persona? · Default: la más estricta de sus casos.
+- **B-SEG-03** · ¿Qué estados de un caso liberan el recurso finito del link público? · Default: los de rechazo.
+- **B-SEG-04** · ¿Qué se escribe sobre un legajo desde una inscripción anónima antes de la aprobación? · Default: nada hasta que el caso se apruebe.
 - **B-ERR-01** · ¿La lista «no enviar a SIIS» vale en toda vía (masivo, procesar, enviar, reenviar, vaciado y botón)? · Sí, en todas.
 - **B-ERR-05** · ¿La distribución de una pregunta deja de contar respuestas que una condición ocultó? · Sí (lo prometió G2-01).
 - **B-ERR-19** · ¿«Fecha de aprobación» en la planilla de beneficiarios es el día real de la aprobación? · Sí: día de la transición a APROBADO, hora local.
@@ -708,8 +708,8 @@ Obligatorias (ALTA o CRÍTICA de corrección o seguridad):
 
 Recomendadas (MEDIA con estado PLAUSIBLE, o con daño de datos si se confirma):
 
-- **B-SEG-03** [MEDIA · PLAUSIBLE] El cupo del link público se agota con inscripciones basura y rechazar no lo libera
-- **B-SEG-04** [MEDIA · PLAUSIBLE] El link anónimo crea legajos con identidad no verificada y escribe contacto en legajos reales
+- **B-SEG-03** [MEDIA · PLAUSIBLE] El cupo de un link público se puede agotar con inscripciones sin valor
+- **B-SEG-04** [MEDIA · PLAUSIBLE] El link público escribe en legajos sin identidad validada
 - **B-ERR-03** [MEDIA · PLAUSIBLE] Editar el contacto del caso reescribe la fila entera y puede revertir una aprobación, un rechazo o una validación concu…
 - **B-ERR-05** [MEDIA · PLAUSIBLE] La distribución de una pregunta del catálogo cuenta respuestas que una condición ocultó
 - **B-ERR-09** [MEDIA · CONFIRMADO] `conciliar_envios_siis` acepta el mismo envío dos veces con decisiones opuestas y actualiza sin mirar el estado
@@ -1142,45 +1142,40 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) · esfuerzo S-M._
 
 ---
 
-### B-SEG-02 · Corregir el sexo desde un caso sin validar pisa la identidad de un legajo ya validado en otro caso, aun fuera del alcance de quien lo hace
+### B-SEG-02 · La identidad validada de una persona se puede modificar desde otro caso
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** nuevo · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** B1-SEG-01
 - **Escenario:** Se puede cambiar un dato de identidad ya validado de una persona desde un caso de otro segmento.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** `DECISIÓN CLIENTE: por defecto, el sexo es de solo lectura si **cualquier** caso del ciudadano tiene la identidad validada por una fuente (origen PERSONAS o PADRON)`. Implementación: en la guarda, además de `formulario.validado_renaper`, `Formulario.objects.filter(ciudadano_id=ciudadano.pk, validado_renaper=True).exclude(origen_validacion=Formulario.OrigenValidacion.FORZADA).exclude(pk=formulario.pk).exists()` (índice por `ciudadano_id`; una consulta solo en el POST). El mismo predicado en `contexto_identidad` para no dibujar el selector que va a contestar «solo lectura».
-- **Tests a agregar:** `programas/tests/test_revision_identidad.py::ActualizarGeneroTests.test_no_cambia_sexo_validado_en_otro_caso_del_ciudadano`.
-- **Verificación:** el test; verificar por mutación (quitar el `exists()` → rojo).
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md` · «Un dato de `Ciudadano` (legajo transversal) que se edita desde un caso de programa se protege con las reglas de **todos** los casos de la persona, no solo con el del caso abierto: el alcance del caso no acota el efecto de escribir en el legajo».
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: proteger el dato de identidad con las reglas de todos los casos de la persona.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md` · «Un dato del legajo transversal que se edita desde un caso de programa se protege con las reglas de todos los casos de la persona.»
+
 ---
 
-### B-SEG-03 · El cupo del link público se agota con inscripciones basura y rechazar no lo libera
-**Severidad:** MEDIA · **Estado:** PLAUSIBLE · **Eje:** SEG · **Origen:** Origen oct.: SIIS-13 (🟡 abierto: opción (a) en Cambio 174, opción (b) pendiente de D-S13); esta ficha es el mismo conteo de cupo con RECHAZADO; (no lo cubre ningún hallazgo de oct.) · **Ola:** 0 · **Esfuerzo:** S-M
+### B-SEG-03 · El cupo de un link público se puede agotar con inscripciones sin valor
+**Severidad:** MEDIA · **Estado:** PLAUSIBLE · **Eje:** SEG · **Origen:** cruce oct.: SIIS-13 · **Ola:** 0 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** B6-SEG-01
 - **Escenario:** El cupo de un link público puede agotarse con inscripciones sin valor.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:**
-  - `DECISIÓN CLIENTE`. Propuesta por defecto: excluir del conteo los casos RECHAZADO, igual que la exclusión de SIIS-13 para duplicados.
-  - El filtro va en `_insertar_formulario` y en `cupo_completo`, y los dos tienen que contar igual.
-  - Opcional: una alerta al operador cuando el ritmo de inscripciones de un link supera X por hora.
-- **Tests a agregar:** `programas/tests/test_inscripcion_publica.py::CupoTest.test_rechazado_no_consume_cupo`
-- **Verificación:** test en verde. Con el cupo lleno y un caso rechazado, el link vuelve a aceptar una inscripción.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` (inscripción pública) · «Todo recurso finito que se consume desde la superficie anónima (cupo, turnos) se puede agotar con captchas resueltos: definir qué estados lo liberan.»
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: definir qué estados de un caso liberan el recurso finito del link público.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` (inscripción pública) · «Todo recurso finito que se consume desde la superficie anónima define qué estados lo liberan.»
+
 ---
 
-### B-SEG-04 · El link anónimo crea legajos con identidad no verificada y escribe contacto en legajos reales
+### B-SEG-04 · El link público escribe en legajos sin identidad validada
 **Severidad:** MEDIA · **Estado:** PLAUSIBLE · **Eje:** SEG · **Origen:** cruce oct.: G1-01 (✅ #663, Cambio 198) y SIIS-08 · **Ola:** 0 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** B6-SEG-02
 - **Escenario:** El link público puede crear o completar legajos con datos no verificados.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:**
-  - `DECISIÓN CLIENTE`. Propuesta por defecto: en los formularios de un relevamiento público con identidad no validada, diferir a la aprobación del caso (que ya pasa por un operador) la escritura sobre el legajo y el alta de legajos nuevos.
-  - Diferir las dos cosas a la aprobación del caso, que ya pasa por un operador.
-  - Los datos siguen guardados en `datos_identificacion`, así que no se pierde nada.
-- **Tests a agregar:** `programas/tests/test_inscripcion_publica.py::LegajoAnonimoTest.test_link_publico_no_completa_contacto_de_legajo_existente`, `...test_link_publico_no_crea_legajo_de_apoderado`
-- **Verificación:**
-  - Los tests están en verde.
-  - Una inscripción pública sobre el DNI de un legajo sin email deja el email vacío.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Ningún dato tipeado en una superficie anónima escribe en un legajo (`Ciudadano`) existente ni crea uno ajeno sin validación de identidad o revisión humana.»
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: diferir a la aprobación del caso la escritura sobre legajos desde la superficie anónima.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Ningún dato tipeado en una superficie anónima escribe en un legajo sin validación de identidad o revisión humana.»
+
 ---
 
 ### B-ERR-02 · «Revalidar con Base de Personas» guarda el sexo sin normalizar y da 500 con `FEMENINO`/`MASCULINO`
@@ -1720,7 +1715,7 @@ _Pasada 1: severidad MEDIA · estado PLAUSIBLE · esfuerzo S-M._
 ### B-PERF-08 · Techo de rendimiento de la cola única del link público, nunca medido
 **Severidad:** MEDIA · **Estado:** PLAUSIBLE (mecanismo confirmado por lectura; tiempo de retención por envío sin medir) · **Eje:** PERF · **Origen:** Cambio 91 (`docs/internal/requerimientos.md:10326+`): la cola del lock único se aceptó como diseño y «adentro del lock quedó solo lo indexado», pero nunca se midió con N envíos concurrentes. No coincide con PERF-12 (mide solo el count). · **Ola:** 1 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** B6-PERF-02
-- **Ubicación:** `programas/services/inscripcion_publica.py:113-132` (atomic + FOR UPDATE del Relevamiento en :114), `:135-209` (`_insertar_formulario`: count :155, FOR UPDATE Convocatoria :159, `dni_en_convocatoria` :160, `esta_habilitado` :162, `Formulario.objects.create` :176); `programas/models/__init__.py:4164-4181` (`Formulario.save`: atomic anidado que vuelve a lockear el Relevamiento + Max(numero)).
+- **Ubicación:** `programas/services/inscripcion_publica.py:113-132` (atomic + FOR UPDATE del Relevamiento en :114), `:135-209` (inserción: conteo :155, FOR UPDATE Convocatoria :159, `dni_en_convocatoria` :160, `esta_habilitado` :162, `Formulario.objects.create` :176); `programas/models/__init__.py:4164-4181` (`Formulario.save`: atomic anidado que vuelve a lockear el Relevamiento + Max(numero)).
 - **Escenario:** pico de difusión del link. Todos los envíos del mismo relevamiento se serializan en una fila. Por envío, dentro del lock: ~8–10 idas y vueltas + INSERT con la foto `definicion` (6–27 KB de JSON). Si la retención es 20–30 ms, el techo es ~35–50 envíos/s por relevamiento; una ráfaga de 1.000 simultáneos deja a los últimos >10 s en cola → 2013 → 500, aunque cada consulta sea por índice.
 - **Crece con:** envíos simultáneos por relevamiento (lineal en la espera del último) × latencia app↔base (cada ida y vuelta se paga con el lock tomado) × tamaño de la definición.
 - **Causa raíz:** cupo y numeración exigen exclusión por relevamiento (correcto); lo que no está acotado es cuánto dura cada turno ni cuántos esperan.
@@ -2461,10 +2456,7 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) la duplicación; PLAUS
 ### B-LIM-41 · Dos caminos para crear un caso (app de campo y link público) con el mismo esqueleto y reglas que ya divergen
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Eje:** LIM · **Origen:** nuevo; relacionado con RED-05 y RED-10 (los dos caminos ya tienen tests y presupuestos por separado) · **Ola:** 13 · **Esfuerzo:** L
 - **ID de la pasada 1:** B6-LIM-02
-- **Ubicación:** app: `programas/api/views.py:746-802` + `_completar_alta` `:422-457`; link:
-  `programas/services/inscripcion_publica.py:99-132` (`crear_formulario_publico`), `:135-209`
-  (`_insertar_formulario`), `:212-249` (`_completar_envio`). Tercer camino fuera del alcance:
-  `programas/services/alta_de_oficio.py:40,216`.
+- **Ubicación:** app: `programas/api/views.py` (alta de caso); link: `programas/services/inscripcion_publica.py` (alta pública, inserción y completado). Tercer camino fuera del alcance: `programas/services/alta_de_oficio.py`.
 - **Escenario:** los dos hacen, en el mismo orden, *lock del relevamiento → idempotencia por `client_uuid` →
   disponibilidad → cupo → duplicado → insert → (fuera del lock, idempotente) completar → `resolver_ciudadano_offline`*.
   Lo que difiere está escrito distinto en cada lado y ya se separó:
@@ -2472,15 +2464,10 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) la duplicación; PLAUS
     chequeo de «mismo alta»); el link la busca **solo en el relevamiento** (`formulario_por_client_uuid(rel, …)`,
     `inscripcion_publica.py:122`). Hoy no muerde porque el link genera el UUID en el servidor, pero la regla K4 se
     escribió una vez y el otro camino no la heredó.
-  - **Cupo:** `bloqueado.formularios.count() >= bloqueado.cupo_maximo` (`views.py:770`) y
-    `rel.formularios.count() >= rel.cupo_maximo` (`inscripcion_publica.py:155`), mientras el modelo ya tiene
-    `Relevamiento.cupo_completo` (`programas/models/__init__.py:3378`), que usa el portal fuera del lock
-    (`portal/services/inscripcion.py:83`). Tres escrituras de la misma regla.
+  - **Cupo:** la regla está escrita tres veces (una en el modelo y dos copias en los caminos de alta), con variantes que ya se separaron.
   - **Disponibilidad:** `campo.evaluar_captura` (app) frente a `rel.estado != EN_CURSO or not habilitado_en(now)`
     (`inscripcion_publica.py:153`) frente a `relevamiento_disponible` (`portal/services/inscripcion.py:77-84`).
-  - **Identidad acreditada:** la app la recalcula en el servidor (`_actualizar_validacion_identidad`); el link la
-    escribe inline en el `create` (`inscripcion_publica.py:165-208`, `validado_renaper=bool(es_validado and nombre
-    and apellido)`), con su propia copia de «qué orígenes acreditan» (ver B-LIM-42).
+  - **Identidad acreditada:** la app la recalcula en el servidor; el link la escribe inline en el alta, con su propia copia de «qué orígenes acreditan» (ver B-LIM-42).
   Una corrección futura en uno de los caminos (otra K4, otro Cambio 91) se va a hacer en uno solo, como ya pasó.
 - **Causa raíz:** el link (#295) copió el patrón de la API («mismo patrón que la API de campo», dice su docstring
   `:9`) en vez de extraerlo; las reglas que vinieron después se aplicaron caso por caso.
@@ -2497,8 +2484,7 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) la duplicación; PLAUS
   def reservar_alta(rel, *, client_uuid, dni, politica, insertar) -> ResultadoAlta: ...  # todo lo que va bajo el lock
   ```
   `insertar` es el callable propio de cada canal (`serializer.save(**extras)` o el `Formulario.objects.create` de
-  `_insertar_formulario`), así los campos que escribe cada uno no cambian. El cupo pasa a una sola función
-  `cupo_lleno_bajo_lock(rel)` (la cuenta fresca que hoy se escribe dos veces) junto a `Relevamiento.cupo_completo`.
+  la inserción propia del link), así los campos que escribe cada uno no cambian. El cupo pasa a una sola función bajo lock, junto a la del modelo.
   `completar_*` queda por canal (los adjuntos del link y la revisión G1-05 de la app son genuinamente distintos), pero
   los dos terminan en el mismo `resolver_ciudadano_offline`. La diferencia de idempotencia queda **explícita** en
   `idempotencia_global`; unificarla es `DECISIÓN CLIENTE: global también en el link` (sin efecto práctico hoy).
@@ -2593,7 +2579,7 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) la duplicación; PLAUS
 - **Escenario:** `COLUMNAS_FIJAS` es la fuente del mapeo, pero el *default* por columna y la conversión de fecha no
   están en ella: si se agrega una columna fija de fecha (`apoderado_*` ya tiene una), hay que acordarse de tres
   `endswith("fecha_nacimiento")`/`parse_date` distintos; en el link, una columna nueva en `COLUMNAS_FIJAS` **no** se
-  escribe nunca, porque `_insertar_formulario` lista las siete a mano.
+  escribe nunca, porque la inserción del link las lista a mano.
 - **Causa raíz:** `legacy_desde_respuestas` devuelve un dict «flojo» (`fijos`) y cada llamador lo completa con su
   propia idea de vacío.
 - **Solución:** en `respuestas.py`, `columnas_fijas_desde(fijos) -> dict[str, Any]` que devuelve **las siete** con su
@@ -2671,12 +2657,12 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) la duplicación; PLAUS
 ### B-FE-02 · Regla de «sexo de solo lectura» divergente: el template ofrece editar y la vista siempre rechaza
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Eje:** FE · **Origen:** nuevo · **Ola:** 5 · **Esfuerzo:** S
 - **ID de la pasada 1:** B1-FE-02
-- **Ubicación:** `programas/templates/programas/becas/revision/_detalle/_identidad.html:35` (solo lectura si `validado_renaper and not identidad_forzada and genero`) vs `programas/views/revision.py:906-908` (`formulario_actualizar_genero` rechaza si `validado_renaper and ciudadano.genero`, sin mirar `identidad_forzada`).
+- **Ubicación:** revisión · detalle de identidad (plantilla y vista).
 - **Escenario:** caso con identidad forzada y RENAPER validado con género cargado: el revisor ve el selector de sexo, lo cambia, envía, y recibe siempre «La identidad ya fue validada; el sexo es de solo lectura.». No hay forma de completar la acción que la pantalla ofrece.
 - **Causa raíz:** la misma regla escrita dos veces, en capas distintas, y una cambió (al introducir `identidad_forzada`) sin la otra.
 - **Solución:** una sola función `sexo_editable(formulario)` en el servicio de B-LIM-01 (o propiedad del modelo), usada por la vista para rechazar y por el selector para pasar `sexo_editable` al template. Qué regla gana (con o sin `identidad_forzada`) lo decide el PM; el arreglo mínimo es que ambas capas digan lo mismo.
 - **Lo que NO hay que hacer:** «arreglar» solo el template ocultando el form sin decidir la regla; tocar el snapshot sin registrar el cambio.
-- **Tests a agregar:** test con `identidad_forzada=True`, `validado_renaper=True`, `genero` cargado: lo que muestra el detalle coincide con lo que acepta el POST. Verificar por mutación.
+- **Tests a agregar:** un test por caso límite: lo que muestra el detalle coincide con lo que acepta la vista. Verificar por mutación.
 - **Verificación:** el test nuevo; snapshots regenerados solo si cambia el caso forzado, con el diff revisado.
 - **Regla para no repetirlo:** agente · `rubricas/codigo-limpio.md` · «una condición de permiso/editable que aparece en vista y template se calcula una vez y se pasa como flag».
 
@@ -3600,7 +3586,7 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 - **ID de la pasada 1:** B6-LIM-08
 - **Ubicación:** `programas/services/becas.py` (532 líneas): definición del formulario `:29-248`; lookups idempotentes
   `:251-292`; alcance de coordinador `:301-320`; trazas `:323-357`; resolución del legajo `:360-532`
-  (`resolver_ciudadano_offline`, `_anotar_identidad_acreditada`, `_completar_contacto`); reexport de
+  (resolución del legajo y anotación de identidad); reexport de
   `q_uuid_en_texto` `:13`. `programas/services/diseno.py:687` importa los privados `_alcance_requisito` y
   `_campo_dict`, que es el ciclo.
 - **Escenario:** el nombre del módulo no dice nada de lo que hay adentro; `campo.py`, `respuestas.py`,

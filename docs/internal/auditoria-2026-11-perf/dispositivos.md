@@ -37,9 +37,9 @@
 
 **Las que importan:**
 
-1. **D-LIM-01** (ALTA, hallado por 2 revisores): la vista reescribe la regla «quién ve al agente asignado» y el filtro «Asignado a» revela a qué agente va un relevamiento que la fila oculta (D-LIM-01 absorbe D4-SEG-01). Ola 0.
-2. **D-SEG-01** (MEDIA, **CONFIRMADO con PoC**, Ola 0): un operador puede otorgarse un rol que su perfil no debería darle. Detalle técnico reservado hasta el arreglo.
-3. **D-SEG-02** (MEDIA, hallado por 2 revisores, Ola 0): un texto libre llega al historial de quien no debería verlo (invariante del Cambio 271). Detalle técnico reservado hasta el arreglo.
+1. **D-LIM-01** (ALTA, hallado por 2 revisores): la vista reescribe la regla «quién ve al agente asignado» y el filtro «Asignado a» no aplica la misma regla de visibilidad que la fila (D-LIM-01 absorbe D4-SEG-01). Ola 0.
+2. **D-SEG-01** (MEDIA, **CONFIRMADO con PoC**, Ola 0): detalle técnico reservado hasta el arreglo.
+3. **D-SEG-02** (MEDIA, hallado por 2 revisores, Ola 0): detalle técnico reservado hasta el arreglo.
 4. **D-ERR-01** (MEDIA, **CONFIRMADO con PoC**, hallado por 3 revisores, Ola 1): no hay orden global de candados; el ERROR 1213 se reprodujo en los dos caminos y llega como 500. No es Ola 0: InnoDB elige la víctima y el rollback no deja datos inconsistentes.
 5. **D-LIM-02 y D-LIM-03** (ALTA): la transacción de negocio del ingreso y la edición del legajo están en la vista. Con D4-LIM-04, D3-LIM-06 y D1-LIM-06 forman la **regla transversal «lógica de dominio en vistas»** (R-1), la misma de Becas ola 7 y de E-LIM-01.
 6. **D-ERR-02** (MEDIA, hallado por 4 revisores): un dispositivo cerrado sigue admitiendo cambios de plaza y reservas, y cerrar no mira estadías ni reservas. Es DECISIÓN CLIENTE con default aplicable.
@@ -64,13 +64,13 @@ Halladas al consolidar (mismo archivo o mismo problema, otro revisor):
 
 | Ficha final | Absorbe | Motivo |
 |---|---|---|
-| D-SEG-02 ← D1-SEG-01 | D3-SEG-01 | el mismo motivo libre del cambio de plaza en dos pantallas (historial y bitácora); toma MEDIA |
+| D-SEG-02 ← D1-SEG-01 | D3-SEG-01 | el mismo hallazgo en dos pantallas; toma MEDIA |
 | D-LIM-36 ← D3-LIM-11 | D1-LIM-16 + D4-LIM-06 | formateadores duplicados (plural, nombre de usuario, fecha, extensiones) |
 | D-LIM-37 ← D2-LIM-13 | D4-LIM-13 | envoltorios identidad y constantes de capacidad copiados; vista que importa el mixin de otra vista |
 | D-LIM-38 ← D2-LIM-12 | D3-LIM-16 | formato del nombre de plaza (`plaza_con_sector` ignorado). D3-LIM-16 **no cabía** en la ficha de tonos pedida por el juez |
 | (sin ficha propia, a Descartados) | D1-LIM-15 | INFO «verificado sin acción»: la guardia de Emergencia no reimplementa el detalle del dispositivo |
 
-Relaciones que NO se fusionaron (misma familia, otro archivo, otra causa o distinta migración; van cruzadas en las fichas): D-DAT-01 (índice del historial) con D-PERF-01; D-SEG-03, D-SEG-04 y D-SEG-05 con D-SEG-02 (datos personales en el historial, regla R-4); D-PERF-06 y D-PERF-07 con D-ERR-01 (mismas filas, otra medición); D-FE-07 con D-FE-03 (arranque del formulario del tipo); D-LIM-32 con D-LIM-37 (la misma importación del mixin en `reportes.py`).
+Relaciones que NO se fusionaron (misma familia, otro archivo, otra causa o distinta migración; van cruzadas en las fichas): D-DAT-01 (índice del historial) con D-PERF-01; D-SEG-03, D-SEG-04 y D-SEG-05 con D-SEG-02 (alcance de datos personales, regla R-4); D-PERF-06 y D-PERF-07 con D-ERR-01 (mismas filas, otra medición); D-FE-07 con D-FE-03 (arranque del formulario del tipo); D-LIM-32 con D-LIM-37 (la misma importación del mixin en `reportes.py`).
 
 ### Cruces con otros capítulos
 
@@ -81,7 +81,7 @@ Buscados con grep en `becas.md` y `emergencia.md` (pedido 2 del juez):
 | D-LIM-26 | **Existe en Becas: B-LIM-38** (ex B5-LIM-07, «El pegamento HTTP del constructor está copiado entre Becas y Dispositivos», Ola 12 de Becas). Arreglo único; el esfuerzo se cuenta una vez (el juez decide en qué ola). |
 | D-ERR-06 | **No está en Becas.** El mismo patrón vive en `programas/views/diseno.py:287` (Becas). B-ERR-29 es otro defecto (`services/diseno.py:283`). **Resolución del juez:** la ficha D-ERR-06 cubre también `views/diseno.py:287` de Becas; hay nota cruzada en [becas.md](becas.md) (Ola 6) y no se abre ficha aparte. |
 | D-PERF-03 | **No está ni en Becas ni en Emergencia.** Ficha propia, marcada transversal: `core/views/media.py` sirve adjuntos de los tres módulos. |
-| D-SEG-01 | Patrón de **#1114** (`roles_propios_bloqueados`, `users/selectors/usuarios.py:93`): solo cubría el ABM de Usuarios. Regla R-2. |
+| D-SEG-01 | Cruce con #1114. Regla R-2. |
 | D-FE-05 | **Existe en Emergencia: E-LIM-29**: la tabla severidad → tono/ícono y el `Aviso` copiados entre Emergencia y Dispositivos. Una sola tabla. |
 | D-LIM-37 | E-LIM-27 (capacidad `dispositivo.admitir` redeclarada en siete módulos). |
 | D-LIM-16 | E-LIM-19 (contrato Dispositivos ↔ Emergencia con helpers privados). |
@@ -101,7 +101,7 @@ Se citan con los IDs de tajada (la tabla de equivalencia está al final de la se
 2. **Guarda «cerrado» contra «no ACTIVO».** D1-ERR-01 y D2-ERR-04 (ficha D-ERR-02) rechazan por estado `CERRADO`; D2-ERR-03 pide «no ACTIVO» para reservar. Hay estados intermedios que el cierre de Dispositivos no resuelve en ninguna ficha. Propuesta: una sola `dispositivo_operable(d)` con `CERRADO` rechazado en todo mutador y «no ACTIVO» solo donde ya se exige (bitácora, reservas); queda DECISIÓN CLIENTE con default.
 3. **Destino de los helpers de formato.** D1-LIM-16 propone `programas/services/formato.py`; D3-LIM-11, `core/texto.py` y `core/archivos.py`; D4-LIM-06, `core/usuarios.py::nombre_visible`; Emergencia (E-LIM-25) tiene su propia propuesta. Propuesta: `core/texto.py` (plural y formatos), `core/archivos.py` (extensiones) y `core/usuarios.py` (nombre visible), un solo PR con Emergencia ola 7; `programas/services/formato.py` no se crea.
 4. **Nombre del helper de visibilidad del agente asignado.** D4-LIM-05 propone `ve_la_asignacion_en_lote` y `agentes_visibles_para`; D4-SEG-01 expresa el filtro con `edificios_en_alcance(user, CAP_ASIGNAR) | asignado_a_id`. Propuesta: `ve_la_asignacion_en_lote` y que el filtro de D4-SEG-01 use el mismo conjunto (queda dicho en D-LIM-01).
-5. **Severidad del motivo libre.** D1-SEG-01 la dio MEDIA y D3-SEG-01 BAJA para el mismo texto en dos pantallas, contra el mismo invariante (Cambio 271). La ficha fusionada toma MEDIA (D-SEG-02); el juez puede bajarla.
+5. **Severidad de D-SEG-02.** D1-SEG-01 la dio MEDIA y D3-SEG-01 BAJA para el mismo hallazgo en dos pantallas, contra el mismo invariante (Cambio 271). La ficha fusionada toma MEDIA (D-SEG-02); el juez puede bajarla.
 6. **D3-FE-01 propone `_ajax_js`; octubre descartó promoverlo.** El paso 2 usa un include que quizá solo exista en `programas/becas/` (descartado §8.1: no promover `_ajax_js`/`_modal_*` a `components/`). Resuelto: ver resolución 6 (data-ajax canónico, sin DECISIÓN CLIENTE).
 7. **Numeración de olas de los revisores.** Los revisores de tajada usaron «Ola» con significados distintos (D1: 1/2/3; D2 y D3: 2/3/4 o «limpieza»; D3 corrección: «RBAC», «config», «constructor»; D4: 2/3). Aquí se reasignaron todas; el campo «Ola» de cada ficha es el de este informe.
 8. **Volúmenes del banco.** D1 pide un dispositivo grande de 500 plazas con el 15 % de las estadías; D2, uno de 300 plazas con 20.000 egresadas y 300 activas; D4, 5.000 edificios y 50.000 inspecciones. No se contradicen si se siembran los tres a la vez (sección 8.c), pero hay que elegir el grande: 500 plazas, 10 sectores, 3 turnos y 20.000 estadías.
@@ -113,8 +113,8 @@ Se citan con los IDs de tajada (la tabla de equivalencia está al final de la se
 | D-LIM-01 | La vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el he… | ALTA | CONFIRMADO | S | 0 | `programas/views/dispositivos_relevamientos.py` |
 | D-LIM-02 | Lógica de dominio y transacción de negocio en la vista del asistente de ingreso | ALTA | CONFIRMADO | S-M | 5 | `programas/views/dispositivos_ingreso.py` |
 | D-LIM-03 | La edición del legajo (diff, contacto, traza y envío) se escribe en la vista | ALTA | CONFIRMADO | S-M | 5 | `programas/views/dispositivos_legajo.py` |
-| D-SEG-01 | `sumar_rol_de_agente` permite que el operador se sume a sí mismo el rol de agente | MEDIA | CONFIRMADO con test | S | 0 | `programas/services/sumar_agente.py` |
-| D-SEG-02 | El historial muestra el motivo libre del cambio de plaza a quien no puede ver a la persona | MEDIA | CONFIRMADO | S | 0 | `programas/selectors/auditoria_dispositivo.py` |
+| D-SEG-01 | Un atajo de alta permite otorgarse un rol propio | MEDIA | CONFIRMADO con test | S | 0 | Dispositivos · usuarios y agentes |
+| D-SEG-02 | El historial muestra texto libre a quien no puede ver a la persona | MEDIA | CONFIRMADO | S | 0 | Dispositivos · historial |
 | D-ERR-01 | Configurar capacidad toma dispositivo→plaza y el ingreso toma plaza→dispositivo: deadlock 1213 | MEDIA | CONFIRMADO con test | S-M | 1 | `programas/services/plazas.py` |
 | D-ERR-02 | Cerrar un dispositivo no mira si tiene personas alojadas o reservas, y después del cierre se p… | MEDIA | CONFIRMADO | M | 3 | `programas/services/dispositivos.py` |
 | D-ERR-03 | El ingreso retroactivo no tiene cota inferior: reescribe censo, historial y turnos viejos | MEDIA | CONFIRMADO | S | 3 | `programas/services/estadias.py` |
@@ -152,11 +152,11 @@ Se citan con los IDs de tajada (la tabla de equivalencia está al final de la se
 | D-FE-02 | `tipo_detail.html` lleva 175 líneas de JS inline que reimplementan, y contradicen, el handler… | MEDIA | CONFIRMADO | S-M | 10 | `templates/programas/dispositivos/config/tipo_detail.html` |
 | D-FE-03 | `nodo-formulario-tipo.js` duplica `nodo-formulario.js` (link público de Becas) con divergencias | MEDIA | CONFIRMADO | S-M | 10 | `static/custom/js/nodo-formulario-tipo.js` |
 | D-FE-04 | Componente Alpine de ~55 líneas embebido en un atributo `x-data`, con nombres de acción duplic… | MEDIA | CONFIRMADO | S-M | 10 | `programas/templates/programas/dispositivos/sectores/sectores.html` |
-| D-SEG-03 | La traza de edición pone el DNI del responsable en el historial, aunque la ficha no lo muestra | BAJA | CONFIRMADO | S | 2 | `programas/views/dispositivos_legajo.py` |
-| D-SEG-04 | El historial nombra a quien hizo el relevamiento y cuenta las fotos a quien no tiene alcance d… | BAJA | CONFIRMADO | S-M | 2 | `programas/selectors/auditoria_dispositivo.py` |
-| D-SEG-05 | La redacción fuera de alcance de `verificar_alojamiento_en_red` se anula por la trayectoria de… | BAJA | CONFIRMADO | S-M | 2 | `programas/services/estadias.py` |
-| D-SEG-06 | La API de campo no tiene throttle ni tope de cargas, y lo cargado no se puede borrar | BAJA | CONFIRMADO | S | 2 | `programas/api/views_inspecciones.py` |
-| D-SEG-07 | «El agente es externo a la institución» solo se valida al asignar: vincular un edificio la pue… | BAJA | CONFIRMADO | S | 2 | `programas/services/edificios.py` |
+| D-SEG-03 | El historial expone un dato personal del responsable | BAJA | CONFIRMADO | S | 2 | Dispositivos · historial |
+| D-SEG-04 | El historial muestra datos de relevamientos fuera de alcance | BAJA | CONFIRMADO | S-M | 2 | Dispositivos · historial |
+| D-SEG-05 | Una redacción por alcance se anula por otros caminos de lectura | BAJA | CONFIRMADO | S-M | 2 | Dispositivos · trayectoria |
+| D-SEG-06 | La API de campo no limita las cargas de archivos | BAJA | CONFIRMADO | S | 2 | Dispositivos · API de campo |
+| D-SEG-07 | Una regla de separación entre agente e institución puede romperse | BAJA | CONFIRMADO | S | 2 | Dispositivos · edificios |
 | D-ERR-05 | La edición del legajo responde 500 si dos personas guardan el mismo código a la vez | BAJA | PLAUSIBLE | S | 1 | `programas/views/dispositivos_legajo.py` |
 | D-ERR-06 | Borrar un grupo del formulario por tipo puede arrastrar en cascada un campo que se movió a ese… | BAJA | PLAUSIBLE | S | 3 | `programas/views/dispositivos_formularios.py` |
 | D-ERR-07 | El toggle de tipo de dispositivo no es idempotente: un doble POST deja el estado como estaba | BAJA | CONFIRMADO | S | 3 | `programas/views/dispositivos_config.py` |
@@ -309,7 +309,7 @@ Lo confirmado primero; después por tema y por archivo, para que los PRs no se p
 
 | Ola | Nombre | Fichas | Horas |
 |---|---|---|---|
-| 0 | Seguridad confirmada: roles propios, agente asignado y motivo libre | 3 | 6 |
+| 0 | Seguridad confirmada (detalle reservado hasta el arreglo) | 3 | 6 |
 | 1 | Concurrencia: orden de candados y carreras del legajo | 4 | 10 |
 | 2 | Datos personales y alcance en historial, trayectoria y API de campo | 9 | 24 |
 | 3 | Correcciones de borde: cierre, retroactivo, constructor y cargas tardías | 12 | 32 |
@@ -326,13 +326,13 @@ Lo confirmado primero; después por tema y por archivo, para que los PRs no se p
 | | **Subtotal olas 11 y 12 (opcional)** | **22** | **54** |
 | | **Total** | **93** | **318** |
 
-### Ola 0 · Seguridad confirmada: roles propios, agente asignado y motivo libre (6 h, 3 fichas)
+### Ola 0 · Seguridad confirmada (detalle reservado hasta el arreglo) (6 h, 3 fichas)
 
-Tres fichas chicas con arreglo escrito. Las tres son de datos personales o de roles: el atajo que otorga roles a uno mismo (PoC confirmada), la visibilidad del agente asignado (la ALTA del capítulo) y el motivo libre del cambio de plaza. El motivo libre lleva DECISIÓN CLIENTE con default aplicable (sección 7).
+Tres fichas chicas con arreglo escrito, todas de datos personales o de roles: D-SEG-01 (PoC confirmada), la visibilidad del agente asignado (la ALTA del capítulo) y D-SEG-02. D-SEG-02 lleva DECISIÓN CLIENTE con default aplicable (sección 7). Detalle técnico reservado hasta el arreglo.
 
-- **D-SEG-01** [MEDIA · S] `sumar_rol_de_agente` permite que el operador se sume a sí mismo el rol de agente
+- **D-SEG-01** [MEDIA · S] Un atajo de alta permite otorgarse un rol propio
 - **D-LIM-01** [ALTA · S] La vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper por lote que existe
-- **D-SEG-02** [MEDIA · S] El historial muestra el motivo libre del cambio de plaza a quien no puede ver a la persona
+- **D-SEG-02** [MEDIA · S] El historial muestra texto libre a quien no puede ver a la persona
 
 ### Ola 1 · Concurrencia: orden de candados y carreras del legajo (10 h, 4 fichas)
 
@@ -347,11 +347,11 @@ La primera ola de concurrencia. Se fija **un** orden global de candados (contrad
 
 Datos personales y alcance en las pantallas que se leen sin `ciudadano.ver`: historial, trayectoria, formulario público de la API de campo. Un solo patrón de arreglo (redactar o no mostrar), un test parametrizado por usuario sin `ciudadano.ver` (regla R-4). Incluye las reglas de alcance escritas en varios lugares (enmascarado de la persona, y quién puede administrar usuarios de Dispositivos).
 
-- **D-SEG-03** [BAJA · S] La traza de edición pone el DNI del responsable en el historial, aunque la ficha no lo muestra
-- **D-SEG-04** [BAJA · S-M] El historial nombra a quien hizo el relevamiento y cuenta las fotos a quien no tiene alcance de inspección (Cambio 428)
-- **D-SEG-05** [BAJA · S-M] La redacción fuera de alcance de `verificar_alojamiento_en_red` se anula por la trayectoria del legajo y por «otras estadías»
-- **D-SEG-06** [BAJA · S] La API de campo no tiene throttle ni tope de cargas, y lo cargado no se puede borrar
-- **D-SEG-07** [BAJA · S] «El agente es externo a la institución» solo se valida al asignar: vincular un edificio la puede romper
+- **D-SEG-03** [BAJA · S] El historial expone un dato personal del responsable
+- **D-SEG-04** [BAJA · S-M] El historial muestra datos de relevamientos fuera de alcance
+- **D-SEG-05** [BAJA · S-M] Una redacción por alcance se anula por otros caminos de lectura
+- **D-SEG-06** [BAJA · S] La API de campo no limita las cargas de archivos
+- **D-SEG-07** [BAJA · S] Una regla de separación entre agente e institución puede romperse
 - **D-LIM-04** [MEDIA · S-M] El selector de auditoría decide la regla de privacidad del relevamiento y arma la presentación
 - **D-LIM-05** [MEDIA · S] El historial borra el id del ciudadano con una regex sobre un texto que escribe otro servicio
 - **D-LIM-06** [MEDIA · S] El enmascarado de la persona («Persona alojada») se resuelve en cinco lugares con dos redacciones
@@ -490,7 +490,7 @@ Backlog opcional: JS inline chico, mapeos de tono y arranques de formularios sin
 2. **CERRADO contra no ACTIVO: DECISIÓN CLIENTE**, default «cerrado»: una sola `dispositivo_operable(d)` que rechaza `CERRADO` en todo mutador, y «no ACTIVO» solo donde ya se exige (bitácora, reservas). Entra en la sección 7.
 3. **Helpers de formato:** van a `core/texto.py` (y `core/archivos.py` para las extensiones) **si se usan fuera de `programas/`**; si no, a `programas/services/formato.py`. El PR lo decide con `grep` sobre los consumidores (`EXTENSIONES_IMAGEN` ya lo usa `notificaciones/services/paquete.py`, o sea `core/archivos.py`). Un solo PR con la Ola 7 de Emergencia.
 4. **`ve_la_asignacion_en_lote`:** aprobado; el filtro de D4-SEG-01 usa el mismo conjunto.
-5. **Severidad del motivo libre (D-SEG-02): MEDIA**, como quedó.
+5. **Severidad de D-SEG-02: MEDIA**, como quedó.
 6. **D3-FE-01 (D-FE-02) NO promueve `_ajax_js`** (descartado en octubre, §8.1): se usa el handler `data-ajax` canónico que ya cargan las pantallas de Dispositivos; si ese handler solo existiera en `programas/becas/`, se hace solo el paso 1.
 7. **Numeración de olas:** la de este informe.
 8. **Banco:** se siembra el volumen mayor: **500 plazas, 10 sectores, 3 turnos y 20.000 estadías** en el dispositivo grande (sección 8.c).
@@ -502,9 +502,9 @@ Consolidadas: las reglas de las fichas que dicen lo mismo quedan en una sola fil
 | # | Tipo | Destino | Regla | Fichas |
 |---|---|---|---|---|
 | R-1 | control mecánico | `programas/tests/test_arquitectura.py` · ratchet con `ast` (**regla transversal «lógica de dominio en vistas»**) | Una clase de `programas/views/` o `programas/api/` no abre `transaction.atomic()`, no llama `select_for_update()` ni `.save()`/`.create()`/`.update()` sobre un modelo de dominio, y no decide una regla de privacidad: lo hace un servicio. Lista congelada de lo existente (D-LIM-02, D-LIM-03, D-LIM-09, D-LIM-01, D-LIM-31, D-ERR-07); el conjunto no puede crecer. Mensaje: «La vista orquesta, el servicio decide: mové esto a `services/`». No confundir con el ratchet de aristas vista → vista (RED-79), que octubre refutó. Misma regla que Becas ola 7 (B-LIM-01 a B-LIM-06) y E-LIM-01. | D-ERR-07, D-LIM-01, D-LIM-02, D-LIM-03, D-LIM-09, D-LIM-31 |
-| R-2 | control mecánico | `users/tests/` o `programas/tests/test_roles_atajos.py` · ratchet | Todo atajo que otorga roles (`user.groups.add(`, `sumar_rol_de_agente`, `RolMeta`) pasa por `roles_propios_bloqueados` (`users/selectors/usuarios.py:93`). El test recorre `programas/services` y `programas/views` buscando `groups.add`/`.set(` y exige que el módulo importe la guarda; allowlist congelada. Test de comportamiento por atajo, con mutación (quitar la guarda y ver el test rojo). Patrón de #1114. | D-SEG-01 |
+| R-2 | control mecánico | `users/tests/` o `programas/tests/test_roles_atajos.py` · ratchet | Todo atajo que otorga roles aplica la misma guarda que el ABM de usuarios (`roles_propios_bloqueados`, patrón de #1114). Un test recorre los servicios y vistas que otorgan grupos y exige que importen la guarda, con lista congelada; y un test de comportamiento por atajo, con mutación (quitar la guarda y ver el test rojo). | D-SEG-01 |
 | R-3 | control mecánico | `programas/tests/test_orden_candados.py` + skill `.claude/skills/mysql-mariadb/` | Orden global de candados de Dispositivos y Emergencia: **entrada de bitácora → estadías (pk) → plazas (pk) → reservas → ciudadano → dispositivo → sector**. Todo servicio que toma dos o más lo hace con un helper único (`bloquear_en_orden(...)`). Test de concurrencia con dos hilos sobre los dos caminos de la PoC, etiquetado `concurrencia`, que corre solo contra MariaDB (job efímero) con `DJANGO_SYNCDB_PROJECT_APPS=False`. Skill: «una transacción que toma más de un candado los toma siempre en el orden del módulo; ante un 1213 se reintenta la transacción entera con tope, nunca se deja pasar un 500». | D-ERR-01, D-PERF-06, D-PERF-07 |
-| R-4 | control mecánico | `programas/tests/test_privacidad_texto_libre.py` (invariante del Cambio 271 para texto libre) | Un usuario con `dispositivo.ver` y sin `ciudadano.ver` recorre historial, trayectoria, bitácora y detalle de un dispositivo que tiene un `motivo` libre, un DNI de responsable y un nombre de agente sembrados con un centinela; el test falla si el centinela aparece. Se agrega una pantalla a la lista cada vez que se agrega una que muestra texto de otro. Regla: el texto libre y los datos de personas solo salen con `ciudadano.ver`. | D-SEG-02, D-SEG-03, D-SEG-04, D-SEG-05, D-LIM-04, D-LIM-05 |
+| R-4 | control mecánico | `programas/tests/test_privacidad_texto_libre.py` (invariante del Cambio 271 para texto libre) | Un usuario con `dispositivo.ver` y sin `ciudadano.ver` recorre las pantallas de un dispositivo con datos libres y personales sembrados con un centinela; el test falla si el centinela aparece. Se agrega una pantalla a la lista cada vez que se agrega una que muestra texto de otro. Regla: el texto libre y los datos de personas solo salen con `ciudadano.ver`. | D-SEG-02, D-SEG-03, D-SEG-04, D-SEG-05, D-LIM-04, D-LIM-05 |
 | R-5 | control mecánico | `programas/tests/test_alcance_asignacion.py` · «un solo dueño» | «Quién ve al agente asignado» tiene un solo dueño (`ve_la_asignacion` / `ve_la_asignacion_en_lote` en `services/inspecciones.py`). El test busca `asignado_a`/`agente_asignado` en vistas, selectores y templates y falla si aparece fuera del dueño y de una lista congelada. Test funcional: un usuario sin `inspeccion.agente.ver` filtra por «Asignado a» y no obtiene ni filas ni conteos de los relevamientos que la fila oculta (Cambio 428). | D-LIM-01 |
 | R-6 | control mecánico | `programas/tests/test_arquitectura.py` · ratchet de traductores | Un `except (ValidationError, EstadoCambio, ...)` en `programas/views/` o `programas/api/` que arma una respuesta a mano se congela; las vistas nuevas usan el traductor único de la superficie (`respuestas.py` / `handle_exception`). Mensaje: «Traducí el error con el traductor de la superficie, no con un try/except propio». Los cuerpos de la API de campo (`detail`, `non_field_errors`) no cambian sin test de contrato y release coordinado con Chaco-mobile. Coordinado con E-LIM-12, E-LIM-13, E-LIM-14 y B-LIM-65. | D-LIM-13, D-LIM-34, D-LIM-35 |
 | R-7 | control mecánico | `programas/tests/test_arquitectura.py` · ratchet de tamaño | Ningún archivo de `programas/` pasa de 1.000 líneas y ninguna función de 250, salvo una lista congelada que solo baja: `views/dispositivos_legajo.py` (1659), `services/estadias.py`, `services/inspecciones.py`, `services/detalle_dispositivo.py` (893) y `pantalla_bitacora` (318 líneas en una función). Mensaje: «Partí el módulo por responsabilidad antes de agregarle código». | D-LIM-20, D-LIM-24, D-LIM-25, D-LIM-27, D-LIM-30, D-LIM-39, D-LIM-46 |
@@ -524,7 +524,7 @@ Cruce con `docs/internal/auditoria-2026-10/README.md` (§0.4 y §8): lo que all�
 | Propuesta o hallazgo | Por qué no | Qué se hace en su lugar |
 |---|---|---|
 | Pasar `ItemDiseno.padre` (y sus FK) a PROTECT para evitar el borrado en cascada del constructor (relacionado con D-ERR-06) | Octubre A8-01 / Cambio 58: contradice que el diseño sigue al catálogo (`README.md` §8.1). | Validar dentro de la operación que toma el candado (ficha D-ERR-06). |
-| Throttle por IP o con `NUM_PROXIES` para la API de campo (D-SEG-06) | Octubre A2-01: el cliente cambia entre DEV (nginx) e ingreso de ECOM; NAT de las operadoras. | Throttle **por usuario** (`ScopedRateThrottle`, scope `inspecciones_campo`) y tope de fotos por relevamiento; es lo que propone la ficha. |
+| Un límite por IP o con `NUM_PROXIES` para la API de campo (D-SEG-06) | Octubre A2-01: el cliente cambia entre DEV (nginx) e ingreso de ECOM; NAT de las operadoras. | Un límite por usuario y por objeto padre; es lo que propone la ficha. |
 | Globalizar `programa.configurar` para simplificar `puede_administrar_usuarios_dispositivos` (D-LIM-07) | Octubre A5-07 / SEC-07: Dispositivos la evalúa con programa. | Alinear con `programas_administrables_usuarios` sin tocar la capacidad. |
 | Promover `_ajax_js`, `_modal_*`, `_field`, `_confirm_js` a `components/` (D-FE-02, D-FE-01) | Octubre A7: refactor que rompe consumidores; se declaran transversales. | Extraer el JS a `static/custom/js/` y usar el handler que ya cargan las pantallas de Dispositivos (contradicción 6 de la sección 1). |
 | Ratchet «ninguna vista importa de otra vista» o `test_ninguna_vista_importa_de_otra_vista` (a propósito de D-LIM-32 y D-LIM-37) | Octubre RED-79: refutado; la regla es un ratchet de aristas existentes, no un absoluto. | La regla R-1 mide otra cosa (operaciones de dominio dentro de la vista), con lista congelada. |
@@ -629,7 +629,7 @@ Cruce con `docs/internal/auditoria-2026-10/README.md` (§0.4 y §8): lo que all�
 - **Turnos** (`crear_turno`, `editar_turno`): dispositivo X y después `Turno`; nadie toma un turno antes que el dispositivo.
 - **Equipo** (`services/equipo_dispositivo.py`, `views/dispositivos_equipo.py`): las escrituras toman dispositivo → miembro; ninguna toca estadías ni plazas, así que no cruzan el orden de D-ERR-01. `equipo_del_dispositivo` es una consulta con `Exists` sobre el `UNIQUE (user_id, group_id)` de `auth_user_groups`. `crear_persona_y_sumar` crea el usuario antes de bloquear el dispositivo y el correo sale fuera de la transacción.
 - **Sugerencias** (`selectors/agentes_sugeridos.py`, `equipo_sugeridas.py`, `personas_sugeridas.py`): `istartswith` (nunca `LIKE BINARY`), mínimo 3 caracteres y tope 10+1; `personas_sugeridas` parte el `OR` en dos consultas por columna, con medición citada.
-- **Buscador y alta de agentes** (`buscador_agentes.py`, `agentes.py`, `sumar_agente.py`): tope `TOPE_RESULTADOS + 1`, asignables y personal con `IN` sobre los ids de la página. La búsqueda por correo (`email__iexact`) recorre `auth_user`, que Django no indexa: miles de filas, no se reporta sin medición. `sumar_rol_de_agente` deja `agentes_asignables` fuera de la transacción.
+- **Buscador y alta de agentes** (`buscador_agentes.py`, `agentes.py`, `sumar_agente.py`): tope `TOPE_RESULTADOS + 1`, asignables y personal con `IN` sobre los ids de la página. La búsqueda por correo (`email__iexact`) recorre `auth_user`, que Django no indexa: miles de filas, no se reporta sin medición. El alta de agente deja `agentes_asignables` fuera de la transacción.
 - **Formularios por tipo** (`services/formularios_tipo.py`, `respuestas_dispositivo.py`, `selectors/formularios_tipo.py`, `views/dispositivos_formularios.py`, `dispositivos_config.py`): a lo sumo 8 formularios por tipo; `anotar_tiene_respuestas` usa `Exists` por FK indexada (el de `InspeccionEdificio.diseno`, anulable, toca la trampa 1 solo en teoría: 8 filas externas en una pantalla de configuración). `_guardar_respuestas` bloquea por `(dispositivo|estadia, diseno)`, el `UNIQUE` compuesto de cada modelo, en `READ COMMITTED`: sin gap locks. `formularios_de_los_tipos` hace una consulta por tipo del edificio (1–3). El editor delega en `programas.services.constructor` (fuera de la tajada).
 - **Alertas** (`services/alertas_dispositivos.py`): consultas fijas por regla, solo desde el detalle de un dispositivo; `ReservaPlaza` tiene `Index(plaza, estado)`; sin `Trunc*`.
 - **Horarios** (`services/horarios_dispositivo.py`): una lectura y, si cambió, `DELETE` + `bulk_create` dentro del candado del legajo.
@@ -680,16 +680,16 @@ Cada una lleva una propuesta por defecto aplicable: si no hay respuesta a tiempo
 
 | Ficha | Decisión | Default propuesto |
 |---|---|---|
-| D-SEG-02 | ¿Qué se muestra del motivo libre de un cambio de plaza a quien no tiene `ciudadano.ver`? | Nada: la bitácora queda «Cambio de plaza: A → B» y el historial no agrega el motivo; el completo sigue en `MovimientoEstadia`. |
+| D-SEG-02 | ¿Qué ve de un texto libre sobre una persona quien no tiene permiso para verla? | Nada que no pueda ver de la persona. |
 | D-ERR-02 | ¿Un dispositivo cerrado admite cambios operativos de plaza y reservas, y se puede cerrar con personas alojadas o reservas? | No a las dos: los mutadores rechazan por `CERRADO` y cerrar exige egresar y liberar antes. |
 | D-ERR-02 (guarda) | ¿Los mutadores rechazan solo `CERRADO` o todo lo que no sea `ACTIVO`? (resolución 2 de la sección 1) | Solo `CERRADO` en todo mutador; «no ACTIVO» queda solo donde ya se exige (bitácora, reservas), con una única `dispositivo_operable(d)`. |
 | D-ERR-03 | ¿Tope de días hacia atrás para el ingreso retroactivo? | Sin tope; solo la cota de existencia (no antes de crear la plaza ni el dispositivo). |
-| D-SEG-05 | ¿La trayectoria y «otras estadías» muestran institución, sector y plaza de otro dispositivo a quien no lo opera? | Se redactan con el mismo texto que ya usa `verificar_alojamiento_en_red`. |
+| D-SEG-05 | ¿La redacción por alcance de datos de otro dispositivo se aplica en todos los puntos de lectura? | Sí. |
 | D-PERF-01 | Historial profundo: ¿límite de páginas o cursor? | Tope de 50 páginas (1.000 eventos) y mensaje «Hay más eventos: pedí el export»; el cursor por fuente queda como opción. |
 | D-PERF-05 | Alertas de reservas y préstamos vencidos: ¿una por cada una o agrupadas? | Agrupar desde 3 vencidas, con el mismo tope y enlace que `plazas_fuera_de_servicio`. |
 | D-ERR-04 | ¿La app puede subir fotos y adjuntos después de «Revisado»? | Sí, solo del agente que cerró el relevamiento, con una traza propia «llegó después de la revisión»; para cualquier otro sigue el 409. |
-| D-SEG-06 | ¿Límite de cargas de la API de campo? | Throttle por usuario de 600/hora solo en `fotos` y `adjuntos`, y tope de 200 fotos por relevamiento (409 al pasarlo). Nunca por IP. |
-| D-SEG-07 | ¿Se puede vincular un edificio a una institución cuyo personal es el agente de un relevamiento en curso? | No: se rechaza con «pedí que lo reasignen antes de vincular». |
+| D-SEG-06 | ¿Qué límite de cargas tiene la API de campo? | Por usuario y por objeto padre; nunca por IP. |
+| D-SEG-07 | ¿Qué regla de separación entre agente e institución se valida y cuándo? | En todas las operaciones que la pueden romper. |
 | D-LIM-38 | ¿Las alertas aceptan el formato canónico de nombre de plaza? | Sí (`plaza_con_sector`); si no, el helper recibe un parámetro. |
 | D-LIM-36 | Si las cuatro listas de extensiones de imagen difieren, ¿cuál rige? | Conservar cada una con nombre propio; solo se unifican si ya coinciden. |
 | D-FE-03 | ¿Unificar el criterio de recorte de espacios entre el formulario del tipo y el link público de Becas? | No en esta ola: se conserva cada conducta como opción explícita. |
@@ -748,7 +748,7 @@ Volumen que pide cada ficha (se siembra una vez, ver 8.c):
 Obligatorias (ALTA de corrección o seguridad): **ninguna ficha ERR/SEG es ALTA**. Las dos con PoC pedida están **ya ejecutadas y CONFIRMADAS** (8.0):
 
 - **D-ERR-01** [MEDIA · CONFIRMADO con test] Configurar capacidad toma dispositivo→plaza y el ingreso toma plaza→dispositivo: deadlock 1213
-- **D-SEG-01** [MEDIA · CONFIRMADO con test] `sumar_rol_de_agente` permite que el operador se sume a sí mismo el rol de agente
+- **D-SEG-01** [MEDIA · CONFIRMADO con test] Un atajo de alta permite otorgarse un rol propio
 
 Recomendadas (ERR/SEG con estado PLAUSIBLE, o con daño de datos si se confirma):
 
@@ -792,7 +792,7 @@ Ordenadas por severidad y eje. Los IDs son los finales `D-<EJE>-NN`; el ID de la
 ### D-LIM-01 · La vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper por lote que existe
 **Severidad:** ALTA · **Estado:** CONFIRMADO (lectura) · **Eje:** LIM · **Origen:** fusión de D4-LIM-05 + D4-SEG-01 · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** D4-LIM-05 + D4-SEG-01 (**hallado por 2 revisores**)
-- **Hallado por 2 revisores (sube de peso):** D4-LIM-05 (calidad: la vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper) y D4-SEG-01 (seguridad: el filtro «Asignado a» revela a qué agente va un relevamiento que la fila oculta). Son **la misma regla en dos puntos** (la columna y el filtro) y se arreglan con el mismo helper de alcance de asignación (`ve_la_asignacion` / `edificios_con_asignacion_visible`, `services/inspecciones.py:1071-1106`). Se conserva la severidad ALTA de D4-LIM-05.
+- **Hallado por 2 revisores (sube de peso):** D4-LIM-05 (calidad: la vista reescribe la regla de privacidad «quién ve al agente asignado» en lugar de usar el helper) y D4-SEG-01 (seguridad: el filtro «Asignado a» no aplica la misma regla de visibilidad que la fila). Son **la misma regla en dos puntos** (la columna y el filtro) y se arreglan con el mismo helper de alcance de asignación (`ve_la_asignacion` / `edificios_con_asignacion_visible`, `services/inspecciones.py:1071-1106`). Se conserva la severidad ALTA de D4-LIM-05.
 - **Parte del patrón «lógica de dominio en vistas»** (regla R-1). Los nombres de los helpers nuevos difieren entre las dos soluciones (contradicción 4 de la sección 1): se unifica en `ve_la_asignacion_en_lote(user, relevamientos) -> set[pk]`, con el filtro de D4-SEG-01 expresado sobre el mismo conjunto.
 - **Ubicación:** `programas/views/dispositivos_relevamientos.py:301-306` y `:348-356`; helper ignorado:
   `programas/services/inspecciones.py:1095-1106` (`edificios_con_asignacion_visible`); regla canónica
@@ -821,35 +821,10 @@ Ordenadas por severidad y eje. Los IDs son los finales `D-<EJE>-NN`; el ID de la
   «Una regla de visibilidad que tiene función en el servicio (`ve_la_asignacion`, `puede_*`) no se reescribe como
   `Q(...)` o `in` en la vista: si falta la versión por lote, se agrega al lado de la original y la original delega».
 
-#### Aporte del segundo revisor (D4-SEG-01: El filtro «Asignado a» de P21 revela a qué agente va el relevamiento que la fila oculta)
+#### Aporte del segundo revisor (D4-SEG-01: el filtro «Asignado a» no aplica la misma regla de visibilidad que la fila)
 _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
-- **Ubicación:** `programas/views/dispositivos_relevamientos.py:280-285` (`asignado_id` filtra `base`, que es
-  `inspecciones_visibles(user)` entero), `:282` → `programas/services/inspecciones.py:832` (`por_agente` en los
-  contadores de las solapas), frente a `:301-306` y `:353-356`, que sí acotan el nombre a «coordina el edificio o es el
-  agente».
-- **Escenario:** un usuario con `inspeccion.asignar` sobre la zona A que además integra el Equipo de la institución B
-  (otra zona) con `dispositivo.ver`. P21 le lista los relevamientos de B por el tercer camino de
-  `inspecciones_visibles`, con «Asignado a» vacío, como manda `ve_la_asignacion`. Pero
-  `/dispositivos/relevamientos/?asignado_a=<id del agente X>` (ids que ve en la píldora, porque X trabaja en su zona)
-  le deja en «En curso» solo los de X, incluido el de B, y el contador de la solapa cambia igual: sabe de antemano quién
-  va a ir a su propia institución, que es lo que la decisión del juez (`ve_la_asignacion`) y
-  `AGENTE_DEBE_SER_EXTERNO` buscan impedir.
-- **Causa raíz:** la regla «quién ve la asignación» se aplicó al **dibujo** (nombre y píldora) pero no al **filtro**:
-  filtrar por un dato oculto es leerlo.
-- **Solución:** cuando hay `asignado_id`, acotar el filtro a las asignaciones visibles, en la vista y en el resumen:
-  `visible = Q(edificio__in=edificios_en_alcance(user, CAP_ASIGNAR)) | Q(asignado_a_id=user.pk)`;
-  `base = base.filter(Q(asignado_a_id=asignado_id) & visible)`; y `resumen_listado(..., asignado_a_id=..., 
-  visibles_por_agente=visible)` usa `por_agente = Q(asignado_a_id=asignado_a_id) & visibles_por_agente`. Sin filtro,
-  nada cambia.
-- **Lo que NO hay que hacer:** validar solo que el id esté entre las opciones de la píldora (X está, por su zona, y la
-  fila de B sigue entrando).
-- **Tests a agregar:** `programas/tests/test_relevamientos_listado.py::AlcanceDelFiltro.test_filtrar_por_agente_no_trae_relevamientos_de_asignacion_oculta`
-  (verificarlo por mutación: sin el `& visible`, el test tiene que dar rojo).
-- **Verificación:** con el test y el contador `solapa_en_curso`.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Un dato que la vista oculta por permiso
-  tampoco puede usarse como filtro, orden ni contador: cada parámetro GET que filtra por una columna oculta pasa por la
-  misma regla que decide si se muestra.»
+- **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
 
 ---
 
@@ -915,35 +890,28 @@ _Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ---
 
-### D-SEG-01 · `sumar_rol_de_agente` permite que el operador se sume a sí mismo el rol de agente
+### D-SEG-01 · Un atajo de alta permite otorgarse un rol propio
 **Severidad:** MEDIA · **Estado:** CONFIRMADO con test (PoC reproducida; test en el PR que la arregla) · **Eje:** SEG · **Origen:** thermos-correccion · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** D3-SEG-02
 - **Escenario:** Un operador puede otorgarse un rol que su perfil no debería darle.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** dentro de `sumar_rol_de_agente`, rechazar `usuario.pk == operador.pk` con `UsuarioNoSumable` y status 403, con el mismo patrón que los rechazos existentes. No cambia la UI: el buscador puede seguir listando al operador, porque la acción se rechaza en el servicio. Si el PM quiere permitir la autoasignación, es `DECISIÓN CLIENTE`.
-- **Tests a agregar:** un test de rechazo en el servicio, verificado con mutación: quitar la condición y el test tiene que dar rojo.
-- **Verificación:** `manage.py test users programas.tests` (módulos de sumar agente).
-- **Regla para no repetirlo:** sumar a `.claude/skills/seguridad-django/` (RBAC): «Toda acción que otorga un rol o una capacidad rechaza `destinatario == request.user` en el servicio (patrón #1114)». El control mecánico es un test de ratchet que recorre los servicios que agregan a `groups` y exige el chequeo.
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: aplicar al atajo la misma guarda que el ABM de usuarios.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **control mecánico + skill** · regla R-2 (sección 4): todo atajo que otorga roles aplica la misma guarda que el ABM de usuarios.
+
 ---
 
-### D-SEG-02 · El historial muestra el motivo libre del cambio de plaza a quien no puede ver a la persona
+### D-SEG-02 · El historial muestra texto libre a quien no puede ver a la persona
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** fusión de D1-SEG-01 + D3-SEG-01 · **Ola:** 0 · **Esfuerzo:** S
 - **ID de la pasada 1:** D1-SEG-01 + D3-SEG-01 (**hallado por 2 revisores**)
 - **Escenario:** El historial muestra, a quien no ve a la persona, un texto libre que no debería ver.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **DECISIÓN CLIENTE (de D3-SEG-01):** default = la entrada automática de la bitácora queda «Cambio de plaza: A → B» y el motivo completo se queda en `MovimientoEstadia` (que exige `ciudadano.ver`); alternativa: mostrar el motivo solo con `ciudadano.ver`.
-- **Solución:** en `evento_de_movimiento`, agregar el motivo solo cuando `puede_ver_personas`:
-  `if movimiento.motivo and puede_ver_personas: detalle = f"{detalle} · Motivo: {movimiento.motivo}"`.
-  Quien tiene `ciudadano.ver` sigue viendo lo mismo, y la línea queda igual (plazas de origen y destino).
-- **Tests a agregar:** `programas/tests/test_auditoria_dispositivo.py::MovimientoSinVerPersonas.test_cambio_de_plaza_no_muestra_motivo_libre` (con y sin `ciudadano.ver`; para confirmar que el test mide lo que debe, quitar la guarda y verlo fallar).
-- **Verificación:** con el test anterior y abriendo Historial con un rol sin `ciudadano.ver`.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md` · «En una línea de historial que enmascara a la persona, todo texto libre que un operador escribió sobre ella (motivo, observación) sigue la misma guarda que el nombre: `puede_ver_personas` o nada.»
-#### Aporte del segundo revisor (D3-SEG-01: El motivo libre de un cambio o asignación de plaza se copia a la bitácora, que se lee solo con `dispositivo.ver`)
-_Pasada 1: severidad BAJA · estado CONFIRMADO (lectura) · esfuerzo S._
-- **Solución:** `DECISIÓN CLIENTE`. La propuesta es que `_texto_automatico` no agregue el motivo cuando venga de texto libre: la entrada queda como «Cambio de plaza: A → B». El motivo completo sigue en `MovimientoEstadia`, en la ficha de la estadía, que exige `ciudadano.ver`. La alternativa es mostrar el motivo solo a quien tenga `ciudadano.ver`, en la misma condición con que hoy se muestran las personas de la novedad.
-- **Tests a agregar:** un usuario con `dispositivo.ver` y sin `ciudadano.ver` abre la bitácora de un dispositivo con un cambio de plaza que tiene motivo, y el texto del motivo no aparece en la respuesta. Verificarlo con mutación: devolver la línea 534 a como está hoy y el test tiene que dar rojo.
-- **Verificación:** `manage.py test programas.tests` (módulo de bitácora) y una revisión manual de la entrada automática.
-- **Regla para no repetirlo:** sumar a `.claude/skills/seguridad-django/` (sección de datos personales): «Ningún texto libre de un movimiento sobre una persona entra en una entrada automática, una notificación o una línea de tiempo que se lee sin `ciudadano.ver`. Va solo el valor de catálogo».
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: mostrar solo lo que el usuario puede ver de la persona.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **control mecánico** · regla R-4 (sección 4): el texto libre y los datos de personas solo salen con `ciudadano.ver`.
+
 ---
 
 ### D-ERR-01 · Configurar capacidad toma dispositivo→plaza y el ingreso toma plaza→dispositivo: deadlock 1213
@@ -1952,78 +1920,64 @@ _Pasada 1: severidad MEDIA · estado CONFIRMADO (lectura) · esfuerzo S._
 
 ---
 
-### D-SEG-03 · La traza de edición pone el DNI del responsable en el historial, aunque la ficha no lo muestra
+### D-SEG-03 · El historial expone un dato personal del responsable
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
 - **ID de la pasada 1:** D1-SEG-02
 - **Escenario:** El historial expone un dato personal del responsable que la ficha no muestra.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** en `_edicion_legible`, definir un conjunto `_CAMPOS_SIN_VALOR_EN_HISTORIAL =
-  {"responsable_documento"}`. Para esos campos, dibujar «<campo>: modificado» sin los valores. La traza
-  guardada no cambia (sigue siendo auditable en la base). Lo demás queda igual.
-- **Tests a agregar:** `programas/tests/test_auditoria_dispositivo.py::EdicionLegible.test_documento_del_responsable_sin_valores`
-- **Verificación:** con el test, y editando el documento de un legajo sin responsable de Equipo y mirando Historial.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/SKILL.md` · «Un historial que muestra `anterior → nuevo` no puede mostrar un campo que la ficha no muestra: listar esos campos y dibujarlos como "modificado".»
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: no mostrar el dato personal en el historial.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **control mecánico** · regla R-4 (sección 4).
+
 ---
 
-### D-SEG-04 · El historial nombra a quien hizo el relevamiento y cuenta las fotos a quien no tiene alcance de inspección (Cambio 428)
+### D-SEG-04 · El historial muestra datos de relevamientos fuera de alcance
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** D1-SEG-03
 - **Escenario:** El historial muestra datos de un relevamiento a quien no tiene alcance sobre él.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** que `eventos_de_historial` pase al feed el conjunto de ids de inspecciones visibles para
-  el usuario, en una consulta (`inspecciones_visibles(usuario).filter(edificio__dispositivos=dispositivo).values_list("pk")`).
-  En `evento_de_inspeccion`, si la inspección no está en ese conjunto, usar la rama opaca que ya existe:
-  `EQUIPO_TERRITORIAL` y el detalle «Edificio X» rearmado desde el modelo, sin criticidad ni fotos. Para
-  quien tiene alcance no cambia nada.
-- **Tests a agregar:** `programas/tests/test_auditoria_dispositivo.py::InspeccionSinAlcance.test_ver_todos_no_ve_quien_relevo`
-- **Verificación:** con el test y con el presupuesto de consultas del detalle (`perf_budgets.json`: una consulta más, fija).
-- **Regla para no repetirlo:** **skill** · `.claude/skills/auditoria/rubricas/seguridad.md` · «Toda pantalla que vuelve a mostrar datos de un relevamiento (historial, timeline, export) pasa por `inspecciones_visibles`: comparar contra la solapa Infraestructura.»
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: aplicar al historial la misma regla de alcance que el detalle.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **control mecánico** · regla R-4 (sección 4).
+
 ---
 
-### D-SEG-05 · La redacción fuera de alcance de `verificar_alojamiento_en_red` se anula por la trayectoria del legajo y por «otras estadías»
-**Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** decisión §4.11 (trayectoria visible con `dispositivo.ver`) · **Ola:** 2 · **Esfuerzo:** S-M
+### D-SEG-05 · Una redacción por alcance se anula por otros caminos de lectura
+**Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** decisión §4.11 · **Ola:** 2 · **Esfuerzo:** S-M
 - **ID de la pasada 1:** D2-SEG-01
 - **Escenario:** Una redacción por alcance se anula por otros caminos de lectura.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** DECISIÓN CLIENTE: propuesta por defecto, en `trayectoria_de` y `otras_estadias` redactar institución/sector/plaza cuando `not puede_operar_dispositivo(user, estadia.dispositivo)`, con el mismo texto de `estadias.py:239-243`. Si el cliente confirma que §4.11 prevalece, corregir el comentario de `estadias.py:239-243` para que no prometa lo que no se cumple.
-- **Tests a agregar:** `programas/tests/test_trayectoria.py::Alcance.test_fuera_de_equipo_no_ve_institucion`.
-- **Verificación:** test con usuario de otro equipo.
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: aplicar la misma redacción por alcance en todos los puntos de lectura.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
 - **Regla para no repetirlo:** **skill** · `seguridad-django` (datos personales) · «Una redacción por alcance se aplica en el selector, no en una pantalla.»
+
 ---
 
-### D-SEG-06 · La API de campo no tiene throttle ni tope de cargas, y lo cargado no se puede borrar
+### D-SEG-06 · La API de campo no limita las cargas de archivos
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
 - **ID de la pasada 1:** D4-SEG-02
 - **Escenario:** La API de campo no limita la carga de archivos por usuario ni por relevamiento.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** `DECISIÓN CLIENTE: throttle por usuario (nunca por IP: NAT de las operadoras, §0.4) con un scope
-  `inspecciones_campo` de 600/hora solo en `fotos` y `adjuntos`, y un tope de 200 fotos por relevamiento (409
-  `ESTADO_NO_ADMITE` al pasarlo).` En código: `throttle_classes = [ScopedRateThrottle]` + `throttle_scope` en las dos
-  acciones, la tasa en `DEFAULT_THROTTLE_RATES`, y el tope como chequeo en `agregar_foto` bajo el candado.
-- **Tests a agregar:** `programas/tests/test_api_inspecciones.py::Throttle.test_fotos_429_al_pasar_la_tasa`,
-  `::Tope.test_foto_201_rechazada_409`.
-- **Verificación:** con los tests, con la tasa parchada.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Todo endpoint de `/api/` que escribe un
-  archivo declara `throttle_classes` por usuario y un tope por objeto padre; si el modelo es inmutable, el tope es
-  obligatorio.»
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: limitar las cargas por usuario y por objeto padre.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Todo endpoint de `/api/` que escribe un archivo declara un límite por usuario y por objeto padre.»
+
 ---
 
-### D-SEG-07 · «El agente es externo a la institución» solo se valida al asignar: vincular un edificio la puede romper
+### D-SEG-07 · Una regla de separación entre agente e institución puede romperse
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Eje:** SEG · **Origen:** nuevo · **Ola:** 2 · **Esfuerzo:** S
 - **ID de la pasada 1:** D4-SEG-03
 - **Escenario:** Una regla de separación entre agente e institución puede romperse sin aviso.
 - **Detalle técnico:** Detalle técnico reservado hasta el arreglo; se agrega al informe con el PR que lo cierra.
-- **Solución:** `DECISIÓN CLIENTE: al vincular, si el edificio tiene un relevamiento en curso cuyo agente es personal de
-  la institución que se vincula, rechazar con «El relevamiento en curso de este edificio está asignado a personal de la
-  institución: pedí que lo reasignen antes de vincular».` En código: en `vincular_edificio`, con
-  `AGENTE_DEBE_SER_EXTERNO`, `InspeccionEdificio.objects.filter(edificio=edificio, estado=ASIGNADA,
-  asignado_a__in=personal de dispositivo)` → `ValidationError`. (El alta de un miembro del Equipo tiene el mismo hueco,
-  fuera de esta tajada.)
-- **Tests a agregar:** `programas/tests/test_edificios.py::Vincular.test_rechaza_si_el_agente_en_curso_es_personal`.
-- **Verificación:** con el test.
-- **Regla para no repetirlo:** **skill** · `.claude/skills/auditoria/rubricas/errores.md` · «Para cada invariante
-  declarada como constante de negocio (`AGENTE_DEBE_SER_EXTERNO`), listar todas las escrituras que cambian cualquiera de
-  sus dos lados y verificar que cada una la haga cumplir.»
+- **Solución:** Reservada hasta el arreglo; propuesta por defecto: DECISIÓN CLIENTE: validar la regla de separación en todas las operaciones que la pueden romper.
+- **Tests a agregar:** Reservada hasta el arreglo.
+- **Verificación:** Reservada hasta el arreglo.
+- **Regla para no repetirlo:** **skill** · `.claude/skills/seguridad-django/` · «Una invariante entre dos agregados se verifica en todas las operaciones que la pueden romper.»
+
 ---
 
 ### D-ERR-05 · La edición del legajo responde 500 si dos personas guardan el mismo código a la vez
