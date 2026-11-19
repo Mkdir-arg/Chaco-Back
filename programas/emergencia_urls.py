@@ -3,6 +3,7 @@ from django.urls import path
 from programas.views import emergencia as mesa
 from programas.views import emergencia_config as config
 from programas.views import emergencia_kits as kits
+from programas.views import emergencia_situacion as situacion
 from programas.views import emergencia_tablero as tablero
 
 app_name = "emergencia"
@@ -14,6 +15,8 @@ app_name = "emergencia"
 urlpatterns = [
     path("config/", config.ConfiguracionEmergenciaView.as_view(), name="configuracion"),
     path("tablero/", tablero.TableroView.as_view(), name="tablero"),
+    # E8 «Situación» (análisis 009): el tablero estratégico, con `ver_situacion` o `supervisar`.
+    path("situacion/", situacion.SituacionView.as_view(), name="situacion"),
     path("casos/", mesa.BandejaCasosView.as_view(), name="bandeja"),
     path("casos/nuevo/", mesa.NuevoCasoView.as_view(), name="caso_nuevo"),
     path("casos/<int:pk>/", mesa.CasoDetalleView.as_view(), name="caso_detalle"),

@@ -770,6 +770,8 @@ HERO_PANTALLAS: frozenset[str] = frozenset(
     {
         # E1, el tablero del supervisor de Emergencia (plan de Emergencia, C3).
         "programas/templates/programas/emergencia/tablero.html",
+        # E8, la situación de Emergencia (análisis 009, E-5): clona la golden del Dashboard.
+        "programas/templates/programas/emergencia/situacion/situacion.html",
         # Golden del arquetipo «Dashboard de programa» (ficha arquetipos/dashboard.md).
         "programas/templates/programas/dispositivos/tablero/tablero_referencia.html",
     }

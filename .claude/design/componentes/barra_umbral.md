@@ -45,8 +45,8 @@ Render: un `div[data-barra-umbral="{tono}"]` con
 
 - una frase `sr-only` con el valor y el nivel en palabras: «Capacidad de la red: 88 por ciento, nivel Crítica.»
   (con `texto`: «Tomados: 96 por ciento (204 casos).»; sin cifra: «Ocupación: sin cifra, nivel Sin plazas.»);
-- la fila gráfica `flex items-center gap-3` con `aria-hidden="true"`: pista `block h-2 rounded-full
-  overflow-hidden bg-tertiary` con el relleno `nodo-ficha-medidor block h-full max-w-full rounded-full bg-{tono}`
+- la fila gráfica `flex items-center gap-3` con `aria-hidden="true"`: pista `nodo-barra-umbral-pista block h-2
+  rounded-full overflow-hidden bg-tertiary` (la clase gancho solo la usa el alto contraste) con el relleno `nodo-ficha-medidor block h-full max-w-full rounded-full bg-{tono}`
   (`style="--avance:88%"`, tope visual 100 %), las marcas de 2×16 px (`bg-warning` la exigida, `bg-danger` la
   crítica, `style="--umbral:60%"`, `title` «Exigida desde 60 %»), la cifra `text-sm font-semibold text-heading
   tabular-nums` y el badge `badge badge-{tono}` con ícono;
@@ -60,7 +60,8 @@ Render: un `div[data-barra-umbral="{tono}"]` con
 | Crítica | `bg-danger` | `badge-danger` | `fa-circle-exclamation` |
 | Sin plazas | sin relleno (sin cifra) | `badge-gray` | `fa-circle-minus` |
 
-En alto contraste (`forced-colors`) la pista lleva borde, el relleno pasa a `Highlight` y las marcas a
+En alto contraste (`forced-colors`) la pista (`.nodo-barra-umbral-pista`, nunca un selector por posición)
+lleva borde, el relleno pasa a `Highlight` y las marcas a
 `CanvasText`; la leyenda en texto dice cuál es cuál.
 
 ## Reglas

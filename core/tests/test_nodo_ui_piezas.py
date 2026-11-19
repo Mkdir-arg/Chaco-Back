@@ -2346,3 +2346,33 @@ class ItemListaTest(SimpleTestCase):
         self.assertIn('.nodo-item-lista[aria-pressed="true"]', css)
         self.assertIn(".nodo-item-lista:focus-visible", css)
         self.assertIn("custom/css/nodo-item-lista.css", base)
+
+
+class HojaDeImpresionTest(SimpleTestCase):
+    """`nodo-impresion.css` (ficha `componentes/impresion.md`): la hoja de impresión de un tablero."""
+
+    CSS = Path(__file__).resolve().parents[2] / "static/custom/css/nodo-impresion.css"
+    SITUACION = (
+        Path(__file__).resolve().parents[2] / "programas/templates/programas/emergencia/situacion/situacion.html"
+    )
+    SHELL = Path(__file__).resolve().parents[2] / "templates/includes/base.html"
+
+    def test_trae_las_cuatro_clases_gancho_y_la_hoja_apaisada(self):
+        css = self.CSS.read_text(encoding="utf-8")
+        for clase in ("nodo-no-imprimir", "nodo-solo-impresion", "nodo-impresion-panel", "nodo-impresion-desplegar"):
+            with self.subTest(clase=clase):
+                self.assertIn(f".{clase}", css)
+        self.assertIn("size: A4 landscape", css)
+
+    def test_no_trae_colores(self):
+        css = re.sub(r"/\*.*?\*/", "", self.CSS.read_text(encoding="utf-8"), flags=re.S)
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|\bcolor\s*:", css))
+
+    def test_la_carga_la_pantalla_y_no_el_shell(self):
+        self.assertNotIn("nodo-impresion.css", self.SHELL.read_text(encoding="utf-8"))
+        situacion = self.SITUACION.read_text(encoding="utf-8")
+        self.assertIn(
+            '{% block page_css %}<link rel="stylesheet" href="{% static \'custom/css/nodo-impresion.css\' %}">',
+            situacion,
+        )
+        self.assertIn("nodo-impresion-panel", situacion)

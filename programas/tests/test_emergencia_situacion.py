@@ -771,9 +771,8 @@ class AE7Tests(BaseSituacion):
 PRESUPUESTO_FOTO = 12
 
 
-@tag("performance")
-class PresupuestoSituacionTests(BaseSituacion):
-    """TC-1183-34: 5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas."""
+class BancoSituacion(BaseSituacion):
+    """5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas. Lo reusa el presupuesto de la vista (E-5)."""
 
     CASOS = 5000
     ALOJADOS = 3000
@@ -880,6 +879,11 @@ class PresupuestoSituacionTests(BaseSituacion):
                 for e in entregas
             ]
         )
+
+
+@tag("performance")
+class PresupuestoSituacionTests(BancoSituacion):
+    """TC-1183-34: 5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas."""
 
     def _medir(self, **filtros):
         with CaptureQueriesContext(connection) as capturadas:

@@ -38,7 +38,7 @@ Localidades del Chaco con centroide   1
 
 import json
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any, NamedTuple
 
@@ -385,12 +385,18 @@ def _ritmo(red, ahora):
 
 
 def _derivaciones(desde):
-    """Una consulta: las pendientes (provinciales) y las rechazadas o vencidas de la cohorte."""
+    """Una consulta: las pendientes (provinciales) y las rechazadas o vencidas de la cohorte.
+
+    ``creado__gte=desde`` sobre la derivación está implicado por el del caso (una derivación nace
+    después que su caso) y es lo que deja usar el índice ``(estado, creado)`` de ``programas.0129``:
+    sin él, las rechazadas y vencidas de eventos anteriores se recorren enteras.
+    """
 
     Est = Derivacion.Estado
-    filas = Derivacion.objects.filter(
-        Q(estado=Est.PENDIENTE) | Q(estado__in=(Est.RECHAZADA, Est.VENCIDA), caso__creado__gte=desde)
-    ).values_list("caso_id", "dispositivo_id", "estado", "motivo")
+    cohorte = Q(estado__in=(Est.RECHAZADA, Est.VENCIDA), creado__gte=desde, caso__creado__gte=desde)
+    filas = Derivacion.objects.filter(Q(estado=Est.PENDIENTE) | cohorte).values_list(
+        "caso_id", "dispositivo_id", "estado", "motivo"
+    )
     return tuple(DerivacionDeLaSituacion(*fila) for fila in filas)
 
 
@@ -528,3 +534,18 @@ def foto_de_situacion(sla, ahora: datetime, filtros: FiltrosSituacion | None = N
         localidad_ignorada=ignorada,
         semaforos=semaforos,
     )
+
+
+def con_filtros(foto: FotoSituacion, filtros: FiltrosSituacion) -> FotoSituacion:
+    """La misma foto con otro filtro de demanda. **0 consultas.**
+
+    El filtro no cambia ninguna lectura (va en Python), así que la vista puede leer la foto con la
+    ventana elegida, validar el departamento y la localidad contra ``foto.localidades`` (las del
+    Chaco, que la foto ya trae) y recién entonces aplicarlo. La ventana no se puede cambiar acá:
+    los períodos sí dependen de ella.
+    """
+
+    if filtros.ventana != foto.filtros.ventana:
+        raise ValueError("con_filtros no cambia la ventana: los períodos se leyeron con la de la foto.")
+    del_filtro, ignorada = _filtro(filtros, foto.localidades)
+    return replace(foto, filtros=filtros, localidades_del_filtro=del_filtro, localidad_ignorada=ignorada)

@@ -630,6 +630,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 505 | Auditoría 2026-11: informes de performance y código de Becas, Emergencia y Dispositivos | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#performance` `#seguridad` `#metodo` `#gestion` | PM — auditoría de performance y código de Becas, Emergencia y Dispositivos | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
+| 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
 
 **Notas del índice**
 
@@ -59037,7 +59038,7 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
 1. **Índices que pide el `EXPLAIN` de la foto** (RNF-009-10, ver «Validación»; no se agregan acá, van en una
    migración aparte si el PM lo prioriza): `IntegranteGrupo.egresado_en` (personas alojadas; también lo pide A4 de
    Abastecimiento), `Derivacion.estado` (o `(estado, …)`), `EntregaKit.despachada_en` y las fechas de `Estadia` para el
-   ritmo de 6 h. Hoy, con el banco de abajo, cada una tarda 6 a 28 ms: no comprometen el `read_timeout` de 10 s, pero
+   ritmo de 6 h. Hoy, con el banco de abajo, cada una tarda 6 a 34 ms: no comprometen el `read_timeout` de 10 s, pero
    crecen lineal con el histórico.
 2. **Para E-5 (UI):** cómo se escriben los números (miles, «≈», «—»), el orden visual de la tabla de presión y el
    agrupado «Otras localidades», el texto exacto de «en toda la provincia» y del aviso de localidad ignorada.
@@ -59065,6 +59066,11 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
   fuente del vocabulario y los tonos para `Tension` y `Presion`; `CasoEmergencia.q_en_la_ventana` es la ventana de E1 y
   E8; `DispositivoDeLaRed.tipo` y `conteo` son obligatorios. Scripts: sin `--probar-indices`, `medir` directo,
   `explain_situacion.py` exige la base descartable. `EXPLAIN` corrido (arriba).
+- **19/11/2026 — MINOR de la auditoría del PR #1224, cerrados en el Cambio 509 (E-5):** con `ocupacion.alojada_en`
+  también cambió el **borde de egreso**: una persona egresada exactamente en el instante medido cuenta como alojada en
+  ese instante (antes no contaba); afecta a «personas alojadas al cierre» de la evolución y a la variación del día. La
+  cifra del pendiente 1 se corrige a «6 a 34 ms» (la consulta de casos medía 34 ms en la tabla). Los índices del
+  pendiente 1 entraron en `programas.0129` (Cambio 509) y los tres docstrings que apuntaban al selector se corrigieron.
 
 # Cambio 507 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
 
@@ -59139,3 +59145,167 @@ No requiere (`collectstatic` del deploy publica el CSS nuevo).
 ## Reversión
 
 Revertir el commit; no hay datos involucrados.
+
+---
+
+# Cambio 509 — Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen
+
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e5-pantalla-situacion` (sale de la de E-4, #1224)
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · situación (E8) |
+| **Etiquetas** | `#emergencia` `#rbac` `#ui` `#performance` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.1-3.4, §3.8, §5, §7, §12, RF-009-01 a 16) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1184 (E-5, con la ex E-3 #1182 fusionada) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (pantalla, sidebar, RBAC, índices) |
+| **Migración** | `users.0051_capacidad_ver_situacion` y `programas.0129_indices_foto_situacion` |
+
+## Pedido original
+
+E-5 del análisis 009: publicar E8 en `/emergencia/situacion/` con el esqueleto del arquetipo «Dashboard de programa» y la
+solapa Resumen completa, impresión incluida; la capacidad `emergencia.ver_situacion` (ex E-3) con su ítem del sidebar y
+la migración al Administrador; y las notas «Pendiente de…» del #1184: los MINOR de C3 (#1210) y de E-4 (#1224), y la
+migración de índices con su medición antes de publicar la pantalla.
+
+## Alcance acordado
+
+**Entra:** la capacidad (catálogo, `CAP_VER_SITUACION`, `puede_ver_situacion`, mixin, sidebar, `users.0051`), la vista y
+el form de filtros, el template con hero, píldoras, franja, «Necesita atención», presión por localidad, evolución,
+capacidad, embudo, perfil, logística y «Cómo se calcula», la hoja de impresión, los enlaces E1 ↔ E8, los índices de
+`programas.0129` y los MINOR. **Queda afuera:** la solapa Mapa (E-6; el motor de mapa sigue sin definir) y la solapa
+Abastecimiento (E-7b): las dos son un estado vacío y no suman consultas.
+
+## Decisiones tomadas
+
+1. **La vista no calcula**: lee la foto con la ventana elegida, valida departamento y localidad contra
+   `FotoSituacion.localidades` (las del Chaco, que la foto ya trae) y recién entonces aplica el filtro con
+   `selectors.emergencia_situacion.con_filtros` (0 consultas: el filtro va en Python). Lo que se dibuja lo escribe
+   `services/pantalla_situacion_emergencia.py` (miles con punto, «≈», «—», signo de la variación, bajada del hero,
+   badges con ícono), sin consultas.
+2. **Filtros** (`FiltrosSituacionForm`): cada campo inválido se ignora por separado y nunca da 500; sin `ventana`, 72 h;
+   sin `tab` o con uno desconocido, Resumen. Un departamento que ninguna localidad tiene y una localidad que no es del
+   Chaco se ignoran en silencio; una localidad de **otro** departamento se ignora con aviso (`_alerta` info). La
+   píldora Ventana usa la opción vacía como «72 h» (sin novedad en `_filtro_pildora`). La lista de localidades es la del
+   departamento elegido (sin departamento, todas; homónimas con su departamento entre paréntesis).
+3. **Sin JS** (RNF-009-08): el `x-data` arranca con la solapa que resolvió el servidor (`tab: '{{ solapa }}'`, no la
+   querystring cruda: `?tab=xx` abriría un panel vacío) y solo los paneles que no son esa llevan `x-cloak`. Desvío
+   declarado de la golden, anotado en `arquetipos/dashboard.md`.
+4. **Hoja de impresión** como pieza nueva con ficha (`static/custom/css/nodo-impresion.css`,
+   `componentes/impresion.md`, fila del inventario): la ficha del arquetipo la asignaba al primer tablero que
+   imprimiera. La carga la pantalla en `page_css` (el shell no cambia: sin regenerar snapshots). Cuatro clases gancho:
+   `nodo-no-imprimir`, `nodo-solo-impresion`, `nodo-impresion-panel` (el Resumen sale aunque se mire Mapa) y
+   `nodo-impresion-desplegar` («Cómo se calcula»). Con más de 60 localidades la tabla de presión se pagina de a 25 en
+   pantalla y en el papel sale entera.
+5. **Presión por localidad**: las localidades sin demanda van juntas en «Otras localidades (N)» y «Sin localidad» al
+   final; el orden es el de `presion_por_localidad` (Crítica → Sin demanda, cociente más alto primero). Con
+   `supervisar`, el nombre abre la bandeja filtrada (E2).
+6. **Enlaces a la mesa solo con supervisar**: «Ir al tablero de la mesa» (barra de arriba), «Ver los avisos operativos en
+   el tablero de la mesa →» (pie de «Necesita atención», sin cifra, 0 consultas) y la bandeja; sin supervisar no se
+   calculan las URL. «Ver dispositivo» (más tensionados y sin entrega en 48 h) solo para los dispositivos que el usuario
+   abre por Dispositivos: una consulta `dispositivos_visibles(user).values_list("pk")` por request (0 si no tiene
+   Dispositivos).
+7. **Evolución**: barras pareadas (C4) y, aparte, una tabla densa con «Personas alojadas al cierre» por período: sumar
+   esa columna a la tabla equivalente de la pieza sería un parámetro nuevo de C4 (novedad sin ficha).
+8. **Sidebar**: grupo Emergencia visible con `operar`, `supervisar` o `ver_situacion`; «Casos» y «Entregas» solo con
+   operar o supervisar; «Situación» (Heroicons `globe-americas`) con `ver_situacion` o `supervisar`; colapsado, a la
+   bandeja si opera y si no a la situación. E1 suma «Ver la situación» en la cabecera de «Casos por localidad».
+9. **Índices** (`programas.0129`, pendiente 1 del Cambio 508): `IntegranteGrupo.egresado_en`,
+   `Derivacion(estado, creado)`, `EntregaKit.despachada_en` y `EntregaKit.estado`, `Estadia.fecha_ingreso` y
+   `Estadia.fecha_egreso`. `Derivacion` va compuesto con `creado` y el selector agrega `creado >= desde` a la rama de
+   rechazadas y vencidas (implicado: una derivación nace después que su caso); con solo `estado` el motor seguía
+   recorriendo la tabla. `EntregaKit.estado` hace falta para el *index merge* del `OR` con `EN_CAMINO`.
+10. **MINOR de C3 (#1210):** `porcentaje_barra` delega en `entero_o_none`; el alto contraste de la pista usa la clase gancho
+    `nodo-barra-umbral-pista` (ficha `barra_umbral.md`). **MINOR de E-4 (#1224):** Historial y pendiente 1 del Cambio 508
+    y los tres docstrings que apuntaban al selector.
+
+## Implementación
+
+- `core/rbac.py` (capacidad), `users/migrations/0051_capacidad_ver_situacion.py` (patrón `users.0047`).
+- `programas/services/emergencia_programa.py` (`CAP_VER_SITUACION`, `puede_ver_situacion`),
+  `programas/mixins_emergencia.py` (`SituacionPermissionMixin`).
+- `programas/forms_emergencia_situacion.py`, `programas/views/emergencia_situacion.py`, `programas/emergencia_urls.py`
+  (`emergencia:situacion`), `programas/services/pantalla_situacion_emergencia.py`,
+  `programas/selectors/emergencia_situacion.py` (`con_filtros`, filtro implicado de derivaciones).
+- `programas/templates/programas/emergencia/situacion/situacion.html` y `_fila_presion.html`;
+  `programas/templates/programas/emergencia/tablero.html` y `programas/views/emergencia_tablero.py` (enlace a E8);
+  `templates/includes/sidebar/opciones.html`.
+- `static/custom/css/nodo-impresion.css`; `templates/components/_barra_umbral.html`,
+  `static/custom/css/nodo-barra-umbral.css`, `core/templatetags/nodo_ui.py`.
+- `programas/models/__init__.py` y `programas/migrations/0129_indices_foto_situacion.py`.
+- Diseño: `.claude/agents/chaco-design-system.md` (fila «Hoja de impresión de tablero»),
+  `.claude/design/componentes/impresion.md` (nueva), `arquetipos/dashboard.md`, `shells.md`, `hero_inicio.md`,
+  `barra_umbral.md`, `alerta.md`; `scripts/design_audit.py` (`HERO_PANTALLAS`); `scripts/perf_budgets.json`
+  (`servicios.emergencia_situacion_vista`).
+
+## Archivos
+
+Los de «Implementación», más `programas/tests/test_emergencia_situacion_vista.py` (nuevo),
+`programas/tests/test_emergencia_situacion.py` (el banco del presupuesto pasa a `BancoSituacion`),
+`core/tests/test_nodo_ui_emergencia.py` y `core/tests/test_nodo_ui_piezas.py` (`HojaDeImpresionTest`).
+
+## Base de datos
+
+- `users.0051`: `AlterModelOptions` de `Capacidad` (sin esquema) y `RunPython` que le da la capacidad al rol protegido
+  Administrador, con reversa real. Ningún otro rol recibe nada.
+- `programas.0129`: seis `AddIndex`, solo expand. El DDL no es transaccional: si se corta, el reintento falla con
+  «Duplicate key name»; se borra a mano el índice que quedó y se reintenta.
+
+## Validación
+
+- `test_emergencia_situacion_vista.py`: permisos (TC-1184-01 a 03, TC-1182-03, 06, 07, 09 a 11), enlaces (TC-1184-04 a 06),
+  no nominal (TC-1184-07: apellidos, DNI, direcciones, números de caso y coordenadas de familias, y el dispositivo
+  reservado), filtros (TC-1184-22, 24 a 26, 35, 37, 40), perfil con filtro (TC-1184-28), vacíos (TC-1184-25, 31, 36),
+  sidebar (TC-1182-02, 07, 08; TC-1184-38), migración (TC-1182-12, 13), catálogo y árbol del ABM (TC-1182-01) y
+  presupuesto `--tag performance` (TC-1184-39).
+- **Consultas de la vista** (5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas): **18** como autoridad, como
+  supervisor y con filtro de departamento y `tab=mapa` (5 del shell + 1 SLA + 12 de la foto); **19** con quien abre
+  dispositivos (superusuario: + `dispositivos_visibles`). Techo 21.
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `ruff`, `design_audit.py --ratchet` (0 nuevos),
+  `--arquetipo dashboard` OK, `--goldens` 0, `compile_templates.py --bloques` 0, `check_design_agent.py`.
+- **`EXPLAIN` en MariaDB 10.11** descartable (`explain_situacion.py`, 20 corridas; 50.700 casos —48.300 cerrados de un
+  evento anterior—, 30.050 estadías, 23.000 integrantes —20.000 egresados—, 20.300 derivaciones —20.000 rechazadas o
+  vencidas de casos viejos— y 10.500 entregas —10.000 de un evento anterior), con `0128` y después con `0129`:
+
+  | # | Lectura | Plan antes → después | Lecturas del handler | ms |
+  |---|---|---|---:|---:|
+  | 6 | Personas alojadas | `ALL` (22.657) → `range` en `egresado_en` con filtro de rowid | 27.501 → 30.503 | 20,5 → 29,1 |
+  | 7 | Ritmo de 6 h | `ALL` sobre `plaza` → `index_merge` de `fecha_ingreso` y `fecha_egreso` | 34.051 → 92 | 29,8 → 1,2 |
+  | 8 | Derivaciones | `ALL` (20.320) → `range` en `(estado, creado)` | 21.269 → 1.939 | 8,2 → 5,3 |
+  | 9 | Entregas de la ventana | `ALL` (10.553) → `index_merge` de `despachada_en` y `estado` | 10.501 → 1.134 | 5,2 → 4,2 |
+  | 10 | Líneas por ítem | `ref` por ítem → `range` en `despachada_en` | 21.325 → 1.123 | 16,6 → 2,1 |
+  | 11 | Última recepción | sin cambio (`ref` por dispositivo) | 21.204 | 13–15 |
+
+  La 6 cambia de plan pero no de costo a este volumen: el motor arma el filtro de rowid con el índice de `estadia_id`
+  (todas las filas del banco tienen estadía). El índice deja de recorrer los egresados viejos, que es lo que crece. La
+  migración se aplicó, se revirtió y se volvió a aplicar en el mismo motor.
+
+## Puesta en marcha en el servidor
+
+Aplicar `users.0051` y `programas.0129`. El rol «Autoridades» (solo `emergencia.ver_situacion`) lo arma el PM desde el
+ABM de Roles.
+
+## Pendientes / a definir
+
+1. **Decisión abierta:** «Ir al tablero de la mesa» va en la barra de arriba (a la derecha de «Actualizado a las») y no
+   en el hero: la ficha del hero admite una sola acción («Actualizar»).
+2. **Decisión abierta:** «Personas alojadas al cierre» va en una tabla propia debajo del gráfico; si el PM la quiere en
+   la tabla equivalente de las barras pareadas, es un parámetro nuevo de C4 con su ficha.
+3. **Decisión abierta:** la nota de «Horas hasta saturar» lleva el ritmo y el rótulo «proyección al ritmo actual, no es
+   un pronóstico»; con ritmo ≤ 0 el valor es «—» y la nota dice «No se satura al ritmo actual».
+4. `::details-content` (para que «Cómo se calcula» salga abierto en el papel) no existe en navegadores viejos (Chrome
+   < 131, Firefox < 143): ahí sale plegado.
+5. La lectura de personas alojadas (consulta 6) conviene volver a medirla con más historia de egresados.
+6. Mapa (E-6) y Abastecimiento (E-7b) siguen como estado vacío.
+
+## Reversión
+
+1. Desplegar el código anterior: la capacidad queda tildada en el Administrador sin pantalla que la evalúe, y los índices
+   quedan sin que el código viejo los note.
+2. Solo si hace falta volver el esquema: `manage.py migrate programas 0128` borra los seis índices y
+   `manage.py migrate users 0050` le saca la capacidad al Administrador. No se pierde ningún dato.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.

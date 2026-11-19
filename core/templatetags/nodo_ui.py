@@ -128,15 +128,9 @@ def porcentaje_barra(valor, maximo, porcentaje=None):
     ``tension_de_ocupacion``. Sin máximo positivo o sin valor no hay porcentaje: ``None``, nunca 0.
     """
     if porcentaje is not None and porcentaje != "":
-        try:
-            return int(porcentaje)
-        except (TypeError, ValueError):
-            return None
-    try:
-        valor, maximo = int(valor), int(maximo)
-    except (TypeError, ValueError):
-        return None
-    if maximo <= 0:
+        return entero_o_none(porcentaje)
+    valor, maximo = entero_o_none(valor), entero_o_none(maximo)
+    if valor is None or maximo is None or maximo <= 0:
         return None
     return round(valor * 100 / maximo)
 

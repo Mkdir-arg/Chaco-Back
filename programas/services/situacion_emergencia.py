@@ -318,7 +318,7 @@ def _cifra(valor, *, filtrado, total=None):
 def presentar_perfil(perfil, filtrado: bool):
     """Lo que el bloque «Perfil de las personas» puede mostrar (RN-009-11). Pura.
 
-    ``perfil`` es el de ``selectors.emergencia_situacion.perfil``:
+    ``perfil`` es el de ``services.situacion_emergencia.perfil``:
     ``{"alojados": {indicador: n}, "esperando": {indicador: n}}``. Devuelve un dict nuevo (no
     toca el recibido) con ``alojados`` y ``esperando`` como ``{indicador: Cifra}``, más
     ``filtrado``, ``salud_visible`` y ``nota``.
