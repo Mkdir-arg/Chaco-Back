@@ -5832,6 +5832,10 @@ class CasoEmergencia(TimeStamped):
             models.Index(fields=["estado", "prioridad"]),
             # «Míos».
             models.Index(fields=["tomado_por", "estado"]),
+            # La ventana de RN-5.1 (E1) y la de E8: `~CERRADO OR alojado_en >= x OR cerrado_en >= x`
+            # usa *index merge* con estos dos y el de `estado` (EXPLAIN del Cambio 504).
+            models.Index(fields=["alojado_en"], name="caso_emerg_alojado_en_idx"),
+            models.Index(fields=["cerrado_en"], name="caso_emerg_cerrado_en_idx"),
         ]
 
     def __str__(self):
@@ -5940,6 +5944,17 @@ class CasoEmergencia(TimeStamped):
         """El filtro de :attr:`es_ingreso_directo` en SQL (``has_key`` anda en SQLite, MySQL y MariaDB)."""
 
         return models.Q(origen=cls.Origen.DISPOSITIVO) & ~models.Q(situacion__has_key=cls.SITUACION_EN_LA_PUERTA)
+
+    @classmethod
+    def q_en_la_ventana(cls, desde):
+        """Los casos de una ventana del tablero: abiertos, o alojados o cerrados desde ``desde``.
+
+        Es la ventana de RN-5.1 (E1) y la de la foto de situación (E8). Con los índices de
+        ``alojado_en`` y ``cerrado_en`` (``programas.0128``) y el de ``(estado, prioridad)``, el ``OR``
+        usa *index merge* en vez de recorrer la tabla (EXPLAIN de los Cambios 504 y 508).
+        """
+
+        return ~models.Q(estado=cls.Estado.CERRADO) | models.Q(alojado_en__gte=desde) | models.Q(cerrado_en__gte=desde)
 
     @property
     def alojamiento(self):

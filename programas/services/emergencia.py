@@ -80,7 +80,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from programas.models import CasoEmergencia, ContactoCaso, Derivacion, TrazaCaso
-from programas.selectors.emergencia import camas_de, camas_libres, dispositivo_elegible
+from programas.selectors.emergencia import camas_de, camas_libres_del_conteo, dispositivo_elegible
 from programas.services.configuracion_emergencia import sla_vigente
 
 # El alta del caso se mudó a `emergencia_alta`; se reexporta para que los imports de siempre
@@ -530,7 +530,7 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
 
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
-    libres = camas_libres(camas_de(dispositivo).de(dispositivo).conteo)
+    libres = camas_libres_del_conteo(camas_de(dispositivo).de(dispositivo).conteo)
     if libres < 1:
         raise ValidationError({"dispositivo": SIN_PLAZAS})
     if libres < plazas_pedidas and not confirmar_faltantes:

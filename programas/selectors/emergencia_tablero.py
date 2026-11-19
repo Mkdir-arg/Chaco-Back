@@ -39,7 +39,8 @@ import math
 import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
-from typing import NamedTuple
+from decimal import Decimal
+from typing import Any, NamedTuple
 from zoneinfo import ZoneInfo
 
 from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Prefetch, Q, Subquery
@@ -52,7 +53,7 @@ from programas.selectors.emergencia import (
     TRAMO_ALOJAR,
     TRAMOS,
     camas_de,
-    camas_libres,
+    camas_libres_del_conteo,
     dispositivos_elegibles,
     estado_sla,
     texto_de_minutos,
@@ -60,6 +61,7 @@ from programas.selectors.emergencia import (
 )
 from programas.selectors.kits import q_entrega_sin_revisar, resumen_de_items
 from programas.services.bitacora_detalle import plural
+from programas.services.ocupacion import Conteo
 
 Estado = CasoEmergencia.Estado
 Origen = CasoEmergencia.Origen
@@ -148,13 +150,22 @@ class FilaCaso:
 
 
 class DispositivoDeLaRed(NamedTuple):
-    """Un elegible con sus **camas** libres y reservadas (``selectors.emergencia.camas_de``)."""
+    """Un elegible con sus **camas** libres y reservadas (``selectors.emergencia.camas_de``).
+
+    ``tipo`` (con sus umbrales y ``ubicacion_reservada``), las coordenadas y el ``conteo``
+    completo de camas viajan para la foto de situación (E8), sin consultas extra: el tipo
+    sale del ``select_related`` de los elegibles y el conteo, del mismo ``Censo``.
+    """
 
     id: int
     nombre: str
     localidad: str
     libres: int
     reservadas: int
+    tipo: Any
+    conteo: Conteo
+    latitud: Decimal | None = None
+    longitud: Decimal | None = None
 
 
 class DerivacionPendiente(NamedTuple):
@@ -178,6 +189,8 @@ class Red:
     """Los dispositivos elegibles (RN-2.2) con sus camas, de ``ocupacion_de_plazas`` en lote."""
 
     dispositivos: tuple[DispositivoDeLaRed, ...]
+    #: La suma de las camas de todos los elegibles (el ``Censo.total`` de ``camas_de``).
+    total: Conteo = field(default_factory=lambda: Conteo(ocupadas=0, reservadas=0, prestadas=0))
 
     @property
     def libres(self):
@@ -227,7 +240,7 @@ def _casos_de_la_ventana(ahora):
     ultima = ultima_traza_del_caso()
     contacto = ContactoCaso.objects.filter(caso=OuterRef("pk"), momento__gte=OuterRef("alojado_en"))
     filas = (
-        CasoEmergencia.objects.filter(~Q(estado=Estado.CERRADO) | Q(alojado_en__gte=limite) | Q(cerrado_en__gte=limite))
+        CasoEmergencia.objects.filter(CasoEmergencia.q_en_la_ventana(limite))
         .annotate(
             ultima_accion=Subquery(ultima.values("accion")[:1]),
             ultimo_detalle=Subquery(ultima.values("detalle")[:1]),
@@ -321,11 +334,15 @@ def red_de_dispositivos(momento):
                 id=dispositivo.pk,
                 nombre=dispositivo.nombre,
                 localidad=dispositivo.localidad,
-                libres=camas_libres(conteo),
+                libres=camas_libres_del_conteo(conteo),
                 reservadas=conteo.reservadas or 0,
+                tipo=dispositivo.tipo,
+                latitud=dispositivo.latitud,
+                longitud=dispositivo.longitud,
+                conteo=conteo,
             )
         )
-    return Red(dispositivos=tuple(filas))
+    return Red(dispositivos=tuple(filas), total=censo.total)
 
 
 def _derivaciones_pendientes():
@@ -522,6 +539,12 @@ def por_localidad(sla, ahora, foto=None):
     nombre, sin enlace: una localidad que solo tiene dispositivos aparece igual (es donde hay
     lugar) y las camas no se atribuyen a una homónima al azar.
 
+    **Límite conocido:** la ambigüedad se mide solo contra las localidades **con casos en la
+    ventana**. Si «La Esperanza» de un municipio tiene casos y la de otro no, las camas de un
+    dispositivo de «La Esperanza» se suman a la que tiene casos aunque estén en la otra. E8
+    (``selectors.emergencia_situacion``) aplica la regla completa, RN-009-05: ambigüedad contra
+    todas las ``core.Localidad`` del Chaco.
+
     Orden: fuera de SLA, de más a menos; después nuevos; después el nombre.
 
     **Presupuesto: 0 consultas** con ``foto``; 7 sin ella.
@@ -590,17 +613,44 @@ def por_localidad(sla, ahora, foto=None):
 # ---------------------------------------------------------------------------
 
 
-def _percentil(valores, percentil):
+def percentil(valores, cual=PERCENTIL):
     """Percentil por rango más cercano sobre ``valores`` ordenados. ``None`` sin valores."""
 
     if not valores:
         return None
-    rango = max(math.ceil(percentil / 100 * len(valores)), 1)
+    rango = max(math.ceil(cual / 100 * len(valores)), 1)
     return valores[rango - 1]
 
 
 def _minutos(valor):
     return "—" if valor is None else texto_de_minutos(int(round(valor)))
+
+
+def muestras_por_tramo(casos, semaforos, ahora):
+    """``{tramo: [minutos, ordenados]}``: la muestra de :func:`tiempos`. Sin consultas.
+
+    Los casos con el tramo **terminado en las últimas 24 h** (la marca que lo cierra cae en
+    :data:`VENTANA`) más los que lo tienen **en curso** según ``semaforos`` (``{id: EstadoSLA}``),
+    medidos hasta ``ahora``. Los ingresos directos solo entran en «alojar». Es la misma lista
+    de la que salen la mediana y el p90 de E1 y la alerta AE-4 de E8 (tramo trabado).
+    """
+
+    limite = ahora - VENTANA
+    muestras = {tramo: [] for tramo, *_resto in TRAMOS}
+    for caso in casos:
+        en_curso = semaforos.get(caso.id)
+        for tramo, abre, cierra, _campo in TRAMOS:
+            if caso.ingreso_directo and tramo != TRAMO_ALOJAR:
+                continue
+            desde, hasta = getattr(caso, abre), getattr(caso, cierra)
+            if desde is None:
+                continue
+            if hasta is not None:
+                if hasta >= limite:
+                    muestras[tramo].append(max((hasta - desde).total_seconds(), 0) / 60)
+            elif en_curso is not None and en_curso.tramo == tramo:
+                muestras[tramo].append(max((ahora - desde).total_seconds(), 0) / 60)
+    return {tramo: sorted(valores) for tramo, valores in muestras.items()}
 
 
 def tiempos(sla, ahora, foto=None):
@@ -619,24 +669,10 @@ def tiempos(sla, ahora, foto=None):
     """
 
     foto = asegurar_foto(sla, ahora, foto)
-    limite = ahora - VENTANA
-    muestras = {tramo: [] for tramo, *_resto in TRAMOS}
-    for caso in foto.casos:
-        en_curso = foto.semaforos.get(caso.id)
-        for tramo, abre, cierra, _campo in TRAMOS:
-            if caso.ingreso_directo and tramo != TRAMO_ALOJAR:
-                continue
-            desde, hasta = getattr(caso, abre), getattr(caso, cierra)
-            if desde is None:
-                continue
-            if hasta is not None:
-                if hasta >= limite:
-                    muestras[tramo].append(max((hasta - desde).total_seconds(), 0) / 60)
-            elif en_curso is not None and en_curso.tramo == tramo:
-                muestras[tramo].append(max((ahora - desde).total_seconds(), 0) / 60)
+    muestras = muestras_por_tramo(foto.casos, foto.semaforos, ahora)
     filas = []
     for tramo, _abre, _cierra, campo in TRAMOS:
-        valores = sorted(muestras[tramo])
+        valores = muestras[tramo]
         objetivo = getattr(sla, campo)
         filas.append(
             {
@@ -644,7 +680,7 @@ def tiempos(sla, ahora, foto=None):
                 "objetivo": texto_de_minutos(objetivo),
                 "casos": len(valores),
                 "mediana": _minutos(statistics.median(valores) if valores else None),
-                "p90": _minutos(_percentil(valores, PERCENTIL)),
+                "p90": _minutos(percentil(valores)),
                 "fuera_de_objetivo": sum(1 for valor in valores if valor > objetivo),
             }
         )
