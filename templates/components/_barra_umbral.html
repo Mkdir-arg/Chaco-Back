@@ -1,0 +1,34 @@
+{% comment %}
+Barra de ocupación con marcas de umbral (y su variante sin marcas).
+  {% include "components/_barra_umbral.html" with valor=t.ocupadas maximo=t.operativas porcentaje=t.porcentaje tono=t.tono etiqueta=t.etiqueta umbral_exigida=tipo.umbral_ocupacion_amarillo umbral_critica=tipo.umbral_ocupacion_rojo nombre="Ocupación de Hogar San José" only %}
+  {% include "components/_barra_umbral.html" with valor=paso.casos maximo=embudo.relevados texto="204 casos" nombre="Tomados" only %}
+Contexto:
+  valor           entero ya contado (ocupadas, casos).
+  maximo          entero ya contado sobre el que se mide (operativas, primer paso del embudo). Sin máximo
+                  positivo o sin valor no hay cifra: «—», barra vacía, nunca «0 %».
+  porcentaje      opcional, el ya calculado (`Tension.porcentaje`): gana sobre valor/maximo para que la barra
+                  diga el mismo número que el resto de la pantalla.
+  tono            opcional, `Tension.tono` (success, warning, danger, gray). Sin él, relleno brand y sin badge.
+  etiqueta        opcional, `Tension.etiqueta` («Crítica», «Sin plazas»): badge con ícono y texto.
+  umbral_exigida  opcional, % desde el que la ocupación es exigida (umbral amarillo del tipo, o 60).
+  umbral_critica  opcional, % desde el que es crítica (umbral rojo del tipo, o 80).
+                  Sin ninguno de los dos: variante sin marcas y sin leyenda de umbrales (embudo, localidades).
+  texto           opcional, reemplaza la etiqueta numérica visible «N %» («204 casos», «120 / 120»).
+  nombre          opcional, qué se mide, para el lector de pantalla. Por defecto «Ocupación».
+No calcula el nivel: lo trae la vista desde `tension_de_ocupacion`. La parte gráfica y la cifra visible van
+aria-hidden; el equivalente es una frase sr-only con el valor y el nivel en palabras, y la leyenda de umbrales
+es texto. Ancho y marcas viajan como custom properties (`--avance`, `--umbral`; nodo-barra-umbral.css).
+{% endcomment %}{% load nodo_ui %}{% porcentaje_barra valor maximo porcentaje as pct %}
+<div class="min-w-0" data-barra-umbral="{{ tono|default:'' }}">
+  <span class="sr-only">{{ nombre|default:"Ocupación" }}: {% if pct is None %}sin cifra{% else %}{{ pct }} por ciento{% if texto %} ({{ texto }}){% endif %}{% endif %}{% if etiqueta %}, nivel {{ etiqueta }}{% endif %}.</span>
+  <div class="flex items-center gap-3" aria-hidden="true">
+    <span class="nodo-barra-umbral flex-1 min-w-0">
+      <span class="nodo-barra-umbral-pista bg-tertiary">{% if pct is not None %}<span class="nodo-barra-umbral-relleno {% if tono == 'success' %}bg-success{% elif tono == 'warning' %}bg-warning{% elif tono == 'danger' %}bg-danger{% elif tono == 'gray' %}nodo-barra-umbral-relleno--neutro{% else %}bg-brand{% endif %}" style="--avance:{{ pct }}%"></span>{% endif %}</span>
+      {% if umbral_exigida %}<span class="nodo-barra-umbral-marca bg-warning" style="--umbral:{{ umbral_exigida|add:0 }}%" title="Exigida desde {{ umbral_exigida|add:0 }} %" data-marca="exigida"></span>{% endif %}
+      {% if umbral_critica %}<span class="nodo-barra-umbral-marca bg-danger" style="--umbral:{{ umbral_critica|add:0 }}%" title="Crítica desde {{ umbral_critica|add:0 }} %" data-marca="critica"></span>{% endif %}
+    </span>
+    <span class="text-sm font-semibold text-heading tabular-nums whitespace-nowrap">{% if texto %}{{ texto }}{% elif pct is None %}—{% else %}{{ pct }} %{% endif %}</span>
+    {% if etiqueta %}<span class="badge {% if tono == 'success' %}badge-success{% elif tono == 'warning' %}badge-warning{% elif tono == 'danger' %}badge-danger{% else %}badge-gray{% endif %} whitespace-nowrap"><i class="fas {% if tono == 'success' %}fa-circle-check{% elif tono == 'warning' %}fa-triangle-exclamation{% elif tono == 'danger' %}fa-circle-exclamation{% else %}fa-circle-minus{% endif %}" aria-hidden="true"></i> {{ etiqueta }}</span>{% endif %}
+  </div>
+  {% if umbral_exigida or umbral_critica %}<p class="mt-1 flex flex-wrap gap-x-3 text-xs text-body-subtle">{% if umbral_exigida %}<span class="inline-flex items-center gap-1"><span class="nodo-barra-umbral-muestra bg-warning" aria-hidden="true"></span>Exigida desde {{ umbral_exigida|add:0 }} %</span>{% endif %}{% if umbral_critica %}<span class="inline-flex items-center gap-1"><span class="nodo-barra-umbral-muestra bg-danger" aria-hidden="true"></span>Crítica desde {{ umbral_critica|add:0 }} %</span>{% endif %}</p>{% endif %}
+</div>

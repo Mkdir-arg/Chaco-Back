@@ -118,6 +118,28 @@ def menos(valor, otro):
         return None
 
 
+@register.simple_tag
+def porcentaje_barra(valor, maximo, porcentaje=None):
+    """El porcentaje entero que dibuja ``components/_barra_umbral.html``, o ``None`` si no hay cifra.
+
+    Si llega ``porcentaje`` ya calculado (``Tension.porcentaje``) gana, para que la barra diga el mismo
+    número que el resto de la pantalla. Si no, redondea ``valor * 100 / maximo`` como
+    ``tension_de_ocupacion``. Sin máximo positivo o sin valor no hay porcentaje: ``None``, nunca 0.
+    """
+    if porcentaje is not None and porcentaje != "":
+        try:
+            return int(porcentaje)
+        except (TypeError, ValueError):
+            return None
+    try:
+        valor, maximo = int(valor), int(maximo)
+    except (TypeError, ValueError):
+        return None
+    if maximo <= 0:
+        return None
+    return round(valor * 100 / maximo)
+
+
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3

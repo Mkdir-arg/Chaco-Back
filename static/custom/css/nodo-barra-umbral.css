@@ -1,0 +1,68 @@
+/* NODO Design System — Barra con marcas de umbral
+   Contrato: templates/components/_barra_umbral.html (ficha .claude/design/componentes/barra_umbral.md).
+   Solo la geometría que Tailwind no da: pista, relleno y marcas posicionadas por custom
+   property (`--avance`, `--umbral`), la única forma de pasar un número del servidor sin
+   `style=` con declaraciones. Los colores vienen de las clases `bg-*` del template. */
+
+.nodo-barra-umbral {
+    position: relative;
+    display: block;
+    padding: 4px 0;
+}
+
+.nodo-barra-umbral-pista {
+    display: block;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.nodo-barra-umbral-relleno {
+    display: block;
+    height: 100%;
+    width: var(--avance, 0%);
+    max-width: 100%;
+    border-radius: inherit;
+}
+
+.nodo-barra-umbral-relleno--neutro {
+    background: var(--bg-gray);
+}
+
+/* La marca sobresale de la pista (16 px sobre 8) para leerse encima de cualquier relleno. */
+.nodo-barra-umbral-marca {
+    position: absolute;
+    top: 0;
+    left: clamp(0%, var(--umbral, 0%), 100%);
+    width: 2px;
+    height: 16px;
+    margin-left: -1px;
+    border-radius: 1px;
+    box-shadow: 0 0 0 1px var(--bg-white);
+}
+
+.nodo-barra-umbral-muestra {
+    display: inline-block;
+    width: 2px;
+    height: 12px;
+    border-radius: 1px;
+}
+
+/* Alto contraste: el sistema pisa los fondos; pista, relleno y marcas pasan a colores del
+   sistema para no desaparecer. La leyenda en texto sigue diciendo qué marca es cuál. */
+@media (forced-colors: active) {
+    .nodo-barra-umbral-pista {
+        border: 1px solid CanvasText;
+    }
+
+    .nodo-barra-umbral-relleno {
+        background: Highlight;
+        forced-color-adjust: none;
+    }
+
+    .nodo-barra-umbral-marca,
+    .nodo-barra-umbral-muestra {
+        background: CanvasText;
+        forced-color-adjust: none;
+    }
+}
