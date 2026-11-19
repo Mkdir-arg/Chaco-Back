@@ -31,11 +31,7 @@ from programas.services.abastecimiento_emergencia import armar_abastecimiento
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
-from programas.services.pantalla_abastecimiento_emergencia import (
-    SIN_INICIO,
-    SIN_PEDIR,
-    contexto_de_abastecimiento,
-)
+from programas.services.pantalla_abastecimiento_emergencia import contexto_de_abastecimiento, panel_sin_calcular
 from programas.services.pantalla_situacion_emergencia import contexto_del_resumen, pildoras
 
 TEMPLATE = "programas/emergencia/situacion/situacion.html"
@@ -57,7 +53,10 @@ class SituacionView(SituacionPermissionMixin, View):
 
         supervisa = puede_supervisar_la_mesa(request.user)
         visibles = frozenset(dispositivos_visibles(request.user).values_list("pk", flat=True))
-        contexto = contexto_del_resumen(foto, supervisa=supervisa, dispositivos_visibles=visibles)
+        url_abastecimiento = _url_de_la_solapa(request, SOLAPA_ABASTECIMIENTO)
+        contexto = contexto_del_resumen(
+            foto, supervisa=supervisa, dispositivos_visibles=visibles, url_abastecimiento=url_abastecimiento
+        )
 
         filas = contexto["presion"]["filas"]
         pagina = None
@@ -81,26 +80,37 @@ class SituacionView(SituacionPermissionMixin, View):
                 "pagina_localidades": pagina,
                 "filas_presion": pagina.object_list if pagina else filas,
                 "parametro_de_pagina": PARAMETRO_DE_PAGINA,
-                "abastecimiento": _abastecimiento(request, foto, sla, ahora, solapa=solapa, supervisa=supervisa),
+                "abastecimiento": _abastecimiento(
+                    request, foto, sla, ahora, solapa=solapa, supervisa=supervisa, url_calcular=url_abastecimiento
+                ),
             }
         )
         return render(request, TEMPLATE, contexto)
 
 
-def _abastecimiento(request, foto, sla, ahora, *, solapa, supervisa):
+def _url_de_la_solapa(request, solapa):
+    """La misma pantalla con sus filtros (que viajan aunque no la acoten) y ``tab=solapa``, sin página."""
+
+    consulta = request.GET.copy()
+    consulta["tab"] = solapa
+    consulta.pop(PARAMETRO_DE_PAGINA, None)
+    return f"{reverse('emergencia:situacion')}?{consulta.urlencode()}"
+
+
+def _abastecimiento(request, foto, sla, ahora, *, solapa, supervisa, url_calcular):
     """La solapa Abastecimiento: lecturas → reglas → lo que se dibuja, **solo** si se pidió.
 
-    Desde otra solapa, 0 consultas: el panel trae «Calcular el abastecimiento» con la misma URL (y
-    los filtros, que viajan aunque no la acoten) y ``tab=abastecimiento``. Sin ``inicio_evento``
-    tampoco calcula: estado vacío que lo explica (con el enlace a E7 solo para ``supervisar``).
+    Desde otra solapa o sin ``inicio_evento``, 0 consultas: el panel lo arma
+    ``pantalla_abastecimiento_emergencia.panel_sin_calcular``.
     """
 
-    if solapa != SOLAPA_ABASTECIMIENTO:
-        consulta = request.GET.copy()
-        consulta["tab"] = SOLAPA_ABASTECIMIENTO
-        consulta.pop(PARAMETRO_DE_PAGINA, None)
-        return {"estado": SIN_PEDIR, "url_calcular": f"{reverse('emergencia:situacion')}?{consulta.urlencode()}"}
-    if sla.inicio_evento is None:
-        return {"estado": SIN_INICIO, "url_configuracion": reverse("emergencia:configuracion") if supervisa else ""}
+    panel = panel_sin_calcular(
+        pedido=solapa == SOLAPA_ABASTECIMIENTO,
+        inicio_evento=sla.inicio_evento,
+        url_calcular=url_calcular,
+        supervisa=supervisa,
+    )
+    if panel is not None:
+        return panel
     armado = armar_abastecimiento(lecturas_de_abastecimiento(foto, sla.inicio_evento), foto, ahora)
     return contexto_de_abastecimiento(armado, ahora, opera=puede_operar_la_mesa(request.user), supervisa=supervisa)

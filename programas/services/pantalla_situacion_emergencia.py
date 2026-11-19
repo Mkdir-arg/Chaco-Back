@@ -129,11 +129,11 @@ def _plural(cantidad, singular, plural):
     return f"{numero(cantidad)} {singular if cantidad == 1 else plural}"
 
 
-def _badge(texto, tono):
+def badge(texto, tono):
     return {"texto": texto, "tono": tono, "icono": ICONOS_DE_TONO.get(tono, ICONOS_DE_TONO["gray"])}
 
 
-def _local(momento):
+def local(momento):
     return momento.astimezone(ZONA_OPERATIVA)
 
 
@@ -213,7 +213,7 @@ def tarjetas(numeros):
     esperando = numeros["personas_esperando"]
     camas = numeros["camas_libres"]
     tension = camas["tension"]
-    hora_del_dia = f"{_local(alojadas['desde']):%H:%M}"
+    hora_del_dia = f"{local(alojadas['desde']):%H:%M}"
     if tension.hay_cifra:
         nota_camas = f"{tension.porcentaje} % ocupada · {_plural(camas['reservadas'], 'reservada', 'reservadas')}"
     else:
@@ -303,23 +303,34 @@ def pildoras(foto):
 # ---------------------------------------------------------------------------
 
 
-def atencion(foto, *, supervisa):
-    """«Necesita atención»: las alertas recortadas y el contador. Ninguna enlaza a un caso; AE-6, a Abastecimiento."""
+#: Las alertas del Resumen que enlazan a otra parte de E8: regla → (clave de la URL, texto de la acción).
+#: AE-6 lleva a la solapa que dice qué mandar (RN-009-22); ninguna enlaza a un caso.
+ACCIONES_DE_ALERTA = {"AE-6": ("abastecimiento", "Ver el abastecimiento")}
+
+
+def atencion(foto, *, supervisa, urls=None):
+    """«Necesita atención»: las alertas recortadas y el contador.
+
+    ``urls`` son las de destino de :data:`ACCIONES_DE_ALERTA` (la de Abastecimiento, con los filtros
+    de la pantalla); una alerta sin URL no lleva acción.
+    """
 
     resultado = alertas_de_situacion(foto)
-    url_abastecimiento = f"{reverse('emergencia:situacion')}?tab=abastecimiento"
-    avisos = [
-        {
-            "tono": alerta["tono"],
-            "icono": alerta["icono"],
-            "titulo": alerta["titulo"],
-            "texto": alerta["texto"],
-            # AE-6 lleva a la solapa que dice qué mandar (RN-009-22); las demás no enlazan.
-            "url": url_abastecimiento if alerta["regla"] == "AE-6" else "",
-            "accion": "Ver el abastecimiento" if alerta["regla"] == "AE-6" else "",
-        }
-        for alerta in resultado["alertas"]
-    ]
+    urls = urls or {}
+    avisos = []
+    for alerta in resultado["alertas"]:
+        destino, accion = ACCIONES_DE_ALERTA.get(alerta["regla"], ("", ""))
+        url = urls.get(destino, "") if destino else ""
+        avisos.append(
+            {
+                "tono": alerta["tono"],
+                "icono": alerta["icono"],
+                "titulo": alerta["titulo"],
+                "texto": alerta["texto"],
+                "url": url,
+                "accion": accion if url else "",
+            }
+        )
     total = resultado["total"]
     if not total:
         contador = "Ninguna alerta estratégica con estos filtros."
@@ -336,13 +347,13 @@ def atencion(foto, *, supervisa):
 
 def _texto_de_presion(presion):
     if presion is None:
-        return _badge(SIN_DATO, "gray")
+        return badge(SIN_DATO, "gray")
     etiqueta, tono = presion.etiqueta, presion.tono
     if presion.nivel == NIVEL_SIN_DEMANDA:
-        return _badge(etiqueta, tono)
+        return badge(etiqueta, tono)
     if presion.sin_camas_cercanas:
-        return _badge(f"{etiqueta} · sin camas a {RADIO_CERCANAS_KM} km", tono)
-    return _badge(f"{etiqueta} · {cociente(presion.cociente)}×", tono)
+        return badge(f"{etiqueta} · sin camas a {RADIO_CERCANAS_KM} km", tono)
+    return badge(f"{etiqueta} · {cociente(presion.cociente)}×", tono)
 
 
 def tabla_de_presion(foto, *, supervisa):
@@ -415,16 +426,16 @@ def tabla_de_presion(foto, *, supervisa):
 
 
 def _etiqueta_de_periodo(desde, hasta, *, por_bloques, en_curso, ahora):
-    inicio = _local(desde)
+    inicio = local(desde)
     dia = f"{DIAS[inicio.weekday()]} {inicio:%d/%m}"
     if por_bloques:
-        fin = _local(hasta)
+        fin = local(hasta)
         etiqueta = f"{dia} {inicio:%H}–{fin:%H} h"
         eje = f"{inicio:%H} h"
     else:
         etiqueta, eje = dia, f"{inicio:%d/%m}"
     if en_curso:
-        etiqueta = f"{etiqueta} (hasta {_local(ahora):%H:%M})"
+        etiqueta = f"{etiqueta} (hasta {local(ahora):%H:%M})"
     return etiqueta, eje
 
 
@@ -641,8 +652,11 @@ def bloque_de_logistica(foto, *, dispositivos_visibles):
     }
 
 
-def contexto_del_resumen(foto, *, supervisa, dispositivos_visibles):
-    """Todo lo que dibuja la pantalla menos los filtros y las URL de la vista. Sin consultas."""
+def contexto_del_resumen(foto, *, supervisa, dispositivos_visibles, url_abastecimiento=""):
+    """Todo lo que dibuja la pantalla menos los filtros y las URL de la vista. Sin consultas.
+
+    ``url_abastecimiento`` es la de la solapa Abastecimiento con los filtros de la pantalla (la arma la vista).
+    """
 
     numeros = resumen(foto)
     return {
@@ -654,7 +668,7 @@ def contexto_del_resumen(foto, *, supervisa, dispositivos_visibles):
         "localidad_ignorada": numeros["localidad_ignorada"],
         "alcance": alcance(foto),
         "tarjetas": tarjetas(numeros),
-        "atencion": atencion(foto, supervisa=supervisa),
+        "atencion": atencion(foto, supervisa=supervisa, urls={"abastecimiento": url_abastecimiento}),
         "presion": tabla_de_presion(foto, supervisa=supervisa),
         "evolucion": bloque_de_evolucion(foto),
         "capacidad": bloque_de_capacidad(foto, dispositivos_visibles=dispositivos_visibles),

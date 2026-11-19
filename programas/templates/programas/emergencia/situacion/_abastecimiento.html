@@ -2,26 +2,22 @@
 (golden: programas/templates/programas/dispositivos/tablero/tablero_referencia.html), sin piezas nuevas: stat cards
 chicas, _alerta, tablas densas con badge de ícono + texto, _estado_vacio y el plegable «Cómo se calcula» del Resumen.
 Todo llega escrito de services/pantalla_abastecimiento_emergencia.py: el template no cuenta ni decide. Solo se calcula
-con ?tab=abastecimiento; desde otra solapa, `estado` es «sin_pedir» y el panel ofrece calcularlo. Todo número es una
-estimación con la regla de consumo de cada ítem, no un inventario. «Preparar entrega» y el enlace a E7 solo llegan con
+con ?tab=abastecimiento; si no calcula (otra solapa, sin inicio del evento, sin reglas, sin alojados), `vacio` trae el
+estado vacío ya resuelto. Todo número es una estimación con la regla de consumo de cada ítem, no un inventario. «Preparar entrega» y el enlace a E7 solo llegan con
 la capacidad que los habilita.{% endcomment %}
 <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-titulo">
   <div class="px-5 py-4 border-b border-light">
     <h2 id="abastecimiento-titulo" class="text-heading font-bold">Abastecimiento</h2>
-    {% if abastecimiento.estado == "calculado" %}
+    {% if abastecimiento.calculado %}
     <p class="mt-1 text-xs text-body-subtle">{{ abastecimiento.nota }}</p>
     {% else %}
     <p class="mt-1 text-xs text-body-subtle">Qué le falta a cada dispositivo y qué conviene mandar en las próximas 48 h, estimado con la regla de consumo de cada ítem.</p>
     {% endif %}
   </div>
-  {% if abastecimiento.estado == "sin_pedir" %}
-  {% include "components/_estado_vacio.html" with icono="fa-boxes-stacked" titulo="El abastecimiento se calcula cuando lo pedís" texto="Es una estimación de toda la red provincial; los filtros no la acotan." accion_url=abastecimiento.url_calcular accion_texto="Calcular el abastecimiento" accion_icono="fa-calculator" only %}
-  {% elif abastecimiento.estado == "sin_inicio" %}
-  {% include "components/_estado_vacio.html" with icono="fa-calendar-xmark" titulo="Para estimar el abastecimiento falta la fecha de inicio del evento" texto="Todo lo recibido y lo consumido se cuenta desde esa fecha. Se carga en Configuración de la mesa." accion_url=abastecimiento.url_configuracion accion_texto="Ir a Configuración de la mesa" only %}
-  {% elif abastecimiento.estado == "sin_reglas" %}
-  {% include "components/_estado_vacio.html" with icono="fa-sliders" titulo="Ningún ítem tiene regla de consumo: se configuran en Configuración de la mesa" texto="Sin una regla por ítem no se puede estimar qué falta." accion_url=abastecimiento.url_configuracion accion_texto="Ir a Configuración de la mesa" only %}
-  {% elif abastecimiento.estado == "sin_alojados" %}
-  {% include "components/_estado_vacio.html" with icono="fa-house-chimney-user" titulo="Todavía no hay personas alojadas por la emergencia" texto="Cuando un dispositivo confirme a la primera, acá vas a ver qué le falta." only %}
+  {% if abastecimiento.vacio %}
+  {% with vacio=abastecimiento.vacio %}
+  {% include "components/_estado_vacio.html" with icono=vacio.icono titulo=vacio.titulo texto=vacio.texto accion_url=vacio.accion_url accion_texto=vacio.accion_texto accion_icono=vacio.accion_icono only %}
+  {% endwith %}
   {% else %}
   <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
     {% for tarjeta in abastecimiento.tarjetas %}
@@ -31,7 +27,7 @@ la capacidad que los habilita.{% endcomment %}
   {% endif %}
 </section>
 
-{% if abastecimiento.estado == "calculado" %}
+{% if abastecimiento.calculado %}
 {# ===== AB2 · Necesita atención: AE-8 y la salud logística (AE-9, AE-10; RN-009-21 y 22) ===== #}
 <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-atencion-titulo">
   <div class="px-5 py-4 border-b border-light">
@@ -147,7 +143,7 @@ la capacidad que los habilita.{% endcomment %}
   <details class="px-5 py-4">
     <summary class="cursor-pointer text-sm font-semibold text-fg-brand"><span id="abastecimiento-calculo-titulo">Cómo se calcula</span></summary>
     <div class="mt-3 space-y-2 text-sm text-body">
-      <p><strong>Es una estimación: no es un inventario.</strong> lo recibido se da por consumido según la regla de cada ítem. No sabe lo que llegó por fuera de la mesa ni lo que se perdió.</p>
+      <p><strong>Es una estimación: no es un inventario.</strong> Lo recibido se da por consumido según la regla de cada ítem. No sabe lo que llegó por fuera de la mesa ni lo que se perdió.</p>
       <p><strong>Dotación</strong> (una vez por unidad): necesario = unidades de hoy × cantidad − recibido. Ej.: 64 personas, colchón 1 por persona, 40 recibidos → 24.</p>
       <p><strong>Reposición</strong> (cada N días): se descuenta lo consumido por las personas, familias o lactantes que de verdad estuvieron desde la primera recepción del ítem; necesario = consumo de 48 h − lo que queda. Ej.: agua 0,5 por persona por día, 40 personas, 60 bidones recibidos hace 2 días → quedan 20, necesario 20 (cubre ≈ 24 h).</p>
       <p><strong>Desde el inicio del evento:</strong> lo recibido, lo en camino, lo preparado y la gente que pasó se cuentan desde la fecha de inicio cargada en Configuración de la mesa. Se cuenta lo recibido, no lo enviado; las entregas canceladas no cuentan.</p>

@@ -227,10 +227,10 @@ def urgencia(nunca_recibio: bool, items) -> str:
     """Crítica o Exigida de un dispositivo sin cobertura 48 h (RN-009-20).
 
     **Crítica**: nunca recibió nada desde el inicio del evento; o alguno de los ítems que le faltan
-    es una dotación, o una reposición sin cubrir ahora aun contando lo en camino (un ítem nunca
-    recibido sin nada en camino lo está: es el caso del ítem «por lactante»). **Exigida**: el resto
-    (lo que le falta cubre algo, menos de 48 h). Solo miran los ítems con faltan > 0: lo preparado
-    que tapa un ítem lo saca de la cuenta (§12: «… preparados»).
+    es una dotación, una reposición sin cubrir ahora aun contando lo en camino, o un ítem «por
+    lactante» que nunca recibió con lactantes en el dispositivo (aunque tenga algo en camino: el texto
+    de RN-009-20). **Exigida**: el resto (lo que le falta cubre algo, menos de 48 h). Solo miran los
+    ítems con faltan > 0: lo preparado que tapa un ítem lo saca de la cuenta (§12: «… preparados»).
     """
 
     if nunca_recibio or any(item.critico for item in items if item.faltan):
@@ -240,8 +240,8 @@ def urgencia(nunca_recibio: bool, items) -> str:
 
 def clave_de_orden(fila):
     """Crítica antes que Exigida; primero los que nunca recibieron; después la menor cobertura en
-    horas de los ítems que faltan (nunca recibido = la menor; dotación = 0 h; sin cubrir, negativa);
-    a igual cobertura, más personas primero (RN-009-20)."""
+    horas de los ítems que faltan (nunca recibido = la menor, aun con algo en camino; dotación = 0 h;
+    sin cubrir, negativa); a igual cobertura, más personas primero (RN-009-20)."""
 
     horas = [item.horas_para_ordenar for item in fila.items if item.faltan and item.horas_para_ordenar is not None]
     return (
@@ -387,7 +387,9 @@ def _item_del_dispositivo(item, unidades, tramos, recibido, en_camino, preparada
     cubre = cobertura(resto, diario, ahora, deficit=deficit, en_camino=en_camino)
     horas = None
     if cubre.estado != SIN_CONSUMO:
-        horas = NUNCA if recibido is None and not en_camino else cubre.horas
+        horas = NUNCA if recibido is None else cubre.horas
+    # RN-009-20: un ítem «por lactante» nunca recibido es Crítico aunque haya algo en camino.
+    lactantes_sin_su_item = item.por == Por.LACTANTE and recibido is None and u > 0
     return ItemDelDispositivo(
         item,
         necesario,
@@ -396,7 +398,7 @@ def _item_del_dispositivo(item, unidades, tramos, recibido, en_camino, preparada
         faltan(necesario, en_camino, preparadas),
         recibido is None,
         cubre,
-        cubre.estado == SIN_CUBRIR,
+        cubre.estado == SIN_CUBRIR or lactantes_sin_su_item,
         horas,
     )
 
@@ -427,12 +429,20 @@ def _dispositivos(ids, foto, lecturas):
     return {pk: resultado.get(pk) or DispositivoDelAbastecimiento(pk, "", "", True, "") for pk in ids}
 
 
+def _por_nombre(par):
+    """Las listas de salud van por nombre visible y después por id: nada del orden depende del conteo."""
+
+    dispositivo, _cantidad = par
+    return (nombre_visible(dispositivo).casefold(), dispositivo.id)
+
+
 def _salud(total, sin, dispositivos, filas_por_id, items_de_lactantes):
     """B16: medicación crítica sin dosis por dispositivo (``sin``, de la foto: la misma lectura y la misma
     regla que AE-7) y lactantes sin el ítem de lactantes (nunca recibido o sin cubrir ahora aun contando
     lo en camino)."""
 
-    por_dispositivo = tuple((dispositivos[pk], n) for pk, n in sorted(sin.items(), key=lambda par: (-par[1], par[0])))
+    # Nunca por conteo (RN-009-21 b): con 3 personas en 2 dispositivos, «el primero» diría quién tiene 2.
+    por_dispositivo = tuple(sorted(((dispositivos[pk], n) for pk, n in sin.items()), key=_por_nombre))
     lactantes = []
     ids_de_lactantes = {item.id for item in items_de_lactantes}
     for fila in filas_por_id.values():
@@ -441,7 +451,7 @@ def _salud(total, sin, dispositivos, filas_por_id, items_de_lactantes):
         sin_item = any(item.nunca_recibido or item.critico for item in fila.items if item.item.id in ids_de_lactantes)
         if sin_item:
             lactantes.append((fila.dispositivo, fila.unidades.lactantes))
-    lactantes.sort(key=lambda par: (-par[1], par[0].id))
+    lactantes.sort(key=_por_nombre)
     return Salud(total, por_dispositivo, tuple(lactantes), tuple(items_de_lactantes))
 
 

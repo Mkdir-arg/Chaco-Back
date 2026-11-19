@@ -19,27 +19,44 @@ from django.urls import reverse
 from django.utils.formats import number_format
 
 from programas.models import Dispositivo, TipoKit
-from programas.selectors.emergencia_tablero import ZONA_OPERATIVA
 from programas.services.abastecimiento_emergencia import CUBRE, SIN_CONSUMO, nombre_visible, presentar_salud
 from programas.services.alertas_situacion_emergencia import alertas_de_abastecimiento
 from programas.services.ocupacion import etiqueta_y_tono
-from programas.services.pantalla_situacion_emergencia import DIAS, ICONOS_DE_TONO, RED_PROVINCIAL, SIN_DATO, numero
+from programas.services.pantalla_situacion_emergencia import DIAS, RED_PROVINCIAL, SIN_DATO, badge, local, numero
 
-#: Los estados de la solapa: sin pedir (se mira otra), sin inicio del evento, sin reglas, sin alojados, calculada.
-SIN_PEDIR = "sin_pedir"
-SIN_INICIO = "sin_inicio"
-SIN_REGLAS = "sin_reglas"
-SIN_ALOJADOS = "sin_alojados"
-CALCULADO = "calculado"
+IR_A_E7 = "Ir a Configuración de la mesa"
+
+#: Los estados vacíos de la solapa (§3.9 y §12), listos para ``components/_estado_vacio.html``. La acción
+#: de los que piden ir a E7 solo viaja con ``supervisar``.
+VACIO_SIN_PEDIR = {
+    "icono": "fa-boxes-stacked",
+    "titulo": "El abastecimiento se calcula cuando lo pedís",
+    "texto": "Es una estimación de toda la red provincial; los filtros no la acotan.",
+    "accion_texto": "Calcular el abastecimiento",
+    "accion_icono": "fa-calculator",
+}
+VACIO_SIN_INICIO = {
+    "icono": "fa-calendar-xmark",
+    "titulo": "Para estimar el abastecimiento falta la fecha de inicio del evento",
+    "texto": "Todo lo recibido y lo consumido se cuenta desde esa fecha. Se carga en Configuración de la mesa.",
+    "accion_texto": IR_A_E7,
+}
+VACIO_SIN_REGLAS = {
+    "icono": "fa-sliders",
+    "titulo": "Ningún ítem tiene regla de consumo: se configuran en Configuración de la mesa",
+    "texto": "Sin una regla por ítem no se puede estimar qué falta.",
+    "accion_texto": IR_A_E7,
+}
+VACIO_SIN_ALOJADOS = {
+    "icono": "fa-house-chimney-user",
+    "titulo": "Todavía no hay personas alojadas por la emergencia",
+    "texto": "Cuando un dispositivo confirme a la primera, acá vas a ver qué le falta.",
+}
 
 POR = {TipoKit.PorRegla.PERSONA: "persona", TipoKit.PorRegla.FAMILIA: "familia", TipoKit.PorRegla.LACTANTE: "lactante"}
 
 #: La cobertura se dice en horas hasta un día; desde ahí, en fecha y hora redondeadas a la media hora.
 HORAS_EN_HORAS = 24
-
-
-def _local(momento):
-    return momento.astimezone(ZONA_OPERATIVA)
 
 
 def cantidad_de_la_regla(cantidad):
@@ -62,9 +79,9 @@ def texto_de_la_regla(item):
 def _media_hora(momento):
     """El momento local redondeado a la media hora más cercana («≈ 10:30»)."""
 
-    local = _local(momento)
-    medias = round((local.minute * 60 + local.second) / 1800)
-    return local.replace(minute=0, second=0, microsecond=0) + timedelta(minutes=30 * medias)
+    momento = local(momento)
+    medias = round((momento.minute * 60 + momento.second) / 1800)
+    return momento.replace(minute=0, second=0, microsecond=0) + timedelta(minutes=30 * medias)
 
 
 def texto_de_cobertura(item):
@@ -88,7 +105,7 @@ def texto_de_cobertura(item):
 
 
 def nota(abastecimiento):
-    inicio = _local(abastecimiento.inicio_evento)
+    inicio = local(abastecimiento.inicio_evento)
     return (
         f"{RED_PROVINCIAL} · próximas 48 h · desde el inicio del evento ({inicio:%d/%m %H:%M}) · "
         "estimado con la regla de consumo de cada ítem; no es un inventario"
@@ -192,7 +209,7 @@ def lista_de_dispositivos(abastecimiento, ahora, *, opera):
             {
                 "nombre": nombre_visible(dispositivo),
                 "estado": estado,
-                "urgencia": {"texto": etiqueta, "tono": tono, "icono": ICONOS_DE_TONO[tono]},
+                "urgencia": badge(etiqueta, tono),
                 "personas": personas,
                 "ultima": _ultima(fila, ahora),
                 "necesita": _que_necesita(fila),
@@ -212,6 +229,35 @@ def como_se_calcula(abastecimiento):
     return [f"{item.nombre}: {texto_de_la_regla(item)}" for item in abastecimiento.items_con_regla]
 
 
+def _url_configuracion(supervisa):
+    return reverse("emergencia:configuracion") if supervisa else ""
+
+
+def _vacio(vacio, url=""):
+    """Un panel que no calcula: ``vacio`` (uno de los ``VACIO_*``) con su acción solo si hay URL."""
+
+    panel = dict(vacio)
+    panel["accion_url"] = url
+    if not url:
+        panel.pop("accion_texto", None)
+        panel.pop("accion_icono", None)
+    return {"calculado": False, "vacio": panel}
+
+
+def panel_sin_calcular(*, pedido, inicio_evento, url_calcular, supervisa):
+    """El panel cuando la solapa no calcula, o ``None`` si hay que calcularla. Sin consultas.
+
+    Sin ``?tab=abastecimiento`` (``pedido`` falso), «Calcular el abastecimiento» con ``url_calcular``;
+    sin ``inicio_evento``, el estado que lo pide (con el enlace a E7 solo para ``supervisar``).
+    """
+
+    if not pedido:
+        return _vacio(VACIO_SIN_PEDIR, url_calcular)
+    if inicio_evento is None:
+        return _vacio(VACIO_SIN_INICIO, _url_configuracion(supervisa))
+    return None
+
+
 def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa):
     """Todo lo que dibuja la solapa calculada. Sin consultas.
 
@@ -219,14 +265,15 @@ def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa):
     los nombres de la salud y «Preparar entrega»; ``supervisa``, el enlace a E7.
     """
 
-    url_configuracion = reverse("emergencia:configuracion") if supervisa else ""
+    url_configuracion = _url_configuracion(supervisa)
     if not abastecimiento.hay_reglas:
-        return {"estado": SIN_REGLAS, "url_configuracion": url_configuracion}
+        return _vacio(VACIO_SIN_REGLAS, url_configuracion)
     if not abastecimiento.hay_alojados:
-        return {"estado": SIN_ALOJADOS, "url_configuracion": url_configuracion}
+        return _vacio(VACIO_SIN_ALOJADOS)
     salud = presentar_salud(abastecimiento.salud, opera)
     return {
-        "estado": CALCULADO,
+        "calculado": True,
+        "vacio": None,
         "url_configuracion": url_configuracion,
         "nota": nota(abastecimiento),
         "tarjetas": tarjetas(abastecimiento),

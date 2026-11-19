@@ -317,13 +317,17 @@ def lactante_visible(dispositivo, lactantes):
 
 
 def lactantes_sin_su_item(salud):
-    """AE-10: lactantes en dispositivos que nunca recibieron el ítem «por lactante» o lo tienen sin cubrir."""
+    """AE-10: lactantes en dispositivos que nunca recibieron el ítem «por lactante» o lo tienen sin cubrir.
+
+    Los dispositivos van por nombre (``presentar_salud``), nunca por cantidad de lactantes.
+    """
 
     if not salud.lactantes:
         return []
     items = _lista(item.nombre for item in salud.items_de_lactantes)
     texto = f"{_lista(lactante_visible(d, n) for d, n in salud.lactantes)}."
-    return [_alerta("AE-10", ALTA, f"Lactantes sin {items} cubierto", texto)]
+    # «Lactantes sin cubrir: Pañales y Leche»: el título no concuerda con el género ni el número del ítem.
+    return [_alerta("AE-10", ALTA, f"Lactantes sin cubrir: {items}", texto)]
 
 
 def alertas_de_abastecimiento(abastecimiento, salud):

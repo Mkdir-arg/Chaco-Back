@@ -971,6 +971,8 @@ se cerraron con lo que el análisis ya daba por alcance.
 | 2026-11-18 | Alcance de las alertas con filtro (decisión del PM): AE-2, AE-3 y AE-4 sobre la demanda filtrada; AE-1, AE-5, AE-6 y AE-7 provinciales, rotuladas «en toda la provincia» con filtro activo (§3.8, RN-009-09) | Supuesto abierto de los casos de QA |
 | 2026-11-18 | AE-4 con muestra mínima: al menos 20 casos en el tramo dentro de las 24 h, con y sin filtro (RN-009-09) | Auditoría del PR #1193, decisión del PM |
 | 2026-11-19 | B12 y HU-9.7: «Sin entrega en 48 h» lista hasta 10 dispositivos, con «Mostrando N de M» cuando hay más (M = la cifra de AE-6) | Auditoría del PR #1226 (E-5), MINOR resuelto en E-7b (#1187) |
+| 2026-11-19 | RN-009-20, implementado tal como está escrito: un ítem «por lactante» que el dispositivo nunca recibió, teniendo lactantes, lo vuelve Crítica **aunque haya algo en camino**; en el orden, todo ítem nunca recibido es la menor cobertura. RN-009-21 b: las listas de salud (AE-9) y de lactantes (AE-10) van por nombre, nunca por conteo | Auditoría del PR #1227 (E-7b) |
+| 2026-11-19 | AB6 («Cómo se calcula») lista la regla vigente de cada ítem pero **no desde cuándo rige**: leerlo de la traza de E7 costaría una consulta más en la solapa. Queda como decisión abierta (pendiente 3 del Cambio 510) | E-7b (#1187) |
 
 ---
 

@@ -12,6 +12,8 @@ Todas las personas usan DNIs de prueba (90000001–90000099).
 """
 
 import json
+import re
+from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
 
@@ -50,7 +52,7 @@ from programas.services.abastecimiento_emergencia import (
     presentar_salud,
 )
 from programas.services.ocupacion import NIVEL_CRITICA, NIVEL_EXIGIDA
-from programas.services.situacion_emergencia import sin_dosis_provincial
+from programas.services.situacion_emergencia import sin_dosis_provincial, sin_entrega_reciente
 from programas.tests.test_emergencia_base import OPERAR
 from programas.tests.test_emergencia_casos import T0
 from programas.tests.test_emergencia_situacion import BancoSituacion, BaseSituacion
@@ -228,13 +230,78 @@ class PresentarSaludTests(SimpleTestCase):
     def test_tc_1187_32_lactantes_numero_solo_desde_5(self):
         salud = presentar_salud(_salud([], lactantes=[(_d(1), 6), (_d(2), 3), (_d(3, reservado=True), 9)]), False)
         self.assertEqual([(d.id, n) for d, n in salud.lactantes], [(1, 6), (2, None), (3, None)])
-        texto = alertas.lactantes_sin_su_item(
-            salud._replace(items_de_lactantes=(_item(Modo.REPOSICION, 1, Por.LACTANTE, 2, "Pañales"),))
-        )[0]
+        pañales, leche = (
+            _item(Modo.REPOSICION, 1, Por.LACTANTE, 2, "Pañales"),
+            _item(Modo.REPOSICION, 1, Por.LACTANTE, 1, "Leche"),
+        )
+        alerta = alertas.lactantes_sin_su_item(salud._replace(items_de_lactantes=(pañales, leche)))[0]
+        self.assertEqual(alerta["titulo"], "Lactantes sin cubrir: Pañales y Leche")
         self.assertEqual(
-            texto["texto"],
+            alerta["texto"],
             f"Dispositivo 1 · Resistencia (6 lactantes), Dispositivo 2 · Resistencia y {RESERVADO}.",
         )
+
+
+def _con_nombre(pk, nombre):
+    return DispositivoDelAbastecimiento(pk, nombre, "Resistencia", False, "ACTIVO")
+
+
+class OrdenDeLaSaludTests(SimpleTestCase):
+    """RN-009-21 b: el orden de los nombres no puede decir cuántas personas hay en cada uno."""
+
+    def test_sin_dosis_por_nombre_y_no_por_conteo(self):
+        """3 personas en 2 dispositivos: el que tiene 2 es el último alfabéticamente y va último."""
+        dispositivos = {1: _con_nombre(1, "Zapallar"), 2: _con_nombre(2, "Avellaneda")}
+        salud = reglas._salud(3, Counter({1: 2, 2: 1}), dispositivos, {}, [])
+        self.assertEqual([d.nombre for d, _n in salud.sin_dosis_por_dispositivo], ["Avellaneda", "Zapallar"])
+        mesa = presentar_salud(salud, True)
+        self.assertEqual([d.nombre for d in mesa.nombres], ["Avellaneda", "Zapallar"])
+        self.assertEqual(
+            alertas.sin_dosis_en_dispositivos(mesa)[0]["texto"], "En Avellaneda · Resistencia y Zapallar · Resistencia."
+        )
+
+    def test_lactantes_por_nombre_y_no_por_cantidad(self):
+        item = _item(Modo.REPOSICION, 1, Por.LACTANTE, 2, "Pañales")
+        filas = {
+            pk: reglas.FilaDispositivo(
+                _con_nombre(pk, nombre),
+                Unidades(personas=10, familias=1, lactantes=lactantes),
+                0,
+                T0,
+                (reglas.ItemDelDispositivo(item, 1, 0, 0, 1, True, None, True, reglas.NUNCA),),
+            )
+            for pk, nombre, lactantes in ((1, "Zapallar", 9), (2, "Avellaneda", 2))
+        }
+        salud = reglas._salud(0, Counter(), {}, filas, [item])
+        self.assertEqual([(d.nombre, n) for d, n in salud.lactantes], [("Avellaneda", 2), ("Zapallar", 9)])
+
+
+class LactantesNuncaRecibidoTests(SimpleTestCase):
+    """RN-009-20: el ítem «por lactante» nunca recibido es Crítico aunque haya algo en camino."""
+
+    def _item(self, por, lactantes):
+        item = _item(Modo.REPOSICION, 1, por, 2, "Pañales")
+        tramos = {Por.PERSONA: [], Por.FAMILIA: [], Por.LACTANTE: []}
+        unidades = Unidades(personas=10, familias=1, lactantes=lactantes)
+        return reglas._item_del_dispositivo(item, unidades, tramos, None, 1, 0, T0)
+
+    def test_por_lactante_nunca_recibido_con_algo_en_camino_es_critico(self):
+        panales = self._item(Por.LACTANTE, 3)
+        self.assertEqual((panales.necesario, panales.en_camino, panales.faltan), (3, 1, 2))
+        self.assertEqual(panales.cobertura.estado, CUBRE)
+        self.assertTrue(panales.critico)
+        self.assertEqual(panales.horas_para_ordenar, reglas.NUNCA)
+        self.assertEqual(reglas.urgencia(False, (panales,)), NIVEL_CRITICA)
+
+    def test_otro_item_nunca_recibido_con_algo_en_camino_ordena_primero_pero_no_es_critico(self):
+        agua = self._item(Por.PERSONA, 0)
+        self.assertFalse(agua.critico)
+        self.assertEqual(agua.horas_para_ordenar, reglas.NUNCA)
+        self.assertEqual(reglas.urgencia(False, (agua,)), NIVEL_EXIGIDA)
+
+    def test_sin_lactantes_no_es_critico(self):
+        sin = self._item(Por.LACTANTE, 0)
+        self.assertEqual((sin.necesario, sin.critico, sin.cobertura.estado), (0, False, SIN_CONSUMO))
 
 
 # ---------------------------------------------------------------------------
@@ -478,6 +545,13 @@ class ArmadoTests(EscenarioAbastecimiento):
         lactantes = [(d.id, n) for d, n in self.armado.salud.lactantes]
         self.assertEqual(lactantes, [(self.ees.pk, 6), (self.salon.pk, 3)])
 
+    def test_tc_1187_18_sin_entrega_en_48_h_es_la_misma_lista_que_ae_6(self):
+        ids = {fila["id"] for fila in sin_entrega_reciente(self.foto)}
+        self.assertEqual(ids, {self.salon.pk, self.reservado.pk, self.suspendido.pk})
+        self.assertEqual(self.armado.sin_entrega_48h, len(ids))
+        ae_6 = alertas.dispositivos_sin_entrega(self.foto)[0]["titulo"]
+        self.assertTrue(ae_6.startswith(f"{len(ids)} dispositivos con gente no recibieron"), ae_6)
+
     def test_tc_1187_34_ae_9_da_el_mismo_numero_que_ae_7(self):
         self.assertEqual(self.armado.salud.sin_dosis, sin_dosis_provincial(self.foto))
         self.assertEqual(self.armado.salud.sin_dosis, 5)
@@ -513,6 +587,14 @@ class ArmadoTests(EscenarioAbastecimiento):
 # ---------------------------------------------------------------------------
 
 URL_SOLAPA = f"{URL}?tab=abastecimiento"
+
+
+def _panel(html):
+    """El panel de la solapa, de su ``id`` al cierre de «Cómo se calcula»."""
+    inicio = html.index('id="panel-abastecimiento"')
+    return html[inicio : html.index("</details>", inicio)]
+
+
 IR_A_E7 = "Ir a Configuración de la mesa"
 
 
@@ -554,16 +636,21 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         IntegranteGrupo.objects.update(egresado_en=T0 - timedelta(hours=1))
         self.assertIn("Todavía no hay personas alojadas por la emergencia", self._html(self.autoridad))
 
-    def test_tc_1187_04_y_05_nota_provincial_aun_con_filtros(self):
-        sin_filtro = self._html(self.autoridad)
-        con_filtro = self._html(self.autoridad, f"{URL_SOLAPA}&departamento=San+Fernando")
+    def test_tc_1187_04_y_05_nota_provincial_y_los_filtros_no_la_acotan(self):
+        sin_filtro = _panel(self._html(self.autoridad))
+        con_filtro = _panel(self._html(self.autoridad, f"{URL_SOLAPA}&departamento=San+Fernando&ventana=7d"))
         nota = (
             "Red provincial · próximas 48 h · desde el inicio del evento (10/11 10:00) · estimado con la regla de "
             "consumo de cada ítem; no es un inventario"
         )
         self.assertIn(nota, sin_filtro)
-        self.assertIn(nota, con_filtro)
-        self.assertIn("<strong>19</strong>", con_filtro)
+        self.assertIn("<strong>19</strong>", sin_filtro)
+        self.assertEqual(con_filtro, sin_filtro)
+
+    def test_tc_1187_14_configurar_un_item_sin_regla_solo_con_supervisar(self):
+        self.assertIn("Sin regla de consumo", _panel(self._html(self.autoridad)))
+        self.assertNotIn("Configurar", _panel(self._html(self.autoridad)))
+        self.assertIn("Configurar", _panel(self._html(self.supervisor)))
 
     def test_tc_1187_25_reservado_nunca_nombrado(self):
         html = self._html(self.mesa)
@@ -580,7 +667,8 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
             self.assertIn(f"/emergencia/entregas/nueva/{self.salon.pk}/", html)
             self.assertIn(f"/emergencia/entregas/nueva/{self.reservado.pk}/", html)
             self.assertNotIn(f"/emergencia/entregas/nueva/{self.suspendido.pk}/", html)
-            self.assertIn("Inactivo", html)
+            inicio = html.index("Escuela Suspendida · Quitilipi")
+            self.assertIn("Inactivo", html[inicio : html.index("</tr>", inicio)])
 
     def test_tc_1187_28_y_29_salud_nombres_solo_con_la_mesa(self):
         linea = "5 personas con medicación crítica sin dosis en 4 dispositivos"
@@ -597,16 +685,15 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         html = self._html(self.autoridad)
         self.assertIn("EES N.° 9 · Barranqueras (6 lactantes) y Salón Parroquial · Charata.", html)
 
-    def test_tc_1187_35_el_resumen_enlaza_ae_6_y_no_trae_las_de_abastecimiento(self):
-        html = self._html(self.autoridad, URL)
-        self.assertIn("Ver el abastecimiento", html)
+    def test_tc_1187_35_el_resumen_enlaza_ae_6_con_los_filtros_y_no_trae_las_de_abastecimiento(self):
+        html = self._html(self.autoridad, f"{URL}?departamento=San+Fernando")
+        enlace = re.search(r'href="([^"]*)"[^>]*>Ver el abastecimiento<', html).group(1)
+        self.assertEqual(enlace, f"{URL}?departamento=San+Fernando&amp;tab=abastecimiento")
         self.assertNotIn("sin cobertura para las próximas 48 h", html)
         self.assertNotIn("Lactantes sin", html)
 
     def test_tc_1187_39_rotulos(self):
-        html = self._html(self.supervisor)
-        inicio = html.index('id="panel-abastecimiento"')
-        panel = html[inicio : html.index("</details>", inicio)].lower()
+        panel = _panel(self._html(self.supervisor)).lower()
         self.assertNotIn("stock", panel)
         self.assertEqual(panel.count("inventario"), panel.count("no es un inventario"))
         self.assertIn("(estimado)", panel)
