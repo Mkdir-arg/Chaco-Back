@@ -510,6 +510,17 @@ class TipoDispositivo(TimeStamped):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         verbose_name="Ocupación desde la que el semáforo es rojo (%)",
     )
+    # RN-009-13: los dispositivos de protección no se dibujan en mapas ni se nombran en
+    # listados por distancia o tensión; sus camas siguen sumando en los totales.
+    ubicacion_reservada = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="Ubicación reservada",
+        help_text=(
+            "Sus dispositivos no se muestran en mapas ni en listados por distancia o tensión. "
+            "Sus camas siguen sumando en los totales."
+        ),
+    )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
 
     class Meta:
