@@ -719,6 +719,15 @@ from config.middlewares.security_headers import parsear_fuentes_extra  # noqa: E
 
 CSP_EXTRA_SOURCES = parsear_fuentes_extra(os.environ.get("CSP_EXTRA_SOURCES", ""))
 
+# Google Maps (mapa, ubicación de un caso y domicilio → coordenadas). La key es de
+# navegador: viaja en el HTML, así que no se oculta sino que se restringe en Google
+# Cloud por referente HTTP y por API (ver docs/mapa.md). Sin key no se carga nada ni
+# se abre la CSP a Google. Los Advanced Markers exigen un Map ID; `DEMO_MAP_ID` solo
+# sirve para probar, por eso el fallback queda limitado a desarrollo y `core.W005`
+# avisa si un ambiente servido tiene key sin Map ID propio.
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+GOOGLE_MAPS_MAP_ID = os.environ.get("GOOGLE_MAPS_MAP_ID", "").strip() or ("DEMO_MAP_ID" if ENVIRONMENT == "dev" else "")
+
 PERSONAS_API_URL = os.getenv("PERSONAS_API_URL", "https://personas.ecomdev.ar/api/v1").strip().rstrip("/")
 PERSONAS_API_CLIENT_ID = os.getenv("PERSONAS_API_CLIENT_ID", "")
 PERSONAS_API_CLIENT_SECRET = os.getenv("PERSONAS_API_CLIENT_SECRET", "")

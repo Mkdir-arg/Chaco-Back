@@ -268,6 +268,31 @@ def media_x_accel_necesita_el_location_interno(app_configs, **kwargs):
 
 
 @register(Tags.compatibility, deploy=True)
+def google_maps_con_map_id(app_configs, **kwargs):
+    """Con key de Google Maps, un ambiente servido tiene su propio Map ID.
+
+    Los marcadores del mapa (Advanced Markers) no cargan sin Map ID, y ``DEMO_MAP_ID``
+    es solo de prueba: el fallback de ``settings`` lo pone únicamente en ``dev``. En
+    ``qa``/``prd`` una key sin Map ID deja el mapa sin marcadores y sin error visible.
+    """
+    if settings.ENVIRONMENT not in ENTORNOS_SERVIDOS or not settings.GOOGLE_MAPS_API_KEY:
+        return []
+    if settings.GOOGLE_MAPS_MAP_ID and settings.GOOGLE_MAPS_MAP_ID != "DEMO_MAP_ID":
+        return []
+    return [
+        CheckWarning(
+            f"GOOGLE_MAPS_API_KEY configurada con GOOGLE_MAPS_MAP_ID={settings.GOOGLE_MAPS_MAP_ID!r} "
+            f"en ENVIRONMENT={settings.ENVIRONMENT!r}: los marcadores del mapa no van a cargar.",
+            hint=(
+                "Creá un Map ID de tipo JavaScript en Google Cloud (Google Maps Platform → Map "
+                "management) y cargalo en GOOGLE_MAPS_MAP_ID. El paso a paso está en docs/mapa.md."
+            ),
+            id="core.W005",
+        )
+    ]
+
+
+@register(Tags.compatibility, deploy=True)
 def presupuesto_de_llamadas_externas(app_configs, **kwargs):
     """La red de un request entra en los 60 s que aguanta nginx (SIIS-09).
 

@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load nodo_ui static %}
 {% block title %}Emergencia · {{ titulo }} · {{ dispositivo.nombre }}{% endblock %}
 
 {% comment %}E6 · el Formulario 1 cargado en la puerta del dispositivo (M2-6): «Ingresar igual» y «Avisar a la mesa»
@@ -22,4 +22,10 @@ localidad opcionales: la familia está acá.{% endcomment %}
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-ubicacion.css' %}">{% endblock %}
+{% block customJS %}
+{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-ubicacion.js' %}"></script>
 {% endblock %}

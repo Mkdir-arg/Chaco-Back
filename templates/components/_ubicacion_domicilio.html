@@ -1,0 +1,65 @@
+{% comment %}
+Domicilio con mapa: el operador escribe el domicilio, Google lo ubica y el punto queda en un mapa donde se
+puede arrastrar. Latitud y longitud son los campos reales del form y se completan solos.
+  {% include "components/_ubicacion_domicilio.html" with domicilio=form.domicilio latitud=form.latitud longitud=form.longitud localidad_id=form.localidad.id_for_label %}
+Contexto:
+  domicilio, latitud, longitud  BoundField (obligatorios). Se dibujan con el mismo label, ayuda y error que
+                                components/_field.html.
+  localidad_id   opcional: id del control de localidad; su texto se suma a la búsqueda.
+  provincia_id   opcional: id del control de provincia; si tiene una elegida, reemplaza a `provincia`.
+  provincia      opcional, por defecto «Chaco».
+  a_pedido       opcional. Con True no se le pide nada a Google al abrir la pantalla: el mapa carga recién con
+                 «Ubicar en el mapa» o «Ver en el mapa» (SEC-33). Va en todo domicilio de una persona.
+  wrapper_class  clases del contenedor; por defecto «sm:col-span-2» (ocupa la fila en una grilla de dos).
+La pantalla carga, una sola vez y en este orden, `components/_google_maps.html` y
+`static/custom/js/nodo-ubicacion.js` en `customJS`, y `static/custom/css/nodo-ubicacion.css` en `page_css`.
+Sin JS o sin GOOGLE_MAPS_API_KEY se ve como antes: domicilio, latitud y longitud a mano (los campos manuales
+se renderizan visibles y el JS los pliega cuando el mapa carga). Con errores en latitud o longitud quedan abiertos.
+Ficha: .claude/design/componentes/ubicacion_domicilio.md
+{% endcomment %}{% load nodo_ui %}
+<div class="{{ wrapper_class|default:'sm:col-span-2' }} nodo-ubicacion" data-nodo-ubicacion data-localidad="{{ localidad_id|default:'' }}" data-provincia="{{ provincia|default:'Chaco' }}" data-provincia-id="{{ provincia_id|default:'' }}"{% if a_pedido %} data-a-pedido{% endif %} data-latitud="{{ latitud.auto_id }}" data-longitud="{{ longitud.auto_id }}" data-domicilio="{{ domicilio.auto_id }}"{% if latitud.errors or longitud.errors %} data-manual-abierto{% endif %}>
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+    <label id="{{ domicilio.auto_id }}-etiqueta" class="block text-sm font-medium text-heading"{% if domicilio.id_for_label %} for="{{ domicilio.id_for_label }}"{% endif %}>
+      {{ domicilio.label }}{% if domicilio.field.required or domicilio.field.marca_requerido %} <span class="text-fg-danger">*</span>{% endif %}
+    </label>
+    <span class="badge badge-gray" data-ubicacion-estado role="status" hidden><i class="fas fa-location-dot" aria-hidden="true"></i> Sin ubicar</span>
+  </div>
+  <div class="nodo-ubicacion__fila">
+    {% campo_control domicilio %}
+    <button type="button" class="btn-nodo btn-secondary btn-base" data-ubicacion-buscar hidden><i class="fas fa-location-crosshairs" aria-hidden="true"></i> <span>Ubicar en el mapa</span></button>
+  </div>
+  <p id="{{ domicilio.auto_id }}-ayuda" class="mt-1 text-xs text-body-subtle">{% if domicilio.help_text %}{{ domicilio.help_text }}{% else %}Calle y número.{% endif %} <span data-ubicacion-ayuda-mapa hidden>Con «Ubicar en el mapa», Google lo busca en la localidad elegida. Si el punto no queda exacto, arrastrá el marcador.</span></p>
+  <p id="{{ domicilio.auto_id }}-error" class="mt-1 text-xs text-fg-danger{% if not domicilio.errors %} hidden{% endif %}" data-error="{{ domicilio.name }}">{{ domicilio.errors|join:" " }}</p>
+
+  <div class="mt-3" data-ubicacion-aviso hidden></div>
+
+  <div class="mt-3" data-ubicacion-candidatos hidden>
+    <p class="text-sm font-semibold text-heading mb-2">Google encontró más de un lugar. ¿Cuál es?</p>
+    <ul class="nodo-ubicacion__candidatos" data-ubicacion-candidatos-lista></ul>
+  </div>
+
+  <div class="mt-3 nodo-ubicacion__marco" data-ubicacion-marco hidden>
+    <div class="nodo-ubicacion__mapa" data-ubicacion-mapa></div>
+    <div class="nodo-ubicacion__vacio" data-ubicacion-vacio><i class="fas fa-map-location-dot" aria-hidden="true"></i><span>El punto aparece acá cuando ubiques el domicilio. También podés tocar el mapa.</span></div>
+  </div>
+
+  <div class="mt-3 flex flex-wrap items-center justify-between gap-3" data-ubicacion-resumen hidden>
+    <dl class="nodo-ubicacion__coords">
+      <div><dt>Latitud</dt><dd data-ubicacion-lat>—</dd></div>
+      <div><dt>Longitud</dt><dd data-ubicacion-lng>—</dd></div>
+    </dl>
+    <div class="flex flex-wrap gap-2">
+    <button type="button" class="btn-nodo btn-secondary btn-sm" data-ubicacion-ver hidden><i class="fas fa-map-location-dot" aria-hidden="true"></i> Ver en el mapa</button>
+    <button type="button" class="btn-nodo btn-tertiary btn-sm" data-ubicacion-manual-toggle aria-expanded="false" aria-controls="{{ latitud.auto_id }}-manual"><i class="fas fa-keyboard" aria-hidden="true"></i> Cargar coordenadas a mano</button>
+    </div>
+  </div>
+
+  <div id="{{ latitud.auto_id }}-manual" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3" data-ubicacion-manual>
+    {% include "components/_field.html" with field=latitud wrapper_class="" %}
+    {% include "components/_field.html" with field=longitud wrapper_class="" %}
+  </div>
+
+  <template data-ubicacion-alerta="no-encontrado">{% include "components/_alerta.html" with tono="warning" titulo="No encontramos ese domicilio." texto="Revisá calle y número, o marcá el punto tocando el mapa." %}</template>
+  <template data-ubicacion-alerta="sin-mapa">{% include "components/_alerta.html" with tono="info" titulo="El mapa no está disponible en este ambiente." texto="Cargá latitud y longitud a mano." %}</template>
+  <template data-ubicacion-alerta="error">{% include "components/_alerta.html" with tono="danger" titulo="No se pudo usar Google Maps." texto="Cargá las coordenadas a mano o volvé a intentar más tarde." %}</template>
+</div>

@@ -1,5 +1,6 @@
 from django import forms
 
+from core.coordenadas import exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 
 from ..models import Ciudadano
@@ -85,6 +86,8 @@ class CiudadanoForm(forms.ModelForm):
             "provincia",
             "municipio",
             "localidad",
+            "latitud",
+            "longitud",
         ]
         widgets = {
             "dni": forms.TextInput(
@@ -144,6 +147,10 @@ class CiudadanoForm(forms.ModelForm):
                     "class": _FLOWBITE_INPUT_CSS,
                 }
             ),
+            # Cambio 493: los completa el mapa de `components/_ubicacion_domicilio.html`;
+            # quedan a mano sin JS o sin Google Maps.
+            "latitud": forms.NumberInput(attrs={"class": _FLOWBITE_INPUT_CSS, "step": "0.000001"}),
+            "longitud": forms.NumberInput(attrs={"class": _FLOWBITE_INPUT_CSS, "step": "0.000001"}),
         }
 
     def clean_dni(self):
@@ -165,6 +172,12 @@ class CiudadanoForm(forms.ModelForm):
         if not dni_valido(dni) and dni != normalizar_dni(getattr(self.instance, "dni", "")):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
+
+    def clean(self):
+        datos = super().clean()
+        # Cambio 493: el rango lo validan los campos del modelo; acá, que vengan las dos.
+        exigir_par(self)
+        return datos
 
 
 class CiudadanoManualForm(CiudadanoForm):

@@ -84,6 +84,7 @@ Renderiza ``templates/components/_menu_fila.html``: un ``.nodo-icon-btn`` de 28 
 import re
 
 from django import template
+from django.conf import settings
 from django.http import QueryDict
 from django.template.base import NodeList, token_kwargs
 
@@ -452,3 +453,21 @@ def do_hero_inicio(parser, token):
         elif not (isinstance(nodo, template.base.TextNode) and not nodo.s.strip()):
             raise template.TemplateSyntaxError(f"'{nombre_tag}' solo admite {{% bajada %}} en el cuerpo")
     return HeroInicioNode(kwargs, bajada)
+
+
+@register.simple_tag
+def google_maps_config():
+    """Configuración pública de Google Maps para ``components/_google_maps.html``.
+
+    Solo lo que el navegador necesita para cargar la API: la key (de navegador, se
+    protege con la restricción por referente en Google Cloud), el Map ID y el idioma.
+    Sin key devuelve ``key`` vacía y tampoco expone el Map ID: la pantalla no carga
+    Google y muestra su estado vacío.
+    """
+    key = getattr(settings, "GOOGLE_MAPS_API_KEY", "") or ""
+    return {
+        "key": key,
+        "mapId": (getattr(settings, "GOOGLE_MAPS_MAP_ID", "") or "") if key else "",
+        "idioma": "es",
+        "region": "AR",
+    }
