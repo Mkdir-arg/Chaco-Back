@@ -104,6 +104,9 @@ lista cerrada antes de llegar al `order_by()`.
   datos reales ni CSV de ejemplo sacados de PRD.
 - Las exportaciones (CSV/Excel) verifican capacidad y alcance igual que el listado del
   que salen.
+- El texto libre que un operador escribe sobre una persona sigue la misma guarda que su nombre
+  (`puede_ver_personas`/`ciudadano.ver`); en entradas automáticas, notificaciones o líneas de
+  tiempo va solo el valor de catálogo.
 
 ## Checklist rápido
 
