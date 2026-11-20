@@ -57878,11 +57878,12 @@ dispositivo (`selectors.emergencia.distancia_km`), que en los casos de la mesa h
 Fase 3, primera entrega: la pieza **Mapa con capas** (`components/_mapa_capas.html` + `nodo-mapa-capas.js`
 + `nodo-mapa-capas.css`), sobre el cargador de la fase 1, con el diseño del mockup aprobado el 20/11/2026.
 
-- La vista pasa `puntos` y `capas`; la pieza los publica con `json_script`. Cada punto es una píldora
+- La vista pasa `puntos`; la pieza los publica con `json_script`, sin agregar nada (las capas de la leyenda son
+  datos de la pantalla). Cada punto es una píldora
   (`AdvancedMarkerElement` con contenido HTML) del color de su `tono` (siempre un token del sistema), con ícono y
   etiqueta; la etiqueta se oculta con el mapa alejado y vuelve en el elegido.
 - Al tocar un punto abre su detalle (`InfoWindow`): subtítulo, estado, datos, botón a la ficha y acciones. Los
-  textos van como texto, no como HTML, y un `url` que no es ruta del sitio no se dibuja.
+  textos van como texto, no como HTML, y un `url` que no queda en el mismo origen una vez resuelto no se dibuja.
 - Sincroniza el panel de la pantalla: capas y subfiltros con `aria-pressed`, buscador sin tildes, lista
   (`data-item`), total y estado vacío. Al cargar encuadra los puntos visibles dejando libre el panel flotante
   (al costado en escritorio, abajo en celular).
@@ -58002,6 +58003,10 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
 - **19/11/2026:** al traer `development` otra vez, el 490 era de Becas y el 492 de Emergencia: esta entrada pasa a ser el **Cambio 493** (la migración sigue siendo `users.0050`).
 - **20/11/2026:** mockup de `/mapa/` aprobado. Fase 3, primera entrega: la pieza Mapa con capas, compartida con E8
   (C1 y E-6) por decisión del PM.
+- **20/11/2026:** auditoría del PR #1221 sobre la pieza (CHANGES NEEDED): `url` con tab o salto de línea que
+  salía a otro dominio (MAJOR), asa del panel en celular, centrado del punto elegido fuera del panel, JSON de
+  `capas` sin uso, búsqueda sin trabajo repetido, `<li>` padre inmediato, radios con token y fila del agente.
+  Corregido en el mismo PR.
 
 ---
 

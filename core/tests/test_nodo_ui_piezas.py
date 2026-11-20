@@ -2379,7 +2379,7 @@ class HojaDeImpresionTest(SimpleTestCase):
 
 
 class MapaCapasTest(SimpleTestCase):
-    """``components/_mapa_capas.html``: puntos y capas por ``json_script``, estado vacío sin key y carga a pedido."""
+    """``components/_mapa_capas.html``: puntos por ``json_script``, estado vacío sin key y carga a pedido."""
 
     TEMPLATE = "components/_mapa_capas.html"
     PUNTO = {
@@ -2397,7 +2397,6 @@ class MapaCapasTest(SimpleTestCase):
         contexto = {
             "nombre": "prueba",
             "puntos": [self.PUNTO],
-            "capas": [{"id": "dispositivo", "nombre": "Dispositivos"}],
         }
         return render_to_string(self.TEMPLATE, {**contexto, **extra})
 
@@ -2406,13 +2405,13 @@ class MapaCapasTest(SimpleTestCase):
         return json.loads(html[html.index(">", inicio) + 1 : html.index("</script>", inicio)])
 
     @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
-    def test_con_key_publica_puntos_y_capas_escapados(self):
+    def test_con_key_publica_los_puntos_escapados(self):
         html = self.render(etiqueta="Mapa de prueba")
 
         self.assertIn('data-mapa-capas="prueba"', html)
         self.assertIn('data-puntos="mapa-capas-prueba-puntos"', html)
         self.assertEqual(self.json(html, "puntos"), [self.PUNTO])
-        self.assertEqual(self.json(html, "capas")[0]["id"], "dispositivo")
+        self.assertNotIn("mapa-capas-prueba-capas", html)
         self.assertNotIn("<script>alert(1)", html)
         self.assertIn('aria-label="Mapa de prueba"', html)
         self.assertIn("data-mapa-encuadrar", html)

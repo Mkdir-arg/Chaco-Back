@@ -3,13 +3,12 @@
  * Marcadores en píldora (contenido de AdvancedMarkerElement), ventana de detalle y panel flotante opcional.
  * El color de cada marcador sale de su `tono`, siempre un token del sistema.
  */
-.nodo-mapa-capas { position: relative; height: 420px; border-radius: 12px; overflow: hidden; background: var(--bg-gray); }
+.nodo-mapa-capas { position: relative; height: 420px; border-radius: var(--radius-xl); overflow: hidden; background: var(--bg-gray); }
 .nodo-mapa-capas--pagina { height: max(560px, calc(100dvh - 230px)); }
 .nodo-mapa-capas [hidden], [data-mapa] [hidden], [data-mapa][hidden] { display: none !important; }
 .nodo-mapa-capas__lienzo { position: absolute; inset: 0; }
 .nodo-mapa-capas__cubierta { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 16px; background: var(--bg-white); }
-.nodo-mapa-capas__cubierta--vacia { background: var(--bg-white); }
-.nodo-mapa-capas__encuadre { position: absolute; z-index: 2; right: 10px; top: 10px; width: 40px; height: 40px; border-radius: 4px; display: grid; place-items: center; background: var(--bg-white); color: var(--text-body); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.nodo-mapa-capas__encuadre { position: absolute; z-index: 2; right: 10px; top: 10px; width: 40px; height: 40px; border-radius: var(--radius); display: grid; place-items: center; background: var(--bg-white); color: var(--text-body); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
 .nodo-mapa-capas__encuadre:hover { color: var(--text-heading); }
 .nodo-mapa-capas__encuadre:focus-visible { outline: 3px solid var(--border-brand); outline-offset: 2px; }
 .nodo-mapa-capas.is-clic .nodo-mapa-capas__lienzo { cursor: crosshair; }
@@ -24,9 +23,9 @@
 .nodo-mapa-tono-gray { --nodo-mapa-c: var(--text-body-subtle); }
 
 /* Píldora: el contenido del marcador. La punta queda sobre la coordenada. */
-.nodo-mapa-pil { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 4px; margin-bottom: 7px; border-radius: 999px; background: var(--nodo-mapa-c); color: var(--text-white); border: 2px solid var(--bg-white); font: 600 12px/1 var(--font-sans); white-space: nowrap; box-shadow: 0 2px 6px rgba(16, 24, 40, .28); transition: transform .12s ease, box-shadow .12s ease; transform-origin: 50% 100%; }
+.nodo-mapa-pil { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 4px; margin-bottom: 7px; border-radius: var(--radius-full); background: var(--nodo-mapa-c); color: var(--text-white); border: 2px solid var(--bg-white); font: 600 12px/1 var(--font-sans); white-space: nowrap; box-shadow: 0 2px 6px rgba(16, 24, 40, .28); transition: transform .12s ease, box-shadow .12s ease; transform-origin: 50% 100%; }
 .nodo-mapa-pil::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: var(--nodo-mapa-c); border-right: 2px solid var(--bg-white); border-bottom: 2px solid var(--bg-white); border-bottom-right-radius: 2px; transform: translateX(-50%) rotate(45deg); }
-.nodo-mapa-pil__icono { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; background: rgba(255, 255, 255, .22); font-size: 10.5px; }
+.nodo-mapa-pil__icono { width: 20px; height: 20px; border-radius: var(--radius-full); display: grid; place-items: center; background: rgba(255, 255, 255, .22); font-size: 10.5px; }
 .nodo-mapa-pil:hover { box-shadow: 0 4px 12px rgba(16, 24, 40, .35); }
 .nodo-mapa-capas.is-lejos .nodo-mapa-pil__texto { display: none; }
 .nodo-mapa-capas.is-lejos .nodo-mapa-pil { padding: 0 2px; }
@@ -35,7 +34,7 @@
 .nodo-mapa-capas.is-lejos .nodo-mapa-pil.is-activo .nodo-mapa-pil__texto { display: inline; }
 
 /* Círculo: marca una zona (p. ej. presión por localidad), centrado en la coordenada. */
-.nodo-mapa-circulo { border-radius: 999px; background: var(--nodo-mapa-c); border: 2px solid var(--bg-white); opacity: .85; box-shadow: 0 1px 4px rgba(16, 24, 40, .3); transform: translateY(50%); }
+.nodo-mapa-circulo { border-radius: var(--radius-full); background: var(--nodo-mapa-c); border: 2px solid var(--bg-white); opacity: .85; box-shadow: 0 1px 4px rgba(16, 24, 40, .3); transform: translateY(50%); }
 .nodo-mapa-circulo--1 { width: 16px; height: 16px; }
 .nodo-mapa-circulo--2 { width: 26px; height: 26px; }
 .nodo-mapa-circulo--3 { width: 38px; height: 38px; }
@@ -53,14 +52,14 @@
 
 /* Panel flotante opcional de la pantalla: lateral en escritorio, hoja inferior en celular. */
 .nodo-mapa-escena { position: relative; }
-.nodo-mapa-panel { position: absolute; z-index: 4; left: 12px; top: 12px; bottom: 12px; width: 324px; display: flex; flex-direction: column; background: var(--bg-white); border-radius: 12px; box-shadow: 0 4px 18px rgba(16, 24, 40, .16); overflow: hidden; }
+.nodo-mapa-panel { position: absolute; z-index: 4; left: 12px; top: 12px; bottom: 12px; width: 324px; display: flex; flex-direction: column; background: var(--bg-white); border-radius: var(--radius-xl); box-shadow: 0 4px 18px rgba(16, 24, 40, .16); overflow: hidden; }
 .nodo-mapa-panel__asa { display: none; }
 .nodo-mapa-panel__cuerpo { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .nodo-mapa-panel__lista { flex: 1; min-height: 0; overflow-y: auto; }
 @media (max-width: 1023px) {
-  .nodo-mapa-panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 64%; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 20px rgba(16, 24, 40, .18); }
+  .nodo-mapa-panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 64%; border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; box-shadow: 0 -6px 20px rgba(16, 24, 40, .18); }
   .nodo-mapa-panel__asa { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 8px 14px 10px; font-weight: 700; color: var(--text-heading); }
-  .nodo-mapa-panel__asa::before { content: ""; width: 40px; height: 4px; border-radius: 999px; background: var(--bg-disabled); }
+  .nodo-mapa-panel__asa::before { content: ""; width: 40px; height: 4px; border-radius: var(--radius-full); background: var(--bg-disabled); }
   .nodo-mapa-panel:not(.is-abierto) .nodo-mapa-panel__cuerpo { display: none; }
   .nodo-mapa-panel.is-abierto { height: 64%; }
 }

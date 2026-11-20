@@ -16,7 +16,11 @@
   function tonoValido(t) { return TONOS.indexOf(t) === -1 ? 'gray' : t; }
   function iconoValido(i) { return /^fa-[a-z0-9-]+$/.test(i || '') ? i : 'fa-location-dot'; }
   // Solo rutas del propio sitio: un `url` armado con datos de usuario nunca abre «javascript:» ni otro dominio.
-  function rutaInterna(u) { return typeof u === 'string' && /^\/(?![\/\\])/.test(u) ? u : ''; }
+  // Se compara el origen ya resuelto: el navegador descarta tabs y saltos de línea, así que «/\t/x.com» sale afuera.
+  function rutaInterna(u) {
+    if (typeof u !== 'string' || u.charAt(0) !== '/') { return ''; }
+    try { return new URL(u, window.location.href).origin === window.location.origin ? u : ''; } catch (e) { return ''; }
+  }
   function sinTildes(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
   function texto(v) { return v === null || v === undefined ? '' : String(v); }
   function leerJson(id) {
@@ -45,6 +49,7 @@
       url: rutaInterna(p.url), urlTexto: texto(p.url_texto) || 'Abrir',
       acciones: Array.isArray(p.acciones) ? p.acciones.filter(function (a) { return a && a.accion; }) : [],
       grupo: texto(p.grupo), movible: p.movible === true,
+      busca: sinTildes(texto(p.titulo) + ' ' + texto(p.subtitulo) + ' ' + texto(p.etiqueta || p.titulo)),
       forma: p.forma === 'circulo' ? 'circulo' : 'pin',
       tamano: [1, 2, 3].indexOf(p.tamano) === -1 ? 2 : p.tamano
     };
@@ -92,12 +97,12 @@
     return [this.c].concat(externas);
   };
   MapaCapas.prototype._todos = function (selector) {
-    var vistos = [];
+    var vistos = new Set();
     this._raices().forEach(function (raiz) {
-      if (raiz.matches(selector)) { vistos.push(raiz); }
-      Array.prototype.forEach.call(raiz.querySelectorAll(selector), function (el) { if (vistos.indexOf(el) === -1) { vistos.push(el); } });
+      if (raiz.matches(selector)) { vistos.add(raiz); }
+      Array.prototype.forEach.call(raiz.querySelectorAll(selector), function (el) { vistos.add(el); });
     });
-    return vistos;
+    return Array.from(vistos);
   };
   MapaCapas.prototype._propio = function (el) {
     if (this.c.contains(el)) { return true; }
@@ -132,6 +137,13 @@
         self.seleccionar(el.getAttribute('data-item'), true);
       }
     });
+    document.addEventListener('click', function (e) {
+      var asa = e.target.closest('.nodo-mapa-panel__asa');
+      var panel = asa && asa.closest('.nodo-mapa-panel');
+      if (!panel || !self._propio(panel)) { return; }
+      var abierto = panel.classList.toggle('is-abierto');
+      asa.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    });
     document.addEventListener('input', function (e) {
       if (!e.target.matches('[data-mapa-buscar]') || !self._propio(e.target)) { return; }
       self.busqueda = sinTildes(e.target.value);
@@ -154,18 +166,23 @@
   MapaCapas.prototype.visible = function (p) {
     if (this.capasApagadas[p.capa]) { return false; }
     if (p.grupo && this.gruposApagados[p.grupo]) { return false; }
-    if (this.busqueda) { return sinTildes(p.titulo + ' ' + p.subtitulo + ' ' + p.etiqueta).indexOf(this.busqueda) !== -1; }
+    if (this.busqueda) { return p.busca.indexOf(this.busqueda) !== -1; }
     return true;
   };
 
   MapaCapas.prototype.sincronizar = function () {
     var self = this;
-    var visibles = this.puntos.filter(function (p) { return self.visible(p); });
+    var ve = {}, porCapa = {}, total = 0;
+    this.puntos.forEach(function (p) {
+      ve[p.id] = self.visible(p);
+      if (ve[p.id]) { total++; }
+      porCapa[p.capa] = (porCapa[p.capa] || 0) + 1;
+    });
     this._todos('[data-mapa-capa]').forEach(function (b) {
       var capa = b.getAttribute('data-mapa-capa');
       b.setAttribute('aria-pressed', self.capasApagadas[capa] ? 'false' : 'true');
       var n = b.querySelector('[data-mapa-capa-n]');
-      if (n) { n.textContent = self.puntos.filter(function (p) { return p.capa === capa; }).length; }
+      if (n) { n.textContent = porCapa[capa] || 0; }
     });
     this._todos('[data-mapa-grupo]').forEach(function (b) {
       b.setAttribute('aria-pressed', self.gruposApagados[b.getAttribute('data-mapa-grupo')] ? 'false' : 'true');
@@ -173,20 +190,21 @@
     this._todos('[data-item]').forEach(function (el) {
       var p = self.porId[el.getAttribute('data-item')];
       if (!p) { return; }
-      var item = el.closest('li') || el;
-      item.hidden = !self.visible(p);
+      var padre = el.parentElement;
+      var item = padre && padre.tagName === 'LI' ? padre : el;
+      item.hidden = !ve[p.id];
       el.setAttribute('aria-pressed', p.id === self.activo ? 'true' : 'false');
     });
-    this._todos('[data-mapa-total]').forEach(function (el) { el.textContent = visibles.length; });
-    this._todos('[data-mapa-vacio]').forEach(function (el) { el.hidden = visibles.length > 0; });
+    this._todos('[data-mapa-total]').forEach(function (el) { el.textContent = total; });
+    this._todos('[data-mapa-vacio]').forEach(function (el) { el.hidden = total > 0; });
     this.puntos.forEach(function (p) {
       var m = self.marcadores[p.id];
       if (!m) { return; }
-      m.map = self.visible(p) ? self.mapa : null;
+      m.map = ve[p.id] ? self.mapa : null;
       m.content.classList.toggle('is-activo', p.id === self.activo);
       m.zIndex = p.id === self.activo ? 1000 : null;
     });
-    if (this.activo && (!this.porId[this.activo] || !this.visible(this.porId[this.activo]))) { this.cerrar(); }
+    if (this.activo && !ve[this.activo]) { this.cerrar(); }
   };
 
   // ---------- carga del mapa ----------
@@ -338,6 +356,9 @@
       if (centrar) {
         this.mapa.panTo({ lat: p.lat, lng: p.lng });
         if (this.mapa.getZoom && this.mapa.getZoom() < ZOOM_UN_PUNTO) { this.mapa.setZoom(ZOOM_UN_PUNTO); }
+        // Centrado en la parte que el panel deja libre, igual que el encuadre.
+        var m = this._margen();
+        if (this.mapa.panBy) { this.mapa.panBy((m.left - m.right) / -2, (m.top - m.bottom) / -2); }
       }
       this._abrirInfo(p);
     }
