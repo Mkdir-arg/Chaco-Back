@@ -4,8 +4,9 @@
 **Evidencia:** `templates/components/_google_maps.html`, `static/custom/js/nodo-mapa.js`, tag
 `google_maps_config` de `core/templatetags/nodo_ui.py`, `GOOGLE_MAPS_SOURCES` de
 `config/middlewares/security_headers.py`, `core/tests/test_nodo_ui_piezas.py` (`GoogleMapsCargadorTest`).
-**Consumidores:** todavía ninguno (fase 1). Los van a usar el formulario de Dispositivos (domicilio →
-coordenadas), `/mapa/` y el lugar de la toma de Becas. Guía operativa: `docs/mapa.md`.
+**Consumidores:** `components/_ubicacion_domicilio.html` (domicilio → coordenadas) y
+`components/_mapa_capas.html` (mapa de puntos con capas). Lo va a usar también el lugar de la toma de Becas.
+Una pantalla no arma marcadores a mano sobre `NodoMapa`: usa una de esas dos piezas. Guía operativa: `docs/mapa.md`.
 
 ## Invocación
 
