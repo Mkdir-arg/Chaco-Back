@@ -638,6 +638,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 513 | Dispositivos Ola 0: D-SEG-02 (detalle reservado) | Dispositivos | `#seguridad` `#rbac` | Auditoría 2026-11, Ola 0 aprobada por el PM — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 514 | Dispositivos · Ola 0: D-LIM-01, regla de visibilidad del agente asignado en un solo dueño | Dispositivos · Relevamientos (P21) | `#dispositivos` `#seguridad` `#rbac` `#relevamientos` | PM — Ola 0 de Dispositivos, ficha D-LIM-01, issue #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 515 | Dispositivos Ola 0: D-SEG-01 (detalle reservado) | Dispositivos · altas rápidas | `#seguridad` `#rbac` | PM — issue #1238 (Ola 0) | 20/11/2026 | 🟢 **Hecho** | No requiere |
+| 516 | Dispositivos · Ola 0: seguimiento de las auditorías (regla de visibilidad en un solo dueño, guarda de roles medida por AST) | Dispositivos | `#dispositivos` `#seguridad` `#rbac` | Auditorías de los PR de la Ola 0 — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59976,6 +59977,83 @@ No requiere.
 ## Pendientes / a definir
 
 Las demás fichas de la Ola 0.
+
+## Reversión
+
+Desplegar el código anterior. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **20/11/2026:** alta del cambio.
+
+---
+
+# Cambio 516 — Dispositivos Ola 0: seguimiento de las auditorías
+
+🟢 **HECHO — 20/11/2026** · rama `chore/dispositivos-ola0-minors`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos |
+| **Etiquetas** | `#dispositivos` `#seguridad` `#rbac` |
+| **Solicitante** | Auditorías de los PR de la Ola 0 — #1238 |
+| **Fecha del pedido** | 20/11/2026 |
+| **Issue / épica** | #1238 |
+| **Partes afectadas** | Servidor/API (refactor y tests) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las auditorías de los Cambios 513 a 515 dejaron observaciones menores. Este cambio las resuelve sin tocar
+comportamiento visible.
+
+## Alcance acordado
+
+Solo refactor y tests. Sin cambios de lógica, de interfaz ni de cantidad de consultas.
+
+## Decisiones tomadas
+
+- El predicado de fila de la regla de visibilidad del agente asignado tiene un único helper privado en
+  `programas/services/inspecciones.py`, usado por la versión por relevamiento y la versión por lote.
+- La solapa Infraestructura del detalle usa la versión por lote del servicio en lugar de repetir la regla.
+- La copia de `programas/selectors/auditoria_dispositivo.py` queda en la allowlist como deuda anotada: recibe ids ya
+  resueltos y no el usuario, y migrarla exige reordenar quién resuelve el alcance.
+- El ratchet de roles exige una llamada real a la guarda (por AST), no la mención del nombre.
+
+## Implementación
+
+- Helper `_es_visible` en `inspecciones.py`; `ve_la_asignacion` conserva su atajo sin consulta para el propio agente.
+- `detalle_dispositivo.py` pasa a `ve_la_asignacion_en_lote`.
+- Test del lote: ahora también compara `q_asignacion_visible` contra la regla por relevamiento.
+- Test de «un solo dueño»: recorre también `programas/services/` (menos el dueño) y pasa a `SimpleTestCase`.
+- Test de roles: detección por AST y patrón ampliado (`groups`/`user_set` con `add`/`set`, `groups.through` con
+  `create`/`bulk_create`/`get_or_create`), más pruebas de la detección con textos.
+- Test de sumar agente: reusa el helper de rechazo y afirma el motivo. Comentarios y docstring en texto genérico.
+
+## Archivos
+
+`programas/services/inspecciones.py`, `programas/services/detalle_dispositivo.py`,
+`programas/services/sumar_agente.py`, `programas/tests/test_alcance_asignacion.py`,
+`programas/tests/test_roles_atajos.py`, `programas/tests/test_dispositivos_sumar_agente.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Tests de asignación, roles, sumar agente, detalle e infraestructura de Dispositivos, informe y listado de
+relevamientos, y `--tag performance`, en verde. Verificado por mutación: sin la rama del propio agente en el filtro
+el test del lote da rojo; con la guarda solo mencionada (sin llamada) el ratchet y el test de comportamiento dan
+rojo. `manage.py check`, ruff.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Migrar la copia de `selectors/auditoria_dispositivo.py` al servicio (hoy en la allowlist de «un solo dueño»).
 
 ## Reversión
 
