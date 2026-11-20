@@ -4,7 +4,8 @@ Cada capa sale de la regla de lectura de su propio módulo, no de `mapa.ver`: el
 no pudiera ver por otro lado.
 
 - Dispositivos: `dispositivos_visibles`, sin los de ubicación reservada (RN-009-13), que solo se cuentan.
-- Edificios: `edificios_visibles` (los vigentes).
+- Edificios: `edificios_visibles` (los vigentes), sin los que ocupa algún dispositivo de ubicación reservada:
+  dibujar el edificio revelaría el refugio. Se cuentan, igual que en Dispositivos.
 - Casos de Emergencia: solo quien opera o supervisa la mesa, y solo los abiertos. Viaja el número, la prioridad,
   el estado y cuándo se relevó: nada de la persona (nombre, documento, dirección).
 - Puntos: todos, para quien tiene `mapa.ver`. Se mueven y se borran con `mapa.editar`.
@@ -12,15 +13,17 @@ no pudiera ver por otro lado.
 Las coordenadas viajan como float; un registro sin las dos no se dibuja y se cuenta aparte.
 """
 
+from django.db.models import Exists, OuterRef
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.timesince import timesince
 
 from core import rbac
 from mapa.models import Punto
-from programas.models import CasoEmergencia
+from programas.models import CasoEmergencia, Dispositivo
 from programas.selectors.edificios import edificios_visibles
 from programas.services.dispositivos import TONOS_ESTADO, dispositivos_visibles
+from programas.services.emergencia import estado_visible_de_caso, prioridad_visible
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ubicacion_reservada import q_sin_ubicacion_reservada
 
@@ -38,12 +41,6 @@ ICONOS_CATEGORIA = {
     Punto.Categoria.VEHICULO: "fa-truck",
     Punto.Categoria.OTRO: "fa-location-dot",
 }
-TONOS_PRIORIDAD = {
-    CasoEmergencia.Prioridad.ALTA: "danger",
-    CasoEmergencia.Prioridad.MEDIA: "warning",
-    CasoEmergencia.Prioridad.BAJA: "info",
-}
-
 _CON_COORDENADAS = {"latitud__isnull": False, "longitud__isnull": False}
 
 
@@ -98,7 +95,11 @@ def punto_de_edificio(edificio):
 
 
 def punto_de_caso(caso, ahora):
+    """Estado y prioridad con la tabla única de Emergencia: el mismo caso se ve igual que en la bandeja."""
+
     lat, lng = _coordenadas(caso)
+    estado, tono_estado = estado_visible_de_caso(caso)
+    prioridad, tono_prioridad = prioridad_visible(caso)
     return {
         "id": f"caso-{caso.pk}",
         "capa": CAPA_EMERGENCIA,
@@ -106,10 +107,10 @@ def punto_de_caso(caso, ahora):
         "lng": lng,
         "etiqueta": caso.numero,
         "icono": "fa-triangle-exclamation",
-        "tono": TONOS_PRIORIDAD.get(caso.prioridad, "gray"),
+        "tono": tono_prioridad,
         "titulo": f"Caso {caso.numero}",
-        "subtitulo": f"Prioridad {caso.get_prioridad_display().lower()}",
-        "estado": {"texto": caso.get_estado_display(), "tono": TONOS_PRIORIDAD.get(caso.prioridad, "gray")},
+        "subtitulo": f"Prioridad {prioridad.lower()}",
+        "estado": {"texto": estado, "tono": tono_estado},
         "datos": [["Relevado", f"hace {timesince(caso.relevado_en, ahora)}"]],
         "url": reverse("emergencia:caso_detalle", args=[caso.pk]),
         "url_texto": "Abrir ficha",
@@ -141,6 +142,12 @@ def punto_de_punto(punto, *, editable):
     return resultado
 
 
+def puntos_sueltos():
+    """Los puntos cargados en el mapa, con quien los cargó (lo muestra el detalle)."""
+
+    return Punto.objects.select_related("cargado_por")
+
+
 def capas_del_mapa(user):
     """Las capas que ``user`` puede ver, con sus puntos y lo que quedó afuera.
 
@@ -169,10 +176,20 @@ def capas_del_mapa(user):
 
     edificios = edificios_visibles(user)
     if edificios.exists():
-        ubicados = list(edificios.filter(**_CON_COORDENADAS).order_by("nombre", "pk"))
-        sin_ubicacion = edificios.exclude(**_CON_COORDENADAS).count()
+        # Un predio compartido con un refugio también se oculta entero (RN-009-13): marcarlo lo ubicaría.
+        con_reservado = Exists(
+            Dispositivo.edificios.through.objects.filter(
+                edificio_id=OuterRef("pk"), dispositivo__tipo__ubicacion_reservada=True
+            )
+        )
+        publicables = edificios.filter(~con_reservado)
+        ubicados = list(publicables.filter(**_CON_COORDENADAS).order_by("nombre", "pk"))
+        sin_ubicacion = publicables.exclude(**_CON_COORDENADAS).count()
+        reservados = edificios.filter(con_reservado).count()
         puntos += [punto_de_edificio(e) for e in ubicados]
         fuera = [f"{sin_ubicacion} sin ubicación"] if sin_ubicacion else []
+        if reservados:
+            fuera.append(f"{reservados} con un dispositivo de ubicación reservada")
         capas.append(_capa(CAPA_EDIFICIOS, "Edificios", "fa-building", "success", "Vigentes", ubicados, fuera))
 
     if puede_operar_la_mesa(user):
@@ -198,7 +215,7 @@ def capas_del_mapa(user):
             )
         )
 
-    sueltos = list(Punto.objects.select_related("cargado_por"))
+    sueltos = list(puntos_sueltos())
     puntos += [punto_de_punto(p, editable=editable) for p in sueltos]
     capas.append(_capa(CAPA_PUNTOS, "Puntos", "fa-map-pin", "navy", "Cargados en el mapa", sueltos, []))
 

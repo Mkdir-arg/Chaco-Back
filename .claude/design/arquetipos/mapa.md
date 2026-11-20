@@ -58,12 +58,15 @@ Mapa con capas (`componentes/mapa_capas.md`) y, si se edita, `static/custom/js/m
 ## Reglas
 
 - **La vista arma los puntos y las capas** (`mapa.services.capas_del_mapa` es el molde): cada capa con la regla
-  de lectura de su módulo, y lo que no se dibuja (sin ubicación, ubicación reservada) se cuenta en la nota de la
-  capa, nunca se dibuja.
+  de lectura de su módulo, y lo que no se dibuja (sin ubicación, ubicación reservada, el edificio de un refugio) se
+  cuenta en la nota de la capa, nunca se dibuja. Estados y tonos de otro módulo salen de su tabla única (p. ej.
+  `estado_visible_de_caso`), nunca de una copia.
 - **Leyenda = las capas del panel**: botón `.nodo-mapa-capa` con interruptor, ícono y color de la capa, total y
   nota. Un subfiltro va en `.nodo-mapa-chips` > `.nodo-mapa-chip[data-mapa-grupo]` debajo de su capa.
 - **Alta de puntos**: botón en el `page_header` con `aria-pressed`, `.nodo-mapa-barra` («Tocá el mapa…» +
-  Cancelar) y el arquetipo Modal para los datos; la posición viaja en campos ocultos. Mover = soltar el marcador
+  Cancelar) y el arquetipo Modal para los datos (`data-ajax` + `_ajax_js.html`); la posición viaja en campos
+  ocultos. La pantalla escucha `becas-saved` (`detail` = respuesta) para sumar el punto y el ítem que devuelve el
+  servidor ya renderizado. Mover = soltar el marcador
   (`PATCH`); si el servidor lo rechaza, vuelve a su lugar. Eliminar = acción del detalle → `ModernModal` con
   `danger: true` → `DELETE`.
 - La API responde JSON también en 401/403 y exige CSRF (`X-CSRFToken`).

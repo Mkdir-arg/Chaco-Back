@@ -11,7 +11,7 @@
 {% comment %}Golden del arquetipo «Mapa» (ficha .claude/design/arquetipos/mapa.md): encabezado, escena con la pieza
 Mapa con capas y su panel flotante (buscador, capas con subfiltro y lista). Los puntos y las capas llegan armados de
 `mapa.services`: el template no decide qué ve cada uno.{% endcomment %}
-<div x-data="{ modalPunto: false }" @mapa-punto-abrir.window="modalPunto=true" @mapa-punto-cerrar.window="modalPunto=false">
+<div x-data="{ modalPunto: false }" @mapa-punto-abrir.window="modalPunto=true" @becas-saved.window="modalPunto=false">
   <div class="space-y-5">
     {% page_header titulo="Mapa" eyebrow="Territorio" %}
       {% bajada %}Dispositivos, edificios, casos de Emergencia y puntos cargados a mano, en un solo lugar.{% endbajada %}
@@ -74,11 +74,11 @@ Mapa con capas y su panel flotante (buscador, capas con subfiltro y lista). Los 
   {% if editable %}
   {# Modal: x-becas-modal da foco, Tab atrapado, Escape y bloqueo del scroll del fondo #}
   <div x-show="modalPunto" x-cloak x-becas-modal="modalPunto" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="$dispatch('mapa-punto-cancelar')"></div>
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPunto=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-punto-titulo">
-      {% include "programas/becas/_modal_header.html" with titulo="Nuevo punto" titulo_id="modal-punto-titulo" icono="fa-map-pin" cerrar="$dispatch('mapa-punto-cancelar')" %}
-      <form method="post" action="{% url 'mapa:api_puntos' %}" data-mapa-form class="flex flex-col flex-1 min-h-0" novalidate>
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo punto" titulo_id="modal-punto-titulo" icono="fa-map-pin" cerrar="modalPunto=false" %}
+      <form method="post" action="{% url 'mapa:api_puntos' %}" data-ajax data-mapa-form class="flex flex-col flex-1 min-h-0" novalidate>
         {% csrf_token %}
         {{ form.latitud }}{{ form.longitud }}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
@@ -90,7 +90,7 @@ Mapa con capas y su panel flotante (buscador, capas con subfiltro y lista). Los 
           {% with field=form.categoria %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
           {% with field=form.descripcion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
         </div>
-        {% include "programas/becas/_modal_footer.html" with cancelar="$dispatch('mapa-punto-cancelar')" accion_texto="Guardar punto" accion_icono="fa-check" %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalPunto=false" accion_texto="Guardar punto" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
@@ -102,6 +102,7 @@ Mapa con capas y su panel flotante (buscador, capas con subfiltro y lista). Los 
 {% include "components/_google_maps.html" %}
 <script src="{% static 'custom/js/nodo-mapa-capas.js' %}"></script>
 {% if editable %}
+{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script src="{% static 'custom/js/mapa-general.js' %}"></script>
 {% endif %}

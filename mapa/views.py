@@ -10,6 +10,7 @@ from functools import wraps
 
 from django.http import JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 
 from core import rbac
@@ -73,7 +74,7 @@ def mapa(request):
 def puntos(request):
     editable = services.puede_editar(request.user)
     if request.method == "GET":
-        lista = Punto.objects.select_related("cargado_por")
+        lista = services.puntos_sueltos()
         return JsonResponse({"ok": True, "puntos": [services.punto_de_punto(p, editable=editable) for p in lista]})
     if not editable:
         return JsonResponse({"ok": False, "message": MENSAJE_SIN_PERMISO}, status=403)
@@ -83,10 +84,15 @@ def puntos(request):
     punto = form.save(commit=False)
     punto.cargado_por = request.user
     punto.save()
+    datos = services.punto_de_punto(punto, editable=True)
+    item = render_to_string(
+        "components/_item_lista.html", {"nombre": datos["titulo"], "meta": datos["subtitulo"], "clave": datos["id"]}
+    )
     return JsonResponse(
         {
             "ok": True,
-            "punto": services.punto_de_punto(punto, editable=True),
+            "punto": datos,
+            "item": item,
             "message": f"Agregamos «{punto.nombre}» al mapa.",
         },
         status=201,

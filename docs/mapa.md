@@ -81,7 +81,7 @@ La migración `users.0050` se las da al rol Administrador. Al resto de los roles
 | Capa | Quién la ve | Qué muestra |
 |---|---|---|
 | Dispositivos | quien ve dispositivos (su alcance de siempre) | los que tienen coordenadas; los de **ubicación reservada** no se dibujan nunca, solo se cuentan |
-| Edificios | quien ve edificios | los vigentes con coordenadas |
+| Edificios | quien ve edificios | los vigentes con coordenadas; un edificio que ocupa algún dispositivo de ubicación reservada (aunque lo comparta) no se dibuja, solo se cuenta |
 | Casos de Emergencia | quien opera o supervisa la mesa | los abiertos con coordenadas: número, prioridad, estado y hace cuánto se relevaron. **Nunca** nombre, documento ni dirección |
 | Puntos | todos los que entran a `/mapa/` | lo cargado en el mapa (sedes, equipos, vehículos, otros) |
 

@@ -54,85 +54,29 @@
     if (e.key === 'Escape' && barra && !barra.hidden) { modoAgregar(false); }
   });
 
-  function limpiarErrores() {
-    form.querySelectorAll('[data-error]').forEach(function (p) { p.textContent = ''; p.classList.add('hidden'); });
-    form.querySelectorAll('[aria-invalid]').forEach(function (c) { c.removeAttribute('aria-invalid'); });
-  }
+  // El envío, los errores bajo cada campo, «Guardando…» y el aviso los hace _ajax_js.html (data-ajax).
   contenedor.addEventListener('nodo-mapa-capas:clic', function (e) {
     modoAgregar(false);
     form.reset();
-    limpiarErrores();
+    // Los errores de un alta anterior que se canceló no se arrastran al punto nuevo.
+    form.querySelectorAll('[data-error]').forEach(function (p) { p.textContent = ''; p.classList.add('hidden'); });
+    form.querySelectorAll('[aria-invalid]').forEach(function (c) { c.removeAttribute('aria-invalid'); });
     form.elements.latitud.value = e.detail.lat.toFixed(6);
     form.elements.longitud.value = e.detail.lng.toFixed(6);
     form.querySelector('[data-mapa-form-posicion]').textContent =
       'Ubicación: ' + e.detail.lat.toFixed(6) + ', ' + e.detail.lng.toFixed(6) + '. Después la podés ajustar arrastrando el marcador.';
     window.dispatchEvent(new CustomEvent('mapa-punto-abrir'));
   });
-  window.addEventListener('mapa-punto-cancelar', function () { window.dispatchEvent(new CustomEvent('mapa-punto-cerrar')); });
 
-  function itemDeLista(p) {
-    var boton = document.createElement('button');
-    boton.type = 'button';
-    boton.className = 'nodo-item-lista';
-    boton.setAttribute('aria-pressed', 'false');
-    boton.setAttribute('data-item', p.id);
-    var texto = document.createElement('span');
-    texto.className = 'nodo-item-lista__texto';
-    texto.title = p.titulo;
-    var nombre = document.createElement('span');
-    nombre.className = 'nodo-item-lista__nombre';
-    nombre.textContent = p.titulo;
-    texto.appendChild(nombre);
-    if (p.subtitulo) {
-      var meta = document.createElement('span');
-      meta.className = 'nodo-item-lista__meta';
-      meta.textContent = p.subtitulo;
-      texto.appendChild(meta);
-    }
-    boton.appendChild(texto);
-    return boton;
-  }
-
-  var enviando = false;
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (enviando) { return; }
-    enviando = true;
-    limpiarErrores();
-    var boton = form.querySelector('[type="submit"]');
-    if (boton) { boton.disabled = true; }
-    pedir('POST', urlPuntos, new FormData(form)).then(function (r) {
-      if (r.status === 201 && r.datos.ok) {
-        var p = r.datos.punto;
-        copias[p.id] = p;
-        if (lista) { lista.appendChild(itemDeLista(p)); }
-        api().agregar(p);
-        api().seleccionar(p.id);
-        window.dispatchEvent(new CustomEvent('mapa-punto-cerrar'));
-        aviso('success', r.datos.message);
-        return;
-      }
-      if (r.status === 400 && r.datos.errors) {
-        Object.keys(r.datos.errors).forEach(function (campo) {
-          var caja = form.querySelector('[data-error="' + campo + '"]') || form.querySelector('[data-error="__all__"]');
-          if (!caja) { return; }
-          caja.textContent = r.datos.errors[campo].join(' ');
-          caja.classList.remove('hidden');
-          var control = form.elements[campo];
-          if (control && control.setAttribute) { control.setAttribute('aria-invalid', 'true'); }
-        });
-        var primero = form.querySelector('[aria-invalid="true"]');
-        if (primero) { primero.focus(); }
-        aviso('error', 'Revisá los datos del punto.');
-        return;
-      }
-      aviso('error', errorGeneral(r));
-    }).catch(function () {
-      aviso('error', 'No se pudo conectar con el servidor. Revisá la conexión y reintentá.');
-    }).finally(function () {
-      enviando = false;
-      if (boton) { boton.disabled = false; }
-    });
+  // Guardado: la pantalla solo suma el punto al mapa y su ítem (HTML de components/_item_lista.html, del servidor).
+  window.addEventListener('becas-saved', function (e) {
+    var datos = e.detail || {};
+    var p = datos.punto;
+    if (!p || !p.id) { return; }
+    copias[p.id] = p;
+    if (lista && typeof datos.item === 'string') { lista.insertAdjacentHTML('beforeend', datos.item); }
+    api().agregar(p);
+    api().seleccionar(p.id);
   });
 
   // ---------- mover ----------

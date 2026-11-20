@@ -57829,7 +57829,11 @@ Afuera: el formulario público de inscripción del portal **no** geocodifica el 
   Emergencia (E8, C1 #1173 y E-6 #1185) la comparten, en vez de Leaflet en E8 y otra pieza acá. Va primero, en su
   propio PR, para no frenar a E8. La vista arma cada punto (capa, tono, ícono, textos, enlace, acciones); el JS
   no decide nada. El panel (capas, filtros, buscador, lista) lo arma cada pantalla y la pieza lo sincroniza por
-  atributos `data-`, así E8 usa su `_item_lista.html`. Los marcadores de **casos** de Emergencia van solo en
+  atributos `data-`, así E8 usa su `_item_lista.html`.
+- **Edificio con un refugio, oculto entero** (20/11/2026, por defecto, auditoría del PR #1258): un edificio que
+  ocupa algún dispositivo de ubicación reservada no se dibuja en `/mapa/`, aunque lo compartan otras
+  instituciones. Marcarlo revelaría el refugio (RN-009-13). Se cuenta en la nota de la capa. El PM lo puede revisar.
+- Los marcadores de **casos** de Emergencia van solo en
   `/mapa/`, para quien opera o supervisa la mesa (decisión del PM en este cambio; RNF-009-01 rige para E8, no para
   `/mapa/`). E-6 no muestra coordenadas de casos.
 - **Un solo rango y una sola regla de par** para las coordenadas cargadas a mano (`core/coordenadas.py`):
@@ -57900,9 +57904,11 @@ la pieza, con el diseño del mockup aprobado. Es la golden del arquetipo nuevo �
 
 - `mapa.services.capas_del_mapa` arma las capas con la regla de lectura de cada módulo:
   - Dispositivos con `dispositivos_visibles`, sin los de ubicación reservada, que solo se cuentan.
-  - Edificios vigentes con `edificios_visibles`.
+  - Edificios vigentes con `edificios_visibles`, sin los que ocupa un dispositivo de ubicación reservada.
+    Esos se cuentan.
   - Casos de Emergencia abiertos, solo para quien opera o supervisa la mesa, con número, prioridad, estado y
-    hace cuánto se relevaron. Nunca nombre, documento ni dirección.
+    hace cuánto se relevaron. Estado y prioridad salen de la tabla única de Emergencia, igual que en la bandeja.
+    Nunca nombre, documento ni dirección.
   - Puntos cargados en el mapa.
 
   Lo que no tiene coordenadas se cuenta en la nota de la capa. Cada punto enlaza a su ficha.
@@ -57911,7 +57917,8 @@ la pieza, con el diseño del mockup aprobado. Es la golden del arquetipo nuevo �
 - API JSON `/mapa/api/puntos/`: `GET` con `mapa.ver`; `POST`, `PATCH` (mover) y `DELETE` con `mapa.editar`, con
   CSRF y respuesta JSON también en 401 y 403.
 - Con `mapa.editar`, la pantalla permite:
-  - «Agregar punto»: tocar el mapa y completar el modal;
+  - «Agregar punto»: tocar el mapa y completar el modal. El envío va por `_ajax_js.html`, que ahora pasa la
+    respuesta en `becas-saved.detail` (cambio compatible);
   - arrastrar un punto, que vuelve a su lugar si el servidor rechaza la posición;
   - eliminar desde el detalle, confirmando con `ModernModal`.
 - `mapa.ver` y `mapa.editar` salen de `CAPACIDADES_SIN_USO`.
@@ -57996,20 +58003,22 @@ Reversa: `migrate mapa zero` borra la tabla y los puntos cargados.
   interno y `javascript:` descartado, acciones, arrastre, API, modo clic, a pedido sin pedir a Google, encuadre
   con el panel al costado y abajo).
 
-- Fase 3, pantalla: `mapa.tests` (27) OK:
+- Fase 3, pantalla: `mapa.tests` (29) OK:
   - `Punto`;
   - pantalla con y sin permiso;
   - capas: reservados y sin ubicación contados, casos solo para la mesa y sin datos de la persona, cerrados afuera,
     capas sin alcance ausentes;
-  - consultas: 11 constantes;
+  - edificio con refugio oculto;
+  - estado y prioridad con la tabla de Emergencia;
+  - consultas: constantes al crecer las cuatro capas;
   - API: 401/403/405 en JSON, alta, errores, mover, cuerpo ilegible, baja, 404 y CSRF obligatorio.
 
   `users.tests.test_rbac_contrato` OK.
 
-  Punta a punta con Playwright sobre la pantalla real y un doble de Google Maps: 25 de 25. Cubre:
-  - marcadores por capa y nota de lo que no se dibuja;
+  Punta a punta con Playwright sobre la pantalla real y un doble de Google Maps: 27 de 27. Cubre:
+  - marcadores por capa y nota de lo que no se dibuja, con el edificio del refugio afuera;
   - menú activo;
-  - alta con error 400 bajo el campo y luego guardada (marcador, ítem y aviso);
+  - alta con error 400 bajo el campo (con `aria-describedby`) y luego guardada (marcador, ítem y aviso);
   - `POST` con CSRF;
   - mover rechazado que vuelve atrás, y aceptado;
   - eliminar con `ModernModal` y `DELETE`;
@@ -58025,6 +58034,8 @@ Sin ellas no cambia nada.
 ## Pendientes / a definir
 
 - Fase 4: el lugar de la toma de Becas y el enlace «Ver en el mapa» de Dispositivos.
+- Medir `/mapa/` en el navegador con miles de casos abiertos. En el servidor, 5000 puntos dan 212 ms y 3,2 MB de
+  HTML. DECISIÓN CLIENTE: si pesa, acotar la capa Emergencia a lo relevado en las últimas N horas.
 - Asignarles `mapa.ver` y `mapa.editar` a los roles que correspondan (hoy solo las tiene el Administrador); lo
   hace el PM desde el ABM de Roles.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
@@ -58065,6 +58076,14 @@ Fase 3: revertir sus commits y `migrate mapa zero` (borra los puntos cargados); 
   0,9 ms por tecla con 5000 puntos (medido sin DOM). Segunda ronda: APPROVE.
 - **20/11/2026:** fase 3, segunda entrega: la pantalla `/mapa/` (app `mapa`, modelo `Punto`, API, capas por módulo,
   arquetipo «Mapa»).
+- **20/11/2026:** auditoría del PR #1258 (CHANGES NEEDED). Se corrigió en el mismo PR:
+  - el edificio de un dispositivo de ubicación reservada se dibujaba en la capa Edificios;
+  - los tonos de Emergencia estaban reescritos a mano (el estado tomaba el tono de la prioridad);
+  - el alta copiaba `_ajax_js.html` sin `aria-describedby`;
+  - el test de consultas medía una sola capa;
+  - el ítem nuevo se armaba en JS.
+
+  Queda pendiente medir el peso en el navegador.
 
 ---
 

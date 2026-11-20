@@ -7,7 +7,9 @@ from unittest import mock
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -104,7 +106,9 @@ class CapasTests(TestCase):
             tipo=tipo, codigo="D-1", nombre="Hogar Santa Rita", latitud="-27.45", longitud="-58.98", camas_totales=24
         )
         Dispositivo.objects.create(tipo=tipo, codigo="D-2", nombre="Sin ubicar")
-        Dispositivo.objects.create(tipo=reservado, codigo="D-3", nombre="Refugio", latitud="-27.40", longitud="-58.90")
+        self.refugio = Dispositivo.objects.create(
+            tipo=reservado, codigo="D-3", nombre="Refugio", latitud="-27.40", longitud="-58.90"
+        )
         self.edificio = Edificio.objects.create(
             codigo="ED-1",
             nombre="Sede central",
@@ -167,6 +171,15 @@ class CapasTests(TestCase):
         self.assertEqual(edificio["url"], reverse("dispositivos:edificio_detalle", args=[self.edificio.pk]))
         self.assertIn(["Domicilio", "Av. 25 de Mayo 925"], edificio["datos"])
 
+    def test_edificio_de_un_dispositivo_reservado_no_se_dibuja(self):
+        predio = Edificio.objects.create(codigo="ED-R", nombre="Casa Refugio", latitud="-27.40", longitud="-58.90")
+        predio.dispositivos.add(self.refugio, self.hogar)
+        datos = self.capas()
+        self.assertNotIn("Casa Refugio", json.dumps(datos, ensure_ascii=False))
+        capa = next(c for c in datos["capas"] if c["id"] == "edificio")
+        self.assertEqual(capa["total"], 1)
+        self.assertEqual(capa["fuera"], "1 con un dispositivo de ubicación reservada")
+
     def test_casos_solo_para_la_mesa_y_sin_datos_de_la_persona(self):
         datos = self.capas()
         caso = next(p for p in datos["puntos"] if p["capa"] == "emergencia")
@@ -179,6 +192,11 @@ class CapasTests(TestCase):
         sin_mesa = self.capas(mesa=False)
         self.assertNotIn("emergencia", [c["id"] for c in sin_mesa["capas"]])
         self.assertFalse([p for p in sin_mesa["puntos"] if p["capa"] == "emergencia"])
+
+    def test_estado_y_prioridad_con_la_tabla_de_emergencia(self):
+        caso = next(p for p in self.capas()["puntos"] if p["capa"] == "emergencia")
+        self.assertEqual(caso["estado"], {"texto": "Nuevo", "tono": "info"})
+        self.assertEqual(caso["subtitulo"], "Prioridad alta")
 
     def test_casos_cerrados_no_se_dibujan(self):
         CasoEmergencia.objects.filter(pk=self.caso.pk).update(
@@ -198,11 +216,35 @@ class CapasTests(TestCase):
         self.assertNotIn("acciones", suelto)
         self.assertEqual(suelto["grupo"], Punto.Categoria.VEHICULO)
 
-    def test_consultas_acotadas(self):
-        for i in range(5):
-            punto(nombre=f"Punto {i}", cargado_por=self.user)
-        with self.assertNumQueries(11):
+    def test_consultas_constantes_al_crecer_las_cuatro_capas(self):
+        self.capas()  # las capacidades del usuario quedan en caché, como en un request
+        with CaptureQueriesContext(connection) as antes:
             self.capas()
+        tipo = self.hogar.tipo
+        for i in range(4):
+            Dispositivo.objects.create(
+                tipo=tipo, codigo=f"D-N{i}", nombre=f"Otro {i}", latitud="-27.4", longitud="-58.9"
+            )
+            Edificio.objects.create(codigo=f"ED-N{i}", nombre=f"Edificio {i}", latitud="-27.4", longitud="-58.9")
+            grupo = GrupoFamiliar.objects.create(
+                responsable=self.caso.grupo.responsable, traslado=GrupoFamiliar.Traslado.BOMBEROS, total_declarado=1
+            )
+            CasoEmergencia.objects.create(
+                numero=f"2026-00090{i}",
+                grupo=grupo,
+                origen=CasoEmergencia.Origen.MESA,
+                estado=CasoEmergencia.Estado.EN_GESTION,
+                prioridad=CasoEmergencia.Prioridad.BAJA,
+                direccion="x",
+                latitud="-27.4",
+                longitud="-58.9",
+                relevado_por=self.user,
+                relevado_en=timezone.now(),
+            )
+            punto(nombre=f"Punto {i}", cargado_por=self.user)
+        with self.assertNumQueries(len(antes.captured_queries)):
+            datos = self.capas()
+        self.assertEqual(len(datos["puntos"]), 4 + 4 * 4)
 
 
 class ApiTests(TestCase):
@@ -252,6 +294,7 @@ class ApiTests(TestCase):
         self.assertEqual(creado.cargado_por, self.editor)
         self.assertEqual(respuesta.json()["punto"]["id"], f"punto-{creado.pk}")
         self.assertTrue(respuesta.json()["punto"]["movible"])
+        self.assertIn(f'data-item="punto-{creado.pk}"', respuesta.json()["item"])
 
     def test_crear_con_errores_400(self):
         self.client.force_login(self.editor)

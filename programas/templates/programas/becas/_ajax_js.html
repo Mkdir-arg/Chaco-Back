@@ -2,7 +2,8 @@
    data-ajax. Errores inline: poner <p data-error="nombre_campo"> dentro del form
    (y <p data-error="__all__"> para el error general).
    Al guardar OK, se dispara el evento window 'becas-saved' (los modales Alpine lo
-   escuchan para cerrarse) y se reemplaza el contenido del target devuelto.
+   escuchan para cerrarse; `event.detail` es el JSON de la respuesta, para la pantalla
+   que tenga que hacer algo más con lo guardado) y se reemplaza el contenido del target devuelto.
 
    Avisos: siempre el sistema único (window.toast de nodo-toast, tipo primero).
    Confirmación de solapamiento (409): ModernModal, nunca la ventana nativa.
@@ -265,7 +266,7 @@
           }
         }
         if (form.getAttribute('data-reset') !== 'false') form.reset();
-        window.dispatchEvent(new CustomEvent('becas-saved'));
+        window.dispatchEvent(new CustomEvent('becas-saved', { detail: data }));
         aviso('success', data.message || 'Guardado.');
       } else if (r.status === 400 && data.errors) {
         mostrarErrores(form, data.errors);
