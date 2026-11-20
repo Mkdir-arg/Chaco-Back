@@ -77,9 +77,11 @@ from programas.services.inspecciones import (
     inspecciones_visibles,
     marcar_revisado,
     puede_revisar,
+    q_asignacion_visible,
     reasignar_inspeccion,
     resumen_listado,
     situacion_de,
+    ve_la_asignacion_en_lote,
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
@@ -279,10 +281,19 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         situacion = situacion if situacion in dict(Situacion.EN_CURSO) else ""
         asignado_id = _entero(params.get("asignado_a"))
 
-        resumen = resumen_listado(visibles, situacion=situacion, asignado_a_id=asignado_id, hoy=hoy)
+        # `dispositivo.ver` permite leer el relevamiento, pero no quién lo tiene asignado: la
+        # regla vive en el servicio y rige la columna, las opciones y el filtro por igual.
+        asignacion_visible = q_asignacion_visible(user)
+        resumen = resumen_listado(
+            visibles,
+            situacion=situacion,
+            asignado_a_id=asignado_id,
+            visibles_por_agente=asignacion_visible,
+            hoy=hoy,
+        )
         base = visibles.select_related("edificio", "asignado_a", "revisado_por")
         if asignado_id:
-            base = base.filter(asignado_a_id=asignado_id)
+            base = base.filter(Q(asignado_a_id=asignado_id) & asignacion_visible)
         vista = _sin(params, PARAMETROS_DE_MODAL)
         # Lo que la paginación de cada solapa conserva: los filtros, sin modales, sin la solapa
         # (la pone cada una) y sin las páginas. Nunca vacío: `_paginacion.html` con `filtros_qs`
@@ -298,11 +309,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                 filtros_qs.setlist(nombre, filtros.getlist(nombre))
             return filtros_qs.urlencode()
 
-        # `dispositivo.ver` permite leer el relevamiento, pero no quién lo tiene asignado.
-        # La misma regla por lote que `ve_la_asignacion`: coordinar ESE edificio o ser el agente.
-        asignaciones_visibles = visibles.filter(
-            Q(edificio__in=edificios_en_alcance(user, CAP_ASIGNAR)) | Q(asignado_a_id=user.pk)
-        )
+        asignaciones_visibles = visibles.filter(asignacion_visible)
         agentes = get_user_model().objects.filter(pk__in=asignaciones_visibles.values("asignado_a"))
         pildora_agente = {
             "nombre": "asignado_a",
@@ -350,9 +357,12 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
             .filter(pk__in={r.edificio_id for s in solapas for r in s["filas"]})
             .values_list("pk", flat=True)
         )
+        con_asignacion_visible = ve_la_asignacion_en_lote(
+            user, [r for s in solapas for r in s["filas"]], edificios_coordinados=en_alcance
+        )
         for solapa in solapas:
             for relevamiento in solapa["filas"]:
-                ve_asignacion = relevamiento.edificio_id in en_alcance or relevamiento.asignado_a_id == user.pk
+                ve_asignacion = relevamiento.pk in con_asignacion_visible
                 relevamiento.agente_visible = _nombre(relevamiento.asignado_a) if ve_asignacion else ""
                 self._preparar_fila(user, relevamiento, hoy, en_alcance, vista, solapa["clave"])
 
