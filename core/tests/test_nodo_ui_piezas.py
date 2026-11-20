@@ -2376,3 +2376,77 @@ class HojaDeImpresionTest(SimpleTestCase):
             situacion,
         )
         self.assertIn("nodo-impresion-panel", situacion)
+
+
+class MapaCapasTest(SimpleTestCase):
+    """``components/_mapa_capas.html``: puntos por ``json_script``, estado vacío sin key y carga a pedido."""
+
+    TEMPLATE = "components/_mapa_capas.html"
+    PUNTO = {
+        "id": "d-1",
+        "capa": "dispositivo",
+        "lat": -27.45,
+        "lng": -58.98,
+        "etiqueta": "Santa Rita",
+        "icono": "fa-house-user",
+        "tono": "brand",
+        "titulo": "</script><script>alert(1)</script>",
+    }
+
+    def render(self, **extra):
+        contexto = {
+            "nombre": "prueba",
+            "puntos": [self.PUNTO],
+        }
+        return render_to_string(self.TEMPLATE, {**contexto, **extra})
+
+    def json(self, html, sufijo):
+        inicio = html.index('id="mapa-capas-prueba-%s"' % sufijo)
+        return json.loads(html[html.index(">", inicio) + 1 : html.index("</script>", inicio)])
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_con_key_publica_los_puntos_escapados(self):
+        html = self.render(etiqueta="Mapa de prueba")
+
+        self.assertIn('data-mapa-capas="prueba"', html)
+        self.assertIn('data-puntos="mapa-capas-prueba-puntos"', html)
+        self.assertEqual(self.json(html, "puntos"), [self.PUNTO])
+        self.assertNotIn("mapa-capas-prueba-capas", html)
+        self.assertNotIn("<script>alert(1)", html)
+        self.assertIn('aria-label="Mapa de prueba"', html)
+        self.assertIn("data-mapa-encuadrar", html)
+        self.assertNotIn("data-mapa-ver", html)
+        self.assertNotIn("no está disponible", html)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_sin_key_muestra_el_estado_vacio_y_ningun_control_de_google(self):
+        html = self.render(a_pedido=True)
+
+        self.assertIn("El mapa no está disponible en este ambiente", html)
+        self.assertNotIn("data-mapa-encuadrar", html)
+        self.assertNotIn("data-mapa-ver", html)
+        self.assertEqual(self.json(html, "puntos"), [self.PUNTO])
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_a_pedido_muestra_ver_mapa(self):
+        html = self.render(a_pedido=True)
+
+        self.assertIn("data-a-pedido", html)
+        self.assertIn("data-mapa-ver", html)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_detalle_false_lo_deja_a_la_pantalla(self):
+        self.assertIn("data-sin-detalle", self.render(detalle=False))
+        self.assertNotIn("data-sin-detalle", self.render())
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_publica_solo_lo_que_pasa_la_vista(self):
+        punto = {"id": "l-1", "capa": "localidad", "lat": -27.4, "lng": -59.0, "tono": "danger", "forma": "circulo"}
+        html = self.render(puntos=[punto])
+
+        self.assertEqual(self.json(html, "puntos"), [punto])
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_alto_de_pagina(self):
+        self.assertIn("nodo-mapa-capas--pagina", self.render(alto="pagina"))
+        self.assertNotIn("nodo-mapa-capas--pagina", self.render())

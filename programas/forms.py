@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.functional import cached_property
 
+from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
 from core.models import Localidad, Municipio, Subsecretaria
@@ -1115,6 +1116,15 @@ class DispositivoForm(forms.ModelForm):
         for nombre in campos_para_validacion():
             if nombre in self.fields:
                 self.fields[nombre].marca_requerido = True
+        # Cambio 493: el mismo rango que Ciudadano y Emergencia (`core.coordenadas`). Va en el
+        # form y no en el modelo para no sumar una migración solo de validadores.
+        self.fields["latitud"].validators += VALIDADORES_LATITUD
+        self.fields["longitud"].validators += VALIDADORES_LONGITUD
+
+    def clean(self):
+        datos = super().clean()
+        exigir_par(self)
+        return datos
 
     def _agregar_responsables(self):
         """Alta: los responsables del dispositivo (Cambio 411), pares «Persona — Rol», al menos uno.
