@@ -17,6 +17,7 @@ from django.db import transaction
 from core import rbac
 from programas.services.inspecciones import CLAVE_ROL_AGENTE, agentes_asignables
 from users.models import RolMeta
+from users.selectors.usuarios import roles_propios_bloqueados
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ def sumar_rol_de_agente(operador, edificio, user_id):
     puesto, la persona es una opción válida del selector de ``edificio``.
 
     El llamador ya validó la capacidad del operador y su alcance sobre ``edificio``. Acá se rechaza, con
-    :class:`UsuarioNoSumable`, a quien no existe, está inactivo, es superusuario o ciudadano del portal. La fila del
+    :class:`UsuarioNoSumable`, a quien no existe, está inactivo, es superusuario, ciudadano del portal o el propio operador (D-SEG-01). La fila del
     usuario se lee **con candado**: una desactivación que corre en paralelo no se cruza con esta alta.
     """
     try:
@@ -80,6 +81,10 @@ def sumar_rol_de_agente(operador, edificio, user_id):
         usuario = get_user_model().objects.select_for_update().filter(pk=user_id).first()
         if usuario is None or usuario.is_superuser or rbac.es_ciudadano_portal(usuario):
             raise UsuarioNoSumable("No podés sumar a este usuario.", 403)
+        # Misma regla que el ABM de Usuarios (#1114): nadie se otorga roles a sí mismo. Va en el servicio y no en
+        # el buscador, porque un POST armado saltea cualquier filtro de la lista.
+        if roles_propios_bloqueados(operador, usuario):
+            raise UsuarioNoSumable("No podés sumarte a vos mismo: lo hace otra persona con permiso.", 403)
         if not usuario.is_active:
             raise UsuarioNoSumable("Está inactivo: lo reactiva el administrador del programa.", 409)
         sumado = not usuario.groups.filter(pk=rol.pk).exists()
