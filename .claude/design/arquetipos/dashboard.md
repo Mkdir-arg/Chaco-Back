@@ -52,9 +52,10 @@ solapa del detalle del programa, con `<style>`, `style=` y gráficos de Chart.js
    `nodo-col-acciones` con su `sr-only`, badges con **ícono + texto** (`badge badge-{tono}`), enlace de
    entidad `text-fg-brand hover:underline` y «Ver listado completo» (`btn-nodo btn-secondary btn-sm`) en la
    cabecera del bloque. Vacía por los filtros: `_estado_vacio` con `con_filtros=True` y la URL de «Limpiar».
-8. **Mapa**: panel propio que se carga **a pedido** (no en el render del Resumen). La golden trae el estado
-   cerrado como `_estado_vacio`; la pieza del mapa es `components/_mapa.html` con su ficha, y entra con el PR
-   que la construya.
+8. **Mapa**: panel propio que no le pide nada a Google mientras está oculto. La golden trae el estado cerrado
+   como `_estado_vacio`; la pieza es `components/_mapa_capas.html` (ficha `componentes/mapa_capas.md`, Google
+   Maps) con `detalle=False`, y el panel, las capas, la leyenda y la lista (`_item_lista.html`) son de la
+   pantalla, sincronizados por `data-mapa`. Lo usa E8 (`emergencia/situacion/_capas_mapa.html`).
 
 ## Filtros y solapas
 
@@ -120,7 +121,7 @@ Así sin JS se ve el panel que pidió la URL, y con JS nada cambia. La golden, q
 
 Las piezas nuevas del spec de Dispositivos (§3.2) entran con su ficha en el PR que las construya y se suman a
 este esqueleto como bloques del panel: barra con marcas de umbral, gráfico de barras pareadas, mapa
-(`_mapa.html`), lista de selección `item-lista`, píldora con campo de texto, fila de persona y fila de plaza
+(`_mapa_capas.html`), lista de selección `item-lista`, píldora con campo de texto, fila de persona y fila de plaza
 libre. Mientras no tengan ficha, son **novedad**: se frena y se devuelve.
 
 ## Prohibido

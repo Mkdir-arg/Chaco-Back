@@ -2298,7 +2298,7 @@ class ItemListaTest(SimpleTestCase):
         self.assertIn('data-item="castelli"', html)
         self.assertIn('<span class="nodo-item-lista__nombre">Juan José Castelli</span>', html)
         self.assertIn('<span class="nodo-item-lista__meta">Dpto. General Güemes</span>', html)
-        self.assertIn('class="badge badge-danger"', html)
+        self.assertIn('class="badge tabular-nums badge-danger"', html)
         self.assertIn("fa-circle-exclamation", html)
         self.assertIn("6,5×", html)
         self.assertIn('<span class="sr-only"> · Crítica</span>', html)

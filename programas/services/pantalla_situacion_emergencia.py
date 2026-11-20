@@ -13,6 +13,8 @@ signo de una variación), se arma la bajada del hero y se decide qué enlace via
   (``dispositivos_visibles``, §4.1): la vista los lee una vez y los pasa como ids.
 * **Perfil con ``presentar_perfil``** (RN-009-11): con filtro, sin salud y con «menos de 5».
 * **La capacidad dice «Red provincial»** siempre (RN-009-12).
+* **Mapa** (E-6): solo centroides de localidad y dispositivos publicables (``puntos_del_mapa``); el
+  payload de la pieza lleva lo justo para dibujar y buscar, y el panel de cada punto va en el HTML.
 """
 
 from django.urls import reverse
@@ -22,7 +24,15 @@ from programas.selectors.emergencia import texto_de_minutos
 from programas.selectors.emergencia_situacion import VENTANA_7D
 from programas.selectors.emergencia_tablero import ZONA_OPERATIVA
 from programas.services.alertas_situacion_emergencia import HORAS_DE_SATURACION, alertas_de_situacion
-from programas.services.ocupacion import UMBRAL_CRITICA, UMBRAL_EXIGIDA
+from programas.services.ocupacion import (
+    NIVEL_CRITICA,
+    NIVEL_EXIGIDA,
+    NIVEL_NORMAL,
+    NIVEL_SIN_PLAZAS,
+    UMBRAL_CRITICA,
+    UMBRAL_EXIGIDA,
+    etiqueta_y_tono,
+)
 from programas.services.situacion_emergencia import (
     HORAS_DEL_RITMO,
     NIVEL_SIN_DEMANDA,
@@ -38,6 +48,7 @@ from programas.services.situacion_emergencia import (
     perfil,
     presentar_perfil,
     presion_por_localidad,
+    puntos_del_mapa,
     resumen,
 )
 
@@ -345,26 +356,33 @@ def atencion(foto, *, supervisa, urls=None):
     }
 
 
+def _dato_de_presion(presion):
+    """La cifra que acompaña al nivel: «3,2×», «sin camas a 25 km» o nada (Sin demanda)."""
+
+    if presion.nivel == NIVEL_SIN_DEMANDA:
+        return ""
+    if presion.sin_camas_cercanas:
+        return f"sin camas a {RADIO_CERCANAS_KM} km"
+    return f"{cociente(presion.cociente)}×"
+
+
 def _texto_de_presion(presion):
     if presion is None:
         return badge(SIN_DATO, "gray")
-    etiqueta, tono = presion.etiqueta, presion.tono
-    if presion.nivel == NIVEL_SIN_DEMANDA:
-        return badge(etiqueta, tono)
-    if presion.sin_camas_cercanas:
-        return badge(f"{etiqueta} · sin camas a {RADIO_CERCANAS_KM} km", tono)
-    return badge(f"{etiqueta} · {cociente(presion.cociente)}×", tono)
+    dato = _dato_de_presion(presion)
+    return badge(f"{presion.etiqueta} · {dato}" if dato else presion.etiqueta, presion.tono)
 
 
-def tabla_de_presion(foto, *, supervisa):
+def tabla_de_presion(foto, *, supervisa, filas=None):
     """Las filas de «Presión por localidad» (B7) y la fila Total.
 
     Las localidades sin demanda (solo personas alojadas) van juntas en «Otras localidades (N)»; la
-    fila «Sin localidad» va al final. El orden es el de ``presion_por_localidad``.
+    fila «Sin localidad» va al final. El orden es el de ``presion_por_localidad`` (``filas``, si ya
+    se calcularon).
     """
 
     url_bandeja = reverse("emergencia:bandeja") if supervisa else ""
-    todas = presion_por_localidad(foto)
+    todas = presion_por_localidad(foto) if filas is None else filas
     filas, otras, sin_localidad = [], [], None
     for fila in todas:
         if fila["localidad_id"] is None:
@@ -652,13 +670,240 @@ def bloque_de_logistica(foto, *, dispositivos_visibles):
     }
 
 
+# ---------------------------------------------------------------------------
+# Solapa Mapa (E-6)
+# ---------------------------------------------------------------------------
+
+#: Cuántas localidades lista «Localidades con más presión» (§3.6); el total va aparte.
+TOPE_MAS_PRESION = 8
+
+CAPA_LOCALIDADES = "localidades"
+CAPA_DISPOSITIVOS = "dispositivos"
+
+#: Los niveles de cada leyenda, del más grave al menos: el mismo vocabulario y los mismos tonos que la tabla.
+_NIVELES_DE_PRESION = (NIVEL_CRITICA, NIVEL_EXIGIDA, NIVEL_NORMAL, NIVEL_SIN_DEMANDA)
+_NIVELES_DE_TENSION = (NIVEL_CRITICA, NIVEL_EXIGIDA, NIVEL_NORMAL, NIVEL_SIN_PLAZAS)
+
+
+def _id_localidad(pk):
+    return f"loc-{pk}"
+
+
+def _id_dispositivo(pk):
+    return f"disp-{pk}"
+
+
+def _km(distancia):
+    return f"{number_format(distancia, 1)} km"
+
+
+def _url_dispositivo(pk, dispositivos_visibles):
+    return reverse("dispositivos:detalle", args=[pk]) if pk in dispositivos_visibles else ""
+
+
+def _etiqueta_y_tono_de_presion(nivel):
+    presion = Presion(nivel, None)
+    return presion.etiqueta, presion.tono
+
+
+def _leyenda(niveles, etiqueta_de):
+    return [badge(*etiqueta_de(nivel)) for nivel in niveles]
+
+
+def _texto_bandeja(familias):
+    return "Ver el caso en la bandeja" if familias == 1 else f"Ver los {numero(familias)} casos en la bandeja"
+
+
+def _panel_de_localidad(loc, *, url_bandeja, dispositivos_visibles):
+    presion = Presion(loc["nivel"], loc["cociente"])
+    cercanos = []
+    for cercano in loc["cercanos"]:
+        donde = "en la localidad, sin ubicación" if cercano["distancia_km"] is None else _km(cercano["distancia_km"])
+        cercanos.append(
+            {
+                "nombre": cercano["nombre"],
+                "url": _url_dispositivo(cercano["id"], dispositivos_visibles),
+                "detalle": f"{donde} · {numero(cercano['libres'])} libres de {numero(cercano['operativas'])}",
+            }
+        )
+    reservadas = loc["camas_reservadas"]
+    url = ""
+    if url_bandeja and loc["familias"]:
+        url = f"{url_bandeja}?localidad={loc['localidad_id']}"
+    return {
+        "id": _id_localidad(loc["localidad_id"]),
+        "titulo": loc["nombre"],
+        "meta": f"Dpto. {loc['departamento']}" if loc["departamento"] else "",
+        "badge": _texto_de_presion(presion),
+        "datos": [
+            ("Familias esperando", numero(loc["familias"])),
+            ("Personas esperando", numero(loc["personas"])),
+            ("Fuera de SLA", numero(loc["fuera_de_sla"])),
+            ("Personas de la localidad ya alojadas", numero(loc["alojadas"])),
+            (
+                f"Camas libres a ≤ {RADIO_CERCANAS_KM} km",
+                f"{numero(loc['camas_cercanas'])} en "
+                f"{_plural(loc['dispositivos_cercanos'], 'dispositivo', 'dispositivos')}",
+            ),
+        ],
+        "cercanos": cercanos,
+        "reservadas": (
+            f"Incluye {_plural(reservadas, 'cama', 'camas')} en dispositivos de ubicación reservada."
+            if reservadas
+            else ""
+        ),
+        "url": url,
+        "url_texto": _texto_bandeja(loc["familias"]) if url else "",
+    }
+
+
+def _panel_de_dispositivo(d, *, dispositivos_visibles):
+    etiqueta, tono = etiqueta_y_tono(d["nivel"])
+    if d["porcentaje"] is None:
+        ocupacion = "sin plazas"
+    else:
+        etiqueta = f"{etiqueta} · {d['porcentaje']} %"
+        ocupacion = f"{numero(d['ocupadas'])} / {numero(d['operativas'])} camas"
+    url = _url_dispositivo(d["id"], dispositivos_visibles)
+    return {
+        "id": _id_dispositivo(d["id"]),
+        "titulo": d["nombre"],
+        "meta": " · ".join(parte for parte in (d["tipo"], d["localidad"]) if parte),
+        "badge": badge(etiqueta, tono),
+        "datos": [
+            ("Ocupación", ocupacion),
+            ("Camas libres", numero(d["libres"])),
+            ("Derivaciones pendientes", numero(d["derivaciones_pendientes"])),
+        ],
+        "url": url,
+        "url_texto": "Ver dispositivo" if url else "",
+    }
+
+
+def _pie_del_mapa(puntos):
+    partes = []
+    if puntos["dispositivos_sin_ubicacion"]:
+        partes.append(
+            _plural(puntos["dispositivos_sin_ubicacion"], "dispositivo sin ubicación", "dispositivos sin ubicación")
+        )
+    if puntos["dispositivos_reservados"]:
+        partes.append(f"{numero(puntos['dispositivos_reservados'])} con ubicación reservada")
+    if puntos["casos_sin_ubicacion"]:
+        partes.append(
+            _plural(
+                puntos["casos_sin_ubicacion"],
+                "caso de localidades sin ubicación",
+                "casos de localidades sin ubicación",
+            )
+        )
+    return " · ".join(partes)
+
+
+def bloque_del_mapa(foto, *, supervisa, dispositivos_visibles, filas=None):
+    """La solapa Mapa (B6, RF-009-07): puntos de la pieza, capas con leyenda, paneles y la lista. Sin consultas.
+
+    * ``puntos``: lo que serializa ``components/_mapa_capas.html``, ni un campo más. Localidades como
+      círculo (tono de la presión, tamaño por personas esperando) y dispositivos como píldora (tono de la
+      tensión de su tipo). Sin URL: el detalle es de la pantalla (``detalle=False``).
+    * ``localidades`` / ``dispositivos``: el panel de cada punto, que el HTML trae oculto y la pantalla
+      muestra con ``nodo-mapa-capas:seleccion``. La bandeja solo con ``supervisa``; «Ver dispositivo»
+      solo si el usuario lo abre por Dispositivos.
+    * ``lista``: las :data:`TOPE_MAS_PRESION` localidades del mapa con más presión, en el orden de la tabla.
+    """
+
+    datos = puntos_del_mapa(foto, filas)
+    url_bandeja = reverse("emergencia:bandeja") if supervisa else ""
+    puntos, localidades, dispositivos, con_demanda = [], [], [], []
+    for loc in datos["localidades"]:
+        presion = Presion(loc["nivel"], loc["cociente"])
+        meta = f"Dpto. {loc['departamento']}" if loc["departamento"] else ""
+        clave_ = _id_localidad(loc["localidad_id"])
+        puntos.append(
+            {
+                "id": clave_,
+                "capa": CAPA_LOCALIDADES,
+                "lat": loc["latitud"],
+                "lng": loc["longitud"],
+                "etiqueta": loc["nombre"],
+                "icono": "fa-people-group",
+                "tono": presion.tono,
+                "titulo": loc["nombre"],
+                "subtitulo": meta,
+                "forma": "circulo",
+                "tamano": loc["tamano"],
+            }
+        )
+        localidades.append(
+            _panel_de_localidad(loc, url_bandeja=url_bandeja, dispositivos_visibles=dispositivos_visibles)
+        )
+        if presion.nivel != NIVEL_SIN_DEMANDA:
+            con_demanda.append(
+                {
+                    "clave": clave_,
+                    "nombre": loc["nombre"],
+                    "meta": meta,
+                    "dato": _dato_de_presion(presion),
+                    "etiqueta": presion.etiqueta,
+                    "tono": presion.tono,
+                }
+            )
+    for d in datos["dispositivos"]:
+        panel = _panel_de_dispositivo(d, dispositivos_visibles=dispositivos_visibles)
+        puntos.append(
+            {
+                "id": panel["id"],
+                "capa": CAPA_DISPOSITIVOS,
+                "lat": d["latitud"],
+                "lng": d["longitud"],
+                "etiqueta": d["nombre"],
+                "icono": "fa-bed",
+                "tono": panel["badge"]["tono"],
+                "titulo": d["nombre"],
+                "subtitulo": panel["meta"],
+            }
+        )
+        dispositivos.append(panel)
+    lista = con_demanda[:TOPE_MAS_PRESION]
+    return {
+        "puntos": puntos,
+        "hay_puntos": bool(puntos),
+        "capas": [
+            {
+                "id": CAPA_LOCALIDADES,
+                "nombre": "Localidades",
+                "cantidad": numero(len(localidades)),
+                "titulo": "Presión",
+                "leyenda": _leyenda(_NIVELES_DE_PRESION, _etiqueta_y_tono_de_presion),
+                "nota": "Un círculo por localidad, en su centro. Más grande, más personas esperando.",
+            },
+            {
+                "id": CAPA_DISPOSITIVOS,
+                "nombre": "Dispositivos",
+                "cantidad": numero(len(dispositivos)),
+                "titulo": "Ocupación",
+                "leyenda": _leyenda(_NIVELES_DE_TENSION, etiqueta_y_tono),
+                "nota": "Con los umbrales del tipo de cada dispositivo.",
+            },
+        ],
+        "localidades": localidades,
+        "dispositivos": dispositivos,
+        "lista": lista,
+        "lista_resumen": (
+            f"Mostrando {len(lista)} de {numero(len(con_demanda))}." if len(con_demanda) > len(lista) else ""
+        ),
+        "pie": _pie_del_mapa(datos),
+    }
+
+
 def contexto_del_resumen(foto, *, supervisa, dispositivos_visibles, url_abastecimiento=""):
     """Todo lo que dibuja la pantalla menos los filtros y las URL de la vista. Sin consultas.
 
     ``url_abastecimiento`` es la de la solapa Abastecimiento con los filtros de la pantalla (la arma la vista).
+    La tabla de presión y el mapa salen de las mismas filas (``presion_por_localidad``, una vez).
     """
 
     numeros = resumen(foto)
+    filas = presion_por_localidad(foto)
     return {
         "titulo": foto.sla.nombre_evento,
         "eyebrow": "Programa Emergencia · Situación",
@@ -669,7 +914,8 @@ def contexto_del_resumen(foto, *, supervisa, dispositivos_visibles, url_abasteci
         "alcance": alcance(foto),
         "tarjetas": tarjetas(numeros),
         "atencion": atencion(foto, supervisa=supervisa, urls={"abastecimiento": url_abastecimiento}),
-        "presion": tabla_de_presion(foto, supervisa=supervisa),
+        "presion": tabla_de_presion(foto, supervisa=supervisa, filas=filas),
+        "mapa": bloque_del_mapa(foto, supervisa=supervisa, dispositivos_visibles=dispositivos_visibles, filas=filas),
         "evolucion": bloque_de_evolucion(foto),
         "capacidad": bloque_de_capacidad(foto, dispositivos_visibles=dispositivos_visibles),
         "embudo": bloque_de_embudo(foto),
