@@ -1,13 +1,15 @@
 {% extends "includes/base.html" %}
 {% load static nodo_ui %}
 {% block title %}Emergencia · Situación{% endblock %}
-{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-impresion.css' %}">{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-impresion.css' %}">
+<link rel="stylesheet" href="{% static 'custom/css/nodo-mapa-capas.css' %}">{% endblock %}
 
 {% block main-content %}
 {% comment %}E8 · Situación (análisis 009). Clona la golden del arquetipo «Dashboard de programa»
 (programas/templates/programas/dispositivos/tablero/tablero_referencia.html). Todos los números, textos, tonos y URL
 llegan armados de la vista (services/pantalla_situacion_emergencia.py): el template no cuenta ni decide. No nominal:
-ni nombres, ni DNI, ni números de caso, ni coordenadas de familias. Sin auto-refresh.
+ni nombres, ni DNI, ni números de caso, ni coordenadas de familias. Sin auto-refresh. La solapa Mapa usa la pieza
+components/_mapa_capas.html (Google Maps): con la solapa oculta no se le pide nada a Google.
 La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin JS (RNF-009-08).{% endcomment %}
 <div class="space-y-5" x-data="{ tab: '{{ solapa }}' }">
 
@@ -348,7 +350,7 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
           <p><strong>Horas hasta saturar:</strong> camas libres sobre el ritmo neto de ingresos y egresos en camas de las últimas {{ horas_del_ritmo }} h. Es una proyección al ritmo actual, no un pronóstico.</p>
           <p><strong>Períodos:</strong> el día operativo va de 06:00 a 06:00 (hora argentina); la ventana de 72 h se parte en bloques de 6 h desde las 06:00.</p>
           <p><strong>Filtros:</strong> acotan la demanda por la localidad del caso. La capacidad, las horas hasta saturar, la logística y las alertas de la red son siempre de toda la provincia.</p>
-          <p><strong>Fuentes:</strong> las localidades y sus centros salen de BAHRA/Georef; el fondo del mapa, de OpenStreetMap.</p>
+          <p><strong>Fuentes:</strong> las localidades y sus centros salen de BAHRA/Georef; el fondo del mapa, de Google Maps.</p>
         </div>
       </details>
     </section>
@@ -357,12 +359,7 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
   </div>
 
   <div x-show="tab==='mapa'"{% if solapa != "mapa" %} x-cloak{% endif %} role="tabpanel" id="panel-mapa" aria-labelledby="tab-mapa" class="nodo-no-imprimir">
-    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="situacion-mapa-titulo">
-      <div class="px-5 py-4 border-b border-light">
-        <h2 id="situacion-mapa-titulo" class="text-heading font-bold">Mapa de la situación</h2>
-      </div>
-      {% include "components/_estado_vacio.html" with icono="fa-map-location-dot" titulo="El mapa todavía no está disponible" texto="La tabla «Presión por localidad» del Resumen tiene los mismos números." only %}
-    </section>
+    {% include "programas/emergencia/situacion/_capas_mapa.html" with mapa=mapa only %}
   </div>
 
   <div x-show="tab==='abastecimiento'"{% if solapa != "abastecimiento" %} x-cloak{% endif %} role="tabpanel" id="panel-abastecimiento" aria-labelledby="tab-abastecimiento" class="nodo-no-imprimir space-y-5">
@@ -370,4 +367,9 @@ La solapa que resolvió el servidor se dibuja sin x-cloak: el Resumen se lee sin
   </div>
 
 </div>
+{% endblock %}
+
+{% block customJS %}
+{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-mapa-capas.js' %}"></script>
 {% endblock %}

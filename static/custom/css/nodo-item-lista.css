@@ -24,7 +24,7 @@
 }
 
 .nodo-item-lista:focus-visible {
-    outline: 2px solid var(--bg-brand);
+    outline: 2px solid var(--border-brand);
     outline-offset: 2px;
 }
 
@@ -57,15 +57,14 @@
 
 .nodo-item-lista .badge {
     flex-shrink: 0;
-    white-space: nowrap;
 }
 
-/* Alto contraste: el fondo lo pisa el sistema, así que el seleccionado se marca con borde y el foco
-   conserva el contorno. */
+/* Alto contraste: el fondo lo pisa el sistema, así que el seleccionado se marca con un contorno hacia
+   adentro (no cambia el tamaño del ítem) y el foco conserva el suyo. */
 @media (forced-colors: active) {
     .nodo-item-lista[aria-pressed="true"] {
-        border-color: Highlight;
-        border-width: 2px;
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
     }
 
     .nodo-item-lista:focus-visible {

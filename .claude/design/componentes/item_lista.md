@@ -4,8 +4,9 @@
 varios, uno bajo otro, son la lista que acompaña a un mapa o a un panel.
 **Evidencia:** `templates/components/_item_lista.html`, `static/custom/css/nodo-item-lista.css` (lo carga el
 shell) y `core/tests/test_nodo_ui_piezas.py` (`ItemListaTest`).
-**Consumidores:** previstos «Localidades con más presión» de la solapa Mapa de la Situación de Emergencia (E8) y
-«Más tensionados» del tablero de Dispositivos.
+**Consumidores:** «Localidades con más presión» de la solapa Mapa de la Situación de Emergencia (E8,
+`programas/templates/programas/emergencia/situacion/_capas_mapa.html`, con `data-item` que sincroniza
+`_mapa_capas.html`); previsto «Más tensionados» del tablero de Dispositivos.
 
 ## Por qué no es una tabla ni `lista_tarjetas`
 
@@ -52,7 +53,8 @@ Sin `dato` ni `etiqueta` no hay badge.
   (`--bg-info-soft` + borde `--border-info-subtle`). El consumidor, al hacer clic, deja `true` solo en el elegido
   (uno a la vez), abre o llena el panel y centra el mapa; no maneja clases.
 - Sin JS la lista se ve completa (nombre, dato y badge); lo que no anda es la selección.
-- En alto contraste el seleccionado se marca con borde grueso `Highlight`.
+- En alto contraste el seleccionado se marca con un contorno `Highlight` hacia adentro (`outline-offset: -2px`,
+  no cambia el tamaño del ítem).
 
 ## Reglas
 

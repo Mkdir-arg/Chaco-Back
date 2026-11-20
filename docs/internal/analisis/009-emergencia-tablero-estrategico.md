@@ -973,6 +973,7 @@ se cerraron con lo que el análisis ya daba por alcance.
 | 2026-11-19 | B12 y HU-9.7: «Sin entrega en 48 h» lista hasta 10 dispositivos, con «Mostrando N de M» cuando hay más (M = la cifra de AE-6) | Auditoría del PR #1226 (E-5), MINOR resuelto en E-7b (#1187) |
 | 2026-11-19 | RN-009-20, implementado tal como está escrito: un ítem «por lactante» que el dispositivo nunca recibió, teniendo lactantes, lo vuelve Crítica **aunque haya algo en camino**; en el orden, todo ítem nunca recibido es la menor cobertura. RN-009-21 b: las listas de salud (AE-9) y de lactantes (AE-10) van por nombre, nunca por conteo | Auditoría del PR #1227 (E-7b) |
 | 2026-11-19 | AB6 («Cómo se calcula») lista la regla vigente de cada ítem pero **no desde cuándo rige**: leerlo de la traza de E7 costaría una consulta más en la solapa. Queda como decisión abierta (pendiente 3 del Cambio 510) | E-7b (#1187) |
+| 2026-11-20 | **El mapa pasa a Google Maps** (decisión del PM, Cambio 493): la solapa Mapa usa la pieza de capas `components/_mapa_capas.html` (#1221) en lugar de Leaflet, OpenStreetMap y `components/_mapa.html`. Lo de Leaflet de §3.5, §3.6, RNF-009-02 y C1 queda reemplazado: nada sale a Google con la solapa oculta, sin key la solapa lo dice, y la lista y la tabla siguen siendo la alternativa. Localidades como círculo (tamaño por personas esperando) y dispositivos como píldora; la capa «Entregas en camino» queda pendiente porque la pieza no la admite sin cambios. C1 (#1173) se cierra con E-6 | E-6 (#1185), Cambio 512 |
 
 ---
 

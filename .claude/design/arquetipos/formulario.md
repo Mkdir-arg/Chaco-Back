@@ -97,6 +97,7 @@ solo pone etiqueta y error.
   «Ubicación» (Cambio 493, fase 2): la localidad con el campo canónico y, debajo, a fila completa, la pieza
   `components/_ubicacion_domicilio.html` (domicilio → Google → marcador arrastrable, latitud y longitud como
   campos reales del form). La pantalla carga `_google_maps.html`, `nodo-ubicacion.js` y `nodo-ubicacion.css`.
+  Latitud y longitud se validan con `core/coordenadas.py` (rango y «las dos o ninguna»), en el form.
   La coincidencia de nombre/localidad confirma con `ModernModal` canónico (`warning`, botón de marca); un error de búsqueda avisa con `window.toast`.
   La localidad es un `Select` común del campo canónico (`nodo-buscador.js/css` se cargan en P3 solo para
   los campos del formulario por tipo con presentación BUSCADOR, y se vuelven a montar al cambiar el tipo); un valor heredado fuera del catálogo se ofrece primero como
