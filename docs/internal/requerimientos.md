@@ -615,7 +615,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
-| 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2; fase 3 en curso) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
+| 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 a 3; fase 4 pendiente) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012`, `mapa.0001` |
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` `#ui` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
@@ -57767,7 +57767,7 @@ cargadas).
 
 # Cambio 493 — Mapa con Google Maps y domicilio → coordenadas
 
-🟡 **EN CURSO — fases 1 y 2 (Dispositivo, Ciudadano y Emergencia) hechas el 18/11/2026; fase 3: pieza de mapa con capas (20/11/2026)**
+🟡 **EN CURSO — fases 1 y 2 hechas el 18/11/2026; fase 3 (pieza de mapa con capas y pantalla `/mapa/`) el 20/11/2026. Falta la fase 4**
 
 | | |
 |---|---|
@@ -57777,7 +57777,7 @@ cargadas).
 | **Fecha del pedido** | 18/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Backoffice · Servidor/API · Infra/ECOM |
-| **Migración** | `users.0050` (fase 1), `legajos.0012` (fase 2, Ciudadano) |
+| **Migración** | `users.0050` (fase 1), `legajos.0012` (fase 2, Ciudadano), `mapa.0001` (fase 3) |
 
 ## Pedido original
 
@@ -57895,6 +57895,27 @@ Fase 3, primera entrega: la pieza **Mapa con capas** (`components/_mapa_capas.ht
 - Pedido de E8 (E-6): `forma="circulo"` con `tamano` 1–3 para marcar zonas (presión por localidad) y
   `detalle=False` para que la pantalla arme su propio panel con el evento de selección.
 
+Fase 3, segunda entrega: la pantalla **`/mapa/`** (app nueva `mapa`), ítem «Mapa» del menú con `mapa.ver`, sobre
+la pieza, con el diseño del mockup aprobado. Es la golden del arquetipo nuevo «Mapa».
+
+- `mapa.services.capas_del_mapa` arma las capas con la regla de lectura de cada módulo:
+  - Dispositivos con `dispositivos_visibles`, sin los de ubicación reservada, que solo se cuentan.
+  - Edificios vigentes con `edificios_visibles`.
+  - Casos de Emergencia abiertos, solo para quien opera o supervisa la mesa, con número, prioridad, estado y
+    hace cuánto se relevaron. Nunca nombre, documento ni dirección.
+  - Puntos cargados en el mapa.
+
+  Lo que no tiene coordenadas se cuenta en la nota de la capa. Cada punto enlaza a su ficha.
+- Modelo `mapa.Punto` (nombre, categoría Sede/Equipo/Vehículo/Otro, descripción, latitud y longitud con
+  `core/coordenadas.py`, `cargado_por`) y su admin.
+- API JSON `/mapa/api/puntos/`: `GET` con `mapa.ver`; `POST`, `PATCH` (mover) y `DELETE` con `mapa.editar`, con
+  CSRF y respuesta JSON también en 401 y 403.
+- Con `mapa.editar`, la pantalla permite:
+  - «Agregar punto»: tocar el mapa y completar el modal;
+  - arrastrar un punto, que vuelve a su lugar si el servidor rechaza la posición;
+  - eliminar desde el detalle, confirmando con `ModernModal`.
+- `mapa.ver` y `mapa.editar` salen de `CAPACIDADES_SIN_USO`.
+
 ## Archivos
 
 `config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
@@ -57923,6 +57944,13 @@ Fase 3, pieza: `templates/components/_mapa_capas.html`, `static/custom/js/nodo-m
 `.claude/design/componentes/mapa_google.md`, `.claude/agents/chaco-design-system.md`,
 `core/tests/test_nodo_ui_piezas.py` (`MapaCapasTest`).
 
+Fase 3, pantalla: `mapa/` (`apps.py`, `models.py`, `admin.py`, `forms.py`, `services.py`, `views.py`, `urls.py`,
+`migrations/0001_initial.py`, `templates/mapa/mapa.html`, `tests/test_mapa.py`), `static/custom/js/mapa-general.js`,
+`static/custom/css/nodo-mapa-capas.css` (clases del panel), `config/settings.py`, `config/urls.py`,
+`templates/includes/sidebar/opciones.html`, `users/tests/test_rbac_contrato.py`, `scripts/design_audit.py`
+(arquetipo y golden «mapa»), `.claude/design/arquetipos/mapa.md`, `.claude/design/componentes/mapa_capas.md`,
+`.claude/design/shells.md`, `.claude/agents/chaco-design-system.md`, `docs/mapa.md`.
+
 ## Base de datos
 
 `legajos.0012`: `latitud` y `longitud` en `legajos_ciudadano`, `DECIMAL(9,6) NULL` sin default. Los legajos
@@ -57932,6 +57960,9 @@ MySQL 8 y MariaDB 10.3+. Reversa: `migrate legajos 0011` borra las dos columnas 
 
 `users.0050`: declara las dos capacidades (`AlterModelOptions` sobre el modelo ancla `managed = False`,
 no toca el esquema) y se las da al Administrador. Segura sobre datos existentes; reversa real.
+
+`mapa.0001`: tabla nueva `mapa_punto`, sin datos que migrar. Es solo expand y la release anterior no la nombra.
+Reversa: `migrate mapa zero` borra la tabla y los puntos cargados.
 
 ## Validación
 
@@ -57965,6 +57996,27 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   interno y `javascript:` descartado, acciones, arrastre, API, modo clic, a pedido sin pedir a Google, encuadre
   con el panel al costado y abajo).
 
+- Fase 3, pantalla: `mapa.tests` (27) OK:
+  - `Punto`;
+  - pantalla con y sin permiso;
+  - capas: reservados y sin ubicación contados, casos solo para la mesa y sin datos de la persona, cerrados afuera,
+    capas sin alcance ausentes;
+  - consultas: 11 constantes;
+  - API: 401/403/405 en JSON, alta, errores, mover, cuerpo ilegible, baja, 404 y CSRF obligatorio.
+
+  `users.tests.test_rbac_contrato` OK.
+
+  Punta a punta con Playwright sobre la pantalla real y un doble de Google Maps: 25 de 25. Cubre:
+  - marcadores por capa y nota de lo que no se dibuja;
+  - menú activo;
+  - alta con error 400 bajo el campo y luego guardada (marcador, ítem y aviso);
+  - `POST` con CSRF;
+  - mover rechazado que vuelve atrás, y aceptado;
+  - eliminar con `ModernModal` y `DELETE`;
+  - subfiltro, búsqueda por número de caso, y la hoja en celular.
+
+  `design_audit.py --arquetipo mapa` y `--goldens` (9 en 0), `--ratchet` en 0, y `check_design_agent.py`: OK.
+
 ## Puesta en marcha en el servidor
 
 Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`).
@@ -57972,12 +58024,12 @@ Sin ellas no cambia nada.
 
 ## Pendientes / a definir
 
-- Fase 3: la pantalla `/mapa/` (app `mapa`, modelo `Punto`, API, capas de Dispositivos, Edificios, casos de
-  Emergencia y Puntos, arquetipo «Mapa» con `/mapa/` como golden). Fase 4.
+- Fase 4: el lugar de la toma de Becas y el enlace «Ver en el mapa» de Dispositivos.
+- Asignarles `mapa.ver` y `mapa.editar` a los roles que correspondan (hoy solo las tiene el Administrador); lo
+  hace el PM desde el ABM de Roles.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
-- `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
 - La ficha de `components/_ubicacion.html` prohíbe mapas y orígenes en la CSP: se actualiza en la fase 4.
 
 ## Reversión
@@ -57986,6 +58038,7 @@ Revertir el commit y desaplicar `users.0050` (`migrate users 0049`). No se pierd
 dos capacidades del Administrador.
 Fase 2: revertir sus commits; en Ciudadano, además, `migrate legajos 0011`, que borra las dos columnas y las
 coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coordenadas ya existían.
+Fase 3: revertir sus commits y `migrate mapa zero` (borra los puntos cargados); la pieza no tiene datos.
 
 ## Historial
 
@@ -58010,6 +58063,8 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
   `capas` sin uso, búsqueda sin trabajo repetido, `<li>` padre inmediato, radios con token y fila del agente.
   Corregido en el mismo PR y revalidado: 45 de 45 de punta a punta y `MapaCapasTest`; la búsqueda pasa de 17 a
   0,9 ms por tecla con 5000 puntos (medido sin DOM). Segunda ronda: APPROVE.
+- **20/11/2026:** fase 3, segunda entrega: la pantalla `/mapa/` (app `mapa`, modelo `Punto`, API, capas por módulo,
+  arquetipo «Mapa»).
 
 ---
 

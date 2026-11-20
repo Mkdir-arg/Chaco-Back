@@ -142,6 +142,8 @@ INSTALLED_APPS = [
     # Campañas de correo masivo (análisis 007). Solo correo saliente: no es la
     # campana de alertas del navbar ni el `NotificacionService` de conversaciones.
     "notificaciones",
+    # Mapa general `/mapa/` y sus puntos sueltos (Cambio 493, fase 3).
+    "mapa",
 ]
 
 # Silk (profiling) y django-extensions (`shell_plus`, `show_urls`): solo en desarrollo,
@@ -174,6 +176,7 @@ if os.environ.get("DJANGO_SYNCDB_PROJECT_APPS", "False") == "True":
         "portal": None,
         "programas": None,
         "notificaciones": None,
+        "mapa": None,
     }
 
 MIDDLEWARE = [

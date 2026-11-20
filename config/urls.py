@@ -43,6 +43,7 @@ urlpatterns = [
     path("dispositivos/", include("programas.dispositivos_urls")),
     path("emergencia/", include("programas.emergencia_urls")),
     path("notificaciones/", include("notificaciones.urls")),
+    path("mapa/", include("mapa.urls")),
     # Root paths last
     path("", include(("users.urls", "users"), namespace="users")),
     # SEC-26: `django.contrib.auth.urls` estuvo montado acá y publicaba en la raíz

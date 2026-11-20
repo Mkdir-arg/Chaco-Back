@@ -10,7 +10,7 @@ entorno y los permisos. El contrato técnico de la pieza está en
 |---|---|
 | Cargador común (`components/_google_maps.html` + `nodo-mapa.js`), CSP y capacidades | Fase 1 |
 | Domicilio → coordenadas en los formularios (Dispositivo, Ciudadano, Emergencia) | Fase 2 |
-| Mapa general `/mapa/`: capas de Dispositivos, Edificios y Emergencias + puntos sueltos | Fase 3 |
+| Mapa general `/mapa/`: capas de Dispositivos, Edificios y Emergencias + puntos sueltos | Fase 3 (hecha) |
 | Lugar de la toma de Becas y enlace «Ver en el mapa» de Dispositivos | Fase 4 |
 
 ## 1. Crear la API key
@@ -74,7 +74,34 @@ Dos capacidades en el módulo **Mapa** del ABM de Roles (pestaña General):
 
 La migración `users.0050` se las da al rol Administrador. Al resto de los roles se las asigna el PM.
 
-## 6. Costos
+## 6. La pantalla `/mapa/`
+
+Ítem «Mapa» del menú, con `mapa.ver`. Cada capa se ve según la regla de lectura de su propio módulo:
+
+| Capa | Quién la ve | Qué muestra |
+|---|---|---|
+| Dispositivos | quien ve dispositivos (su alcance de siempre) | los que tienen coordenadas; los de **ubicación reservada** no se dibujan nunca, solo se cuentan |
+| Edificios | quien ve edificios | los vigentes con coordenadas |
+| Casos de Emergencia | quien opera o supervisa la mesa | los abiertos con coordenadas: número, prioridad, estado y hace cuánto se relevaron. **Nunca** nombre, documento ni dirección |
+| Puntos | todos los que entran a `/mapa/` | lo cargado en el mapa (sedes, equipos, vehículos, otros) |
+
+Lo que no tiene coordenadas se cuenta en la nota de su capa («no se ven: 3 sin ubicación»). Las coordenadas de
+dispositivos, edificios y casos se editan en sus propios formularios; en el mapa solo se mueven los puntos.
+
+Con `mapa.editar`: «Agregar punto» (tocar el mapa y completar nombre, categoría y descripción), arrastrar un punto
+para moverlo y eliminarlo desde su detalle. La API que usa la pantalla:
+
+| Método y ruta | Capacidad | |
+|---|---|---|
+| `GET /mapa/api/puntos/` | `mapa.ver` | lista de puntos |
+| `POST /mapa/api/puntos/` | `mapa.editar` | alta (`nombre`, `categoria`, `descripcion`, `latitud`, `longitud`) |
+| `PATCH /mapa/api/puntos/<id>/` | `mapa.editar` | mover (`latitud`, `longitud`, JSON o formulario) |
+| `DELETE /mapa/api/puntos/<id>/` | `mapa.editar` | baja |
+
+Responde JSON (también 401 y 403), exige el token CSRF y valida el rango de coordenadas. Los puntos también se
+administran desde el admin de Django («Puntos del mapa»).
+
+## 7. Costos
 
 Google cobra por uso: cada carga de mapa y cada búsqueda de domicilio consumen cuota, con un crédito
 mensual gratuito. Conviene configurar alertas de presupuesto en la cuenta de facturación del proyecto.

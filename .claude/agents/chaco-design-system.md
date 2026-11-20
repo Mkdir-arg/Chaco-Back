@@ -167,6 +167,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Arquetipo · Dashboard | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/tablero/tablero_referencia.html` (referencia sin vista) — primera pantalla de un programa: hero, una barra de píldoras, franja grande de métricas, solapas y paneles con «Necesita atención» y tablas. Ficha: `.claude/design/arquetipos/dashboard.md` |
 | Pendiente · sin molde | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** El dashboard de Becas y la revisión compleja de Becas no son molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
 | Arquetipo · Revision | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/estadia/revision_referencia.html` — una persona con su ficha por secciones plegables (con avance y bloqueo por sensibilidad), línea de tiempo y acciones. Ficha: `.claude/design/arquetipos/revision.md` |
+| Arquetipo · Mapa | Canónico reutilizable | Golden `mapa/templates/mapa/mapa.html` — el mapa es el protagonista: page_header, escena con la pieza Mapa con capas a toda la página y panel flotante (buscador, capas, lista); alta, movimiento y baja de puntos opcionales. Ficha: `.claude/design/arquetipos/mapa.md` |
 
 ## Inventario operativo inicial
 
