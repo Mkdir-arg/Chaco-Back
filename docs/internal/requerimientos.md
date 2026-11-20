@@ -639,6 +639,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 513 | Dispositivos Ola 0: D-SEG-02 (detalle reservado) | Dispositivos | `#seguridad` `#rbac` | Auditoría 2026-11, Ola 0 aprobada por el PM — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 514 | Dispositivos · Ola 0: D-LIM-01, regla de visibilidad del agente asignado en un solo dueño | Dispositivos · Relevamientos (P21) | `#dispositivos` `#seguridad` `#rbac` `#relevamientos` | PM — Ola 0 de Dispositivos, ficha D-LIM-01, issue #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 515 | Dispositivos Ola 0: D-SEG-01 (detalle reservado) | Dispositivos · altas rápidas | `#seguridad` `#rbac` | PM — issue #1238 (Ola 0) | 20/11/2026 | 🟢 **Hecho** | No requiere |
+| 516 | Auditoría 2026-11: se generalizan títulos de fichas de seguridad abiertas en el informe público de Dispositivos (detalle reservado) | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#seguridad` `#metodo` | PM — decisión sobre el informe público de la auditoría | 20/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59803,7 +59804,7 @@ Desplegar el código anterior: la solapa vuelve a ser un estado vacío. No hay d
 
 ## Pedido original
 
-Ficha D-SEG-02 de la Ola 0 (#1238). El detalle está reservado porque el repositorio es público; se conserva en el informe interno de la auditoría.
+Ficha D-SEG-02 de la Ola 0 (#1238). El detalle está reservado porque el repositorio es público; lo custodia el PM fuera del repositorio público.
 
 ## Alcance acordado
 
@@ -59830,6 +59831,14 @@ No requiere.
 ## Validación
 
 Tests nuevos verificados con mutación de cada guarda por separado (rojo y restaurado). Suites de Dispositivos, `manage.py check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+No aplica.
 
 ## Reversión
 
@@ -60042,3 +60051,66 @@ Revertir el commit; no hay datos involucrados.
 
 ## Historial
 Sin cambios posteriores.
+
+---
+
+# Cambio 516 — Auditoría 2026-11: se generalizan títulos de fichas de seguridad abiertas (detalle reservado)
+
+🟢 **HECHO — 20/11/2026** · rama `docs/recorte-titulos-seg-nov`
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) |
+| **Etiquetas** | `#seguridad` `#metodo` |
+| **Solicitante** | PM — decisión sobre el informe público de la auditoría |
+| **Fecha del pedido** | 20/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ninguna del producto: solo documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El repositorio es público y el informe de la auditoría de noviembre todavía tenía títulos y textos de fichas de seguridad abiertas más descriptivos de lo conveniente. El PM pidió generalizarlos y dejar el detalle reservado.
+
+## Alcance acordado
+
+Entra: `dispositivos.md` (tabla resumen, plan por olas, decisiones del cliente, tabla de alternativas y fichas), una frase de `emergencia.md` y dos secciones faltantes del Cambio 513. Quedan afuera el código, `docs/client/` y cualquier cambio de severidad, ola o esfuerzo.
+
+## Decisiones tomadas
+
+1. Las fichas de seguridad abiertas conservan su ID, severidad, ola y esfuerzo; el título pasa a una forma genérica con «detalle reservado». La ficha ya resuelta de la gestión de roles también se generalizó, porque su título original describía el vector.
+2. Las fichas ya arregladas se marcan como resueltas con su PR y su Cambio, sin sumar detalle técnico.
+3. El detalle técnico de las fichas de seguridad abiertas lo custodia el PM fuera del repositorio público.
+4. Se aprovecha el PR para dos menores del informe: la Ola 2 de Emergencia ya está medida (Cambio 511) y la aclaración de la medición de una ficha de datos de Dispositivos.
+
+## Implementación
+
+Reemplazos de texto en `docs/internal/auditoria-2026-11-perf/dispositivos.md` y `emergencia.md`, y las secciones «Puesta en marcha en el servidor» y «Pendientes / a definir» en el Cambio 513 de este archivo.
+
+## Archivos
+
+`docs/internal/auditoria-2026-11-perf/dispositivos.md`, `docs/internal/auditoria-2026-11-perf/emergencia.md` y este archivo.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+`scripts/requerimientos.py --check` en OK y `scripts/check_docs_client.py` en 0 hallazgos. Ningún código ni plantilla cambió.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- El detalle técnico de las fichas abiertas sigue en custodia del PM, fuera del repositorio público.
+
+## Reversión
+
+Revertir el commit; no hay datos involucrados.
+
+## Historial
+
+- **20/11/2026:** alta del cambio.

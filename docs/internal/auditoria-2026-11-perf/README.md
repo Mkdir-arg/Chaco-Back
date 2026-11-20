@@ -44,7 +44,7 @@ Esfuerzo con S = 2 h, S-M = 4 h, M = 8 h, L = 20 h. Ninguna ficha es CRÍTICA. L
 |---|---|---|
 | Becas | Ola 0 (altas a SIIS que se saltean la lista «no enviar», B-SEG-04 con el detalle reservado hasta el arreglo) y Ola 1 (la carga del padrón deja tomada la convocatoria y el link público espera más de 10 s) | B-PERF-01 espera la medición; el XSS del export (B-SEG-01) ya salió |
 | Emergencia | Ola 0 (queda E-ERR-04 y el seguimiento de las dos ALTA, [sección 10](emergencia.md)) y Ola 1 (idempotencia desde la web) | La Ola 2 es performance, ya medida (E-PERF-01 y E-PERF-03 son ALTA y van primero) |
-| Dispositivos | Ola 0 (roles propios, agente asignado, texto libre en el historial) y Ola 1 (orden global de candados) | El orden de candados se verifica contra ingreso, egreso, cambio de plaza y reserva antes de tocar código |
+| Dispositivos | Ola 0 resuelta (#1261 a #1263); sigue la Ola 1 (orden global de candados) | El orden de candados se verifica contra ingreso, egreso, cambio de plaza y reserva antes de tocar código |
 
 ## Decisiones de cliente pendientes
 
@@ -60,7 +60,7 @@ Cada decisión trae su **propuesta por defecto**, que se aplica si el cliente no
 |---|---|---|
 | [becas.md §7](becas.md) | 19 | B-SEG-02, B-SEG-03, B-SEG-04, B-ERR-01, B-ERR-05, B-ERR-19, B-ERR-20, B-LIM-02, B-LIM-04, B-LIM-14, B-LIM-15, B-LIM-26, B-LIM-41, B-LIM-45, B-LIM-67, B-FE-05, B-FE-08, B-PERF-01, B-PERF-08 |
 | [emergencia.md §7](emergencia.md) | 12 (E-FE-01 es del juez) | E-ERR-01, E-ERR-03, E-ERR-04, E-ERR-07, E-ERR-08, E-ERR-15, E-ERR-17, E-LIM-05, E-PERF-12, E-PERF-14, E-PERF-15, E-FE-01 |
-| [dispositivos.md §7](dispositivos.md) | 16 | D-SEG-02, D-ERR-02 (y su guarda), D-ERR-03, D-SEG-05, D-PERF-01, D-PERF-05, D-ERR-04, D-SEG-06, D-SEG-07, D-LIM-38, D-LIM-36, D-FE-03, D-LIM-07, D-LIM-50, D-LIM-08 |
+| [dispositivos.md §7](dispositivos.md) | 15 (D-SEG-02 ya está aplicada, #1261) | D-ERR-02 (y su guarda), D-ERR-03, D-SEG-05, D-PERF-01, D-PERF-05, D-ERR-04, D-SEG-06, D-SEG-07, D-LIM-38, D-LIM-36, D-FE-03, D-LIM-07, D-LIM-50, D-LIM-08 |
 
 ## Qué ya se arregló
 
