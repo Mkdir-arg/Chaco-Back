@@ -634,6 +634,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
 | 510 | Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h (E-7b del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#ui` `#performance` `#datos` | PM — análisis 009 (§3.9, §4.1, RN-009-15 a 22), task #1187 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0130` (1 `AddIndex`) |
 | 512 | Emergencia · E8: solapa «Mapa» con la pieza de capas de Google Maps (E-6 del análisis 009; cierra C1) | Emergencia · situación (E8) | `#emergencia` `#ui` `#gps` `#performance` | PM — análisis 009 (§3.5-3.6, RF-009-07, RN-009-13), tasks #1185 y #1173 | 20/11/2026 | 🟢 **Hecho** | No requiere |
+| 513 | Dispositivos Ola 0: D-SEG-02 (detalle reservado) | Dispositivos | `#seguridad` `#rbac` | Auditoría 2026-11, Ola 0 aprobada por el PM — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59775,6 +59776,60 @@ lista sigue.
 ## Reversión
 
 Desplegar el código anterior: la solapa vuelve a ser un estado vacío. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **20/11/2026:** alta del cambio.
+
+---
+
+# Cambio 513 — Dispositivos Ola 0: D-SEG-02 (detalle reservado)
+
+🟢 **HECHO — 20/11/2026** · rama `fix/dispositivos-ola0-dseg02`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos |
+| **Etiquetas** | `#seguridad` `#rbac` |
+| **Solicitante** | PM — Ola 0 de la auditoría 2026-11, con el default de cliente del informe |
+| **Fecha del pedido** | 20/11/2026 |
+| **Issue / épica** | #1238 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Ficha D-SEG-02 de la Ola 0 (#1238). El detalle está reservado porque el repositorio es público; se conserva en el informe interno de la auditoría.
+
+## Alcance acordado
+
+Aplicar el default de cliente de la ficha. Quedan afuera borrar datos ya guardados, reescribir registros históricos y recortar texto con expresiones regulares.
+
+## Decisiones tomadas
+
+1. Se aplica el default de cliente del informe (detalle reservado).
+2. No se borra ni se reescribe ningún dato existente.
+3. Regla genérica sumada a la skill `seguridad-django` (§8): el texto libre que un operador escribe sobre una persona sigue la misma guarda que su nombre; en entradas automáticas, notificaciones o líneas de tiempo va solo el valor de catálogo.
+
+## Implementación
+
+Cambio acotado en el selector del historial y en el servicio de bitácora del dispositivo, con tests en `programas/tests/test_privacidad_texto_libre.py`. Se ajustaron tres tests existentes cuyo texto esperado cambió.
+
+## Archivos
+
+`programas/selectors/auditoria_dispositivo.py`, `programas/services/bitacora.py`, `programas/tests/test_privacidad_texto_libre.py` (nuevo), `programas/tests/test_dispositivos_bitacora_automatica.py`, `programas/tests/test_dispositivos_plazas_por_sector_430.py`, `.claude/skills/seguridad-django/SKILL.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Tests nuevos verificados con mutación de cada guarda por separado (rojo y restaurado). Suites de Dispositivos, `manage.py check` y ruff en verde.
+
+## Reversión
+
+Revertir el commit. No se pierden datos.
 
 ## Historial
 

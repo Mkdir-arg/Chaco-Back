@@ -531,7 +531,12 @@ def _texto_automatico(movimiento) -> str:
             mismo_sector = origen.sector_id == destino.sector_id
             nombre_origen = nombre_de_plaza(origen, destino.sector.nombre if mismo_sector else None)
         texto = f"{movimiento.get_tipo_display()} · {nombre_origen} → {nombre_de_plaza(destino)}"
-    return f"{texto} · motivo: {movimiento.motivo}" if movimiento.motivo else texto
+    # Solo el egreso lleva motivo: es el nombre del catálogo. En un cambio o una asignación de
+    # plaza el motivo es texto libre sobre la persona, y la bitácora se lee con `dispositivo.ver`
+    # sin `ciudadano.ver`: queda en `MovimientoEstadia` (D-SEG-02).
+    if tipo == MovimientoEstadia.Tipo.EGRESO and movimiento.motivo:
+        return f"{texto} · motivo: {movimiento.motivo}"
+    return texto
 
 
 def anotar_en_bitacora(movimiento):
