@@ -59804,7 +59804,7 @@ Desplegar el código anterior: la solapa vuelve a ser un estado vacío. No hay d
 
 ## Pedido original
 
-Ficha D-SEG-02 de la Ola 0 (#1238). El detalle está reservado porque el repositorio es público; se conserva en el informe interno de la auditoría.
+Ficha D-SEG-02 de la Ola 0 (#1238). El detalle está reservado porque el repositorio es público; lo custodia el PM fuera del repositorio público.
 
 ## Alcance acordado
 
@@ -60078,9 +60078,9 @@ Entra: `dispositivos.md` (tabla resumen, plan por olas, decisiones del cliente, 
 
 ## Decisiones tomadas
 
-1. Las fichas de seguridad abiertas conservan su ID, severidad, ola y esfuerzo; el título pasa a una forma genérica con «detalle reservado».
+1. Las fichas de seguridad abiertas conservan su ID, severidad, ola y esfuerzo; el título pasa a una forma genérica con «detalle reservado». La ficha ya resuelta de la gestión de roles también se generalizó, porque su título original describía el vector.
 2. Las fichas ya arregladas se marcan como resueltas con su PR y su Cambio, sin sumar detalle técnico.
-3. El detalle completo vive fuera del repositorio público.
+3. El detalle técnico de las fichas de seguridad abiertas lo custodia el PM fuera del repositorio público.
 4. Se aprovecha el PR para dos menores del informe: la Ola 2 de Emergencia ya está medida (Cambio 511) y la aclaración de la medición de una ficha de datos de Dispositivos.
 
 ## Implementación
@@ -60105,7 +60105,7 @@ No requiere.
 
 ## Pendientes / a definir
 
-- Al cerrar cada ficha abierta se agrega su detalle al informe interno, no al repositorio público.
+- El detalle técnico de las fichas abiertas sigue en custodia del PM, fuera del repositorio público.
 
 ## Reversión
 
