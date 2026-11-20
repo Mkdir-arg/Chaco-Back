@@ -59,6 +59,7 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 | `#metodo` | Método de trabajo de los agentes: `AGENTS.md`, `QA.md`, `PM.md` y las convenciones que deben cumplir al crear issues |
 | `#emergencia` | Módulo Emergencia: la mesa de casos, la derivación y el alojamiento de familias evacuadas en dispositivos, las entregas de kits, el tablero y su API de campo |
 | `#seguridad` | Correcciones de seguridad: XSS, inyección, fuga de datos y endurecimiento de respuestas |
+| `#dispositivos` | Módulo Dispositivos: instituciones, relevamientos de edificios, equipos y agentes |
 
 ## Regla de oro
 
@@ -634,6 +635,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
 | 510 | Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h (E-7b del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#ui` `#performance` `#datos` | PM — análisis 009 (§3.9, §4.1, RN-009-15 a 22), task #1187 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0130` (1 `AddIndex`) |
 | 512 | Emergencia · E8: solapa «Mapa» con la pieza de capas de Google Maps (E-6 del análisis 009; cierra C1) | Emergencia · situación (E8) | `#emergencia` `#ui` `#gps` `#performance` | PM — análisis 009 (§3.5-3.6, RF-009-07, RN-009-13), tasks #1185 y #1173 | 20/11/2026 | 🟢 **Hecho** | No requiere |
+| 513 | Dispositivos · Ola 0: D-LIM-01, regla de visibilidad del agente asignado en un solo dueño | Dispositivos · Relevamientos (P21) | `#dispositivos` `#seguridad` `#rbac` `#relevamientos` | PM — Ola 0 de Dispositivos, ficha D-LIM-01, issue #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59775,6 +59777,84 @@ lista sigue.
 ## Reversión
 
 Desplegar el código anterior: la solapa vuelve a ser un estado vacío. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **20/11/2026:** alta del cambio.
+
+# Cambio 513 — Dispositivos · Ola 0: D-LIM-01, regla de visibilidad del agente asignado en un solo dueño
+
+🟢 **HECHO — 20/11/2026** · rama `fix/dispositivos-ola0-dlim01`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos (P21) |
+| **Etiquetas** | `#dispositivos` `#seguridad` `#rbac` `#relevamientos` |
+| **Solicitante** | PM — Ola 0 de Dispositivos, ficha D-LIM-01 (absorbe D4-SEG-01) |
+| **Fecha del pedido** | 20/11/2026 |
+| **Issue / épica** | #1238 |
+| **Partes afectadas** | Backoffice (listado de relevamientos) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Ola 0 de Dispositivos, ficha D-LIM-01: la vista del listado de relevamientos reescribía la regla de visibilidad del
+agente asignado en lugar de usar el servicio, y no la aplicaba igual en todos los puntos de la pantalla.
+
+## Alcance acordado
+
+**Entra:** un solo dueño de la regla (`programas/services/inspecciones.py`) y la vista consumiéndolo; el filtro
+«Asignado a», sus opciones y los contadores de las solapas expresados sobre el mismo conjunto visible; el test R-5.
+**Queda afuera:** el Historial del dispositivo (`selectors/auditoria_dispositivo.py`), que tiene su propia copia de la
+regla y queda en la lista congelada del test como deuda conocida.
+
+## Decisiones tomadas
+
+1. **Helpers junto a la regla canónica:** `ve_la_asignacion_en_lote(usuario, relevamientos, *, edificios_coordinados=None)`
+   devuelve el conjunto de ids de relevamiento que el usuario ve con su asignación (la columna), y
+   `q_asignacion_visible(usuario)` es la misma regla como filtro de queryset.
+2. **El filtro, las opciones y los contadores usan ese mismo conjunto:** `resumen_listado` recibe
+   `visibles_por_agente` y acota el contador por agente; para quien sí ve la asignación el resultado es el de antes.
+3. **0 consultas más:** la columna reutiliza el conjunto de edificios en alcance que la vista ya leía
+   (`edificios_coordinados`); el presupuesto `dispositivos_relevamientos_listado` no se mueve.
+4. **Un solo dueño, con control mecánico (R-5):** `programas/tests/test_alcance_asignacion.py` recorre vistas y selectores
+   y falla si una línea nombra `asignado_a`/`agente_asignado` fuera de una lista congelada y explicada. Los templates
+   quedan fuera: imprimen lo que la vista ya decidió mostrar.
+
+## Implementación
+
+- `programas/services/inspecciones.py`: `ve_la_asignacion_en_lote`, `q_asignacion_visible` y `resumen_listado(..., visibles_por_agente=)`.
+- `programas/views/dispositivos_relevamientos.py`: la columna, las opciones y el filtro usan el servicio.
+
+## Archivos
+
+Los de «Implementación», más `programas/tests/test_alcance_asignacion.py` (nuevo).
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `test_alcance_asignacion.py` (6 tests): funcional con y sin la capacidad, la vista consulta la regla del servicio
+  (reemplazada por mock), el lote coincide con la regla por relevamiento y el «un solo dueño».
+- **Mutación:** volver el filtro de filas, el contador, la columna o las opciones a la regla anterior deja el módulo en
+  rojo en los cuatro casos (2, 3, 1 y 1 fallos); restaurado, 6 OK.
+- Tests de relevamientos, inspecciones y alcance de Dispositivos en verde (incluido el presupuesto de consultas),
+  `manage.py check`, `ruff check` y `ruff format --check` sobre lo tocado.
+
+## Puesta en marcha en el servidor
+
+Nada nuevo.
+
+## Pendientes / a definir
+
+1. **Historial del dispositivo:** `selectors/auditoria_dispositivo.py` mantiene su propia copia de «coordina el edificio
+   o es el agente»; unificarla con el servicio en su propia ficha.
+
+## Reversión
+
+Desplegar el código anterior. No hay datos ni esquema que deshacer.
 
 ## Historial
 

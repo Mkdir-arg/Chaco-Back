@@ -818,18 +818,23 @@ def filtrar_por_situacion(queryset, situacion, hoy=None):
     return queryset if condicion is None else queryset.filter(condicion)
 
 
-def resumen_listado(queryset, *, situacion="", asignado_a_id=None, hoy=None):
+def resumen_listado(queryset, *, situacion="", asignado_a_id=None, visibles_por_agente=None, hoy=None):
     """Los números de P21 en **una** consulta: las tarjetas y los contadores de las solapas.
 
     Las tarjetas son sobre todo ``queryset`` (``asignados`` = en curso, que se parte en
     ``al_dia`` + ``por_vencer`` + ``vencidos``). Los contadores de las solapas cuentan lo que
     cada una muestra: el agente filtra las tres y la situación solo la de En curso.
+
+    ``visibles_por_agente`` (:func:`q_asignacion_visible`) acota el filtro por agente a las
+    asignaciones que el usuario ve: sin él, el contador delataría a qué agente va una fila oculta.
     """
 
     hoy = hoy or timezone.localdate()
     estado = InspeccionEdificio.Estado
     en_curso = Q(estado=estado.ASIGNADA)
     por_agente = Q(asignado_a_id=asignado_a_id) if asignado_a_id else Q()
+    if asignado_a_id and visibles_por_agente is not None:
+        por_agente &= visibles_por_agente
     totales = queryset.aggregate(
         asignados=Count("pk", filter=en_curso),
         vencidos=Count("pk", filter=_condicion_situacion(Situacion.VENCIDA, hoy)),
@@ -1104,6 +1109,40 @@ def edificios_con_asignacion_visible(usuario, edificio_ids):
     if not ids:
         return set()
     return set(edificios_en_alcance(usuario, CAP_ASIGNAR).filter(pk__in=ids).values_list("pk", flat=True))
+
+
+def ve_la_asignacion_en_lote(usuario, relevamientos, *, edificios_coordinados=None):
+    """La versión por lote de :func:`ve_la_asignacion`: ids de **relevamiento** visibles.
+
+    ``relevamientos`` es un iterable de relevamientos (con ``edificio_id`` y ``asignado_a_id``).
+    Resuelve el alcance en **una** consulta para todos. Es la forma que usa la columna de P21.
+    ``edificios_coordinados`` es el conjunto de edificios con ``inspeccion.asignar`` ya
+    resuelto por quien llama (`edificios_en_alcance`), para no repetir la consulta.
+    """
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return set()
+    relevamientos = list(relevamientos)
+    if edificios_coordinados is None:
+        edificios_coordinados = edificios_con_asignacion_visible(usuario, [r.edificio_id for r in relevamientos])
+    return {
+        r.pk
+        for r in relevamientos
+        if r.edificio_id in edificios_coordinados or (r.asignado_a_id is not None and r.asignado_a_id == usuario.pk)
+    }
+
+
+def q_asignacion_visible(usuario):
+    """La misma regla de :func:`ve_la_asignacion`, como filtro de queryset de relevamientos.
+
+    Un dato que la vista oculta por permiso tampoco puede usarse como filtro, opción ni
+    contador: filtrar por «Asignado a» es leerlo. Todo lo que filtre o cuente por agente se
+    acota con este ``Q`` (coordina el edificio o es el propio agente).
+    """
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return Q(pk__in=[])
+    return Q(edificio__in=edificios_en_alcance(usuario, CAP_ASIGNAR)) | Q(asignado_a_id=usuario.pk)
 
 
 def edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo):
