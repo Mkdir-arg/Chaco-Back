@@ -67,8 +67,9 @@ def sumar_rol_de_agente(operador, edificio, user_id):
     puesto, la persona es una opción válida del selector de ``edificio``.
 
     El llamador ya validó la capacidad del operador y su alcance sobre ``edificio``. Acá se rechaza, con
-    :class:`UsuarioNoSumable`, a quien no existe, está inactivo, es superusuario, ciudadano del portal o el propio operador (D-SEG-01). La fila del
-    usuario se lee **con candado**: una desactivación que corre en paralelo no se cruza con esta alta.
+    :class:`UsuarioNoSumable`, a quien no existe, está inactivo, es superusuario, ciudadano del portal o el propio
+    operador (D-SEG-01). La fila del usuario se lee **con candado**: una
+    desactivación que corre en paralelo no se cruza con esta alta.
     """
     try:
         user_id = int(user_id)
@@ -81,8 +82,8 @@ def sumar_rol_de_agente(operador, edificio, user_id):
         usuario = get_user_model().objects.select_for_update().filter(pk=user_id).first()
         if usuario is None or usuario.is_superuser or rbac.es_ciudadano_portal(usuario):
             raise UsuarioNoSumable("No podés sumar a este usuario.", 403)
-        # Misma regla que el ABM de Usuarios (#1114): nadie se otorga roles a sí mismo. Va en el servicio y no en
-        # el buscador, porque un POST armado saltea cualquier filtro de la lista.
+        # Misma regla que el ABM de Usuarios (#1114): nadie se otorga roles a sí mismo; va en el servicio, no solo
+        # en el buscador.
         if roles_propios_bloqueados(operador, usuario):
             raise UsuarioNoSumable("No podés sumarte a vos mismo: lo hace otra persona con permiso.", 403)
         if not usuario.is_active:
