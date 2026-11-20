@@ -633,6 +633,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
 | 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
 | 510 | Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h (E-7b del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#ui` `#performance` `#datos` | PM — análisis 009 (§3.9, §4.1, RN-009-15 a 22), task #1187 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0130` (1 `AddIndex`) |
+| 512 | Emergencia · E8: solapa «Mapa» con la pieza de capas de Google Maps (E-6 del análisis 009; cierra C1) | Emergencia · situación (E8) | `#emergencia` `#ui` `#gps` `#performance` | PM — análisis 009 (§3.5-3.6, RF-009-07, RN-009-13), tasks #1185 y #1173 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59645,3 +59646,136 @@ solapa lo pide; sin reglas, también.
   concordancia; AE-6 conserva los filtros (`ACCIONES_DE_ALERTA`); los estados del panel los arma la pantalla y el
   template recibe booleanos; `local` y `badge` públicos; tests del panel con y sin filtro, de «Inactivo» en su fila, de
   «Configurar» y de TC-1187-18; `explain_abastecimiento.py --sembrar`.
+
+---
+
+# Cambio 512 — Emergencia · E8: solapa «Mapa» con la pieza de capas de Google Maps
+
+🟢 **HECHO — 20/11/2026** · rama `feat/e8-e6-solapa-mapa`
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · situación (E8) |
+| **Etiquetas** | `#emergencia` `#ui` `#gps` `#performance` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.5-3.6, §12, RF-009-07, RNF-009-01, RN-009-13) |
+| **Fecha del pedido** | 18/11/2026 (análisis); 20/11/2026 (decisión Google Maps) |
+| **Issue / épica** | #1185 (E-6) y #1173 (C1) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (pantalla E8) · sistema de diseño (`_item_lista`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+E-6 del análisis 009: la solapa «Mapa» de E8 con las capas de presión por localidad y de dispositivos, el panel
+«Localidad seleccionada» y la lista «Localidades con más presión». Con este cambio se cierra C1 (#1173), reusando la
+pieza de mapa que ya está en development. Con las notas «Pendiente de…» del #1185: los 4 MINOR de la auditoría del
+PR #1223 (C5) y los dos comentarios de la auditoría del PR #1227 (E-7b).
+
+## Alcance acordado
+
+**Entra:** la solapa Mapa sobre `components/_mapa_capas.html` (Cambio 493, PR #1221), sin tocar la pieza; el panel de
+cada punto, las capas con su leyenda, la lista, el pie de lo que no se dibuja y los estados; los MINOR de C5 y E-7b.
+**Queda afuera:** la capa «Entregas en camino» (ver Pendientes) y cualquier cambio a `_mapa_capas`.
+
+## Decisiones tomadas
+
+1. **Google Maps, no Leaflet** (decisión del PM, Cambio 493): la solapa usa `_mapa_capas.html` con `detalle=False`.
+   Los requisitos de Leaflet, OpenStreetMap, `MAPA_TILES_HOSTS` y `components/_mapa.html` de #1173 y #1185 quedan
+   reemplazados; el espíritu de C1 se cumple con la pieza: nada sale a Google mientras la solapa está oculta (la pieza
+   carga cuando el mapa entra en pantalla, y encuadra al mostrarse), sin key muestra «El mapa no está disponible en
+   este ambiente», y la lista y la tabla del Resumen son la alternativa accesible. Sin `a_pedido`: abrir la solapa ya
+   es pedir el mapa.
+2. **Puntos (RNF-009-01, RN-009-13):** `puntos_del_mapa(foto, filas)` sigue siendo el único filtro: centroides de
+   `core.UbicacionLocalidad` y dispositivos **publicables** con ubicación válida. Ahora trae también lo que dice el
+   panel (cifras, camas cercanas con la parte reservada sin nombre y hasta 3 cercanos publicables), todo serializable.
+   El payload de la pieza lleva solo `id`, `capa`, `lat`, `lng`, `etiqueta`, `icono`, `tono`, `titulo`, `subtitulo` y,
+   en las localidades, `forma` y `tamano`: ni URL ni cifras de personas.
+3. **Localidades como círculo, dispositivos como píldora.** El círculo es la marca de zona de la ficha (tono de la
+   presión, `Presion.tono`; tamaño 1-3 por `tamano_de_circulo`: √(personas / máximo) con cortes en ⅓ y ⅔, en
+   enteros). Los dispositivos van en píldora con `fa-bed` y el tono de `tension_de_ocupacion` de su tipo, para que no
+   se confundan con una localidad chica.
+4. **Panel de la pantalla:** con `detalle=False` la pieza solo emite `nodo-mapa-capas:seleccion`; la pantalla trae en
+   el HTML, ocultos, el panel de cada localidad y de cada dispositivo, y Alpine muestra el elegido
+   (`@nodo-mapa-capas:seleccion`). Sin JS nuevo ni piezas nuevas. Localidad: presión, familias, personas, fuera de SLA,
+   alojadas, camas a ≤ 25 km en N dispositivos, los 3 cercanos («1,2 km · 4 libres de 90»; «Ver dispositivo» solo si
+   Dispositivos lo abre), «Incluye N camas en dispositivos de ubicación reservada» y «Ver los N casos en la bandeja»
+   solo con `supervisar`. Dispositivo: tipo, localidad, ocupación, libres, derivaciones pendientes y «Ver dispositivo».
+5. **Lista «Localidades con más presión»** con `_item_lista.html` (C5): las 8 del mapa con demanda, en el orden de la
+   tabla del Resumen, con «Mostrando 8 de N». Solo las que tienen centro: una sin ubicación no se puede elegir en el
+   mapa y está en la tabla.
+6. **Una sola lectura de las filas de presión:** `contexto_del_resumen` calcula `presion_por_localidad` una vez y se
+   la pasa a la tabla y al mapa. **0 consultas más** (medido: 18 con y sin `?tab=mapa`, como autoridad, superusuario y
+   supervisor, con 5.000 casos y 50 dispositivos).
+7. **Estados:** sin JS, la lista y la tabla; sin ubicaciones cargadas, solo los dispositivos y el pie «N casos de
+   localidades sin ubicación»; sin nada que dibujar, `_estado_vacio`; sin key, el de la pieza. La solapa sigue con
+   `nodo-no-imprimir`. «Cómo se calcula» dice que el fondo del mapa es de Google Maps.
+8. **MINOR de #1223 (C5):** foco con `--border-brand`; sin el `white-space: nowrap` del badge (ya lo trae `.badge`);
+   en `forced-colors`, el seleccionado con `outline: 2px solid Highlight; outline-offset: -2px`; `tabular-nums` en el
+   badge. **MINOR de #1227 (E-7b):** los comentarios de `ItemDelDispositivo.critico` (RN-009-20) y de `Salud.lactantes`
+   (por nombre, nunca por conteo, RN-009-21 b).
+
+## Implementación
+
+- `programas/services/situacion_emergencia.py`: `puntos_del_mapa(foto, filas=None)` con los datos del panel,
+  `tamano_de_circulo` y `TOPE_CERCANOS`.
+- `programas/services/pantalla_situacion_emergencia.py`: `bloque_del_mapa` (puntos, capas y leyendas, paneles, lista,
+  pie), `_dato_de_presion` y `tabla_de_presion(..., filas=)`.
+- `programas/templates/programas/emergencia/situacion/_capas_mapa.html` (nuevo) y `situacion.html` (CSS y JS de la pieza
+  en `page_css` y `customJS`).
+- `programas/views/emergencia_situacion.py` (docstring).
+- `static/custom/css/nodo-item-lista.css`, `templates/components/_item_lista.html` (MINOR de C5) y
+  `programas/services/abastecimiento_emergencia.py` (comentarios de E-7b).
+- `.claude/design/componentes/item_lista.md` y `.claude/design/arquetipos/dashboard.md`.
+- `scripts/perf_budgets.json` (motivo de `emergencia_situacion_vista`).
+- `docs/internal/analisis/009-emergencia-tablero-estrategico.md` (Historial).
+
+## Archivos
+
+Los de «Implementación», más `programas/tests/test_emergencia_situacion_mapa.py` (nuevo),
+`programas/tests/test_emergencia_situacion_vista.py` y `core/tests/test_nodo_ui_piezas.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `test_emergencia_situacion_mapa.py`: la pieza sin detalle y el panel sin `x-cloak` con `?tab=mapa`; puntos y campos del
+  payload (TC-1185-02, 03); capas y leyenda (04); panel de la localidad (05); la lista selecciona por `data-item` (06),
+  coincide con la tabla del Resumen y se recorta con su total (07, 08); RNF-009-01 sobre el HTML y el `json_script`, y
+  cada coordenada es un centroide o un dispositivo publicable; **mutación de `ubicacion_reservada`** (09); el pie (13,
+  14); «Ver dispositivo» (16) y la bandeja (17) por permiso; sin ubicaciones (18); sin nada que dibujar; sin key; la
+  solapa oculta desde otra (20); **nada de terceros en la página** (C1: ningún `src`/`href` externo, ni `googleapis`
+  ni OSM); `tamano_de_circulo` y `_dato_de_presion`.
+- Tests de emergencia y situación, `test_models_contrato`, `core.tests.test_nodo_ui_piezas` y
+  `SinRecursosDeTercerosTests`: 1.469 OK. `--tag performance`: 93 OK.
+- `manage.py check`, `makemigrations --check`, `ruff check` y `ruff format --check`, `design_audit.py --ratchet` (0
+  nuevos) y `--arquetipo dashboard` (OK), `compile_templates.py --bloques` (0 / 0), `check_design_agent.py --changed` y
+  `--limites` (OK).
+- Sin test automático: lo visual (círculos, encuadre de Gran Resistencia, TC-1185-21) y la red del navegador
+  (TC-1185-01, 19) se prueban en testing con key.
+
+## Puesta en marcha en el servidor
+
+Nada nuevo: la solapa usa la key y el Map ID de Google Maps del ambiente (Cambio 493). Sin key, la solapa lo dice y la
+lista sigue.
+
+## Pendientes / a definir
+
+1. **Capa «Entregas en camino»** (RF-009-14, prioridad baja): la pieza no la admite sin cambios. Un número junto al
+   dispositivo destino iría en un segundo marcador sobre la **misma coordenada**, que tapa la píldora del dispositivo, y
+   la pieza no tiene desplazamiento ni insignia sobre un marcador. Queda para cuando la pieza sume una de las dos.
+2. **Casos de QA escritos para Leaflet:** TC-1185-01 y 19 hablan de OpenStreetMap y de «Ver el mapa»; con la pieza, el
+   equivalente es «nada a Google con la solapa oculta» y el error de la pieza («No se pudo mostrar el mapa»). TC-1185-03
+   dice «círculos» de dispositivos: son píldoras (decisión 3). Los casos de #1173 sobre `MAPA_TILES_HOSTS`, Referer de
+   OSM y rueda del mouse quedan cubiertos por el Cambio 493 (CSP solo con key, `strict-origin-when-cross-origin`,
+   `gestureHandling: 'cooperative'`).
+3. **Peso del HTML:** los paneles ocultos suman ~80 KB con 50 dispositivos y el banco de 5.000 casos; si crece la
+   cantidad de localidades se puede pasar a un `json_script` propio de la pantalla.
+
+## Reversión
+
+Desplegar el código anterior: la solapa vuelve a ser un estado vacío. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **20/11/2026:** alta del cambio.

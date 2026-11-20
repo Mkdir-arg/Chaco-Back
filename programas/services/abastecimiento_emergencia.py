@@ -292,7 +292,8 @@ class ItemDelDispositivo(NamedTuple):
     nunca_recibido: bool
     #: ``None`` en dotación.
     cobertura: Cobertura | None
-    #: Dotación con faltan, o reposición sin cubrir ahora aun contando lo en camino.
+    #: Dotación con faltan, reposición sin cubrir ahora aun contando lo en camino, o un ítem por lactante nunca
+    #: recibido con lactantes en el dispositivo (RN-009-20).
     critico: bool
     horas_para_ordenar: float | None
 
@@ -330,7 +331,8 @@ class Salud:
     sin_dosis: int
     #: ``((DispositivoDelAbastecimiento, personas sin dosis), ...)``
     sin_dosis_por_dispositivo: tuple
-    #: ``((DispositivoDelAbastecimiento, lactantes declarados), ...)``, de más a menos lactantes.
+    #: ``((DispositivoDelAbastecimiento, lactantes declarados), ...)``, por nombre visible y después por id,
+    #: nunca por conteo (RN-009-21 b).
     lactantes: tuple
     #: Los ítems con regla «por lactante» (sin ninguno no hay alerta de lactantes).
     items_de_lactantes: tuple
