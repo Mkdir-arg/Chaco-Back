@@ -27,11 +27,11 @@ class NombreConSectorTests(BaseMovimientos):
 
         self.assertEqual(
             _texto_automatico(mismo_sector),
-            "Cambio de plaza · plaza P1 (Varones) → plaza P2 (Varones) · motivo: Convivencia",
+            "Cambio de plaza · plaza P1 (Varones) → plaza P2 (Varones)",
         )
         self.assertEqual(
             _texto_automatico(otro_sector),
-            "Cambio de sector · plaza P2 (Varones) → plaza P2 (Mujeres) · motivo: Convivencia",
+            "Cambio de sector · plaza P2 (Varones) → plaza P2 (Mujeres)",
         )
         detalles = TrazaDispositivo.objects.filter(accion="ESTADIA_CAMBIO_PLAZA").values_list("detalle", flat=True)
         self.assertTrue(any("plaza P2 (Varones) → plaza P2 (Mujeres)" in d for d in detalles))
