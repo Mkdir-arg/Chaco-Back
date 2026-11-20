@@ -211,6 +211,16 @@ class RechazosTests(BaseSumarAgente):
         self.ana.groups.add(Group.objects.create(name=rbac.GRUPO_CIUDADANO_PORTAL))
         self._rechaza(self.ana, 403)
 
+    def test_el_operador_no_puede_sumarse_a_si_mismo_es_403(self):
+        # D-SEG-01: con `inspeccion.agente.crear` un POST con su propio pk le otorgaba `inspeccion.relevar`.
+        self.assertFalse(self.creador.groups.filter(pk=self.rol_agente.pk).exists())
+        antes = self._foto()
+        respuesta = self._sumar(self.creador.pk)
+        self.assertEqual(respuesta.status_code, 403, respuesta.content)
+        self.assertFalse(respuesta.json()["ok"])
+        self.assertFalse(self.creador.groups.filter(pk=self.rol_agente.pk).exists())
+        self.assertEqual(antes, self._foto())
+
     def test_usuario_inexistente_o_id_invalido_es_403(self):
         self.assertEqual(self._sumar(99999).status_code, 403)
         self.assertEqual(self._sumar("abc").status_code, 403)
