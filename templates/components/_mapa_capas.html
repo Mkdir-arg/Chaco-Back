@@ -8,13 +8,16 @@ Contexto:
   puntos     lista de dicts armada por la vista (nada se decide acá ni en el JS):
                id, capa, lat, lng, etiqueta (texto de la píldora), icono («fa-…»), tono, titulo  obligatorios.
                subtitulo, estado {texto, tono}, datos [[etiqueta, valor]], url + url_texto (ruta interna),
-               acciones [{accion, texto, icono, tono}], grupo (subfiltro de la capa), movible (bool)  opcionales.
+               acciones [{accion, texto, icono, tono}], grupo (subfiltro de la capa), movible (bool),
+               forma («pin», por defecto, o «circulo» centrado en la coordenada) + tamano (1, 2 o 3)  opcionales.
+             Se serializa exactamente lo que pasa la vista: lo que una persona no puede ver no va en `puntos`.
              tono: brand, success, warning, danger, info, gray o navy. Cualquier otro se dibuja gray.
   capas      lista de dicts {id, nombre, icono, tono}: lo que la pantalla muestra en su leyenda.
   etiqueta   nombre accesible del mapa (aria-label).
   alto       «pagina» para el mapa protagonista de una pantalla; por defecto 420 px.
   a_pedido   True: no se le pide nada a Google hasta que alguien toca «Ver mapa» (SEC-33). Sin él, el mapa carga
-             cuando entra en pantalla.
+             cuando entra en pantalla (en una solapa oculta, recién al mostrarla, y ahí encuadra).
+  detalle    False: no abre la ventana de detalle; la pantalla arma el suyo con `nodo-mapa-capas:seleccion`.
 Sincroniza, dentro del contenedor o donde diga `data-mapa="<nombre>"`:
   [data-mapa-capa="<id>"]    botón con aria-pressed: prende o apaga la capa. Un [data-mapa-capa-n] adentro recibe la cantidad.
   [data-mapa-grupo="<valor>"] botón con aria-pressed: subfiltro por `grupo`.
@@ -30,7 +33,7 @@ La pantalla carga en `customJS`, una vez y en este orden, `components/_google_ma
 Ficha: .claude/design/componentes/mapa_capas.md
 {% endcomment %}{% load nodo_ui %}{% google_maps_config as config_mapa %}
 {% with id_puntos="mapa-capas-"|add:nombre|add:"-puntos" id_capas="mapa-capas-"|add:nombre|add:"-capas" %}
-<div class="nodo-mapa-capas{% if alto == 'pagina' %} nodo-mapa-capas--pagina{% endif %}" data-mapa-capas="{{ nombre }}" data-puntos="{{ id_puntos }}" data-capas="{{ id_capas }}"{% if a_pedido %} data-a-pedido{% endif %}>
+<div class="nodo-mapa-capas{% if alto == 'pagina' %} nodo-mapa-capas--pagina{% endif %}" data-mapa-capas="{{ nombre }}" data-puntos="{{ id_puntos }}" data-capas="{{ id_capas }}"{% if a_pedido %} data-a-pedido{% endif %}{% if detalle is False %} data-sin-detalle{% endif %}>
   {{ puntos|json_script:id_puntos }}
   {{ capas|json_script:id_capas }}
   <div class="nodo-mapa-capas__lienzo" data-mapa-lienzo role="region" aria-label="{{ etiqueta|default:'Mapa' }}"></div>

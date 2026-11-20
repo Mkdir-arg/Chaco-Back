@@ -2436,6 +2436,18 @@ class MapaCapasTest(SimpleTestCase):
         self.assertIn("data-mapa-ver", html)
 
     @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_detalle_false_lo_deja_a_la_pantalla(self):
+        self.assertIn("data-sin-detalle", self.render(detalle=False))
+        self.assertNotIn("data-sin-detalle", self.render())
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_publica_solo_lo_que_pasa_la_vista(self):
+        punto = {"id": "l-1", "capa": "localidad", "lat": -27.4, "lng": -59.0, "tono": "danger", "forma": "circulo"}
+        html = self.render(puntos=[punto])
+
+        self.assertEqual(self.json(html, "puntos"), [punto])
+
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
     def test_alto_de_pagina(self):
         self.assertIn("nodo-mapa-capas--pagina", self.render(alto="pagina"))
         self.assertNotIn("nodo-mapa-capas--pagina", self.render())

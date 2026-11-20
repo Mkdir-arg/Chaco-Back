@@ -57830,7 +57830,8 @@ Afuera: el formulario público de inscripción del portal **no** geocodifica el 
   propio PR, para no frenar a E8. La vista arma cada punto (capa, tono, ícono, textos, enlace, acciones); el JS
   no decide nada. El panel (capas, filtros, buscador, lista) lo arma cada pantalla y la pieza lo sincroniza por
   atributos `data-`, así E8 usa su `_item_lista.html`. Los marcadores de **casos** de Emergencia van solo en
-  `/mapa/`; E-6 no muestra coordenadas de casos (RNF-009-01).
+  `/mapa/`, para quien opera o supervisa la mesa (decisión del PM en este cambio; RNF-009-01 rige para E8, no para
+  `/mapa/`). E-6 no muestra coordenadas de casos.
 - **Un solo rango y una sola regla de par** para las coordenadas cargadas a mano (`core/coordenadas.py`):
   ±90 / ±180 y «las dos o ninguna», en Ciudadano (validadores del modelo + `clean()`) y en el Formulario 1
   de Emergencia.
@@ -57887,8 +57888,11 @@ Fase 3, primera entrega: la pieza **Mapa con capas** (`components/_mapa_capas.ht
   (al costado en escritorio, abajo en celular).
 - Eventos `nodo-mapa-capas:listo/seleccion/accion/movido/clic` y API (`seleccionar`, `cerrar`, `encuadrar`,
   `agregar`, `quitar`, `modoClic`) para que la pantalla guarde lo que cambia.
-- Google se pide cuando el mapa entra en pantalla, o con «Ver mapa» si es `a_pedido`. Sin key, estado vacío;
-  con la key rechazada, una alerta. La lista y los filtros andan igual sin mapa.
+- Google se pide cuando el mapa entra en pantalla (en una solapa oculta, al mostrarla, y ahí encuadra), o con
+  «Ver mapa» si es `a_pedido`. Sin key, estado vacío; con la key rechazada, una alerta. La lista y los filtros
+  andan igual sin mapa.
+- Pedido de E8 (E-6): `forma="circulo"` con `tamano` 1–3 para marcar zonas (presión por localidad) y
+  `detalle=False` para que la pantalla arme su propio panel con el evento de selección.
 
 ## Archivos
 
@@ -57952,7 +57956,8 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   localidad elegida, Enter no envía).
 
 - Fase 3, pieza: `MapaCapasTest` (puntos y capas escapados, sin key, a pedido, alto) OK; punta a punta con
-  Playwright sobre el shell real con un doble de Google Maps: 32 de 32 (descarta coordenadas inválidas, ícono y
+  Playwright sobre el shell real con un doble de Google Maps: 40 de 40 (círculos, sin detalle, solapa oculta que
+  no carga Google hasta mostrarse y vuelve a encuadrar, descarta coordenadas inválidas, ícono y
   tono fuera de lista, etiqueta como texto, capas, subfiltros, búsqueda sin tildes, lista ↔ marcador, enlace
   interno y `javascript:` descartado, acciones, arrastre, API, modo clic, a pedido sin pedir a Google, encuadre
   con el panel al costado y abajo).

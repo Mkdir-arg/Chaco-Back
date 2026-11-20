@@ -44,7 +44,9 @@
       datos: Array.isArray(p.datos) ? p.datos.filter(Array.isArray) : [],
       url: rutaInterna(p.url), urlTexto: texto(p.url_texto) || 'Abrir',
       acciones: Array.isArray(p.acciones) ? p.acciones.filter(function (a) { return a && a.accion; }) : [],
-      grupo: texto(p.grupo), movible: p.movible === true
+      grupo: texto(p.grupo), movible: p.movible === true,
+      forma: p.forma === 'circulo' ? 'circulo' : 'pin',
+      tamano: [1, 2, 3].indexOf(p.tamano) === -1 ? 2 : p.tamano
     };
   }
 
@@ -63,6 +65,7 @@
     this.info = null;
     this.clic = false;
     this.cargando = null;
+    this.conDetalle = !contenedor.hasAttribute('data-sin-detalle');
     var self = this;
     (leerJson(contenedor.getAttribute('data-puntos')) || []).forEach(function (p) { self._sumar(p); });
     this._leerControles();
@@ -228,6 +231,7 @@
       self.sincronizar();
       self.encuadrar();
       self._distancia();
+      self._vigilarTamano();
       self._emitir('listo');
       return self.mapa;
     }).catch(function () {
@@ -236,22 +240,39 @@
     });
     return this.cargando;
   };
+  // En una solapa oculta (x-show) el contenedor mide 0: al mostrarse, el mapa se vuelve a encuadrar.
+  MapaCapas.prototype._vigilarTamano = function () {
+    if (!('ResizeObserver' in window)) { return; }
+    var self = this;
+    var oculto = this.c.offsetWidth === 0 || this.c.offsetHeight === 0;
+    new ResizeObserver(function () {
+      var ahora = self.c.offsetWidth === 0 || self.c.offsetHeight === 0;
+      if (oculto && !ahora) { self.encuadrar(); }
+      oculto = ahora;
+    }).observe(this.c);
+  };
   MapaCapas.prototype._distancia = function () {
     var zoom = this.mapa && this.mapa.getZoom ? this.mapa.getZoom() : ZOOM_CERCA;
     this.c.classList.toggle('is-lejos', zoom < ZOOM_CERCA);
   };
   MapaCapas.prototype._marcador = function (p) {
     var self = this;
-    var pil = nodo('div', 'nodo-mapa-pil nodo-mapa-tono-' + p.tono);
-    var circulo = nodo('span', 'nodo-mapa-pil__icono');
-    circulo.appendChild(icono(p.icono));
-    pil.appendChild(circulo);
-    pil.appendChild(nodo('span', 'nodo-mapa-pil__texto', p.etiqueta));
+    var pil;
+    if (p.forma === 'circulo') {
+      // Círculo centrado en la coordenada: el tamaño (1 a 3) y el tono los decide la vista.
+      pil = nodo('div', 'nodo-mapa-circulo nodo-mapa-circulo--' + p.tamano + ' nodo-mapa-tono-' + p.tono);
+    } else {
+      pil = nodo('div', 'nodo-mapa-pil nodo-mapa-tono-' + p.tono);
+      var circulo = nodo('span', 'nodo-mapa-pil__icono');
+      circulo.appendChild(icono(p.icono));
+      pil.appendChild(circulo);
+      pil.appendChild(nodo('span', 'nodo-mapa-pil__texto', p.etiqueta));
+    }
     var m = new this.libs.marker.AdvancedMarkerElement({
       map: this.visible(p) ? this.mapa : null,
       position: { lat: p.lat, lng: p.lng },
       content: pil,
-      title: p.titulo,
+      title: p.titulo || p.etiqueta,
       gmpClickable: true,
       gmpDraggable: p.movible
     });
@@ -304,7 +325,7 @@
     return caja;
   };
   MapaCapas.prototype._abrirInfo = function (p) {
-    if (!this.info || !this.marcadores[p.id]) { return; }
+    if (!this.conDetalle || !this.info || !this.marcadores[p.id]) { return; }
     this.info.setOptions({ headerContent: nodo('p', 'nodo-mapa-info__titulo', p.titulo), content: this._contenido(p), ariaLabel: p.titulo });
     this.info.open({ map: this.mapa, anchor: this.marcadores[p.id], shouldFocus: false });
   };

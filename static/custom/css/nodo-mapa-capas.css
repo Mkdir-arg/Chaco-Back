@@ -34,6 +34,13 @@
 .nodo-mapa-capas.is-lejos .nodo-mapa-pil.is-activo { padding: 0 10px 0 4px; }
 .nodo-mapa-capas.is-lejos .nodo-mapa-pil.is-activo .nodo-mapa-pil__texto { display: inline; }
 
+/* Círculo: marca una zona (p. ej. presión por localidad), centrado en la coordenada. */
+.nodo-mapa-circulo { border-radius: 999px; background: var(--nodo-mapa-c); border: 2px solid var(--bg-white); opacity: .85; box-shadow: 0 1px 4px rgba(16, 24, 40, .3); transform: translateY(50%); }
+.nodo-mapa-circulo--1 { width: 16px; height: 16px; }
+.nodo-mapa-circulo--2 { width: 26px; height: 26px; }
+.nodo-mapa-circulo--3 { width: 38px; height: 38px; }
+.nodo-mapa-circulo.is-activo { opacity: 1; outline: 3px solid var(--border-brand); outline-offset: 2px; }
+
 /* Ventana de detalle (contenido de google.maps.InfoWindow). */
 .nodo-mapa-info { min-width: 220px; max-width: 280px; font: 400 13px/1.4 var(--font-sans); color: var(--text-body); }
 .nodo-mapa-info__titulo { font: 800 14px/1.3 var(--font-sans); color: var(--text-heading); margin: 0; }
