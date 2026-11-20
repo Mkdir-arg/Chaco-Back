@@ -24,6 +24,10 @@ a las piezas reales.
 - **Esconder el botón no es autorizar.** La vista que recibe el POST verifica de nuevo.
 - En DRF, el default es `IsAuthenticated`: eso dice que hay sesión, no que tenga la
   capacidad. Un endpoint nuevo de `/api/` verifica `puede(...)` igual que una vista.
+- **Toda acción que otorga un rol o una capacidad rechaza `destinatario == request.user` en el
+  servicio** (patrón #1114: `users.selectors.usuarios.roles_propios_bloqueados`), no solo en el
+  buscador o el template. Lo vigila `programas/tests/test_roles_atajos.py`: cada módulo de
+  `programas/services` o `programas/views` que hace `groups.add(`/`groups.set(` tiene que aplicar la guarda.
 - Probar la guarda por **mutación**: romper la regla y ver el test en rojo. Un test de
   alcance que pasa con "cualquier rol habilita" no prueba nada.
 

@@ -634,6 +634,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
 | 510 | Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h (E-7b del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#ui` `#performance` `#datos` | PM — análisis 009 (§3.9, §4.1, RN-009-15 a 22), task #1187 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0130` (1 `AddIndex`) |
 | 512 | Emergencia · E8: solapa «Mapa» con la pieza de capas de Google Maps (E-6 del análisis 009; cierra C1) | Emergencia · situación (E8) | `#emergencia` `#ui` `#gps` `#performance` | PM — análisis 009 (§3.5-3.6, RF-009-07, RN-009-13), tasks #1185 y #1173 | 20/11/2026 | 🟢 **Hecho** | No requiere |
+| 513 | Dispositivos Ola 0: D-SEG-01 (detalle reservado) | Dispositivos · altas rápidas | `#seguridad` `#rbac` | PM — issue #1238 (Ola 0) | 20/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -59775,6 +59776,71 @@ lista sigue.
 ## Reversión
 
 Desplegar el código anterior: la solapa vuelve a ser un estado vacío. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **20/11/2026:** alta del cambio.
+
+# Cambio 513 — Dispositivos Ola 0: D-SEG-01 (detalle reservado)
+
+🟢 **HECHO — 20/11/2026** · rama `fix/dispositivos-ola0-dseg01`
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · altas rápidas |
+| **Etiquetas** | `#seguridad` `#rbac` |
+| **Solicitante** | PM — issue #1238 (Ola 0 de Dispositivos) |
+| **Fecha del pedido** | 20/11/2026 |
+| **Issue / épica** | #1238 (ficha D-SEG-01) |
+| **Partes afectadas** | Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Ficha D-SEG-01 de la Ola 0 de Dispositivos. El detalle técnico está reservado: este repositorio es público.
+
+## Alcance acordado
+
+Entra la corrección en el servicio, sin cambios de interfaz, y un control mecánico para que no reaparezca. Queda
+afuera el resto de las fichas de la ola.
+
+## Decisiones tomadas
+
+- La regla va en el servicio y no en el buscador, con la misma guarda que ya usa el ABM de Usuarios (#1114).
+- Regla general registrada en la skill `seguridad-django`: toda acción que otorga un rol o una capacidad rechaza
+  destinatario igual a quien opera.
+
+## Implementación
+
+`sumar_rol_de_agente` rechaza con 403 al destinatario que es el propio operador (salvo superusuario, igual que el
+ABM). Nuevo test de ratchet que recorre `programas/services` y `programas/views` y exige la guarda en todo módulo
+que otorga grupos; allowlist congelada y vacía.
+
+## Archivos
+
+`programas/services/sumar_agente.py`, `programas/tests/test_dispositivos_sumar_agente.py`,
+`programas/tests/test_roles_atajos.py`, `.claude/skills/seguridad-django/SKILL.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Tests de `users`, `programas.tests.test_dispositivos_sumar_agente` y `programas.tests.test_roles_atajos` en verde.
+Verificado por mutación: sin la condición nueva el test de comportamiento da rojo. `manage.py check`, ruff.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Las demás fichas de la Ola 0.
+
+## Reversión
+
+Desplegar el código anterior. No hay datos ni esquema que deshacer.
 
 ## Historial
 
