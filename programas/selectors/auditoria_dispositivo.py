@@ -219,7 +219,9 @@ def evento_de_movimiento(movimiento, *, puede_ver_personas=False):
         else:
             titulo = f"Cambio de {que} de {persona}"
             detalle = f"De {_plaza(movimiento.plaza_origen)} a {_plaza(movimiento.plaza_destino)}"
-        if movimiento.motivo:
+        # El motivo es texto libre que el operador escribió sobre la persona: sigue la misma
+        # guarda que su nombre. Sin `ciudadano.ver` queda solo en `MovimientoEstadia` (D-SEG-02).
+        if movimiento.motivo and puede_ver_personas:
             detalle = f"{detalle} · Motivo: {movimiento.motivo}"
         tono = ""
     elif movimiento.tipo == tipo.EGRESO:
