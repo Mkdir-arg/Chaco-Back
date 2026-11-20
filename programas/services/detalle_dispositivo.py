@@ -44,7 +44,6 @@ from programas.services.inspecciones import (
     SEMAFOROS,
     SIN_EDIFICIO,
     SIN_RELEVAR,
-    edificios_con_asignacion_visible,
     edificios_de_dispositivo_con_asignacion_visible,
     fotos_para_galeria,
     inspecciones_de_dispositivo,
@@ -52,6 +51,7 @@ from programas.services.inspecciones import (
     semaforo_de_inspeccion,
     semaforo_de_ultimas,
     subconsulta_ultima_realizada,
+    ve_la_asignacion_en_lote,
 )
 from programas.services.ocupacion import tension_de_ocupacion
 
@@ -637,13 +637,12 @@ def registro_de_relevamientos(usuario, inspecciones, pagina, *, sufijo_enlace=""
             fotos_por_inspeccion[foto.inspeccion_id].append(foto)
 
     en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != _REALIZADA]
-    propios = {inspeccion.pk for inspeccion in en_curso if inspeccion.asignado_a_id == getattr(usuario, "pk", None)}
-    coordinados = edificios_con_asignacion_visible(usuario, [i.edificio_id for i in en_curso]) if en_curso else set()
+    visibles = ve_la_asignacion_en_lote(usuario, en_curso)
     eventos = [
         evento_de_relevamiento(
             inspeccion,
             fotos_por_inspeccion.get(inspeccion.pk, []),
-            ve_asignacion=inspeccion.pk in propios or inspeccion.edificio_id in coordinados,
+            ve_asignacion=inspeccion.pk in visibles,
             enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]) + sufijo_enlace,
         )
         for inspeccion in relevamientos

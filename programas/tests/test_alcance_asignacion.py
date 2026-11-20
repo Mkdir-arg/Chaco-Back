@@ -9,13 +9,15 @@ ve la asignación podía deducir, filtrando, a qué agente va un relevamiento qu
 1. Funcional: sin la capacidad, el filtro no devuelve filas ni conteos de lo oculto; con ella
    se ve lo mismo que antes.
 2. La vista consulta la regla del servicio (se la reemplaza y se mira el efecto).
-3. Un solo dueño: ningún `.py` de vistas o selectores toca `asignado_a`/`agente_asignado`
+3. Un solo dueño: ningún `.py` de vistas, selectores o servicios toca `asignado_a`/`agente_asignado`
    fuera de una lista congelada.
 """
 
 import re
 from pathlib import Path
 from unittest import mock
+
+from django.test import SimpleTestCase
 
 from programas.models import InspeccionEdificio, MiembroEquipoDispositivo
 from programas.services import inspecciones as servicio
@@ -83,6 +85,11 @@ class FiltroAsignadoANoRevelaTests(BaseListado):
             todos = list(InspeccionEdificio.objects.all())
             esperado = {r.pk for r in todos if servicio.ve_la_asignacion(fresco, r)}
             self.assertEqual(servicio.ve_la_asignacion_en_lote(fresco, todos), esperado, usuario.username)
+            # El filtro de queryset queda atado a la misma regla.
+            con_q = set(
+                InspeccionEdificio.objects.filter(servicio.q_asignacion_visible(fresco)).values_list("pk", flat=True)
+            )
+            self.assertEqual(con_q, esperado, usuario.username)
 
 
 # Líneas (sin sangría) de vistas y selectores que nombran al agente asignado. Congelada: sumar
@@ -122,16 +129,25 @@ PERMITIDAS = {
         # Misma regla, sin filtro ni contador: se unifica con el servicio en su propia ficha.
         "or (usuario_id is not None and traza.inspeccion.asignado_a_id == usuario_id),",
     },
+    "services/detalle_dispositivo.py": {
+        # Lectura del nombre, decidida por `ve_la_asignacion_en_lote`.
+        'agente = f" · asignado a {_nombre(inspeccion.asignado_a)}" if ve_asignacion else ""',
+    },
 }
 
+# El dueño de la regla no se recorre a sí mismo.
+EXCLUIDOS = {"services/inspecciones.py"}
 
-class UnSoloDuenoTests(BaseListado):
+
+class UnSoloDuenoTests(SimpleTestCase):
     def test_solo_el_dueno_y_la_lista_congelada_nombran_al_agente_asignado(self):
         patron = re.compile(r"asignado_a|agente_asignado")
         encontrados = {}
-        for carpeta in ("views", "selectors"):
+        for carpeta in ("views", "selectors", "services"):
             for archivo in sorted((RAIZ / carpeta).rglob("*.py")):
                 clave = f"{carpeta}/{archivo.relative_to(RAIZ / carpeta).as_posix()}"
+                if clave in EXCLUIDOS:
+                    continue
                 for linea in archivo.read_text(encoding="utf-8").splitlines():
                     if patron.search(linea):
                         encontrados.setdefault(clave, set()).add(linea.strip())

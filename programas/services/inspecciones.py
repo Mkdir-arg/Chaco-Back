@@ -1073,6 +1073,14 @@ def semaforos_de_dispositivos(dispositivo_ids):
 _SIN_VISTA_PREVIA = (".heic", ".heif")
 
 
+def _es_visible(usuario, relevamiento, edificios_coordinados):
+    """Predicado de fila de la regla: coordina el edificio o es el propio agente."""
+
+    return relevamiento.edificio_id in edificios_coordinados or (
+        relevamiento.asignado_a_id is not None and relevamiento.asignado_a_id == usuario.pk
+    )
+
+
 def ve_la_asignacion(usuario, inspeccion):
     """Si ``usuario`` ve **de quién es** el relevamiento: el agente y las indicaciones.
 
@@ -1092,9 +1100,9 @@ def ve_la_asignacion(usuario, inspeccion):
 
     if usuario is None or not getattr(usuario, "is_authenticated", False):
         return False
-    if inspeccion.asignado_a_id is not None and inspeccion.asignado_a_id == usuario.pk:
+    if _es_visible(usuario, inspeccion, ()):
         return True
-    return inspeccion.edificio_id in edificios_con_asignacion_visible(usuario, [inspeccion.edificio_id])
+    return _es_visible(usuario, inspeccion, edificios_con_asignacion_visible(usuario, [inspeccion.edificio_id]))
 
 
 def edificios_con_asignacion_visible(usuario, edificio_ids):
@@ -1125,11 +1133,7 @@ def ve_la_asignacion_en_lote(usuario, relevamientos, *, edificios_coordinados=No
     relevamientos = list(relevamientos)
     if edificios_coordinados is None:
         edificios_coordinados = edificios_con_asignacion_visible(usuario, [r.edificio_id for r in relevamientos])
-    return {
-        r.pk
-        for r in relevamientos
-        if r.edificio_id in edificios_coordinados or (r.asignado_a_id is not None and r.asignado_a_id == usuario.pk)
-    }
+    return {r.pk for r in relevamientos if _es_visible(usuario, r, edificios_coordinados)}
 
 
 def q_asignacion_visible(usuario):
