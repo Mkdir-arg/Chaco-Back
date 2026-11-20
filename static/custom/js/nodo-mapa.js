@@ -30,7 +30,7 @@
   };
 
   // Django responde `Referrer-Policy: same-origin`: sin `Referer`, Google rechaza la key
-  // restringida por referente (docs/mapa.md §1). Solo en la pantalla que pide el mapa, y
+  // restringida por referente (docs/mapa.md §4). Solo en la pantalla que pide el mapa, y
   // recién cuando lo pide, se pasa a `strict-origin-when-cross-origin`: a Google le llega el
   // origen del sitio, nunca la ruta. El resto del sitio sigue con `same-origin`.
   function mandarSoloElOrigen() {

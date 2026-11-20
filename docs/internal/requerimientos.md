@@ -615,7 +615,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
-| 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
+| 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 y 2; fase 3 en curso) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012` |
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` `#ui` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
@@ -57767,7 +57767,7 @@ cargadas).
 
 # Cambio 493 — Mapa con Google Maps y domicilio → coordenadas
 
-🟡 **EN CURSO — fases 1 y 2 (Dispositivo, Ciudadano y Emergencia) hechas el 18/11/2026**
+🟡 **EN CURSO — fases 1 y 2 (Dispositivo, Ciudadano y Emergencia) hechas el 18/11/2026; fase 3: pieza de mapa con capas (20/11/2026)**
 
 | | |
 |---|---|
@@ -57825,6 +57825,13 @@ Afuera: el formulario público de inscripción del portal **no** geocodifica el 
   sin `Referer` Google rechaza la key restringida por referente. En vez de cambiar la política de todo el
   sitio, `nodo-mapa.js` la pasa a `strict-origin-when-cross-origin` en la página que pide el mapa y recién
   cuando lo pide: viaja el origen, nunca la ruta.
+- **Una sola pieza de mapa con capas** (20/11/2026, decisión del PM): `/mapa/` y el tablero «Situación» de
+  Emergencia (E8, C1 #1173 y E-6 #1185) la comparten, en vez de Leaflet en E8 y otra pieza acá. Va primero, en su
+  propio PR, para no frenar a E8. La vista arma cada punto (capa, tono, ícono, textos, enlace, acciones); el JS
+  no decide nada. El panel (capas, filtros, buscador, lista) lo arma cada pantalla y la pieza lo sincroniza por
+  atributos `data-`, así E8 usa su `_item_lista.html`. Los marcadores de **casos** de Emergencia van solo en
+  `/mapa/`, para quien opera o supervisa la mesa (decisión del PM en este cambio; RNF-009-01 rige para E8, no para
+  `/mapa/`). E-6 no muestra coordenadas de casos.
 - **Un solo rango y una sola regla de par** para las coordenadas cargadas a mano (`core/coordenadas.py`):
   ±90 / ±180 y «las dos o ninguna», en Ciudadano (validadores del modelo + `clean()`) y en el Formulario 1
   de Emergencia.
@@ -57868,6 +57875,26 @@ app y sin `precision_m`. Con ese punto, el panel «Derivar» de la ficha ya calc
 dispositivo (`selectors.emergencia.distancia_km`), que en los casos de la mesa hasta ahora quedaba
 «desconocida». La app de campo no cambia: sigue mandando su GPS.
 
+Fase 3, primera entrega: la pieza **Mapa con capas** (`components/_mapa_capas.html` + `nodo-mapa-capas.js`
++ `nodo-mapa-capas.css`), sobre el cargador de la fase 1, con el diseño del mockup aprobado el 20/11/2026.
+
+- La vista pasa `puntos`; la pieza los publica con `json_script`, sin agregar nada (las capas de la leyenda son
+  datos de la pantalla). Cada punto es una píldora
+  (`AdvancedMarkerElement` con contenido HTML) del color de su `tono` (siempre un token del sistema), con ícono y
+  etiqueta; la etiqueta se oculta con el mapa alejado y vuelve en el elegido.
+- Al tocar un punto abre su detalle (`InfoWindow`): subtítulo, estado, datos, botón a la ficha y acciones. Los
+  textos van como texto, no como HTML, y un `url` que no queda en el mismo origen una vez resuelto no se dibuja.
+- Sincroniza el panel de la pantalla: capas y subfiltros con `aria-pressed`, buscador sin tildes, lista
+  (`data-item`), total y estado vacío. Al cargar encuadra los puntos visibles dejando libre el panel flotante
+  (al costado en escritorio, abajo en celular).
+- Eventos `nodo-mapa-capas:listo/seleccion/accion/movido/clic` y API (`seleccionar`, `cerrar`, `encuadrar`,
+  `agregar`, `quitar`, `modoClic`) para que la pantalla guarde lo que cambia.
+- Google se pide cuando el mapa entra en pantalla (en una solapa oculta, al mostrarla, y ahí encuadra), o con
+  «Ver mapa» si es `a_pedido`. Sin key, estado vacío; con la key rechazada, una alerta. La lista y los filtros
+  andan igual sin mapa.
+- Pedido de E8 (E-6): `forma="circulo"` con `tamano` 1–3 para marcar zonas (presión por localidad) y
+  `detalle=False` para que la pantalla arme su propio panel con el evento de selección.
+
 ## Archivos
 
 `config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
@@ -57890,6 +57917,11 @@ la pieza suma `provincia_id` y `a_pedido` (`_ubicacion_domicilio.html`, `nodo-ub
 Fase 2, Emergencia: `programas/forms_emergencia.py`, `programas/templates/programas/emergencia/_formulario1_bloques.html`,
 `casos/form.html`, `dispositivo/formulario1.html`, `programas/tests/test_emergencia_ubicacion_mapa.py`,
 `.claude/design/componentes/ubicacion_domicilio.md`.
+
+Fase 3, pieza: `templates/components/_mapa_capas.html`, `static/custom/js/nodo-mapa-capas.js`,
+`static/custom/css/nodo-mapa-capas.css`, `.claude/design/componentes/mapa_capas.md`,
+`.claude/design/componentes/mapa_google.md`, `.claude/agents/chaco-design-system.md`,
+`core/tests/test_nodo_ui_piezas.py` (`MapaCapasTest`).
 
 ## Base de datos
 
@@ -57924,6 +57956,15 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   de Emergencia OK; punta a punta sobre «Nuevo caso» real: 5 de 5 (no carga Google al abrir, busca con la
   localidad elegida, Enter no envía).
 
+- Fase 3, pieza: `MapaCapasTest` (puntos escapados y sin JSON de capas, sin key, a pedido, alto, `detalle=False`,
+  solo lo que pasa la vista) OK; punta a punta con Playwright sobre el shell real con un doble de Google Maps: 45 de
+  45 (`url` con tab que sale a otro dominio descartada, asa del panel con `aria-expanded`, punto elegido centrado
+  fuera del panel lateral y de la hoja inferior, círculos, sin detalle, solapa oculta que
+  no carga Google hasta mostrarse y vuelve a encuadrar, descarta coordenadas inválidas, ícono y
+  tono fuera de lista, etiqueta como texto, capas, subfiltros, búsqueda sin tildes, lista ↔ marcador, enlace
+  interno y `javascript:` descartado, acciones, arrastre, API, modo clic, a pedido sin pedir a Google, encuadre
+  con el panel al costado y abajo).
+
 ## Puesta en marcha en el servidor
 
 Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`).
@@ -57931,9 +57972,9 @@ Sin ellas no cambia nada.
 
 ## Pendientes / a definir
 
-- Fases 3 y 4.
+- Fase 3: la pantalla `/mapa/` (app `mapa`, modelo `Punto`, API, capas de Dispositivos, Edificios, casos de
+  Emergencia y Puntos, arquetipo «Mapa» con `/mapa/` como golden). Fase 4.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
-- `Dispositivo.latitud/longitud` siguen sin rango ni par (previo a este cambio): aplicarle `core/coordenadas.py`.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
 - `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
@@ -57957,7 +57998,18 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
   repetidas. Corregido en el mismo PR.
 - **18/11/2026:** al traer `development` para abrir el PR, el número 483 ya era de Edificios: esta entrada pasó a ser el Cambio 489 y la migración de capacidades, `users.0049`.
 - **18/11/2026:** al volver a traer `development`, el 489 y `users.0049` ya eran de Becas (baja lógica): esta entrada pasó a ser el Cambio 490 y la migración, `users.0050`.
+- **19/11/2026:** los MINOR de la auditoría del PR #1197, en un PR aparte: el legajo de Dispositivos valida
+  rango y par con `core/coordenadas.py` (en el form, sin migración); «Buscando…» desde el primer pedido en un
+  mapa a pedido, así un Enter o clic durante la carga de Google no cobra otra búsqueda; y la referencia del
+  comentario de `nodo-mapa.js` a `docs/mapa.md` §4.
 - **19/11/2026:** al traer `development` otra vez, el 490 era de Becas y el 492 de Emergencia: esta entrada pasa a ser el **Cambio 493** (la migración sigue siendo `users.0050`).
+- **20/11/2026:** mockup de `/mapa/` aprobado. Fase 3, primera entrega: la pieza Mapa con capas, compartida con E8
+  (C1 y E-6) por decisión del PM.
+- **20/11/2026:** auditoría del PR #1221 sobre la pieza (CHANGES NEEDED): `url` con tab o salto de línea que
+  salía a otro dominio (MAJOR), asa del panel en celular, centrado del punto elegido fuera del panel, JSON de
+  `capas` sin uso, búsqueda sin trabajo repetido, `<li>` padre inmediato, radios con token y fila del agente.
+  Corregido en el mismo PR y revalidado: 45 de 45 de punta a punta y `MapaCapasTest`; la búsqueda pasa de 17 a
+  0,9 ms por tecla con 5000 puntos (medido sin DOM). Segunda ronda: APPROVE.
 
 ---
 
