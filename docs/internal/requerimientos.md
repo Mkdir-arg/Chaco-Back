@@ -57967,7 +57967,6 @@ Sin ellas no cambia nada.
 - Fase 3: la pantalla `/mapa/` (app `mapa`, modelo `Punto`, API, capas de Dispositivos, Edificios, casos de
   Emergencia y Puntos, arquetipo «Mapa» con `/mapa/` como golden). Fase 4.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
-- `Dispositivo.latitud/longitud` siguen sin rango ni par (previo a este cambio): aplicarle `core/coordenadas.py`.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
 - `mapa.ver` y `mapa.editar` figuran en `CAPACIDADES_SIN_USO` hasta que `/mapa/` las evalúe (fase 3).
@@ -57991,6 +57990,10 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
   repetidas. Corregido en el mismo PR.
 - **18/11/2026:** al traer `development` para abrir el PR, el número 483 ya era de Edificios: esta entrada pasó a ser el Cambio 489 y la migración de capacidades, `users.0049`.
 - **18/11/2026:** al volver a traer `development`, el 489 y `users.0049` ya eran de Becas (baja lógica): esta entrada pasó a ser el Cambio 490 y la migración, `users.0050`.
+- **19/11/2026:** los MINOR de la auditoría del PR #1197, en un PR aparte: el legajo de Dispositivos valida
+  rango y par con `core/coordenadas.py` (en el form, sin migración); «Buscando…» desde el primer pedido en un
+  mapa a pedido, así un Enter o clic durante la carga de Google no cobra otra búsqueda; y la referencia del
+  comentario de `nodo-mapa.js` a `docs/mapa.md` §4.
 - **19/11/2026:** al traer `development` otra vez, el 490 era de Becas y el 492 de Emergencia: esta entrada pasa a ser el **Cambio 493** (la migración sigue siendo `users.0050`).
 - **20/11/2026:** mockup de `/mapa/` aprobado. Fase 3, primera entrega: la pieza Mapa con capas, compartida con E8
   (C1 y E-6) por decisión del PM.

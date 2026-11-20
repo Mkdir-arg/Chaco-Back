@@ -37,9 +37,11 @@ RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_fo
 
 ## Comportamiento
 
-- **Ubicar en el mapa** (o Enter en el domicilio, salvo con una búsqueda en curso) busca «domicilio, localidad, provincia, Argentina» con el
+- **Ubicar en el mapa** (o Enter en el domicilio) busca «domicilio, localidad, provincia, Argentina» con el
   Geocoder de Google, restringido a Argentina. La búsqueda no se dispara sola mientras se escribe: cada
-  consulta se cobra.
+  consulta se cobra. Desde el primer pedido el botón queda en «Buscando…» y deshabilitado, también mientras
+  carga Google en un mapa a pedido: Enter y clic no piden otra búsqueda hasta que termina. Si el domicilio
+  quedó vacío al terminar la carga, se avisa en el campo y el botón se libera.
 - Un resultado pone el marcador y centra el mapa. Varios (hasta 5, sin repetidos) se listan para elegir. Ninguno:
   alerta `warning` y el punto se marca tocando el mapa.
 - El marcador (`AdvancedMarkerElement` con `PinElement` del color de marca) se arrastra; un clic en el mapa lo

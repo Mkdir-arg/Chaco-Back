@@ -64,3 +64,37 @@ class UbicacionConMapaTests(BaseUI):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "data-manual-abierto")
+
+
+class RangoDeCoordenadasTests(BaseUI):
+    """Cambio 493: el legajo valida el rango y el par como Ciudadano y Emergencia (`core.coordenadas`)."""
+
+    def setUp(self):
+        super().setUp()
+        self.par_admin = f"{self.admin.pk}:{self.rol_admin.pk}"
+        self._entrar(self.admin)
+
+    def _alta(self, **coordenadas):
+        return self.client.post(
+            reverse("dispositivos:crear"),
+            {"codigo": "MAPA-R", "tipo": self.tipo.pk, "nombre": "X", "responsables": [self.par_admin], **coordenadas},
+        )
+
+    def test_fuera_de_rango_vuelve_al_campo(self):
+        respuesta = self._alta(latitud="500", longitud="-58.9")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["form"].errors["latitud"], ["La latitud va de -90 a 90."])
+        self.assertFalse(Dispositivo.objects.filter(codigo="MAPA-R").exists())
+
+    def test_una_sola_coordenada_vuelve_al_campo(self):
+        respuesta = self._alta(longitud="-58.9")
+
+        self.assertEqual(
+            respuesta.context["form"].errors["latitud"], ["Cargá latitud y longitud, o ninguna de las dos."]
+        )
+        self.assertContains(respuesta, "data-manual-abierto")
+
+    def test_sin_coordenadas_se_guarda_igual(self):
+        self.assertEqual(self._alta().status_code, 302)
+        self.assertIsNone(Dispositivo.objects.get(codigo="MAPA-R").latitud)
