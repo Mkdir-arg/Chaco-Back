@@ -5,8 +5,9 @@ lo que la foto trae, y le pide a ``services.pantalla_situacion_emergencia`` lo q
 calcula nada. La ven ``emergencia.ver_situacion`` o ``emergencia.supervisar`` en el programa; sin
 ninguna, 403.
 
-Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla. La solapa Mapa (E-6) todavía es un
-estado vacío. La solapa **Abastecimiento** (E-7b) se calcula **solo** con ``?tab=abastecimiento``
+Sin auto-refresh: «Actualizar» vuelve a pedir la pantalla. La solapa **Mapa** (E-6) sale de la misma
+foto, sin consultas (``pantalla_situacion_emergencia.bloque_del_mapa``), y no le pide nada a Google
+mientras está oculta. La solapa **Abastecimiento** (E-7b) se calcula **solo** con ``?tab=abastecimiento``
 (``componentes/tabs.md``): desde otra solapa su panel trae «Calcular el abastecimiento», un enlace
 GET a la misma URL con esa solapa, y no suma ninguna consulta.
 

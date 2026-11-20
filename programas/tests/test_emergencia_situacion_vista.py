@@ -248,9 +248,9 @@ class ContenidoTests(BaseVista):
                 self.assertIn(titulo, html)
         self.assertIn("Red provincial: camas de los dispositivos elegibles", html)
 
-    def test_tc_1184_36_mapa_vacio_y_abastecimiento_a_pedido(self):
+    def test_tc_1184_36_mapa_y_abastecimiento_a_pedido(self):
         html = self._html(self.autoridad)
-        self.assertIn("El mapa todavía no está disponible", html)
+        self.assertIn('data-mapa-capas="situacion"', html)  # la solapa Mapa: test_emergencia_situacion_mapa
         self.assertIn("El abastecimiento se calcula cuando lo pedís", html)
         self.assertNotIn("leaflet", html.lower())
 

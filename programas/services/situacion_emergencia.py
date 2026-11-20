@@ -823,35 +823,87 @@ def logistica(foto):
     }
 
 
-def puntos_del_mapa(foto):
+#: Cuántos de los cercanos a una localidad nombra el panel «Localidad seleccionada» (§3.4).
+TOPE_CERCANOS = 3
+
+
+def tamano_de_circulo(personas: int, maximo: int) -> int:
+    """El tamaño (1, 2 o 3) del círculo de una localidad: crece con la raíz de las personas esperando (§3.6).
+
+    Relativo a la localidad con más personas esperando del mapa: ``√(personas / maximo)`` hasta un tercio es
+    1, hasta dos tercios 2 y más, 3. Sin demanda, 1. ``tamano_de_circulo(133, 133)`` es 3;
+    ``tamano_de_circulo(15, 133)`` (≈ 0,34), 2; ``tamano_de_circulo(10, 133)`` (≈ 0,27), 1.
+    """
+
+    personas, maximo = max(int(personas), 0), max(int(maximo), 0)
+    if not personas or not maximo:
+        return 1
+    # Enteros: √(p / m) ≤ k/3  ⇔  9p ≤ k² · m. El borde no depende de un redondeo.
+    if 9 * personas <= maximo:
+        return 1
+    if 9 * personas <= 4 * maximo:
+        return 2
+    return 3
+
+
+def _cercano(distancia, dispositivo):
+    return {
+        "id": dispositivo.id,
+        "nombre": dispositivo.nombre,
+        "distancia_km": distancia,
+        "libres": dispositivo.libres,
+        "operativas": dispositivo.conteo.operativas,
+    }
+
+
+def puntos_del_mapa(foto, filas=None):
     """Lo que viaja al mapa (B6): **centroides de localidad** y **dispositivos no reservados**.
 
     Nunca una coordenada de un caso (RNF-009-01) ni un dispositivo de ubicación reservada
     (RN-009-13): se filtran acá, no en el template. ``localidades``: las filas de presión con
-    centroide (con el filtro de demanda). ``dispositivos``: los publicables con ubicación válida,
-    con su nivel de tensión **de su tipo**. Y los contadores del pie: dispositivos sin ubicación,
-    reservados y casos (familias esperando) de localidades sin ubicación o sin localidad.
+    centroide (con el filtro de demanda), con lo que dice el panel «Localidad seleccionada»: sus
+    cifras, las camas cercanas (``camas_reservadas`` es la parte de los reservados, sin nombre) y
+    hasta :data:`TOPE_CERCANOS` cercanos **publicables**. ``dispositivos``: los publicables con
+    ubicación válida, con su nivel de tensión **de su tipo**. Y los contadores del pie:
+    dispositivos sin ubicación, reservados y casos (familias esperando) de localidades sin
+    ubicación o sin localidad.
+
+    ``filas`` son las de :func:`presion_por_localidad` si quien llama ya las tiene (la pantalla
+    las usa también para la tabla); si no, se calculan. Todo es serializable: ni modelos ni
+    decimales.
     """
 
     localidades = []
     casos_sin_ubicacion = 0
-    for fila in presion_por_localidad(foto):
+    for fila in presion_por_localidad(foto) if filas is None else filas:
         localidad = foto.localidades.get(fila["localidad_id"]) if fila["localidad_id"] else None
         if localidad is None or not localidad.con_ubicacion:
             casos_sin_ubicacion += fila["familias"]
             continue
+        cercanas = fila["cercanas"]
         localidades.append(
             {
                 "localidad_id": localidad.id,
                 "nombre": fila["localidad"],
+                "departamento": fila["departamento"],
                 "latitud": float(localidad.latitud),
                 "longitud": float(localidad.longitud),
                 "personas": fila["personas"],
                 "familias": fila["familias"],
+                "fuera_de_sla": fila["fuera_de_sla"],
+                "alojadas": fila["alojadas"],
                 "nivel": fila["presion"].nivel,
                 "cociente": fila["presion"].cociente,
+                "camas_cercanas": cercanas.total,
+                "camas_reservadas": cercanas.reservadas,
+                "dispositivos_cercanos": cercanas.dispositivos,
+                "cercanos": [_cercano(*par) for par in cercanas.cercanos[:TOPE_CERCANOS]],
             }
         )
+    maximo = max((loc["personas"] for loc in localidades), default=0)
+    for loc in localidades:
+        loc["tamano"] = tamano_de_circulo(loc["personas"], maximo)
+    pendientes = _pendientes_por_dispositivo(foto)
     publicables, reservados = separar_por_ubicacion_reservada(foto.red.dispositivos)
     dispositivos = []
     for d in publicables:
@@ -862,11 +914,16 @@ def puntos_del_mapa(foto):
             {
                 "id": d.id,
                 "nombre": d.nombre,
+                "tipo": d.tipo.nombre,
+                "localidad": d.localidad,
                 "latitud": float(d.latitud),
                 "longitud": float(d.longitud),
                 "libres": d.libres,
+                "ocupadas": tension.ocupadas,
+                "operativas": tension.operativas,
                 "nivel": tension.nivel,
                 "porcentaje": tension.porcentaje,
+                "derivaciones_pendientes": pendientes.get(d.id, 0),
             }
         )
     return {
