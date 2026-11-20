@@ -1,0 +1,15 @@
+{% comment %}Una fila de «Presión por localidad» (E8). La usan la tabla paginada y la copia completa que sale solo en el
+papel. Todo llega escrito de services/pantalla_situacion_emergencia.py; `url` (la bandeja filtrada) solo con supervisar.{% endcomment %}
+<tr class="hover:bg-secondary">
+  <td class="nodo-td text-heading font-medium">
+    {% if fila.url %}<a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.localidad }}</a>{% else %}{{ fila.localidad }}{% endif %}
+    {% if fila.sin_ubicacion %}<span class="block text-xs text-body-subtle">Sin ubicación en el mapa</span>{% endif %}
+  </td>
+  <td class="nodo-td">{{ fila.departamento }}</td>
+  <td class="nodo-td text-right">{{ fila.familias }}</td>
+  <td class="nodo-td text-right">{{ fila.personas }}</td>
+  <td class="nodo-td text-right">{{ fila.fuera_de_sla }}</td>
+  <td class="nodo-td text-right">{{ fila.alojadas }}</td>
+  <td class="nodo-td text-right">{{ fila.cercanas }}</td>
+  <td class="nodo-td"><span class="badge badge-{{ fila.presion.tono }} whitespace-nowrap"><i class="fas {{ fila.presion.icono }}" aria-hidden="true"></i> {{ fila.presion.texto }}</span></td>
+</tr>

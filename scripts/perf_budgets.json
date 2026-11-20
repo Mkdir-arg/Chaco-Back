@@ -318,6 +318,16 @@
       "servicio": "programas.services.respuestas_dispositivo.formularios_de_estadia",
       "consultas_fijas": 4,
       "motivo": "Presupuesto nuevo (P17, formularios de ingreso y egreso: lectura en el detalle de la estadia, P7). Por cada momento, las filas de respuestas de la estadia (1) y sus adjuntos por prefetch (1): 2 momentos x 2 = 4 con los dos respondidos (2 si solo uno; el prefetch no corre sin filas). Las secciones y las condiciones salen de la foto guardada. No crece con los campos. Lo corre programas/tests/test_dispositivos_formulario_estadia.py con --tag performance."
+    },
+    "emergencia_situacion_vista": {
+      "servicio": "programas.views.emergencia_situacion.SituacionView",
+      "consultas_fijas": 21,
+      "motivo": "Ruta nueva (E8 «Situación», análisis 009 RNF-009-03, Cambio 509): la vista entera con sesión, usuario, permisos y sidebar. La foto de situación son 12 consultas fijas (programas.selectors.emergencia_situacion), 1 el SLA vigente, 1 los dispositivos que el usuario abre por Dispositivos (enlace «Ver dispositivo», una vez y no por punto) y el resto el shell. No crece con casos, personas, dispositivos ni entregas, y filtrar no suma (el filtro va en Python). Lo mide programas/tests/test_emergencia_situacion_vista.py (PresupuestoVistaTests, --tag performance) con 5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas, como autoridad y como supervisor."
+    },
+    "emergencia_situacion_abastecimiento": {
+      "servicio": "programas.views.emergencia_situacion.SituacionView (?tab=abastecimiento)",
+      "consultas_fijas": 26,
+      "motivo": "Ruta nueva (E8 con la solapa Abastecimiento abierta, análisis 009 RNF-009-11, Cambio 510): la vista de emergencia_situacion_vista más las lecturas A1-A5 de programas.selectors.emergencia_abastecimiento (catálogo con reglas, recibido y primera recepción por dispositivo e ítem, en camino y preparadas, personas alojadas y egresadas desde la primera recepción, y A5 solo si hay dispositivos con gente fuera de la red). Medido 22 (18 + 4) como supervisor y como autoridad; el techo es el del análisis (21 + 5). No crece con dispositivos, ítems, entregas ni personas, y un evento anterior sembrado (2.000 entregas recibidas y 3.000 egresados antes de inicio_evento) no cambia ni las consultas ni los resultados. Sin la solapa activa la vista no suma nada (sigue en emergencia_situacion_vista). Lo mide programas/tests/test_emergencia_abastecimiento.py (PresupuestoAbastecimientoTests, --tag performance) con 50 dispositivos, 30 ítems, 2.000 entregas y 3.000 alojados."
     }
   }
 }

@@ -43,6 +43,7 @@ class TableroView(EmergenciaPermissionMixin, View):
             "avisos": avisos_del_tablero(sla, ahora, usuario=request.user, foto=foto),
             "actualizado": f"{timezone.localtime(ahora):%d/%m/%Y %H:%M}",
             "url_actualizar": reverse("emergencia:tablero"),
+            "url_situacion": reverse("emergencia:situacion"),
             "url_entregas": f"{reverse('emergencia:entregas')}?solapa=abiertas",
         }
         return render(request, TEMPLATE, contexto)

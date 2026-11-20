@@ -121,7 +121,7 @@ CATALOGO = [
         ],
     },
     {
-        # Mesa de Emergencia. Las tres se evalúan con alcance sobre el programa EMERGENCIA
+        # Mesa de Emergencia. Las cuatro se evalúan con alcance sobre el programa EMERGENCIA
         # (``programas.services.emergencia_programa.puede_en_programa_emergencia``) y solo
         # se pueden tildar en un rol de ese programa.
         "modulo": "emergencia",
@@ -135,6 +135,12 @@ CATALOGO = [
             (
                 "emergencia.supervisar",
                 "Supervisar la mesa de Emergencia (tablero, reasignar casos y configuración)",
+            ),
+            # E8 (análisis 009, §3.2): las autoridades miran la situación sin operar la mesa.
+            # Supervisar la implica (``puede_ver_situacion``); no es de campo.
+            (
+                "emergencia.ver_situacion",
+                "Ver la situación de la emergencia (tablero estratégico y mapa, sin datos personales)",
             ),
         ],
     },

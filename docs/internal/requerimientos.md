@@ -631,7 +631,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 506 | Auditoría 2026-10: se reserva el detalle técnico de los hallazgos de seguridad abiertos | Transversal · documentación interna de la auditoría | `#seguridad` `#metodo` | PM | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 507 | Pieza de UI «ítem de lista de selección» y su ficha (C5 del análisis 009; pieza 10 del tablero de Dispositivos) | Transversal · UI (Emergencia E8, Dispositivos) | `#ui` `#emergencia` | PM — análisis 009, task #1177 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 508 | Emergencia · E8: foto de situación, reglas puras y alertas AE-1 a AE-7 (E-4 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#performance` `#datos` | PM — análisis 009 (§4.1, §5, §8.1), task #1183 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0128` (2 `AddIndex` en `CasoEmergencia`) |
-| 509 | Auditoría 2026-11: banco de Emergencia y Dispositivos (#1220) y mediciones volcadas a los informes | Transversal · documentación interna y banco de performance (`scripts/perf_mysql/`, `docs/internal/auditoria-2026-11-perf/`) | `#performance` `#metodo` `#emergencia` | PM — auditoría de performance (pasada 2 de Emergencia y Dispositivos) | 19/11/2026 | 🟢 **Hecho** | No requiere |
+| 509 | Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen (E-5 del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#rbac` `#ui` `#performance` | PM — análisis 009 (§3, §5, §12), task #1184 | 19/11/2026 | 🟢 **Hecho** | Sí — `users.0051` (capacidad al Administrador) y `programas.0129` (6 `AddIndex`) |
+| 510 | Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h (E-7b del análisis 009) | Emergencia · situación (E8) | `#emergencia` `#ui` `#performance` `#datos` | PM — análisis 009 (§3.9, §4.1, RN-009-15 a 22), task #1187 | 19/11/2026 | 🟢 **Hecho** | Sí — `programas.0130` (1 `AddIndex`) |
+| 511 | Auditoría 2026-11: banco de Emergencia y Dispositivos (#1220) y mediciones volcadas a los informes | Transversal · documentación interna y banco de performance (`scripts/perf_mysql/`, `docs/internal/auditoria-2026-11-perf/`) | `#performance` `#metodo` `#emergencia` | PM — auditoría de performance (pasada 2 de Emergencia y Dispositivos) | 19/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -57755,6 +57757,10 @@ cargadas).
 - **18/11/2026:** alta del cambio (registrado como 490; pasa a 492 porque development usó el 490 y el #1197 lo reclamaba).
 - **18/11/2026:** `development` trajo `programas.0125_eliminacion_logica_becas` (Cambio 489): la migración pasa a `0126`.
 - **18/11/2026:** auditoría del PR #1199: la dotación con días se rechaza en E7 en vez de vaciarse (TC-1186-08); `CAMPOS_TIPO_KIT` se arma con `CAMPOS_REGLA`.
+- **19/11/2026 — MINOR de la auditoría del PR #1199, cerrados en el Cambio 510 (E-7b):** «Sin regla» vacía la regla
+  solo si el modo cambió en ese envío (una regla cargada con el modo ya en «Sin regla» la rechaza el modelo); la
+  etiqueta de las opciones en la traza la resuelve `_trazar` según el modelo del objeto (se va `_con_etiquetas`); el
+  docstring de `SLAEmergenciaForm` ya no cuenta «ocho parámetros».
 
 ---
 
@@ -59039,7 +59045,7 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
 1. **Índices que pide el `EXPLAIN` de la foto** (RNF-009-10, ver «Validación»; no se agregan acá, van en una
    migración aparte si el PM lo prioriza): `IntegranteGrupo.egresado_en` (personas alojadas; también lo pide A4 de
    Abastecimiento), `Derivacion.estado` (o `(estado, …)`), `EntregaKit.despachada_en` y las fechas de `Estadia` para el
-   ritmo de 6 h. Hoy, con el banco de abajo, cada una tarda 6 a 28 ms: no comprometen el `read_timeout` de 10 s, pero
+   ritmo de 6 h. Hoy, con el banco de abajo, cada una tarda 6 a 34 ms: no comprometen el `read_timeout` de 10 s, pero
    crecen lineal con el histórico.
 2. **Para E-5 (UI):** cómo se escriben los números (miles, «≈», «—»), el orden visual de la tabla de presión y el
    agrupado «Otras localidades», el texto exacto de «en toda la provincia» y del aviso de localidad ignorada.
@@ -59067,6 +59073,11 @@ Aplicar `programas.0128` (crea dos índices). Nada más.
   fuente del vocabulario y los tonos para `Tension` y `Presion`; `CasoEmergencia.q_en_la_ventana` es la ventana de E1 y
   E8; `DispositivoDeLaRed.tipo` y `conteo` son obligatorios. Scripts: sin `--probar-indices`, `medir` directo,
   `explain_situacion.py` exige la base descartable. `EXPLAIN` corrido (arriba).
+- **19/11/2026 — MINOR de la auditoría del PR #1224, cerrados en el Cambio 509 (E-5):** con `ocupacion.alojada_en`
+  también cambió el **borde de egreso**: una persona egresada exactamente en el instante medido cuenta como alojada en
+  ese instante (antes no contaba); afecta a «personas alojadas al cierre» de la evolución y a la variación del día. La
+  cifra del pendiente 1 se corrige a «6 a 34 ms» (la consulta de casos medía 34 ms en la tabla). Los índices del
+  pendiente 1 entraron en `programas.0129` (Cambio 509) y los tres docstrings que apuntaban al selector se corrigieron.
 
 # Cambio 507 — Pieza de UI «ítem de lista de selección» y su ficha (C5)
 
@@ -59232,7 +59243,361 @@ Revertir el commit; no hay datos involucrados.
 
 ---
 
-# Cambio 509 — Auditoría 2026-11: banco de Emergencia y Dispositivos (#1220) y mediciones volcadas a los informes
+# Cambio 509 — Emergencia · E8: pantalla «Situación», capacidad `ver_situacion`, filtros y solapa Resumen
+
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e5-pantalla-situacion` (sale de la de E-4, #1224)
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · situación (E8) |
+| **Etiquetas** | `#emergencia` `#rbac` `#ui` `#performance` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.1-3.4, §3.8, §5, §7, §12, RF-009-01 a 16) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1184 (E-5, con la ex E-3 #1182 fusionada) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (pantalla, sidebar, RBAC, índices) |
+| **Migración** | `users.0051_capacidad_ver_situacion` y `programas.0129_indices_foto_situacion` |
+
+## Pedido original
+
+E-5 del análisis 009: publicar E8 en `/emergencia/situacion/` con el esqueleto del arquetipo «Dashboard de programa» y la
+solapa Resumen completa, impresión incluida; la capacidad `emergencia.ver_situacion` (ex E-3) con su ítem del sidebar y
+la migración al Administrador; y las notas «Pendiente de…» del #1184: los MINOR de C3 (#1210) y de E-4 (#1224), y la
+migración de índices con su medición antes de publicar la pantalla.
+
+## Alcance acordado
+
+**Entra:** la capacidad (catálogo, `CAP_VER_SITUACION`, `puede_ver_situacion`, mixin, sidebar, `users.0051`), la vista y
+el form de filtros, el template con hero, píldoras, franja, «Necesita atención», presión por localidad, evolución,
+capacidad, embudo, perfil, logística y «Cómo se calcula», la hoja de impresión, los enlaces E1 ↔ E8, los índices de
+`programas.0129` y los MINOR. **Queda afuera:** la solapa Mapa (E-6; el motor de mapa sigue sin definir) y la solapa
+Abastecimiento (E-7b): las dos son un estado vacío y no suman consultas.
+
+## Decisiones tomadas
+
+1. **La vista no calcula**: lee la foto con la ventana elegida, valida departamento y localidad contra
+   `FotoSituacion.localidades` (las del Chaco, que la foto ya trae) y recién entonces aplica el filtro con
+   `selectors.emergencia_situacion.con_filtros` (0 consultas: el filtro va en Python). Lo que se dibuja lo escribe
+   `services/pantalla_situacion_emergencia.py` (miles con punto, «≈», «—», signo de la variación, bajada del hero,
+   badges con ícono), sin consultas.
+2. **Filtros** (`FiltrosSituacionForm`): cada campo inválido se ignora por separado y nunca da 500; sin `ventana`, 72 h;
+   sin `tab` o con uno desconocido, Resumen. Un departamento que ninguna localidad tiene y una localidad que no es del
+   Chaco se ignoran en silencio; una localidad de **otro** departamento se ignora con aviso (`_alerta` info). La
+   píldora Ventana usa la opción vacía como «72 h» (sin novedad en `_filtro_pildora`). La lista de localidades es la del
+   departamento elegido (sin departamento, todas; homónimas con su departamento entre paréntesis).
+3. **Sin JS** (RNF-009-08): el `x-data` arranca con la solapa que resolvió el servidor (`tab: '{{ solapa }}'`, no la
+   querystring cruda: `?tab=xx` abriría un panel vacío) y solo los paneles que no son esa llevan `x-cloak`. Desvío
+   declarado de la golden, anotado en `arquetipos/dashboard.md`.
+4. **Hoja de impresión** como pieza nueva con ficha (`static/custom/css/nodo-impresion.css`,
+   `componentes/impresion.md`, fila del inventario): la ficha del arquetipo la asignaba al primer tablero que
+   imprimiera. La carga la pantalla en `page_css` (el shell no cambia: sin regenerar snapshots). Cuatro clases gancho:
+   `nodo-no-imprimir`, `nodo-solo-impresion`, `nodo-impresion-panel` (el Resumen sale aunque se mire Mapa) y
+   `nodo-impresion-desplegar` («Cómo se calcula»). Con más de 60 localidades la tabla de presión se pagina de a 25 en
+   pantalla y en el papel sale entera.
+5. **Presión por localidad**: las localidades sin demanda van juntas en «Otras localidades (N)» y «Sin localidad» al
+   final; el orden es el de `presion_por_localidad` (Crítica → Sin demanda, cociente más alto primero). Con
+   `supervisar`, el nombre abre la bandeja filtrada (E2).
+6. **Enlaces a la mesa solo con supervisar**: «Ir al tablero de la mesa» (barra de arriba), «Ver los avisos operativos en
+   el tablero de la mesa →» (pie de «Necesita atención», sin cifra, 0 consultas) y la bandeja; sin supervisar no se
+   calculan las URL. «Ver dispositivo» (más tensionados y sin entrega en 48 h) solo para los dispositivos que el usuario
+   abre por Dispositivos: una consulta `dispositivos_visibles(user).values_list("pk")` por request (0 si no tiene
+   Dispositivos).
+7. **Evolución**: barras pareadas (C4) y, aparte, una tabla densa con «Personas alojadas al cierre» por período: sumar
+   esa columna a la tabla equivalente de la pieza sería un parámetro nuevo de C4 (novedad sin ficha).
+8. **Sidebar**: grupo Emergencia visible con `operar`, `supervisar` o `ver_situacion`; «Casos» y «Entregas» solo con
+   operar o supervisar; «Situación» (Heroicons `globe-americas`) con `ver_situacion` o `supervisar`; colapsado, a la
+   bandeja si opera y si no a la situación. E1 suma «Ver la situación» en la cabecera de «Casos por localidad».
+9. **Índices** (`programas.0129`, pendiente 1 del Cambio 508): `IntegranteGrupo.egresado_en`,
+   `Derivacion(estado, creado)`, `EntregaKit.despachada_en` y `EntregaKit.estado`, `Estadia.fecha_ingreso` y
+   `Estadia.fecha_egreso`. `Derivacion` va compuesto con `creado` y el selector agrega `creado >= desde` a la rama de
+   rechazadas y vencidas (implicado: una derivación nace después que su caso); con solo `estado` el motor seguía
+   recorriendo la tabla. `EntregaKit.estado` hace falta para el *index merge* del `OR` con `EN_CAMINO`.
+10. **Recortes y solapa** (auditoría del PR #1226): «Con gente y sin entrega recibida en 48 h» lista a lo sumo 10 con
+    «Mostrando N de M» (la cifra completa sigue en AE-6); la paginación de la presión vuelve a Resumen
+    (`extra_qs="tab=resumen"`) y «Actualizar» toma la solapa visible al hacer clic (`@click.capture` sobre la acción
+    del hero, como «Limpiar»). Con la tabla paginada, la de pantalla no se imprime y el papel trae la tabla entera con
+    su encabezado y su Total (`_tabla_presion.html`, un solo include para las dos). El p90 que supera el objetivo,
+    además de la negrita, lo dice en `sr-only`.
+11. **MINOR de C3 (#1210):** `porcentaje_barra` delega en `entero_o_none`; el alto contraste de la pista usa la clase gancho
+    `nodo-barra-umbral-pista` (ficha `barra_umbral.md`). **MINOR de E-4 (#1224):** Historial y pendiente 1 del Cambio 508
+    y los tres docstrings que apuntaban al selector.
+
+## Implementación
+
+- `core/rbac.py` (capacidad), `users/migrations/0051_capacidad_ver_situacion.py` (patrón `users.0047`).
+- `programas/services/emergencia_programa.py` (`CAP_VER_SITUACION`, `puede_ver_situacion`),
+  `programas/mixins_emergencia.py` (`SituacionPermissionMixin`).
+- `programas/forms_emergencia_situacion.py`, `programas/views/emergencia_situacion.py`, `programas/emergencia_urls.py`
+  (`emergencia:situacion`), `programas/services/pantalla_situacion_emergencia.py`,
+  `programas/selectors/emergencia_situacion.py` (`con_filtros`, filtro implicado de derivaciones).
+- `programas/templates/programas/emergencia/situacion/situacion.html`, `_tabla_presion.html` y `_fila_presion.html`;
+  `programas/templates/programas/emergencia/tablero.html` y `programas/views/emergencia_tablero.py` (enlace a E8);
+  `templates/includes/sidebar/opciones.html`.
+- `static/custom/css/nodo-impresion.css`; `templates/components/_barra_umbral.html`,
+  `static/custom/css/nodo-barra-umbral.css`, `core/templatetags/nodo_ui.py`.
+- `programas/models/__init__.py` y `programas/migrations/0129_indices_foto_situacion.py`.
+- Diseño: `.claude/agents/chaco-design-system.md` (fila «Hoja de impresión de tablero»),
+  `.claude/design/componentes/impresion.md` (nueva), `arquetipos/dashboard.md`, `shells.md`, `hero_inicio.md`,
+  `barra_umbral.md`, `alerta.md`; `scripts/design_audit.py` (`HERO_PANTALLAS`); `scripts/perf_budgets.json`
+  (`servicios.emergencia_situacion_vista`).
+
+## Archivos
+
+Los de «Implementación», más `programas/tests/test_emergencia_situacion_vista.py` y
+`programas/tests/test_pantalla_situacion_emergencia.py` (nuevos), `.claude/design/componentes/tabs.md`,
+`programas/tests/test_emergencia_situacion.py` (el banco del presupuesto pasa a `BancoSituacion`),
+`core/tests/test_nodo_ui_emergencia.py` y `core/tests/test_nodo_ui_piezas.py` (`HojaDeImpresionTest`).
+
+## Base de datos
+
+- `users.0051`: `AlterModelOptions` de `Capacidad` (sin esquema) y `RunPython` que le da la capacidad al rol protegido
+  Administrador, con reversa real. Ningún otro rol recibe nada.
+- `programas.0129`: seis `AddIndex`, solo expand. El DDL no es transaccional: si se corta, el reintento falla con
+  «Duplicate key name»; se borra a mano el índice que quedó y se reintenta.
+
+## Validación
+
+- `test_pantalla_situacion_emergencia.py` (puros, sin base): `numero`, `con_signo`, `bajada`, los cuatro estados de
+  `_tarjeta_saturacion`, `tabla_de_presion` (orden, «Otras localidades (N)», «Sin localidad» al final, total),
+  `atencion` («Mostrando N de M») y `pildoras` (homónimas con su departamento).
+- `test_emergencia_situacion_vista.py`: permisos (TC-1184-01 a 03, TC-1182-03, 06, 07, 09 a 11), enlaces (TC-1184-04 a 06),
+  no nominal (TC-1184-07: apellidos, DNI, direcciones, números de caso y coordenadas de familias, y el dispositivo
+  reservado), filtros (TC-1184-22, 24 a 26, 35, 37, 40), perfil con filtro (TC-1184-28), vacíos (TC-1184-25, 31, 36),
+  sidebar (TC-1182-02, 07, 08; TC-1184-38), migración (TC-1182-12, 13), catálogo y árbol del ABM (TC-1182-01) y
+  presupuesto `--tag performance` (TC-1184-39).
+- **Consultas de la vista** (5.000 casos, 3.000 alojados, 50 dispositivos y 500 entregas): **18** como autoridad, como
+  supervisor y con filtro de departamento y `tab=mapa` (5 del shell + 1 SLA + 12 de la foto), y **18** también como
+  superusuario: no lee sus capacidades (bypass del RBAC) y en su lugar paga la de `dispositivos_visibles` (los ids que
+  abre por Dispositivos). Quien tiene capacidades y además abre dispositivos llegaría a 19. Techo 21.
+- **Quedan para prueba manual** solo la vista previa real de impresión de TC-1184-33 y TC-1184-34 (A4 apaisada, lo que
+  efectivamente sale en el papel). La parte estructural —qué lleva `nodo-no-imprimir`, `nodo-solo-impresion` y
+  `nodo-impresion-panel`, que Abastecimiento y Mapa no se imprimen y que con la tabla paginada el papel trae la tabla
+  entera con encabezado y Total— la cubren `PaginacionYImpresionTests` y `HojaDeImpresionTest`. TC-1182-05 (sidebar
+  colapsado) lo cubre `SidebarColapsadoTests`, y TC-1184-17 (paginación) `PaginacionYImpresionTests`.
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `ruff`, `design_audit.py --ratchet` (0 nuevos),
+  `--arquetipo dashboard` OK, `--goldens` 0, `compile_templates.py --bloques` 0, `check_design_agent.py`.
+- **`EXPLAIN` en MariaDB 10.11** descartable (`explain_situacion.py`, 20 corridas; 50.700 casos —48.300 cerrados de un
+  evento anterior—, 30.050 estadías, 23.000 integrantes —20.000 egresados—, 20.300 derivaciones —20.000 rechazadas o
+  vencidas de casos viejos— y 10.500 entregas —10.000 de un evento anterior), con `0128` y después con `0129`:
+
+  | # | Lectura | Plan antes → después | Lecturas del handler | ms |
+  |---|---|---|---:|---:|
+  | 6 | Personas alojadas | `ALL` (22.657) → `range` en `egresado_en` con filtro de rowid | 27.501 → 30.503 | 20,5 → 29,1 |
+  | 7 | Ritmo de 6 h | `ALL` sobre `plaza` → `index_merge` de `fecha_ingreso` y `fecha_egreso` | 34.051 → 92 | 29,8 → 1,2 |
+  | 8 | Derivaciones | `ALL` (20.320) → `range` en `(estado, creado)` | 21.269 → 1.939 | 8,2 → 5,3 |
+  | 9 | Entregas de la ventana | `ALL` (10.553) → `index_merge` de `despachada_en` y `estado` | 10.501 → 1.134 | 5,2 → 4,2 |
+  | 10 | Líneas por ítem | `ref` por ítem → `range` en `despachada_en` | 21.325 → 1.123 | 16,6 → 2,1 |
+  | 11 | Última recepción | sin cambio (`ref` por dispositivo) | 21.204 | 13–15 |
+
+  La 6 cambia de plan pero no de costo a este volumen: el motor arma el filtro de rowid con el índice de `estadia_id`
+  (todas las filas del banco tienen estadía). El índice deja de recorrer los egresados viejos, que es lo que crece. La
+  migración se aplicó, se revirtió y se volvió a aplicar en el mismo motor.
+
+## Puesta en marcha en el servidor
+
+Aplicar `users.0051` y `programas.0129`. El rol «Autoridades» (solo `emergencia.ver_situacion`) lo arma el PM desde el
+ABM de Roles.
+
+## Pendientes / a definir
+
+1. **Decisión abierta:** «Ir al tablero de la mesa» va en la barra de arriba (a la derecha de «Actualizado a las») y no
+   en el hero: la ficha del hero admite una sola acción («Actualizar»).
+2. **Decisión abierta:** «Personas alojadas al cierre» va en una tabla propia debajo del gráfico; si el PM la quiere en
+   la tabla equivalente de las barras pareadas, es un parámetro nuevo de C4 con su ficha.
+3. **Decisión abierta:** la nota de «Horas hasta saturar» lleva el ritmo y el rótulo «proyección al ritmo actual, no es
+   un pronóstico»; con ritmo ≤ 0 el valor es «—» y la nota dice «No se satura al ritmo actual».
+4. `::details-content` (para que «Cómo se calcula» salga abierto en el papel) no existe en navegadores viejos (Chrome
+   < 131, Firefox < 143): ahí sale plegado.
+5. La lectura de personas alojadas (consulta 6) conviene volver a medirla con más historia de egresados.
+6. Mapa (E-6) y Abastecimiento (E-7b) siguen como estado vacío.
+
+## Reversión
+
+1. Desplegar el código anterior: la capacidad queda tildada en el Administrador sin pantalla que la evalúe, y los índices
+   quedan sin que el código viejo los note.
+2. Solo si hace falta volver el esquema: `manage.py migrate programas 0128` borra los seis índices y
+   `manage.py migrate users 0050` le saca la capacidad al Administrador. No se pierde ningún dato.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026 — auditoría del PR #1226** (2 MAJOR y 4 MINOR, sin cambios visibles en pantalla): impresión de la tabla
+  paginada sin filas repetidas y con encabezado y Total; tests puros de `pantalla_situacion_emergencia.py`, de la
+  paginación, de la estructura de impresión y del sidebar colapsado; la paginación y «Actualizar» conservan la solapa;
+  nota de `tabs.md` y `dashboard.md` sobre la solapa resuelta por la vista; `sr-only` del p90; tope de «sin entrega
+  en 48 h»; la medición del superusuario corregida (18, no 19).
+- **19/11/2026 — MINOR de la auditoría del PR #1226, cerrados en el Cambio 510 (E-7b):** el test de la tabla sin paginar
+  afirma que no hay envoltorio `nodo-no-imprimir` ni copia `nodo-solo-impresion`; TC-1184-17 pide la página 2 dentro del
+  parche y afirma que trae la segunda localidad y no la primera; B12 y HU-9.7 del análisis 009 documentan el tope de
+  10 de «Sin entrega en 48 h» con «Mostrando N de M». El pendiente 6 queda a medias: Abastecimiento ya calcula
+  (Cambio 510); el Mapa (E-6) sigue como estado vacío.
+
+---
+
+# Cambio 510 — Emergencia · E8: solapa «Abastecimiento» — qué falta y qué mandar en 48 h
+
+🟢 **HECHO — 19/11/2026** · rama `feat/e8-e7b-abastecimiento` (sale de la de E-5, #1226, ya mergeada en development)
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · situación (E8) |
+| **Etiquetas** | `#emergencia` `#ui` `#performance` `#datos` |
+| **Solicitante** | PM — análisis 009 (`docs/internal/analisis/009-emergencia-tablero-estrategico.md`, §3.9, §4.1, §12, RN-009-15 a 22, RF-009-19 a 26, RNF-009-10 a 13) |
+| **Fecha del pedido** | 18/11/2026 |
+| **Issue / épica** | #1187 (E-7b) · análisis #1172 · Épica #1171 |
+| **Partes afectadas** | Backoffice (pantalla E8, E7 y un índice) |
+| **Migración** | `programas.0130_indice_recepcion_entregas` (solo un índice) |
+
+## Pedido original
+
+E-7b del análisis 009: calcular, solo al abrir la solapa, una **estimación rotulada** de qué le falta a cada dispositivo
+y qué conviene mandar en las próximas 48 h, con la regla de consumo de cada ítem (E-7a, Cambio 492) y desde
+`SLAEmergencia.inicio_evento`. Con las notas «Pendiente de…» del #1187: los MINOR de la auditoría del PR #1199 (E-7a) y
+los de la auditoría del PR #1226 (E-5).
+
+## Alcance acordado
+
+**Entra:** reglas puras (`services/abastecimiento_emergencia.py`), lecturas A1-A5
+(`selectors/emergencia_abastecimiento.py`), AE-8 a AE-10, el panel `_abastecimiento.html` dentro de E8, el enlace de AE-6
+del Resumen a la solapa, el índice que pidió el `EXPLAIN` y los MINOR. **Queda afuera:** precargar las cantidades en E4
+(§9: «Preparar entrega» abre el paso 2 con el dispositivo elegido y nada más), la historia de las reglas (un cambio de
+regla recalcula hacia atrás) y el Mapa (E-6).
+
+## Decisiones tomadas
+
+1. **Solo con `?tab=abastecimiento`** (`componentes/tabs.md`): desde otra solapa el panel es un `_estado_vacio` con
+   «Calcular el abastecimiento», un GET a la misma URL con los filtros y `tab=abastecimiento`, y **0 consultas**. Sin
+   `inicio_evento`, estado vacío que lo explica (botón a E7 solo con `supervisar`); sin reglas o sin alojados, los
+   vacíos de la §3.9.
+2. **4 consultas** (A1, A2, A3, A4); A5 solo si hay dispositivos con gente fuera de la red de la foto (los
+   suspendidos). La red, la última recepción («nunca recibió», «sin entrega en 48 h», la misma lectura que B12 y AE-6) y
+   la salud salen de la foto: **AE-9 usa `sin_dosis_provincial(foto)`**, así que es el número de AE-7 por construcción, y
+   A4 no lee la ficha.
+3. **Unidades-día reales**: cada persona, su estadía hasta el egreso o ahora; cada familia, en su dispositivo principal
+   (el del integrante alojado de menor orden), desde el primer ingreso hasta el último egreso de sus integrantes ahí; los
+   lactantes pesan lo declarado. Todo recortado a `[primera recepción del ítem, ahora]`.
+4. **Cobertura** = (remanente + en camino) / consumo diario; sin consumo, «—»; agotado, «sin cubrir desde hace ≈ N h»
+   con N = déficit / consumo por hora. En pantalla, en horas hasta 24 h y desde ahí en fecha y hora redondeadas a la
+   media hora.
+5. **Urgencia (RN-009-20) sobre los ítems que faltan**: Crítica si nunca recibió nada, o si algún ítem con faltan > 0 es
+   una dotación, una reposición sin cubrir ahora aun con lo en camino, o un ítem «por lactante» que el dispositivo
+   **nunca recibió** teniendo lactantes, **aunque haya algo en camino** (el texto de RN-009-20, alineado en la auditoría
+   del PR #1227). Un ítem sin cubrir que lo preparado tapa no lo vuelve Crítica: así cierra el ejemplo de la §12 (Puerto
+   Vilelas y Hogar San José, Exigida con alimento y agua «preparados»). En el orden, todo ítem nunca recibido es la
+   menor cobertura, tenga o no algo en camino; urgencia, orden y AE-10 usan la misma marca.
+6. **Una regla a medias** (cargada por fuera de E7) cuenta como «sin regla»: no se inventa consumo.
+7. **Salud logística dentro de «Necesita atención»** (AB5 de la §12): AE-9 es la línea agregada y, si `presentar_salud`
+   lo deja, los nombres sin número en el texto; AE-10 nombra los lactantes (el número solo desde 5) con el título
+   «Lactantes sin cubrir: <ítems>». No hay un bloque aparte que repita lo mismo. **Las dos listas van por nombre visible
+   y después por id, nunca por conteo** (RN-009-21 b): ordenarlas por cantidad dejaba deducir cuántas personas sin
+   dosis había en cada dispositivo (con 3 en 2, el primero tenía 2).
+8. **Sin piezas nuevas**: stat cards chicas, `_alerta`, tablas densas con badge de ícono + texto (tonos de la tensión,
+   columna «Abastecimiento»), «Preparar entrega» como `btn-nodo btn-secondary btn-sm btn-fit` en `nodo-col-acciones`
+   (solo con `operar` o `supervisar`, y solo para `ACTIVO`), `_estado_vacio` y el plegable de R8. El panel sigue con
+   `nodo-no-imprimir`.
+9. **AE-6 en el Resumen** enlaza a la solapa con los filtros de la pantalla («Ver el abastecimiento», la misma URL que
+   «Calcular el abastecimiento»), por la tabla `ACCIONES_DE_ALERTA`; AE-8 a AE-10 no están en el Resumen.
+10. **Los estados del panel los arma `pantalla_abastecimiento_emergencia`** (`panel_sin_calcular` y
+    `contexto_de_abastecimiento`): el template recibe `calculado` y, si no calcula, `vacio` ya resuelto (texto, ícono
+    y acción, con el enlace a E7 solo para `supervisar`). `local` y `badge` de `pantalla_situacion_emergencia` pasan a
+    ser públicos y se reusan.
+11. **Índice `EntregaKit.recibida_en`** (`programas.0130`): el `EXPLAIN` de A2 recorría la tabla entera (ver
+    «Validación»). A4 no pidió índice: usa el de `egresado_en` de `programas.0129` como filtro de rowid.
+12. **MINOR de #1199:** `TipoKitForm.clean` vacía la regla solo con `"regla_modo" in self.changed_data`; `_trazar`
+    resuelve las etiquetas según el modelo del objeto; docstring de `SLAEmergenciaForm`. **MINOR de #1226:** ver el
+    Historial del Cambio 509.
+
+## Implementación
+
+- `programas/selectors/emergencia_abastecimiento.py` (nuevo): `lecturas_de_abastecimiento(foto, inicio_evento)`.
+- `programas/services/abastecimiento_emergencia.py` (nuevo): reglas puras, `armar_abastecimiento`, `presentar_salud`.
+- `programas/services/alertas_situacion_emergencia.py`: AE-8, AE-9, AE-10 y `alertas_de_abastecimiento`.
+- `programas/services/pantalla_abastecimiento_emergencia.py` (nuevo): lo que se dibuja (nota, franja, tablas, textos).
+- `programas/services/pantalla_situacion_emergencia.py`: AE-6 con su enlace.
+- `programas/views/emergencia_situacion.py`: `_abastecimiento` (solo con la solapa; `puede_operar_la_mesa`).
+- `programas/templates/programas/emergencia/situacion/_abastecimiento.html` (nuevo) y `situacion.html`.
+- `programas/models/__init__.py` y `programas/migrations/0130_indice_recepcion_entregas.py`.
+- `programas/forms_emergencia.py`, `programas/services/configuracion_emergencia.py` (MINOR de #1199).
+- `scripts/perf_mysql/explain_abastecimiento.py` (nuevo) y `scripts/perf_budgets.json`
+  (`servicios.emergencia_situacion_abastecimiento`).
+- `docs/internal/analisis/009-emergencia-tablero-estrategico.md` (B12, HU-9.7 e historial; MINOR de #1226).
+
+## Archivos
+
+Los de «Implementación», más `programas/tests/test_emergencia_abastecimiento.py` (nuevo),
+`programas/tests/test_emergencia_regla_consumo.py`, `programas/tests/test_emergencia_situacion_vista.py` y
+`programas/tests/test_pantalla_situacion_emergencia.py`.
+
+## Base de datos
+
+`programas.0130_indice_recepcion_entregas`: un `AddIndex` (`entrega_kit_recibida_en_idx`). Solo expand, sin columnas ni
+datos. Aplicada, revertida y vuelta a aplicar en MariaDB 10.11.
+
+## Validación
+
+- `test_emergencia_abastecimiento.py`:
+  - reglas puras: un test por fórmula (RN-009-16 a 20; TC-1187-07 a 11, 20, 23 y 24), cobertura, urgencia y orden
+    (TC-1187-21), el ítem «por lactante» nunca recibido con algo en camino, `presentar_salud` (TC-1187-28 a 32) y el
+    orden de la salud por nombre (3 personas en 2 dispositivos);
+  - armado sobre un escenario hecho a mano: TC-1187-06, 08 a 10 y 12 (la escuela queda cubierta), 13 a 22, 27, 32 a 34,
+    36 a 38;
+  - la vista: TC-1187-01 a 05, 14, 25 a 29, 32, 35, 39 y 40;
+  - `--tag performance`: TC-1187-41.
+  Sin test automático: TC-1187-11 sobre la base (lo cubre la regla pura y TC-1187-08), 26 de punta a punta (abrir el
+  paso 2 de E4 lo prueba E4) y lo visual de 21 (badges).
+- **Consultas** (50 dispositivos, 30 ítems, 2.000 entregas y 3.000 alojados): la solapa **4**; la vista **22** con
+  `?tab=abastecimiento` (18 + 4) como supervisor y como autoridad, y **18** sin la solapa. Con un evento anterior
+  sembrado (2.000 entregas recibidas y 3.000 egresados antes del inicio), las mismas consultas y el mismo resultado.
+- **`EXPLAIN` en MariaDB 10.11** descartable (`explain_abastecimiento.py`, 20 corridas; 12.000 entregas —10.000
+  recibidas de un evento anterior— con 36.000 líneas, 23.300 integrantes —20.000 egresados de un evento anterior, cada
+  uno con su estadía— y 3.000 alojados en 50 dispositivos). **Receta para volver a medirlo:** la base de
+  `scripts/perf_mysql/README.md` (MariaDB 10.11 descartable y `manage.py migrate`), después
+  `explain_abastecimiento.py --sembrar` (deja exactamente este banco) y `explain_abastecimiento.py`; el «antes» con
+  `manage.py migrate programas 0129`. Vuelto a correr así con el mismo resultado:
+
+  | # | Lectura | Plan antes → después de `0130` | Lecturas del handler | ms |
+  |---|---|---|---:|---:|
+  | A1 | Catálogo | `ALL` sobre 30 ítems | 31 | 0,5–1 |
+  | A2 | Recibido desde el inicio | `ALL` sobre `entregakit` (12.023) → `range` en `recibida_en` | 17.782 → 6.582 | 7,2 → 5,9 |
+  | A3 | En camino y preparadas | `range` en `estado` (sin cambio) | 6.583 | 5,6–6,2 |
+  | A4 | Personas | `ref` con filtro de rowid en `egresado_en` (sin cambio) | 8.403 | 25–26 |
+
+  A4 llevaba un `ORDER BY` del orden del modelo que costaba un *filesort*: se quitó (`order_by()`).
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py`, `ruff`, `design_audit.py --ratchet` (0 nuevos),
+  `--arquetipo dashboard` OK, `compile_templates.py --bloques` 0, `check_design_agent.py`, `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Aplicar `programas.0130` (un índice). Cargar en E7 la fecha de inicio del evento y las reglas de cada ítem: sin fecha la
+solapa lo pide; sin reglas, también.
+
+## Pendientes / a definir
+
+1. **Decisión abierta:** la urgencia mira solo los ítems con faltan > 0 (decisión 5); si el PM quiere que un ítem
+   sin cubrir y tapado por lo preparado siga siendo Crítica, es una línea en `urgencia`. El ítem «por lactante» nunca
+   recibido ya es Crítico aunque haya algo en camino (RN-009-20).
+2. **Decisión abierta:** la salud logística va dentro de «Necesita atención» (AE-9 y AE-10) y no en un bloque propio.
+3. **Decisión abierta:** «Cómo se calcula» lista la regla vigente de cada ítem, pero no **desde cuándo** rige (la traza
+   de E7 costaría una consulta más).
+4. Límite conocido de la estimación (§7): una persona trasladada de estadía deja de imputar consumo en el origen.
+
+## Reversión
+
+1. Desplegar el código anterior: el índice queda y el código viejo no lo nota; la solapa vuelve a ser un estado vacío.
+2. Solo si hace falta volver el esquema: `manage.py migrate programas 0129` borra `entrega_kit_recibida_en_idx`. No se
+   pierde ningún dato.
+
+## Historial
+
+- **19/11/2026:** alta del cambio.
+- **19/11/2026 — auditoría del PR #1227** (1 MAJOR y MINOR): la salud y los lactantes se listan por nombre y no por
+  conteo (RN-009-21 b); el ítem «por lactante» nunca recibido es Crítico aunque haya algo en camino; título de AE-10 sin
+  concordancia; AE-6 conserva los filtros (`ACCIONES_DE_ALERTA`); los estados del panel los arma la pantalla y el
+  template recibe booleanos; `local` y `badge` públicos; tests del panel con y sin filtro, de «Inactivo» en su fila, de
+  «Configurar» y de TC-1187-18; `explain_abastecimiento.py --sembrar`.
+
+---
+
+# Cambio 511 — Auditoría 2026-11: banco de Emergencia y Dispositivos (#1220) y mediciones volcadas a los informes
 
 🟢 **HECHO — 19/11/2026**
 

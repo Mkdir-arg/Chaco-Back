@@ -20,6 +20,8 @@ PROGRAMA_EMERGENCIA_CODIGO = rbac.CODIGO_PROGRAMA_EMERGENCIA
 CAP_EMERGENCIA_RELEVAR = "emergencia.relevar"
 CAP_EMERGENCIA_OPERAR = "emergencia.operar"
 CAP_SUPERVISAR = "emergencia.supervisar"
+#: E8 «Situación» (análisis 009, §3.2): la de las autoridades, que miran sin operar la mesa.
+CAP_VER_SITUACION = "emergencia.ver_situacion"
 #: Las dos de la guardia del dispositivo. Son del programa **Dispositivos** (RU-8, hallazgo
 #: H3 del plan): se evalúan con el Equipo de cada institución, no con el programa EMERGENCIA.
 CAP_ADMITIR = "dispositivo.admitir"
@@ -57,6 +59,15 @@ def puede_operar_la_mesa(user):
     regla no puede depender de eso.
     """
     return puede_en_programa_emergencia(user, CAP_EMERGENCIA_OPERAR) or puede_supervisar_la_mesa(user)
+
+
+def puede_ver_situacion(user):
+    """¿Ve E8? ``emergencia.ver_situacion`` **o** ``emergencia.supervisar`` en el programa.
+
+    Supervisar implica ver la situación (análisis 009, §3.2), igual que implica operar: la regla
+    no depende de cómo se armó el rol. Operar sola no alcanza.
+    """
+    return puede_en_programa_emergencia(user, CAP_VER_SITUACION) or puede_supervisar_la_mesa(user)
 
 
 def roles_en_app(user):

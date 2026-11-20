@@ -1289,6 +1289,10 @@ class Estadia(TimeStamped):
             models.Index(fields=["ciudadano", "estado"]),
             # El que usa el servicio de ocupación para contar las ocupadas por sector.
             models.Index(fields=["plaza", "estado"]),
+            # El ritmo de ingresos y egresos de las últimas 6 h (E8; el tablero de Dispositivos mide
+            # sus 14 días con las mismas columnas): `fecha_ingreso >= x OR fecha_egreso >= x`.
+            models.Index(fields=["fecha_ingreso"], name="estadia_fecha_ingreso_idx"),
+            models.Index(fields=["fecha_egreso"], name="estadia_fecha_egreso_idx"),
         ]
 
     def __str__(self):
@@ -5679,6 +5683,11 @@ class IntegranteGrupo(TimeStamped):
             # Sin `condition=`: las filas sin persona (NULL) no chocan en MySQL, MariaDB ni SQLite.
             models.UniqueConstraint(fields=["grupo", "ciudadano"], name="integrante_persona_unica_por_grupo"),
         ]
+        indexes = [
+            # Las personas alojadas de E8 (y A4 de Abastecimiento): `egresado_en IS NULL OR >= x`.
+            # Sin él, los egresados de eventos anteriores se recorren enteros (EXPLAIN del Cambio 509).
+            models.Index(fields=["egresado_en"], name="integrante_egresado_en_idx"),
+        ]
 
     def __str__(self):
         quien = self.ciudadano.apellido_nombre if self.ciudadano_id else "sin confirmar"
@@ -6087,6 +6096,10 @@ class Derivacion(TimeStamped):
         indexes = [
             # Lo que busca la guardia: las derivaciones pendientes de su dispositivo.
             models.Index(fields=["dispositivo", "estado"]),
+            # E8 lee por estado sin dispositivo: las pendientes de toda la red y las rechazadas o
+            # vencidas creadas desde el inicio de la ventana. El de arriba no sirve para eso
+            # (EXPLAIN del Cambio 509: de recorrer la tabla a un `range`).
+            models.Index(fields=["estado", "creado"], name="derivacion_estado_creado_idx"),
         ]
 
     def __str__(self):
@@ -6415,6 +6428,13 @@ class EntregaKit(TimeStamped):
         indexes = [
             # Las pendientes de un dispositivo (M3, recepción web) y las solapas de la mesa.
             models.Index(fields=["dispositivo", "estado"]),
+            # La logística de E8: `despachada_en >= x OR estado = EN_CAMINO`. Con los dos, *index merge*
+            # en vez de recorrer la tabla (EXPLAIN del Cambio 509).
+            models.Index(fields=["despachada_en"], name="entrega_kit_despachada_en_idx"),
+            models.Index(fields=["estado"], name="entrega_kit_estado_idx"),
+            # Lo recibido desde el inicio del evento (A2 de Abastecimiento, E8): sin él, las recibidas de
+            # eventos anteriores se recorren enteras (EXPLAIN del Cambio 510).
+            models.Index(fields=["recibida_en"], name="entrega_kit_recibida_en_idx"),
         ]
 
     def __str__(self):

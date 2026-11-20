@@ -6,7 +6,8 @@ distancia o por tensión. **Siguen sumando** en los totales (camas libres, capac
 red, alertas agregadas): esos bloques no muestran dónde quedan.
 
 Es la definición única que usan los puntos del mapa, «más tensionados», las camas cercanas y
-AE-5 de E8 (``selectors.emergencia_situacion``) y, cuando llegue, el tablero de Dispositivos.
+AE-5 de E8 (``services.situacion_emergencia`` y ``services.alertas_situacion_emergencia``) y,
+cuando llegue, el tablero de Dispositivos.
 El filtro se hace acá, en el servidor; nunca con CSS.
 
 No se aplica al panel «Derivar» de la mesa (``selectors.emergencia.dispositivos_para_derivar``):
