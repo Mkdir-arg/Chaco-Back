@@ -57956,8 +57956,10 @@ no toca el esquema) y se las da al Administrador. Segura sobre datos existentes;
   de Emergencia OK; punta a punta sobre «Nuevo caso» real: 5 de 5 (no carga Google al abrir, busca con la
   localidad elegida, Enter no envía).
 
-- Fase 3, pieza: `MapaCapasTest` (puntos y capas escapados, sin key, a pedido, alto) OK; punta a punta con
-  Playwright sobre el shell real con un doble de Google Maps: 40 de 40 (círculos, sin detalle, solapa oculta que
+- Fase 3, pieza: `MapaCapasTest` (puntos escapados y sin JSON de capas, sin key, a pedido, alto, `detalle=False`,
+  solo lo que pasa la vista) OK; punta a punta con Playwright sobre el shell real con un doble de Google Maps: 45 de
+  45 (`url` con tab que sale a otro dominio descartada, asa del panel con `aria-expanded`, punto elegido centrado
+  fuera del panel lateral y de la hoja inferior, círculos, sin detalle, solapa oculta que
   no carga Google hasta mostrarse y vuelve a encuadrar, descarta coordenadas inválidas, ícono y
   tono fuera de lista, etiqueta como texto, capas, subfiltros, búsqueda sin tildes, lista ↔ marcador, enlace
   interno y `javascript:` descartado, acciones, arrastre, API, modo clic, a pedido sin pedir a Google, encuadre
@@ -58006,7 +58008,8 @@ coordenadas cargadas en los legajos. En Dispositivo no hay migración: las coord
 - **20/11/2026:** auditoría del PR #1221 sobre la pieza (CHANGES NEEDED): `url` con tab o salto de línea que
   salía a otro dominio (MAJOR), asa del panel en celular, centrado del punto elegido fuera del panel, JSON de
   `capas` sin uso, búsqueda sin trabajo repetido, `<li>` padre inmediato, radios con token y fila del agente.
-  Corregido en el mismo PR.
+  Corregido en el mismo PR y revalidado: 45 de 45 de punta a punta y `MapaCapasTest`; la búsqueda pasa de 17 a
+  0,9 ms por tecla con 5000 puntos (medido sin DOM). Segunda ronda: APPROVE.
 
 ---
 
