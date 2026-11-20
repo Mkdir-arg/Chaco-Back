@@ -181,7 +181,7 @@ Relaciones que NO se fusionaron (misma familia, otro archivo o otra causa; van c
 
 ## 3. Plan por olas
 
-Lo urgente primero; después por tema y por archivo, para que los PRs no se pisen. Horas con S=2, S-M=4, M=8, L=20. Un issue por ola. Se ajustó la propuesta del juez: la Ola 0 junta las dos ALTA de datos personales con la casilla de identidad; la Ola 1 es la idempotencia desde la web; la Ola 2 es performance y va **después de medir**; la Ola 3 reúne las correcciones menores y el cron (DECISIÓN CLIENTE); la Ola 4 y la 5 son el trabajo de fondo (dominio fuera de las vistas y traductor único de errores), la Ola 6 ordena los servicios de la etapa 3, y las olas 7 a 9 son limpieza.
+Lo urgente primero; después por tema y por archivo, para que los PRs no se pisen. Horas con S=2, S-M=4, M=8, L=20. Un issue por ola. Se ajustó la propuesta del juez: la Ola 0 junta las dos ALTA de datos personales con la casilla de identidad; la Ola 1 es la idempotencia desde la web; la Ola 2 es performance, **ya medida** (Cambio 511: E-PERF-01 y E-PERF-03 son ALTA y van primero); la Ola 3 reúne las correcciones menores y el cron (DECISIÓN CLIENTE); la Ola 4 y la 5 son el trabajo de fondo (dominio fuera de las vistas y traductor único de errores), la Ola 6 ordena los servicios de la etapa 3, y las olas 7 a 9 son limpieza.
 
 | Ola | Nombre | Fichas | Horas |
 |---|---|---|---|

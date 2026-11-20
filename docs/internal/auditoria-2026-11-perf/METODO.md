@@ -6,6 +6,8 @@ es `/auditoria completa` (`.claude/skills/auditoria/modo-completa.md`): worktree
 (`plantillas/ficha.md`), segunda pasada que reproduce lo grave y cruce con `auditoria-2026-10` §8.
 Nada se implementa sin aprobación del PM.
 
+El detalle técnico de las fichas de seguridad abiertas lo custodia el PM fuera del repositorio público.
+
 ## 1. Revisores por tajada
 
 Cada tajada pasa por tres revisores en paralelo, con el mismo alcance (lista de archivos):
