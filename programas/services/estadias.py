@@ -111,7 +111,6 @@ from programas.models import (
 from programas.senales import estadia_egresada
 from programas.services.bitacora import anotar_en_bitacora
 from programas.services.dispositivos import (
-    dispositivos_en_alcance,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
     puede_operar_plaza,
@@ -237,9 +236,7 @@ def verificar_alojamiento_en_red(ciudadano, usuario=None):
     if estadia is None:
         return VerificacionAlojamiento(clave=clave)
 
-    dentro = dispositivos_en_alcance(usuario, CAP_ADMITIR).filter(pk=estadia.dispositivo_id).exists() and (
-        puede_operar_plaza(usuario, estadia.dispositivo, estadia.plaza_id, CAP_ADMITIR)
-    )
+    dentro = puede_operar_plaza(usuario, estadia.dispositivo, estadia.plaza_id, CAP_ADMITIR)
     if not dentro:
         # Nada de la institución cruza el límite: ni nombre, ni código, ni localidad, ni
         # fecha. El id tampoco, que enumerado contra el listado propio diría cuál es.

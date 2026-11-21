@@ -52,7 +52,7 @@ from django.utils.text import capfirst
 
 from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
-from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
+from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos, ve_la_bitacora
 from programas.services.bitacora_detalle import adjuntos_de
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.nombre_plaza import plaza_con_sector
@@ -348,7 +348,7 @@ def pantalla_bitacora(
     puede_configurar=False,
     nombrar_personas=False,
     url_base="",
-    q_entradas=None,
+    usuario=None,
 ):
     """Todo lo que dibuja P10 para un día operativo del dispositivo.
 
@@ -359,10 +359,14 @@ def pantalla_bitacora(
     ``nombrar_personas`` los resuelve la vista con ``puede_operar_dispositivo`` y
     ``rbac.puede``: acá solo deciden qué se arma.
 
-    ``q_entradas`` acota toda lectura de entradas al alcance de quien mira (``Q(pk__in=[])`` = ninguna).
+    ``usuario`` es quien mira: si no lee la bitácora (``ve_la_bitacora``: alcance Edificios) no ve entradas ni
+    personas. Sin usuario no se acota (solo para las pruebas del armado).
     """
 
-    filtro = q_entradas or Q()
+    filtro = Q()
+    if usuario is not None and not ve_la_bitacora(usuario, dispositivo):
+        filtro = Q(pk__in=[])
+        nombrar_personas = False
 
     ahora = ahora or timezone.now()
     turnos = turnos_activos(dispositivo)

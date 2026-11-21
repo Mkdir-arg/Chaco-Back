@@ -56,7 +56,12 @@ from programas.models import (
     Turno,
 )
 from programas.services.bitacora_detalle import plural as _plural
-from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_institucion
+from programas.services.dispositivos import (
+    CAP_VER,
+    alcance_de_edificios,
+    puede_operar_dispositivo,
+    puede_operar_institucion,
+)
 from programas.services.nombre_plaza import nombre_de_plaza
 
 #: Cargar y corregir novedades del turno.
@@ -393,6 +398,17 @@ VENTANA_DOBLE_ENVIO = timedelta(seconds=10)
 
 @archivos_atomicos
 @transaction.atomic
+def ve_la_bitacora(usuario, dispositivo):
+    """Si ``usuario`` lee la bitácora de ``dispositivo``: ``dispositivo.ver`` con alcance sobre **toda** la institución.
+
+    Es el único dueño de esta regla (Cambio 523): las novedades todavía no llevan edificio, así que con alcance
+    Edificios no se leen, ni se corrigen, ni se nombran ni se vinculan personas. La usan la pantalla, el detalle, el
+    alta y la corrección.
+    """
+
+    return alcance_de_edificios(usuario, dispositivo, CAP_VER).todo
+
+
 def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=()):
     """Carga una novedad del turno en curso. Devuelve la `EntradaBitacora` (versión 1).
 
@@ -416,6 +432,8 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
     # Primero las estadías de `personas`, en orden de pk, y recién después el dispositivo: egreso,
     # cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el
     # dispositivo (FK). Con el orden inverso acá, los dos se esperan: deadlock.
+    if not ve_la_bitacora(usuario, dispositivo):
+        personas = ()  # quien no lee la bitácora no vincula personas
     ids_personas = _ids_de_personas(personas)
     if ids_personas:
         list(
@@ -729,7 +747,9 @@ def corregir_entrada(
     borra un adjunto ni su archivo.
     """
 
-    if not puede_operar_dispositivo(usuario, entrada.dispositivo, CAP_BITACORA):
+    if not puede_operar_dispositivo(usuario, entrada.dispositivo, CAP_BITACORA) or not ve_la_bitacora(
+        usuario, entrada.dispositivo
+    ):
         raise PermissionDenied("No tenés alcance para cargar la bitácora de este dispositivo.")
 
     # Primero la original, siempre: es la fila común a todas las correcciones de la

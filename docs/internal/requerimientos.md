@@ -60816,7 +60816,7 @@ No requiere más que el deploy (corre la migración).
 ## Pendientes / a definir
 PR 3 y 4 del plan. Decisiones revisables: turnos por institución; la mesa todavía no elige el edificio al armar una
 entrega de kits (con varios edificios la entrega nueva queda sin edificio y solo la ve alcance Institución); el Historial de la institución queda vacío
-con alcance Edificios hasta que la bitácora lleve edificio (PR 3), y la bitácora P10 (novedades, personas, actas) también, aunque el censo del día sigue mostrando los totales de la institución; validar, observar y rechazar siguen por
+con alcance Edificios hasta que la bitácora lleve edificio (PR 3), y la bitácora P10 (novedades, personas, actas) también, aunque el censo del día sigue mostrando los totales de la institución. Con alcance Edificios **se carga pero no se ve**: puede registrar una novedad (sin personas) y no la lee ni la corrige hasta el PR 3; la regla es un solo predicado, `ve_la_bitacora`, que usan el servicio, la pantalla, el detalle y la corrección; validar, observar y rechazar siguen por
 institución.
 
 ## Reversión
