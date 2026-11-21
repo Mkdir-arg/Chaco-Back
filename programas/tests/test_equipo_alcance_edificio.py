@@ -30,12 +30,14 @@ from programas.models import (
     Edificio,
     EntradaBitacora,
     EntregaKit,
+    InspeccionEdificio,
     MiembroEquipoDispositivo,
     MomentoFormulario,
     Plaza,
     RespuestasIngresoEstadia,
     Sector,
     TrazaDispositivo,
+    TrazaInspeccion,
 )
 from programas.selectors import kits as selectores_kits
 from programas.services import equipo_dispositivo as equipo
@@ -50,7 +52,7 @@ from programas.services.dispositivos import (
     puede_operar_plaza,
     q_edificios_en_alcance,
 )
-from programas.services.estadias import ingresar_persona, verificar_alojamiento_en_red
+from programas.services.estadias import cambiar_plaza, ingresar_persona, verificar_alojamiento_en_red
 from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, MIERCOLES, TODO, BasePantalla, _local, _reloj
 from users.models import RolMeta
 
@@ -424,6 +426,40 @@ class CorreccionesDeAuditoriaTests(BaseAlcance):
         )
         titulos = [e["titulo"] for e in eventos_de_historial(self.cis, 1, self._fresco(self.de_inst))[1]]
         self.assertTrue(any("Edición" in titulo for titulo in titulos))
+
+    def _titulos_del_historial(self, usuario):
+        return [e["titulo"] for e in eventos_de_historial(self.cis, 1, self._fresco(usuario))[1]]
+
+    def test_la_correccion_de_una_novedad_ajena_no_esta_en_el_historial_de_edificios(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), texto="Original B", edificio=self.edif_b)
+        with _reloj():
+            corregir_entrada(entrada=entrada, usuario=self.de_inst, texto="Corregida B")
+        titulo = "Corrección de una novedad de la bitácora"
+        self.assertNotIn(titulo, self._titulos_del_historial(self.de_a))
+        self.assertIn(titulo, self._titulos_del_historial(self.de_inst))
+
+    def test_la_traza_de_un_relevamiento_de_otro_edificio_no_esta_en_el_historial_de_edificios(self):
+        inspeccion = InspeccionEdificio.objects.create(
+            edificio=self.edif_b,
+            estado=InspeccionEdificio.Estado.ASIGNADA,
+            asignado_a=self.de_inst,
+            creado_por=self.de_inst,
+            fecha_vencimiento=_local(MIERCOLES, 15).date(),
+        )
+        TrazaInspeccion.objects.create(inspeccion=inspeccion, accion=TrazaInspeccion.Accion.ASIGNADA, detalle="x")
+        titulo = TrazaInspeccion.Accion.ASIGNADA.label
+        self.assertNotIn(titulo, self._titulos_del_historial(self.de_a))
+        self.assertIn(titulo, self._titulos_del_historial(self.de_inst))
+
+    def test_un_traslado_desde_una_plaza_de_mi_edificio_si_esta_en_mi_historial(self):
+        persona = Ciudadano.objects.create(dni="30999555", nombre="Ina", apellido="Gil")
+        plaza = Plaza.objects.create(sector=self.sector_a, codigo="A-09")
+        estadia = self._ingresar(persona, plaza, _local(MARTES, 13))
+        with _reloj():
+            cambiar_plaza(estadia=estadia, plaza=self.plaza_b, usuario=self.operador, motivo="Traslado")
+        for usuario in (self.de_a, self.de_inst):
+            titulos = self._titulos_del_historial(usuario)
+            self.assertTrue(any(t.startswith("Cambio de") for t in titulos), titulos)
 
     # 5. bitácora de la institución
     def test_la_bitacora_no_muestra_entradas_a_quien_solo_tiene_edificios(self):
