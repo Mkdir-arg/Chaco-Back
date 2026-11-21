@@ -648,6 +648,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 1 de 4: columnas y desplegable) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 1 de 4** | `programas.0132` |
 | 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 525 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60584,6 +60585,7 @@ del domicilio de los casos cargados desde la mesa.
   `ubicar_domicilio`, guardar solo respuestas precisas del Geocoder y no mandar a Google los edificios que solo
   tienen centroide. Se ordena la elección del conteo de `derivar_caso`
   (MINOR de la auditoría del PR #1271).
+- **21/11/2026:** el pendiente «Ubicar en el mapa» en el formulario de edificio se resolvió en el Cambio 525.
 
 # Cambio 521 — Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso
 
@@ -60872,3 +60874,76 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 
 - **21/11/2026:** alta del cambio.
 - **21/11/2026:** MINOR de la auditoría del #1286: el estado vacío (sin edificio) deja de tener su propio «Cargar edificio», que duplicaba el de la barra; el texto remite a «Agregar edificio». El test de estados vacíos exige una sola aparición de `edificio=nuevo`.
+
+
+# Cambio 525 — Dispositivos · formulario de edificio: «Ubicar en el mapa»
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo (P19, solapa Infraestructura, modal «Cargar / Editar edificio») |
+| **Etiquetas** | `#dispositivos` `#gps` `#ui` `#datos` |
+| **Solicitante** | Usuario — pendiente del Cambio 520 |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere (`Edificio.latitud/longitud` ya existían) |
+
+## Pedido original
+Pendiente que dejó el Cambio 520: «Ubicar en el mapa» en el formulario de edificio. Ninguna pantalla cargaba las
+coordenadas del edificio y la distancia de «Derivar» de Emergencia las necesita.
+
+## Alcance acordado
+Reusar la pieza de domicilio con mapa del Cambio 493 (`components/_ubicacion_domicilio.html`, `nodo-ubicacion.js`) en
+el modal del edificio. Afuera: el aviso cuando el domicilio que devuelve Google es aproximado (espera decisión del
+usuario).
+
+## Decisiones tomadas
+- **Misma pieza, un parámetro nuevo.** El edificio separa calle y número, y la pieza espera un solo domicilio:
+  `domicilio_extra_id` (`data-domicilio-extra`) suma el texto de otro control a la búsqueda («calle número, localidad,
+  provincia, Argentina»). El campo con mapa es **Calle**; localidad y provincia son controles de texto del mismo modal.
+- **A pedido**: el modal está cerrado al cargar la página y un mapa creado ahí nace sin tamaño; así además la
+  pantalla no le habla a Google hasta que alguien toca «Ubicar en el mapa» (o «Ver en el mapa» con punto guardado).
+  La pantalla solo carga Google y la pieza cuando el modal de edificio está abierto.
+- **Sin key de Google** el formulario sigue igual: calle, número, latitud y longitud a mano, con el aviso de la pieza.
+- **Un punto a medias o fuera de rango se rechaza** (`core.coordenadas`: ±90/±180 y «las dos o ninguna»), como en
+  Ciudadano y Emergencia. Vaciar las dos en el formulario borra el punto.
+- **Una llamada al servicio que no trae las coordenadas no las toca** (`editar_edificio`); el formulario las manda
+  siempre.
+
+## Implementación
+`EdificioForm` suma `latitud` y `longitud` (y `clean` con `exigir_par`); `services/edificios.py` las guarda
+(`COORDENADAS`); el modal de `legajo/detail.html` incluye la pieza en lugar del campo Calle y carga el cargador de
+Google, `nodo-ubicacion.js` y `nodo-ubicacion.css` solo con el modal abierto.
+
+## Archivos
+`programas/forms_dispositivos.py`, `programas/services/edificios.py`,
+`programas/templates/programas/dispositivos/legajo/detail.html`, `templates/components/_ubicacion_domicilio.html`,
+`static/custom/js/nodo-ubicacion.js`, `.claude/design/componentes/ubicacion_domicilio.md`,
+`.claude/agents/chaco-design-system.md`; tests en `programas/tests/test_dispositivos_edificio_ubicar.py` (nuevo) y
+`core/tests/test_nodo_ui_piezas.py`.
+
+## Base de datos
+No requiere: las columnas existían desde la etapa 1.
+
+## Validación
+`manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent
+--base origin/development` y ruff: OK; tests de Dispositivos, Emergencia y `test_nodo_ui_piezas` OK. Los tests nuevos
+del punto (alta, edición, vaciado, par a medias, rango, servicio sin coordenadas) y del modal (pieza cableada,
+sin key, sin modal no hay Google) se verificaron por mutación.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- El aviso cuando el domicilio que ubica Google es aproximado (espera decisión del usuario).
+- Un edificio de ubicación reservada (Cambio 499) también puede buscarse con Google desde este formulario: la
+  dirección sale hacia Google con la acción del operador. Confirmar si debe ofrecerse solo la carga a mano.
+
+## Reversión
+Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las lee «Derivar».
+
+## Historial
+
+- **21/11/2026:** alta del cambio.

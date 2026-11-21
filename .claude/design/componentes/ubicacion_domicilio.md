@@ -7,7 +7,7 @@
 (`programas/templates/programas/dispositivos/legajo/form.html`). **A pedido:** alta manual, confirmación con
 RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_form.html`,
 `ciudadano_confirmar_form.html`, `ciudadano_edit_form.html`) y la dirección del Formulario 1 de Emergencia, en
-«Nuevo caso» de la mesa y en la puerta del dispositivo (`programas/templates/programas/emergencia/_formulario1_bloques.html`).
+«Nuevo caso» de la mesa y en la puerta del dispositivo (`programas/templates/programas/emergencia/_formulario1_bloques.html`) y el modal de edificio de la solapa Infraestructura del legajo de Dispositivos (`dispositivos/legajo/detail.html`: calle con `domicilio_extra_id` = número, y localidad y provincia como controles de texto; a pedido porque el modal está cerrado al cargar y un mapa creado ahí nace sin tamaño).
 **Depende de:** el cargador de Google Maps (`.claude/design/componentes/mapa_google.md`).
 
 ## Invocación
@@ -30,6 +30,7 @@ RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_fo
 |---|---|
 | `domicilio`, `latitud`, `longitud` | BoundField. Label, ayuda y error con el mismo marcado que `_field.html` |
 | `localidad_id` | Opcional. El texto de la opción elegida se suma a la búsqueda |
+| `domicilio_extra_id` | Opcional. Id de otro control cuyo texto se suma al domicilio al buscar (`data-domicilio-extra`): la altura, cuando calle y número son campos separados |
 | `provincia_id` | Opcional. Id del control de provincia; si tiene una elegida, reemplaza a `provincia` |
 | `provincia` | Opcional, «Chaco» por defecto |
 | `a_pedido` | Opcional. Con `True` la pantalla no le pide nada a Google al abrirse: el mapa carga con «Ubicar en el mapa» o, si ya hay coordenadas, con «Ver en el mapa». **Obligatorio en el domicilio de una persona** (SEC-33) |

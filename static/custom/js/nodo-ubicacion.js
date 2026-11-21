@@ -6,6 +6,7 @@
  *   - «Ubicar en el mapa» (o Enter en el domicilio) geocodifica «domicilio, localidad, provincia, Argentina».
  *   - Un resultado: pone el marcador. Varios: lista para elegir. Ninguno: aviso y se marca tocando el mapa.
  *   - El marcador se arrastra y un clic en el mapa lo mueve; latitud y longitud se escriben en los campos.
+ * `data-domicilio-extra` (opcional): id de otro control cuyo texto se suma al domicilio (calle + número).
  * Con `data-a-pedido` (domicilio de una persona, SEC-33) no se le pide nada a Google al abrir la
  * pantalla: el mapa carga recién con «Ubicar en el mapa» o «Ver en el mapa».
  * Requiere window.NodoMapa (components/_google_maps.html), cargado antes que este archivo.
@@ -43,6 +44,7 @@
     var campoDomicilio = document.getElementById(raiz.dataset.domicilio);
     var campoLat = document.getElementById(raiz.dataset.latitud);
     var campoLng = document.getElementById(raiz.dataset.longitud);
+    var campoExtra = raiz.dataset.domicilioExtra ? document.getElementById(raiz.dataset.domicilioExtra) : null;
     var campoLocalidad = raiz.dataset.localidad ? document.getElementById(raiz.dataset.localidad) : null;
     var campoProvincia = raiz.dataset.provinciaId ? document.getElementById(raiz.dataset.provinciaId) : null;
     var aPedido = raiz.hasAttribute('data-a-pedido');
@@ -84,7 +86,8 @@
       return opcion && opcion.value ? opcion.text.trim() : '';
     }
     function consulta() {
-      var partes = [campoDomicilio.value.trim()];
+      // `data-domicilio-extra`: la altura cuando va en su propio control (el edificio separa calle y número).
+      var partes = [[campoDomicilio.value, campoExtra ? campoExtra.value : ''].join(' ').trim().replace(/\s+/g, ' ')];
       var localidad = textoDe(campoLocalidad);
       if (localidad) { partes.push(localidad); }
       partes.push(textoDe(campoProvincia) || raiz.dataset.provincia || 'Chaco', 'Argentina');
@@ -293,7 +296,8 @@
       if (consultaUbicada && marcador) { estado(consulta() === consultaUbicada ? 'google' : 'cambio'); }
     }
     campoDomicilio.addEventListener('input', revisarCambio);
-    if (campoLocalidad) { campoLocalidad.addEventListener('change', revisarCambio); }
+    if (campoLocalidad) { campoLocalidad.addEventListener('change', revisarCambio); campoLocalidad.addEventListener('input', revisarCambio); }
+    if (campoExtra) { campoExtra.addEventListener('input', revisarCambio); }
     toggle.addEventListener('click', function () { abrirManual(manual.hidden); });
     function desdeCampos() {
       var lat = numero(campoLat.value), lng = numero(campoLng.value);
