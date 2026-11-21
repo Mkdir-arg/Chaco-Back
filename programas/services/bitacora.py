@@ -397,8 +397,6 @@ def _guardar_adjuntos(dispositivo, usuario, archivos, *, heredados=0):
 VENTANA_DOBLE_ENVIO = timedelta(seconds=10)
 
 
-@archivos_atomicos
-@transaction.atomic
 def edificios_para_novedad(usuario, dispositivo):
     """``(edificios, obligatorio)``: los edificios del dispositivo entre los que ``usuario`` carga una novedad.
 
@@ -432,6 +430,8 @@ def _edificio_de_la_novedad(usuario, dispositivo, edificio):
     return pedido
 
 
+@archivos_atomicos
+@transaction.atomic
 def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=(), edificio=None):
     """Carga una novedad del turno en curso. Devuelve la `EntradaBitacora` (versión 1).
 
