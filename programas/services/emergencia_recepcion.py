@@ -19,9 +19,11 @@ from programas.models import (
     Derivacion,
 )
 from programas.selectors.emergencia_alojar import camas_libres
+from programas.services.dispositivos import q_edificios_en_alcance
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _hora, _nombre_de, _trazar
 from programas.services.emergencia_ingreso_comun import (
+    CAP_ADMITIR,
     Accion,
     Estado,
     _anotar_en_bitacora,
@@ -139,7 +141,7 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     if not dni_valido(dni):
         raise ValidationError({"dni": MENSAJE_DNI_INVALIDO})
 
-    libres = len(camas_libres(dispositivo))
+    libres = len(camas_libres(dispositivo, usuario=usuario))
     ciudadano = buscar_ciudadano_por_dni(dni)
     if ciudadano is None:
         return ResultadoBusqueda(BUSQUEDA_SIN_DERIVACION, dni, plazas_libres=libres, mensaje=SIN_DERIVACION)
@@ -154,6 +156,8 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
             estado__in=Derivacion.ESTADOS_VIGENTES,
             caso__estado__in=(Estado.DERIVADO, Estado.INGRESO_EN_CURSO),
         )
+        # Con alcance Edificios, solo lo derivado a uno de sus edificios: la de otro es «sin derivación».
+        .filter(q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id"))
         .select_related("caso__grupo__responsable", "caso__localidad", "derivada_por", "respondida_por")
         .distinct()
         .order_by("-id")
@@ -245,7 +249,7 @@ def aceptar_derivacion(*, derivacion, usuario):
     derivacion = _bloquear_derivacion(derivacion.pk, caso, dispositivo)
     _exigir_pendiente(caso, derivacion)
 
-    libres = camas_libres(dispositivo)
+    libres = camas_libres(dispositivo, usuario=usuario)
     if not libres:
         raise ValidationError({"plazas": SIN_PLAZAS_PARA_ACEPTAR})
 
@@ -274,7 +278,11 @@ def aceptar_derivacion(*, derivacion, usuario):
         detalle=f"Derivación aceptada por {dispositivo.nombre} · {resumen}",
     )
     _anotar_en_bitacora(
-        dispositivo, usuario, f"Emergencia · derivación aceptada · caso N.° {caso.numero} · {resumen}", ahora
+        dispositivo,
+        usuario,
+        f"Emergencia · derivación aceptada · caso N.° {caso.numero} · {resumen}",
+        ahora,
+        derivacion.edificio_id,
     )
     mensaje = f"Reservé {reservadas} de {pedidas}"
     mensaje = f"{mensaje} · faltan {_camas(faltantes)}" if faltantes else f"{mensaje} camas"

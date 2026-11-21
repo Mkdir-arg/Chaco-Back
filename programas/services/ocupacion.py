@@ -300,16 +300,18 @@ def alojada_en(fecha_ingreso, fecha_egreso, momento) -> bool:
     return fecha_ingreso < momento and (fecha_egreso is None or fecha_egreso >= momento)
 
 
-def estadias_alojadas_entre(dispositivo, desde, hasta):
+def estadias_alojadas_entre(dispositivo, desde, hasta, *, q_estadias=None):
     """``(fecha_ingreso, fecha_egreso)`` de las estadías alojadas en algún instante de ``[desde, hasta]``.
 
     Es el universo sobre el que :func:`alojada_en` se evalúa en Python para cualquier
     instante del rango: una consulta para todo el rango y no una por instante. Filtra
-    solo por fechas, sin ``Trunc*``. ``dispositivo`` es la instancia o su id.
+    solo por fechas, sin ``Trunc*``. ``dispositivo`` es la instancia o su id. ``q_estadias`` acota las estadías
+    (``Q`` sobre ``Estadia``): el alcance por edificio de quien mira.
     """
 
     return (
         Estadia.objects.filter(dispositivo_id=getattr(dispositivo, "pk", dispositivo), fecha_ingreso__lt=hasta)
+        .filter(q_estadias if q_estadias is not None else Q())
         .filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gte=desde))
         .order_by()
         .values_list("fecha_ingreso", "fecha_egreso")
@@ -402,7 +404,7 @@ def _reservadas_por_sector(sector_ids, momento, tipos=None):
     }
 
 
-def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
+def ocupacion_de_plazas(dispositivos, momento=None, tipos=None, *, q_sectores=None) -> Censo:
     """Las cifras de plazas de ``dispositivos`` en ``momento`` (por defecto, ahora), en tres consultas fijas.
 
     ``dispositivos`` puede ser un :class:`~programas.models.Dispositivo`, su id, o
@@ -420,6 +422,10 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     sectores siguen apareciendo todos, en cero si no tienen plazas de esos tipos. Se
     normaliza una vez al entrar: un generador vale, un ``str`` es un solo tipo y ``()`` no
     cuenta ninguna plaza.
+
+    ``q_sectores`` acota **los sectores** que se cuentan (``Q`` sobre ``Sector``): el alcance por edificio
+    (``dispositivos.q_edificios_en_alcance(usuario, cap, "dispositivo_id", "edificio_id")``). Va dentro de las
+    mismas consultas; un sector fuera del alcance ni se lista ni suma.
     """
 
     ids = _ids_de(dispositivos)
@@ -431,6 +437,7 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     if ids:
         filas = (
             Sector.objects.filter(dispositivo_id__in=ids, activo=True)
+            .filter(q_sectores if q_sectores is not None else Q())
             .values("id", "dispositivo_id", "edificio_id", "nombre", "tipo", "capacidad")
             # Un `Count` con `filter` por cada cifra sobre el **mismo** LEFT JOIN: el
             # motor recorre las plazas una vez y agrupa. Contar sector por sector sería

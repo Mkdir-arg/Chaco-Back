@@ -13,6 +13,7 @@ PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
 CAP_VER = "dispositivo.ver"
 CAP_VER_TODOS = "dispositivo.ver_todos"
+CAP_EDITAR = "dispositivo.editar"
 #: La sección «Edificios» (#1164). Es de lectura: `ver_todos` la amplía como a `CAP_VER`.
 CAP_VER_EDIFICIOS = "edificio.ver"
 #: Las capacidades de lectura que `dispositivo.ver_todos` amplía a toda la red.
@@ -298,6 +299,170 @@ def dispositivos_operados(user, capacidad):
     return _del_equipo(user, capacidad, programa)
 
 
+class AlcanceEdificios:
+    """Lo que alguien alcanza **dentro** de una institución: todo, o solo ciertos edificios.
+
+    ``todo`` es el alcance de siempre (toda la institución). Con ``todo=False``, ``edificios`` son los ids que
+    sí alcanza; un conjunto vacío no alcanza nada (fail-closed): nunca equivale a «toda la institución».
+    """
+
+    __slots__ = ("todo", "edificios")
+
+    def __init__(self, todo, edificios=()):
+        self.todo = bool(todo)
+        self.edificios = frozenset(edificios)
+
+    def permite(self, edificio_id):
+        """Si un objeto que cuelga de ``edificio_id`` (``None`` = sin edificio) entra en el alcance."""
+
+        return self.todo or (edificio_id is not None and edificio_id in self.edificios)
+
+    def filtrar(self, queryset, campo):
+        """Acota ``queryset`` a los edificios alcanzados; ``campo`` es la ruta al id o a la FK del edificio."""
+
+        if self.todo:
+            return queryset
+        return queryset.filter(**{f"{campo}__in": list(self.edificios)})
+
+
+ALCANCE_TODO = AlcanceEdificios(True)
+ALCANCE_NADA = AlcanceEdificios(False)
+
+
+def _es_alcance_institucion(alcance):
+    """NULL (filas anteriores al campo) vale «Toda la institución»; cualquier otro valor distinto de ``EDIFICIOS``
+    también, porque el campo solo admite esos dos."""
+
+    from programas.models import MiembroEquipoDispositivo
+
+    return alcance != MiembroEquipoDispositivo.Alcance.EDIFICIOS
+
+
+def alcance_de_edificios(user, dispositivo, capacidad):
+    """El **único dueño** de «qué edificios de ``dispositivo`` alcanza ``user`` con ``capacidad``» (Cambio 523).
+
+    * Sin la capacidad en el programa, o sin ser del Equipo con un rol que la tenga: nada. (La institución
+      sigue su camino por :func:`puede_operar_dispositivo`; acá solo se acota el interior.)
+    * Admin del programa, superusuario y ``dispositivo.ver_todos`` (solo lectura): todo, sin cambios.
+    * Del Equipo: si **alguna** de sus filas activas con un rol que tiene la capacidad es de la institución
+      (o no tiene alcance cargado), todo. Si no, la **unión** de los edificios de esas filas que **siguen
+      vinculados** a la institución; si no queda ninguno, nada. Jamás cae a «toda la institución».
+    """
+
+    from programas.models import Edificio
+
+    if user is None or not getattr(user, "is_authenticated", False):
+        return ALCANCE_NADA
+    programa = programa_dispositivos(user)
+    if programa is None or not rbac.puede(user, capacidad, programa=programa):
+        return ALCANCE_NADA
+    if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
+        return ALCANCE_TODO
+    filas = list(_filtro_equipo(user, capacidad, programa).filter(dispositivo=dispositivo).values_list("pk", "alcance"))
+    if not filas:
+        return ALCANCE_NADA
+    if any(_es_alcance_institucion(alcance) for _pk, alcance in filas):
+        return ALCANCE_TODO
+    ids = Edificio.objects.filter(miembros_equipo__in=[pk for pk, _a in filas], dispositivos=dispositivo).values_list(
+        "pk", flat=True
+    )
+    return AlcanceEdificios(False, ids)
+
+
+def puede_operar_edificio(user, dispositivo, edificio_id, capacidad):
+    """:func:`puede_operar_dispositivo` más el edificio: ``edificio_id`` (``None`` = sin edificio) tiene que estar alcanzado."""
+
+    return puede_operar_dispositivo(user, dispositivo, capacidad) and alcance_de_edificios(
+        user, dispositivo, capacidad
+    ).permite(edificio_id)
+
+
+def _edificio_de_plaza(plaza):
+    """El edificio del sector de ``plaza`` (un ``Plaza``, su id, o ``None``); ``None`` si no hay plaza o sector sin edificio."""
+
+    from programas.models import Plaza
+
+    if plaza is None:
+        return None
+    if isinstance(plaza, Plaza):
+        return plaza.sector.edificio_id
+    return Plaza.objects.filter(pk=plaza).values_list("sector__edificio_id", flat=True).first()
+
+
+def puede_operar_plaza(user, dispositivo, plaza, capacidad):
+    """:func:`puede_operar_dispositivo` más el edificio de la plaza (``None`` = sin plaza: solo alcance institución).
+
+    Es el punto por el que pasan ingreso, egreso, cambio de plaza, reservas y las acciones sobre una plaza (RN4).
+    Una plaza de un sector sin edificio, o ninguna plaza, no entra con alcance Edificios.
+    """
+
+    if not puede_operar_dispositivo(user, dispositivo, capacidad):
+        return False
+    alcance = alcance_de_edificios(user, dispositivo, capacidad)
+    return alcance.todo or alcance.permite(_edificio_de_plaza(plaza))
+
+
+def puede_operar_institucion(user, dispositivo, capacidad):
+    """:func:`puede_operar_dispositivo` **y** alcance sobre toda la institución (no solo ciertos edificios).
+
+    Para lo que no cuelga de un edificio (el legajo, las entregas de kits, el ingreso directo de Emergencia):
+    con alcance Edificios no se puede, fail-closed.
+    """
+
+    # `alcance_de_edificios` ya exige la capacidad y la membresía: «todo» implica `puede_operar_dispositivo`,
+    # con una consulta menos.
+    return alcance_de_edificios(user, dispositivo, capacidad).todo
+
+
+def puede_editar_legajo(user, dispositivo, capacidad=CAP_EDITAR):
+    """Editar el legajo de la institución (datos, horarios, contacto, estado) es de alcance **institución** (RN5).
+
+    Con alcance Edificios la institución aparece en el listado pero no se edita.
+    """
+
+    return puede_operar_institucion(user, dispositivo, capacidad)
+
+
+def _filas_de_institucion(filas):
+    """Las filas del Equipo con alcance institución (o sin alcance cargado) de un queryset de ``_filtro_equipo``."""
+
+    from programas.models import MiembroEquipoDispositivo
+
+    return filas.exclude(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS)
+
+
+def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
+    """La forma ``Q`` de :func:`alcance_de_edificios` para listas que cruzan instituciones.
+
+    ``campo_dispositivo`` y ``campo_edificio`` son las rutas desde el modelo filtrado (p. ej.
+    ``"dispositivo_id"`` y ``"sector__edificio_id"``). Es **solo** el acote por edificio: la institución
+    la sigue resolviendo :func:`dispositivos_en_alcance`. Un objeto sin edificio no entra con alcance Edificios.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    sin_nada = Q(pk__in=[])
+    if user is None or not getattr(user, "is_authenticated", False):
+        return sin_nada
+    programa = programa_dispositivos(user)
+    if programa is None or not rbac.puede(user, capacidad, programa=programa):
+        return sin_nada
+    if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
+        return Q()
+    # Todo en subconsultas: sin consultas extra respecto de la lista que se filtra. Las filas Edificios de una
+    # institución que también tiene una fila Institución no restan: ya entra entera por la primera rama.
+    filas = _filtro_equipo(user, capacidad, programa)
+    completas = _filas_de_institucion(filas).values("dispositivo_id")
+    limitadas = filas.filter(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS).values("pk")
+    de_sus_edificios = MiembroEquipoDispositivo.edificios.through.objects.filter(
+        miembroequipodispositivo_id__in=limitadas,
+        miembroequipodispositivo__dispositivo_id=OuterRef(campo_dispositivo),
+        edificio_id=OuterRef(campo_edificio),
+        edificio__dispositivos=OuterRef(campo_dispositivo),
+    )
+    return Q(**{f"{campo_dispositivo}__in": completas}) | Q(Exists(de_sus_edificios))
+
+
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):
     from programas.models import TrazaDispositivo
 
@@ -385,14 +550,14 @@ def puede_enviar_desde_formulario(usuario, dispositivo):
         return False
     if not dispositivo.pk:
         return puede_configurar_dispositivos(usuario) and puede_en_programa_dispositivos(usuario, "dispositivo.editar")
-    return puede_operar_dispositivo(usuario, dispositivo, "dispositivo.editar")
+    return puede_editar_legajo(usuario, dispositivo, "dispositivo.editar")
 
 
 def enviar_desde_formulario(dispositivo, usuario):
     """El mismo permiso de P4 antes de ejecutar su transición, dentro del guardado atómico."""
     from django.core.exceptions import PermissionDenied
 
-    if not puede_operar_dispositivo(usuario, dispositivo, "dispositivo.editar"):
+    if not puede_editar_legajo(usuario, dispositivo, "dispositivo.editar"):
         raise PermissionDenied
     return enviar_a_validacion(dispositivo, usuario)
 

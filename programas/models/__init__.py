@@ -1897,6 +1897,16 @@ class EntradaBitacora(TimeStamped):
         related_name="entradas",
         verbose_name="Turno",
     )
+    # El edificio de la novedad (Cambio 523): con alcance Edificios solo se ven las de sus edificios. NULL (las
+    # anteriores, o las de un sector sin edificio) solo las ve quien tiene toda la institución.
+    edificio = models.ForeignKey(
+        "Edificio",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="entradas_bitacora",
+        verbose_name="Edificio",
+    )
     fecha_operativa = models.DateField(verbose_name="Fecha operativa")
     momento = models.DateTimeField(verbose_name="Fecha y hora")
     responsable = models.ForeignKey(
@@ -6411,6 +6421,16 @@ class EntregaKit(TimeStamped):
         default=Estado.PREPARADA,
         db_default=Estado.PREPARADA,
         verbose_name="Estado",
+    )
+    # El edificio del dispositivo al que va la entrega (Cambio 523): con alcance Edificios, solo se ven y se
+    # reciben las de sus edificios. NULL (las anteriores, o sin origen) solo lo alcanza quien tiene toda la institución.
+    edificio = models.ForeignKey(
+        "Edificio",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="entregas_de_kits",
+        verbose_name="Edificio destino",
     )
     armada_por = models.ForeignKey(
         User,

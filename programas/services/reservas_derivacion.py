@@ -72,7 +72,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_edificio, puede_operar_plaza, q_edificios_en_alcance
 from programas.services.estadias import (
     CAP_ADMITIR,
     PLAZA_FUERA_DEL_DISPOSITIVO,
@@ -130,7 +130,8 @@ def reservar_plazas_de_derivacion(*, derivacion, plazas, usuario, momento=None):
     """
 
     dispositivo = derivacion.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    # Con alcance Edificios: la derivación tiene que ser de uno de sus edificios (RN4).
+    if not puede_operar_edificio(usuario, dispositivo, derivacion.edificio_id, CAP_ADMITIR):
         raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
     if dispositivo.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": "Solo se reservan plazas en un dispositivo activo."})
@@ -146,6 +147,13 @@ def reservar_plazas_de_derivacion(*, derivacion, plazas, usuario, momento=None):
         raise ValidationError({"plaza": "Elegí al menos una plaza para reservar."})
     if None in ids or len(set(ids)) != len(ids):
         raise ValidationError({"plaza": "La lista de plazas a reservar tiene una plaza repetida o inválida."})
+    # Y cada plaza, de un edificio alcanzado (una consulta; sin alcance Edificios no excluye nada).
+    if (
+        Plaza.objects.filter(pk__in=ids, sector__dispositivo_id=dispositivo.pk)
+        .exclude(q_edificios_en_alcance(usuario, CAP_ADMITIR, "sector__dispositivo_id", "sector__edificio_id"))
+        .exists()
+    ):
+        raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
 
     # Resueltas dentro del dispositivo **antes** de bloquear, como `_bloquear_plaza`: ni se
     # toma `FOR UPDATE` sobre una plaza ajena, ni la inexistente y la ajena dan errores distintos.
@@ -234,7 +242,7 @@ def consumir_reserva_de_derivacion(*, reserva, ciudadano, usuario, fecha_ingreso
     # acá solo sale a qué dispositivo preguntarle el alcance.
     fila = ReservaPlaza.objects.filter(pk=pk).values_list("plaza_id", "plaza__sector__dispositivo_id").first()
     dispositivo = Dispositivo.objects.select_related("tipo").filter(pk=fila[1]).first() if fila else None
-    if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if dispositivo is None or not puede_operar_plaza(usuario, dispositivo, fila[0], CAP_ADMITIR):
         # El mismo error para la reserva inexistente y para la de una institución sin alcance.
         raise PermissionDenied("No tenés alcance para alojar personas en este dispositivo.")
 
@@ -306,7 +314,9 @@ def liberar_reservas_de_derivacion(*, derivacion, usuario, motivo, verificar_alc
     plaza después de una reserva.
     """
 
-    if verificar_alcance and not puede_operar_dispositivo(usuario, derivacion.dispositivo, CAP_ADMITIR):
+    if verificar_alcance and not puede_operar_edificio(
+        usuario, derivacion.dispositivo, derivacion.edificio_id, CAP_ADMITIR
+    ):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
     vigentes = list(

@@ -44,7 +44,7 @@ Presupuesto ``dispositivos_bitacora_turno`` en ``scripts/perf_budgets.json``.
 
 from datetime import date, timedelta
 
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -55,6 +55,7 @@ from programas.services import censo as censo_servicio
 from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
 from programas.services.bitacora_detalle import adjuntos_de
 from programas.services.bitacora_detalle import plural as _plural
+from programas.services.dispositivos import CAP_VER, q_edificios_en_alcance
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -159,6 +160,7 @@ def _entrada(entrada, *, nombrar_personas: bool, reemplazada: bool = False) -> d
         "texto": _texto_de(entrada, nombrar_personas=nombrar_personas),
         "autor": _autor(entrada.responsable),
         "automatica": entrada.origen == EntradaBitacora.Origen.AUTOMATICA,
+        "edificio": entrada.edificio.nombre if entrada.edificio_id else "",
         "version": entrada.version,
         # Los archivos van como enlaces de la pieza y no como texto: se abren desde `/media/`.
         "adjuntos": [{"nombre": a["nombre"], "url": a["url"]} for a in adjuntos_de(entrada)],
@@ -199,8 +201,23 @@ def _opcion_correccion(entrada, *, nombrar_personas: bool):
     }
 
 
-def _del_turno(dispositivo, fecha, turno, tipo):
-    entradas = EntradaBitacora.objects.filter(dispositivo=dispositivo, fecha_operativa=fecha, turno=turno)
+def _filtro_de_edificio(valor, edificios):
+    """El ``Q`` del filtro «Edificio» (``"sin"`` o el id de uno de ``edificios``) y el valor que queda activo."""
+
+    if not edificios:
+        return Q(), ""
+    if valor == "sin":
+        return Q(edificio__isnull=True), "sin"
+    ids = {str(pk) for pk, _nombre in edificios}
+    if valor in ids:
+        return Q(edificio_id=int(valor)), valor
+    return Q(), ""
+
+
+def _del_turno(dispositivo, fecha, turno, tipo, filtro=None):
+    entradas = EntradaBitacora.objects.filter(dispositivo=dispositivo, fecha_operativa=fecha, turno=turno).filter(
+        filtro or Q()
+    )
     if tipo:
         entradas = entradas.filter(tipo=tipo)
     return entradas
@@ -346,6 +363,10 @@ def pantalla_bitacora(
     puede_configurar=False,
     nombrar_personas=False,
     url_base="",
+    q_entradas=None,
+    edificios_filtro=(),
+    edificio="",
+    usuario=None,
 ):
     """Todo lo que dibuja P10 para un día operativo del dispositivo.
 
@@ -355,7 +376,16 @@ def pantalla_bitacora(
     día anterior, el primero). ``tipo`` filtra las entradas. Los ``puede_*`` y
     ``nombrar_personas`` los resuelve la vista con ``puede_operar_dispositivo`` y
     ``rbac.puede``: acá solo deciden qué se arma.
+
+    ``q_entradas`` es el acote por edificio del alcance de quien mira (``q_edificios_en_alcance``): toda lectura de
+    entradas lo aplica. ``edificios_filtro`` (``[(id, nombre)]``) trae los edificios para el filtro «Edificio», que
+    solo ve quien tiene alcance Institución; ``edificio`` es lo que pidió (``"sin"`` o un id). ``usuario`` es quien
+    mira: el censo y las cifras de plazas se acotan a los edificios de su alcance (Cambio 523); sin usuario son los
+    de toda la institución (solo las pruebas del armado).
     """
+
+    q_filtro_edificio, edificio = _filtro_de_edificio(edificio, edificios_filtro)
+    filtro = (q_entradas or Q()) & q_filtro_edificio
 
     ahora = ahora or timezone.now()
     turnos = turnos_activos(dispositivo)
@@ -369,7 +399,7 @@ def pantalla_bitacora(
     tipo = tipo if tipo in tipos_validos else ""
     activo = dispositivo.estado == Dispositivo.Estado.ACTIVO
 
-    censo_dia = censo_servicio.censo_del_dia(dispositivo, fecha, turnos=turnos, ahora=ahora)
+    censo_dia = censo_servicio.censo_del_dia(dispositivo, fecha, turnos=turnos, ahora=ahora, usuario=usuario)
     tramos_de_turno = list(censo_dia.turnos)
 
     # El turno en curso lo decide el censo, comparando con `ahora`: en un día anterior todos
@@ -382,6 +412,7 @@ def pantalla_bitacora(
     cantidades = dict(
         EntradaBitacora.objects.vigentes()
         .filter(dispositivo=dispositivo, fecha_operativa=fecha)
+        .filter(filtro)
         .values_list("turno_id")
         .annotate(cuantas=Count("id"))
         .order_by()
@@ -422,20 +453,23 @@ def pantalla_bitacora(
     turno, tramo = elegido if elegido else (None, None)
 
     # Las plazas son la foto de ahora: solo tienen sentido en el día en curso.
-    conteo = ocupacion_de_plazas(dispositivo, ahora).de(dispositivo).conteo if es_hoy else None
+    conteo = None
+    if es_hoy:
+        q_sectores = q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id") if usuario else None
+        conteo = ocupacion_de_plazas(dispositivo, ahora, q_sectores=q_sectores).de(dispositivo).conteo
 
     entradas, total, versiones, adjuntos, vigentes = [], 0, [], [], []
     if turno is not None:
         vigentes = list(
-            _del_turno(dispositivo, fecha, turno, tipo)
+            _del_turno(dispositivo, fecha, turno, tipo, filtro)
             .vigentes()
-            .select_related("responsable")
+            .select_related("responsable", "edificio")
             .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
             .order_by("-momento", "-id")[: TOPE_ENTRADAS + 1]
         )
         total = len(vigentes)
         if total > TOPE_ENTRADAS:
-            total = _del_turno(dispositivo, fecha, turno, tipo).vigentes().count()
+            total = _del_turno(dispositivo, fecha, turno, tipo, filtro).vigentes().count()
             vigentes = vigentes[:TOPE_ENTRADAS]
         entradas = [_entrada(entrada, nombrar_personas=nombrar_personas) for entrada in vigentes]
         for entrada in vigentes:
@@ -449,9 +483,9 @@ def pantalla_bitacora(
                     }
                 )
         reemplazadas = (
-            _del_turno(dispositivo, fecha, turno, tipo)
+            _del_turno(dispositivo, fecha, turno, tipo, filtro)
             .filter(correccion__isnull=False)
-            .select_related("responsable")
+            .select_related("responsable", "edificio")
             .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
             .order_by("-momento", "-version", "-id")[:TOPE_ENTRADAS]
         )
@@ -477,6 +511,7 @@ def pantalla_bitacora(
                 turno=en_curso.turno,
                 origen=EntradaBitacora.Origen.MANUAL,
             )
+            .filter(q_entradas or Q())
             .only("id", "momento", "tipo", "texto")
             .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
             .order_by("-momento", "-id")[:TOPE_CORREGIBLES]
@@ -587,6 +622,25 @@ def pantalla_bitacora(
     ocultos = [("fecha", fecha.isoformat())]
     if turno is not None:
         ocultos.append(("turno", str(turno.pk)))
+    pildoras = [
+        {
+            "nombre": "tipo",
+            "etiqueta": "Tipo",
+            "opciones": TIPOS_DEL_FILTRO,
+            "valor": tipo,
+            "todos": "Todas",
+        }
+    ]
+    if edificios_filtro:
+        pildoras.append(
+            {
+                "nombre": "edificio",
+                "etiqueta": "Edificio",
+                "opciones": [("sin", "Sin edificio"), *[(str(pk), nombre) for pk, nombre in edificios_filtro]],
+                "valor": edificio,
+                "todos": "Todos",
+            }
+        )
 
     # Por omisión se mira el turno en curso: si lo que se lista es otro, se llegó con «Ver» y
     # el título lo dice, para que nadie lea las entradas de la mañana como las de ahora.
@@ -629,15 +683,7 @@ def pantalla_bitacora(
         "corregibles": corregibles,
         "personas": personas,
         "turnos_config": turnos_config,
-        "pildoras": [
-            {
-                "nombre": "tipo",
-                "etiqueta": "Tipo",
-                "opciones": TIPOS_DEL_FILTRO,
-                "valor": tipo,
-                "todos": "Todas",
-            }
-        ],
+        "pildoras": pildoras,
         "ocultos": ocultos,
         "tipo": tipo,
         "url_sin_tipo": url_de(fecha, turno),

@@ -78,10 +78,12 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, MovimientoEstadia
 from programas.services.bitacora import turno_vigente, turnos_activos, turnos_del_dia
+from programas.services.dispositivos import CAP_VER, q_edificios_en_alcance
 from programas.services.ocupacion import alojada_en, estadias_alojadas_entre
 
 #: Lo único que cambia la existencia del dispositivo. Los cambios de sector o de plaza no.
@@ -241,12 +243,16 @@ def _id_de(dispositivo) -> int:
     return int(dispositivo)
 
 
-def censo_por_dia(dispositivo, desde: date, hasta: date | None = None, *, turnos=None, ahora=None) -> list[CensoDia]:
+def censo_por_dia(
+    dispositivo, desde: date, hasta: date | None = None, *, turnos=None, ahora=None, usuario=None
+) -> list[CensoDia]:
     """El censo de cada fecha operativa de ``desde`` a ``hasta`` (inclusive), en orden.
 
     ``dispositivo`` es la instancia o su id. ``turnos`` es la lista de turnos activos ya
     leída (`bitacora.turnos_activos`); si no se pasa, se lee —una consulta—. ``ahora``
-    solo decide qué tramo está ``en_curso`` (por omisión, el reloj).
+    solo decide qué tramo está ``en_curso`` (por omisión, el reloj). ``usuario`` acota el censo a los edificios de
+    su alcance (Cambio 523): cuenta las estadías de plazas de esos edificios, con el edificio donde está la
+    estadía hoy; sin usuario es el de toda la institución.
 
     Tres consultas fijas para todo el rango, sin importar cuántos días, turnos,
     personas o movimientos: ver el docstring del módulo.
@@ -271,7 +277,13 @@ def censo_por_dia(dispositivo, desde: date, hasta: date | None = None, *, turnos
     # Las estadías que estuvieron alojadas en algún instante del rango: de acá salen la
     # existencia al inicio y al fin de cada tramo, evaluadas en Python con la regla de
     # `ocupacion`. Una consulta.
-    estadias = list(estadias_alojadas_entre(pk, inicio_rango, fin_rango))
+    q_estadias = q_movimientos = None
+    if usuario is not None:
+        q_estadias = q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "plaza__sector__edificio_id")
+        q_movimientos = q_edificios_en_alcance(
+            usuario, CAP_VER, "dispositivo_id", "estadia__plaza__sector__edificio_id"
+        )
+    estadias = list(estadias_alojadas_entre(pk, inicio_rango, fin_rango, q_estadias=q_estadias))
 
     # Los ingresos y egresos del rango, que se reparten por tramo en Python. Una consulta,
     # servida por el índice (dispositivo, momento).
@@ -281,7 +293,9 @@ def censo_por_dia(dispositivo, desde: date, hasta: date | None = None, *, turnos
             tipo__in=TIPOS_QUE_CUENTAN,
             momento__gte=inicio_rango,
             momento__lt=fin_rango,
-        ).values_list("tipo", "momento")
+        )
+        .filter(q_movimientos if q_movimientos is not None else Q())
+        .values_list("tipo", "momento")
     )
 
     # Los tramos de todo el rango son contiguos: el índice de un momento es su posición
@@ -328,10 +342,10 @@ def censo_por_dia(dispositivo, desde: date, hasta: date | None = None, *, turnos
     return censos
 
 
-def censo_del_dia(dispositivo, fecha_operativa: date, *, turnos=None, ahora=None) -> CensoDia:
+def censo_del_dia(dispositivo, fecha_operativa: date, *, turnos=None, ahora=None, usuario=None) -> CensoDia:
     """El censo de una fecha operativa. Ver :func:`censo_por_dia`."""
 
-    return censo_por_dia(dispositivo, fecha_operativa, turnos=turnos, ahora=ahora)[0]
+    return censo_por_dia(dispositivo, fecha_operativa, turnos=turnos, ahora=ahora, usuario=usuario)[0]
 
 
 def fecha_operativa_de(dispositivo, momento=None, *, turnos=None) -> date:

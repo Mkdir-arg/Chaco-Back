@@ -120,7 +120,7 @@ def nombre_de_edificio(sector):
     return sector.edificio.nombre if sector.edificio else SIN_EDIFICIO
 
 
-def sectores_inactivos(dispositivo):
+def sectores_inactivos(dispositivo, *, q_alcance=None):
     """Los sectores dados de baja del dispositivo, con su cantidad de plazas, por nombre.
 
     Cada uno trae su edificio (`select_related`) y `edificio_vinculado`: un edificio que el
@@ -133,6 +133,7 @@ def sectores_inactivos(dispositivo):
     )
     return (
         Sector.objects.filter(dispositivo=dispositivo, activo=False)
+        .filter(q_alcance if q_alcance is not None else Q())
         .select_related("edificio")
         .annotate(cantidad_plazas=Count("plazas", filter=Q(plazas__activa=True)), edificio_vinculado=Exists(vinculado))
         .annotate(
@@ -145,7 +146,7 @@ def sectores_inactivos(dispositivo):
     )
 
 
-def plazas_dadas_de_baja(dispositivo):
+def plazas_dadas_de_baja(dispositivo, *, q_alcance=None):
     """Las plazas dadas de baja de los sectores activos del dispositivo, por sector y código (una consulta).
 
     Las de un sector inactivo no se listan: vuelven con su sector, y reactivar una sola no tendría
@@ -154,6 +155,7 @@ def plazas_dadas_de_baja(dispositivo):
 
     return (
         Plaza.todas.filter(sector__dispositivo=dispositivo, sector__activo=True, activa=False)
+        .filter(q_alcance if q_alcance is not None else Q())
         .select_related("sector")
         .order_by("sector__nombre", "codigo")
     )

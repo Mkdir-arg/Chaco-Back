@@ -221,14 +221,26 @@ def _adjunto_de_bitacora(user, ruta):
     asignación al dispositivo concreto, no con la capacidad suelta. Un operador de otra
     institución tiene `dispositivo.ver` y no tiene por qué leer las actas de esta.
     """
-    from programas.models import AdjuntoBitacora
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.models import AdjuntoBitacora, EntradaBitacora
+    from programas.services.dispositivos import (
+        alcance_de_edificios,
+        puede_operar_dispositivo,
+        q_edificios_en_alcance,
+    )
 
     adjunto = AdjuntoBitacora.objects.select_related("dispositivo").filter(archivo=ruta).first()
     if adjunto is None:
         return None
     # Sin alcance sobre ese dispositivo, el mismo 404 que un archivo inexistente.
-    return True if puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver") else None
+    if not puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver"):
+        return None
+    if alcance_de_edificios(user, adjunto.dispositivo, "dispositivo.ver").todo:
+        return True
+    # El archivo sigue a su novedad (Cambio 523): se ve si alguna de las novedades que lo comparten es visible.
+    visible = EntradaBitacora.objects.filter(
+        q_edificios_en_alcance(user, "dispositivo.ver", "dispositivo_id", "edificio_id"), adjuntos=adjunto
+    ).exists()
+    return True if visible else None
 
 
 def _adjunto_de_emergencia(user, ruta):
@@ -247,7 +259,7 @@ def _adjunto_de_emergencia(user, ruta):
     Son las dos pantallas que las muestran: la ficha del caso (E3) y «Llegadas» (E6).
     """
     from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.dispositivos import puede_operar_edificio
     from programas.services.emergencia_programa import puede_operar_la_mesa
 
     adjunto = AdjuntoCaso.objects.filter(archivo=ruta).values_list("caso_id", flat=True).first()
@@ -261,7 +273,9 @@ def _adjunto_de_emergencia(user, ruta):
         .select_related("dispositivo")
         .first()
     )
-    return vigente is not None and puede_operar_dispositivo(user, vigente.dispositivo, "dispositivo.admitir")
+    return vigente is not None and puede_operar_edificio(
+        user, vigente.dispositivo, vigente.edificio_id, "dispositivo.admitir"
+    )
 
 
 def _remito_de_entrega(user, ruta):
@@ -273,7 +287,7 @@ def _remito_de_entrega(user, ruta):
     (404): ni la ruta confirma que esa institución recibió una entrega.
     """
     from programas.models import EntregaKit
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.dispositivos import puede_operar_edificio
     from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
 
     entrega = EntregaKit.objects.select_related("dispositivo").filter(remito=ruta).first()
@@ -281,7 +295,7 @@ def _remito_de_entrega(user, ruta):
         return None
     if puede_operar_la_mesa(user):
         return True
-    return True if puede_operar_dispositivo(user, entrega.dispositivo, CAP_RECIBIR_KIT) else None
+    return True if puede_operar_edificio(user, entrega.dispositivo, entrega.edificio_id, CAP_RECIBIR_KIT) else None
 
 
 def _archivo_de_formulario_dispositivo(user, ruta):
@@ -315,7 +329,7 @@ def _archivo_de_formulario_estadia(user, ruta):
     lo mismo; con cualquiera de las dos faltando, el mismo 404 que un archivo inexistente.
     """
     from programas.models import AdjuntoRespuestaEgreso, AdjuntoRespuestaIngreso
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.dispositivos import puede_operar_plaza
 
     adjunto = None
     for modelo in (AdjuntoRespuestaIngreso, AdjuntoRespuestaEgreso):
@@ -326,8 +340,9 @@ def _archivo_de_formulario_estadia(user, ruta):
         return None
     if not rbac.puede(user, "ciudadano.ver"):
         return None
-    dispositivo = adjunto.respuestas.estadia.dispositivo
-    return True if puede_operar_dispositivo(user, dispositivo, "dispositivo.ver") else None
+    estadia = adjunto.respuestas.estadia
+    # La misma regla que P7: la estadía es del edificio de su plaza.
+    return True if puede_operar_plaza(user, estadia.dispositivo, estadia.plaza_id, "dispositivo.ver") else None
 
 
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden
