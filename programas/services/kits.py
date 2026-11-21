@@ -296,8 +296,9 @@ def _validar_reposicion(repone_a, dispositivo):
 def _edificio_de_la_entrega(destino, edificio, original):
     """El edificio de una entrega nueva (Cambio 523): el pedido, el de la que repone, o el único del destino.
 
-    Un edificio pedido tiene que estar vinculado al destino. Si no hay de dónde sacarlo (el destino tiene
-    varios edificios y nadie eligió uno), queda vacío: solo lo alcanza quien tiene toda la institución.
+    Un edificio pedido tiene que estar vinculado al destino. Con varios edificios y sin una entrega que reponer
+    de la que sacarlo, elegirlo es obligatorio (decisión del PM, 21-nov-2026); con uno solo queda fijo, y un
+    destino sin edificios vinculados la deja sin edificio.
     """
 
     from programas.models import Edificio
@@ -311,7 +312,9 @@ def _edificio_de_la_entrega(destino, edificio, original):
     if original is not None and original.edificio_id is not None:
         return original.edificio_id
     unicos = list(vinculados.values_list("pk", flat=True)[:2])
-    return unicos[0] if len(unicos) == 1 else None
+    if len(unicos) > 1:
+        raise ValidationError({"edificio": "Elegí el edificio al que va la entrega."})
+    return unicos[0] if unicos else None
 
 
 @transaction.atomic
@@ -329,7 +332,7 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
     * ``repone_a`` (HU-4.5): la entrega que esta repone; tiene que ser del mismo dispositivo
       y estar ``RECIBIDA_CON_DIFERENCIAS``.
     * ``edificio`` (Cambio 523): ver :func:`_edificio_de_la_entrega`; sin él sale de la entrega que repone o del
-      único edificio del destino, y si no hay de dónde, queda vacío.
+      único edificio del destino; con varios y sin de dónde sacarlo es obligatorio.
     * Numera con el contador de la serie ``K`` («2026-K-000031») y deja la primera traza.
     """
 

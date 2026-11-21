@@ -261,8 +261,9 @@ class KitsPorEdificioTests(BaseAlcance):
         destino = self.cis
         self.assertEqual(servicio_kits._edificio_de_la_entrega(destino, self.edif_b, None), self.edif_b.pk)
         self.assertEqual(servicio_kits._edificio_de_la_entrega(destino, None, self.entrega_a), self.edif_a.pk)
-        # Con dos edificios y sin origen, queda vacío.
-        self.assertIsNone(servicio_kits._edificio_de_la_entrega(destino, None, None))
+        # Con dos edificios y sin origen, elegirlo es obligatorio (decisión del PM, 21-nov-2026).
+        with self.assertRaises(ValidationError):
+            servicio_kits._edificio_de_la_entrega(destino, None, None)
         # Con uno solo, es ese.
         self.edif_b.dispositivos.remove(self.cis)
         self.assertEqual(servicio_kits._edificio_de_la_entrega(destino, None, None), self.edif_a.pk)

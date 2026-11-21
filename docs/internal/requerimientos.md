@@ -60761,6 +60761,12 @@ Decisiones del PM del 21/11/2026:
 8. **Kits «con edificio»** (PM, 21/11/2026, PR 2): `EntregaKit.edificio` (FK nulo). Con alcance Edificios se ven y se
    reciben solo las entregas de sus edificios; las que no tienen edificio, solo con alcance Institución. Las entregas
    viejas quedan sin edificio y no se reasignan.
+9. **Censo de la bitácora con alcance Edificios** (PM, 21/11/2026): solo de **sus** edificios, no los totales de la
+   institución (ingresos, egresos, existencias y cifras de plazas). Entra en el PR 3.
+10. **Historial con alcance Edificios** (PM, 21/11/2026): muestra solo lo de sus edificios, no queda vacío. Va en un PR
+    nuevo apilado después del PR 3 (el PR 4 del carril; el #1284 sigue frenado).
+11. **Entrega de kits** (PM, 21/11/2026): elegir el edificio es **obligatorio** cuando el destino tiene más de uno; con
+    uno solo queda fijo. Entra en el PR 3 (el paso «Confirmar» del asistente).
 
 Decisiones técnicas de este PR: `alcance` NULL equivale a `INSTITUCION` (todas las filas existentes, sin backfill);
 `tipo_contratacion` NULL se muestra como «Sin dato»; el servicio acepta `tipo_contratacion=None` para no romper
@@ -60814,9 +60820,8 @@ rojos (formularios y vistas de sumar y crear). `manage.py check`, `makemigration
 No requiere más que el deploy (corre la migración).
 
 ## Pendientes / a definir
-PR 3 y 4 del plan. Decisiones revisables: turnos por institución; la mesa todavía no elige el edificio al armar una
-entrega de kits (con varios edificios la entrega nueva queda sin edificio y solo la ve alcance Institución); el Historial de la institución queda vacío
-con alcance Edificios hasta que la bitácora lleve edificio (PR 3), y la bitácora P10 solo muestra las novedades de sus edificios (sin personas: decisión abierta), aunque el censo del día sigue mostrando los totales de la institución; validar, observar y rechazar siguen por
+PR 3 y 4 del plan. Decisiones revisables: turnos por institución; el Historial de la institución queda vacío
+con alcance Edificios hasta el PR 4 (decisión 10), y la bitácora P10 solo muestra las novedades y el censo de sus edificios (sin personas: decisión abierta); validar, observar y rechazar siguen por
 institución.
 
 ## Reversión
@@ -60842,6 +60847,7 @@ contratación cargada.
   solapa de novedades de la estadía; Institución tiene el filtro «Edificio» (Todos / cada uno / Sin edificio). Sigue sin
   nombrar ni ofrecer personas con alcance Edificios. `Turno` no cambia. Tests: `programas/tests/test_equipo_alcance_bitacora.py`;
   mutación de cada guarda (filtro de la pantalla, adjunto, obligatoriedad, corregir) en rojo.
+- **21/11/2026:** decisiones del PM 9 y 11 en el PR 3: el censo del día (ingresos, egresos, existencias) y las cifras de plazas de la bitácora se acotan a los edificios del alcance (`censo_por_dia(usuario=...)`; la estadía cuenta en el edificio donde está hoy, así que un traslado entre edificios no mueve su historia) y «Confirmar» de una entrega de kits pide el edificio cuando el destino tiene más de uno (`crear_entrega` lo exige). Tests `CensoPorEdificioTests` y `NuevaEntregaTests`, con mutación.
 
 ---
 

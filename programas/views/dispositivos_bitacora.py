@@ -94,6 +94,7 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             q_entradas=q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id"),
             edificios_filtro=edificios_filtro,
             edificio=self.request.GET.get("edificio", ""),
+            usuario=usuario,
         )
         context.update(datos)
         context["puede_configurar"] = puede_configurar

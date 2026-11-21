@@ -55,6 +55,7 @@ from programas.services import censo as censo_servicio
 from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
 from programas.services.bitacora_detalle import adjuntos_de
 from programas.services.bitacora_detalle import plural as _plural
+from programas.services.dispositivos import CAP_VER, q_edificios_en_alcance
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -365,6 +366,7 @@ def pantalla_bitacora(
     q_entradas=None,
     edificios_filtro=(),
     edificio="",
+    usuario=None,
 ):
     """Todo lo que dibuja P10 para un día operativo del dispositivo.
 
@@ -377,7 +379,9 @@ def pantalla_bitacora(
 
     ``q_entradas`` es el acote por edificio del alcance de quien mira (``q_edificios_en_alcance``): toda lectura de
     entradas lo aplica. ``edificios_filtro`` (``[(id, nombre)]``) trae los edificios para el filtro «Edificio», que
-    solo ve quien tiene alcance Institución; ``edificio`` es lo que pidió (``"sin"`` o un id).
+    solo ve quien tiene alcance Institución; ``edificio`` es lo que pidió (``"sin"`` o un id). ``usuario`` es quien
+    mira: el censo y las cifras de plazas se acotan a los edificios de su alcance (Cambio 523); sin usuario son los
+    de toda la institución (solo las pruebas del armado).
     """
 
     q_filtro_edificio, edificio = _filtro_de_edificio(edificio, edificios_filtro)
@@ -395,7 +399,7 @@ def pantalla_bitacora(
     tipo = tipo if tipo in tipos_validos else ""
     activo = dispositivo.estado == Dispositivo.Estado.ACTIVO
 
-    censo_dia = censo_servicio.censo_del_dia(dispositivo, fecha, turnos=turnos, ahora=ahora)
+    censo_dia = censo_servicio.censo_del_dia(dispositivo, fecha, turnos=turnos, ahora=ahora, usuario=usuario)
     tramos_de_turno = list(censo_dia.turnos)
 
     # El turno en curso lo decide el censo, comparando con `ahora`: en un día anterior todos
@@ -449,7 +453,10 @@ def pantalla_bitacora(
     turno, tramo = elegido if elegido else (None, None)
 
     # Las plazas son la foto de ahora: solo tienen sentido en el día en curso.
-    conteo = ocupacion_de_plazas(dispositivo, ahora).de(dispositivo).conteo if es_hoy else None
+    conteo = None
+    if es_hoy:
+        q_sectores = q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id") if usuario else None
+        conteo = ocupacion_de_plazas(dispositivo, ahora, q_sectores=q_sectores).de(dispositivo).conteo
 
     entradas, total, versiones, adjuntos, vigentes = [], 0, [], [], []
     if turno is not None:

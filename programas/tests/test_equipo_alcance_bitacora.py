@@ -16,6 +16,7 @@ from legajos.models import Ciudadano
 from programas.models import EntradaBitacora, Plaza, Sector
 from programas.selectors.estadia_detalle import novedades_de_estadia
 from programas.services.bitacora import corregir_entrada
+from programas.services.bitacora_pantalla import pantalla_bitacora
 from programas.services.dispositivos import q_edificios_en_alcance
 from programas.tests.test_dispositivos_bitacora_pantalla import MIERCOLES, PDF, _local, _reloj
 from programas.tests.test_equipo_alcance_edificio import Alcance, BaseAlcance
@@ -160,3 +161,26 @@ class FiltroEdificioTests(BaseBitacoraAlcance):
     def test_edificios_no_se_salta_su_alcance_con_el_filtro(self):
         self.assertEqual(self._textos(self.de_a, edificio=str(self.edif_b.pk)), {TEXTOS[0]})
         self.assertEqual(self._textos(self.de_a, edificio="sin"), {TEXTOS[0]})
+
+
+class CensoPorEdificioTests(BaseBitacoraAlcance):
+    """El censo del día y las cifras de plazas son de los edificios de quien mira (decisión del PM, 21-nov-2026)."""
+
+    def _fila(self, usuario, etiqueta):
+        with _reloj():
+            datos = pantalla_bitacora(self.cis, usuario=_fresco(usuario), fecha=MIERCOLES.isoformat())
+        return {f["etiqueta"]: f["valor"] for f in datos["censo_filas"]}[etiqueta]
+
+    def test_los_ingresos_del_dia_son_de_sus_edificios(self):
+        persona = Ciudadano.objects.create(dni="30444555", nombre="Lía", apellido="Gil")
+        antes_a = self._fila(self.de_a, "Ingresos del día")
+        antes_inst = self._fila(self.de_inst, "Ingresos del día")
+        self._ingresar(persona, self.plaza_b, _local(MIERCOLES, 15, 40))
+        self.assertEqual(self._fila(self.de_a, "Ingresos del día"), antes_a)
+        self.assertEqual(self._fila(self.de_inst, "Ingresos del día"), antes_inst + 1)
+        self.assertEqual(self._fila(self.de_ab, "Ingresos del día"), antes_a + 1)
+
+    def test_las_plazas_son_las_de_sus_edificios(self):
+        self.assertEqual(self._fila(self.de_a, "Plazas totales / operativas").split(" / ")[0], "2")
+        total_inst = int(self._fila(self.de_inst, "Plazas totales / operativas").split(" / ")[0])
+        self.assertGreater(total_inst, 2)
