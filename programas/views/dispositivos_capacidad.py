@@ -32,7 +32,7 @@ from programas.forms_dispositivos import (
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
 from programas.models import Edificio, Plaza, Sector
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
-from programas.services.dispositivos import dispositivos_en_alcance
+from programas.services.dispositivos import dispositivos_en_alcance, q_edificios_en_alcance
 from programas.services.edificios import (
     CAP_EDITAR,
     crear_edificio,
@@ -131,10 +131,20 @@ class _AccionDeSectorView(_AccionDeCapacidadView):
         return url_mapa_de_plazas(dispositivo.pk)
 
 
-def sector_del_dispositivo(dispositivo, sector_pk):
-    """El sector, solo si es de ese dispositivo: uno ajeno da el mismo 404 que uno inexistente."""
+def _q_sectores(usuario):
+    """Los sectores de los edificios que ``usuario`` alcanza con ``dispositivo.editar`` (RN4)."""
 
-    return get_object_or_404(Sector, pk=sector_pk, dispositivo=dispositivo)
+    return q_edificios_en_alcance(usuario, CAP_EDITAR, "dispositivo_id", "edificio_id")
+
+
+def _q_plazas(usuario):
+    return q_edificios_en_alcance(usuario, CAP_EDITAR, "sector__dispositivo_id", "sector__edificio_id")
+
+
+def sector_del_dispositivo(dispositivo, sector_pk, usuario):
+    """El sector, solo si es de ese dispositivo **y** de un edificio alcanzado: ajeno e inexistente dan el mismo 404."""
+
+    return get_object_or_404(Sector.objects.filter(_q_sectores(usuario)), pk=sector_pk, dispositivo=dispositivo)
 
 
 class SectorCrearView(_AccionDeSectorView):
@@ -159,7 +169,7 @@ class SectorEditarView(_AccionDeSectorView):
     """
 
     def construir_form(self, request, dispositivo):
-        self.sector = sector_del_dispositivo(dispositivo, self.kwargs["sector_pk"])
+        self.sector = sector_del_dispositivo(dispositivo, self.kwargs["sector_pk"], request.user)
         return SectorForm(request.POST, dispositivo=dispositivo, sector=self.sector)
 
     def ejecutar(self, request, dispositivo, datos):
@@ -180,7 +190,7 @@ class SectorReactivarView(_AccionDeSectorView):
 
     def ejecutar(self, request, dispositivo, datos):
         return reactivar_sector(
-            sector=sector_del_dispositivo(dispositivo, self.kwargs["sector_pk"]), usuario=request.user
+            sector=sector_del_dispositivo(dispositivo, self.kwargs["sector_pk"], request.user), usuario=request.user
         )
 
     def mensaje(self, resultado):
@@ -192,11 +202,16 @@ class PlazasAgregarView(_AccionDeSectorView):
 
     def construir_form(self, request, dispositivo):
         if request.POST.get("sector"):
-            get_object_or_404(Sector, pk=_id_de_seleccion(request.POST["sector"]), dispositivo=dispositivo, activo=True)
+            get_object_or_404(
+                Sector.objects.filter(_q_sectores(request.user)),
+                pk=_id_de_seleccion(request.POST["sector"]),
+                dispositivo=dispositivo,
+                activo=True,
+            )
         return AgregarPlazasForm(
             request.POST,
             dispositivo=dispositivo,
-            sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
+            sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True).filter(_q_sectores(request.user)),
         )
 
     def ejecutar(self, request, dispositivo, datos):
@@ -215,7 +230,7 @@ class PlazasAgregarView(_AccionDeSectorView):
 class PlazaEditarView(_AccionDeSectorView):
     def construir_form(self, request, dispositivo):
         self.plaza = get_object_or_404(
-            Plaza.objects.select_related("sector__dispositivo__tipo"),
+            Plaza.objects.select_related("sector__dispositivo__tipo").filter(_q_plazas(request.user)),
             pk=self.kwargs["plaza_pk"],
             sector__dispositivo=dispositivo,
         )
@@ -237,7 +252,7 @@ class PlazaBajaView(_AccionDeSectorView):
 
     def ejecutar(self, request, dispositivo, datos):
         plaza = get_object_or_404(
-            Plaza.objects.select_related("sector__dispositivo"),
+            Plaza.objects.select_related("sector__dispositivo").filter(_q_plazas(request.user)),
             pk=self.kwargs["plaza_pk"],
             sector__dispositivo=dispositivo,
         )
@@ -252,7 +267,7 @@ class PlazaReactivarView(_AccionDeSectorView):
 
     def ejecutar(self, request, dispositivo, datos):
         plaza = get_object_or_404(
-            Plaza.todas.select_related("sector__dispositivo"),
+            Plaza.todas.select_related("sector__dispositivo").filter(_q_plazas(request.user)),
             pk=self.kwargs["plaza_pk"],
             sector__dispositivo=dispositivo,
             activa=False,

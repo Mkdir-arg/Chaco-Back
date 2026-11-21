@@ -128,6 +128,71 @@ def exigir_par_sumable(usuario, rol):
     _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
 
 
+def _edificios_que_gestiona(actor, dispositivo):
+    """Los edificios en los que ``actor`` arma el Equipo: ``None`` = toda la institución, o un conjunto de ids (RN6).
+
+    Admin del programa y responsable con alcance Institución (o sin alcance cargado): todo. Responsable solo con
+    alcance Edificios: la unión de los que siguen vinculados al dispositivo; si no queda ninguno, el conjunto vacío.
+    """
+
+    from programas.models import Edificio, MiembroEquipoDispositivo
+
+    if puede_configurar_dispositivos(actor):
+        return None
+    filas = list(
+        membresias_vigentes(actor, programa_dispositivos(actor))
+        .filter(dispositivo=dispositivo, es_responsable=True)
+        .values_list("pk", "alcance")
+    )
+    if any(alcance != MiembroEquipoDispositivo.Alcance.EDIFICIOS for _pk, alcance in filas):
+        return None
+    return set(
+        Edificio.objects.filter(miembros_equipo__in=[pk for pk, _a in filas], dispositivos=dispositivo).values_list(
+            "pk", flat=True
+        )
+    )
+
+
+def _exigir_alcance_valido(dispositivo, alcance, edificios):
+    """``EDIFICIOS`` exige al menos un edificio vinculado a la institución (RN2); ``INSTITUCION`` no lleva ninguno."""
+
+    from programas.models import Edificio, MiembroEquipoDispositivo
+
+    if alcance != MiembroEquipoDispositivo.Alcance.EDIFICIOS:
+        return []
+    ids = {getattr(e, "pk", e) for e in edificios or ()}
+    if not ids:
+        raise ValidationError({"edificios": "Elegí al menos un edificio para el alcance «Edificios»."})
+    vinculados = set(Edificio.objects.filter(pk__in=ids, dispositivos=dispositivo).values_list("pk", flat=True))
+    if vinculados != ids:
+        raise ValidationError({"edificios": "Todos los edificios tienen que estar vinculados a la institución."})
+    return sorted(ids)
+
+
+def _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, edificio_ids):
+    """Un responsable con alcance Edificios solo suma miembros Edificios dentro de sus propios edificios (RN6)."""
+
+    from programas.models import MiembroEquipoDispositivo
+
+    propios = _edificios_que_gestiona(actor, dispositivo)
+    if propios is None:
+        return
+    if alcance != MiembroEquipoDispositivo.Alcance.EDIFICIOS or not set(edificio_ids) <= propios:
+        raise PermissionDenied("Con alcance por edificio solo se arma el Equipo de tus propios edificios.")
+
+
+def _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro):
+    """Editar o dar de baja a alguien también queda dentro de los edificios del responsable (RN6)."""
+
+    from programas.models import MiembroEquipoDispositivo
+
+    if _edificios_que_gestiona(actor, dispositivo) is None:
+        return
+    ids = list(miembro.edificios.values_list("pk", flat=True))
+    alcance = miembro.alcance or MiembroEquipoDispositivo.Alcance.INSTITUCION
+    _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, ids)
+
+
 def _exigir_otro_responsable(dispositivo, miembro):
     """No dejar sin responsables a un dispositivo que tenía: queda al menos otro activo."""
 
@@ -136,8 +201,15 @@ def _exigir_otro_responsable(dispositivo, miembro):
         raise ValidationError("El dispositivo no puede quedar sin responsables: marcá a otra persona antes.")
 
 
-def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False, tipo_contratacion=None):
-    """Suma a ``usuario`` con ``rol``; si la fila existía de baja, la reactiva."""
+def sumar_miembro(
+    *, actor, dispositivo, usuario, rol, es_responsable=False, tipo_contratacion=None, alcance=None, edificios=()
+):
+    """Suma a ``usuario`` con ``rol``; si la fila existía de baja, la reactiva.
+
+    ``alcance`` (``INSTITUCION`` o ``EDIFICIOS``; ``None`` = toda la institución) y ``edificios`` (obligatorios con
+    ``EDIFICIOS``, vinculados a la institución) son los del puesto. Un responsable con alcance Edificios solo suma
+    miembros Edificios dentro de los suyos.
+    """
 
     from programas.models import MiembroEquipoDispositivo
 
@@ -145,12 +217,18 @@ def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False, tip
         dispositivo = _bloquear(dispositivo)
         _exigir_gestion(actor, dispositivo)
         _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
+        edificio_ids = _exigir_alcance_valido(dispositivo, alcance, edificios)
+        _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, edificio_ids)
         miembro, creado = MiembroEquipoDispositivo.objects.get_or_create(
             dispositivo=dispositivo,
             usuario=usuario,
             rol=rol,
-            defaults={"es_responsable": es_responsable, "tipo_contratacion": tipo_contratacion},
+            defaults={"es_responsable": es_responsable, "tipo_contratacion": tipo_contratacion, "alcance": alcance},
         )
+        if creado or miembro.alcance != alcance or not miembro.activo:
+            # Alta nueva o reactivación: el alcance que se elige ahora reemplaza al anterior.
+            miembro.alcance = alcance
+            miembro.edificios.set(edificio_ids)
         if not creado:
             estaba_de_baja = not miembro.activo
             miembro.activo = True
@@ -159,7 +237,7 @@ def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False, tip
             if estaba_de_baja and tipo_contratacion:
                 # Reactivar es un alta nueva del puesto: manda la contratación que se elige ahora.
                 miembro.tipo_contratacion = tipo_contratacion
-            miembro.save(update_fields=["activo", "es_responsable", "tipo_contratacion", "modificado"])
+            miembro.save(update_fields=["activo", "es_responsable", "tipo_contratacion", "alcance", "modificado"])
         return miembro
 
 
@@ -189,7 +267,9 @@ def datos_de_alta_de_persona(*, actor, dni, nombre, apellido, correo, rol):
     return UserCreationForm(data=datos, operador=actor, roles_acotados=roles_para_crear_persona(actor))
 
 
-def crear_persona_y_sumar(*, actor, dispositivo, alta, rol, es_responsable=False, tipo_contratacion=None):
+def crear_persona_y_sumar(
+    *, actor, dispositivo, alta, rol, es_responsable=False, tipo_contratacion=None, alcance=None, edificios=()
+):
     """Crea el usuario de ``alta`` (``UserCreationForm`` válido) y lo suma al Equipo, **todo o nada**.
 
     Una sola transacción: si sumar al Equipo falla, no queda ni el usuario. La escritura del usuario es la
@@ -213,6 +293,8 @@ def crear_persona_y_sumar(*, actor, dispositivo, alta, rol, es_responsable=False
             rol=rol,
             es_responsable=es_responsable,
             tipo_contratacion=tipo_contratacion,
+            alcance=alcance,
+            edificios=edificios,
         )
     return usuario
 
@@ -248,6 +330,7 @@ def cambiar_rol(*, actor, miembro, rol_nuevo):
         dispositivo = _bloquear(miembro.dispositivo)
         _exigir_gestion(actor, dispositivo)
         miembro = MiembroEquipoDispositivo.objects.select_for_update().get(pk=miembro.pk)
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
         _exigir_pares_sumables(programa_dispositivos(), [(miembro.usuario, rol_nuevo)])
         if miembro.rol_id == rol_nuevo.pk:
             return miembro
@@ -267,6 +350,7 @@ def dar_de_baja(*, actor, miembro):
         dispositivo = _bloquear(miembro.dispositivo)
         _exigir_gestion(actor, dispositivo)
         miembro = MiembroEquipoDispositivo.objects.select_for_update().get(pk=miembro.pk)
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
         if not miembro.activo:
             return miembro
         _exigir_otro_responsable(dispositivo, miembro)
@@ -282,6 +366,7 @@ def marcar_responsable(*, actor, miembro):
         dispositivo = _bloquear(miembro.dispositivo)
         _exigir_gestion(actor, dispositivo)
         miembro = MiembroEquipoDispositivo.objects.select_for_update().get(pk=miembro.pk)
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
         if not miembro.activo:
             raise ValidationError("La persona está de baja en el Equipo.")
         if not miembro.es_responsable:
@@ -297,6 +382,7 @@ def desmarcar_responsable(*, actor, miembro):
         dispositivo = _bloquear(miembro.dispositivo)
         _exigir_gestion(actor, dispositivo)
         miembro = MiembroEquipoDispositivo.objects.select_for_update().get(pk=miembro.pk)
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
         if not miembro.es_responsable:
             return miembro
         _exigir_otro_responsable(dispositivo, miembro)

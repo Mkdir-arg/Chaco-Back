@@ -247,7 +247,7 @@ def _adjunto_de_emergencia(user, ruta):
     Son las dos pantallas que las muestran: la ficha del caso (E3) y «Llegadas» (E6).
     """
     from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.dispositivos import puede_operar_edificio
     from programas.services.emergencia_programa import puede_operar_la_mesa
 
     adjunto = AdjuntoCaso.objects.filter(archivo=ruta).values_list("caso_id", flat=True).first()
@@ -261,7 +261,9 @@ def _adjunto_de_emergencia(user, ruta):
         .select_related("dispositivo")
         .first()
     )
-    return vigente is not None and puede_operar_dispositivo(user, vigente.dispositivo, "dispositivo.admitir")
+    return vigente is not None and puede_operar_edificio(
+        user, vigente.dispositivo, vigente.edificio_id, "dispositivo.admitir"
+    )
 
 
 def _remito_de_entrega(user, ruta):
@@ -273,7 +275,7 @@ def _remito_de_entrega(user, ruta):
     (404): ni la ruta confirma que esa institución recibió una entrega.
     """
     from programas.models import EntregaKit
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.dispositivos import puede_operar_edificio
     from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
 
     entrega = EntregaKit.objects.select_related("dispositivo").filter(remito=ruta).first()
@@ -281,7 +283,7 @@ def _remito_de_entrega(user, ruta):
         return None
     if puede_operar_la_mesa(user):
         return True
-    return True if puede_operar_dispositivo(user, entrega.dispositivo, CAP_RECIBIR_KIT) else None
+    return True if puede_operar_edificio(user, entrega.dispositivo, entrega.edificio_id, CAP_RECIBIR_KIT) else None
 
 
 def _archivo_de_formulario_dispositivo(user, ruta):

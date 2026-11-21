@@ -402,7 +402,7 @@ def _reservadas_por_sector(sector_ids, momento, tipos=None):
     }
 
 
-def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
+def ocupacion_de_plazas(dispositivos, momento=None, tipos=None, *, q_sectores=None) -> Censo:
     """Las cifras de plazas de ``dispositivos`` en ``momento`` (por defecto, ahora), en tres consultas fijas.
 
     ``dispositivos`` puede ser un :class:`~programas.models.Dispositivo`, su id, o
@@ -420,6 +420,10 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     sectores siguen apareciendo todos, en cero si no tienen plazas de esos tipos. Se
     normaliza una vez al entrar: un generador vale, un ``str`` es un solo tipo y ``()`` no
     cuenta ninguna plaza.
+
+    ``q_sectores`` acota **los sectores** que se cuentan (``Q`` sobre ``Sector``): el alcance por edificio
+    (``dispositivos.q_edificios_en_alcance(usuario, cap, "dispositivo_id", "edificio_id")``). Va dentro de las
+    mismas consultas; un sector fuera del alcance ni se lista ni suma.
     """
 
     ids = _ids_de(dispositivos)
@@ -431,6 +435,7 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     if ids:
         filas = (
             Sector.objects.filter(dispositivo_id__in=ids, activo=True)
+            .filter(q_sectores if q_sectores is not None else Q())
             .values("id", "dispositivo_id", "edificio_id", "nombre", "tipo", "capacidad")
             # Un `Count` con `filter` por cada cifra sobre el **mismo** LEFT JOIN: el
             # motor recorre las plazas una vez y agrupa. Contar sector por sector sería

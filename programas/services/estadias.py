@@ -114,6 +114,7 @@ from programas.services.dispositivos import (
     dispositivos_en_alcance,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
+    puede_operar_plaza,
 )
 from programas.services.movimientos import plaza_ocupada_despues_de, registrar_movimiento, ultimo_momento
 from programas.services.nombre_plaza import nombre_de_plaza, plaza_con_sector
@@ -449,7 +450,7 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
     única que no bloquea su propia plaza.
     """
 
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para alojar personas en este dispositivo.")
     if dispositivo.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": "Solo se puede alojar en un dispositivo activo."})
@@ -558,7 +559,7 @@ def egresar_persona(
     regla rige para los egresos nuevos.
     """
 
-    if not puede_operar_dispositivo(usuario, estadia.dispositivo, CAP_EGRESAR):
+    if not puede_operar_plaza(usuario, estadia.dispositivo, estadia.plaza_id, CAP_EGRESAR):
         raise PermissionDenied("No tenés alcance para registrar egresos en este dispositivo.")
 
     # Se relee con la fila bloqueada: el objeto que llega puede venir de una pantalla
@@ -667,7 +668,10 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
     """
 
     dispositivo = estadia.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if not (
+        puede_operar_plaza(usuario, dispositivo, plaza, CAP_ADMITIR)
+        and puede_operar_plaza(usuario, dispositivo, estadia.plaza_id, CAP_ADMITIR)
+    ):
         raise PermissionDenied("No tenés alcance para cambiar de plaza a personas de este dispositivo.")
 
     motivo = (motivo or "").strip()
@@ -749,7 +753,7 @@ def asignar_plaza(*, estadia, plaza, usuario, motivo="", momento=None):
     """
 
     dispositivo = estadia.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para asignar plaza a personas de este dispositivo.")
     if not dispositivo.tipo.maneja_plazas:
         raise ValidationError({"plaza": "Este tipo de dispositivo no maneja plazas."})
@@ -820,7 +824,7 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
     pk = plaza.pk if isinstance(plaza, Plaza) else plaza
     dispositivo_id = Plaza.objects.filter(pk=pk).values_list("sector__dispositivo_id", flat=True).first()
     dispositivo = Dispositivo.objects.filter(pk=dispositivo_id).first() if dispositivo_id else None
-    if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if dispositivo is None or not puede_operar_plaza(usuario, dispositivo, pk, CAP_ADMITIR):
         # El mismo error para la plaza inexistente y para la de una institución sin
         # alcance: no se distingue «no existe» de «no es tuya».
         raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
@@ -931,7 +935,7 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
 
     dispositivo = reserva.plaza.sector.dispositivo
     sector_nombre = reserva.plaza.sector.nombre
-    if verificar_alcance and not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if verificar_alcance and not puede_operar_plaza(usuario, dispositivo, reserva.plaza, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
     # Plaza y después reserva, igual que el ingreso: el UPDATE de estado puede tomar
@@ -984,7 +988,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
+    if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
@@ -1019,7 +1023,7 @@ def volver_plaza_a_servicio(*, plaza, usuario):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
+    if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)

@@ -33,7 +33,11 @@ from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, EntregaKit, Estadia, LineaEntrega, TrazaEntrega
-from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
+from programas.services.dispositivos import (
+    dispositivos_en_alcance,
+    puede_operar_dispositivo,
+    q_edificios_en_alcance,
+)
 from programas.services.emergencia_programa import CAP_ADMITIR, CAP_RECIBIR_KIT
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -267,6 +271,7 @@ def entregas_al_alcance(usuario):
 
     return (
         EntregaKit.objects.filter(dispositivo__in=dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT))
+        .filter(q_edificios_en_alcance(usuario, CAP_RECIBIR_KIT, "dispositivo_id", "edificio_id"))
         .select_related("dispositivo")
         .prefetch_related(_lineas_ordenadas())
     )
@@ -284,21 +289,28 @@ def entregas_pendientes_de(dispositivo, usuario):
         return EntregaKit.objects.none()
     return (
         EntregaKit.objects.filter(dispositivo=dispositivo, estado__in=EntregaKit.ESTADOS_ABIERTOS)
+        .filter(q_edificios_en_alcance(usuario, CAP_RECIBIR_KIT, "dispositivo_id", "edificio_id"))
         .select_related("dispositivo")
         .prefetch_related(_lineas_ordenadas())
         .order_by("creado", "id")
     )
 
 
-def entregas_de(dispositivo):
+def entregas_de(dispositivo, usuario=None):
     """Todas las entregas de ``dispositivo``, de la más nueva a la más vieja, con sus líneas. Queryset.
 
     **No recorta por alcance**: la llama quien ya comprobó que el usuario recibe kits ahí
-    (la API busca el dispositivo dentro de ``dispositivos_en_alcance``). 2 consultas.
+    (la API busca el dispositivo dentro de ``dispositivos_en_alcance``). Con ``usuario`` recorta además por
+    edificio: con alcance Edificios, solo las entregas de sus edificios. 2 consultas.
     """
 
     return (
         EntregaKit.objects.filter(dispositivo=dispositivo)
+        .filter(
+            q_edificios_en_alcance(usuario, CAP_RECIBIR_KIT, "dispositivo_id", "edificio_id")
+            if usuario is not None
+            else Q()
+        )
         .select_related("dispositivo")
         .prefetch_related(_lineas_ordenadas())
         .order_by("-creado", "-id")
@@ -335,6 +347,7 @@ def mis_dispositivos(usuario):
     pendientes = (
         dict(
             EntregaKit.objects.filter(dispositivo_id__in=ids_recibe, estado__in=EntregaKit.ESTADOS_ABIERTOS)
+            .filter(q_edificios_en_alcance(usuario, CAP_RECIBIR_KIT, "dispositivo_id", "edificio_id"))
             .order_by()
             .values("dispositivo_id")
             .annotate(n=Count("id"))
