@@ -307,13 +307,16 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     resuelve en **una** consulta para toda la página.
     Sin usuario no se expone la identidad de las personas; la vista siempre pasa quién mira.
 
-    El Historial junta trazas de toda la institución (legajo, personas, plazas de todos los edificios): sin alcance
-    sobre toda la institución (con alcance Edificios) no se abre (fail-closed; decisión abierta para el
-    PM, Cambio 523). Va acá y no en la vista para que ninguna otra pantalla lo muestre entero.
+    Con alcance Edificios (Cambio 523, decisión del PM del 21-nov-2026) el Historial muestra solo lo de sus edificios:
+    movimientos en sus plazas, correcciones de sus novedades y relevamientos de sus edificios. Las trazas del legajo
+    no llevan edificio y quedan para quien tiene toda la institución. La regla va acá y no en la vista para que
+    ninguna otra pantalla lo muestre entero.
     """
 
-    if usuario is not None and not alcance_de_edificios(usuario, dispositivo, "dispositivo.ver").todo:
-        return Paginator([], 1).get_page(1), []
+    edificios = None
+    if usuario is not None:
+        alcance = alcance_de_edificios(usuario, dispositivo, "dispositivo.ver")
+        edificios = None if alcance.todo else alcance.edificios
     con_asignacion = edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo)
     usuario_id = usuario.pk if getattr(usuario, "is_authenticated", False) else None
     feed = auditoria_del_dispositivo(
@@ -321,6 +324,7 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
         con_asignacion,
         usuario_id=usuario_id,
         puede_ver_personas=usuario is not None and puede(usuario, "ciudadano.ver"),
+        edificios_en_alcance=edificios,
     )
     pagina_de_eventos = Paginator(feed, POR_PAGINA_HISTORIAL).get_page(pagina)
     eventos = [

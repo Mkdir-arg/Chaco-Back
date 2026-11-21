@@ -60820,8 +60820,8 @@ rojos (formularios y vistas de sumar y crear). `manage.py check`, `makemigration
 No requiere más que el deploy (corre la migración).
 
 ## Pendientes / a definir
-PR 3 y 4 del plan. Decisiones revisables: turnos por institución; el Historial de la institución queda vacío
-con alcance Edificios hasta el PR 4 (decisión 10), y la bitácora P10 solo muestra las novedades y el censo de sus edificios (sin personas: decisión abierta); validar, observar y rechazar siguen por
+PR 3 y 4 del plan. Decisiones revisables: turnos por institución; el Historial con alcance Edificios muestra
+solo lo de sus edificios (PR 4; las trazas del legajo, que no llevan edificio, quedan para Institución), y la bitácora P10 solo muestra las novedades y el censo de sus edificios (sin personas: decisión abierta); validar, observar y rechazar siguen por
 institución.
 
 ## Reversión
@@ -60848,6 +60848,7 @@ contratación cargada.
   nombrar ni ofrecer personas con alcance Edificios. `Turno` no cambia. Tests: `programas/tests/test_equipo_alcance_bitacora.py`;
   mutación de cada guarda (filtro de la pantalla, adjunto, obligatoriedad, corregir) en rojo.
 - **21/11/2026:** decisiones del PM 9 y 11 en el PR 3: el censo del día (ingresos, egresos, existencias) y las cifras de plazas de la bitácora se acotan a los edificios del alcance (`censo_por_dia(usuario=...)`; la estadía cuenta en el edificio donde está hoy, así que un traslado entre edificios no mueve su historia) y «Confirmar» de una entrega de kits pide el edificio cuando el destino tiene más de uno (`crear_entrega` lo exige). Tests `CensoPorEdificioTests` y `NuevaEntregaTests`, con mutación.
+- **21/11/2026:** PR 4 de 4 del carril (apilado sobre el PR 3, sin issue: el #1284 sigue frenado), decisión del PM 10: el Historial con alcance Edificios ya no queda vacío; trae los movimientos de estadía de sus plazas (origen o destino), las correcciones de sus novedades y los relevamientos de sus edificios, y ninguna traza del legajo (no llevan edificio). La regla vive en `eventos_de_historial` y el selector recibe los ids (`edificios_en_alcance`). Tests en `test_equipo_alcance_edificio.py`, con mutación.
 
 ---
 

@@ -32,6 +32,7 @@ import json
 import re
 
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.formats import date_format
 
@@ -311,47 +312,64 @@ class FeedAuditoria:
     cada una, las primeras ``hasta`` filas ya ordenadas, las mezcla por fecha y devuelve el
     tramo pedido. Cada elemento es un dict con ``fecha``, ``quien``, ``titulo``,
     ``detalle`` y ``tono``.
+
+    ``edificios_en_alcance`` (Cambio 523) son los ids de los edificios que quien mira alcanza: ``None`` es toda la
+    institución. Con un conjunto, el feed trae solo lo que cuelga de esos edificios —movimientos de estadía en sus
+    plazas, correcciones de sus novedades, relevamientos de sus edificios— y **ninguna traza del legajo**: no lleva
+    edificio. Un conjunto vacío no trae nada (fail-closed).
     """
 
-    def __init__(self, dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=False):
+    def __init__(
+        self,
+        dispositivo,
+        edificios_con_asignacion=frozenset(),
+        *,
+        usuario_id=None,
+        puede_ver_personas=False,
+        edificios_en_alcance=None,
+    ):
         # Los edificios de los que quien mira puede ver de quién es el relevamiento. Lo
         # resuelve el servicio y llega como un conjunto de ids: el selector no evalúa
         # capacidades ni alcance, solo decide qué texto arma con lo que le dieron.
         visibles = frozenset(edificios_con_asignacion)
+        limitado = edificios_en_alcance is not None
+        ids = list(edificios_en_alcance or ())
+        trazas = TrazaDispositivo.objects.filter(dispositivo=dispositivo).exclude(accion__in=ACCIONES_DE_ESTADIA)
+        movimientos = MovimientoEstadia.objects.filter(dispositivo=dispositivo)
+        correcciones = EntradaBitacora.objects.filter(dispositivo=dispositivo, version__gt=1)
+        inspecciones = TrazaInspeccion.objects.filter(inspeccion__edificio__dispositivos=dispositivo)
+        if limitado:
+            trazas = trazas.none()
+            movimientos = movimientos.filter(
+                Q(plaza_destino__sector__edificio_id__in=ids) | Q(plaza_origen__sector__edificio_id__in=ids)
+            )
+            correcciones = correcciones.filter(edificio_id__in=ids)
+            inspecciones = inspecciones.filter(inspeccion__edificio_id__in=ids)
         self.fuentes = (
             (
                 _TRAZA,
-                TrazaDispositivo.objects.filter(dispositivo=dispositivo)
-                .exclude(accion__in=ACCIONES_DE_ESTADIA)
-                .select_related("usuario")
-                .order_by("-creado_en", "-id"),
+                trazas.select_related("usuario").order_by("-creado_en", "-id"),
                 evento_de_traza,
             ),
             (
                 _MOVIMIENTO,
-                MovimientoEstadia.objects.filter(dispositivo=dispositivo)
-                .select_related(
+                movimientos.select_related(
                     "responsable",
                     "estadia__ciudadano",
                     "estadia__motivo",
                     "plaza_origen__sector",
                     "plaza_destino__sector",
-                )
-                .order_by("-momento", "-id"),
+                ).order_by("-momento", "-id"),
                 lambda movimiento: evento_de_movimiento(movimiento, puede_ver_personas=puede_ver_personas),
             ),
             (
                 _CORRECCION,
-                EntradaBitacora.objects.filter(dispositivo=dispositivo, version__gt=1)
-                .select_related("responsable", "turno")
-                .order_by("-creado", "-id"),
+                correcciones.select_related("responsable", "turno").order_by("-creado", "-id"),
                 evento_de_correccion,
             ),
             (
                 _INSPECCION,
-                TrazaInspeccion.objects.filter(inspeccion__edificio__dispositivos=dispositivo)
-                .select_related("usuario", "inspeccion__edificio")
-                .order_by("-creado_en", "-id"),
+                inspecciones.select_related("usuario", "inspeccion__edificio").order_by("-creado_en", "-id"),
                 lambda traza: evento_de_inspeccion(
                     traza,
                     traza.inspeccion.edificio_id in visibles
@@ -385,10 +403,19 @@ class FeedAuditoria:
 
 
 def auditoria_del_dispositivo(
-    dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=False
+    dispositivo,
+    edificios_con_asignacion=frozenset(),
+    *,
+    usuario_id=None,
+    puede_ver_personas=False,
+    edificios_en_alcance=None,
 ):
     """El feed de auditoría del dispositivo, para paginar. Ver :class:`FeedAuditoria`."""
 
     return FeedAuditoria(
-        dispositivo, edificios_con_asignacion, usuario_id=usuario_id, puede_ver_personas=puede_ver_personas
+        dispositivo,
+        edificios_con_asignacion,
+        usuario_id=usuario_id,
+        puede_ver_personas=puede_ver_personas,
+        edificios_en_alcance=edificios_en_alcance,
     )
