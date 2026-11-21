@@ -28,8 +28,6 @@ key no hay mapa y la política no se abre.
 from django.conf import settings
 
 RECAPTCHA_HOSTS = ("https://www.google.com", "https://www.gstatic.com")
-# El detalle de un formulario de Becas embebe el mapa del lugar de la toma.
-MAPA_HOSTS = ("https://www.openstreetmap.org",)
 
 # 'unsafe-inline' y 'unsafe-eval' son necesarios hoy: las plantillas tienen
 # scripts y estilos en línea, y Alpine evalúa expresiones con `new Function`.
@@ -39,13 +37,13 @@ POLITICA_BASE = {
     "default-src": ["'self'"],
     "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", *RECAPTCHA_HOSTS],
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:", *MAPA_HOSTS],
+    "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'", "data:"],
     # Sin `ws:`/`wss:` pelados: esos esquemas sueltos habilitan CUALQUIER host y
     # dejaban abierta justo la vía de exfiltración que esta directiva cierra.
     # `'self'` ya cubre el WebSocket del mismo origen (CSP3).
     "connect-src": ["'self'"],
-    "frame-src": ["'self'", *RECAPTCHA_HOSTS, *MAPA_HOSTS],
+    "frame-src": ["'self'", *RECAPTCHA_HOSTS],
     "frame-ancestors": ["'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],

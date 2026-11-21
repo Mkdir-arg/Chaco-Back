@@ -45,30 +45,16 @@
           {% if mapa %}
             <a href="{{ mapa.open_url }}" target="_blank" rel="noopener noreferrer"
                class="btn-nodo btn-tertiary btn-sm">
-              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa
+              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa<span class="sr-only"> en Google Maps (se abre en una pestaña nueva)</span>
             </a>
           {% endif %}
         </div>
         {% if mapa %}
           {% comment %}
-            SEC-33: el mapa no se carga solo. Abrir el caso mandaba las coordenadas
-            exactas del domicilio de la persona a OpenStreetMap —con la IP y el
-            Referer del backoffice— en cada apertura, aunque nadie mirara el mapa.
-            Ahora lo pide quien lo necesita, y sin Referer.
+            SEC-33: el mapa no se carga solo. Abrir el caso no le manda las coordenadas de la persona a nadie: la
+            pieza pide Google recién con «Ver mapa» (a_pedido), y a Google le llega el origen del sitio, nunca la ruta.
           {% endcomment %}
-          <button type="button" id="ver-mapa"
-                  class="btn-nodo btn-secondary btn-sm w-full">
-            <i class="fas fa-map" aria-hidden="true"></i> Ver el mapa
-          </button>
-          <iframe
-            id="mapa-del-caso"
-            title="Mapa del lugar donde se realizó la toma"
-            data-src="{{ mapa.embed_url }}"
-            referrerpolicy="no-referrer"
-            class="w-full rounded-xl border border-base hidden"
-            style="height:320px;"
-            loading="lazy">
-          </iframe>
+          {% include "components/_mapa_capas.html" with nombre="toma" puntos=mapa.puntos etiqueta="Mapa del lugar donde se realizó la toma" a_pedido=True detalle=False only %}
         {% else %}
           <div class="rounded-xl bg-secondary border border-light p-5 text-sm text-body-subtle">
             Este caso no tiene coordenadas GPS registradas.

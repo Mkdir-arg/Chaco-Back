@@ -4,7 +4,9 @@
 **Evidencia:** `templates/components/_mapa_capas.html`, `static/custom/js/nodo-mapa-capas.js`,
 `static/custom/css/nodo-mapa-capas.css`, `core/tests/test_nodo_ui_piezas.py` (`MapaCapasTest`). Se apoya en el
 cargador de Google Maps (`mapa_google.md`).
-**Consumidores:** `/mapa/` (`mapa/templates/mapa/mapa.html`, golden del arquetipo Mapa); previsto, la solapa «Mapa» del tablero «Situación» de
+**Consumidores:** `/mapa/` (`mapa/templates/mapa/mapa.html`, golden del arquetipo Mapa); el lugar de la toma de
+Becas (`programas/templates/programas/becas/revision/_detalle/_trazabilidad.html`, un punto, `a_pedido`,
+`detalle=False`); previsto, la solapa «Mapa» del tablero «Situación» de
 Emergencia (E8: C1 #1173, E-6 #1185). Una pantalla con mapa de puntos usa esta pieza: no arma sus marcadores a
 mano sobre `NodoMapa`.
 

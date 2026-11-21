@@ -2,6 +2,8 @@
 {% load static rbac nodo_ui becas_extras %}
 {% block title %}Becas · Caso {{ formulario.numero }}{% endblock %}
 
+{% block page_css %}{% if mapa %}{% load static %}<link rel="stylesheet" href="{% static 'custom/css/nodo-mapa-capas.css' %}">{% endif %}{% endblock %}
+
 {% block main-content %}
 {% include "programas/becas/revision/_detalle/_estilos.html" %}
 {% comment %}DE-2: ancho completo, sin máximo propio.
@@ -103,5 +105,7 @@ claves que pone `formulario_detalle` llegan igual que antes (las fija
 {% endblock %}
 
 {% block customJS %}
+{% if mapa %}{% load static %}{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-mapa-capas.js' %}"></script>{% endif %}
 {% include "programas/becas/revision/_detalle/_scripts.html" %}
 {% endblock %}

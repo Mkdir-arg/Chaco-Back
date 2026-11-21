@@ -538,6 +538,14 @@ def do_hero_inicio(parser, token):
 
 
 @register.simple_tag
+def url_google_maps(latitud, longitud):
+    """``{% url_google_maps lat lng as url %}``: el enlace externo a Google Maps (``core.coordenadas``)."""
+    from core.coordenadas import url_en_google_maps
+
+    return url_en_google_maps(latitud, longitud) or ""
+
+
+@register.simple_tag
 def google_maps_config():
     """Configuración pública de Google Maps para ``components/_google_maps.html``.
 

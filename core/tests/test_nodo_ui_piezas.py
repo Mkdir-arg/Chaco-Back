@@ -848,7 +848,7 @@ class UbicacionTest(SimpleTestCase):
 
         self.assertIn("-27,451234", html)
         self.assertIn("-58,986543", html)
-        self.assertIn("mlat=-27.451234&amp;mlon=-58.986543", html)
+        self.assertIn("https://www.google.com/maps/search/?api=1&amp;query=-27.451234,-58.986543", html)
         self.assertIn('target="_blank" rel="noopener noreferrer"', html)
         self.assertNotIn("Sin ubicación cargada", html)
         self.assertNotIn("<script", html)
@@ -904,7 +904,7 @@ class UbicacionTest(SimpleTestCase):
         self.assertIn("/p.pdf", html)
         self.assertIn("Plano PB", html)
         self.assertIn("Sin ubicacion cargada".replace("ubicacion", "ubicación"), html)
-        self.assertNotIn("openstreetmap", html)
+        self.assertNotIn("google.com/maps", html)
 
     def test_el_enlace_del_plano_avisa_que_abre_pestana_nueva(self):
         html = render_to_string(UBICACION, {"plano_url": "/p.pdf"})

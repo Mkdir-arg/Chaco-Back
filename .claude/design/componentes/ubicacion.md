@@ -8,9 +8,9 @@ se pasa plano. La lectura de coordenadas comparte el queryset del inmueble, sin 
 
 ## Por qué no hay mapa
 
-La CSP de `SecurityHeadersMiddleware` bloquea los CDN y el repo no trae ninguna librería de mapas.
-La ubicación se resuelve con coordenadas legibles, un enlace que abre el mapa **fuera** del sistema
-y el plano como adjunto. El mapa embebido no se agrega.
+Es la ubicación **de lectura** de una ficha: coordenadas legibles, un enlace que abre Google Maps **fuera** del
+sistema (Cambio 493, fase 4) y el plano como adjunto. No carga nada en la página ni pide key. Si una pantalla
+necesita el mapa adentro, usa la pieza Mapa con capas (`mapa_capas.md`), no esta.
 
 ## Invocación
 
@@ -38,8 +38,8 @@ Render: `dl` de dos columnas (mismo patrón que las solapas de datos) + `btn-sec
 
 ## Prohibido
 
-- Cargar librerías de mapas, iframes o imágenes de tiles; agregar orígenes a la CSP.
-- Armar el enlace al mapa a mano en una pantalla.
+- Cargar librerías de mapas, iframes o imágenes de tiles, o agregar orígenes a la CSP **desde esta pieza**.
+- Armar el enlace al mapa a mano: sale de `core.coordenadas.url_en_google_maps` (tag `url_google_maps`).
 
 ## Lo que hay que saber antes de usarla
 
@@ -54,8 +54,8 @@ Render: `dl` de dos columnas (mismo patrón que las solapas de datos) + `btn-sec
   autoescape protege del marcado, pero no de un esquema `javascript:`.
 - **Los valores van como `Decimal`, `float` o `None`.** Un texto no numérico no rompe ni permite
   inyección —sale escapado—, pero produce un enlace con basura.
-- **El proveedor del mapa está en un solo lugar de la pieza.** Si se cambia, hay que actualizar
-  también la lista de permitidos de la prueba `SinRecursosDeTercerosTests`, en
-  `portal/tests/test_seguridad_publica.py`, que es la red que impide volver a traer código de un CDN y que hoy admite el prefijo
-  `https://www.openstreetmap.org/?mlat=`. No es un recurso de terceros —es un `<a>` que navega
-  fuera— pero el barrido de ese test no distingue el atributo.
+- **El proveedor del mapa está en un solo lugar:** `core.coordenadas.url_en_google_maps`, que usan esta pieza
+  y el lugar de la toma de Becas. Si se cambia, hay que actualizar también la lista de permitidos de
+  `SinRecursosDeTercerosTests` (`portal/tests/test_seguridad_publica.py`), que hoy admite
+  `https://www.google.com/maps/search/`. No es un recurso de terceros —es un `<a>` que navega fuera— pero el
+  barrido de ese test no distingue el atributo.

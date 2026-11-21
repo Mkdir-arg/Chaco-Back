@@ -616,7 +616,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 489 | Becas: eliminar programas, segmentos, convocatorias y relevamientos (borrado lógico en cascada) | Becas | `#rbac` `#datos` `#convocatorias` `#relevamientos` `#ui` | Usuario — «quiero poder eliminar Programas, Segmentos, Convocatorias y Relevamientos» | 18/11/2026 | 🟢 **Hecho** | `programas.0125`, `users.0049` |
 | 490 | Becas: no se elimina un relevamiento que todavía puede recibir capturas (gracia de 24 h) | Becas | `#relevamientos` `#datos` `#mobile` | Usuario — seguimiento de la auditoría del PR #1194 | 18/11/2026 | 🟢 **Hecho** | No requiere |
 | 492 | Emergencia · E7: regla de consumo por ítem del catálogo de kits y fecha de inicio del evento (E-7a del análisis 009) | Emergencia · configuración (E7) | `#emergencia` `#datos` `#ui` | PM — análisis 009, task #1186 | 18/11/2026 | 🟢 **Hecho** | Sí — `programas.0126` (5 `AddField`, solo expand) |
-| 493 | Mapa con Google Maps y domicilio → coordenadas (fases 1 a 3; fase 4 pendiente) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟡 **En curso** | `users.0050`, `legajos.0012`, `mapa.0001` |
+| 493 | Mapa con Google Maps y domicilio → coordenadas (cuatro fases) | Transversal · mapa | `#gps` `#rbac` `#infra` `#ui` | Usuario (PM) — «vamos a implementar el mapa de Google, vamos a reemplazar los mapas que usamos» | 18/11/2026 | 🟢 **Hecho** | `users.0050`, `legajos.0012`, `mapa.0001` |
 | 494 | Becas · dashboard: el error de filtro del export sale como texto plano (XSS reflejado, B2-SEG-01) | Becas · dashboard | `#seguridad` `#ui` | Auditoría — hallazgo B2-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 495 | Becas · eliminación: el aviso de éxito no cuenta al propio elemento como hijo | Becas · eliminación | `#ui` | QA en testing de ECOM (19/11/2026), MENOR de #1194 | 19/11/2026 | 🟢 **Hecho** | No requiere |
 | 496 | Emergencia · el reenvío de «Ingresar igual» no devuelve personas de otro dispositivo (E-SEG-01) | Emergencia · API de campo | `#emergencia` `#seguridad` | Auditoría de Emergencia — hallazgo E-SEG-01 | 19/11/2026 | 🟢 **Hecho** | No requiere |
@@ -57775,7 +57775,7 @@ cargadas).
 
 # Cambio 493 — Mapa con Google Maps y domicilio → coordenadas
 
-🟡 **EN CURSO — fases 1 y 2 hechas el 18/11/2026; fase 3 (pieza de mapa con capas y pantalla `/mapa/`) el 20/11/2026. Falta la fase 4**
+🟢 **HECHO — fases 1 y 2 el 18/11/2026; fase 3 (pieza de mapa con capas y pantalla `/mapa/`) el 20/11/2026; fase 4 (Becas y enlaces) el 21/11/2026**
 
 | | |
 |---|---|
@@ -57931,6 +57931,18 @@ la pieza, con el diseño del mockup aprobado. Es la golden del arquetipo nuevo �
   - eliminar desde el detalle, confirmando con `ModernModal`.
 - `mapa.ver` y `mapa.editar` salen de `CAPACIDADES_SIN_USO`.
 
+Fase 4, reemplazos, para que no quede OpenStreetMap:
+
+- **Lugar de la toma de Becas** (`_trazabilidad.html`): la pieza Mapa con capas, con un punto, `a_pedido=True` y
+  `detalle=False`. Abrir el caso no le pide nada a Google: el mapa carga con «Ver mapa», y a Google le llega solo
+  el origen (SEC-33, misma regla que en la fase 1). Sin key, el estado vacío de la pieza y el enlace externo.
+- **Enlace externo:** «Abrir mapa» (Becas) y «Ver en el mapa» (`components/_ubicacion.html`, fichas de
+  Dispositivos y edificios) abren Google Maps con la URL pública de Maps
+  (`https://www.google.com/maps/search/?api=1&query=lat,lng`), sin key. La arma
+  `core.coordenadas.url_en_google_maps`; la plantilla la pide con el tag `url_google_maps`.
+- **CSP:** sale `MAPA_HOSTS` (OpenStreetMap) de `img-src` y `frame-src`. `SinRecursosDeTercerosTests` admite el
+  prefijo de Google Maps en lugar del de OpenStreetMap.
+
 ## Archivos
 
 `config/settings.py`, `config/middlewares/security_headers.py`, `core/checks.py`, `core/rbac.py`,
@@ -57965,6 +57977,16 @@ Fase 3, pantalla: `mapa/` (`apps.py`, `models.py`, `admin.py`, `forms.py`, `serv
 `templates/includes/sidebar/opciones.html`, `users/tests/test_rbac_contrato.py`, `scripts/design_audit.py`
 (arquetipo y golden «mapa»), `.claude/design/arquetipos/mapa.md`, `.claude/design/componentes/mapa_capas.md`,
 `.claude/design/shells.md`, `.claude/agents/chaco-design-system.md`, `docs/mapa.md`.
+
+Fase 4: `core/coordenadas.py`, `core/templatetags/nodo_ui.py`, `templates/components/_ubicacion.html`,
+`programas/selectors/revision.py`, `programas/templates/programas/becas/revision/formulario_detalle.html`,
+`_detalle/_trazabilidad.html`, `_detalle/_scripts.html`, `config/middlewares/security_headers.py`,
+`portal/tests/test_seguridad_publica.py`, `programas/tests/test_becas_revision.py`,
+`programas/tests/test_dispositivos_fidelidad_fb.py`, `core/tests/test_nodo_ui_piezas.py`, los snapshots de
+`test_becas_revision_detalle_html` (sale el JS del iframe), `.claude/design/componentes/ubicacion.md`,
+`mapa_capas.md`, `mapa_google.md`, `.claude/agents/chaco-design-system.md`, `docs/mapa.md`. Los MINOR de #1258:
+`mapa/services.py`, `programas/templates/programas/becas/_ajax_js.html`, `static/custom/js/mapa-general.js`,
+`.claude/design/arquetipos/confirmacion.md`.
 
 ## Base de datos
 
@@ -58034,6 +58056,13 @@ Reversa: `migrate mapa zero` borra la tabla y los puntos cargados.
 
   `design_audit.py --arquetipo mapa` y `--goldens` (9 en 0), `--ratchet` en 0, y `check_design_agent.py`: OK.
 
+- Fase 4:
+  - el detalle de Becas con GPS: a pedido, un solo punto, sin `<iframe>` ni `maps.googleapis.com` en el HTML, y
+    sin key el enlace externo;
+  - el enlace de `_ubicacion` y de las fichas de Dispositivos;
+  - el permitido de `SinRecursosDeTercerosTests`;
+  - los snapshots de Becas regenerados (solo sale el JS del iframe).
+
 ## Puesta en marcha en el servidor
 
 Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`).
@@ -58041,7 +58070,6 @@ Sin ellas no cambia nada.
 
 ## Pendientes / a definir
 
-- Fase 4: el lugar de la toma de Becas y el enlace «Ver en el mapa» de Dispositivos.
 - Medir `/mapa/` en el navegador con miles de casos abiertos. En el servidor, 5000 puntos dan 212 ms y 3,2 MB de
   HTML. DECISIÓN CLIENTE: si pesa, acotar la capa Emergencia a lo relevado en las últimas N horas.
 - Asignarles `mapa.ver` y `mapa.editar` a los roles que correspondan (hoy solo las tiene el Administrador); lo
@@ -58049,7 +58077,6 @@ Sin ellas no cambia nada.
 - El detalle del ciudadano todavía no muestra el punto, y el export del padrón no incluye las coordenadas.
 - Abierto en el mockup y resuelto por defecto: la búsqueda es con botón (no al salir del campo, para no gastar
   cuota) y un cambio de domicilio solo avisa, no vuelve a ubicar solo.
-- La ficha de `components/_ubicacion.html` prohíbe mapas y orígenes en la CSP: se actualiza en la fase 4.
 
 ## Reversión
 
@@ -58092,6 +58119,15 @@ Fase 3: revertir sus commits y `migrate mapa zero` (borra los puntos cargados); 
   - el ítem nuevo se armaba en JS.
 
   Queda pendiente medir el peso en el navegador.
+- **21/11/2026:** fase 4. El lugar de la toma de Becas pasa de un iframe de OpenStreetMap a la pieza Mapa con capas
+  (un punto, a pedido, sin ventana de detalle) y «Abrir mapa» abre Google Maps. «Ver en el mapa» de
+  `components/_ubicacion.html` también abre Google Maps. La URL sale de un solo helper,
+  `core.coordenadas.url_en_google_maps`. La CSP deja de abrirle `img-src` y `frame-src` a OpenStreetMap.
+
+  Entran además los tres MINOR de la auditoría del PR #1258:
+  - la regla de ubicación reservada con `q_sin_ubicacion_reservada`;
+  - `window.becasAjax.limpiarErrores` para vaciar errores con su ARIA;
+  - el `detail` de `becas-saved` en la ficha de `_ajax_js`.
 
 ---
 

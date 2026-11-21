@@ -114,7 +114,7 @@
         <link rel="stylesheet" href="/static/custom/css/nodo-toast.css" />
 
         <!-- Page specific CSS -->
-        
+        <link rel="stylesheet" href="/static/custom/css/nodo-mapa-capas.css">
         
         <!-- Custom styles -->
         
@@ -1090,27 +1090,34 @@
             
           </div>
           
-            <a href="https://www.openstreetmap.org/?mlat=-N.N&amp;mlon=-N.N&amp;zoom=N" target="_blank" rel="noopener noreferrer"
+            <a href="https://www.google.com/maps/search/?api=N&amp;query=-N.N,-N.N" target="_blank" rel="noopener noreferrer"
                class="btn-nodo btn-tertiary btn-sm">
-              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa
+              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa<span class="sr-only"> en Google Maps (se abre en una pestaña nueva)</span>
             </a>
           
         </div>
         
           
-          <button type="button" id="ver-mapa"
-                  class="btn-nodo btn-secondary btn-sm w-full">
-            <i class="fas fa-map" aria-hidden="true"></i> Ver el mapa
-          </button>
-          <iframe
-            id="mapa-del-caso"
-            title="Mapa del lugar donde se realizó la toma"
-            data-src="https://www.openstreetmap.org/export/embed.html?bbox=-N.N%NC-N.N%NC-N.N%NC-N.N&amp;layer=mapnik&amp;marker=-N.N%NC-N.N"
-            referrerpolicy="no-referrer"
-            class="w-full rounded-xl border border-base hidden"
-            style="height:Npx;"
-            loading="lazy">
-          </iframe>
+          
+
+<div class="nodo-mapa-capas" data-mapa-capas="toma" data-puntos="mapa-capas-toma-puntos" data-a-pedido data-sin-detalle>
+  <script id="mapa-capas-toma-puntos" type="application/json">[{"id": "toma", "capa": "toma", "lat": -N.N, "lng": -N.N, "etiqueta": "Lugar de la toma", "icono": "fa-location-dot", "tono": "brand", "titulo": "Lugar de la toma"}]</script>
+  <div class="nodo-mapa-capas__lienzo" data-mapa-lienzo role="region" aria-label="Mapa del lugar donde se realizó la toma"></div>
+  
+  <div class="nodo-mapa-capas__cubierta">
+    
+<div class="py-N px-N text-center flex flex-col items-center gap-N">
+  <div class="text-fg-brand"><i class="fas fa-map-location-dot text-Nxl" aria-hidden="true"></i></div>
+  <p class="text-[Npx] font-bold text-heading">El mapa no está disponible en este ambiente</p>
+  <p class="text-sm text-body max-w-xs">Falta configurar Google Maps.</p>
+  
+</div>
+
+  </div>
+  
+</div>
+
+
         
       </div>
     </div>
@@ -2145,6 +2152,12 @@ function getCookie(name) {
         
         
         
+
+
+<script id="nodo-mapa-config" type="application/json">{"key": "", "mapId": "", "idioma": "es", "region": "AR"}</script>
+<script src="/static/custom/js/nodo-mapa.js"></script>
+
+<script src="/static/custom/js/nodo-mapa-capas.js"></script>
 <script src="/static/custom/js/becas-modal.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -2174,21 +2187,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
       btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
       historialSiis.classList.toggle('hidden', abierto);
-    });
-  }
-
-  // SEC-N: el mapa se carga recien cuando alguien lo pide. El `src` viaja en
-  // `data-src` para que abrir el caso no le mande las coordenadas del domicilio
-  // —ni la IP, ni el Referer— a OpenStreetMap.
-  const btnVerMapa = document.getElementById('ver-mapa');
-  const mapaDelCaso = document.getElementById('mapa-del-caso');
-  if (btnVerMapa && mapaDelCaso) {
-    btnVerMapa.addEventListener('click', function () {
-      if (!mapaDelCaso.getAttribute('src')) {
-        mapaDelCaso.setAttribute('src', mapaDelCaso.dataset.src);
-      }
-      mapaDelCaso.classList.remove('hidden');
-      btnVerMapa.classList.add('hidden');
     });
   }
 
