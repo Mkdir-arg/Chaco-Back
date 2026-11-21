@@ -22,6 +22,7 @@ from django.utils import timezone
 from core import rbac
 from core.coordenadas import url_domicilio_en_google_maps
 from core.models import Localidad
+from core.selectors.geografia import PROVINCIA_OPERATIVA
 from programas.models import AdjuntoCaso, CasoEmergencia, ContactoCaso, Derivacion, GrupoFamiliar, TrazaCaso
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_alojar as selectores_alojar
@@ -330,7 +331,7 @@ def _datos_del_relevamiento(caso):
             "etiqueta": "Dirección",
             "valor": caso.direccion,
             # La familia vive acá; la latitud y la longitud del caso son de dónde se lo tomó.
-            "url_mapa": url_domicilio_en_google_maps(caso.direccion, localidad),
+            "url_mapa": url_domicilio_en_google_maps(caso.direccion, localidad, PROVINCIA_OPERATIVA),
         },
         {"etiqueta": "Localidad", "valor": localidad},
         {"etiqueta": "Origen", "valor": caso.get_origen_display()},
