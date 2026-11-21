@@ -1638,7 +1638,11 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         # Las novedades de la bitácora en las que la persona está involucrada: de lectura,
         # paginadas y con su propio presupuesto (`dispositivos_estadia_novedades`). Se cargan
         # y se corrigen en la bitácora del turno (P10).
-        context["novedades_page"] = novedades_de_estadia(estadia, self.request.GET.get("novedades_page"))
+        context["novedades_page"] = novedades_de_estadia(
+            estadia,
+            self.request.GET.get("novedades_page"),
+            q_entradas=q_edificios_en_alcance(usuario, "dispositivo.ver", "dispositivo_id", "edificio_id"),
+        )
         context["tab"] = normalizar_solapa_estadia(self.request.GET.get("tab", ""))
         context["url_bitacora"] = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         url_volver = url_solapa_estadias(dispositivo.pk)

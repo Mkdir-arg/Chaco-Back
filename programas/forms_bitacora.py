@@ -104,13 +104,21 @@ class NovedadForm(_PersonasYAdjuntosForm):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 4}),
         error_messages={"required": "Contá qué pasó."},
     )
+    edificio = forms.ChoiceField(
+        label="Edificio",
+        required=False,
+        choices=(),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
     etiqueta_personas = "Personas involucradas"
     etiqueta_adjuntos = "Adjuntos"
     ayuda_adjuntos = "Hasta {max} archivos: PDF, imágenes o documentos de 5 MB."
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, edificios=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["tipo"].choices = [("", "Elegí el tipo"), *TIPOS_MANUALES]
+        # Las opciones las decide el servicio (`bitacora.edificios_para_novedad`); si no hay ninguna, el campo no se usa.
+        self.fields["edificio"].choices = [("", "Elegí el edificio"), *[(str(pk), nombre) for pk, nombre in edificios]]
 
 
 class CorreccionForm(_PersonasYAdjuntosForm):

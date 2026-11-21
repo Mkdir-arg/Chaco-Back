@@ -570,6 +570,7 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
         texto=f"Kit recibido N.° {bloqueada.numero}",
         momento=ahora,
         usuario=usuario,
+        edificio_id=bloqueada.edificio_id,
     )
     bloqueada.ya_existia = False
     return bloqueada

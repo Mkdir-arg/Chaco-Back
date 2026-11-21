@@ -278,7 +278,11 @@ def aceptar_derivacion(*, derivacion, usuario):
         detalle=f"Derivación aceptada por {dispositivo.nombre} · {resumen}",
     )
     _anotar_en_bitacora(
-        dispositivo, usuario, f"Emergencia · derivación aceptada · caso N.° {caso.numero} · {resumen}", ahora
+        dispositivo,
+        usuario,
+        f"Emergencia · derivación aceptada · caso N.° {caso.numero} · {resumen}",
+        ahora,
+        derivacion.edificio_id,
     )
     mensaje = f"Reservé {reservadas} de {pedidas}"
     mensaje = f"{mensaje} · faltan {_camas(faltantes)}" if faltantes else f"{mensaje} camas"

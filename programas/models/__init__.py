@@ -1897,6 +1897,16 @@ class EntradaBitacora(TimeStamped):
         related_name="entradas",
         verbose_name="Turno",
     )
+    # El edificio de la novedad (Cambio 523): con alcance Edificios solo se ven las de sus edificios. NULL (las
+    # anteriores, o las de un sector sin edificio) solo las ve quien tiene toda la institución.
+    edificio = models.ForeignKey(
+        "Edificio",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="entradas_bitacora",
+        verbose_name="Edificio",
+    )
     fecha_operativa = models.DateField(verbose_name="Fecha operativa")
     momento = models.DateTimeField(verbose_name="Fecha y hora")
     responsable = models.ForeignKey(

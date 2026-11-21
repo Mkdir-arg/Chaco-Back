@@ -222,13 +222,26 @@ def _adjunto_de_bitacora(user, ruta):
     institución tiene `dispositivo.ver` y no tiene por qué leer las actas de esta.
     """
     from programas.models import AdjuntoBitacora
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.models import EntradaBitacora
+    from programas.services.dispositivos import (
+        alcance_de_edificios,
+        puede_operar_dispositivo,
+        q_edificios_en_alcance,
+    )
 
     adjunto = AdjuntoBitacora.objects.select_related("dispositivo").filter(archivo=ruta).first()
     if adjunto is None:
         return None
     # Sin alcance sobre ese dispositivo, el mismo 404 que un archivo inexistente.
-    return True if puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver") else None
+    if not puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver"):
+        return None
+    if alcance_de_edificios(user, adjunto.dispositivo, "dispositivo.ver").todo:
+        return True
+    # El archivo sigue a su novedad (Cambio 523): se ve si alguna de las novedades que lo comparten es visible.
+    visible = EntradaBitacora.objects.filter(
+        q_edificios_en_alcance(user, "dispositivo.ver", "dispositivo_id", "edificio_id"), adjuntos=adjunto
+    ).exists()
+    return True if visible else None
 
 
 def _adjunto_de_emergencia(user, ruta):

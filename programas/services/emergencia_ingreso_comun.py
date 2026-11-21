@@ -294,7 +294,7 @@ def _confirmadas(filas):
     return sum(1 for fila in filas if fila.confirmada)
 
 
-def _anotar_en_bitacora(dispositivo, usuario, texto, momento):
+def _anotar_en_bitacora(dispositivo, usuario, texto, momento, edificio_id=None):
     """La novedad ``GENERAL`` automática del turno (RN-3.14). Sin turno no escribe: no es un error."""
 
     return anotar_novedad_automatica(
@@ -303,6 +303,7 @@ def _anotar_en_bitacora(dispositivo, usuario, texto, momento):
         texto=texto,
         momento=momento,
         usuario=usuario,
+        edificio_id=edificio_id,
     )
 
 
