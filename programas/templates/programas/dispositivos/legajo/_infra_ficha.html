@@ -1,8 +1,9 @@
-{% comment %}
+{% load nodo_ui %}{% comment %}
 Ficha de un edificio de la solapa Infraestructura (Cambio 439). Reemplaza a la vista `?ver_edificio=<id>` de antes.
 Lo arma `infraestructura_del_dispositivo` (modo «ficha»). Sin alcance de inspección sobre el último relevamiento
 (`viendo.ve_detalle` falso, Cambio 428) quedan el estado y la fecha: ni criticidad, ni observaciones, ni quién relevó, ni fotos.
-Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas dentro de la surface de las solapas.
+Las secciones son <section> con <h3>, en una sola columna, y se separan con borde, sin cards anidadas dentro de la surface de las solapas.
+La barra de la institución (Agregar edificio, Crear relevamiento) la dibuja `detail.html` arriba del panel; acá solo van las acciones del edificio.
 {% endcomment %}
 {% with edificio=infraestructura.viendo %}
 {% with tono=edificio.estado.tono %}
@@ -27,19 +28,16 @@ Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas 
         </div>
       </div>
     </div>
-    <div class="flex gap-2 flex-wrap">
-      {% if puede_editar %}
-      <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit"
-              data-confirm-url="{{ edificio.url_desvincular }}"
-              data-confirm-title="¿Desvincular el edificio?"
-              data-confirm-text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia."
-              data-confirm-danger="true" data-confirm-ok="Sí, desvincular">Desvincular</button>
+    {% if puede_editar %}
+    <div class="flex gap-2 flex-wrap items-center">
       <a href="{{ edificio.url_editar }}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
       </a>
-      {% endif %}
-      {% include "programas/dispositivos/legajo/_infra_acciones.html" with ocultar_vinculo=infraestructura.chips %}
+      {% menu_fila id="acciones-edificio-ficha" etiqueta="Acciones de "|add:edificio.nombre %}
+        {% include "components/_menu_fila_item.html" with texto="Desvincular de "|add:dispositivo.nombre icono="fa-link-slash" peligro=True confirm_url=edificio.url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+      {% endmenu_fila %}
     </div>
+    {% endif %}
   </div>
 </div>
 
@@ -48,9 +46,6 @@ Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas 
   {% include "programas/dispositivos/legajo/_infra_sin_edificio.html" %}
 </div>
 {% endif %}
-
-<div class="grid grid-cols-1 lg:grid-cols-2">
-  <div class="min-w-0">
 
     <section aria-labelledby="ultimo-relevamiento-titulo">
       <div class="px-5 py-4 border-b border-light">
@@ -119,14 +114,22 @@ Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas 
       {% endif %}
     </section>
 
+    <section class="border-t border-light" aria-labelledby="ubicacion-del-edificio-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h3 id="ubicacion-del-edificio-titulo" class="text-sm font-bold text-heading">Ubicación</h3>
+      </div>
+      <div class="p-5">
+        {% include "components/_ubicacion.html" with latitud=edificio.latitud longitud=edificio.longitud compacto=True only %}
+      </div>
+    </section>
+
     {% if edificio.otras_instituciones %}
     <section class="border-t border-light" aria-labelledby="instituciones-del-predio-titulo">
       <div class="px-5 py-4 border-b border-light">
         <h3 id="instituciones-del-predio-titulo" class="text-sm font-bold text-heading">Instituciones en el predio</h3>
-        <p class="text-xs text-body-subtle mt-1">Instituciones en tu alcance.</p>
+        <p class="text-xs text-body-subtle mt-1">El relevamiento es del edificio: lo ven todas las instituciones del predio. Acá, las de tu alcance.</p>
       </div>
       <div class="p-5 space-y-4">
-        {% include "components/_alerta.html" with tono="info" icono="building" titulo="Predio compartido:" texto="el relevamiento es del edificio y lo ven todas las instituciones que lo ocupan; cada una mantiene su propio legajo." %}
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <thead><tr class="nodo-thead-row"><th class="nodo-th">Institución en este predio</th><th class="nodo-th">Tipo</th><th class="nodo-th">Legajo</th></tr></thead>
@@ -145,21 +148,7 @@ Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas 
     </section>
     {% endif %}
 
-    <section class="border-t border-light" aria-labelledby="datos-del-edificio-titulo">
-      <div class="px-5 py-4 border-b border-light">
-        <h3 id="datos-del-edificio-titulo" class="text-sm font-bold text-heading">Datos del edificio</h3>
-      </div>
-      <div class="p-5 space-y-4">
-        <dl class="grid gap-5 sm:grid-cols-2">
-          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Código</dt><dd class="mt-1 text-body">{{ edificio.codigo }}</dd></div>
-          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ edificio.domicilio|default:'—' }}</dd></div>
-        </dl>
-        {% include "components/_ubicacion.html" with latitud=edificio.latitud longitud=edificio.longitud compacto=True only %}
-      </div>
-    </section>
-  </div>
-
-  <section class="min-w-0 border-t border-light lg:border-t-0 lg:border-l" aria-labelledby="registro-fotografico-titulo">
+  <section class="border-t border-light" aria-labelledby="registro-fotografico-titulo">
     <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
       <div>
         <h3 id="registro-fotografico-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h3>
@@ -176,6 +165,5 @@ Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas 
     {% endif %}
     {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs=infraestructura.qs_paginacion %}
   </section>
-</div>
 {% endwith %}
 {% endwith %}

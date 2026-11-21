@@ -161,15 +161,18 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   lo visible según las condiciones de la foto respondida.
 - Infraestructura de P4/P19: tres modos que arma `infraestructura_del_dispositivo` (`modo`); los parciales son
   `legajo/_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html` (sectores sin edificio) y
-  `_infra_acciones.html` (Vincular, Cargar y Crear relevamiento; `ocultar_vinculo` los deja en uno), y las URL
-  de todos las arma el servicio. Sin edificio, el
-  estado vacío con las acciones. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
-  grave nombrado, acciones (Vincular, Cargar edificio, Crear relevamiento), filtro por estado con chips
+  `_infra_acciones.html` (la barra de la institución), y las URL
+  de todos las arma el servicio. La **barra** va una sola vez arriba del panel, igual en listado, ficha y sin edificio
+  (`px-5 py-4 border-b border-light`): rótulo «Edificios de X» con la frase del predio y, a la derecha, el menú
+  `menu_fila texto="Agregar edificio"` («Cargar un edificio nuevo», «Vincular uno existente», con `puede_editar`) y
+  «Crear relevamiento» (`puede_crear_relevamiento`, preselecciona el edificio de la ficha). Sin edificio, el
+  estado vacío con la acción. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
+  grave nombrado (sin acciones), filtro por estado con chips
   (`estado_edificio`, del lado del servidor, `components/_chips_enlace.html`) y una grilla de
   `components/_tarjeta_edificio.html` del más grave al mejor, sin relevar al final. Sin tablas ni tarjetas
   globales. Con uno solo, o con `?tab=infraestructura&ver_edificio=<pk>`, la **ficha** del edificio
-  (`_infra_ficha.html`): último relevamiento, sectores con ocupadas, instituciones del predio, datos con
-  `_ubicacion.html` y el registro fotográfico como `_linea_tiempo` plegable (`plegable=True`) por relevamiento, con su paginación; con 2 o más
+  (`_infra_ficha.html`, una sola columna): cabecera con «Editar edificio» y ⋮ (`menu_fila` con «Desvincular de X» en `peligro`, ambos con `puede_editar`), último relevamiento, sectores con ocupadas, Ubicación con
+  `_ubicacion.html`, instituciones del predio y el registro fotográfico como `_linea_tiempo` plegable (`plegable=True`) por relevamiento, con su paginación; con 2 o más
   edificios suma los chips para cambiar de uno a otro y «Los N edificios». Un id no vinculado se ignora y vuelve
   el listado. Alta, edición y vínculo se abren en los modales canónicos y exigen alcance de edición.
   La tarjeta separa el estado (criticidad de la última realizada) del aviso «Vencido» (`danger`, relevamiento en
