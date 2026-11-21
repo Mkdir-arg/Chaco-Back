@@ -434,11 +434,34 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertEqual(por_becas.status_code, 200, por_becas.content)
         self.assertEqual(por_emergencia.json(), por_becas.json())
 
-    def test_sin_dni_o_sin_sexo_es_el_400_de_siempre(self):
-        respuesta = self._como(self.agente).post(URL_CONSULTAR, {"dni": "30111222"}, format="json")
+    def test_sin_dni_es_el_400_de_siempre(self):
+        for cuerpo in ({}, {"sexo": "F"}, {"dni": "", "sexo": "F"}, {"dni": "sin-digitos"}):
+            with self.subTest(cuerpo=cuerpo):
+                respuesta = self._como(self.agente).post(URL_CONSULTAR, cuerpo, format="json")
 
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertEqual(respuesta.json(), {"success": False, "error": "DNI y sexo (F o M) son requeridos."})
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertEqual(respuesta.json(), {"success": False, "error": "DNI y sexo (F o M) son requeridos."})
+
+    def test_un_sexo_presente_e_invalido_es_400(self):
+        for sexo in ("X", "Z", "mujer"):
+            with self.subTest(sexo=sexo):
+                respuesta = self._como(self.agente).post(
+                    URL_CONSULTAR, {"dni": "30111222", "sexo": sexo}, format="json"
+                )
+
+                self.assertEqual(respuesta.status_code, 400)
+        self.gran_base.assert_not_called()
+
+    def test_becas_sigue_exigiendo_el_sexo(self):
+        ambos = self._sumar_rol(self.territorial_becas, [RELEVAR], self.programa)
+        url = reverse("becas_api:personas-consultar")
+
+        for cuerpo in ({"dni": "30111222"}, {"dni": "30111222", "sexo": ""}):
+            with self.subTest(cuerpo=cuerpo):
+                respuesta = self._como(ambos).post(url, cuerpo, format="json")
+
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertEqual(respuesta.json(), {"success": False, "error": "DNI y sexo (F o M) son requeridos."})
 
     def test_la_persona_que_no_figura_es_404_y_la_fuente_caida_502(self):
         self.gran_base.return_value = {"success": False, "error": "No se encontró", "not_found": True}
@@ -862,7 +885,14 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             "application/json"
         ]
 
-        self.assertEqual(de_emergencia["schema"], de_becas["schema"])
+        # Desde el Cambio 522 el de Emergencia hereda el de Becas y solo suelta el `required: sexo`
+        # (la puerta del dispositivo consulta solo con el DNI): el resto del cuerpo es idéntico.
+        componentes = self.esquema["components"]["schemas"]
+        schema_emergencia = componentes[de_emergencia["schema"]["$ref"].split("/")[-1]]
+        schema_becas = componentes[de_becas["schema"]["$ref"].split("/")[-1]]
+        self.assertEqual(schema_becas["required"], ["dni", "sexo"])
+        self.assertEqual(schema_emergencia["required"], ["dni"])
+        self.assertEqual(schema_emergencia["properties"].keys(), schema_becas["properties"].keys())
 
     def test_el_estado_y_la_prioridad_del_caso_tienen_nombre_propio(self):
         """Sin nombre propio, Spectacular los llama con un hash que cambia al tocar cualquier `choices`."""
@@ -870,3 +900,65 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
 
         self.assertEqual(componentes["CasoEmergenciaEstadoEnum"]["enum"], list(Estado.values))
         self.assertEqual(componentes["CasoEmergenciaPrioridadEnum"]["enum"], list(Prioridad.values))
+
+
+class ConsultaDePersonaSinSexoTests(ConsultaDePersonaTests):
+    """La puerta del dispositivo sabe el DNI y no el sexo: sin sexo se busca solo en legajos."""
+
+    def _sin_sexo(self, usuario, **cuerpo):
+        return self._como(usuario).post(URL_CONSULTAR, {"dni": "30.111.222", **cuerpo}, format="json")
+
+    def test_con_legajo_responde_el_legajo_sin_llamar_a_base_de_personas(self):
+        legajo = self._legajo()
+
+        for cuerpo in ({}, {"sexo": ""}, {"sexo": None}):
+            with self.subTest(cuerpo=cuerpo):
+                respuesta = self._sin_sexo(self.agente, **cuerpo)
+
+                self.assertEqual(respuesta.status_code, 200, respuesta.content)
+                self.assertEqual(
+                    respuesta.json(),
+                    {
+                        "success": True,
+                        "origen": "legajo",
+                        "data": {
+                            "nombre": "Rosa",
+                            "apellido": "Benitez",
+                            "fecha_nacimiento": "1984-03-02",
+                            "localidad_id": legajo.localidad_id,
+                            "localidad_texto": "Resistencia",
+                            "dni": "30111222",
+                            "sexo": "F",
+                        },
+                        "datos_api": {},
+                    },
+                )
+        self.gran_base.assert_not_called()
+
+    def test_el_sexo_del_legajo_solo_se_devuelve_si_mapea_limpio(self):
+        legajo = self._legajo(genero="M")
+        self.assertEqual(self._sin_sexo(self.guardia).json()["data"]["sexo"], "M")
+        for genero in ("X", ""):
+            with self.subTest(genero=genero):
+                type(legajo).objects.filter(pk=legajo.pk).update(genero=genero)
+
+                self.assertEqual(self._sin_sexo(self.guardia).json()["data"]["sexo"], "")
+
+    def test_sin_legajo_es_404_no_en_legajo_sin_llamar_a_base_de_personas(self):
+        respuesta = self._sin_sexo(self.agente)
+
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertEqual(
+            respuesta.json(),
+            {"success": False, "no_en_legajo": True, "error": "No figura en los legajos de DATAÑACH."},
+        )
+        self.gran_base.assert_not_called()
+
+    def test_con_sexo_el_comportamiento_no_cambia(self):
+        self._legajo(nombre="Del legajo")
+
+        respuesta = self._consultar(self.agente, sexo="M")
+
+        self.assertEqual(respuesta.json()["origen"], "legajo")
+        self.assertEqual(respuesta.json()["data"]["sexo"], "M")
+        self.gran_base.assert_called_once()

@@ -192,4 +192,6 @@ def identificar_en_legajo(dni):
         "fecha_nacimiento": ciudadano.fecha_nacimiento.isoformat() if ciudadano.fecha_nacimiento else "",
         "localidad_id": ciudadano.localidad_id,
         "localidad_texto": ciudadano.localidad.nombre if ciudadano.localidad_id else "",
+        # Solo F y M mapean limpio al contrato; «X» (no binario) o vacío no se inventa.
+        "sexo": ciudadano.genero if ciudadano.genero in ("F", "M") else "",
     }

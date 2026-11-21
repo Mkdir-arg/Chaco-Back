@@ -645,7 +645,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 519 | Emergencia · ficha del caso: los rótulos de los datos (Responsable, DNI, Fuerza que traslada…) en negrita | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` `#infra` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 | 521 | Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso | Emergencia · llegada de familias (API M2-3/M2-4) | `#emergencia` `#api` `#mobile` | Usuario — sesión de trabajo, caso 2026-C-000018 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
-| 522 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 1 de 4: columnas y desplegable) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 1 de 4** | `programas.0132` |
+| 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 1 de 4: columnas y desplegable) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 1 de 4** | `programas.0132` |
 
 **Notas del índice**
 
@@ -60653,8 +60654,70 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer; la app vuel
   (`test_emergencia_alojar_vistas`) y el docstring de `integrantes_de` muestra `responsable`. Sin cambio de
   comportamiento.
 
+---
 
-# Cambio 522 — Equipo de Dispositivos: alcance por institución o edificios y tipo de contratación
+# Cambio 522 — Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · API de campo (consulta de identidad) |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` |
+| **Solicitante** | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Mobile |
+| **Migración** | No requiere |
+
+## Pedido original
+La puerta del dispositivo (familia que llega sin derivación, «Ingresar igual» / «Avisar a la mesa») tiene el DNI fijo
+y el sexo opcional. Al abrirla tiene que consultar sola si el DNI está en los legajos y precompletar nombre, apellido
+y fecha de nacimiento.
+
+## Alcance acordado
+Solo `POST /api/emergencia/personas/consultar/`. Afuera: Becas (sigue exigiendo el sexo), RBAC y el throttle.
+
+## Decisiones tomadas
+- **`sexo` opcional solo en Emergencia.** Con F/M el comportamiento es idéntico al de siempre. Con el sexo ausente o
+  vacío se busca **solo en legajos** y no se llama a Base de Personas: 200 `origen: "legajo"` o 404
+  `{"success": false, "no_en_legajo": true, "error": "No figura en los legajos de DATAÑACH."}`. Un sexo presente e
+  inválido y un DNI ausente o inválido siguen siendo 400 con el cuerpo de siempre.
+- **`data.sexo`** es el `genero` del legajo si es `F` o `M`; «X» (no binario) o vacío devuelve `""`, sin inventar.
+- **Serializer propio de Emergencia** (`ConsultaPersonaEmergenciaSerializer`, hereda el de Becas y suelta el
+  `required`), más el parámetro `sexo_opcional` de `responder_consulta_de_persona`. El de Becas no cambia.
+
+## Implementación
+`programas/api/views.py` (`_consulta_solo_en_legajos`), `programas/api/serializers.py`,
+`programas/api/views_emergencia.py` (esquema y descripción), `programas/services/identidad.py`
+(`identificar_en_legajo` suma `sexo`; con sexo en la consulta se pisa igual que antes).
+
+## Archivos
+Los de arriba, `programas/tests/test_emergencia_api_contrato.py` y `docs/internal/contrato-app-emergencia.md` (§4).
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos en `test_emergencia_api_contrato` (sin sexo con legajo sin llamar a Base de Personas, sin legajo 404
+`no_en_legajo`, sexo inválido 400, mapeo de `data.sexo`, con sexo sin cambios, Becas sigue en 400); el test de esquemas
+compara ahora que el cuerpo de Emergencia solo difiere en el `required`. Mutación: anular la rama sin sexo deja rojos
+los tests nuevos. `manage.py check`, `makemigrations --check` y ruff: OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+La app (Chaco-mobile) consume el contrato en un PR aparte: la puerta del dispositivo consulta al abrirse.
+
+## Reversión
+Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+
+- **21/11/2026:** alta del cambio.
+
+# Cambio 523 — Equipo de Dispositivos: alcance por institución o edificios y tipo de contratación
 
 🟡 **PARCIAL — PR 1 de 4 — 21/11/2026**
 
