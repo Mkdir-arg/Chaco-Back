@@ -203,6 +203,41 @@ class IntegrantesApiTests(BaseApiLlegadas):
         self.assertNotIn("uuid_cliente", cuerpo["ficha"])
         self.assertEqual(len(cuerpo["secciones_incompletas"]), 5)
 
+    def test_la_persona_1_sin_confirmar_llega_precargada_con_el_responsable(self):
+        responsable = self.caso.grupo.responsable
+
+        respuesta = self._como(self.guardia_centro).get(_url("caso-integrante", self.caso.pk, 1))
+
+        self.assertEqual(respuesta.status_code, 200)
+        cuerpo = respuesta.json()
+        self.assertEqual((cuerpo["estado"], cuerpo["persona"]), ("SIN_CONFIRMAR", None))
+        self.assertEqual(
+            cuerpo["responsable"],
+            {"id": responsable.pk, "nombre": responsable.apellido_nombre, "dni": responsable.dni},
+        )
+        self.assertEqual(cuerpo["ficha"]["parentesco"], {"parentesco": "JEFE"})
+        datos = cuerpo["ficha"]["datos_personales"]
+        self.assertEqual(
+            (datos["dni"], datos["nombre"], datos["apellido"]),
+            (responsable.dni, responsable.nombre, responsable.apellido),
+        )
+        self.assertEqual(len(cuerpo["secciones_incompletas"]), 5)
+
+    def test_las_demas_personas_sin_confirmar_no_traen_precarga_ni_responsable(self):
+        respuesta = self._como(self.guardia_centro).get(_url("caso-integrante", self.caso.pk, 2))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual((respuesta.json()["ficha"], respuesta.json()["responsable"]), ({}, None))
+
+    def test_la_lista_rotula_a_la_persona_1_con_el_responsable(self):
+        responsable = self.caso.grupo.responsable
+
+        respuesta = self._como(self.guardia_centro).get(_url("caso-integrantes", self.caso.pk))
+
+        primera, segunda = respuesta.json()["integrantes"][:2]
+        self.assertEqual((primera["persona"], primera["responsable"]["dni"]), (None, responsable.dni))
+        self.assertIsNone(segunda["responsable"])
+
     def test_el_detalle_de_una_persona_que_no_es_de_la_familia_es_404(self):
         respuesta = self._como(self.guardia_centro).get(_url("caso-integrante", self.caso.pk, 99))
 
