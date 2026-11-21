@@ -52,7 +52,6 @@ from programas.models import (
     EntradaBitacora,
     Estadia,
     MovimientoEstadia,
-    Plaza,
     TrazaDispositivo,
     Turno,
 )
@@ -60,6 +59,7 @@ from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
     CAP_VER,
     alcance_de_edificios,
+    edificio_de_plaza,
     puede_operar_dispositivo,
     puede_operar_edificio,
     puede_operar_institucion,
@@ -420,6 +420,8 @@ def _edificio_de_la_novedad(usuario, dispositivo, edificio):
     opciones, obligatorio = edificios_para_novedad(usuario, dispositivo)
     ids = [e.pk for e in opciones]
     pedido = getattr(edificio, "pk", edificio) or None
+    if isinstance(pedido, str):
+        pedido = int(pedido) if pedido.strip().isdigit() else None
     if pedido is not None and pedido not in ids:
         if obligatorio:
             raise PermissionDenied("No tenés alcance sobre ese edificio.")
@@ -627,9 +629,7 @@ def anotar_en_bitacora(movimiento):
 
     # El edificio sale de la plaza (destino; en un egreso, la que dejó) → sector → edificio; sector sin edificio, vacío.
     plaza_id = movimiento.plaza_destino_id or movimiento.plaza_origen_id
-    edificio_id = (
-        Plaza.objects.filter(pk=plaza_id).values_list("sector__edificio_id", flat=True).first() if plaza_id else None
-    )
+    edificio_id = edificio_de_plaza(plaza_id)
     entrada = _escribir_automatica(
         situado,
         edificio_id=edificio_id,

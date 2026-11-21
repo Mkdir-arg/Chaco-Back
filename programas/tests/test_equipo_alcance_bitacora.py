@@ -99,6 +99,32 @@ class CargaManualTests(BaseBitacoraAlcance):
         self.assertEqual(respuesta.status_code, 400)
         self.assertIn("edificio", respuesta.json()["errors"])
 
+    def _novedad_por_la_vista(self, usuario, edificio):
+        return self._post(
+            "bitacora_novedad",
+            {"tipo": "INCIDENTE", "texto": "Desde el modal", "edificio": str(edificio.pk)},
+            usuario=usuario,
+        )
+
+    def test_por_la_vista_el_edificio_elegido_con_alcance_edificios_se_guarda(self):
+        respuesta = self._novedad_por_la_vista(self.de_ab, self.edif_b)
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(EntradaBitacora.objects.get(texto="Desde el modal").edificio_id, self.edif_b.pk)
+
+    def test_por_la_vista_el_edificio_elegido_con_alcance_institucion_se_guarda(self):
+        respuesta = self._novedad_por_la_vista(self.de_inst, self.edif_a)
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(EntradaBitacora.objects.get(texto="Desde el modal").edificio_id, self.edif_a.pk)
+
+    def test_por_la_vista_un_edificio_ajeno_sigue_rechazado(self):
+        respuesta = self._novedad_por_la_vista(self.de_a, self.edif_b)
+        self.assertIn(respuesta.status_code, (400, 403))
+        self.assertFalse(EntradaBitacora.objects.filter(texto="Desde el modal").exists())
+
+    def test_el_servicio_acepta_el_edificio_como_texto(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), usuario=self.de_ab, edificio=str(self.edif_b.pk))
+        self.assertEqual(entrada.edificio_id, self.edif_b.pk)
+
     def test_corregir_una_novedad_ajena_no_se_puede_y_la_version_hereda_el_edificio(self):
         with _reloj(), self.assertRaises(PermissionDenied):
             corregir_entrada(entrada=self.entrada_b, usuario=self.de_a, texto="cambio")
@@ -173,6 +199,13 @@ class FiltroEdificioTests(BaseBitacoraAlcance):
         self.assertEqual(self._textos(self.de_inst, edificio=str(self.edif_a.pk)), {TEXTOS[0]})
         self.assertEqual(self._textos(self.de_inst, edificio="sin"), {TEXTOS[2]})
         self.assertEqual(self._textos(self.de_inst, edificio=""), set(TEXTOS))
+
+    def test_un_lector_de_toda_la_institucion_sin_capacidad_de_carga_ve_el_filtro(self):
+        lector = self._miembro("Lector", Alcance.INSTITUCION, capacidades=("dispositivo.ver",))
+        html = self._get(lector).content.decode()
+        self.assertIn("Sin edificio", html)
+        self.assertIn(self.edif_a.nombre, html)
+        self.assertEqual(self._textos(lector, edificio=str(self.edif_b.pk)), {TEXTOS[1]})
 
     def test_el_filtro_solo_lo_ve_quien_tiene_toda_la_institucion(self):
         self.assertIn("Sin edificio", self._get(self.de_inst).content.decode())

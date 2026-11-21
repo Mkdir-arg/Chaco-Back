@@ -81,6 +81,7 @@ from programas.services.detalle_dispositivo import (
     sectores_del_censo,
 )
 from programas.services.dispositivos import (
+    CAP_VER,
     buscar_posibles_duplicados,
     cerrar_dispositivo,
     dispositivos_en_alcance,
@@ -1639,7 +1640,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         context["novedades_page"] = novedades_de_estadia(
             estadia,
             self.request.GET.get("novedades_page"),
-            q_entradas=q_edificios_en_alcance(usuario, "dispositivo.ver", "dispositivo_id", "edificio_id"),
+            q_entradas=q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id"),
         )
         context["tab"] = normalizar_solapa_estadia(self.request.GET.get("tab", ""))
         context["url_bitacora"] = reverse("dispositivos:bitacora", args=[dispositivo.pk])
