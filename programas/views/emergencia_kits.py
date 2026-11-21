@@ -607,11 +607,11 @@ class RecibirKitView(RecepcionKitsMixin, View):
         entrega = self._entrega(pk)
         if not entrega.abierta:
             return self._ya_no_esta_abierta(request, entrega)
-        return self._render(request, entrega, RecepcionKitForm(lineas=selectores.lineas_de(entrega)))
+        return self._render(request, entrega, RecepcionKitForm(lineas=list(entrega.lineas.all())))
 
     def post(self, request, dispositivo, pk):
         entrega = self._entrega(pk)
-        form = RecepcionKitForm(request.POST, request.FILES, lineas=selectores.lineas_de(entrega))
+        form = RecepcionKitForm(request.POST, request.FILES, lineas=list(entrega.lineas.all()))
         if not form.is_valid():
             return self._render(request, entrega, form, status=400)
         try:
