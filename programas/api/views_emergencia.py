@@ -332,7 +332,7 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
         ),
     )
     def post(self, request):
-        return responder_consulta_de_persona(request.data, buscar_en_legajos=True, sexo_opcional=True)
+        return responder_consulta_de_persona(request.data, buscar_en_legajos=True)
 
 
 class LocalidadesEmergenciaView(_VistaDeCampo):

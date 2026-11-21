@@ -60709,7 +60709,7 @@ los tests nuevos. `manage.py check`, `makemigrations --check` y ruff: OK.
 No requiere.
 
 ## Pendientes / a definir
-La app (Chaco-mobile) consume el contrato en un PR aparte: la puerta del dispositivo consulta al abrirse.
+Ninguno. La app (Chaco-mobile) lo consume desde la versión 1.2.26 (I-CORE-TEC/Chaco-mobile#41), en testing desde el 21/11/2026.
 
 ## Reversión
 Desplegar el código anterior. Sin datos ni esquema.
@@ -60717,6 +60717,7 @@ Desplegar el código anterior. Sin datos ni esquema.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** MINOR de la auditoría del #1279, sin cambio de comportamiento: `sexo_opcional` se derivó de `buscar_en_legajos` (era un segundo flag que solo Emergencia pasaba y siempre junto al primero), el 200 del legajo salió a `_respuesta_del_legajo`, los helpers de los tests pasaron a `_ConsultaDePersonaBase` (la clase sin sexo heredaba de la de tests y volvía a correr sus 22 casos) y se documentó en el contrato por qué el 400 de Emergencia sigue nombrando el sexo.
 
 # Cambio 523 — Equipo de Dispositivos: alcance por institución o edificios y tipo de contratación
 
