@@ -36,7 +36,8 @@ from programas.mixins_dispositivos import (
     DispositivoProgramaPermissionMixin,
     dispositivo_operable_o_404,
 )
-from programas.models import Dispositivo, Edificio, EntradaBitacora
+from programas.models import Dispositivo, EntradaBitacora
+from programas.selectors.capacidad_dispositivo import edificios_del_dispositivo
 from programas.services.bitacora import (
     CAP_BITACORA,
     CAP_EDITAR,
@@ -81,11 +82,7 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
         nombrar_personas = todo and rbac.puede(usuario, CAP_VER_CIUDADANO)
         url_base = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         # El filtro lista los edificios del dispositivo (lectura): no depende de la capacidad de carga.
-        edificios_filtro = (
-            list(Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "id").values_list("pk", "nombre"))
-            if todo
-            else []
-        )
+        edificios_filtro = list(edificios_del_dispositivo(dispositivo).values_list("pk", "nombre")) if todo else []
 
         datos = pantalla_bitacora(
             dispositivo,
