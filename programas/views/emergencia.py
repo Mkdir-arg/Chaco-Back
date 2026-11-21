@@ -21,6 +21,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -37,6 +38,7 @@ from programas.forms_emergencia import (
     PanelDerivarForm,
     PrioridadCasoForm,
     ReasignarCasoForm,
+    UbicarDomicilioForm,
     aviso_identidad_a_revisar,
 )
 from programas.mixins_emergencia import MesaPermissionMixin
@@ -193,6 +195,8 @@ class CasoDetalleView(MesaPermissionMixin, View):
             ),
         )
         panel["url_volver"] = _url_ficha(caso, **conservados)
+        if panel["distancias"]:
+            panel["distancias"]["ubicar_url"] = reverse("emergencia:caso_ubicar_domicilio", args=[caso.pk])
         # Para mostrar, un formulario sin enlazar: así «Plazas a reservar» arranca en el total del grupo.
         panel["form"] = PanelDerivarForm(
             initial={**conservados, "plazas": panel["plazas"], "grupo": pedido.valor("grupo")}, auto_id="panel_%s"
@@ -364,6 +368,29 @@ class DerivarCasoView(_AccionDeCasoView):
                 caso, plazas=form.cleaned_data["plazas"], grupo=grupo, derivar=form.cleaned_data["dispositivo"].pk
             )
         )
+
+
+class UbicarDomicilioView(MesaPermissionMixin, View):
+    """POST del panel «Derivar»: guarda el punto del domicilio que el navegador ubicó con Google (Cambio 519).
+
+    Contesta JSON y no redirige: lo llama ``nodo-derivar-distancias.js`` en segundo plano. Si no se guarda,
+    la pantalla sigue con la distancia que ya calculó.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        caso = get_object_or_404(CasoEmergencia, pk=pk)
+        form = UbicarDomicilioForm(request.POST)
+        if not form.is_valid():
+            return JsonResponse({"guardado": False, "error": _errores_de(form)}, status=400)
+        try:
+            guardado = servicio.ubicar_domicilio(
+                caso, request.user, form.cleaned_data["latitud"], form.cleaned_data["longitud"]
+            )
+        except ValidationError as error:
+            return JsonResponse({"guardado": False, "error": " ".join(error.messages)}, status=400)
+        return JsonResponse({"guardado": guardado})
 
 
 class CancelarDerivacionView(_AccionDeCasoView):

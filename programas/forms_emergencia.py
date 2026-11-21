@@ -595,6 +595,13 @@ class DerivarCasoForm(forms.Form):
     confirmar_faltantes = forms.BooleanField(required=False, widget=forms.HiddenInput)
 
 
+class UbicarDomicilioForm(forms.Form):
+    """El punto del domicilio que el panel «Derivar» ubicó con Google (Cambio 519, fase 2). Lo manda el JS."""
+
+    latitud = forms.DecimalField(max_digits=9, decimal_places=6, validators=VALIDADORES_LATITUD)
+    longitud = forms.DecimalField(max_digits=9, decimal_places=6, validators=VALIDADORES_LONGITUD)
+
+
 class PanelDerivarForm(forms.Form):
     """Lo que la ficha lee de la URL para armar el panel «Derivar». Es un GET: nada de esto escribe.
 

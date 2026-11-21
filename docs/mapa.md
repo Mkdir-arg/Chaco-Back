@@ -17,13 +17,15 @@ entorno y los permisos. El contrato técnico de la pieza está en
 
 1. En [Google Cloud console](https://console.cloud.google.com/), elegir o crear el proyecto del
    ambiente y asociarle una **cuenta de facturación** (sin facturación, la API no carga).
-2. **APIs y servicios → Biblioteca**: habilitar **Maps JavaScript API** y **Geocoding API** (la
-   segunda la usa el domicilio → coordenadas).
+2. **APIs y servicios → Biblioteca**: habilitar **Maps JavaScript API**, **Geocoding API** (la usa el
+   domicilio → coordenadas) y **Routes API** (la usa «Calcular distancia por calle» del panel «Derivar» de
+   Emergencia, Cambio 519). Sin la Routes API, ese botón avisa que no pudo y la mesa sigue con la distancia en
+   línea recta.
 3. **APIs y servicios → Credenciales → Crear credenciales → Clave de API**.
 4. Restringir la key (**obligatorio**, la key viaja en el HTML y cualquiera la puede leer):
    - **Restricciones de aplicaciones → Sitios web (referentes HTTP)**: el dominio de cada ambiente,
      por ejemplo `https://mi-entorno.ejemplo.ar/*`. En desarrollo, `http://localhost:8000/*`.
-   - **Restricciones de API**: solo **Maps JavaScript API** y **Geocoding API**.
+   - **Restricciones de API**: solo **Maps JavaScript API**, **Geocoding API** y **Routes API**.
 5. Una key por ambiente (dev, testing, producción). No se reutiliza la de producción en otro lado.
 
 Referencia: [buenas prácticas de seguridad de API keys](https://developers.google.com/maps/api-security-best-practices).
@@ -110,3 +112,8 @@ administran desde el admin de Django («Puntos del mapa»).
 
 Google cobra por uso: cada carga de mapa y cada búsqueda de domicilio consumen cuota, con un crédito
 mensual gratuito. Conviene configurar alertas de presupuesto en la cuenta de facturación del proyecto.
+
+«Calcular distancia por calle» (panel «Derivar» de la ficha del caso de Emergencia) cobra por cada **par**
+casa–edificio de la matriz de rutas: como mucho 10 por clic, y solo cuando alguien lo toca. Si el domicilio
+de la familia todavía no estaba ubicado, suma una búsqueda de Geocoding, y el punto queda guardado en el caso
+para no volver a pagarla.

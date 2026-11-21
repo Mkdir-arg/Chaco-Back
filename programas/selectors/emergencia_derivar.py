@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from django.core.exceptions import PermissionDenied
 from django.db.models import Exists, OuterRef
 
-from core.selectors.geografia import localidades_operativas
+from core.selectors.geografia import PROVINCIA_OPERATIVA, localidades_operativas
 from core.services.ubicaciones_localidades import clave
 from programas.models import CasoEmergencia, Dispositivo, Edificio
 from programas.selectors.emergencia import (
@@ -108,8 +108,8 @@ def _par(latitud, longitud):
     return ubicacion_valida(latitud, longitud)
 
 
-def punto_de_la_familia(caso, centroides):
-    """Desde dónde se mide la distancia a los edificios (ver el docstring del módulo), o ``None``. Sin consultas."""
+def domicilio_ubicado(caso):
+    """El punto del domicilio de la familia si ya está ubicado (pasos 1 y 2 del módulo), o ``None``. Sin consultas."""
 
     if _par(caso.domicilio_latitud, caso.domicilio_longitud):
         return Punto(caso.domicilio_latitud, caso.domicilio_longitud, aproximado=False, origen=ORIGEN_DOMICILIO)
@@ -117,6 +117,15 @@ def punto_de_la_familia(caso, centroides):
     de_la_mesa_antes_del_cambio = caso.origen == CasoEmergencia.Origen.MESA and caso.precision_m is None
     if de_la_mesa_antes_del_cambio and _par(caso.latitud, caso.longitud):
         return Punto(caso.latitud, caso.longitud, aproximado=False, origen=ORIGEN_DOMICILIO)
+    return None
+
+
+def punto_de_la_familia(caso, centroides):
+    """Desde dónde se mide la distancia a los edificios (ver el docstring del módulo), o ``None``. Sin consultas."""
+
+    ubicado = domicilio_ubicado(caso)
+    if ubicado is not None:
+        return ubicado
     centroide = centroides.de_localidad(caso.localidad_id)
     if centroide is not None:
         return centroide
@@ -184,7 +193,10 @@ def edificios_para_derivar(caso, usuario, *, plazas=None, momento=None):
     ``PermissionDenied``. Cada grupo es un dict:
 
     ``{"clave", "edificio_id", "nombre", "ubicacion", "localidad", "reservado", "libres", "reservadas",
-    "distancia", "distancia_texto", "marca", "faltan", "instituciones"}``
+    "distancia", "distancia_texto", "destino", "marca", "faltan", "instituciones"}``
+
+    * ``destino`` es hasta dónde se pide la distancia por calle: ``{"lat", "lng"}`` o ``{"direccion"}``, o
+      ``None`` en un edificio de ubicación reservada o sin ubicación: esos nunca salen hacia Google.
 
     * ``libres`` y ``reservadas`` suman las camas de todas sus instituciones **en ese edificio**.
     * ``instituciones``: ``{"id", "nombre", "libres", "reservadas", "marca", "faltan"}`` con las camas de esa
@@ -256,6 +268,25 @@ def edificios_para_derivar(caso, usuario, *, plazas=None, momento=None):
     )
 
 
+def _destino_por_calle(reservado, destino, calle_y_numero, localidad):
+    """Hasta dónde le pide Google la distancia por calle (fase 2), o ``None``. Nunca un edificio reservado.
+
+    Las coordenadas si son exactas; si no, la dirección del edificio (Google la ubica mejor que el centroide
+    de la localidad); y si tampoco hay calle, el centroide.
+    """
+
+    if reservado:
+        return None
+    if destino is not None and not destino.aproximado:
+        return {"lat": float(destino.latitud), "lng": float(destino.longitud)}
+    if calle_y_numero:
+        partes = (calle_y_numero, localidad, PROVINCIA_OPERATIVA, "Argentina")
+        return {"direccion": ", ".join(parte for parte in partes if parte)}
+    if destino is not None:
+        return {"lat": float(destino.latitud), "lng": float(destino.longitud)}
+    return None
+
+
 def _grupo_nuevo(llave, edificio, dispositivo, familia, centroides):
     if edificio is not None:
         reservado = edificio.reservado
@@ -268,10 +299,12 @@ def _grupo_nuevo(llave, edificio, dispositivo, familia, centroides):
         reservado = dispositivo.tipo.ubicacion_reservada
         nombre = f"{dispositivo.nombre} (sin edificio asignado)"
         localidad = dispositivo.localidad or ""
+        calle_y_numero = ""
         domicilio = localidad
         destino = _ubicacion_de_dispositivo(dispositivo, centroides)
     distancia = distancia_entre(familia, destino)
     return {
+        "destino": _destino_por_calle(reservado, destino, calle_y_numero, localidad),
         "clave": llave,
         "edificio_id": edificio.pk if edificio is not None else None,
         "nombre": nombre,

@@ -642,7 +642,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 516 | Auditoría 2026-11: se generalizan títulos de fichas de seguridad abiertas en el informe público de Dispositivos (detalle reservado) | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#seguridad` `#metodo` | PM — decisión sobre el informe público de la auditoría | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 517 | Dispositivos · Ola 0: seguimiento de las auditorías (regla de visibilidad en un solo dueño, guarda de roles medida por AST) | Dispositivos | `#dispositivos` `#seguridad` `#rbac` | Auditorías de los PR de la Ola 0 — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 518 | Emergencia · ficha del caso: «Ver en el mapa» muestra el domicilio (dirección y localidad), no el GPS de la toma | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#gps` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
-| 519 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** (fase 1 de 2) | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
+| 519 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` `#infra` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 
 **Notas del índice**
 
@@ -60386,16 +60386,16 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 
 # Cambio 519 — Emergencia · «Derivar» por edificio y distancia desde el domicilio de la familia
 
-🟢 **HECHO — fase 1 el 21/11/2026** (la fase 2, distancia por calle con Google, queda pendiente)
+🟢 **HECHO — fase 1 y fase 2 el 21/11/2026** (queda pendiente el mapa en el formulario de edificio)
 
 | | |
 |---|---|
 | **Programa / módulo** | Emergencia · mesa (ficha del caso E3, panel «Derivar») |
-| **Etiquetas** | `#emergencia` `#gps` `#datos` `#ui` |
+| **Etiquetas** | `#emergencia` `#gps` `#datos` `#ui` `#infra` |
 | **Solicitante** | Usuario — sesión de trabajo |
 | **Fecha del pedido** | 21/11/2026 |
 | **Issue / épica** | sin issue |
-| **Partes afectadas** | Backoffice |
+| **Partes afectadas** | Backoffice · Infra/ECOM (Routes API en la key) |
 | **Migración** | `programas.0131` (3 `AddField` nulos, solo expand) |
 
 ## Pedido original
@@ -60441,6 +60441,14 @@ siendo de la institución.
   ubicada con sus propias coordenadas, y se deriva sin edificio con `derivar_caso(…, sin_edificio=True)`, que
   cuenta solo esas camas, las mismas que mostró el panel (auditoría del PR #1271).
 - **Una institución sin sectores ya no aparece** en el panel: no tiene camas que ofrecer.
+- **La distancia por calle es a pedido** (fase 2): un botón «Calcular distancia por calle», no al abrir
+  «Derivar». El domicilio de una persona sale hacia Google solo con una acción del usuario (SEC-33, Cambio 493),
+  y así además se paga solo cuando alguien la usa. Es auto, de Google, para los 10 primeros edificios de la lista
+  (se cobra por par). Se cambió lo propuesto en el plan («automático al abrir»), por esa regla ya registrada.
+- **Hasta un edificio sin coordenadas se le pide a Google por su dirección** (calle, número y localidad), que
+  ubica mejor que el centroide de la localidad. Hoy ninguna pantalla carga las coordenadas de un edificio.
+- **El domicilio que ubica Google se guarda en el caso** (`ubicar_domicilio`), sin pisar uno que ya estaba: el que
+  la mesa puso a mano en el mapa vale más. Así la segunda vez no se vuelve a pagar el Geocoding.
 
 ## Implementación
 - `programas/selectors/emergencia_derivar.py` (nuevo): `edificios_para_derivar` arma los edificios con sus
@@ -60450,6 +60458,12 @@ siendo de la institución.
   para los sectores sin edificio de una institución); la confirmación lleva el edificio oculto.
 - `_tarjeta_dispositivo_derivar.html` suma `distancia_texto` (opcional), que gana sobre `distancia_km`.
 - La ficha muestra el edificio en «Derivación vigente», y las «Llegadas» de la institución lo muestran en la fila.
+- **Fase 2:** `panel_de_derivar` publica `distancias` (`origen` ya ubicado o `None`, la `direccion` de la familia,
+  hasta 10 `destinos` con punto o dirección y sin los reservados) con `json_script`; `nodo-derivar-distancias.js`,
+  con el botón, ubica el domicilio si hace falta (Geocoder) y lo guarda con `POST …/ubicar-domicilio/`
+  (`UbicarDomicilioView`, JSON), pide `RouteMatrix.computeRouteMatrix` (o `DistanceMatrixService` si la librería
+  `routes` no está) y escribe «a 4,3 km por calle · 12 min» en el `data-distancia` de cada tarjeta. Sin key, sin red
+  o con la key rechazada, quedan las distancias en línea recta y la pantalla lo dice.
 
 ## Archivos
 `programas/models/__init__.py`, `programas/migrations/0131_caso_domicilio_y_edificio_de_la_derivacion.py`,
@@ -60473,12 +60487,13 @@ migraciones: así se escapó un import faltante en `0131`, que marcó la auditor
 --ratchet`: 0 nuevos; `check_design_agent.py --changed`: OK; `compile_templates.py --bloques`: 0; `ruff` OK.
 
 ## Puesta en marcha en el servidor
-No requiere.
+**Fase 2:** habilitar la **Routes API** en el proyecto de Google Cloud de cada ambiente y sumarla a las
+restricciones de API de la key (`docs/mapa.md` §1). Sin eso el botón avisa que no pudo y el panel sigue con la
+distancia en línea recta. No hace falta tocar la CSP: `connect-src` ya admite `https://*.googleapis.com`.
 
 ## Pendientes / a definir
-- **Fase 2:** distancia por calle con Google (Distance Matrix/Routes en el navegador, 10 más cercanos, sin
-  edificios reservados), ubicar el domicilio de los casos de campo al abrir «Derivar» y «Ubicar en el mapa» en el
-  formulario de edificio.
+- «Ubicar en el mapa» en el formulario de edificio (modal de Infraestructura): hoy ninguna pantalla carga las
+  coordenadas de un edificio, y la distancia por calle va por su dirección.
 - `selectors.emergencia.dispositivos_para_derivar` quedó sin pantalla que lo use (lo cubren sus tests): retirarlo
   junto con sus pruebas cuando se confirme que no vuelve.
 - La API de la app no expone el edificio de la derivación.
@@ -60493,3 +60508,5 @@ del domicilio de los casos cargados desde la mesa.
 ## Historial
 
 - **21/11/2026:** alta del cambio (fase 1).
+- **21/11/2026:** fase 2 (distancia por calle a pedido). Se ordena la elección del conteo de `derivar_caso`
+  (MINOR de la auditoría del PR #1271).
