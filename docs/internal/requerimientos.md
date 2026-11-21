@@ -644,6 +644,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 518 | Emergencia · ficha del caso: «Ver en el mapa» muestra el domicilio (dirección y localidad), no el GPS de la toma | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#gps` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 519 | Emergencia · ficha del caso: los rótulos de los datos (Responsable, DNI, Fuerza que traslada…) en negrita | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` `#infra` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
+| 521 | Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso | Emergencia · llegada de familias (API M2-3/M2-4) | `#emergencia` `#api` `#mobile` | Usuario — sesión de trabajo, caso 2026-C-000018 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60571,3 +60572,68 @@ del domicilio de los casos cargados desde la mesa.
   `ubicar_domicilio`, guardar solo respuestas precisas del Geocoder y no mandar a Google los edificios que solo
   tienen centroide. Se ordena la elección del conteo de `derivar_caso`
   (MINOR de la auditoría del PR #1271).
+
+# Cambio 521 — Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · llegada de familias (API M2-3/M2-4) |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` |
+| **Solicitante** | Usuario — sesión de trabajo, sobre el caso 2026-C-000018 de testing |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Mobile |
+| **Migración** | No requiere |
+
+## Pedido original
+«Cuando creo un caso desde la app busco una persona, creo el caso y lo envío; cuando lo quiero abrir como si fuera la
+institución: Caso 2026-C-000018 · Persona 1. La persona 1 tiene que ser el DNI del responsable que cargué en el caso,
+con sus datos básicos ya cargados: nombre, apellido.»
+
+## Alcance acordado
+La API de la guardia (`…/casos/{id}/integrantes/` y `…/integrantes/{n}/`) y el rótulo de las filas de la familia
+(mesa E3 y guardia web). Afuera: cambiar quién es la persona 1 (sigue siendo el responsable, como ya lo asumían la
+marca «Identidad a revisar» del Cambio 486 y la ficha web de la guardia) y confirmar sola a la persona 1: la guardia
+la confirma igual, con la cama y los avisos de salud.
+
+## Decisiones tomadas
+- **Precarga, no vínculo.** Las filas siguen naciendo vacías al aceptar (`_asegurar_filas`); la persona 1 sin
+  confirmar y sin ficha guardada se **sirve** con la ficha precargada (`parentesco` JEFE y `datos_personales` con DNI,
+  nombre, apellido, sexo, nacimiento y teléfono del Formulario 1, solo los que tienen dato). Es lo mismo que ya hacía
+  la ficha web (`FichaIntegranteView._iniciales`), ahora también para la app. No se escribe nada en la base.
+- **`persona` sigue en `null` hasta confirmar** (contrato): el responsable va en una clave nueva `responsable`
+  (`{id, nombre, dni}`), solo en la fila 1, para rotularla «Pérez, Juan (responsable)» en vez de «Persona 1».
+- **Sin consultas de más:** el responsable viaja en el mismo `select_related` de las filas (`grupo__responsable`);
+  los presupuestos de `integrantes_de` siguen igual.
+
+## Implementación
+`integrante_de` devuelve la ficha precargada en la persona 1 sin confirmar; `_fila_de_integrante` agrega
+`responsable`; `filas_de_integrantes` rotula la fila 1 con el responsable. La app (Chaco-mobile) ya precargaba la
+ficha desde `ficha`; además muestra el nombre del responsable en la lista y en el título de la ficha.
+
+## Archivos
+`programas/selectors/emergencia_alojar.py`, `programas/selectors/emergencia_mesa.py`,
+`programas/api/serializers_emergencia.py`, `programas/tests/base_emergencia_api.py`,
+`programas/tests/test_emergencia_api_m2_integrantes.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+Los 39 módulos `test_emergencia*` (1289 tests): OK, con 3 tests nuevos (persona 1 precargada, las demás sin precarga,
+la lista con `responsable`). `manage.py check`: OK. `ruff check` y `ruff format --check`: OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior. No hay datos ni esquema que deshacer; la app vuelve a mostrar «Persona 1» vacía.
+
+## Historial
+
+- **21/11/2026:** alta del cambio.

@@ -433,6 +433,16 @@ def _traza(caso):
     return eventos
 
 
+def _rotulo_de_integrante(integrante):
+    """«Pérez, Juan» confirmada; la persona 1 sin confirmar, con el nombre del responsable; si no, «Persona N»."""
+
+    if integrante["persona"]:
+        return integrante["persona"]["nombre"]
+    if integrante.get("responsable"):
+        return f"{integrante['responsable']['nombre']} (responsable)"
+    return f"Persona {integrante['n']}"
+
+
 def filas_de_integrantes(datos, url_de=None, estados=ESTADO_DE_INTEGRANTE):
     """Las filas de la familia desde lo que contesta ``integrantes_de``, con texto y tono. Sin consultas.
 
@@ -448,7 +458,7 @@ def filas_de_integrantes(datos, url_de=None, estados=ESTADO_DE_INTEGRANTE):
         filas.append(
             {
                 **integrante,
-                "rotulo": integrante["persona"]["nombre"] if integrante["persona"] else f"Persona {integrante['n']}",
+                "rotulo": _rotulo_de_integrante(integrante),
                 "estado_texto": texto,
                 "estado_tono": tono,
                 "confirmada": confirmada,
