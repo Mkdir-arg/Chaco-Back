@@ -36,7 +36,12 @@ from programas.models import (
     Sector,
 )
 from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.emergencia_ficha import CLAVES_DE_ENVIO, secciones_incompletas
+from programas.services.emergencia_ficha import (
+    CLAVES_DE_ENVIO,
+    SECCION_DATOS,
+    SECCION_PARENTESCO,
+    secciones_incompletas,
+)
 from programas.services.nombre_plaza import clave_natural, plaza_con_sector
 from programas.services.ocupacion import (
     ESTADO_DISPONIBLE,
@@ -366,6 +371,10 @@ def integrante_de(caso, n):
     * ``identidad_a_revisar`` — en la persona 1, el responsable, la marca pendiente del caso
       (``caso.identidad_pendiente``, Cambio 486); en las demás, ``None``.
 
+    La persona 1 **sin confirmar y sin ficha** llega con la ficha precargada con el responsable
+    (:func:`ficha_precargada_del_responsable`): es quien cargó el caso y suele llegar primero, así
+    la guardia no retipea DNI, nombre y apellido. Es solo lo inicial: se confirma igual.
+
     ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id`` y ``caso.situacion``. **1 consulta.**
     """
 
@@ -373,6 +382,8 @@ def integrante_de(caso, n):
     if fila is None:
         return None
     ficha = {clave: valor for clave, valor in (fila.ficha or {}).items() if clave not in CLAVES_DE_ENVIO}
+    if fila.orden == 1 and not fila.confirmada and not ficha:
+        ficha = ficha_precargada_del_responsable(fila.grupo.responsable, caso)
     return {
         **_fila_de_integrante(fila),
         "ficha": ficha,
@@ -381,10 +392,31 @@ def integrante_de(caso, n):
     }
 
 
+def ficha_precargada_del_responsable(responsable, caso):
+    """La ficha inicial de la persona 1: el responsable como jefe/a de hogar, con lo que ya se sabe de él.
+
+    Lo mismo que precarga la ficha web de la guardia (``FichaIntegranteView._iniciales``): parentesco,
+    DNI, nombre, apellido, sexo, nacimiento y el teléfono del Formulario 1. Solo las claves con dato.
+    """
+
+    datos = {
+        "dni": responsable.dni,
+        "nombre": responsable.nombre,
+        "apellido": responsable.apellido,
+        "sexo": responsable.genero,
+        "fecha_nacimiento": responsable.fecha_nacimiento.isoformat() if responsable.fecha_nacimiento else "",
+        "telefono": (caso.situacion or {}).get("telefono", ""),
+    }
+    return {
+        SECCION_PARENTESCO: {"parentesco": IntegranteGrupo.Parentesco.JEFE.value},
+        SECCION_DATOS: {campo: valor for campo, valor in datos.items() if valor},
+    }
+
+
 def _filas_de_la_familia(grupo_pk):
     return (
         IntegranteGrupo.objects.filter(grupo_id=grupo_pk)
-        .select_related("ciudadano", "estadia__plaza__sector")
+        .select_related("ciudadano", "estadia__plaza__sector", "grupo__responsable")
         .order_by("orden")
     )
 
@@ -398,9 +430,12 @@ def _fila_de_integrante(fila):
         estado = INTEGRANTE_EGRESADA
     else:
         estado = INTEGRANTE_CONFIRMADA
-    persona = plaza = None
+    persona = plaza = responsable = None
     if fila.ciudadano_id:
         persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
+    if fila.orden == 1:
+        quien = fila.grupo.responsable
+        responsable = {"id": quien.pk, "nombre": quien.apellido_nombre, "dni": quien.dni}
     if fila.estadia_id and fila.estadia.plaza_id:
         cama = fila.estadia.plaza
         plaza = {
@@ -417,6 +452,7 @@ def _fila_de_integrante(fila):
         "estado": estado,
         "ficha_completa": fila.ficha_completa,
         "persona": persona,
+        "responsable": responsable,
         "plaza": plaza,
         "parentesco": parentesco,
         "confirmada_en": fila.confirmada_en,

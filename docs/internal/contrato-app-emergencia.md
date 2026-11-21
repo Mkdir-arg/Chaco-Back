@@ -622,11 +622,12 @@ u `observacion`; 409 si ya no estaba pendiente.
  "integrantes": [
    {"n": 1, "estado": "CONFIRMADA", "ficha_completa": false,
     "persona": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
+    "responsable": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
     "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)"},
     "parentesco": "Jefe/a de hogar",
     "confirmada_en": "2026-11-12T10:20:00-03:00", "egresado_en": null},
-   {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": false, "persona": null, "plaza": null,
-    "parentesco": "", "confirmada_en": null, "egresado_en": null}],
+   {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": false, "persona": null, "responsable": null,
+    "plaza": null, "parentesco": "", "confirmada_en": null, "egresado_en": null}],
  "confirmadas": 1, "total_declarado": 7, "declaradas_al_relevar": 7, "con_ficha_incompleta": 1}
 ```
 
@@ -636,6 +637,8 @@ u `observacion`; 409 si ya no estaba pendiente.
 | `integrantes[].n` | Número de la persona en la familia (1 a `total_declarado`): va en las rutas de §13.6 a §13.8 |
 | `integrantes[].estado` | `SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA` (confirmada que ya se fue) |
 | `integrantes[].ficha_completa` | Secciones 4 a 8 con algún dato o «sin datos». `false` → «ficha incompleta» |
+| `integrantes[].persona` | La persona confirmada (legajo); `null` hasta confirmar |
+| `integrantes[].responsable` | Solo en `n` 1: el responsable que cargó el caso, `{id, nombre, dni}`, **también sin confirmar** (Cambio 520). La app rotula con él la persona 1 en vez de «Persona 1». En las demás, `null` |
 | `integrantes[].plaza` | La cama **de hoy** (si la cambiaron desde el mapa, la nueva) |
 | `confirmadas` / `total_declarado` | El contador «1 de 7 confirmadas» |
 | `declaradas_al_relevar` | Lo que dijo el Formulario 1. Si `total_declarado` es mayor, «llegaron 8 sobre 7» |
@@ -667,7 +670,10 @@ reservada: se elige una libre al confirmarla.
 
 `GET /api/emergencia/casos/{id}/integrantes/{n}/` — la fila de §13.5 más:
 
-- `ficha`: el Formulario 2 guardado (§13.11), para precargar la pantalla. `{}` sin confirmar.
+- `ficha`: el Formulario 2 guardado (§13.11), para precargar la pantalla. `{}` sin confirmar, salvo la
+  **persona 1** sin confirmar y sin ficha guardada, que llega precargada con el responsable (Cambio 520):
+  `{"parentesco": {"parentesco": "JEFE"}, "datos_personales": {"dni", "nombre", "apellido", …}}` con lo que el
+  legajo tenga (sexo, nacimiento) y el teléfono del Formulario 1. Es solo lo inicial: se confirma igual (§13.8).
 - `secciones_incompletas`: los rótulos de las secciones 4 a 8 que faltan, en orden («Educación», …).
 - `identidad_a_revisar`: en la persona 1 (el responsable), la misma marca que `responsable` de §13.2;
   en las demás personas, y cuando no hay marca o ya se revisó, `null`.

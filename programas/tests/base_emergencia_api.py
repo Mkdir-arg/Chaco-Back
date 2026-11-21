@@ -99,6 +99,7 @@ CLAVES_INTEGRANTE = [
     "parentesco",
     "persona",
     "plaza",
+    "responsable",
 ]
 CLAVES_PERSONA_DEL_INTEGRANTE = ["dni", "id", "nombre"]
 CLAVES_PLAZA_DEL_INTEGRANTE = ["codigo", "id", "nombre"]
