@@ -60380,6 +60380,9 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** MINOR de la auditoría del PR #1268: la provincia del enlace al domicilio sale de
+  `core.selectors.geografia.PROVINCIA_OPERATIVA` (el selector la pasa; el helper ya no trae «Chaco» por defecto),
+  para que siga siendo el único lugar a cambiar. La URL no cambia.
 
 # Cambio 519 — Emergencia · ficha del caso: los rótulos de los datos en negrita
 
