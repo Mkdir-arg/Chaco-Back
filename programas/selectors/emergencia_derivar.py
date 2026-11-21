@@ -108,6 +108,12 @@ def _par(latitud, longitud):
     return ubicacion_valida(latitud, longitud)
 
 
+def direccion_para_google(calle, localidad):
+    """«calle, localidad, Chaco, Argentina», como la busca `_ubicacion_domicilio.html`. La familia y los edificios."""
+
+    return ", ".join(parte for parte in (calle, localidad, PROVINCIA_OPERATIVA, "Argentina") if parte)
+
+
 def domicilio_ubicado(caso):
     """El punto del domicilio de la familia si ya está ubicado (pasos 1 y 2 del módulo), o ``None``. Sin consultas."""
 
@@ -272,7 +278,8 @@ def _destino_por_calle(reservado, destino, calle_y_numero, localidad):
     """Hasta dónde le pide Google la distancia por calle (fase 2), o ``None``. Nunca un edificio reservado.
 
     Las coordenadas si son exactas; si no, la dirección del edificio (Google la ubica mejor que el centroide
-    de la localidad); y si tampoco hay calle, el centroide.
+    de la localidad). Uno que solo tiene el centroide no va: la distancia por calle a la plaza del pueblo se
+    leería como exacta, y la tarjeta ya dice «≈ … (por localidad)».
     """
 
     if reservado:
@@ -280,10 +287,7 @@ def _destino_por_calle(reservado, destino, calle_y_numero, localidad):
     if destino is not None and not destino.aproximado:
         return {"lat": float(destino.latitud), "lng": float(destino.longitud)}
     if calle_y_numero:
-        partes = (calle_y_numero, localidad, PROVINCIA_OPERATIVA, "Argentina")
-        return {"direccion": ", ".join(parte for parte in partes if parte)}
-    if destino is not None:
-        return {"lat": float(destino.latitud), "lng": float(destino.longitud)}
+        return {"direccion": direccion_para_google(calle_y_numero, localidad)}
     return None
 
 

@@ -60500,9 +60500,14 @@ siendo de la institución.
   y así además se paga solo cuando alguien la usa. Es auto, de Google, para los 10 primeros edificios de la lista
   (se cobra por par). Se cambió lo propuesto en el plan («automático al abrir»), por esa regla ya registrada.
 - **Hasta un edificio sin coordenadas se le pide a Google por su dirección** (calle, número y localidad), que
-  ubica mejor que el centroide de la localidad. Hoy ninguna pantalla carga las coordenadas de un edificio.
+  ubica mejor que el centroide de la localidad. Hoy ninguna pantalla carga las coordenadas de un edificio. Uno que
+  solo tiene el centroide **no** va a Google: la distancia por calle a la plaza del pueblo se leería como exacta.
 - **El domicilio que ubica Google se guarda en el caso** (`ubicar_domicilio`), sin pisar uno que ya estaba: el que
-  la mesa puso a mano en el mapa vale más. Así la segunda vez no se vuelve a pagar el Geocoding.
+  la mesa puso a mano en el mapa vale más. Así la segunda vez no se vuelve a pagar el Geocoding. **Solo se guarda
+  una respuesta precisa** (un único resultado, `ROOFTOP` o `RANGE_INTERPOLATED`, sin `partial_match`): un barrio o
+  una manzana que Google devuelve como el centro de la localidad se usa para esa consulta y no se guarda, porque
+  después pasaría por exacto y no se puede corregir (auditoría del PR #1274). Lo puede quien tiene tomado el caso
+  o quien supervisa, como el resto de las escrituras sobre el caso.
 
 ## Implementación
 - `programas/selectors/emergencia_derivar.py` (nuevo): `edificios_para_derivar` arma los edificios con sus
@@ -60562,5 +60567,7 @@ del domicilio de los casos cargados desde la mesa.
 ## Historial
 
 - **21/11/2026:** alta del cambio (fase 1).
-- **21/11/2026:** fase 2 (distancia por calle a pedido). Se ordena la elección del conteo de `derivar_caso`
+- **21/11/2026:** fase 2 (distancia por calle a pedido). La auditoría del #1274 pidió: dueño o supervisor para
+  `ubicar_domicilio`, guardar solo respuestas precisas del Geocoder y no mandar a Google los edificios que solo
+  tienen centroide. Se ordena la elección del conteo de `derivar_caso`
   (MINOR de la auditoría del PR #1271).

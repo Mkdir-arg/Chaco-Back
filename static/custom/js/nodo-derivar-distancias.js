@@ -40,10 +40,20 @@
     return horas + ' h' + (resto ? ' ' + resto + ' min' : '');
   }
 
+  var pintadas = 0;
+
   function pintar(clave, metros, segundos) {
     var tarjeta = document.querySelector('[data-derivar-clave="' + clave + '"] [data-distancia]');
     if (!tarjeta) { return; }
     tarjeta.textContent = 'a ' + km(metros) + ' km por calle' + (segundos ? ' · ' + minutos(segundos) : '');
+    pintadas += 1;
+  }
+
+  // Solo una respuesta precisa del Geocoder se guarda como el domicilio de la familia: un barrio o una
+  // manzana que Google no encuentra vuelve como el centro de la localidad, y guardado pasaría por exacto.
+  function esPreciso(resultado) {
+    var tipo = resultado.geometry && resultado.geometry.location_type;
+    return !resultado.partial_match && (tipo === 'ROOFTOP' || tipo === 'RANGE_INTERPOLATED');
   }
 
   function csrf() {
@@ -58,10 +68,13 @@
       var geocoder = new librerias[0].Geocoder();
       return geocoder.geocode({ address: config.direccion, region: 'ar', componentRestrictions: { country: 'AR' } });
     }).then(function (respuesta) {
-      var resultado = respuesta && respuesta.results && respuesta.results[0];
+      var resultados = (respuesta && respuesta.results) || [];
+      var resultado = resultados[0];
       if (!resultado) { throw new Error('Google no encontró el domicilio'); }
       var punto = { lat: resultado.geometry.location.lat(), lng: resultado.geometry.location.lng() };
-      if (config.ubicar_url) {
+      // Para un reintento en la misma página: no se vuelve a pagar el Geocoding.
+      config.origen = punto;
+      if (config.ubicar_url && resultados.length === 1 && esPreciso(resultado)) {
         var datos = new FormData();
         datos.append('latitud', punto.lat.toFixed(6));
         datos.append('longitud', punto.lng.toFixed(6));
@@ -133,8 +146,10 @@
         return conDistanceMatrix(origen);
       });
     }).then(function () {
+      if (!pintadas) { throw new Error('Google no encontró ninguna ruta'); }
       boton.hidden = true;
-      avisar('Distancia por calle en auto, según Google, para los ' + destinos.length + ' edificios más cercanos.');
+      avisar('Distancia por calle en auto, según Google, para ' + pintadas +
+        (pintadas === 1 ? ' edificio' : ' edificios') + ' de los primeros de la lista.');
     }).catch(function () {
       boton.disabled = false;
       avisar('No se pudo calcular la distancia por calle. Quedan las distancias en línea recta.');

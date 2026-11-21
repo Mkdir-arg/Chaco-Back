@@ -13,6 +13,7 @@ from programas.selectors import emergencia_derivar as derivar
 from programas.selectors import emergencia_mesa as mesa_selectors
 from programas.selectors.emergencia_derivar import Centroides, punto_de_la_familia, texto_de_distancia
 from programas.services import emergencia as servicio
+from programas.tests.test_emergencia_base import OPERAR
 from programas.tests.test_emergencia_mesa import BaseMesa
 
 Origen = CasoEmergencia.Origen
@@ -272,6 +273,11 @@ class DistanciaPorCalleTests(BaseMesa):
         self.assertIsNone(adentro.context["panel"]["distancias"])
         self.assertNotContains(adentro, "nodo-derivar-distancias.js")
 
+    def test_un_edificio_ubicado_solo_por_su_localidad_no_va_a_google(self):
+        caso = self._caso_tomado()
+        self._edificio("Sin calle", self.club)  # sin coordenadas ni calle: solo el centroide
+        self.assertIsNone(self._config(caso))
+
     def test_se_pide_a_lo_sumo_a_diez_edificios(self):
         caso = self._caso_tomado()
         for numero in range(12):
@@ -321,3 +327,11 @@ class UbicarDomicilioTests(BaseMesa):
         self.assertIsNone(caso.domicilio_latitud)
         with self.assertRaises(PermissionDenied):
             servicio.ubicar_domicilio(caso, self.agente, Decimal("-27.45"), Decimal("-58.98"))
+
+    def test_otro_operador_que_no_tiene_tomado_el_caso_no_lo_ubica(self):
+        caso = self._caso_tomado()  # lo tiene el operador
+        otro = self._persona_de_mesa("otra_operadora", [OPERAR], "Ana", "Paz")
+        with self.assertRaises(PermissionDenied):
+            servicio.ubicar_domicilio(caso, otro, Decimal("-27.45"), Decimal("-58.98"))
+        caso.refresh_from_db()
+        self.assertIsNone(caso.domicilio_latitud)

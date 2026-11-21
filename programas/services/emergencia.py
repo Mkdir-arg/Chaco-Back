@@ -800,17 +800,22 @@ DOMICILIO_FUERA_DEL_CHACO = "El punto del domicilio no cae en el Chaco."
 def ubicar_domicilio(caso, usuario, latitud, longitud):
     """Guarda el punto del domicilio que el panel «Derivar» ubicó con Google. Devuelve si lo guardó.
 
-    Lo puede quien opera la mesa (``emergencia.operar`` o ``supervisar``). **No pisa** un punto que ya
-    está: el que puso la mesa a mano en el mapa vale más que la primera respuesta del Geocoder, y así
-    dos pestañas abiertas no se pisan. Un caso cerrado no cambia. Fuera de la caja del Chaco,
-    ``ValidationError``. No traza: no cambia nada de lo que se decidió sobre el caso.
+    Lo puede quien tiene tomado el caso o quien supervisa (RU-12, RU-13), los mismos que ven el panel.
+    **No pisa** un punto que ya está: el que puso la mesa a mano en el mapa vale más que la primera
+    respuesta del Geocoder, y así dos pestañas abiertas no se pisan. Por eso el JS solo manda una
+    respuesta **precisa** del Geocoder (``ROOFTOP`` o ``RANGE_INTERPOLATED``, sin ``partial_match``): una
+    aproximada se usa para esa consulta y no se guarda. Un caso cerrado no cambia. Fuera de la caja del
+    Chaco, ``ValidationError``. No traza: no cambia nada de lo que se decidió sobre el caso.
     """
 
     _exigir_mesa(usuario)
     if not ubicacion_valida(latitud, longitud):
         raise ValidationError({"latitud": DOMICILIO_FUERA_DEL_CHACO})
     caso = _bloquear_caso(caso)
-    if caso.estado == Estado.CERRADO or caso.domicilio_latitud is not None:
+    if caso.estado == Estado.CERRADO:
+        return False
+    _exigir_duenio_o_supervisor(caso, usuario)
+    if caso.domicilio_latitud is not None:
         return False
     caso.domicilio_latitud = round(Decimal(str(latitud)), 6)
     caso.domicilio_longitud = round(Decimal(str(longitud)), 6)

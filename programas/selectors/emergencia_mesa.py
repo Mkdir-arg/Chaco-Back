@@ -632,7 +632,7 @@ def _distancias_por_calle(caso, tarjetas):
         return None
     ubicado = selectores_derivar.domicilio_ubicado(caso)
     localidad = caso.localidad.nombre if caso.localidad_id else ""
-    direccion = ", ".join(parte for parte in (caso.direccion, localidad, PROVINCIA_OPERATIVA, "Argentina") if parte)
+    direccion = selectores_derivar.direccion_para_google(caso.direccion, localidad)
     return {
         "origen": {"lat": float(ubicado.latitud), "lng": float(ubicado.longitud)} if ubicado else None,
         "direccion": direccion,
