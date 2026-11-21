@@ -585,7 +585,9 @@ class DetalleDeEntregaTests(BaseVistasKits):
         self.assertEqual(self._detalle(recibida).context["url_reponer"], "")
 
     def test_marcar_en_camino_desde_el_detalle(self):
+        self.reloj.ahora = T0 - timedelta(hours=2)
         entrega = self._entrega()
+        self.reloj.ahora = T0
 
         respuesta = self.client.post(
             self._url("entrega_en_camino", entrega.pk), {"transporte": "Camioneta AB123CD", "hora": "2026-11-12T09:30"}

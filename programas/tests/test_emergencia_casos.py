@@ -432,7 +432,7 @@ class CrearCasoTests(BaseCasos):
         self.assertEqual(fila["relevado_en"], T0)
         self.assertEqual(fila["latitud"], Decimal("-27.451234"))
         self.assertEqual(fila["precision_m"], 35)
-        self.assertEqual(fila["situacion"], {"telefono": "3624 555555", "observaciones": "Agua al techo"})
+        self.assertEqual(fila["situacion"], {"telefono": "3624555555", "observaciones": "Agua al techo"})
         self.assertEqual(
             fila["necesidades"],
             {"embarazo": False, "electrodependiente": False, "medicacion_critica": False, "mascotas": False},

@@ -44,6 +44,7 @@ from programas.services.emergencia_comun import _exigir_mesa, _trazar, siguiente
 from programas.services.emergencia_programa import CAP_EMERGENCIA_RELEVAR, puede_en_programa_emergencia
 from programas.services.identidad import texto_comparable
 from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
+from programas.validacion_contacto import normalizar_telefono
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +312,12 @@ def _validar_formulario1(datos):
     for clave in ("telefono", "observaciones"):
         if _texto(datos, clave):
             limpio["situacion"][clave] = _texto(datos, clave)
+    if "telefono" in limpio["situacion"]:
+        # El mismo criterio que el legajo del dispositivo: 8 a 15 dígitos. Termina en `Ciudadano.telefono`.
+        try:
+            limpio["situacion"]["telefono"] = normalizar_telefono(limpio["situacion"]["telefono"])
+        except ValidationError as error:
+            errores["telefono"] = error.messages[0]
     if datos.get("documento_extraviado"):
         limpio["situacion"]["documento_extraviado"] = True
 

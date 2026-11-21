@@ -434,6 +434,7 @@ class AlojarFamiliaView(_VistaDeLlegadas):
         datos, respuesta = self._entrada(AlojarFamiliaEnvioSerializer, request)
         if respuesta is not None:
             return respuesta
+        datos.pop("encargado", None)  # la app vieja lo manda: quien recibe es el usuario autenticado
         cerrado, respuesta = self._ejecutar(
             lambda: servicio_alojar.alojar_familia(caso=caso.pk, usuario=request.user, **datos)
         )

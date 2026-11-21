@@ -298,7 +298,7 @@ class NuevoCasoTests(BaseMesa):
         # El total y la prioridad los calcula el servidor: tres acompañantes más el responsable.
         self.assertEqual((caso.grupo.total_declarado, caso.prioridad), (4, Prioridad.ALTA))
         self.assertTrue(caso.grupo.responsable_aparte)
-        self.assertEqual(caso.situacion, {"telefono": "3624 555555"})
+        self.assertEqual(caso.situacion, {"telefono": "3624555555"})
         self.assertEqual(caso.necesidades["embarazo"], True)
         self.assertEqual([t.accion for t in self._trazas(caso)], [Accion.CREADO])
         self.assertIn(f"Caso {caso.numero} cargado", self._avisos(respuesta)[0])
@@ -656,7 +656,7 @@ class FichaTests(BaseMesa):
         self.assertEqual(respuesta.context["titulo"], f"Caso {caso.numero} · Familia Benítez")
         datos = {dato["etiqueta"]: dato["valor"] for dato in respuesta.context["datos"]}
         self.assertEqual(datos["Responsable"], "Benítez, Rosa")
-        self.assertEqual(datos["Teléfono de contacto"], "3624 555555")
+        self.assertEqual(datos["Teléfono de contacto"], "3624555555")
         self.assertEqual(datos["Fuerza que traslada"], "Bomberos")
         self.assertEqual(datos["Localidad"], "Resistencia")
         self.assertEqual(datos["Relevado por"], "agente")

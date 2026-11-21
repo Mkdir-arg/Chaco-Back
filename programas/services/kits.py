@@ -102,6 +102,7 @@ FALTA_EL_MOTIVO = "Indicá por qué se cancela la entrega."
 MOTIVO_LARGO = f"El motivo no puede tener más de {MOTIVO_MAXIMO} caracteres."
 TRANSPORTE_LARGO = f"El transporte no puede tener más de {TRANSPORTE_MAXIMO} caracteres."
 HORA_FUTURA = "La hora de salida no puede ser posterior a este momento."
+HORA_ANTERIOR_A_LA_ENTREGA = "La hora de salida no puede ser anterior a la hora en que se armó la entrega."
 FALTA_EL_REMITO = "Falta la foto del remito."
 REMITO_NO_ES_JPEG = "La foto del remito tiene que llegar en JPEG."
 FALTAN_CANTIDADES = "Indicá cuánto llegó de cada ítem, aunque sea cero. Falta: {items}."
@@ -378,7 +379,7 @@ def marcar_en_camino(entrega, usuario, transporte="", hora=None):
     """``PREPARADA`` → ``EN_CAMINO`` (HU-4.2). ``despachada_en`` es ``hora`` o, sin ella, ahora.
 
     ``transporte`` (quién la lleva, patente…) y ``hora`` son opcionales; una hora de salida
-    futura es un ``ValidationError``.
+    futura, o anterior a la que se armó la entrega, es un ``ValidationError``.
     """
 
     _exigir_mesa(usuario)
@@ -391,6 +392,9 @@ def marcar_en_camino(entrega, usuario, transporte="", hora=None):
 
     bloqueada = _bloquear_entrega(entrega)
     _exigir_estado(bloqueada, Estado.PREPARADA, si_sigue_abierta=YA_EN_CAMINO.format(numero=bloqueada.numero))
+    # `datetime-local` no lleva segundos y `creado` sí: salir en el mismo minuto en que se armó es válido.
+    if hora is not None and hora < bloqueada.creado.replace(second=0, microsecond=0):
+        raise ValidationError({"hora": HORA_ANTERIOR_A_LA_ENTREGA})
     bloqueada.estado = Estado.EN_CAMINO
     bloqueada.despachada_en = hora or ahora
     bloqueada.transporte = transporte
