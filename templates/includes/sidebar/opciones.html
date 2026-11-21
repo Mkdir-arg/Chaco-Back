@@ -87,6 +87,29 @@
             </a>
         </div>
 
+        {# ── Mapa (Cambio 493) ───────────────────────────────── #}
+        {% comment %}`mapa.ver` es global: cada capa del mapa filtra por su módulo adentro. Escrito con utilidades, como
+        «Notificaciones»: colores, hover y activo (aria-current) los pone .ds-snav de sidebar/base.html.{% endcomment %}
+        {% if request.user|puede:"mapa.ver" %}
+        <div class="relative mb-0.5">
+            <a href="{% url 'mapa:inicio' %}"
+               class="group flex items-center transition-colors duration-150 px-3.5 py-2.5 rounded-full text-[13.5px]"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
+               title="Mapa" aria-label="Mapa"
+               {% if pagina_actual == 'mapa/' %}aria-current="page"{% endif %}>
+                {# map icon #}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     width="20" height="20" aria-hidden="true" class="flex-shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"/>
+                </svg>
+                <template x-if="!sidebarCollapsed">
+                    <span>Mapa</span>
+                </template>
+            </a>
+        </div>
+        {% endif %}
+
         {# ── Dashboard (grupo colapsable) ─────────────────────── #}
         {% if request.user|puede:"dashboard.ver" %}
         {# G1-01 fase 2: el grupo tenía un segundo subítem, «Dashboard Conversaciones» (`conversaciones:metricas`), que se fue con el apagado de la app. #}

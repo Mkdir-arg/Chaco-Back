@@ -5,7 +5,7 @@
  */
 .nodo-mapa-capas { position: relative; height: 420px; border-radius: var(--radius-xl); overflow: hidden; background: var(--bg-gray); }
 .nodo-mapa-capas--pagina { height: max(560px, calc(100dvh - 230px)); }
-.nodo-mapa-capas [hidden], [data-mapa] [hidden], [data-mapa][hidden] { display: none !important; }
+.nodo-mapa-capas [hidden], .nodo-mapa-escena [hidden], [data-mapa] [hidden], [data-mapa][hidden] { display: none !important; }
 .nodo-mapa-capas__lienzo { position: absolute; inset: 0; }
 .nodo-mapa-capas__cubierta { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 16px; background: var(--bg-white); }
 .nodo-mapa-capas__encuadre { position: absolute; z-index: 2; right: 10px; top: 10px; width: 40px; height: 40px; border-radius: var(--radius); display: grid; place-items: center; background: var(--bg-white); color: var(--text-body); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
@@ -55,7 +55,39 @@
 .nodo-mapa-panel { position: absolute; z-index: 4; left: 12px; top: 12px; bottom: 12px; width: 324px; display: flex; flex-direction: column; background: var(--bg-white); border-radius: var(--radius-xl); box-shadow: 0 4px 18px rgba(16, 24, 40, .16); overflow: hidden; }
 .nodo-mapa-panel__asa { display: none; }
 .nodo-mapa-panel__cuerpo { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.nodo-mapa-panel__lista { flex: 1; min-height: 0; overflow-y: auto; }
+.nodo-mapa-panel__lista { flex: 1; min-height: 0; overflow-y: auto; padding: 0 6px 8px; }
+.nodo-mapa-panel__cabeza { padding: 12px 12px 10px; border-bottom: 1px solid var(--border-light); }
+.nodo-mapa-panel__titulo { margin: 12px 2px 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-body-subtle); }
+.nodo-mapa-panel__pie { padding: 10px 14px 4px; }
+
+/* Capa de la leyenda: botón con aria-pressed, punto del color de la capa e interruptor. */
+.nodo-mapa-capa { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border-radius: var(--radius-xl); text-align: left; color: var(--text-heading); font-size: 13px; font-weight: 600; }
+.nodo-mapa-capa:hover { background: var(--bg-gray); }
+.nodo-mapa-capa:focus-visible { outline: 3px solid var(--border-brand); outline-offset: 1px; }
+.nodo-mapa-capa__punto { flex: none; width: 26px; height: 26px; border-radius: var(--radius-lg); display: grid; place-items: center; color: var(--text-white); background: var(--nodo-mapa-c); font-size: 11.5px; }
+.nodo-mapa-capa__texto { min-width: 0; }
+.nodo-mapa-capa__nota { display: block; font-size: 11px; font-weight: 500; color: var(--text-body-subtle); }
+.nodo-mapa-capa__n { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--text-body-subtle); font-variant-numeric: tabular-nums; }
+.nodo-mapa-capa__sw { position: relative; flex: none; width: 30px; height: 18px; border-radius: var(--radius-full); background: var(--bg-disabled); transition: background .15s; }
+.nodo-mapa-capa__sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: var(--radius-full); background: var(--bg-white); box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .15s; }
+.nodo-mapa-capa[aria-pressed="true"] .nodo-mapa-capa__sw { background: var(--bg-brand); }
+.nodo-mapa-capa[aria-pressed="true"] .nodo-mapa-capa__sw::after { transform: translateX(12px); }
+.nodo-mapa-capa[aria-pressed="false"] { color: var(--text-body-subtle); }
+.nodo-mapa-capa[aria-pressed="false"] .nodo-mapa-capa__punto { background: var(--bg-disabled); }
+
+/* Subfiltro de una capa (grupo). */
+.nodo-mapa-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0 44px; }
+.nodo-mapa-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-full); border: 1px solid var(--border-base); background: var(--bg-white); font-size: 12px; font-weight: 600; color: var(--text-body); }
+.nodo-mapa-chip i { font-size: 11px; color: var(--text-body-subtle); }
+.nodo-mapa-chip[aria-pressed="true"] { background: var(--bg-brand-softer); border-color: var(--border-brand); color: var(--text-fg-brand); }
+.nodo-mapa-chip[aria-pressed="true"] i { color: var(--text-fg-brand); }
+.nodo-mapa-chip:focus-visible { outline: 3px solid var(--border-brand); outline-offset: 1px; }
+
+/* Aviso flotante del modo «tocá el mapa». */
+.nodo-mapa-barra { position: absolute; z-index: 5; left: 50%; top: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px); padding: 6px 6px 6px 14px; border-radius: var(--radius-full); background: var(--bg-dark); color: var(--text-white); font-size: 13px; font-weight: 600; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); }
+.nodo-mapa-barra button { flex: none; padding: 5px 12px; border-radius: var(--radius-full); background: rgba(255, 255, 255, .14); color: var(--text-white); font-size: 12px; font-weight: 700; }
+.nodo-mapa-barra button:hover { background: rgba(255, 255, 255, .24); }
+
 @media (max-width: 1023px) {
   .nodo-mapa-panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 64%; border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; box-shadow: 0 -6px 20px rgba(16, 24, 40, .18); }
   .nodo-mapa-panel__asa { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 8px 14px 10px; font-weight: 700; color: var(--text-heading); }

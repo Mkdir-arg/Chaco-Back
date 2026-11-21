@@ -1,0 +1,109 @@
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Mapa{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'custom/css/nodo-mapa-capas.css' %}">
+<link rel="stylesheet" href="{% static 'custom/css/nodo-item-lista.css' %}">
+{% endblock %}
+
+{% block main-content %}
+{% comment %}Golden del arquetipo «Mapa» (ficha .claude/design/arquetipos/mapa.md): encabezado, escena con la pieza
+Mapa con capas y su panel flotante (buscador, capas con subfiltro y lista). Los puntos y las capas llegan armados de
+`mapa.services`: el template no decide qué ve cada uno.{% endcomment %}
+<div x-data="{ modalPunto: false }" @mapa-punto-abrir.window="modalPunto=true" @becas-saved.window="modalPunto=false">
+  <div class="space-y-5">
+    {% page_header titulo="Mapa" eyebrow="Territorio" %}
+      {% bajada %}Dispositivos, edificios, casos de Emergencia y puntos cargados a mano, en un solo lugar.{% endbajada %}
+      {% if editable %}
+      <button type="button" class="btn-nodo btn-brand btn-base" data-mapa-agregar aria-pressed="false">
+        <i class="fas fa-plus" aria-hidden="true"></i> Agregar punto
+      </button>
+      {% endif %}
+    {% endpage_header %}
+
+    <div class="nodo-mapa-escena">
+      {% include "components/_mapa_capas.html" with nombre="mapa" puntos=puntos etiqueta="Mapa de Chaco con dispositivos, edificios, casos de Emergencia y puntos" alto="pagina" only %}
+
+      {% if editable %}
+      <div class="nodo-mapa-barra" data-mapa-barra role="status" hidden>
+        <i class="fas fa-location-crosshairs" aria-hidden="true"></i>
+        <span>Tocá el mapa donde va el punto</span>
+        <button type="button" data-mapa-agregar-cancelar>Cancelar</button>
+      </div>
+      {% endif %}
+
+      <aside class="nodo-mapa-panel" data-mapa="mapa" aria-label="Capas y lista">
+        <button type="button" class="nodo-mapa-panel__asa" aria-expanded="false" aria-controls="mapa-panel-cuerpo">
+          <span><i class="fas fa-layer-group" aria-hidden="true"></i> Capas y lista · <span data-mapa-total>{{ puntos|length }}</span></span>
+        </button>
+        <div class="nodo-mapa-panel__cuerpo" id="mapa-panel-cuerpo">
+          <div class="nodo-mapa-panel__cabeza">
+            <input type="search" class="nodo-field" data-mapa-buscar placeholder="Buscar por nombre o número" aria-label="Buscar en el mapa" autocomplete="off">
+            <p class="nodo-mapa-panel__titulo">Capas</p>
+            <ul class="space-y-0.5" role="list">
+              {% for capa in capas %}
+              <li>
+                <button type="button" class="nodo-mapa-capa nodo-mapa-tono-{{ capa.tono }}" data-mapa-capa="{{ capa.id }}" aria-pressed="true">
+                  <span class="nodo-mapa-capa__punto"><i class="fas {{ capa.icono }}" aria-hidden="true"></i></span>
+                  <span class="nodo-mapa-capa__texto">{{ capa.nombre }}<span class="nodo-mapa-capa__nota">{{ capa.nota }}{% if capa.fuera %} · no se ven: {{ capa.fuera }}{% endif %}</span></span>
+                  <span class="nodo-mapa-capa__n" data-mapa-capa-n>{{ capa.total }}</span>
+                  <span class="nodo-mapa-capa__sw" aria-hidden="true"></span>
+                </button>
+                {% if capa.id == "punto" %}
+                <div class="nodo-mapa-chips" role="group" aria-label="Categorías de puntos">
+                  {% for valor, texto, icono in categorias %}
+                  <button type="button" class="nodo-mapa-chip" data-mapa-grupo="{{ valor }}" aria-pressed="true"><i class="fas {{ icono }}" aria-hidden="true"></i> {{ texto }}</button>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          <p class="nodo-mapa-panel__pie text-xs font-semibold text-body-subtle"><span data-mapa-total>{{ puntos|length }}</span> en el mapa</p>
+          <div class="nodo-mapa-panel__lista" role="group" aria-label="En el mapa" data-mapa-lista>
+            {% for p in puntos %}{% include "components/_item_lista.html" with nombre=p.titulo meta=p.subtitulo clave=p.id only %}{% endfor %}
+          </div>
+          <p class="px-4 pb-4 text-sm text-body-subtle" data-mapa-vacio{% if puntos %} hidden{% endif %}>Nada para mostrar con estos filtros.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  {% if editable %}
+  {# Modal: x-becas-modal da foco, Tab atrapado, Escape y bloqueo del scroll del fondo #}
+  <div x-show="modalPunto" x-cloak x-becas-modal="modalPunto" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPunto=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-punto-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo punto" titulo_id="modal-punto-titulo" icono="fa-map-pin" cerrar="modalPunto=false" %}
+      <form method="post" action="{% url 'mapa:api_puntos' %}" data-ajax data-mapa-form class="flex flex-col flex-1 min-h-0" novalidate>
+        {% csrf_token %}
+        {{ form.latitud }}{{ form.longitud }}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <p class="text-xs text-body-subtle" data-mapa-form-posicion></p>
+          </div>
+          {% with field=form.nombre %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          {% with field=form.categoria %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          {% with field=form.descripcion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalPunto=false" accion_texto="Guardar punto" accion_icono="fa-check" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}
+{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-mapa-capas.js' %}"></script>
+{% if editable %}
+{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'custom/js/mapa-general.js' %}"></script>
+{% endif %}
+{% endblock %}

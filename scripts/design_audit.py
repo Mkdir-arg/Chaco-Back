@@ -1479,6 +1479,34 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             (r"onchange=|@change=\"[^\"]*submit", "filtrar al cambiar el valor: se aplica con «Filtrar» (WCAG 3.2.2)"),
         ],
     },
+    "mapa": {
+        # Ficha `mapa.md`: page_header, la escena con la pieza Mapa con capas a toda la página y su panel
+        # flotante (asa para la hoja en celular, buscador, capas, lista con _item_lista y estado vacío).
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"nodo-mapa-capas\.css", False, "nodo-mapa-capas.css en page_css"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %}"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r'class="nodo-mapa-escena"', False, "escena que contiene el mapa y su panel"),
+            (r'components/_mapa_capas\.html"[^%]*alto="pagina"', False, 'pieza Mapa con capas con alto="pagina"'),
+            (r'class="nodo-mapa-panel" data-mapa="', False, "panel flotante nombrado con data-mapa"),
+            (r'class="nodo-mapa-panel__asa" aria-expanded="false"', False, "asa de la hoja inferior con aria-expanded"),
+            (r"data-mapa-buscar", False, "buscador sincronizado"),
+            (r"data-mapa-capa=", False, "capas con aria-pressed"),
+            (r"components/_item_lista\.html", False, "lista con _item_lista"),
+            (r"data-mapa-vacio", False, "estado vacío de la lista"),
+            (r"components/_google_maps\.html", False, "cargador de Google Maps en customJS"),
+            (r"nodo-mapa-capas\.js", False, "nodo-mapa-capas.js en customJS"),
+        ],
+        "prohibidos": [
+            (r"<style\b", "<style> local"),
+            (r"google\.maps\.Marker\b", "google.maps.Marker (deprecado): marcadores con la pieza"),
+            (r"leaflet", "otra librería de mapas: la pieza es Google Maps"),
+            (r"maps\.googleapis\.com", "script de Google pegado: lo carga _google_maps.html"),
+        ],
+    },
     "modal": {
         "marcadores": [
             (r"x-becas-modal=", False, "x-becas-modal (foco, Tab atrapado, Escape, scroll)"),
@@ -1609,6 +1637,7 @@ GOLDENS: list[tuple[str, str]] = [
     ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
     ("revision", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
     ("dashboard", "programas/templates/programas/dispositivos/tablero/tablero_referencia.html"),
+    ("mapa", "mapa/templates/mapa/mapa.html"),
 ]
 
 
