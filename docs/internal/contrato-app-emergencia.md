@@ -224,7 +224,7 @@ No trae coordenadas: no se puede preseleccionar «la más cercana al GPS». El `
 | `dni` | texto | **sí** | DNI del responsable, 7 u 8 dígitos |
 | `nombre`, `apellido` | texto | si la persona no está en el legajo | Alta mínima del responsable. Si está, se omiten, coinciden con el legajo (sin importar acentos ni mayúsculas) o van con `identidad_en_conflicto`; si no, 400 (ver «DNI ya registrado») |
 | `fecha_nacimiento` | `AAAA-MM-DD` | no | Solo se usa en el alta mínima |
-| `telefono` | texto | no | Contacto para la mesa |
+| `telefono` | texto | no | Contacto para la mesa. Con valor, 8 a 15 dígitos (se guarda solo con dígitos y un `+` inicial); si no, 400 `telefono` |
 | `documento_extraviado` | booleano | no | Perdió el documento pero sabe el número |
 | `identidad_en_conflicto` | booleano | no | Tras el 400 de «DNI ya registrado», el agente sostiene que el DNI es correcto y es otra persona. En multipart: `true` / `false`. Sin conflicto se ignora |
 | `responsable_aparte` | booleano | no (vale `false`) | `true`: las seis cantidades son los **acompañantes** y el total suma al responsable. La app actual lo manda siempre en `true`. Sin él (una app anterior, o un envío que quedó en su cola) el responsable ya está contado en las cantidades |
@@ -789,6 +789,7 @@ Errores 400 (`code: "VALIDACION"`, una clave por campo, **con el nombre plano de
 | `embarazo`, `discapacidad`, `electrodependiente`, `medicacion_critica`, `alergias_graves` | Sin responder: las cinco van, aunque sea `false` |
 | `medicacion_critica_nombre`, `medicacion_critica_tiene_dosis` | Con `medicacion_critica: true` |
 | `adulto_responsable` | La persona tiene menos de 16 años |
+| `adulto_responsable_orden` | No es un adulto confirmado de esta familia (con `adulto_responsable_orden`) |
 | `plaza` | Sin `plaza_id`; la cama no es de este dispositivo, está ocupada, fuera de servicio o reservada para otra persona; no queda ninguna cama libre («Sin cama libre · liberá una o cerrá con diferencia») |
 | `orden` | `n` no es de la familia |
 | otra clave de la ficha | El valor no es del tipo (opción fuera de lista, fecha ilegible, texto largo) |
@@ -803,7 +804,7 @@ Errores 400 (`code: "VALIDACION"`, una clave por campo, **con el nombre plano de
 | `aula` | no | Aula o dormitorio, hasta 80 caracteres |
 | `tarjeta_entregada` | no | Booleano |
 | `tarjeta_numero` | con la tarjeta entregada | Hasta 40 caracteres |
-| `encargado` | no | Quién recibe; vacío vale el usuario |
+| `encargado` | no | **Obsoleto, se ignora**: quien recibe es siempre el usuario autenticado (el servidor guarda su id y su nombre). Se sigue aceptando para las versiones viejas de la app; la app nueva no lo manda |
 | `derivacion` | no | `derivacion.id` de §13.5 (ver «La derivación vista», abajo) |
 
 **Cerrar con diferencia** (RN-3.9, llegaron menos, con al menos una confirmada):
@@ -893,7 +894,7 @@ manda** (o se manda `null` o `""`); `false` **es** una respuesta. Lo que se guar
 | | `sexo` | `F`, `M`, `X` | **sí** (ídem) |
 | | `fecha_nacimiento` | `AAAA-MM-DD` | **sí** (ídem; vale aproximada) |
 | | `fecha_nacimiento_aproximada` | booleano | no |
-| | `telefono` | texto ≤ 40 | no |
+| | `telefono` | texto ≤ 40 | no. Con valor, 8 a 15 dígitos (se normaliza); si no, 400 `telefono` |
 | | `documento_extraviado` | booleano | no |
 | `avisos_salud` | `embarazo`, `discapacidad`, `electrodependiente`, `medicacion_critica`, `alergias_graves` | booleano | **las cinco respondidas** |
 | | `medicacion_critica_nombre` | texto ≤ 200 | con `medicacion_critica: true` |
@@ -910,6 +911,7 @@ manda** (o se manda `null` o `""`); `false` **es** una respuesta. Lo que se guar
 | `observaciones` | `observaciones` | texto ≤ 1000 | no |
 | | `mascotas` | booleano | no |
 | | `adulto_responsable` | texto ≤ 200 | **sí si la persona tiene menos de 16 años** |
+| | `adulto_responsable_orden` | texto ≤ 3 (el `orden` de la persona) | no. Opcional y **todavía sin uso en la app**: si viene, tiene que ser un adulto (18 años o más) ya confirmado de la misma familia, y el servidor copia su nombre en `adulto_responsable`. Sin él, `adulto_responsable` sigue siendo texto libre (pendiente de la app: ofrecer un selector con los adultos confirmados) |
 
 Las secciones 4 a 8 (`educacion` a `observaciones`) aceptan además `"sin_datos": true` («pregunté y no
 hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `true` cuando las cinco

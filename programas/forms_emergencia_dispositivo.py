@@ -12,6 +12,7 @@ es a propósito, para que el backoffice no quede atrás de la app.
 """
 
 from django import forms
+from django.core.exceptions import ValidationError
 
 from core.widgets import SwitchInput
 from legajos.models import Ciudadano
@@ -125,10 +126,17 @@ CONTROLES_DE_LA_FICHA = {
     "ingresos": lambda: _texto("Ingresos", 200),
     "observaciones": lambda: _parrafo("Observaciones", 1000),
     "mascotas": lambda: _si_no("¿Vino con mascotas?"),
-    "adulto_responsable": lambda: _texto(
+    # El backoffice no tiene texto libre: el control es un selector que ``FichaIntegranteForm`` llena
+    # con los adultos confirmados de la familia. ``adulto_responsable`` (texto) queda para la app.
+    "adulto_responsable": None,
+    "adulto_responsable_orden": lambda: _opcion(
         "Adulto responsable",
-        200,
-        f"Obligatorio si es menor de {servicio.EDAD_SIN_ADULTO_RESPONSABLE} años: quién responde por la persona.",
+        [],
+        vacio="Sin indicar",
+        ayuda=(
+            f"Obligatorio si es menor de {servicio.EDAD_SIN_ADULTO_RESPONSABLE} años: elegí a un adulto de esta "
+            "familia que ya esté confirmado (si falta, confirmalo primero)."
+        ),
     ),
 }
 
@@ -156,7 +164,7 @@ class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
 
     CAMPOS_ARRIBA = ("plaza",)
 
-    def __init__(self, *args, solo_opcionales=False, ficha=None, **kwargs):
+    def __init__(self, *args, solo_opcionales=False, ficha=None, adultos=(), **kwargs):
         if ficha is not None:
             kwargs["initial"] = {**self._iniciales(ficha), **(kwargs.get("initial") or {})}
         super().__init__(*args, **kwargs)
@@ -166,11 +174,30 @@ class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
             del self.fields["plaza"]
         for seccion in self.secciones_del_form:
             for campo in servicio.ESQUEMA_FICHA[seccion]:
+                if CONTROLES_DE_LA_FICHA[campo] is None:
+                    continue
                 self.fields[campo] = CONTROLES_DE_LA_FICHA[campo]()
                 if campo in CAMPOS_DEL_MINIMO:
                     self.fields[campo].marca_requerido = True
             if seccion in servicio.SECCIONES_OPCIONALES:
                 self.fields[f"{seccion}_{servicio.SIN_DATOS}"] = _sin_datos(seccion)
+        if "adulto_responsable_orden" in self.fields:
+            self.fields["adulto_responsable_orden"].choices = [
+                ("", "Sin indicar"),
+                *((str(adulto["orden"]), f"{adulto['nombre']} (persona {adulto['orden']})") for adulto in adultos),
+            ]
+
+    def agregar_errores_del_servicio(self, error):
+        """El adulto responsable es texto para el servicio y selector acá: su error va al selector."""
+
+        if hasattr(error, "error_dict") and "adulto_responsable" in error.error_dict:
+            error = ValidationError(
+                {
+                    ("adulto_responsable_orden" if clave == "adulto_responsable" else clave): errores
+                    for clave, errores in error.error_dict.items()
+                }
+            )
+        super().agregar_errores_del_servicio(error)
 
     @staticmethod
     def _iniciales(ficha):
@@ -179,6 +206,8 @@ class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
         iniciales = {}
         for campo, valor in servicio.ficha_a_plano(ficha).items():
             control = CONTROLES_DE_LA_FICHA.get(campo)
+            if campo == "adulto_responsable":
+                continue
             es_si_no = control is not None and isinstance(control(), forms.TypedChoiceField)
             iniciales[campo] = (SI if valor else NO) if es_si_no and isinstance(valor, bool) else valor
         return iniciales
@@ -201,7 +230,7 @@ class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
                     "numero": numero,
                     "titulo": servicio.ROTULO_DE_SECCION[seccion],
                     "minimo": seccion in servicio.SECCIONES_MINIMAS,
-                    "campos": [self[campo] for campo in servicio.ESQUEMA_FICHA[seccion]],
+                    "campos": [self[campo] for campo in servicio.ESQUEMA_FICHA[seccion] if campo in self.fields],
                     "sin_datos": self[sin_datos] if sin_datos in self.fields else None,
                     "cama_despues": "plaza" in self.fields and seccion == servicio.SECCIONES_MINIMAS[-1],
                 }
@@ -300,12 +329,6 @@ class FamiliaAlojadaForm(ErroresDelServicioMixin, forms.Form):
         required=False,
         max_length=40,
         help_text="Obligatorio si se entregó la tarjeta.",
-        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
-    )
-    encargado = forms.CharField(
-        label="Encargado que recibe",
-        required=False,
-        max_length=120,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
 

@@ -55,7 +55,6 @@ from programas.mixins_dispositivos import dispositivo_operable_o_404
 from programas.models import CasoEmergencia, Derivacion, Dispositivo, IntegranteGrupo
 from programas.selectors import emergencia_alojar as selectores
 from programas.selectors import emergencia_llegadas as pantalla
-from programas.selectors.emergencia_mesa import nombre_de
 from programas.services import emergencia_alojar as servicio
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia import EstadoCambio
@@ -436,6 +435,12 @@ class FichaIntegranteView(_IntegranteView):
             **selectores.datos_del_responsable(self.caso.grupo.responsable, self.caso),
         }
 
+    def _adultos(self):
+        """Los adultos confirmados de la familia: lo que puede elegir el selector del adulto responsable."""
+
+        filas = IntegranteGrupo.objects.filter(grupo_id=self.caso.grupo_id).select_related("ciudadano")
+        return servicio.adultos_del_grupo(filas, excluir_orden=self.integrante.orden)
+
     def _render(self, request, form, cama=None, status=200):
         integrante = self.integrante
         contexto = self.contexto(
@@ -467,15 +472,19 @@ class FichaIntegranteView(_IntegranteView):
 
     def get(self, request, pk, caso_pk, orden):
         if self.integrante.confirmada:
-            return self._render(request, FichaIntegranteForm(solo_opcionales=True, ficha=self.integrante.ficha))
+            return self._render(
+                request, FichaIntegranteForm(solo_opcionales=True, ficha=self.integrante.ficha, adultos=self._adultos())
+            )
         cama = self.cama_pedida(request.GET.get("cama"))
-        form = FichaIntegranteForm(initial={**self._iniciales(), "plaza": cama["id"] if cama else None})
+        form = FichaIntegranteForm(
+            initial={**self._iniciales(), "plaza": cama["id"] if cama else None}, adultos=self._adultos()
+        )
         return self._render(request, form, cama)
 
     def post(self, request, pk, caso_pk, orden):
         if self.integrante.confirmada:
             return self._completar(request)
-        form = FichaIntegranteForm(request.POST)
+        form = FichaIntegranteForm(request.POST, adultos=self._adultos())
         cama = self.cama_pedida(request.POST.get("plaza"))
         if not form.is_valid():
             return self._render(request, form, cama, status=400)
@@ -503,7 +512,7 @@ class FichaIntegranteView(_IntegranteView):
         return redirect(self.url_integrantes())
 
     def _completar(self, request):
-        form = FichaIntegranteForm(request.POST, solo_opcionales=True)
+        form = FichaIntegranteForm(request.POST, solo_opcionales=True, adultos=self._adultos())
         if not form.is_valid():
             return self._render(request, form, status=400)
         try:
@@ -547,7 +556,7 @@ class FamiliaAlojadaView(_IngresoView):
         de_las_camas = Counter(
             integrante["plaza"]["sector_id"] for integrante in self.datos["integrantes"] if integrante["plaza"]
         ).most_common(1)
-        iniciales = {"sector": de_las_camas[0][0] if de_las_camas else None, "encargado": nombre_de(self.request.user)}
+        iniciales = {"sector": de_las_camas[0][0] if de_las_camas else None}
         return FamiliaAlojadaForm(data, sectores=sectores, initial=iniciales)
 
     def _render(self, request, form, status=200):

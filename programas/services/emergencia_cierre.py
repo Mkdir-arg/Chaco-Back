@@ -100,7 +100,7 @@ def alojar_familia(
     aula="",
     tarjeta_entregada=False,
     tarjeta_numero="",
-    encargado="",
+    encargado=None,
     derivacion_vista=None,
 ):
     """«Familia alojada»: cierra el ingreso con **N de N** confirmadas (M2-5).
@@ -110,10 +110,13 @@ def alojar_familia(
     diferencia). Guarda la sección 4 del Formulario 1 en ``caso.situacion["alojamiento"]``::
 
         {"sector_id": 3, "sector": "Pabellón A", "aula": "Aula 3",
-         "tarjeta_entregada": true, "tarjeta_numero": "0042", "encargado": "Ana López"}
+         "tarjeta_entregada": true, "tarjeta_numero": "0042", "encargado": "Ana López",
+         "encargado_id": 12}
 
     ``sector`` es un ``Sector`` del dispositivo o su id (opcional); con la tarjeta entregada,
-    su número es obligatorio; ``encargado`` es quien recibe (por omisión, quien aloja).
+    su número es obligatorio. Quien recibe es **siempre** ``usuario`` (el que aloja): se guarda su
+    id (``encargado_id``) y su nombre (``encargado``, para mostrarlo). El parámetro ``encargado``
+    sigue aceptándose por la app vieja, pero se ignora.
     ``derivacion_vista``: el id de la derivación que mostraba la pantalla; si ya no es la del
     caso, :class:`EstadoCambio` sin escribir nada (``_abrir_ingreso``, Cambio 477).
 
@@ -134,7 +137,7 @@ def alojar_familia(
 
     aula = (aula or "").strip()
     tarjeta_numero = (tarjeta_numero or "").strip()
-    encargado = (encargado or "").strip() or _nombre_de(usuario)
+    encargado = _nombre_de(usuario)
     errores = {}
     if len(aula) > 80:
         errores["aula"] = "No puede tener más de 80 caracteres."
@@ -142,8 +145,6 @@ def alojar_familia(
         errores["tarjeta_numero"] = "Indicá el número de la tarjeta familiar entregada."
     if len(tarjeta_numero) > 40:
         errores["tarjeta_numero"] = "No puede tener más de 40 caracteres."
-    if len(encargado) > 120:
-        errores["encargado"] = "No puede tener más de 120 caracteres."
     if errores:
         raise ValidationError(errores)
     sector_id, sector_nombre = _sector_del_dispositivo(sector, dispositivo)
@@ -162,6 +163,7 @@ def alojar_familia(
             "tarjeta_entregada": bool(tarjeta_entregada),
             "tarjeta_numero": tarjeta_numero if tarjeta_entregada else "",
             "encargado": encargado,
+            "encargado_id": getattr(usuario, "pk", None),
         },
     }
     caso.save(update_fields=["estado", "alojado_en", "total_alojado", "situacion", "modificado"])

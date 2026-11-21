@@ -687,7 +687,9 @@ class AlojarFamiliaEnvioSerializer(serializers.Serializer):
     aula = _texto(help_text="Aula o dormitorio. Hasta 80 caracteres.")
     tarjeta_entregada = _aviso()
     tarjeta_numero = _texto(help_text="Obligatorio si `tarjeta_entregada`. Hasta 40 caracteres.")
-    encargado = _texto(help_text="Quién recibe. Vacío: el usuario.")
+    encargado = _texto(
+        help_text="Obsoleto: se ignora. Quien recibe es siempre el usuario autenticado (se guarda su id y su nombre)."
+    )
 
 
 class CerrarConDiferenciaEnvioSerializer(serializers.Serializer):
