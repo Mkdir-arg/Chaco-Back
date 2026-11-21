@@ -32,7 +32,7 @@ from django.db import transaction
 
 from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_editar_legajo
 
 #: La misma capacidad con la que se edita el legajo: el edificio es dato del legajo.
 CAP_EDITAR = "dispositivo.editar"
@@ -68,7 +68,8 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
 
 
 def _exigir_alcance(dispositivo, usuario):
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
+    # Sumar, editar o soltar un edificio de la institución es del legajo (RN5): con alcance Edificios, no.
+    if not puede_editar_legajo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar el edificio de este dispositivo.")
     if dispositivo.estado == Dispositivo.Estado.CERRADO:
         raise ValidationError({"__all__": DISPOSITIVO_CERRADO})

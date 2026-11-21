@@ -35,7 +35,7 @@ from programas.models import (
     ReservaPlaza,
     Sector,
 )
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_dispositivo, q_edificios_en_alcance
 from programas.services.emergencia_ficha import (
     CLAVES_DE_ENVIO,
     SECCION_DATOS,
@@ -99,7 +99,7 @@ def _exigir_alcance(usuario, dispositivo):
 # ---------------------------------------------------------------------------
 
 
-def _camas_del_dispositivo(dispositivo):
+def _camas_del_dispositivo(dispositivo, usuario=None):
     """Las camas de los sectores activos, con su sector. **1 consulta.**
 
     Solo ``Plaza.Tipo.CAMA`` y solo si el tipo del dispositivo la admite: es lo que la mesa
@@ -110,6 +110,12 @@ def _camas_del_dispositivo(dispositivo):
         return []
     return list(
         Plaza.objects.filter(sector__dispositivo=dispositivo, sector__activo=True, tipo=Plaza.Tipo.CAMA)
+        .filter(
+            # Con ``usuario`` y alcance Edificios, solo las camas de sus edificios (RN4).
+            q_edificios_en_alcance(usuario, CAP_ADMITIR, "sector__dispositivo_id", "sector__edificio_id")
+            if usuario is not None
+            else Q()
+        )
         .select_related("sector")
         .only(
             "id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio", "sector__nombre", "sector__perfil"
@@ -117,7 +123,7 @@ def _camas_del_dispositivo(dispositivo):
     )
 
 
-def camas_libres(dispositivo, momento=None):
+def camas_libres(dispositivo, momento=None, *, usuario=None):
     """Las camas que se le pueden guardar a una familia **ahora**, en el orden en que se eligen (RN-3.4).
 
     Primero el sector con más camas libres —para que la familia quede junta—, y dentro del
@@ -132,7 +138,7 @@ def camas_libres(dispositivo, momento=None):
     **3 consultas**: las camas con su sector y las dos de ``estado_de_plazas``.
     """
 
-    camas = _camas_del_dispositivo(dispositivo)
+    camas = _camas_del_dispositivo(dispositivo, usuario)
     if not camas:
         return []
     estados = estado_de_plazas(camas, momento)
@@ -256,7 +262,7 @@ def plazas_para_caso(dispositivo, caso, usuario, *, puede_ver_personas=False, mo
     """
 
     _exigir_alcance(usuario, dispositivo)
-    camas = _camas_del_dispositivo(dispositivo)
+    camas = _camas_del_dispositivo(dispositivo, usuario)
     estados = estado_de_plazas(camas, momento, puede_ver_personas=puede_ver_personas) if camas else {}
     derivacion_id = derivacion_vigente_en(caso, dispositivo)
 
@@ -499,6 +505,7 @@ def llegadas_del_dispositivo(dispositivo, usuario):
     _exigir_alcance(usuario, dispositivo)
     derivaciones = (
         Derivacion.objects.filter(dispositivo=dispositivo)
+        .filter(q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id"))
         .filter(
             Q(estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO)
             | Q(estado=Derivacion.Estado.ACEPTADA, caso__estado=CasoEmergencia.Estado.INGRESO_EN_CURSO)

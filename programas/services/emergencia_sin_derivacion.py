@@ -110,7 +110,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
     Devuelve el ``CasoEmergencia`` con ``ya_existia``, ``reservadas`` y ``faltantes``.
     """
 
-    _exigir_alcance(usuario, dispositivo)
+    _exigir_alcance(usuario, dispositivo, institucion=True)
     uuid_cliente = _como_uuid(uuid_cliente)
     if uuid_cliente is not None:
         existente = _caso_de_ese_envio(uuid_cliente, usuario)
@@ -119,7 +119,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
             return _con_sus_reservas(existente)
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
-    libres = camas_libres(dispositivo)
+    libres = camas_libres(dispositivo, usuario=usuario)
     if not libres:
         raise ValidationError({"plazas": SIN_CAMAS_PARA_INGRESO_DIRECTO})
 
@@ -190,7 +190,7 @@ def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=No
     Devuelve el ``CasoEmergencia`` con ``ya_existia``.
     """
 
-    _exigir_alcance(usuario, dispositivo)
+    _exigir_alcance(usuario, dispositivo, institucion=True)
     caso = crear_caso(
         usuario=usuario,
         origen=Origen.DISPOSITIVO,

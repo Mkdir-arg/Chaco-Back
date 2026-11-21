@@ -6412,6 +6412,16 @@ class EntregaKit(TimeStamped):
         db_default=Estado.PREPARADA,
         verbose_name="Estado",
     )
+    # El edificio del dispositivo al que va la entrega (Cambio 523): con alcance Edificios, solo se ven y se
+    # reciben las de sus edificios. NULL (las anteriores, o sin origen) solo lo alcanza quien tiene toda la institución.
+    edificio = models.ForeignKey(
+        "Edificio",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="entregas_de_kits",
+        verbose_name="Edificio destino",
+    )
     armada_por = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
