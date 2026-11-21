@@ -201,7 +201,7 @@ Si el release trae migraciones, antes del paso 2 corresponde el runbook de rollb
 
 ## La app móvil/PWA: el mismo corte, otro repo
 
-La app (`Mkdir-arg/Chaco-mobile`) se espeja a
+La app (`I-CORE-TEC/Chaco-mobile`) se espeja a
 `https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/datanach-app.git` (la URL
 vieja, `relevamiento-becas-admin-app.git`, redirige con aviso). Desde el 22/10/2026 es una
 PWA y el flujo es PR → rama `test` de GitHub → `ecom/test` (testing,

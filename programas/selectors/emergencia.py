@@ -512,7 +512,9 @@ def distancia_km(latitud_a, longitud_a, latitud_b, longitud_b):
     return 2 * RADIO_TIERRA_KM * math.asin(min(1.0, math.sqrt(a)))
 
 
-def _marca_de_plazas(libres, pedidas):
+def marca_de_plazas(libres, pedidas):
+    """``(marca, faltan)`` de ``libres`` camas para ``pedidas`` plazas (RN-2.5). Lo usa también el panel por edificio."""
+
     if libres <= 0:
         return MARCA_SIN_PLAZAS, max(pedidas, 0)
     if libres < pedidas:
@@ -554,7 +556,7 @@ def dispositivos_para_derivar(caso, usuario, *, plazas=None, momento=None):
     for dispositivo in dispositivos:
         conteo = censo.de(dispositivo.pk).conteo
         libres = camas_libres_del_conteo(conteo)
-        marca, faltan = _marca_de_plazas(libres, pedidas)
+        marca, faltan = marca_de_plazas(libres, pedidas)
         filas.append(
             {
                 "id": dispositivo.pk,

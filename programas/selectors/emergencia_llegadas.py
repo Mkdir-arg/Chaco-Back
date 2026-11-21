@@ -89,7 +89,16 @@ def filas_de_llegadas(derivaciones, ahora, url_de):
         filas.append(
             {
                 "familia": f"Familia {grupo.responsable.apellido}",
-                "detalle": f"{_personas(grupo.total_declarado)} · Caso {caso.numero}",
+                "detalle": " · ".join(
+                    parte
+                    for parte in (
+                        _personas(grupo.total_declarado),
+                        f"Caso {caso.numero}",
+                        # A qué edificio la manda la mesa (Cambio 520), si la institución ocupa varios.
+                        derivacion.edificio.nombre if derivacion.edificio_id else "",
+                    )
+                    if parte
+                ),
                 "prioridad_texto": prioridad_texto,
                 "prioridad_tono": prioridad_tono,
                 "cuando": (

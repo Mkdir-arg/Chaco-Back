@@ -174,6 +174,7 @@ NO_ES_EL_DUENIO = "Solo quien tiene tomado el caso, o quien supervisa la mesa, p
 CASO_CERRADO = "El caso está cerrado y no se reabre. Si hace falta, cargá uno nuevo."
 SIN_PLAZAS = "El dispositivo no tiene plazas libres. Elegí otro."
 DISPOSITIVO_NO_ELEGIBLE = "A ese dispositivo no se le pueden derivar familias: no está activo o no maneja camas."
+EDIFICIO_AJENO = "Esa institución no tiene camas en ese edificio. Elegí el edificio de nuevo."
 
 
 # ---------------------------------------------------------------------------
@@ -492,7 +493,9 @@ def _mensaje_ya_derivado(caso):
 
 
 @transaction.atomic
-def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes=False):
+def derivar_caso(
+    caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes=False, edificio=None, sin_edificio=False
+):
     """Deriva un caso ``EN_GESTION`` a ``dispositivo``: queda ``DERIVADO`` con una derivación ``PENDIENTE``.
 
     El dueño o quien supervisa (HU-2.3). Reglas:
@@ -505,6 +508,11 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
     * **No reserva plazas**: las reserva el dispositivo al aceptar, que es quien elige las
       camas. Por eso la cuenta se lee sin candado: es una foto para decidir, no una
       garantía.
+    * Con ``edificio`` (Cambio 520), la institución tiene que tener sectores en ese edificio
+      (``ValidationError`` si no) y las camas que se cuentan son **las de ese edificio**. La
+      derivación lo guarda. Con ``sin_edificio=True`` (el grupo «sin edificio asignado» del panel)
+      cuentan solo las camas de sus sectores sin edificio, las mismas que mostró el panel. Sin
+      ninguno de los dos, cuentan todas las camas de la institución, como antes.
     * ``vence_en`` es ahora más la vigencia configurada en E7 (RN-2.7).
     * Un caso tiene a lo sumo una derivación vigente (RN-2.6). Si el caso ya está derivado
       —la segunda pestaña— levanta :class:`EstadoCambio` diciendo a dónde y a qué hora. Si
@@ -530,7 +538,14 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
 
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
-    libres = camas_libres_del_conteo(camas_de(dispositivo).de(dispositivo).conteo)
+    ocupacion = camas_de(dispositivo).de(dispositivo)
+    if edificio is None and not sin_edificio:
+        conteo = ocupacion.conteo
+    elif (edificio.pk if edificio is not None else None) in ocupacion.edificios():
+        conteo = ocupacion.conteo_del_edificio(edificio.pk if edificio is not None else None)
+    else:
+        raise ValidationError({"edificio": EDIFICIO_AJENO})
+    libres = camas_libres_del_conteo(conteo)
     if libres < 1:
         raise ValidationError({"dispositivo": SIN_PLAZAS})
     if libres < plazas_pedidas and not confirmar_faltantes:
@@ -540,6 +555,7 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
     derivacion = Derivacion(
         caso=caso,
         dispositivo=dispositivo,
+        edificio=edificio,
         estado=Derivacion.Estado.PENDIENTE,
         plazas_pedidas=plazas_pedidas,
         vence_en=ahora + timedelta(minutes=sla_vigente().vigencia_derivacion_min),
@@ -560,12 +576,13 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
     caso.marcar("derivado_en", ahora)
     caso.save(update_fields=["estado", "derivado_en", "modificado"])
     faltan = f" · faltan {plazas_pedidas - libres}" if libres < plazas_pedidas else ""
+    en_edificio = f" ({edificio.nombre})" if edificio is not None else ""
     _trazar(
         caso,
         usuario,
         Accion.DERIVADO,
         estado_anterior=Estado.EN_GESTION,
-        detalle=f"Derivado a {dispositivo.nombre} · {plazas_pedidas} plazas pedidas{faltan}",
+        detalle=f"Derivado a {dispositivo.nombre}{en_edificio} · {plazas_pedidas} plazas pedidas{faltan}",
         por_supervisor=por_supervisor,
     )
     return derivacion
