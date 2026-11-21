@@ -38,17 +38,22 @@ from programas.mixins_dispositivos import (
 )
 from programas.models import Dispositivo, EntradaBitacora
 from programas.services.bitacora import (
-    edificios_para_novedad,
     CAP_BITACORA,
     CAP_EDITAR,
     corregir_entrada,
     crear_turno,
+    edificios_para_novedad,
     editar_turno,
     registrar_entrada,
 )
 from programas.services.bitacora_detalle import detalle_entrada
 from programas.services.bitacora_pantalla import pantalla_bitacora
-from programas.services.dispositivos import alcance_de_edificios, puede_operar_dispositivo, q_edificios_en_alcance
+from programas.services.dispositivos import (
+    alcance_de_edificios,
+    puede_operar_dispositivo,
+    puede_operar_institucion,
+    q_edificios_en_alcance,
+)
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
@@ -68,15 +73,13 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object
         usuario = self.request.user
         puede_cargar = puede_operar_dispositivo(usuario, dispositivo, CAP_BITACORA)
-        puede_configurar = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
-        nombrar_personas = rbac.puede(usuario, CAP_VER_CIUDADANO)
-        url_base = reverse("dispositivos:bitacora", args=[dispositivo.pk])
+        puede_configurar = puede_operar_institucion(usuario, dispositivo, CAP_EDITAR)
         # Alcance por edificio (Cambio 523): las entradas se acotan con la función central; solo quien ve toda la
-        # institución tiene el filtro «Edificio».
+        # institución tiene el filtro «Edificio» y ve a las personas (con alcance Edificios, ni nombres ni opciones).
         todo = alcance_de_edificios(usuario, dispositivo, CAP_VER).todo
-        edificios_filtro = (
-            [(e.pk, e.nombre) for e in edificios_para_novedad(usuario, dispositivo)[0]] if todo else []
-        )
+        nombrar_personas = todo and rbac.puede(usuario, CAP_VER_CIUDADANO)
+        url_base = reverse("dispositivos:bitacora", args=[dispositivo.pk])
+        edificios_filtro = [(e.pk, e.nombre) for e in edificios_para_novedad(usuario, dispositivo)[0]] if todo else []
 
         datos = pantalla_bitacora(
             dispositivo,
@@ -91,6 +94,8 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             edificios_filtro=edificios_filtro,
             edificio=self.request.GET.get("edificio", ""),
         )
+        if not todo:
+            datos["personas"] = []
         context.update(datos)
         context["puede_configurar"] = puede_configurar
         if datos["puede_cargar"]:
@@ -169,7 +174,9 @@ class BitacoraEntradaView(DispositivoObjectPermissionMixin, DetailView):
         context = super().get_context_data(**kwargs)
         dispositivo = self.object
         entrada = get_object_or_404(
-            EntradaBitacora.objects.filter(q_edificios_en_alcance(self.request.user, CAP_VER, "dispositivo_id", "edificio_id")),
+            EntradaBitacora.objects.filter(
+                q_edificios_en_alcance(self.request.user, CAP_VER, "dispositivo_id", "edificio_id")
+            ),
             pk=self.kwargs["entrada_pk"],
             dispositivo=dispositivo,
         )
@@ -269,7 +276,8 @@ class NovedadCrearView(_BitacoraPostView):
 
     def ejecutar(self, request, dispositivo, datos):
         # Sin `ciudadano.ver` el modal no ofrece personas: si llegan igual, no se vinculan.
-        personas = datos["personas"] if rbac.puede(request.user, CAP_VER_CIUDADANO) else ()
+        con_alcance = alcance_de_edificios(request.user, dispositivo, CAP_VER).todo
+        personas = datos["personas"] if con_alcance and rbac.puede(request.user, CAP_VER_CIUDADANO) else ()
         registrar_entrada(
             dispositivo=dispositivo,
             usuario=request.user,

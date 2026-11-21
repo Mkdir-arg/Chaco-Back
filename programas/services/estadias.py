@@ -237,7 +237,9 @@ def verificar_alojamiento_en_red(ciudadano, usuario=None):
     if estadia is None:
         return VerificacionAlojamiento(clave=clave)
 
-    dentro = dispositivos_en_alcance(usuario, CAP_ADMITIR).filter(pk=estadia.dispositivo_id).exists()
+    dentro = dispositivos_en_alcance(usuario, CAP_ADMITIR).filter(pk=estadia.dispositivo_id).exists() and (
+        puede_operar_plaza(usuario, estadia.dispositivo, estadia.plaza_id, CAP_ADMITIR)
+    )
     if not dentro:
         # Nada de la institución cruza el límite: ni nombre, ni código, ni localidad, ni
         # fecha. El id tampoco, que enumerado contra el listado propio diría cuál es.

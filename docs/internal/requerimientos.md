@@ -60816,7 +60816,7 @@ No requiere más que el deploy (corre la migración).
 ## Pendientes / a definir
 PR 3 y 4 del plan. Decisiones revisables: turnos por institución; la mesa todavía no elige el edificio al armar una
 entrega de kits (con varios edificios la entrega nueva queda sin edificio y solo la ve alcance Institución); el Historial de la institución queda vacío
-con alcance Edificios hasta que la bitácora lleve edificio (PR 3); validar, observar y rechazar siguen por
+con alcance Edificios hasta que la bitácora lleve edificio (PR 3), y la bitácora P10 (novedades, personas, actas) también, aunque el censo del día sigue mostrando los totales de la institución; validar, observar y rechazar siguen por
 institución.
 
 ## Reversión
@@ -60829,6 +60829,11 @@ contratación cargada.
 - **21/11/2026:** PR 2 de 4: la regla por edificio en los servicios, la validación del Equipo (RN2, RN6) y el test de
   «un solo dueño» (`programas/tests/test_equipo_alcance_edificio.py`). Mutación: anular el filtro en
   `alcance_de_edificios` deja 9 tests rojos y en `q_edificios_en_alcance`, 3.
+- **21/11/2026:** correcciones de la auditoría del PR 2 (5 MAJOR): `sumar_miembro` sobre una fila existente ya no se saltea RN6 ni
+  le pisa el alcance a alguien activo; recibir un kit por URL directa y el archivo del formulario de una estadía se acotan por
+  edificio (404); la bitácora (novedades, personas, actas, turnos) y el Historial quedan para quien tiene toda la institución
+  —la regla del Historial vive en `eventos_de_historial`—; `verificar_alojamiento_en_red` no da la plaza de otro edificio.
+  Un test por escenario (`CorreccionesDeAuditoriaTests`) y cada guarda verificada por mutación.
 
 ---
 

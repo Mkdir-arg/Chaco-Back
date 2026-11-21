@@ -38,7 +38,7 @@ from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio, sectores_por_edificio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
-from programas.services.dispositivos import CAP_VER, q_edificios_en_alcance
+from programas.services.dispositivos import CAP_VER, alcance_de_edificios, q_edificios_en_alcance
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
     DIAS_POR_VENCER,
@@ -306,8 +306,14 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     regla de `inspecciones.ve_la_asignacion` hay que volver a aplicarla acá; el alcance se
     resuelve en **una** consulta para toda la página.
     Sin usuario no se expone la identidad de las personas; la vista siempre pasa quién mira.
+
+    El Historial junta trazas de toda la institución (legajo, personas, plazas de todos los edificios): sin alcance
+    sobre toda la institución (con alcance Edificios) no se abre (fail-closed; decisión abierta para el
+    PM, Cambio 523). Va acá y no en la vista para que ninguna otra pantalla lo muestre entero.
     """
 
+    if usuario is not None and not alcance_de_edificios(usuario, dispositivo, "dispositivo.ver").todo:
+        return Paginator([], 1).get_page(1), []
     con_asignacion = edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo)
     usuario_id = usuario.pk if getattr(usuario, "is_authenticated", False) else None
     feed = auditoria_del_dispositivo(

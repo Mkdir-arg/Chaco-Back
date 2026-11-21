@@ -11,20 +11,35 @@ lo ajeno responde 404, y la institución (legajo, kits, edificios) queda en solo
 """
 
 import re
+from datetime import time
 from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 from django.urls import reverse
 
 from core import rbac
+from core.views.media import _autorizar
 from legajos.models import Ciudadano
-from programas.models import Edificio, EntregaKit, MiembroEquipoDispositivo, Plaza, Sector
+from programas.models import (
+    AdjuntoRespuestaIngreso,
+    DisenoFormulario,
+    Edificio,
+    EntregaKit,
+    MiembroEquipoDispositivo,
+    MomentoFormulario,
+    Plaza,
+    RespuestasIngresoEstadia,
+    Sector,
+)
 from programas.selectors import kits as selectores_kits
 from programas.services import equipo_dispositivo as equipo
 from programas.services import kits as servicio_kits
+from programas.services.bitacora import crear_turno, editar_turno
+from programas.services.detalle_dispositivo import eventos_de_historial
 from programas.services.dispositivos import (
     alcance_de_edificios,
     puede_editar_legajo,
@@ -33,8 +48,8 @@ from programas.services.dispositivos import (
     puede_operar_plaza,
     q_edificios_en_alcance,
 )
-from programas.services.estadias import ingresar_persona
-from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, TODO, BasePantalla, _local
+from programas.services.estadias import ingresar_persona, verificar_alojamiento_en_red
+from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, MIERCOLES, TODO, BasePantalla, _local, _reloj
 from users.models import RolMeta
 
 Alcance = MiembroEquipoDispositivo.Alcance
@@ -298,6 +313,128 @@ class ServicioDelEquipoTests(BaseAlcance):
             equipo.dar_de_baja(actor=self.resp_a, miembro=ajeno)
         with self.assertRaises(PermissionDenied):
             equipo.marcar_responsable(actor=self.resp_a, miembro=ajeno)
+
+
+class CorreccionesDeAuditoriaTests(BaseAlcance):
+    """Los cinco MAJOR de la auditoría del PR: cada uno con su escenario (y su mutación)."""
+
+    def setUp(self):
+        super().setUp()
+        self.rol = Group.objects.get(name="De institucion")
+        self.resp_a = self._miembro("Resp A", Alcance.EDIFICIOS, [self.edif_a])
+        MiembroEquipoDispositivo.objects.filter(usuario=self.resp_a).update(es_responsable=True)
+        self.resp_inst = self._miembro("Resp inst", Alcance.INSTITUCION)
+        MiembroEquipoDispositivo.objects.filter(usuario=self.resp_inst).update(es_responsable=True)
+
+    def _ver(self, usuario, url):
+        self.client.force_login(usuario)
+        with _reloj():
+            return self.client.get(url)
+
+    def _fresco(self, usuario):
+        return User.objects.get(pk=usuario.pk)
+
+    def _pdf(self, nombre="c.pdf"):
+        return SimpleUploadedFile(nombre, b"%PDF-1.4\n", content_type="application/pdf")
+
+    # 1. sumar_miembro sobre una fila existente
+    def _sumar(self, actor, usuario, **kw):
+        # El mismo rol que ya tiene: «volver a sumar» es sobre la fila existente.
+        rol = MiembroEquipoDispositivo.objects.filter(usuario=usuario).first().rol
+        with mock.patch.object(equipo, "_exigir_pares_sumables"):
+            return equipo.sumar_miembro(actor=actor, dispositivo=self.cis, usuario=usuario, rol=rol, **kw)
+
+    def test_volver_a_sumar_a_alguien_de_otro_edificio_no_lo_toca(self):
+        ajeno = self._miembro("Ajeno B", Alcance.EDIFICIOS, [self.edif_b])
+        with self.assertRaises(PermissionDenied):
+            self._sumar(self.resp_a, ajeno, alcance=Alcance.EDIFICIOS, edificios=[self.edif_a])
+        fila = MiembroEquipoDispositivo.objects.get(usuario=ajeno)
+        self.assertEqual(set(fila.edificios.values_list("pk", flat=True)), {self.edif_b.pk})
+
+    def test_volver_a_sumar_a_alguien_de_institucion_no_lo_pasa_a_mis_edificios(self):
+        with self.assertRaises(PermissionDenied):
+            self._sumar(self.resp_a, self.de_inst, alcance=Alcance.EDIFICIOS, edificios=[self.edif_a])
+        self.assertEqual(MiembroEquipoDispositivo.objects.get(usuario=self.de_inst).alcance, Alcance.INSTITUCION)
+
+    def test_volver_a_sumar_sin_alcance_no_deja_a_un_miembro_de_edificios_en_toda_la_institucion(self):
+        self._sumar(self.resp_inst, self.de_a)
+        fila = MiembroEquipoDispositivo.objects.get(usuario=self.de_a)
+        self.assertEqual(fila.alcance, Alcance.EDIFICIOS)
+        self.assertEqual(set(fila.edificios.values_list("pk", flat=True)), {self.edif_a.pk})
+
+    def test_reactivar_a_alguien_de_baja_si_toma_el_alcance_nuevo(self):
+        MiembroEquipoDispositivo.objects.filter(usuario=self.de_a).update(activo=False)
+        self._sumar(self.resp_inst, self.de_a, alcance=Alcance.EDIFICIOS, edificios=[self.edif_b])
+        fila = MiembroEquipoDispositivo.objects.get(usuario=self.de_a)
+        self.assertTrue(fila.activo)
+        self.assertEqual(set(fila.edificios.values_list("pk", flat=True)), {self.edif_b.pk})
+
+    # 2. recepción de kits por URL directa
+    def test_recibir_una_entrega_de_otro_edificio_por_url_directa_es_404(self):
+        recibe_a = self._miembro("Recibe A", Alcance.EDIFICIOS, [self.edif_a], (*TODO, "emergencia.recibir_kit"))
+        entregas = {
+            letra: EntregaKit.objects.create(
+                numero=f"2026-K-0000{n}",
+                dispositivo=self.cis,
+                edificio=edificio,
+                estado=EntregaKit.Estado.EN_CAMINO,
+                armada_por=self.operador,
+            )
+            for n, (letra, edificio) in enumerate((("a", self.edif_a), ("b", self.edif_b)), 11)
+        }
+
+        def url(letra):
+            return reverse("emergencia:dispositivo_kit_recibir", args=[self.cis.pk, entregas[letra].pk])
+
+        self.assertEqual(self._ver(recibe_a, url("a")).status_code, 200)
+        self.assertEqual(self._ver(recibe_a, url("b")).status_code, 404)
+
+    # 3. archivos del formulario de una estadía
+    def test_el_adjunto_del_formulario_de_una_estadia_sigue_el_edificio_de_su_plaza(self):
+        diseno = DisenoFormulario.objects.create(tipo_dispositivo=self.tipo, momento=MomentoFormulario.INGRESO)
+        persona = Ciudadano.objects.create(dni="30999111", nombre="Bea", apellido="Paz")
+        estadia_b = self._ingresar(persona, self.plaza_b, _local(MARTES, 11))
+        fila = RespuestasIngresoEstadia.objects.create(estadia=estadia_b, diseno=diseno)
+        adjunto = AdjuntoRespuestaIngreso.objects.create(respuestas=fila, clave="c", archivo=self._pdf())
+        self.assertIsNone(_autorizar(self._fresco(self.de_a), adjunto.archivo.name))
+        self.assertIs(_autorizar(self._fresco(self.de_inst), adjunto.archivo.name), True)
+
+    # 4. Historial: la regla vive en el servicio
+    def test_el_historial_se_vacia_en_el_servicio_sin_alcance_total(self):
+        self.assertEqual(eventos_de_historial(self.cis, 1, self._fresco(self.de_a))[1], [])
+        self.assertNotEqual(eventos_de_historial(self.cis, 1, self._fresco(self.de_inst))[1], [])
+
+    # 5. bitácora de la institución
+    def test_la_bitacora_no_muestra_entradas_a_quien_solo_tiene_edificios(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), texto="Novedad de toda la casa")
+        detalle = reverse("dispositivos:bitacora_entrada", args=[self.cis.pk, entrada.pk])
+        self.assertNotContains(self._ver(self.de_a, self.url), "Novedad de toda la casa")
+        self.assertEqual(self._ver(self.de_a, detalle).status_code, 404)
+        self.assertContains(self._ver(self.de_inst, self.url), "Novedad de toda la casa")
+        self.assertEqual(self._ver(self.de_inst, detalle).status_code, 200)
+
+    def test_el_adjunto_de_la_bitacora_es_de_la_institucion_completa(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), adjuntos=[self._pdf("acta.pdf")])
+        ruta = entrada.adjuntos.get().archivo.name
+        self.assertIsNone(_autorizar(self._fresco(self.de_a), ruta))
+        self.assertIs(_autorizar(self._fresco(self.de_inst), ruta), True)
+
+    def test_configurar_turnos_pide_toda_la_institucion(self):
+        de_a = self._fresco(self.de_a)
+        with self.assertRaises(PermissionDenied):
+            editar_turno(turno=self.manana, usuario=de_a, nombre="X")
+        with self.assertRaises(PermissionDenied):
+            crear_turno(dispositivo=self.cis, usuario=de_a, nombre="Nuevo", hora_desde=time(1), hora_hasta=time(2))
+        editar_turno(turno=self.manana, usuario=self._fresco(self.de_inst), nombre="Mañana")
+
+    # MINOR: verificar_alojamiento_en_red
+    def test_verificar_alojamiento_no_da_la_plaza_de_otro_edificio(self):
+        persona = Ciudadano.objects.create(dni="30999222", nombre="Cora", apellido="Luna")
+        self._ingresar(persona, self.plaza_b, _local(MARTES, 12))
+        admite = self._miembro("Admite A", Alcance.EDIFICIOS, [self.edif_a])
+        resultado = verificar_alojamiento_en_red(persona, self._fresco(admite))
+        self.assertTrue(resultado.alojada)
+        self.assertFalse(resultado.dentro_del_alcance)
 
 
 # Líneas (sin sangría) fuera de los dueños que nombran la relación del Equipo con los edificios. Congelada:

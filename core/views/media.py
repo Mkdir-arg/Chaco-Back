@@ -221,8 +221,7 @@ def _adjunto_de_bitacora(user, ruta):
     asignación al dispositivo concreto, no con la capacidad suelta. Un operador de otra
     institución tiene `dispositivo.ver` y no tiene por qué leer las actas de esta.
     """
-    from programas.models import AdjuntoBitacora
-    from programas.models import EntradaBitacora
+    from programas.models import AdjuntoBitacora, EntradaBitacora
     from programas.services.dispositivos import (
         alcance_de_edificios,
         puede_operar_dispositivo,
@@ -330,7 +329,7 @@ def _archivo_de_formulario_estadia(user, ruta):
     lo mismo; con cualquiera de las dos faltando, el mismo 404 que un archivo inexistente.
     """
     from programas.models import AdjuntoRespuestaEgreso, AdjuntoRespuestaIngreso
-    from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.dispositivos import puede_operar_plaza
 
     adjunto = None
     for modelo in (AdjuntoRespuestaIngreso, AdjuntoRespuestaEgreso):
@@ -341,8 +340,9 @@ def _archivo_de_formulario_estadia(user, ruta):
         return None
     if not rbac.puede(user, "ciudadano.ver"):
         return None
-    dispositivo = adjunto.respuestas.estadia.dispositivo
-    return True if puede_operar_dispositivo(user, dispositivo, "dispositivo.ver") else None
+    estadia = adjunto.respuestas.estadia
+    # La misma regla que P7: la estadía es del edificio de su plaza.
+    return True if puede_operar_plaza(user, estadia.dispositivo, estadia.plaza_id, "dispositivo.ver") else None
 
 
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden

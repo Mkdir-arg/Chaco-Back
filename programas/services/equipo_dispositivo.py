@@ -225,7 +225,10 @@ def sumar_miembro(
             rol=rol,
             defaults={"es_responsable": es_responsable, "tipo_contratacion": tipo_contratacion, "alcance": alcance},
         )
-        if creado or miembro.alcance != alcance or not miembro.activo:
+        if not creado and miembro.activo:
+            # Volver a sumar a alguien activo no le toca el puesto: si es de otro edificio, no es del responsable (RN6).
+            _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
+        if creado or not miembro.activo:
             # Alta nueva o reactivación: el alcance que se elige ahora reemplaza al anterior.
             miembro.alcance = alcance
             miembro.edificios.set(edificio_ids)
