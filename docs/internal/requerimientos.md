@@ -60789,3 +60789,4 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** MINOR de la auditoría del #1286: el estado vacío (sin edificio) deja de tener su propio «Cargar edificio», que duplicaba el de la barra; el texto remite a «Agregar edificio». El test de estados vacíos exige una sola aparición de `edificio=nuevo`.

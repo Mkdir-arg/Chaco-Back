@@ -308,8 +308,8 @@
         {% include "programas/dispositivos/legajo/_infra_ficha.html" %}
         {% else %}
         {% if puede_editar %}
-        {% url 'dispositivos:detalle' dispositivo.pk as url_base_edificio %}
-        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Cargá el inmueble donde funciona la institución, o vinculá uno que ya exista si comparte el predio." accion_url=url_base_edificio|add:"?tab=infraestructura&edificio=nuevo" accion_texto="Cargar edificio" accion_icono="fa-plus" %}
+        {# Sin botón propio: «Agregar edificio» de la barra de arriba ya carga o vincula (Cambio 524). #}
+        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Usá «Agregar edificio» para cargar el inmueble donde funciona la institución, o vincular uno que ya exista si comparte el predio." %}
         {% else %}
         {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio: aparecen cuando se le asigne uno." %}
         {% endif %}
