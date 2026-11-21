@@ -28,6 +28,7 @@ from programas.models import (
     CasoEmergencia,
     ContactoCaso,
     Dispositivo,
+    Edificio,
     GrupoFamiliar,
     SLAEmergencia,
     TipoKit,
@@ -373,8 +374,9 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
     # Cambio 493: el punto de la dirección, del Geocoder de Google o marcado en el mapa
-    # (`components/_ubicacion_domicilio.html`). Sin JS o sin Google Maps, a mano. Llegan a
-    # ``crear_caso`` como la posición del GPS de la app, sin ``precision_m``.
+    # (`components/_ubicacion_domicilio.html`). Sin JS o sin Google Maps, a mano. Desde el Cambio 520
+    # llegan a ``crear_caso`` como el punto del **domicilio** (``domicilio_latitud``/``domicilio_longitud``),
+    # no como el GPS: el backoffice no tiene GPS, y la distancia de «Derivar» se mide desde la casa.
     latitud = forms.DecimalField(
         label="Latitud",
         required=False,
@@ -467,6 +469,10 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         }
         # Las cantidades de este formulario son los acompañantes: el responsable suma aparte.
         datos["responsable_aparte"] = True
+        # El punto del mapa es el domicilio, no el GPS de un teléfono (Cambio 520).
+        for campo in ("latitud", "longitud"):
+            if campo in datos:
+                datos[f"domicilio_{campo}"] = datos.pop(campo)
         return datos
 
 
@@ -478,6 +484,7 @@ ELEGI_EL_MOTIVO = "Elegí el motivo del cierre."
 ELEGI_LA_PRIORIDAD = "Elegí una prioridad: alta, media o baja."
 ELEGI_UN_OPERADOR = "Elegí a alguien que opere la mesa de Emergencia."
 ELEGI_UN_DISPOSITIVO = "Ese dispositivo ya no está en la lista. Recargá la ficha y elegí otro."
+ELEGI_EL_EDIFICIO = "Ese edificio ya no está en la lista. Recargá la ficha y elegí otro."
 PEDI_UNA_PLAZA = "Pedí al menos una plaza."
 MOTIVO_DE_CANCELACION = "Indicá por qué se cancela la derivación."
 
@@ -561,12 +568,22 @@ class ReasignarCasoForm(forms.Form):
 
 
 class DerivarCasoForm(forms.Form):
-    """A qué dispositivo y cuántas plazas. ``confirmar_faltantes`` es el «sí» a derivar con menos (RN-2.5)."""
+    """A qué institución, en qué edificio y cuántas plazas. ``confirmar_faltantes`` es el «sí» a derivar con menos (RN-2.5).
+
+    ``edificio`` es opcional: una institución con camas en sectores sin edificio asignado se deriva sin él.
+    Que la institución tenga camas en ese edificio lo valida ``derivar_caso`` (Cambio 520).
+    """
 
     dispositivo = forms.ModelChoiceField(
         queryset=Dispositivo.objects.select_related("tipo"),
         widget=forms.HiddenInput,
         error_messages={"required": ELEGI_UN_DISPOSITIVO, "invalid_choice": ELEGI_UN_DISPOSITIVO},
+    )
+    edificio = forms.ModelChoiceField(
+        queryset=Edificio.objects.all(),
+        required=False,
+        widget=forms.HiddenInput,
+        error_messages={"invalid_choice": ELEGI_EL_EDIFICIO},
     )
     plazas = forms.IntegerField(
         label="Plazas a reservar",
@@ -578,11 +595,19 @@ class DerivarCasoForm(forms.Form):
     confirmar_faltantes = forms.BooleanField(required=False, widget=forms.HiddenInput)
 
 
+class UbicarDomicilioForm(forms.Form):
+    """El punto del domicilio que el panel «Derivar» ubicó con Google (Cambio 520, fase 2). Lo manda el JS."""
+
+    latitud = forms.DecimalField(max_digits=9, decimal_places=6, validators=VALIDADORES_LATITUD)
+    longitud = forms.DecimalField(max_digits=9, decimal_places=6, validators=VALIDADORES_LONGITUD)
+
+
 class PanelDerivarForm(forms.Form):
     """Lo que la ficha lee de la URL para armar el panel «Derivar». Es un GET: nada de esto escribe.
 
-    ``derivar`` (el dispositivo que se eligió en una tarjeta) viaja en la misma URL pero no es
-    un control del panel: va oculto solo para leerlo, y ``campos_visibles`` no lo incluye.
+    ``grupo`` (el edificio elegido, ``e12``, o los sectores sin edificio de una institución, ``d34``) y
+    ``derivar`` (la institución que se eligió adentro) viajan en la misma URL pero no son controles del
+    panel: van ocultos solo para leerlos, y ``campos_visibles`` no los incluye.
     """
 
     plazas = forms.IntegerField(
@@ -593,17 +618,18 @@ class PanelDerivarForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "inputmode": "numeric"}),
     )
     q = forms.CharField(
-        label="Buscar dispositivo",
+        label="Buscar edificio o institución",
         required=False,
         max_length=80,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
     localidad_dispositivo = forms.CharField(
-        label="Localidad del dispositivo",
+        label="Localidad del edificio",
         required=False,
         max_length=120,
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
+    grupo = forms.RegexField(regex=r"^[ed][1-9][0-9]{0,9}$", required=False, widget=forms.HiddenInput)
     derivar = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
 
     CAMPOS_VISIBLES = ("plazas", "q", "localidad_dispositivo")

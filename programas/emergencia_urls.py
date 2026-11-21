@@ -26,6 +26,7 @@ urlpatterns = [
     path("casos/<int:pk>/prioridad/", mesa.CambiarPrioridadView.as_view(), name="caso_prioridad"),
     path("casos/<int:pk>/contacto/", mesa.ContactoCasoView.as_view(), name="caso_contacto"),
     path("casos/<int:pk>/derivar/", mesa.DerivarCasoView.as_view(), name="caso_derivar"),
+    path("casos/<int:pk>/ubicar-domicilio/", mesa.UbicarDomicilioView.as_view(), name="caso_ubicar_domicilio"),
     path("casos/<int:pk>/cancelar-derivacion/", mesa.CancelarDerivacionView.as_view(), name="caso_cancelar_derivacion"),
     path("casos/<int:pk>/cerrar/", mesa.CerrarCasoView.as_view(), name="caso_cerrar"),
     # Entregas de kits (etapa 4): E4 (listado y asistente de tres pasos) y E5 (detalle).

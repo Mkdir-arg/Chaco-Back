@@ -41,14 +41,16 @@ class MesaConMapaTests(BaseMesa):
         for nombre in ("direccion", "localidad", "latitud", "longitud", "foto_vivienda", "foto_acceso"):
             self.assertEqual(html.count(f'name="{nombre}"'), 1, nombre)
 
-    def test_el_punto_del_mapa_llega_al_caso_sin_precision(self):
+    def test_el_punto_del_mapa_llega_al_caso_como_domicilio(self):
         respuesta = self.client.post(URL_NUEVO, self._formulario1(latitud="-27.458427", longitud="-58.995889"))
 
         caso = CasoEmergencia.objects.get()
         self.assertRedirects(respuesta, self._url("caso_detalle", caso))
+        # Cambio 520: es el domicilio, no el GPS.
         self.assertEqual(
-            (caso.latitud, caso.longitud, caso.precision_m), (Decimal("-27.458427"), Decimal("-58.995889"), None)
+            (caso.domicilio_latitud, caso.domicilio_longitud), (Decimal("-27.458427"), Decimal("-58.995889"))
         )
+        self.assertEqual((caso.latitud, caso.longitud, caso.precision_m), (None, None, None))
 
     def test_una_coordenada_fuera_de_rango_vuelve_al_campo_y_abre_la_carga_a_mano(self):
         respuesta = self.client.post(URL_NUEVO, self._formulario1(latitud="-127.5", longitud="-58.99"))
@@ -86,4 +88,6 @@ class PuertaDelDispositivoConMapaTests(BaseLlegadas):
         self.client.post(self._url("avisar"), self._formulario1(latitud="-27.440000", longitud="-58.970000"))
 
         caso = CasoEmergencia.objects.get()
-        self.assertEqual((caso.latitud, caso.longitud), (Decimal("-27.440000"), Decimal("-58.970000")))
+        self.assertEqual(
+            (caso.domicilio_latitud, caso.domicilio_longitud), (Decimal("-27.440000"), Decimal("-58.970000"))
+        )

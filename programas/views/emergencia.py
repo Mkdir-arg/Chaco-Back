@@ -21,6 +21,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -37,12 +38,14 @@ from programas.forms_emergencia import (
     PanelDerivarForm,
     PrioridadCasoForm,
     ReasignarCasoForm,
+    UbicarDomicilioForm,
     aviso_identidad_a_revisar,
 )
 from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_mesa as mesa
+from programas.selectors.emergencia_derivar import clave_de_grupo
 from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import EstadoCambio, FaltanPlazas
@@ -175,7 +178,7 @@ class CasoDetalleView(MesaPermissionMixin, View):
     """E3: lo relevado, los contactos, la traza y, a la derecha, derivar o la derivación vigente."""
 
     def _panel(self, request, caso):
-        """El panel «Derivar» y, si la URL lo pide, la confirmación de derivar a un dispositivo."""
+        """El panel «Derivar» por edificio y, si la URL lo pide, la confirmación de derivar a una institución."""
 
         pedido = PanelDerivarForm(request.GET)
         conservados = {clave: pedido.valor(clave) for clave in PARAMETROS_DEL_PANEL}
@@ -185,24 +188,41 @@ class CasoDetalleView(MesaPermissionMixin, View):
             plazas=pedido.valor("plazas"),
             texto=pedido.valor("q") or "",
             localidad=pedido.valor("localidad_dispositivo") or "",
-            url_de_accion=lambda pk, plazas: _url_ficha(caso, **{**conservados, "plazas": plazas, "derivar": pk}),
+            grupo=pedido.valor("grupo"),
+            url_de_grupo=lambda grupo: _url_ficha(caso, **conservados, grupo=grupo),
+            url_de_accion=lambda grupo, pk, plazas: _url_ficha(
+                caso, **{**conservados, "plazas": plazas, "grupo": grupo, "derivar": pk}
+            ),
         )
+        panel["url_volver"] = _url_ficha(caso, **conservados)
+        if panel["distancias"]:
+            panel["distancias"]["ubicar_url"] = reverse("emergencia:caso_ubicar_domicilio", args=[caso.pk])
         # Para mostrar, un formulario sin enlazar: así «Plazas a reservar» arranca en el total del grupo.
-        panel["form"] = PanelDerivarForm(initial={**conservados, "plazas": panel["plazas"]}, auto_id="panel_%s")
+        panel["form"] = PanelDerivarForm(
+            initial={**conservados, "plazas": panel["plazas"], "grupo": pedido.valor("grupo")}, auto_id="panel_%s"
+        )
         panel["form"].ofrecer_localidades(panel["localidades"])
-        elegido = panel["filas"].get(pedido.valor("derivar"))
+        grupo = panel["grupo"]
+        elegido = None
+        if grupo is not None:
+            elegido = next((fila for fila in grupo["instituciones"] if fila["id"] == pedido.valor("derivar")), None)
         confirmacion = None
         if elegido is not None and elegido["marca"] != selectores.MARCA_SIN_PLAZAS:
             faltan = elegido["marca"] == selectores.MARCA_FALTAN
             confirmacion = {
                 "titulo": f"Derivar a {elegido['nombre']}",
-                "subtitulo": f"{elegido['libres']} plazas libres · {elegido['reservadas']} reservadas",
+                "subtitulo": f"{grupo['nombre']} · {elegido['libres']} plazas libres · {elegido['reservadas']} reservadas",
                 "tono": "warning" if faltan else "brand",
                 "faltan": faltan,
                 "aviso": f"Vas a reservar {elegido['libres']} de {panel['plazas']} plazas. ¿Seguís?",
                 "accion": "Sí, derivar igual" if faltan else "Sí, derivar",
                 "form": DerivarCasoForm(
-                    initial={"dispositivo": elegido["id"], "plazas": panel["plazas"], "confirmar_faltantes": faltan},
+                    initial={
+                        "dispositivo": elegido["id"],
+                        "edificio": grupo["edificio_id"],
+                        "plazas": panel["plazas"],
+                        "confirmar_faltantes": faltan,
+                    },
                     auto_id="derivar_%s",
                 ),
             }
@@ -330,16 +350,47 @@ class DerivarCasoView(_AccionDeCasoView):
             form.cleaned_data["dispositivo"],
             form.cleaned_data["plazas"],
             confirmar_faltantes=form.cleaned_data["confirmar_faltantes"],
+            edificio=form.cleaned_data["edificio"],
+            # La ficha siempre deriva desde un grupo del panel: sin edificio es el grupo «sin edificio asignado».
+            sin_edificio=form.cleaned_data["edificio"] is None,
         )
-        return f"Caso {caso.numero} derivado a {derivacion.dispositivo.nombre}. Queda esperando que lo acepten."
+        donde = f" ({derivacion.edificio.nombre})" if derivacion.edificio_id else ""
+        return f"Caso {caso.numero} derivado a {derivacion.dispositivo.nombre}{donde}. Queda esperando que lo acepten."
 
     def faltan_plazas(self, request, caso, form, faltan):
         """RN-2.5: no se derivó. Se vuelve a abrir la confirmación, ahora con la pregunta."""
 
         messages.warning(request, " ".join(faltan.messages))
+        edificio = form.cleaned_data["edificio"]
+        grupo = clave_de_grupo(edificio.pk if edificio else None, form.cleaned_data["dispositivo"].pk)
         return redirect(
-            _url_ficha(caso, plazas=form.cleaned_data["plazas"], derivar=form.cleaned_data["dispositivo"].pk)
+            _url_ficha(
+                caso, plazas=form.cleaned_data["plazas"], grupo=grupo, derivar=form.cleaned_data["dispositivo"].pk
+            )
         )
+
+
+class UbicarDomicilioView(MesaPermissionMixin, View):
+    """POST del panel «Derivar»: guarda el punto del domicilio que el navegador ubicó con Google (Cambio 520).
+
+    Contesta JSON y no redirige: lo llama ``nodo-derivar-distancias.js`` en segundo plano. Si no se guarda,
+    la pantalla sigue con la distancia que ya calculó.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        caso = get_object_or_404(CasoEmergencia, pk=pk)
+        form = UbicarDomicilioForm(request.POST)
+        if not form.is_valid():
+            return JsonResponse({"guardado": False, "error": _errores_de(form)}, status=400)
+        try:
+            guardado = servicio.ubicar_domicilio(
+                caso, request.user, form.cleaned_data["latitud"], form.cleaned_data["longitud"]
+            )
+        except ValidationError as error:
+            return JsonResponse({"guardado": False, "error": " ".join(error.messages)}, status=400)
+        return JsonResponse({"guardado": guardado})
 
 
 class CancelarDerivacionView(_AccionDeCasoView):

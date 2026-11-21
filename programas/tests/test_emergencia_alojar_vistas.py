@@ -398,6 +398,9 @@ class IntegrantesTests(BaseLlegadas):
         self.assertTemplateUsed(respuesta, "programas/emergencia/dispositivo/integrantes.html")
         self.assertContains(respuesta, "Persona 7")
         self.assertContains(respuesta, "0 de 7 confirmadas")
+        # La persona 1 sin confirmar se rotula con el responsable que cargó el caso (Cambio 521).
+        self.assertContains(respuesta, f"{self.caso.grupo.responsable.apellido_nombre} (responsable)")
+        self.assertNotContains(respuesta, "Persona 1<")
         self.assertContains(respuesta, 'aria-valuemax="7"')
         self.assertContains(respuesta, "Agregar persona")
         # Sin nadie confirmado se puede cancelar, y todavía no hay diferencia que cerrar.

@@ -94,6 +94,18 @@ class PantallaTests(TestCase):
         self.assertIn('"movible": true', html)
         self.assertIn('"accion": "eliminar"', html)
 
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_sin_key_no_ofrece_agregar_punto(self):
+        # Sin Google no hay mapa que tocar: «Agregar punto» dejaba a la persona en «Tocá el mapa…» sin salida.
+        punto()
+        self.client.force_login(usuario_con("mapa.ver", "mapa.editar"))
+        html = self.client.get(reverse("mapa:inicio")).content.decode()
+        self.assertIn("El mapa no está disponible en este ambiente", html)
+        self.assertIn("Camioneta 3", html)
+        self.assertNotIn("data-mapa-agregar", html)
+        self.assertNotIn("data-mapa-barra", html)
+        self.assertNotIn("mapa-general.js", html)
+
 
 class CapasTests(TestCase):
     """Cada capa con la regla de su módulo; los selectores de alcance se prueban en sus propios módulos."""
@@ -215,6 +227,20 @@ class CapasTests(TestCase):
         self.assertNotIn("movible", suelto)
         self.assertNotIn("acciones", suelto)
         self.assertEqual(suelto["grupo"], Punto.Categoria.VEHICULO)
+
+    def test_sin_key_nada_editable_aunque_tenga_mapa_editar(self):
+        # El flag y los puntos salen del mismo cálculo: sin Google no hay mapa donde ubicar ni mover.
+        self.user = usuario_con("mapa.ver", "mapa.editar", username="editor")
+        with override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba"):
+            con_key = self.capas()
+        with override_settings(GOOGLE_MAPS_API_KEY=""):
+            sin_key = self.capas()
+        self.assertTrue(con_key["editable"])
+        self.assertTrue(next(p for p in con_key["puntos"] if p["capa"] == "punto")["movible"])
+        self.assertFalse(sin_key["editable"])
+        suelto = next(p for p in sin_key["puntos"] if p["capa"] == "punto")
+        self.assertNotIn("movible", suelto)
+        self.assertNotIn("acciones", suelto)
 
     def test_consultas_constantes_al_crecer_las_cuatro_capas(self):
         self.capas()  # las capacidades del usuario quedan en caché, como en un request

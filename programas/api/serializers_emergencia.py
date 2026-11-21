@@ -433,6 +433,13 @@ class IntegranteSerializer(serializers.Serializer):
     estado = serializers.CharField(help_text="`SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA`.")
     ficha_completa = serializers.BooleanField(help_text="Secciones 4 a 8 con algún dato o «sin datos».")
     persona = PersonaDelIntegranteSerializer(allow_null=True, help_text="`null` hasta que se confirma.")
+    responsable = PersonaDelIntegranteSerializer(
+        allow_null=True,
+        help_text=(
+            "Solo en la persona 1: el responsable que cargó el caso (legajo, «Apellido, Nombre» y DNI), "
+            "también **sin confirmar**, para rotularla. En las demás, `null`."
+        ),
+    )
     plaza = PlazaDelIntegranteSerializer(allow_null=True, help_text="La cama de **hoy**; `null` sin confirmar.")
     parentesco = serializers.CharField(help_text="Rótulo del parentesco; vacío sin confirmar.")
     confirmada_en = serializers.DateTimeField(allow_null=True)
@@ -442,7 +449,13 @@ class IntegranteSerializer(serializers.Serializer):
 class IntegranteDetalleSerializer(IntegranteSerializer):
     """Una fila con su ficha guardada: lo que la app precarga para completar las secciones 4 a 8."""
 
-    ficha = serializers.DictField(help_text="El Formulario 2 tal como se guardó (contrato, «La ficha»).")
+    ficha = serializers.DictField(
+        help_text=(
+            "El Formulario 2 tal como se guardó (contrato, «La ficha»). La persona 1 sin confirmar y sin ficha "
+            "llega precargada con el responsable: `parentesco` JEFE y `datos_personales` (DNI, nombre, apellido "
+            "y lo que el legajo tenga)."
+        )
+    )
     secciones_incompletas = serializers.ListField(
         child=serializers.CharField(), help_text="Rótulos de las secciones 4 a 8 que faltan, en orden."
     )

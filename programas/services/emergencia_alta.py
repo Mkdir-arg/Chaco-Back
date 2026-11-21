@@ -186,6 +186,21 @@ def _problemas_de_las_fotos(fotos):
     return problemas
 
 
+def _par_de_coordenadas(datos, campo_latitud, campo_longitud):
+    """``(latitud, longitud)`` con 6 decimales, ``None`` si no vino ninguna, o ``ValueError`` si no sirve."""
+
+    latitud, longitud = datos.get(campo_latitud), datos.get(campo_longitud)
+    if latitud in (None, "") and longitud in (None, ""):
+        return None
+    try:
+        latitud, longitud = round(float(latitud), 6), round(float(longitud), 6)
+    except (TypeError, ValueError) as error:
+        raise ValueError(campo_latitud) from error
+    if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
+        raise ValueError(campo_latitud)
+    return latitud, longitud
+
+
 def _validar_formulario1(datos):
     """Las reglas del Formulario 1 que valen para cualquier origen. Devuelve los datos limpios.
 
@@ -241,17 +256,14 @@ def _validar_formulario1(datos):
     elif len(limpio["direccion"]) > 240:
         errores["direccion"] = "La dirección no puede tener más de 240 caracteres."
 
-    latitud, longitud = datos.get("latitud"), datos.get("longitud")
     limpio["latitud"] = limpio["longitud"] = limpio["precision_m"] = None
-    if latitud not in (None, "") or longitud not in (None, ""):
-        try:
-            latitud, longitud = round(float(latitud), 6), round(float(longitud), 6)
-            if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
-                raise ValueError
-        except (TypeError, ValueError):
-            errores["latitud"] = "La posición del GPS no es válida."
-        else:
-            limpio["latitud"], limpio["longitud"] = latitud, longitud
+    try:
+        punto = _par_de_coordenadas(datos, "latitud", "longitud")
+    except ValueError:
+        errores["latitud"] = "La posición del GPS no es válida."
+    else:
+        if punto is not None:
+            limpio["latitud"], limpio["longitud"] = punto
             precision = datos.get("precision_m")
             if precision not in (None, ""):
                 try:
@@ -261,6 +273,16 @@ def _validar_formulario1(datos):
                 except (TypeError, ValueError, OverflowError):
                     limpio["precision_m"] = None
                     errores["precision_m"] = "La precisión del GPS no es válida."
+
+    # Cambio 520: el punto del domicilio, que el backoffice ubica con Google (no es el GPS del teléfono).
+    limpio["domicilio_latitud"] = limpio["domicilio_longitud"] = None
+    try:
+        punto = _par_de_coordenadas(datos, "domicilio_latitud", "domicilio_longitud")
+    except ValueError:
+        errores["domicilio_latitud"] = "La ubicación del domicilio no es válida."
+    else:
+        if punto is not None:
+            limpio["domicilio_latitud"], limpio["domicilio_longitud"] = punto
 
     localidad = datos.get("localidad")
     limpio["localidad"] = None
@@ -442,7 +464,8 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
       suma al responsable. Sin él (envíos de una app anterior), el responsable va adentro.
     * los avisos ``embarazo``, ``electrodependiente``, ``medicacion_critica``, ``mascotas``.
     * ``direccion`` (obligatoria); opcionales ``localidad`` (id o instancia de
-      ``core.Localidad``), ``latitud``, ``longitud``, ``precision_m`` y ``observaciones``.
+      ``core.Localidad``), ``latitud``, ``longitud``, ``precision_m`` (el GPS del teléfono),
+      ``domicilio_latitud``, ``domicilio_longitud`` (el domicilio ubicado en el backoffice) y ``observaciones``.
     * ``fotos``: opcional, ``{"VIVIENDA": archivo, "ACCESO": archivo}``.
 
     Cualquier otra clave se ignora, incluido un ``total`` o una ``prioridad`` que mande el
@@ -511,6 +534,8 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
                 longitud=limpio["longitud"],
                 precision_m=limpio["precision_m"],
                 direccion=limpio["direccion"],
+                domicilio_latitud=limpio["domicilio_latitud"],
+                domicilio_longitud=limpio["domicilio_longitud"],
                 necesidades=limpio["necesidades"],
                 situacion=limpio["situacion"],
                 tomado_por=usuario if nace_tomado else None,

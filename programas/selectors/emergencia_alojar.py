@@ -36,7 +36,12 @@ from programas.models import (
     Sector,
 )
 from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.emergencia_ficha import CLAVES_DE_ENVIO, secciones_incompletas
+from programas.services.emergencia_ficha import (
+    CLAVES_DE_ENVIO,
+    SECCION_DATOS,
+    SECCION_PARENTESCO,
+    secciones_incompletas,
+)
 from programas.services.nombre_plaza import clave_natural, plaza_con_sector
 from programas.services.ocupacion import (
     ESTADO_DISPONIBLE,
@@ -318,11 +323,12 @@ def integrantes_de(caso):
             "integrantes": [
                 {"n": 1, "estado": "CONFIRMADA", "ficha_completa": False,
                  "persona": {"id": 9, "nombre": "Pérez, Juan", "dni": "30111222"},
+                 "responsable": {"id": 9, "nombre": "Pérez, Juan", "dni": "30111222"},  # solo en la 1
                  "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)", "sector_id": 3},
                  "parentesco": "Jefe/a de hogar",
                  "confirmada_en": datetime, "egresado_en": None, "estadia_id": 77},
                 {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": False,
-                 "persona": None, "plaza": None, "parentesco": "",
+                 "persona": None, "responsable": None, "plaza": None, "parentesco": "",
                  "confirmada_en": None, "egresado_en": None, "estadia_id": None},
                 …
             ],
@@ -366,6 +372,10 @@ def integrante_de(caso, n):
     * ``identidad_a_revisar`` — en la persona 1, el responsable, la marca pendiente del caso
       (``caso.identidad_pendiente``, Cambio 486); en las demás, ``None``.
 
+    La persona 1 **sin confirmar y sin ficha** llega con la ficha precargada con el responsable
+    (:func:`ficha_precargada_del_responsable`): es quien cargó el caso y suele llegar primero, así
+    la guardia no retipea DNI, nombre y apellido. Es solo lo inicial: se confirma igual.
+
     ``None`` si ``n`` no es de la familia. Solo necesita ``caso.grupo_id`` y ``caso.situacion``. **1 consulta.**
     """
 
@@ -373,6 +383,8 @@ def integrante_de(caso, n):
     if fila is None:
         return None
     ficha = {clave: valor for clave, valor in (fila.ficha or {}).items() if clave not in CLAVES_DE_ENVIO}
+    if fila.orden == 1 and not fila.confirmada and not ficha:
+        ficha = ficha_precargada_del_responsable(fila.grupo.responsable, caso)
     return {
         **_fila_de_integrante(fila),
         "ficha": ficha,
@@ -381,10 +393,44 @@ def integrante_de(caso, n):
     }
 
 
+def datos_del_responsable(responsable, caso):
+    """Lo que se sabe del responsable para precargar a la persona 1: la **única** lista de esos campos.
+
+    DNI, nombre, apellido, sexo y nacimiento salen del legajo; el teléfono, del Formulario 1
+    (``caso.situacion``). La fecha va como ``date`` (o ``None``) y los vacíos quedan: cada uso la
+    adapta. La usan la ficha de la API (:func:`ficha_precargada_del_responsable`) y la ficha web de
+    la guardia (``FichaIntegranteView._iniciales``), así las dos precargan lo mismo. Sin consultas.
+    """
+
+    return {
+        "dni": responsable.dni,
+        "nombre": responsable.nombre,
+        "apellido": responsable.apellido,
+        "sexo": responsable.genero,
+        "fecha_nacimiento": responsable.fecha_nacimiento,
+        "telefono": (caso.situacion or {}).get("telefono", ""),
+    }
+
+
+def ficha_precargada_del_responsable(responsable, caso):
+    """La ficha inicial de la persona 1: el responsable como jefe/a de hogar, con :func:`datos_del_responsable`.
+
+    Con el formato de la ficha guardada: por secciones, la fecha en ISO y solo las claves con dato.
+    """
+
+    datos = datos_del_responsable(responsable, caso)
+    if datos["fecha_nacimiento"]:
+        datos["fecha_nacimiento"] = datos["fecha_nacimiento"].isoformat()
+    return {
+        SECCION_PARENTESCO: {"parentesco": IntegranteGrupo.Parentesco.JEFE.value},
+        SECCION_DATOS: {campo: valor for campo, valor in datos.items() if valor},
+    }
+
+
 def _filas_de_la_familia(grupo_pk):
     return (
         IntegranteGrupo.objects.filter(grupo_id=grupo_pk)
-        .select_related("ciudadano", "estadia__plaza__sector")
+        .select_related("ciudadano", "estadia__plaza__sector", "grupo__responsable")
         .order_by("orden")
     )
 
@@ -398,9 +444,12 @@ def _fila_de_integrante(fila):
         estado = INTEGRANTE_EGRESADA
     else:
         estado = INTEGRANTE_CONFIRMADA
-    persona = plaza = None
+    persona = plaza = responsable = None
     if fila.ciudadano_id:
         persona = {"id": fila.ciudadano_id, "nombre": fila.ciudadano.apellido_nombre, "dni": fila.ciudadano.dni}
+    if fila.orden == 1:
+        quien = fila.grupo.responsable
+        responsable = {"id": quien.pk, "nombre": quien.apellido_nombre, "dni": quien.dni}
     if fila.estadia_id and fila.estadia.plaza_id:
         cama = fila.estadia.plaza
         plaza = {
@@ -417,6 +466,7 @@ def _fila_de_integrante(fila):
         "estado": estado,
         "ficha_completa": fila.ficha_completa,
         "persona": persona,
+        "responsable": responsable,
         "plaza": plaza,
         "parentesco": parentesco,
         "confirmada_en": fila.confirmada_en,
@@ -453,7 +503,7 @@ def llegadas_del_dispositivo(dispositivo, usuario):
             Q(estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO)
             | Q(estado=Derivacion.Estado.ACEPTADA, caso__estado=CasoEmergencia.Estado.INGRESO_EN_CURSO)
         )
-        .select_related("caso__grupo__responsable", "derivada_por")
+        .select_related("caso__grupo__responsable", "derivada_por", "edificio")
         .annotate(
             confirmadas=Count(
                 "caso__grupo__integrantes", filter=Q(caso__grupo__integrantes__confirmada_en__isnull=False)
