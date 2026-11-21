@@ -60572,6 +60572,10 @@ del domicilio de los casos cargados desde la mesa.
   `ubicar_domicilio`, guardar solo respuestas precisas del Geocoder y no mandar a Google los edificios que solo
   tienen centroide. Se ordena la elección del conteo de `derivar_caso`
   (MINOR de la auditoría del PR #1271).
+- **21/11/2026:** la celda de la «Tarjeta de dispositivo para derivar» en el inventario de
+  `.claude/agents/chaco-design-system.md` pasaba el tope de 450 caracteres (498) y el check «Validate inventory and
+  authority» del #1274 quedó en rojo, lo que frenó `Publish main`. Se acorta; el detalle de las claves ya estaba en
+  la ficha `tarjeta_dispositivo_derivar.md`. Sin cambio de comportamiento.
 
 # Cambio 521 — Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso
 
