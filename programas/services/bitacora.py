@@ -396,8 +396,6 @@ def _guardar_adjuntos(dispositivo, usuario, archivos, *, heredados=0):
 VENTANA_DOBLE_ENVIO = timedelta(seconds=10)
 
 
-@archivos_atomicos
-@transaction.atomic
 def ve_la_bitacora(usuario, dispositivo):
     """Si ``usuario`` lee la bitácora de ``dispositivo``: ``dispositivo.ver`` con alcance sobre **toda** la institución.
 
@@ -409,6 +407,8 @@ def ve_la_bitacora(usuario, dispositivo):
     return alcance_de_edificios(usuario, dispositivo, CAP_VER).todo
 
 
+@archivos_atomicos
+@transaction.atomic
 def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=()):
     """Carga una novedad del turno en curso. Devuelve la `EntradaBitacora` (versión 1).
 
