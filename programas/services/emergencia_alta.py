@@ -262,6 +262,19 @@ def _validar_formulario1(datos):
                     limpio["precision_m"] = None
                     errores["precision_m"] = "La precisión del GPS no es válida."
 
+    # Cambio 519: el punto del domicilio, que el backoffice ubica con Google (no es el GPS del teléfono).
+    limpio["domicilio_latitud"] = limpio["domicilio_longitud"] = None
+    dom_latitud, dom_longitud = datos.get("domicilio_latitud"), datos.get("domicilio_longitud")
+    if dom_latitud not in (None, "") or dom_longitud not in (None, ""):
+        try:
+            dom_latitud, dom_longitud = round(float(dom_latitud), 6), round(float(dom_longitud), 6)
+            if not (-90 <= dom_latitud <= 90 and -180 <= dom_longitud <= 180):
+                raise ValueError
+        except (TypeError, ValueError):
+            errores["domicilio_latitud"] = "La ubicación del domicilio no es válida."
+        else:
+            limpio["domicilio_latitud"], limpio["domicilio_longitud"] = dom_latitud, dom_longitud
+
     localidad = datos.get("localidad")
     limpio["localidad"] = None
     if localidad not in (None, ""):
@@ -442,7 +455,8 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
       suma al responsable. Sin él (envíos de una app anterior), el responsable va adentro.
     * los avisos ``embarazo``, ``electrodependiente``, ``medicacion_critica``, ``mascotas``.
     * ``direccion`` (obligatoria); opcionales ``localidad`` (id o instancia de
-      ``core.Localidad``), ``latitud``, ``longitud``, ``precision_m`` y ``observaciones``.
+      ``core.Localidad``), ``latitud``, ``longitud``, ``precision_m`` (el GPS del teléfono),
+      ``domicilio_latitud``, ``domicilio_longitud`` (el domicilio ubicado en el backoffice) y ``observaciones``.
     * ``fotos``: opcional, ``{"VIVIENDA": archivo, "ACCESO": archivo}``.
 
     Cualquier otra clave se ignora, incluido un ``total`` o una ``prioridad`` que mande el
@@ -511,6 +525,8 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
                 longitud=limpio["longitud"],
                 precision_m=limpio["precision_m"],
                 direccion=limpio["direccion"],
+                domicilio_latitud=limpio["domicilio_latitud"],
+                domicilio_longitud=limpio["domicilio_longitud"],
                 necesidades=limpio["necesidades"],
                 situacion=limpio["situacion"],
                 tomado_por=usuario if nace_tomado else None,

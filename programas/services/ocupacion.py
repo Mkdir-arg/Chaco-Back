@@ -208,6 +208,9 @@ class OcupacionSector:
     tipo: str
     capacidad_declarada: int
     conteo: Conteo
+    #: El edificio donde está el sector (Cambio 429), o ``None`` si todavía no tiene uno asignado. Viaja
+    #: en la misma fila: el panel «Derivar» suma las camas por edificio sin otra consulta (Cambio 519).
+    edificio_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -221,6 +224,16 @@ class OcupacionDispositivo:
     dispositivo_id: int
     conteo: Conteo
     sectores: tuple[OcupacionSector, ...]
+
+    def edificios(self) -> tuple[int | None, ...]:
+        """Los edificios donde el dispositivo tiene sectores, en el orden de sus sectores. ``None`` = sin edificio."""
+
+        return tuple(dict.fromkeys(sector.edificio_id for sector in self.sectores))
+
+    def conteo_del_edificio(self, edificio_id) -> Conteo:
+        """Las cifras de los sectores del dispositivo en ``edificio_id`` (``None``: los que no tienen edificio)."""
+
+        return _sumar_conteos(sector.conteo for sector in self.sectores if sector.edificio_id == edificio_id)
 
 
 @dataclass(frozen=True)
@@ -418,7 +431,7 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
     if ids:
         filas = (
             Sector.objects.filter(dispositivo_id__in=ids, activo=True)
-            .values("id", "dispositivo_id", "nombre", "tipo", "capacidad")
+            .values("id", "dispositivo_id", "edificio_id", "nombre", "tipo", "capacidad")
             # Un `Count` con `filter` por cada cifra sobre el **mismo** LEFT JOIN: el
             # motor recorre las plazas una vez y agrupa. Contar sector por sector sería
             # una consulta por sector, que es justo lo que los índices
@@ -450,6 +463,7 @@ def ocupacion_de_plazas(dispositivos, momento=None, tipos=None) -> Censo:
                     nombre=fila["nombre"],
                     tipo=fila["tipo"],
                     capacidad_declarada=fila["capacidad"],
+                    edificio_id=fila["edificio_id"],
                     conteo=Conteo(
                         totales=fila["plazas_totales"],
                         fuera_de_servicio=fila["plazas_fuera_de_servicio"],

@@ -259,7 +259,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
         <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-derivar-titulo">
           <div class="px-5 py-4 border-b border-light">
             <h2 id="caso-derivar-titulo" class="text-heading font-bold">Derivar</h2>
-            <p class="mt-1 text-xs text-body-subtle">Elegí el dispositivo. Las camas las reserva el dispositivo cuando acepta.</p>
+            <p class="mt-1 text-xs text-body-subtle">Elegí el edificio y después la institución. Las camas las reserva la institución cuando acepta.</p>
           </div>
           <div class="p-5 space-y-4">
             {# GET: solo rearma la lista (no muta, sin csrf) #}
@@ -269,15 +269,28 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
                 <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Actualizar lista</button>
               </div>
             </form>
-            {% if panel.dispositivos %}
-            <p class="text-xs text-body-subtle">{% if panel.mostrados < panel.total %}Mostrando {{ panel.mostrados }} de {{ panel.total }} dispositivos: filtrá por nombre o localidad para ver el resto.{% else %}{{ panel.total }} dispositivo{{ panel.total|pluralize }}, primero los que alcanzan y después por distancia.{% endif %}</p>
+            {% if panel.grupo %}
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="min-w-0">
+                <h3 class="text-sm font-bold text-heading">{{ panel.grupo.nombre }}</h3>
+                <p class="text-xs text-body-subtle"><i class="fas fa-location-dot" aria-hidden="true"></i> {{ panel.grupo.ubicacion|default:"Sin localidad cargada" }} · {{ panel.grupo.distancia_texto }} · {{ panel.grupo.libres }} plaza{{ panel.grupo.libres|pluralize }} libre{{ panel.grupo.libres|pluralize }}</p>
+              </div>
+              <a href="{{ panel.url_volver }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a los edificios</a>
+            </div>
             <div class="space-y-3">
-              {% for dispositivo in panel.dispositivos %}
-              {% include "components/_tarjeta_dispositivo_derivar.html" with dispositivo=dispositivo only %}
+              {% for institucion in panel.grupo.tarjetas %}
+              {% include "components/_tarjeta_dispositivo_derivar.html" with dispositivo=institucion only %}
+              {% endfor %}
+            </div>
+            {% elif panel.edificios %}
+            <p class="text-xs text-body-subtle">{% if panel.mostrados < panel.total %}Mostrando {{ panel.mostrados }} de {{ panel.total }} edificios: filtrá por nombre o localidad para ver el resto.{% else %}{{ panel.total }} edificio{{ panel.total|pluralize }}, primero los que alcanzan y después por distancia al domicilio de la familia.{% endif %}</p>
+            <div class="space-y-3">
+              {% for edificio in panel.edificios %}
+              {% include "components/_tarjeta_dispositivo_derivar.html" with dispositivo=edificio only %}
               {% endfor %}
             </div>
             {% else %}
-            {% include "components/_estado_vacio.html" with icono="fa-building-circle-xmark" titulo="Ningún dispositivo para derivar" texto="No hay dispositivos activos con camas que coincidan con la búsqueda." %}
+            {% include "components/_estado_vacio.html" with icono="fa-building-circle-xmark" titulo="Ningún edificio para derivar" texto="No hay edificios con camas de instituciones activas que coincidan con la búsqueda." %}
             {% endif %}
           </div>
         </section>
@@ -293,6 +306,12 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
                 <dt class="text-xs font-semibold uppercase text-body-subtle">Dispositivo</dt>
                 <dd class="mt-1 text-sm font-semibold text-heading">{{ derivacion.dispositivo }}{% if derivacion.localidad %} <span class="font-normal text-body-subtle">· {{ derivacion.localidad }}</span>{% endif %}</dd>
               </div>
+              {% if derivacion.edificio %}
+              <div>
+                <dt class="text-xs font-semibold uppercase text-body-subtle">Edificio</dt>
+                <dd class="mt-1 text-sm text-heading">{{ derivacion.edificio }}</dd>
+              </div>
+              {% endif %}
               <div>
                 <dt class="text-xs font-semibold uppercase text-body-subtle">Plazas pedidas</dt>
                 <dd class="mt-1 text-sm text-heading">{{ derivacion.plazas }}</dd>
@@ -337,7 +356,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
       <form method="post" action="{% url 'emergencia:caso_derivar' caso.pk %}" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {{ confirmar_derivar.form.dispositivo }}{{ confirmar_derivar.form.confirmar_faltantes }}
+          {{ confirmar_derivar.form.dispositivo }}{{ confirmar_derivar.form.edificio }}{{ confirmar_derivar.form.confirmar_faltantes }}
           {% with field=confirmar_derivar.form.plazas %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
           {% if confirmar_derivar.faltan %}
           {% include "components/_alerta.html" with tono="warning" titulo=confirmar_derivar.aviso texto="El dispositivo no tiene lugar para toda la familia. Si seguís, el caso se deriva igual con las plazas que pediste y el dispositivo resuelve a quién aloja." %}
