@@ -525,7 +525,7 @@ flowchart LR
     API --> MYSQL[("MySQL 8")]
 ```
 
-- **Stack**: Expo SDK + React Native, código en [Mkdir-arg/Chaco-mobile](https://github.com/Mkdir-arg/Chaco-mobile)
+- **Stack**: Expo SDK + React Native, código en [I-CORE-TEC/Chaco-mobile](https://github.com/I-CORE-TEC/Chaco-mobile)
 - **Offline-first**: los operadores de campo cargan relevamientos sin conexión, con persistencia local; al recuperar red, sincronizan contra `/api/becas/`
 - **Backend**: Django REST Framework expone los relevamientos asignados, formularios y sincronización de campo
 - **Integración con el monolito**: los datos quedan en MySQL dentro del módulo `programas`

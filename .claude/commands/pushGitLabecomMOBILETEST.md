@@ -15,7 +15,7 @@ si este archivo los contradice, mandan ellos.
 
 ## Contexto fijo (no negociable)
 
-- **Repo fuente (`origin` del clon móvil):** `https://github.com/Mkdir-arg/Chaco-mobile.git`.
+- **Repo fuente (`origin` del clon móvil):** `https://github.com/I-CORE-TEC/Chaco-mobile.git`.
   La fuente es **`origin/test`** recién fetcheada, no un checkout local editado. Desde el
   22/10/2026 el flujo es PR → `test` de GitHub → `ecom/test`.
 - **Remoto destino (`ecom`):**
@@ -36,7 +36,7 @@ si este archivo los contradice, mandan ellos.
 ## Pasos
 
 1. **Clon y remotos.**
-   - Si no existe `../Chaco-mobile/.git`: `git clone https://github.com/Mkdir-arg/Chaco-mobile.git ../Chaco-mobile`.
+   - Si no existe `../Chaco-mobile/.git`: `git clone https://github.com/I-CORE-TEC/Chaco-mobile.git ../Chaco-mobile`.
    - `git -C ../Chaco-mobile fetch origin`.
    - `git -C ../Chaco-mobile remote get-url ecom`: si no existe, agregarlo con la URL de
      arriba; si existe con otra (la vieja), `git -C ../Chaco-mobile remote set-url ecom <url-nueva>`.
