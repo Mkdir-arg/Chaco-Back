@@ -305,7 +305,7 @@ class RelevamientoEnCampoTests(_Base):
         resp = self.client.post(reverse("becas:relevamiento_eliminar", args=[self.relevamiento.pk]), follow=True)
         self.assertContains(resp, "No se puede eliminar el relevamiento: está en campo.")
         self.assertContains(resp, "hasta 24 h después de la fecha de fin de su período")
-        self.assertContains(resp, "se libera después del cierre automático de la madrugada")
+        self.assertContains(resp, "Si ya pasaron 24 h de la fecha de fin y sigue en curso, se libera con el cierre automático de la madrugada (03:10).")
 
 
 class GraciaDeSincronizacionTests(_Base):
