@@ -18,7 +18,7 @@ Procedimiento general: `docs/internal/espejo-ecom.md`; ramas: `docs/internal/bra
 
 ## Contexto fijo (no negociable)
 
-- **Fuente:** `origin/main` de `Mkdir-arg/Chaco-mobile` (GitHub), en el clon `../Chaco-mobile`
+- **Fuente:** `origin/main` de `I-CORE-TEC/Chaco-mobile` (GitHub), en el clon `../Chaco-mobile`
   (se opera con `git -C ../Chaco-mobile ...`). `main` de GitHub recibe lo de `test` por PR.
 - **Remoto destino (`ecom`):**
   `https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/datanach-app.git`
