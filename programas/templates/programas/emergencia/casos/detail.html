@@ -284,6 +284,12 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
               {% endfor %}
             </div>
             {% elif panel.edificios %}
+            {% if panel.distancias %}
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn-nodo btn-secondary btn-sm" data-derivar-por-calle hidden><i class="fas fa-route" aria-hidden="true"></i> Calcular distancia por calle</button>
+              <p class="text-xs text-body-subtle" data-derivar-por-calle-estado role="status" hidden></p>
+            </div>
+            {% endif %}
             <p class="text-xs text-body-subtle">{% if panel.mostrados < panel.total %}Mostrando {{ panel.mostrados }} de {{ panel.total }} edificios: filtrá por nombre o localidad para ver el resto.{% else %}{{ panel.total }} edificio{{ panel.total|pluralize }}, primero los que alcanzan y después por distancia al domicilio de la familia.{% endif %}</p>
             <div class="space-y-3">
               {% for edificio in panel.edificios %}
@@ -449,4 +455,8 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}
-<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+{% if panel.distancias %}{# Cambio 520: la distancia por calle de los edificios más cercanos, con Google #}
+{{ panel.distancias|json_script:"derivar-distancias-config" }}
+{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-derivar-distancias.js' %}"></script>{% endif %}{% endblock %}

@@ -73,6 +73,7 @@ marcada ``por_supervisor`` y lo dice en el detalle.
 
 import logging
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -111,6 +112,7 @@ from programas.services.emergencia_comun import (  # noqa: F401
     siguiente_numero,
 )
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
+from programas.services.situacion_emergencia import ubicacion_valida
 
 logger = logging.getLogger(__name__)
 
@@ -539,10 +541,12 @@ def derivar_caso(
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
     ocupacion = camas_de(dispositivo).de(dispositivo)
+    edificio_id = edificio.pk if edificio is not None else None
     if edificio is None and not sin_edificio:
+        # Todas las camas de la institución: los llamadores sin panel (la ficha siempre elige un grupo).
         conteo = ocupacion.conteo
-    elif (edificio.pk if edificio is not None else None) in ocupacion.edificios():
-        conteo = ocupacion.conteo_del_edificio(edificio.pk if edificio is not None else None)
+    elif edificio_id in ocupacion.edificios():
+        conteo = ocupacion.conteo_del_edificio(edificio_id)
     else:
         raise ValidationError({"edificio": EDIFICIO_AJENO})
     libres = camas_libres_del_conteo(conteo)
@@ -783,3 +787,37 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
         por_supervisor=por_supervisor,
     )
     return caso
+
+
+# ---------------------------------------------------------------------------
+# Domicilio ubicado (Cambio 520, fase 2)
+# ---------------------------------------------------------------------------
+
+DOMICILIO_FUERA_DEL_CHACO = "El punto del domicilio no cae en el Chaco."
+
+
+@transaction.atomic
+def ubicar_domicilio(caso, usuario, latitud, longitud):
+    """Guarda el punto del domicilio que el panel «Derivar» ubicó con Google. Devuelve si lo guardó.
+
+    Lo puede quien tiene tomado el caso o quien supervisa (RU-12, RU-13), los mismos que ven el panel.
+    **No pisa** un punto que ya está: el que puso la mesa a mano en el mapa vale más que la primera
+    respuesta del Geocoder, y así dos pestañas abiertas no se pisan. Por eso el JS solo manda una
+    respuesta **precisa** del Geocoder (``ROOFTOP`` o ``RANGE_INTERPOLATED``, sin ``partial_match``): una
+    aproximada se usa para esa consulta y no se guarda. Un caso cerrado no cambia. Fuera de la caja del
+    Chaco, ``ValidationError``. No traza: no cambia nada de lo que se decidió sobre el caso.
+    """
+
+    _exigir_mesa(usuario)
+    if not ubicacion_valida(latitud, longitud):
+        raise ValidationError({"latitud": DOMICILIO_FUERA_DEL_CHACO})
+    caso = _bloquear_caso(caso)
+    if caso.estado == Estado.CERRADO:
+        return False
+    _exigir_duenio_o_supervisor(caso, usuario)
+    if caso.domicilio_latitud is not None:
+        return False
+    caso.domicilio_latitud = round(Decimal(str(latitud)), 6)
+    caso.domicilio_longitud = round(Decimal(str(longitud)), 6)
+    caso.save(update_fields=["domicilio_latitud", "domicilio_longitud", "modificado"])
+    return True

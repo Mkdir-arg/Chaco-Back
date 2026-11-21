@@ -11,8 +11,9 @@ marca— y va como tabla densa canónica (`tabla.md`) en vez de sumarle claves a
 
 **Consumidor de referencia:** el panel «Derivar» de `programas/templates/programas/emergencia/casos/detail.html`
 (dicts armados por `programas/selectors/emergencia_mesa.py`, `panel_de_derivar`, con tope de 20 y filtro por nombre y
-localidad). Derivar es un POST y la acción de la tarjeta solo navega: `accion_url` vuelve a la misma ficha con
-`?derivar=<pk>` y el servidor abre ahí el modal de confirmación (arquetipo Modal, variante «abierto por parámetro
+localidad). Desde el Cambio 520 la misma pieza se usa en dos pasos: una tarjeta por **edificio** (su `accion_url` abre
+`?grupo=e<id>`) y, adentro, una por **institución** de ese edificio. Derivar es un POST y la acción de la tarjeta solo
+navega: `accion_url` vuelve a la misma ficha con `?grupo=…&derivar=<pk>` y el servidor abre ahí el modal de confirmación (arquetipo Modal, variante «abierto por parámetro
 GET»), que es el que lleva el formulario con las plazas y, si faltan, la pregunta. La tarjeta no cambió para eso.
 Ese mismo selector arma, sin tocar esta tarjeta, lo que la ficha muestra después de derivar: la sección
 «Integrantes» en solo lectura (con `_contador_avance.html`) y los avisos de ingreso directo, «en la puerta de…» e
@@ -45,7 +46,7 @@ Claves de `dispositivo` (dict armado **en la vista o el selector**, nunca un mod
 | `localidad` | Opcional; vacía = «Sin localidad cargada» |
 | `libres`, `reservadas` | Plazas ya contadas. Sin ellas se muestra 0 |
 | `distancia_km` | Número (km desde el caso), se muestra con un decimal («a 3,2 km»). `None` = «distancia desconocida»; un 0 es una distancia |
-| `distancia_texto` | Opcional. La distancia ya escrita por la vista («a 3,1 km en línea recta», «≈ 12,0 km (por localidad)»): gana sobre `distancia_km`. La usa el panel «Derivar» por edificio, que distingue la distancia exacta de la aproximada |
+| `distancia_texto` | Opcional. La distancia ya escrita por la vista («a 3,1 km en línea recta», «≈ 12,0 km (por localidad)»): gana sobre `distancia_km`. La usa el panel «Derivar» por edificio, que distingue la distancia exacta de la aproximada. La tarjeta la envuelve en `data-distancia` y lleva `data-derivar-clave` (su `pk`): el panel «Derivar» reemplaza ese texto con la distancia por calle de Google, a pedido (Cambio 520, fase 2) |
 | `marca` | `ALCANZA`, `FALTAN` o `SIN_PLAZAS`, **ya resuelta**. Otro valor, o ninguno, no dibuja marca |
 | `faltan` | Con `FALTAN`: cuántas faltan («Faltan 2 plazas», «Falta 1 plaza»; sin número, «Faltan plazas») |
 | `accion_texto` | Opcional. Texto del botón, con el dispositivo («Derivar a CIS N.º 3»). Sin él no hay pie |

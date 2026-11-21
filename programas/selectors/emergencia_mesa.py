@@ -48,6 +48,8 @@ OPERADOR_MIOS = "mios"
 
 #: Cuántos edificios muestra el panel «Derivar» de una vez. El resto se alcanza filtrando.
 TOPE_DISPOSITIVOS = 20
+#: A cuántos edificios de la lista se les pide la distancia por calle a Google (se cobra por par).
+TOPE_POR_CALLE = 10
 
 #: RN-1.8: la fila avisa «Relevado 14:20 · enviado 16:05» cuando difieren más que esto.
 DEMORA_DE_ENVIO_VISIBLE = timedelta(minutes=5)
@@ -616,11 +618,35 @@ def panel_de_derivar(
     return {
         "plazas": pedidas,
         "edificios": tarjetas,
+        "distancias": _distancias_por_calle(caso, tarjetas) if elegido is None else None,
         "total": len(visibles),
         "mostrados": len(tarjetas),
         "localidades": localidades,
         "grupo": elegido,
         "grupos": grupos,
+    }
+
+
+def _distancias_por_calle(caso, tarjetas):
+    """Lo que necesita ``nodo-derivar-distancias.js`` para pedir la distancia por calle (Cambio 520, fase 2).
+
+    ``origen`` es el domicilio ya ubicado o ``None`` (el JS lo ubica con ``direccion`` y lo guarda);
+    ``destinos``, los primeros :data:`TOPE_POR_CALLE` edificios de la lista con punto o dirección
+    (``{"clave", "lat", "lng"}`` o ``{"clave", "direccion"}``), sin los de ubicación reservada. ``None`` si no hay a quién medir. Sin consultas.
+    """
+
+    destinos = [
+        {"clave": tarjeta["clave"], **tarjeta["destino"]} for tarjeta in tarjetas if tarjeta["destino"] is not None
+    ][:TOPE_POR_CALLE]
+    if not destinos:
+        return None
+    ubicado = selectores_derivar.domicilio_ubicado(caso)
+    localidad = caso.localidad.nombre if caso.localidad_id else ""
+    direccion = selectores_derivar.direccion_para_google(caso.direccion, localidad)
+    return {
+        "origen": {"lat": float(ubicado.latitud), "lng": float(ubicado.longitud)} if ubicado else None,
+        "direccion": direccion,
+        "destinos": destinos,
     }
 
 
