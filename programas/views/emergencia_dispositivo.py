@@ -431,15 +431,9 @@ class FichaIntegranteView(_IntegranteView):
 
         if self.integrante.orden != 1:
             return {}
-        responsable = self.caso.grupo.responsable
         return {
             "parentesco": IntegranteGrupo.Parentesco.JEFE,
-            "dni": responsable.dni,
-            "nombre": responsable.nombre,
-            "apellido": responsable.apellido,
-            "sexo": responsable.genero,
-            "fecha_nacimiento": responsable.fecha_nacimiento,
-            "telefono": self.caso.situacion.get("telefono", ""),
+            **selectores.datos_del_responsable(self.caso.grupo.responsable, self.caso),
         }
 
     def _render(self, request, form, cama=None, status=200):
