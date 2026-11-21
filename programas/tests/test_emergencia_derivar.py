@@ -112,6 +112,17 @@ class PanelPorEdificioTests(BaseMesa):
         self.assertEqual(tarjeta["localidad"], "Resistencia")
         self.assertNotContains(self._ficha(caso), "Calle Oculta")
 
+    def test_recalcular_las_plazas_no_saca_del_edificio_elegido(self):
+        caso = self._caso_tomado()
+        predio = self._edificio("Predio Norte", self.club)
+        respuesta = self._ficha(caso, grupo=f"e{predio.pk}")
+        self.assertContains(respuesta, f'name="grupo" value="e{predio.pk}"')
+
+    def test_una_coordenada_fuera_del_chaco_no_cuenta(self):
+        caso = self._caso_tomado(domicilio_latitud="-27.451", domicilio_longitud="-58.986")
+        self._edificio("Invertido", self.club, latitud="-58.98", longitud="-27.45")
+        self.assertIsNone(self._ficha(caso).context["panel"]["edificios"][0]["distancia"])
+
     def test_solo_la_mesa_ve_los_edificios_para_derivar(self):
         caso = self._caso_tomado()
         with self.assertRaises(PermissionDenied):

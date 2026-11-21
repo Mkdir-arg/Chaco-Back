@@ -8,12 +8,13 @@ Emergencia), repartidas por el edificio de cada sector, que viaja en la misma fi
 La distancia se mide desde el **domicilio de la familia**, no desde el GPS de la toma:
 
 1. el punto del domicilio que ubicó el backoffice (``domicilio_latitud``/``domicilio_longitud``);
-2. en un caso cargado en el backoffice antes del Cambio 519 (origen mesa o puerta del dispositivo, sin
-   precisión de GPS), ``latitud``/``longitud``, que ahí guardaban el domicilio ubicado en el mapa;
+2. en un caso cargado por la mesa antes del Cambio 519 (sin precisión de GPS), ``latitud``/``longitud``, que
+   ahí guardaban el domicilio ubicado en el mapa;
 3. el centroide de la localidad del caso (``core.UbicacionLocalidad``): aproximada;
 4. el GPS del teléfono al relevar, solo si no hay nada de lo anterior.
 
 Hasta cada edificio: sus coordenadas o, si no las tiene, el centroide de su localidad (aproximada). Una
+coordenada fuera de la caja del Chaco (``services.situacion_emergencia.ubicacion_valida``) cuenta como que no está. Una
 institución con camas en sectores sin edificio asignado (anteriores al Cambio 429) se muestra como su propio
 grupo, ubicado con las coordenadas de la institución.
 
@@ -22,6 +23,7 @@ Edificios de ubicación reservada: los que ocupa una institución cuyo tipo es d
 localidad y la distancia en línea recta, que se calcula en el servidor y nunca sale hacia Google.
 """
 
+from collections import Counter
 from dataclasses import dataclass
 
 from django.core.exceptions import PermissionDenied
@@ -39,8 +41,10 @@ from programas.selectors.emergencia import (
     camas_libres_del_conteo,
     dispositivos_elegibles,
     distancia_km,
+    marca_de_plazas,
 )
 from programas.services.emergencia_programa import puede_operar_la_mesa
+from programas.services.situacion_emergencia import ubicacion_valida
 
 #: De dónde sale el punto de la familia.
 ORIGEN_DOMICILIO = "domicilio"
@@ -76,21 +80,18 @@ class Centroides:
 
     @classmethod
     def leer(cls):
-        filas = list(
-            localidades_operativas()
-            .filter(ubicacion__isnull=False)
-            .values_list("id", "nombre", "ubicacion__latitud", "ubicacion__longitud")
+        # Todas las localidades, con centroide o sin él: los homónimos se cuentan sobre todas, como en E8.
+        filas = list(localidades_operativas().values_list("id", "nombre", "ubicacion__latitud", "ubicacion__longitud"))
+        cuantas = Counter(clave(nombre) for _pk, nombre, _latitud, _longitud in filas)
+        con_centroide = [fila for fila in filas if ubicacion_valida(fila[2], fila[3])]
+        return cls(
+            por_id={pk: (latitud, longitud) for pk, _nombre, latitud, longitud in con_centroide},
+            por_nombre={
+                clave(nombre): (latitud, longitud)
+                for _pk, nombre, latitud, longitud in con_centroide
+                if cuantas[clave(nombre)] == 1
+            },
         )
-        por_id = {pk: (latitud, longitud) for pk, _nombre, latitud, longitud in filas}
-        por_nombre, repetidos = {}, set()
-        for _pk, nombre, latitud, longitud in filas:
-            llave = clave(nombre)
-            if llave in por_nombre:
-                repetidos.add(llave)
-            por_nombre[llave] = (latitud, longitud)
-        for llave in repetidos:
-            del por_nombre[llave]
-        return cls(por_id=por_id, por_nombre=por_nombre)
 
     def de_localidad(self, localidad_id):
         punto = self.por_id.get(localidad_id)
@@ -102,7 +103,9 @@ class Centroides:
 
 
 def _par(latitud, longitud):
-    return latitud is not None and longitud is not None
+    """Un punto que sirve: las dos coordenadas y dentro de la caja del Chaco. Fuera, es un error de carga (E8)."""
+
+    return ubicacion_valida(latitud, longitud)
 
 
 def punto_de_la_familia(caso, centroides):
@@ -110,13 +113,14 @@ def punto_de_la_familia(caso, centroides):
 
     if _par(caso.domicilio_latitud, caso.domicilio_longitud):
         return Punto(caso.domicilio_latitud, caso.domicilio_longitud, aproximado=False, origen=ORIGEN_DOMICILIO)
-    cargado_en_el_backoffice = caso.origen != CasoEmergencia.Origen.TERRITORIO and caso.precision_m is None
-    if cargado_en_el_backoffice and caso.con_gps:
+    # Solo la mesa: un caso con origen «Ingreso directo» también puede venir de la app, con GPS sin precisión.
+    de_la_mesa_antes_del_cambio = caso.origen == CasoEmergencia.Origen.MESA and caso.precision_m is None
+    if de_la_mesa_antes_del_cambio and _par(caso.latitud, caso.longitud):
         return Punto(caso.latitud, caso.longitud, aproximado=False, origen=ORIGEN_DOMICILIO)
     centroide = centroides.de_localidad(caso.localidad_id)
     if centroide is not None:
         return centroide
-    if caso.con_gps:
+    if _par(caso.latitud, caso.longitud):
         return Punto(caso.latitud, caso.longitud, aproximado=False, origen=ORIGEN_GPS)
     return None
 
@@ -139,14 +143,6 @@ def texto_de_distancia(distancia):
     if distancia["aproximada"]:
         return f"≈ {km} km (por localidad)"
     return f"a {km} km en línea recta"
-
-
-def _marca(libres, pedidas):
-    if libres <= 0:
-        return MARCA_SIN_PLAZAS, max(pedidas, 0)
-    if libres < pedidas:
-        return MARCA_FALTAN, pedidas - libres
-    return MARCA_ALCANZA, 0
 
 
 def _edificios(ids):
@@ -229,7 +225,7 @@ def edificios_para_derivar(caso, usuario, *, plazas=None, momento=None):
                 grupo = grupos[llave] = _grupo_nuevo(llave, edificio, dispositivo, familia, centroides)
             conteo = ocupacion.conteo_del_edificio(edificio_id)
             libres = camas_libres_del_conteo(conteo)
-            marca, faltan = _marca(libres, pedidas)
+            marca, faltan = marca_de_plazas(libres, pedidas)
             grupo["instituciones"].append(
                 {
                     "id": dispositivo.pk,
@@ -246,7 +242,7 @@ def edificios_para_derivar(caso, usuario, *, plazas=None, momento=None):
     for grupo in grupos.values():
         grupo["instituciones"].sort(key=lambda fila: (-fila["libres"], fila["nombre"], fila["id"]))
         mejor = grupo["instituciones"][0]["libres"] if grupo["instituciones"] else 0
-        grupo["marca"], grupo["faltan"] = _marca(mejor, pedidas)
+        grupo["marca"], grupo["faltan"] = marca_de_plazas(mejor, pedidas)
 
     return sorted(
         grupos.values(),

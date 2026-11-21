@@ -60425,10 +60425,12 @@ siendo de la institución.
   la misma fila; `OcupacionDispositivo.conteo_del_edificio` suma los sectores de un edificio. Sin consultas nuevas
   en el censo. `derivar_caso(…, edificio=…)` valida que la institución tenga sectores ahí y cuenta esas camas.
 - **La distancia se mide desde el domicilio de la familia** (decisión del usuario): el punto del domicilio
-  (`CasoEmergencia.domicilio_latitud/longitud`); en un caso del backoffice anterior a este cambio, `latitud` y
-  `longitud` (ahí se guardaba el domicilio ubicado en el mapa); si no, el centroide de su localidad
-  (aproximada); el GPS de la toma, solo si no hay nada de eso. Hasta el edificio: sus coordenadas o el centroide de
-  su localidad.
+  (`CasoEmergencia.domicilio_latitud/longitud`); en un caso de la mesa anterior a este cambio, `latitud` y
+  `longitud` (ahí se guardaba el domicilio ubicado en el mapa; solo origen mesa, porque un «Ingreso directo» puede
+  venir de la app con GPS sin precisión); si no, el centroide de su localidad (aproximada); el GPS de la toma, solo
+  si no hay nada de eso. Hasta el edificio: sus coordenadas o el centroide de su localidad. Una coordenada fuera de
+  la caja del Chaco (`ubicacion_valida`, la de E8) cuenta como que no está, y los homónimos de localidad se cuentan
+  sobre todas las localidades, con centroide o sin él.
 - **El punto del mapa del Formulario 1 del backoffice es el domicilio**, no el GPS. Cambia la decisión del
   Cambio 493 fase 2 («llegan a `crear_caso` como la posición del GPS»): la mesa y la puerta del dispositivo no
   tienen GPS de teléfono. La API de la app sigue mandando su GPS en `latitud`/`longitud`.
@@ -60436,7 +60438,8 @@ siendo de la institución.
   (solo nombre y localidad) y con la distancia en línea recta calculada en el servidor; en la fase 2 no se mandan
   a Google. Un edificio es reservado si lo ocupa alguna institución de tipo reservado, la regla de `/mapa/`.
 - **Sectores sin edificio** (anteriores al Cambio 429): la institución aparece sola, «(sin edificio asignado)»,
-  ubicada con sus propias coordenadas, y se deriva sin edificio.
+  ubicada con sus propias coordenadas, y se deriva sin edificio con `derivar_caso(…, sin_edificio=True)`, que
+  cuenta solo esas camas, las mismas que mostró el panel (auditoría del PR #1271).
 - **Una institución sin sectores ya no aparece** en el panel: no tiene camas que ofrecer.
 
 ## Implementación
@@ -60464,7 +60467,8 @@ siendo de la institución.
 dejan `NULL`. Sin datos que mover.
 
 ## Validación
-`manage.py check` y `makemigrations --check` OK; tests de Emergencia y de ocupación OK (incluye
+`manage.py check` y `makemigrations --check` **sin** `DJANGO_SYNCDB_PROJECT_APPS` (con él no se cargan las
+migraciones: así se escapó un import faltante en `0131`, que marcó la auditoría) OK; tests de Emergencia y de ocupación OK (incluye
 `test_emergencia_derivar`, nuevo, y el presupuesto de E3: 20 consultas con 50 edificios). `design_audit.py
 --ratchet`: 0 nuevos; `check_design_agent.py --changed`: OK; `compile_templates.py --bloques`: 0; `ruff` OK.
 
@@ -60478,6 +60482,8 @@ No requiere.
 - `selectors.emergencia.dispositivos_para_derivar` quedó sin pantalla que lo use (lo cubren sus tests): retirarlo
   junto con sus pruebas cuando se confirme que no vuelve.
 - La API de la app no expone el edificio de la derivación.
+- Una migración de datos que copie `latitud/longitud` → `domicilio_*` en los casos de la mesa anteriores al cambio,
+  para retirar esa regla de `punto_de_la_familia`.
 
 ## Reversión
 Desplegar el código anterior: el panel vuelve a listar dispositivos. Las columnas nuevas pueden quedar (la release

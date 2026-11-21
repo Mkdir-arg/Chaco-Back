@@ -265,6 +265,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
             {# GET: solo rearma la lista (no muta, sin csrf) #}
             <form method="get" action="{{ url_ficha }}" class="space-y-3">
               {% for field in panel.form.campos_visibles %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+              {{ panel.form.grupo }}
               <div class="flex justify-end">
                 <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Actualizar lista</button>
               </div>

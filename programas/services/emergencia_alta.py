@@ -186,6 +186,21 @@ def _problemas_de_las_fotos(fotos):
     return problemas
 
 
+def _par_de_coordenadas(datos, campo_latitud, campo_longitud):
+    """``(latitud, longitud)`` con 6 decimales, ``None`` si no vino ninguna, o ``ValueError`` si no sirve."""
+
+    latitud, longitud = datos.get(campo_latitud), datos.get(campo_longitud)
+    if latitud in (None, "") and longitud in (None, ""):
+        return None
+    try:
+        latitud, longitud = round(float(latitud), 6), round(float(longitud), 6)
+    except (TypeError, ValueError) as error:
+        raise ValueError(campo_latitud) from error
+    if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
+        raise ValueError(campo_latitud)
+    return latitud, longitud
+
+
 def _validar_formulario1(datos):
     """Las reglas del Formulario 1 que valen para cualquier origen. Devuelve los datos limpios.
 
@@ -241,17 +256,14 @@ def _validar_formulario1(datos):
     elif len(limpio["direccion"]) > 240:
         errores["direccion"] = "La dirección no puede tener más de 240 caracteres."
 
-    latitud, longitud = datos.get("latitud"), datos.get("longitud")
     limpio["latitud"] = limpio["longitud"] = limpio["precision_m"] = None
-    if latitud not in (None, "") or longitud not in (None, ""):
-        try:
-            latitud, longitud = round(float(latitud), 6), round(float(longitud), 6)
-            if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
-                raise ValueError
-        except (TypeError, ValueError):
-            errores["latitud"] = "La posición del GPS no es válida."
-        else:
-            limpio["latitud"], limpio["longitud"] = latitud, longitud
+    try:
+        punto = _par_de_coordenadas(datos, "latitud", "longitud")
+    except ValueError:
+        errores["latitud"] = "La posición del GPS no es válida."
+    else:
+        if punto is not None:
+            limpio["latitud"], limpio["longitud"] = punto
             precision = datos.get("precision_m")
             if precision not in (None, ""):
                 try:
@@ -264,16 +276,13 @@ def _validar_formulario1(datos):
 
     # Cambio 519: el punto del domicilio, que el backoffice ubica con Google (no es el GPS del teléfono).
     limpio["domicilio_latitud"] = limpio["domicilio_longitud"] = None
-    dom_latitud, dom_longitud = datos.get("domicilio_latitud"), datos.get("domicilio_longitud")
-    if dom_latitud not in (None, "") or dom_longitud not in (None, ""):
-        try:
-            dom_latitud, dom_longitud = round(float(dom_latitud), 6), round(float(dom_longitud), 6)
-            if not (-90 <= dom_latitud <= 90 and -180 <= dom_longitud <= 180):
-                raise ValueError
-        except (TypeError, ValueError):
-            errores["domicilio_latitud"] = "La ubicación del domicilio no es válida."
-        else:
-            limpio["domicilio_latitud"], limpio["domicilio_longitud"] = dom_latitud, dom_longitud
+    try:
+        punto = _par_de_coordenadas(datos, "domicilio_latitud", "domicilio_longitud")
+    except ValueError:
+        errores["domicilio_latitud"] = "La ubicación del domicilio no es válida."
+    else:
+        if punto is not None:
+            limpio["domicilio_latitud"], limpio["domicilio_longitud"] = punto
 
     localidad = datos.get("localidad")
     limpio["localidad"] = None
