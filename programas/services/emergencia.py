@@ -510,7 +510,7 @@ def derivar_caso(
     * **No reserva plazas**: las reserva el dispositivo al aceptar, que es quien elige las
       camas. Por eso la cuenta se lee sin candado: es una foto para decidir, no una
       garantía.
-    * Con ``edificio`` (Cambio 519), la institución tiene que tener sectores en ese edificio
+    * Con ``edificio`` (Cambio 520), la institución tiene que tener sectores en ese edificio
       (``ValidationError`` si no) y las camas que se cuentan son **las de ese edificio**. La
       derivación lo guarda. Con ``sin_edificio=True`` (el grupo «sin edificio asignado» del panel)
       cuentan solo las camas de sus sectores sin edificio, las mismas que mostró el panel. Sin
@@ -790,7 +790,7 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
 
 
 # ---------------------------------------------------------------------------
-# Domicilio ubicado (Cambio 519, fase 2)
+# Domicilio ubicado (Cambio 520, fase 2)
 # ---------------------------------------------------------------------------
 
 DOMICILIO_FUERA_DEL_CHACO = "El punto del domicilio no cae en el Chaco."

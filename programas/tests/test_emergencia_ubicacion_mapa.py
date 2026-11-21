@@ -46,7 +46,7 @@ class MesaConMapaTests(BaseMesa):
 
         caso = CasoEmergencia.objects.get()
         self.assertRedirects(respuesta, self._url("caso_detalle", caso))
-        # Cambio 519: es el domicilio, no el GPS.
+        # Cambio 520: es el domicilio, no el GPS.
         self.assertEqual(
             (caso.domicilio_latitud, caso.domicilio_longitud), (Decimal("-27.458427"), Decimal("-58.995889"))
         )

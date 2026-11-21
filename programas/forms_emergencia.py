@@ -374,7 +374,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
     # Cambio 493: el punto de la dirección, del Geocoder de Google o marcado en el mapa
-    # (`components/_ubicacion_domicilio.html`). Sin JS o sin Google Maps, a mano. Desde el Cambio 519
+    # (`components/_ubicacion_domicilio.html`). Sin JS o sin Google Maps, a mano. Desde el Cambio 520
     # llegan a ``crear_caso`` como el punto del **domicilio** (``domicilio_latitud``/``domicilio_longitud``),
     # no como el GPS: el backoffice no tiene GPS, y la distancia de «Derivar» se mide desde la casa.
     latitud = forms.DecimalField(
@@ -469,7 +469,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         }
         # Las cantidades de este formulario son los acompañantes: el responsable suma aparte.
         datos["responsable_aparte"] = True
-        # El punto del mapa es el domicilio, no el GPS de un teléfono (Cambio 519).
+        # El punto del mapa es el domicilio, no el GPS de un teléfono (Cambio 520).
         for campo in ("latitud", "longitud"):
             if campo in datos:
                 datos[f"domicilio_{campo}"] = datos.pop(campo)
@@ -571,7 +571,7 @@ class DerivarCasoForm(forms.Form):
     """A qué institución, en qué edificio y cuántas plazas. ``confirmar_faltantes`` es el «sí» a derivar con menos (RN-2.5).
 
     ``edificio`` es opcional: una institución con camas en sectores sin edificio asignado se deriva sin él.
-    Que la institución tenga camas en ese edificio lo valida ``derivar_caso`` (Cambio 519).
+    Que la institución tenga camas en ese edificio lo valida ``derivar_caso`` (Cambio 520).
     """
 
     dispositivo = forms.ModelChoiceField(
@@ -596,7 +596,7 @@ class DerivarCasoForm(forms.Form):
 
 
 class UbicarDomicilioForm(forms.Form):
-    """El punto del domicilio que el panel «Derivar» ubicó con Google (Cambio 519, fase 2). Lo manda el JS."""
+    """El punto del domicilio que el panel «Derivar» ubicó con Google (Cambio 520, fase 2). Lo manda el JS."""
 
     latitud = forms.DecimalField(max_digits=9, decimal_places=6, validators=VALIDADORES_LATITUD)
     longitud = forms.DecimalField(max_digits=9, decimal_places=6, validators=VALIDADORES_LONGITUD)

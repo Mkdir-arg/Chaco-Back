@@ -274,7 +274,7 @@ def _validar_formulario1(datos):
                     limpio["precision_m"] = None
                     errores["precision_m"] = "La precisión del GPS no es válida."
 
-    # Cambio 519: el punto del domicilio, que el backoffice ubica con Google (no es el GPS del teléfono).
+    # Cambio 520: el punto del domicilio, que el backoffice ubica con Google (no es el GPS del teléfono).
     limpio["domicilio_latitud"] = limpio["domicilio_longitud"] = None
     try:
         punto = _par_de_coordenadas(datos, "domicilio_latitud", "domicilio_longitud")

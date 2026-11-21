@@ -1,5 +1,5 @@
 /*
- * Distancia por calle del panel «Derivar» de la mesa de Emergencia (Cambio 519, fase 2).
+ * Distancia por calle del panel «Derivar» de la mesa de Emergencia (Cambio 520, fase 2).
  *
  * La vista publica en #derivar-distancias-config (json_script):
  *   origen     {lat, lng} del domicilio de la familia, o null si todavía no está ubicado.

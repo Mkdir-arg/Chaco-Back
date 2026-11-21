@@ -547,7 +547,7 @@ def _derivacion_vigente(caso):
 def panel_de_derivar(
     caso, usuario, *, plazas=None, texto="", localidad="", grupo=None, url_de_grupo=None, url_de_accion=None
 ):
-    """El panel «Derivar» de E3 por edificio (Cambio 519), como lo pide ``_tarjeta_dispositivo_derivar.html``.
+    """El panel «Derivar» de E3 por edificio (Cambio 520), como lo pide ``_tarjeta_dispositivo_derivar.html``.
 
     Dos pasos en la misma pantalla: la lista de **edificios** con sus camas libres y su distancia a la
     familia; con ``grupo`` (la clave de un edificio de la lista), las **instituciones** de ese edificio con
@@ -618,7 +618,7 @@ def panel_de_derivar(
 
 
 def _distancias_por_calle(caso, tarjetas):
-    """Lo que necesita ``nodo-derivar-distancias.js`` para pedir la distancia por calle (Cambio 519, fase 2).
+    """Lo que necesita ``nodo-derivar-distancias.js`` para pedir la distancia por calle (Cambio 520, fase 2).
 
     ``origen`` es el domicilio ya ubicado o ``None`` (el JS lo ubica con ``direccion`` y lo guarda);
     ``destinos``, los primeros :data:`TOPE_POR_CALLE` edificios de la lista con punto o dirección

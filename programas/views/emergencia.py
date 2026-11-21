@@ -371,7 +371,7 @@ class DerivarCasoView(_AccionDeCasoView):
 
 
 class UbicarDomicilioView(MesaPermissionMixin, View):
-    """POST del panel «Derivar»: guarda el punto del domicilio que el navegador ubicó con Google (Cambio 519).
+    """POST del panel «Derivar»: guarda el punto del domicilio que el navegador ubicó con Google (Cambio 520).
 
     Contesta JSON y no redirige: lo llama ``nodo-derivar-distancias.js`` en segundo plano. Si no se guarda,
     la pantalla sigue con la distancia que ya calculó.

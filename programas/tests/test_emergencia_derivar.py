@@ -1,4 +1,4 @@
-"""El panel «Derivar» por edificio y la distancia desde el domicilio de la familia (Cambio 519)."""
+"""El panel «Derivar» por edificio y la distancia desde el domicilio de la familia (Cambio 520)."""
 
 from decimal import Decimal
 

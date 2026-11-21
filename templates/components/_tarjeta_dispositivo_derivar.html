@@ -11,7 +11,7 @@ Contexto:
                  reservadas    plazas reservadas, ya contadas.
                  distancia_km  número (km desde el caso) o None = «distancia desconocida». Se muestra con un decimal.
                  distancia_texto opcional: la distancia ya escrita por la vista («a 3,1 km en línea recta»,
-                               «≈ 12,0 km (por localidad)»). Gana sobre distancia_km (Cambio 519).
+                               «≈ 12,0 km (por localidad)»). Gana sobre distancia_km (Cambio 520).
                  marca         ALCANZA | FALTAN | SIN_PLAZAS, ya resuelta. Va en texto además del color.
                                Cualquier otro valor (o ninguno) no dibuja marca.
                  faltan        con FALTAN: cuántas plazas faltan («Faltan 2 plazas»).
@@ -21,7 +21,7 @@ Contexto:
                                Gana sobre accion_url. Lo decide la vista: la tarjeta no lo infiere de la marca.
 El orden de la lista (alcanza primero, después por distancia) también es de la vista.
 La tarjeta lleva `data-derivar-clave` (su pk) y la distancia va en `data-distancia`: un script de la pantalla puede
-reemplazar ese texto (la distancia por calle del panel «Derivar», Cambio 519).
+reemplazar ese texto (la distancia por calle del panel «Derivar», Cambio 520).
 {% endcomment %}
 <article class="rounded-xl border border-base bg-white shadow-sm flex flex-col overflow-hidden" aria-labelledby="dispositivo-derivar-{{ dispositivo.pk }}-titulo" data-tarjeta-dispositivo-derivar data-derivar-clave="{{ dispositivo.pk }}">
   <div class="px-5 py-4 space-y-3 flex-1">

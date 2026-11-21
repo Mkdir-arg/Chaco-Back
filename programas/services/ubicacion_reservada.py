@@ -12,7 +12,7 @@ El filtro se hace acá, en el servidor; nunca con CSS.
 
 No se aplica al panel «Derivar» de la mesa (``selectors.emergencia_derivar.edificios_para_derivar``):
 la mesa (``emergencia.operar``) es la que tiene que poder derivar una familia a un refugio
-de protección, y el análisis 009 acepta que E4 se lo muestre. Desde el Cambio 519 el panel sí
+de protección, y el análisis 009 acepta que E4 se lo muestre. Desde el Cambio 520 el panel sí
 esconde el **domicilio** de esos edificios y mide su distancia solo en el servidor.
 """
 

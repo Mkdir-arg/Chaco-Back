@@ -94,7 +94,7 @@ def filas_de_llegadas(derivaciones, ahora, url_de):
                     for parte in (
                         _personas(grupo.total_declarado),
                         f"Caso {caso.numero}",
-                        # A qué edificio la manda la mesa (Cambio 519), si la institución ocupa varios.
+                        # A qué edificio la manda la mesa (Cambio 520), si la institución ocupa varios.
                         derivacion.edificio.nombre if derivacion.edificio_id else "",
                     )
                     if parte
