@@ -47,10 +47,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
-import tomllib
 import yaml
 from django.conf import settings
 from django.test import SimpleTestCase
