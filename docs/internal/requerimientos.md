@@ -648,7 +648,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 1 de 4: columnas y desplegable) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 1 de 4** | `programas.0132` |
 | 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
-| 525 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60585,7 +60585,7 @@ del domicilio de los casos cargados desde la mesa.
   `ubicar_domicilio`, guardar solo respuestas precisas del Geocoder y no mandar a Google los edificios que solo
   tienen centroide. Se ordena la elección del conteo de `derivar_caso`
   (MINOR de la auditoría del PR #1271).
-- **21/11/2026:** el pendiente «Ubicar en el mapa» en el formulario de edificio se resolvió en el Cambio 525.
+- **21/11/2026:** el pendiente «Ubicar en el mapa» en el formulario de edificio se resolvió en el Cambio 526.
 
 # Cambio 521 — Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso
 
@@ -60876,7 +60876,7 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 - **21/11/2026:** MINOR de la auditoría del #1286: el estado vacío (sin edificio) deja de tener su propio «Cargar edificio», que duplicaba el de la barra; el texto remite a «Agregar edificio». El test de estados vacíos exige una sola aparición de `edificio=nuevo`.
 
 
-# Cambio 525 — Dispositivos · formulario de edificio: «Ubicar en el mapa»
+# Cambio 526 — Dispositivos · formulario de edificio: «Ubicar en el mapa»
 
 🟢 **HECHO — 21/11/2026**
 

@@ -572,7 +572,7 @@
               {{ form_edificio.codigo_postal }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="codigo_postal"></p>
             </div>
-            {# Cambio 525: calle con mapa, a pedido (el modal está cerrado al cargar: un mapa creado ahí nace sin tamaño). La altura la pone «Número». #}
+            {# Cambio 526: calle con mapa, a pedido (el modal está cerrado al cargar: un mapa creado ahí nace sin tamaño). La altura la pone «Número». #}
             {% include "components/_ubicacion_domicilio.html" with domicilio=form_edificio.calle latitud=form_edificio.latitud longitud=form_edificio.longitud localidad_id=form_edificio.localidad.id_for_label provincia_id=form_edificio.provincia.id_for_label domicilio_extra_id=form_edificio.numero.id_for_label a_pedido=True %}
           </div>
           {% include "components/_alerta.html" with tono="info" texto="Los datos son del inmueble, no del legajo: si el predio lo comparten varias instituciones, el cambio lo ven todas." %}
