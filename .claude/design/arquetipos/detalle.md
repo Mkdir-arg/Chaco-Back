@@ -132,7 +132,8 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   inactivo», «Llegaron N sobre M declaradas») van uno por `_alerta.html` con `tono`, `titulo` y `texto`, sin
   variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. La tabla «Personas que ingresan
   juntas» agrega una fila «Responsable» (sexo en «—», total 1) antes de la de totales cuando el grupo tiene
-  `responsable_aparte`; misma `nodo-td`, sin clases nuevas. Las filas las arma `franjas_del_grupo` (selector de la
+  `responsable_aparte`; misma `nodo-td`, sin clases nuevas. Los rótulos `<dt>` de la ficha (Responsable, DNI, Fuerza que traslada…) van
+  `text-xs font-bold uppercase text-heading` para que se lean como título del dato. Las filas las arma `franjas_del_grupo` (selector de la
   mesa), la misma fuente que la tarjeta de «Llegadas» del dispositivo. Sin panel lateral,
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
