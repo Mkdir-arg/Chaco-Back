@@ -176,6 +176,7 @@ def mensaje_bloqueo(error, que):
         # La gracia se cuenta desde ``fecha_hasta`` (``campo.en_gracia``), no desde el «Finalizar».
         texto += (
             " Un relevamiento está en campo mientras está en curso y hasta 24 h después de la fecha de fin de "
-            "su período, porque hasta entonces la app todavía puede sincronizar capturas."
+            "su período, porque hasta entonces la app todavía puede sincronizar capturas. "
+            "Si ya pasaron 24 h de la fecha de fin y sigue en curso, se libera con el cierre automático de la madrugada (03:10)."
         )
     return texto

@@ -162,6 +162,7 @@ from programas.services.sectores_plazas import (
     url_modal_egreso,
     url_solapa_estadias,
 )
+from programas.services.ubicacion_reservada import edificio_es_reservado
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
 
@@ -634,6 +635,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         pedido = self.request.GET.get("edificio", "")
         if pedido == "nuevo":
             context["form_edificio"] = EdificioForm()
+            context["edificio_reservado"] = edificio_es_reservado(dispositivo=dispositivo)
             context["url_edificio"] = reverse("dispositivos:edificio_crear", args=[dispositivo.pk])
         elif pedido == "vincular":
             vinculables = edificios_vinculables(self.request.user, dispositivo)
@@ -660,6 +662,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             else:
                 context["edificio_en_edicion"] = edificio
                 context["form_edificio"] = EdificioForm(edificio=edificio)
+                context["edificio_reservado"] = edificio_es_reservado(edificio, dispositivo=dispositivo)
                 context["url_edificio"] = reverse("dispositivos:edificio_editar", args=[dispositivo.pk, edificio.pk])
 
     def _preparar_relevamiento(self, context, dispositivo):

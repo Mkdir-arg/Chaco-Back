@@ -366,7 +366,7 @@ def pantalla_bitacora(
     q_entradas=None,
     edificios_filtro=(),
     edificio="",
-    usuario=None,
+    usuario,
 ):
     """Todo lo que dibuja P10 para un día operativo del dispositivo.
 
@@ -380,8 +380,7 @@ def pantalla_bitacora(
     ``q_entradas`` es el acote por edificio del alcance de quien mira (``q_edificios_en_alcance``): toda lectura de
     entradas lo aplica. ``edificios_filtro`` (``[(id, nombre)]``) trae los edificios para el filtro «Edificio», que
     solo ve quien tiene alcance Institución; ``edificio`` es lo que pidió (``"sin"`` o un id). ``usuario`` es quien
-    mira: el censo y las cifras de plazas se acotan a los edificios de su alcance (Cambio 523); sin usuario son los
-    de toda la institución (solo las pruebas del armado).
+    mira (obligatorio): el censo y las cifras de plazas se acotan a los edificios de su alcance (Cambio 523).
     """
 
     q_filtro_edificio, edificio = _filtro_de_edificio(edificio, edificios_filtro)
@@ -455,7 +454,7 @@ def pantalla_bitacora(
     # Las plazas son la foto de ahora: solo tienen sentido en el día en curso.
     conteo = None
     if es_hoy:
-        q_sectores = q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id") if usuario else None
+        q_sectores = q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id")
         conteo = ocupacion_de_plazas(dispositivo, ahora, q_sectores=q_sectores).de(dispositivo).conteo
 
     entradas, total, versiones, adjuntos, vigentes = [], 0, [], [], []

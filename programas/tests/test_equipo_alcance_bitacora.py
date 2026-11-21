@@ -147,6 +147,26 @@ class VisibilidadTests(BaseBitacoraAlcance):
         self.assertIn("Del legajo B", textos(self.de_inst))
         self.assertNotIn("Del legajo B", textos(self.de_a))
 
+    def test_la_vista_de_la_estadia_acota_las_novedades_por_edificio(self):
+        self._cargar(_local(MIERCOLES, 15, 6), texto="Del legajo B", edificio=self.edif_b, personas=[self.estadia_ana])
+        self._cargar(_local(MIERCOLES, 15, 7), texto="Del legajo sin edificio", personas=[self.estadia_ana])
+        self._cargar(_local(MIERCOLES, 15, 8), texto="Del legajo A", edificio=self.edif_a, personas=[self.estadia_ana])
+        url = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia_ana.pk])
+
+        def textos(usuario):
+            self.client.force_login(_fresco(usuario))
+            with _reloj():
+                respuesta = self.client.get(url, {"tab": "novedades"})
+            self.assertEqual(respuesta.status_code, 200)
+            return {
+                f["texto"]
+                for f in respuesta.context["novedades_page"].object_list
+                if f["texto"].startswith("Del legajo")
+            }
+
+        self.assertEqual(textos(self.de_a), {"Del legajo A"})
+        self.assertEqual(textos(self.de_inst), {"Del legajo A", "Del legajo B", "Del legajo sin edificio"})
+
 
 class FiltroEdificioTests(BaseBitacoraAlcance):
     def test_institucion_filtra_por_edificio_y_por_sin_edificio(self):
