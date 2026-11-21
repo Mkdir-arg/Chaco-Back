@@ -57937,7 +57937,7 @@ Fase 4, reemplazos, para que no quede OpenStreetMap:
   `detalle=False`. Abrir el caso no le pide nada a Google: el mapa carga con «Ver mapa», y a Google le llega solo
   el origen (SEC-33, misma regla que en la fase 1). Sin key, el estado vacío de la pieza y el enlace externo.
 - **Enlace externo:** «Abrir mapa» (Becas) y «Ver en el mapa» (`components/_ubicacion.html`, fichas de
-  Dispositivos y edificios) abren Google Maps con la URL pública de Maps
+  Dispositivos y edificios y detalle del caso de Emergencia) abren Google Maps con la URL pública de Maps
   (`https://www.google.com/maps/search/?api=1&query=lat,lng`), sin key. La arma
   `core.coordenadas.url_en_google_maps`; la plantilla la pide con el tag `url_google_maps`.
 - **CSP:** sale `MAPA_HOSTS` (OpenStreetMap) de `img-src` y `frame-src`. `SinRecursosDeTercerosTests` admite el
@@ -58065,8 +58065,13 @@ Reversa: `migrate mapa zero` borra la tabla y los puntos cargados.
 
 ## Puesta en marcha en el servidor
 
-Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`).
-Sin ellas no cambia nada.
+Cargar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en cada ambiente (paso a paso en `docs/mapa.md`), **antes**
+de espejar la release. Sin la key:
+- los formularios siguen con domicilio y coordenadas a mano;
+- `/mapa/` muestra «El mapa no está disponible en este ambiente», y las capas y la lista se ven igual;
+- desde la fase 4, el lugar de la toma de Becas ya no tiene mapa embebido: queda solo el enlace «Abrir mapa».
+
+Los enlaces externos a Google Maps andan con o sin key.
 
 ## Pendientes / a definir
 
@@ -58128,6 +58133,10 @@ Fase 3: revertir sus commits y `migrate mapa zero` (borra los puntos cargados); 
   - la regla de ubicación reservada con `q_sin_ubicacion_reservada`;
   - `window.becasAjax.limpiarErrores` para vaciar errores con su ARIA;
   - el `detail` de `becas-saved` en la ficha de `_ajax_js`.
+- **21/11/2026:** cierre: los MINOR de la auditoría del PR #1266. Son la puesta en marcha sin key, la ficha de
+  `_ubicacion` (`url_en_google_maps` en vez de `unlocalize`, texto no numérico), el docstring de
+  `MapaDelCasoTests`, el caso de Emergencia entre las pantallas con enlace, el import del tag y tres
+  simplificaciones.
 
 ---
 

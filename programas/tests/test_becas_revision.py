@@ -2179,8 +2179,9 @@ class MapaDelCasoTests(_BaseRevisionTest):
 
     Abrir un caso con GPS mandaba las coordenadas exactas del domicilio de la
     persona a OpenStreetMap —con la IP del backoffice y el `Referer` de la
-    pantalla— en **cada** apertura, la mirara alguien o no. El dato sigue
-    disponible: lo pide quien lo necesita, y sin `Referer`.
+    pantalla— en **cada** apertura, la mirara alguien o no. Ahora el mapa es la pieza
+    Mapa con capas a pedido (Cambio 493, fase 4): lo pide quien lo necesita con «Ver mapa»,
+    y a Google le llega el origen del sitio, nunca la ruta del caso.
     """
 
     def setUp(self):

@@ -59,7 +59,7 @@
     modoAgregar(false);
     form.reset();
     // Los errores de un alta anterior que se canceló no se arrastran al punto nuevo.
-    if (window.becasAjax) { window.becasAjax.limpiarErrores(form); }
+    window.becasAjax.limpiarErrores(form);
     form.elements.latitud.value = e.detail.lat.toFixed(6);
     form.elements.longitud.value = e.detail.lng.toFixed(6);
     form.querySelector('[data-mapa-form-posicion]').textContent =

@@ -58,7 +58,7 @@ Con `GOOGLE_MAPS_API_KEY` configurada, `SecurityHeadersMiddleware` suma los host
 Sin key no se agrega nada. Desde la fase 4 ninguna pantalla carga OpenStreetMap: la CSP ya no le abre
 `img-src` ni `frame-src`.
 
-Los enlaces «Ver en el mapa» (fichas de Dispositivos y edificios) y «Abrir mapa» (lugar de la toma de Becas) abren
+Los enlaces «Ver en el mapa» (fichas de Dispositivos y edificios, detalle del caso de Emergencia) y «Abrir mapa» (lugar de la toma de Becas) abren
 Google Maps en otra pestaña con la URL pública de Maps (`core.coordenadas.url_en_google_maps`): no usan la key ni
 abren la CSP. El lugar de la toma se ve además **a pedido** dentro de la ficha (SEC-33).
 
