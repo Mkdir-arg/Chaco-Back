@@ -158,13 +158,27 @@ que `POST /api/becas/personas/consultar/`; existe aparte porque aquella exige `b
 {"dni": "30111222", "sexo": "F"}
 ```
 
-`dni` se queda con los dígitos; `sexo` es `F` o `M` (admite minúscula). `relevamiento`, si viene, se
+`dni` se queda con los dígitos; `sexo` es `F` o `M` (admite minúscula) y **es opcional** (ver «Sin sexo»). `relevamiento`, si viene, se
 ignora: Emergencia no tiene padrones. Si hay un legajo con ese DNI —**activo o no y de cualquier
 género**— responde el legajo (`origen: "legajo"`, con `localidad_id` y `localidad_texto` del legajo),
 **aunque Base de Personas la encuentre con otros datos**: es la persona de la que el envío (§6) va a colgar
 el caso, porque el DNI es único. Sin legajo, responde Base de Personas (`origen: "personas"`). Una persona
 que Base de Personas informa fallecida es 404 aunque tenga legajo. La consulta de Becas no busca en
-legajos (Cambio 486).
+legajos (Cambio 486) y sigue exigiendo el sexo.
+
+**Sin sexo (Cambio 522).** Si `sexo` falta o viene vacío, se busca **solo en legajos** (no se llama a Base de
+Personas). Es lo que usa la puerta del dispositivo, que sabe el DNI y no el sexo:
+
+```json
+{"success": true, "origen": "legajo",
+ "data": {"nombre": "Rosa", "apellido": "Benitez", "fecha_nacimiento": "1984-03-02",
+          "localidad_id": 7, "localidad_texto": "Resistencia", "dni": "30111222", "sexo": "F"},
+ "datos_api": {}}
+```
+
+`data.sexo` es el género del legajo si es `F` o `M`; si el legajo no lo tiene o es «X», va `""`. Sin legajo:
+404 `{"success": false, "no_en_legajo": true, "error": "No figura en los legajos de DATAÑACH."}`. Un `sexo`
+presente que no sea F ni M sigue siendo 400.
 
 ```json
 {"success": true, "origen": "personas",
@@ -175,7 +189,8 @@ legajos (Cambio 486).
 
 | Código | Cuerpo | Cuándo |
 |---|---|---|
-| 400 | `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` | Falta el DNI o el sexo |
+| 400 | `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` | Falta el DNI, o el sexo viene y no es F ni M |
+| 404 | `{"success": false, "no_en_legajo": true, "error": "…"}` | Solo sin sexo: no figura en los legajos |
 | 404 | `{"success": false, "error": "…"}` | No figura en Base de Personas ni en legajos: pedir nombre y apellido (alta mínima) |
 | 404 | `{"success": false, "fallecido": true, "error": "…"}` | Base de Personas la informa fallecida |
 | 429 | cuerpo estándar de DRF, con `Retry-After` | Se pasó el tope |

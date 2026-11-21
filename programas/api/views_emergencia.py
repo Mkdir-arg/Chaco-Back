@@ -49,7 +49,7 @@ from rest_framework.response import Response
 from rest_framework.routers import APIRootView
 from rest_framework.views import APIView
 
-from programas.api.serializers import ConsultaPersonaRespuestaSerializer, ConsultaPersonaSerializer
+from programas.api.serializers import ConsultaPersonaEmergenciaSerializer, ConsultaPersonaRespuestaSerializer
 from programas.api.serializers_emergencia import (
     CasoEmergenciaCreadoSerializer,
     CasoEmergenciaEnvioSerializer,
@@ -303,13 +303,18 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
     throttle_classes = [ConsultaPersonasThrottle]
 
     @extend_schema(
-        request=ConsultaPersonaSerializer,
+        request=ConsultaPersonaEmergenciaSerializer,
         responses={
             200: ConsultaPersonaRespuestaSerializer,
-            400: OpenApiResponse(description="Falta el DNI o el sexo no es F ni M."),
+            400: OpenApiResponse(description="Falta el DNI, o el sexo viene y no es F ni M."),
             401: _SIN_TOKEN,
             403: _SIN_MODULO,
-            404: OpenApiResponse(description="No se la pudo identificar, o Base de Personas la informa fallecida."),
+            404: OpenApiResponse(
+                description=(
+                    "No se la pudo identificar, o Base de Personas la informa fallecida. Sin `sexo`: "
+                    "`no_en_legajo: true`, no figura en los legajos."
+                )
+            ),
             429: OpenApiResponse(
                 description="Se superó el tope de consultas de identidad del usuario (compartido con Becas)."
             ),
@@ -320,11 +325,14 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
             "misma respuesta, para quien abre Emergencia y no Becas. Si hay un legajo con ese DNI (activo o no, de "
             "cualquier género) responde el legajo (`origen: legajo`), aunque Base de Personas la encuentre con "
             "otros datos: es la persona de la que se va a colgar el caso. Sin legajo, lo de Base de Personas. "
-            "Una persona que Base de Personas informa fallecida es 404. `relevamiento` se ignora."
+            "Una persona que Base de Personas informa fallecida es 404. `relevamiento` se ignora. `sexo` es opcional: "
+            "sin él se busca **solo en los legajos** (no se llama a Base de Personas) y responde el legajo "
+            '(`origen: legajo`, con `data.sexo` en `F`/`M` si el legajo lo tiene y `""` si no) o 404 con '
+            "`no_en_legajo: true`; es lo que usa la puerta del dispositivo, que sabe el DNI y no el sexo."
         ),
     )
     def post(self, request):
-        return responder_consulta_de_persona(request.data, buscar_en_legajos=True)
+        return responder_consulta_de_persona(request.data, buscar_en_legajos=True, sexo_opcional=True)
 
 
 class LocalidadesEmergenciaView(_VistaDeCampo):
