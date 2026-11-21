@@ -648,6 +648,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 1 de 4: columnas y desplegable) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 1 de 4** | `programas.0132` |
 | 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 525 | Dispositivos · Edificios: la dirección se parte en líneas en el celular; Becas · eliminar: el bloqueo avisa que se libera con el cierre automático de la madrugada | Dispositivos · Edificios / Becas · eliminación | `#dispositivos` `#relevamientos` `#ui` `#textos` | QA en testing del 19/11/2026 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60872,3 +60873,56 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 
 - **21/11/2026:** alta del cambio.
 - **21/11/2026:** MINOR de la auditoría del #1286: el estado vacío (sin edificio) deja de tener su propio «Cargar edificio», que duplicaba el de la barra; el texto remite a «Agregar edificio». El test de estados vacíos exige una sola aparición de `edificio=nuevo`.
+
+# Cambio 525 — Estéticas del QA del 19/11: dirección de Edificios en el celular y texto del bloqueo al eliminar en Becas
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Edificios (listado) y Becas · eliminación |
+| **Etiquetas** | `#dispositivos` `#relevamientos` `#ui` `#textos` |
+| **Solicitante** | QA en testing del 19/11/2026 |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `dispositivos/edificios/list.html` · Servidor: `services/eliminacion.py` (solo texto) |
+| **Migración** | No requiere |
+
+## Pedido original
+En el celular (~412 px) se corta la dirección del edificio en el listado de Edificios. Y al eliminar un relevamiento
+vencido que sigue bloqueado hasta el cron de las 03:10, el mensaje no lo dice.
+
+## Alcance acordado
+Dos arreglos chicos, sin cambiar reglas.
+
+## Decisiones tomadas
+- **Dirección**: el domicilio (debajo del nombre) lleva `max-w-xs break-words`; en pantallas angostas
+  la tabla mide `max-content` y la dirección parte en líneas prolijas en vez de alargar la fila. Sin clases ni piezas nuevas.
+- **Texto del bloqueo**: `mensaje_bloqueo` agrega «Si el relevamiento ya venció, se libera después del cierre automático
+  de la madrugada (03:10).» La regla de bloqueo no cambia.
+
+## Implementación
+Un cambio de clases en `list.html` y una frase en `mensaje_bloqueo`.
+
+## Archivos
+`programas/templates/programas/dispositivos/edificios/list.html`, `programas/services/eliminacion.py`,
+`programas/tests/test_becas_eliminacion.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+Test del texto nuevo en `test_becas_eliminacion`; gates de diseño y `manage.py check`.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+
+- **21/11/2026:** alta del cambio.
