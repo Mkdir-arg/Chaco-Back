@@ -81,6 +81,7 @@ from programas.services.dispositivos import (
     programa_dispositivos,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
+    q_edificios_en_alcance,
     q_membresia_vigente,
 )
 from programas.services.formularios_tipo import diseno_para_asignar
@@ -156,10 +157,18 @@ class InspeccionReasignada(PermissionDenied):
 # --------------------------------------------------------------------------- #
 
 
-def _edificios_de(dispositivos):
-    """Ids de los edificios que ocupa alguno de ``dispositivos`` (subconsulta, sin JOIN)."""
+def _edificios_de(dispositivos, user, capacidad):
+    """Ids de los edificios que ocupa alguno de ``dispositivos`` y que ``user`` alcanza con ``capacidad``.
 
-    return _EdificioDispositivo.objects.filter(dispositivo_id__in=dispositivos.values("pk")).values("edificio_id")
+    El acote por edificio del Equipo (``q_edificios_en_alcance``) va por cada par (institución, edificio):
+    con alcance Edificios, solo los suyos que siguen vinculados (RN4).
+    """
+
+    return (
+        _EdificioDispositivo.objects.filter(dispositivo_id__in=dispositivos.values("pk"))
+        .filter(q_edificios_en_alcance(user, capacidad, "dispositivo_id", "edificio_id"))
+        .values("edificio_id")
+    )
 
 
 def edificios_en_alcance(user, capacidad=CAP_ASIGNAR):
@@ -169,7 +178,7 @@ def edificios_en_alcance(user, capacidad=CAP_ASIGNAR):
         return Edificio.objects.none()
     if puede_configurar_dispositivos(user):
         return Edificio.objects.all()
-    return Edificio.objects.filter(pk__in=_edificios_de(dispositivos_en_alcance(user, capacidad)))
+    return Edificio.objects.filter(pk__in=_edificios_de(dispositivos_en_alcance(user, capacidad), user, capacidad))
 
 
 def inspecciones_visibles(user):
@@ -192,11 +201,11 @@ def inspecciones_visibles(user):
 
     caminos = []
     if puede_en_programa_dispositivos(user, CAP_ASIGNAR):
-        caminos.append(Q(edificio_id__in=_edificios_de(dispositivos_en_alcance(user, CAP_ASIGNAR))))
+        caminos.append(Q(edificio_id__in=_edificios_de(dispositivos_en_alcance(user, CAP_ASIGNAR), user, CAP_ASIGNAR)))
     if puede_en_programa_dispositivos(user, CAP_RELEVAR):
         caminos.append(Q(asignado_a=user))
     if puede_en_programa_dispositivos(user, CAP_VER):
-        caminos.append(Q(edificio_id__in=_edificios_de(dispositivos_operados(user, CAP_VER))))
+        caminos.append(Q(edificio_id__in=_edificios_de(dispositivos_operados(user, CAP_VER), user, CAP_VER)))
     if not caminos:
         return InspeccionEdificio.objects.none()
     return InspeccionEdificio.objects.filter(reduce(or_, caminos))

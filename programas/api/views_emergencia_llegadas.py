@@ -62,7 +62,7 @@ from programas.models import CasoEmergencia, Derivacion
 from programas.selectors import emergencia_alojar as selectores_alojar
 from programas.selectors.emergencia_mesa import ESTADOS_CON_INTEGRANTES
 from programas.services import emergencia_alojar as servicio_alojar
-from programas.services.dispositivos import dispositivos_en_alcance
+from programas.services.dispositivos import dispositivos_en_alcance, q_edificios_en_alcance
 from programas.services.emergencia_programa import CAP_ADMITIR
 
 CAP_VER_CIUDADANO = "ciudadano.ver"
@@ -113,7 +113,13 @@ class _VistaDeLlegadas(_VistaDeCampo):
 
     def _derivacion(self, request, pk):
         """La derivación, **si es hacia un dispositivo donde admite**. La de otro es un 404 (C2)."""
-        return self._o_404(Derivacion.objects.filter(dispositivo__in=self._admitidos(request)), pk)
+        return self._o_404(
+            Derivacion.objects.filter(
+                q_edificios_en_alcance(request.user, CAP_ADMITIR, "dispositivo_id", "edificio_id"),
+                dispositivo__in=self._admitidos(request),
+            ),
+            pk,
+        )
 
     def _ingreso(self, request, pk):
         """``(caso, derivacion)`` si la **última** derivación del caso es hacia un dispositivo donde admite. Si no, 404.

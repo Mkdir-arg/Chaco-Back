@@ -65,7 +65,7 @@ from programas.models import (
     TrazaEntrega,
 )
 from programas.services.bitacora import anotar_novedad_automatica
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_edificio
 from programas.services.emergencia import EstadoCambio, UuidEnUso, siguiente_correlativo
 from programas.services.emergencia_comun import _hora
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
@@ -156,7 +156,8 @@ def _exigir_mesa(usuario):
 def puede_recibir(usuario, entrega):
     """¿``usuario`` recibe los kits del dispositivo de ``entrega``? La regla de RN-4.8, una sola vez."""
 
-    return puede_operar_dispositivo(usuario, entrega.dispositivo, CAP_RECIBIR_KIT)
+    # Con alcance Edificios, solo las de sus edificios; la que no tiene edificio, solo con alcance Institución.
+    return puede_operar_edificio(usuario, entrega.dispositivo, entrega.edificio_id, CAP_RECIBIR_KIT)
 
 
 def _bloquear_entrega(entrega):
@@ -293,8 +294,29 @@ def _validar_reposicion(repone_a, dispositivo):
     return original
 
 
+def _edificio_de_la_entrega(destino, edificio, original):
+    """El edificio de una entrega nueva (Cambio 523): el pedido, el de la que repone, o el único del destino.
+
+    Un edificio pedido tiene que estar vinculado al destino. Si no hay de dónde sacarlo (el destino tiene
+    varios edificios y nadie eligió uno), queda vacío: solo lo alcanza quien tiene toda la institución.
+    """
+
+    from programas.models import Edificio
+
+    vinculados = Edificio.objects.filter(dispositivos=destino)
+    if edificio is not None:
+        pk = getattr(edificio, "pk", edificio)
+        if not vinculados.filter(pk=pk).exists():
+            raise ValidationError({"edificio": "El edificio tiene que estar vinculado al dispositivo destino."})
+        return pk
+    if original is not None and original.edificio_id is not None:
+        return original.edificio_id
+    unicos = list(vinculados.values_list("pk", flat=True)[:2])
+    return unicos[0] if len(unicos) == 1 else None
+
+
 @transaction.atomic
-def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None):
+def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, edificio=None):
     """Arma una entrega ``PREPARADA`` con sus líneas (HU-4.1). **La única función que crea entregas.**
 
     * Exige trabajar en la mesa (``emergencia.operar`` o ``supervisar``).
@@ -307,6 +329,8 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None):
       nace ``NULL``.
     * ``repone_a`` (HU-4.5): la entrega que esta repone; tiene que ser del mismo dispositivo
       y estar ``RECIBIDA_CON_DIFERENCIAS``.
+    * ``edificio`` (Cambio 523): ver :func:`_edificio_de_la_entrega`; sin él sale de la entrega que repone o del
+      único edificio del destino, y si no hay de dónde, queda vacío.
     * Numera con el contador de la serie ``K`` («2026-K-000031») y deja la primera traza.
     """
 
@@ -316,11 +340,13 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ACTIVO})
     validas = _validar_lineas(lineas)
     original = _validar_reposicion(repone_a, destino)
+    edificio_id = _edificio_de_la_entrega(destino, edificio, original)
 
     ahora = timezone.now()
     entrega = EntregaKit.objects.create(
         numero=siguiente_numero_de_entrega(ahora),
         dispositivo=destino,
+        edificio_id=edificio_id,
         estado=Estado.PREPARADA,
         armada_por=usuario,
         observacion_mesa=(observacion or "").strip(),
