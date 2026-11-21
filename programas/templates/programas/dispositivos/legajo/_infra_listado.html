@@ -1,18 +1,15 @@
 {% comment %}
 Listado de la solapa Infraestructura con dos o más edificios (Cambio 439): una tarjeta por edificio, del más grave al mejor.
 Lo arma `infraestructura_del_dispositivo` (modo «listado»); acá no se ordena, no se cuenta ni se decide ningún estado.
+La barra de la institución (Agregar edificio, Crear relevamiento) la dibuja `detail.html` arriba del panel: acá no hay acciones.
 {% endcomment %}
 {% with resumen=infraestructura.resumen %}
-<div class="px-5 py-4 border-b border-light flex flex-wrap items-start justify-between gap-4">
-  <div class="min-w-0 flex-1">
-    <h2 class="text-heading font-bold">{{ resumen.titulo }}</h2>
-    <p class="text-sm text-body mt-1">
-      {% if resumen.mas_grave %}El estado más grave es <strong class="text-fg-{{ resumen.mas_grave.estado.tono }}">{{ resumen.mas_grave.estado.texto }}</strong>, en <a href="{{ resumen.mas_grave.url_ver }}" class="text-fg-brand font-medium hover:underline">{{ resumen.mas_grave.nombre }}</a>.{% elif resumen.todos_buenos %}Los edificios relevados están en buen estado.{% endif %}
-      {{ resumen.cuentas }}
-    </p>
-    <p class="text-xs text-body-subtle mt-1">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
-  </div>
-  {% include "programas/dispositivos/legajo/_infra_acciones.html" %}
+<div class="px-5 py-4 border-b border-light">
+  <h2 class="text-heading font-bold">{{ resumen.titulo }}</h2>
+  <p class="text-sm text-body mt-1">
+    {% if resumen.mas_grave %}El estado más grave es <strong class="text-fg-{{ resumen.mas_grave.estado.tono }}">{{ resumen.mas_grave.estado.texto }}</strong>, en <a href="{{ resumen.mas_grave.url_ver }}" class="text-fg-brand font-medium hover:underline">{{ resumen.mas_grave.nombre }}</a>.{% elif resumen.todos_buenos %}Los edificios relevados están en buen estado.{% endif %}
+    {{ resumen.cuentas }}
+  </p>
 </div>
 {% endwith %}
 

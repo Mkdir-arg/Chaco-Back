@@ -674,8 +674,11 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         context["puede_crear_relevamiento"] = True
         context["agente_externo"] = AGENTE_DEBE_SER_EXTERNO
         context["puede_crear_agente"] = puede_en_programa_dispositivos(user, CAP_CREAR_AGENTE)
+        infraestructura = context["infraestructura"]
         context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
             edificios=elegibles,
+            # Con la ficha de un edificio abierta, «Crear relevamiento» arranca en ese (sigue editable).
+            edificio_inicial=infraestructura["viendo"]["pk"] if infraestructura["modo"] == "ficha" else None,
             agentes=agentes_asignables_para(elegibles),
             auto_id=AUTO_ID_RELEVAMIENTO,
             aviso_formulario=aviso_sin_formulario(dispositivo.tipo),
