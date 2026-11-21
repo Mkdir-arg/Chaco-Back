@@ -24,3 +24,15 @@ def exigir_par(form, latitud="latitud", longitud="longitud"):
         return
     if (datos.get(latitud) is None) != (datos.get(longitud) is None):
         form.add_error(latitud, MENSAJE_PAR)
+
+
+def url_en_google_maps(latitud, longitud):
+    """Enlace que abre el punto en Google Maps, fuera del sistema (URL pública de Maps, sin key).
+
+    Es el único lugar que arma el enlace: lo usan `components/_ubicacion.html` (tag `url_google_maps`) y el lugar de
+    la toma de Becas. ``None`` si falta alguna de las dos. Va con punto decimal y 6 decimales, nunca con la coma local.
+    """
+
+    if latitud is None or longitud is None or latitud == "" or longitud == "":
+        return None
+    return f"https://www.google.com/maps/search/?api=1&query={float(latitud):.6f},{float(longitud):.6f}"

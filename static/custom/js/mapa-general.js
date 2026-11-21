@@ -59,8 +59,7 @@
     modoAgregar(false);
     form.reset();
     // Los errores de un alta anterior que se canceló no se arrastran al punto nuevo.
-    form.querySelectorAll('[data-error]').forEach(function (p) { p.textContent = ''; p.classList.add('hidden'); });
-    form.querySelectorAll('[aria-invalid]').forEach(function (c) { c.removeAttribute('aria-invalid'); });
+    if (window.becasAjax) { window.becasAjax.limpiarErrores(form); }
     form.elements.latitud.value = e.detail.lat.toFixed(6);
     form.elements.longitud.value = e.detail.lng.toFixed(6);
     form.querySelector('[data-mapa-form-posicion]').textContent =

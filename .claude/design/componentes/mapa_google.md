@@ -5,7 +5,7 @@
 `google_maps_config` de `core/templatetags/nodo_ui.py`, `GOOGLE_MAPS_SOURCES` de
 `config/middlewares/security_headers.py`, `core/tests/test_nodo_ui_piezas.py` (`GoogleMapsCargadorTest`).
 **Consumidores:** `components/_ubicacion_domicilio.html` (domicilio → coordenadas) y
-`components/_mapa_capas.html` (mapa de puntos con capas). Lo va a usar también el lugar de la toma de Becas.
+`components/_mapa_capas.html` (mapa de puntos con capas).
 Una pantalla no arma marcadores a mano sobre `NodoMapa`: usa una de esas dos piezas. Guía operativa: `docs/mapa.md`.
 
 ## Invocación

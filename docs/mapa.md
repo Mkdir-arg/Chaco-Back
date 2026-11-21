@@ -11,7 +11,7 @@ entorno y los permisos. El contrato técnico de la pieza está en
 | Cargador común (`components/_google_maps.html` + `nodo-mapa.js`), CSP y capacidades | Fase 1 |
 | Domicilio → coordenadas en los formularios (Dispositivo, Ciudadano, Emergencia) | Fase 2 |
 | Mapa general `/mapa/`: capas de Dispositivos, Edificios y Emergencias + puntos sueltos | Fase 3 (hecha) |
-| Lugar de la toma de Becas y enlace «Ver en el mapa» de Dispositivos | Fase 4 |
+| Lugar de la toma de Becas y enlace «Ver en el mapa» de Dispositivos | Fase 4 (hecha) |
 
 ## 1. Crear la API key
 
@@ -55,7 +55,12 @@ o en el `.env` del servidor.
 Con `GOOGLE_MAPS_API_KEY` configurada, `SecurityHeadersMiddleware` suma los hosts que pide Google
 (`GOOGLE_MAPS_SOURCES` en `config/middlewares/security_headers.py`, tomados de la política
 *allowlist* de la [guía de CSP de Google](https://developers.google.com/maps/documentation/javascript/content-security-policy)).
-Sin key no se agrega nada.
+Sin key no se agrega nada. Desde la fase 4 ninguna pantalla carga OpenStreetMap: la CSP ya no le abre
+`img-src` ni `frame-src`.
+
+Los enlaces «Ver en el mapa» (fichas de Dispositivos y edificios) y «Abrir mapa» (lugar de la toma de Becas) abren
+Google Maps en otra pestaña con la URL pública de Maps (`core.coordenadas.url_en_google_maps`): no usan la key ni
+abren la CSP. El lugar de la toma se ve además **a pedido** dentro de la ficha (SEC-33).
 
 **Referente.** Django responde con `Referrer-Policy: same-origin`, y con esa política el navegador no le
 manda `Referer` a Google, que entonces rechaza la key restringida por referente. Por eso `nodo-mapa.js`,

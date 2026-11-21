@@ -13,12 +13,11 @@ Contexto:
   plano_nombre       texto del enlace del plano; por defecto «Plano del edificio».
   compacto           opcional (booleano): sin coordenadas, el vacío es una sola línea con ícono en vez del
                      estado vacío grande. Con coordenadas no cambia nada.
-El enlace «Ver en el mapa» abre OpenStreetMap en una pestaña nueva: no carga nada dentro de la
-página, así que no hace falta tocar la CSP ni cargar librerías de mapas. Por ese enlace, el prefijo
-`https://www.openstreetmap.org/?mlat=` figura entre los permitidos de
-la prueba `SinRecursosDeTercerosTests` de `portal/tests/`, que es la red que impide volver
-a traer código de un CDN: si se cambia de proveedor hay que actualizar esa lista.
-{% endcomment %}{% load l10n %}
+El enlace «Ver en el mapa» abre Google Maps en una pestaña nueva (Cambio 493, fase 4): no carga nada dentro de
+la página, así que no abre la CSP ni pide key. La URL la arma `core.coordenadas.url_en_google_maps` (tag
+`url_google_maps`), el único lugar. Su prefijo `https://www.google.com/maps/search/` figura entre los permitidos de
+la prueba `SinRecursosDeTercerosTests` de `portal/tests/`, la red que impide volver a traer código de un CDN.
+{% endcomment %}{% load nodo_ui %}{% url_google_maps latitud longitud as url_mapa %}
 <div class="flex flex-col gap-4">
   {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" %}
   <dl class="grid gap-5 sm:grid-cols-2">
@@ -34,7 +33,7 @@ a traer código de un CDN: si se cambia de proveedor hay que actualizar esa list
   {% endif %}
   {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" or plano_url %}
   <div class="flex flex-wrap items-center gap-3">
-    {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" %}<a href="https://www.openstreetmap.org/?mlat={{ latitud|unlocalize }}&amp;mlon={{ longitud|unlocalize }}#map=17/{{ latitud|unlocalize }}/{{ longitud|unlocalize }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> Ver en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
+    {% if url_mapa %}<a href="{{ url_mapa }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> Ver en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
     {% if plano_url %}<a href="{{ plano_url }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ plano_nombre|default:"Plano del edificio" }}<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
   </div>
   {% endif %}

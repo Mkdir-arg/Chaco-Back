@@ -178,8 +178,8 @@ def capas_del_mapa(user):
     if edificios.exists():
         # Un predio compartido con un refugio también se oculta entero (RN-009-13): marcarlo lo ubicaría.
         con_reservado = Exists(
-            Dispositivo.edificios.through.objects.filter(
-                edificio_id=OuterRef("pk"), dispositivo__tipo__ubicacion_reservada=True
+            Dispositivo.edificios.through.objects.filter(edificio_id=OuterRef("pk")).exclude(
+                q_sin_ubicacion_reservada("dispositivo__")
             )
         )
         publicables = edificios.filter(~con_reservado)

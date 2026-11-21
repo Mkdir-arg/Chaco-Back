@@ -80,7 +80,7 @@ class FidelidadDetalleTests(BaseDetalle):
         respuesta = self.client.get(self.url)
         self.assertContains(respuesta, self.cis.contacto_email)
         self.assertContains(respuesta, self.cis.horarios)
-        self.assertContains(respuesta, "https://www.openstreetmap.org/?mlat=-27.451120&amp;mlon=-58.986340")
+        self.assertContains(respuesta, "https://www.google.com/maps/search/?api=1&amp;query=-27.451120,-58.986340")
 
     def test_menu_y_modal_cambio_reusan_formulario_de_p7_sin_plazas_tomadas(self):
         respuesta = self.client.get(self.url)
@@ -214,7 +214,7 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
         self.predio.save()
         respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
         panel = _panel(respuesta.content.decode())
-        self.assertIn("https://www.openstreetmap.org/?mlat=0.000000&amp;mlon=-58.986340", panel)
+        self.assertIn("https://www.google.com/maps/search/?api=1&amp;query=0.000000,-58.986340", panel)
         self.assertIn('rel="noopener noreferrer"', panel)
         self.assertNotIn("Plano", panel)
 
