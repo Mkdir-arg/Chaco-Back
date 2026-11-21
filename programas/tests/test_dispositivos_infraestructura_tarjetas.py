@@ -7,8 +7,11 @@ alcance de inspección (Cambio 428), ni la tarjeta ni la ficha cuentan lo que el
 
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
+from django.test import SimpleTestCase
 from django.utils import timezone
 
+from programas.forms_dispositivos import AsignarRelevamientoDispositivoForm
 from programas.models import Edificio, InspeccionEdificio, Plaza, Sector
 from programas.services.inspecciones import crear_inspeccion
 from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura, _panel
@@ -16,7 +19,14 @@ from programas.tests.test_dispositivos_inspecciones import Criticidad
 
 Estado = InspeccionEdificio.Estado
 
-ACCIONES = ("Vincular un edificio", "Cargar edificio", "Crear relevamiento", "Editar edificio", "Desvincular")
+ACCIONES = (
+    "Agregar edificio",
+    "Cargar un edificio nuevo",
+    "Vincular uno existente",
+    "Crear relevamiento",
+    "Editar edificio",
+    "Desvincular",
+)
 
 
 class BaseTarjetas(BaseInfraestructura):
@@ -155,12 +165,27 @@ class AccionesPorCapacidadTests(BaseTarjetas):
         _, _, listado = self._infra()
         _, _, ficha = self._infra(ver_edificio=self.predio.pk)
 
-        for texto in ACCIONES:
-            with self.subTest(listado=texto):
-                self.assertIn(texto, listado)
-        for texto in ("Editar edificio", "Desvincular", "Crear relevamiento"):
+        # La barra de la institución es la misma en el listado y en la ficha; Editar y Desvincular, solo de la ficha.
+        for texto in ("Agregar edificio", "Cargar un edificio nuevo", "Vincular uno existente", "Crear relevamiento"):
+            for nombre, panel in (("listado", listado), ("ficha", ficha)):
+                with self.subTest(**{nombre: texto}):
+                    self.assertIn(texto, panel)
+        for texto in ("Editar edificio", "Desvincular"):
             with self.subTest(ficha=texto):
                 self.assertIn(texto, ficha)
+
+    def test_la_barra_va_arriba_de_todo_el_panel_en_ficha_y_listado(self):
+        _, _, listado = self._infra()
+        _, _, ficha = self._infra(ver_edificio=self.predio.pk)
+
+        for panel in (listado, ficha):
+            with self.subTest():
+                self.assertEqual(panel.count("Edificios de Parador"), 1)
+                self.assertEqual(panel.count("El edificio es el inmueble"), 1)
+                self.assertLess(panel.index("Edificios de Parador"), panel.index("Agregar edificio"))
+                self.assertLess(panel.index("Agregar edificio"), panel.index("Crear relevamiento"))
+        self.assertLess(listado.index("Crear relevamiento"), listado.index("Funciona en 3 edificios"))
+        self.assertLess(ficha.index("Crear relevamiento"), ficha.index("Otros edificios de esta institución"))
 
     def test_solo_con_ver_no_hay_ninguna_accion_de_escritura(self):
         _, _, listado = self._infra(self.solo_ver)
@@ -170,15 +195,123 @@ class AccionesPorCapacidadTests(BaseTarjetas):
             for texto in ACCIONES:
                 with self.subTest(texto=texto):
                     self.assertNotIn(texto, panel)
+            # Sin acciones la barra igual dice de quién son los edificios.
+            self.assertIn("Edificios de Parador", panel)
 
-    def test_editar_ofrece_vincular_y_cargar_pero_no_crear_relevamiento(self):
+    def test_editar_ofrece_agregar_edificio_pero_no_crear_relevamiento(self):
         editor = self._usuario("editor", ("dispositivo.ver", "dispositivo.editar"), [self.parador])
 
         _, _, panel = self._infra(editor)
 
-        self.assertIn("Vincular un edificio", panel)
-        self.assertIn("Cargar edificio", panel)
+        self.assertIn("Agregar edificio", panel)
+        self.assertIn("Cargar un edificio nuevo", panel)
+        self.assertIn("Vincular uno existente", panel)
         self.assertNotIn("Crear relevamiento", panel)
+
+    def test_la_ficha_de_un_edificio_entre_varios_tambien_ofrece_agregar(self):
+        _, infra, ficha = self._infra(ver_edificio=self.predio.pk)
+
+        self.assertTrue(infra["chips"])
+        self.assertIn("edificio=nuevo", ficha)
+        self.assertIn("edificio=vincular", ficha)
+
+    def test_desvincular_de_la_ficha_esta_dentro_del_menu(self):
+        _, _, ficha = self._infra(ver_edificio=self.predio.pk)
+
+        posicion = ficha.index("Desvincular de Parador")
+        item = ficha[ficha.rindex("<button", 0, posicion) : posicion]
+        self.assertIn('role="menuitem"', item)
+        self.assertIn("nodo-menu-fila__item--danger", item)
+        self.assertIn("data-confirm-url=", item)
+        self.assertIn("Acciones de Predio Resistencia", ficha)
+        # Ni botón suelto de la solapa ni el viejo texto pelado.
+        self.assertEqual(ficha.count("Desvincular de Parador"), 1)
+        self.assertNotIn("btn-tertiary", ficha)
+        self.assertNotIn(">Desvincular<", ficha)
+
+    def test_sin_edicion_la_ficha_no_tiene_editar_ni_desvincular(self):
+        coordinador = self._usuario("coord_ficha", ("dispositivo.ver", "inspeccion.asignar"), [self.parador])
+
+        _, _, ficha = self._infra(coordinador, ver_edificio=self.predio.pk)
+
+        for texto in ("Editar edificio", "Desvincular", "Cargar un edificio nuevo", "Vincular uno existente"):
+            with self.subTest(texto=texto):
+                self.assertNotIn(texto, ficha)
+
+    def test_la_ficha_va_en_una_sola_columna(self):
+        _, _, ficha = self._infra(ver_edificio=self.predio.pk)
+
+        self.assertNotIn("lg:grid-cols-2", ficha)
+        self.assertNotIn("Datos del edificio", ficha)
+        self.assertNotIn("Predio compartido:", ficha)
+        orden = [
+            "Último relevamiento",
+            "Sectores de Parador en este edificio",
+            "Ubicación</h3>",
+            "Instituciones en el predio",
+            "Registro fotográfico",
+        ]
+        posiciones = [ficha.index(texto) for texto in orden]
+        self.assertEqual(posiciones, sorted(posiciones))
+
+
+class PreseleccionDelRelevamientoTests(BaseTarjetas):
+    """«Crear relevamiento» arranca en el edificio de la ficha abierta; el selector sigue editable."""
+
+    def _form(self, **params):
+        respuesta, _, _ = self._infra(**params)
+        return respuesta.context["form_relevamiento"]
+
+    def test_la_ficha_preselecciona_su_edificio(self):
+        form = self._form(ver_edificio=self.predio.pk)
+
+        self.assertEqual(form["edificio"].value(), str(self.predio.pk))
+        self.assertFalse(form.edificio_fijo)
+
+    def test_el_listado_no_preselecciona_nada(self):
+        form = self._form()
+
+        self.assertFalse(form["edificio"].value())
+
+    def test_un_edificio_con_relevamiento_en_curso_deja_el_selector_vacio(self):
+        crear_inspeccion(
+            self._fresco(self.admin),
+            edificio=self.predio,
+            asignado_a=self._fresco(self.agente),
+            fecha_vencimiento=timezone.localdate() + timedelta(days=30),
+        )
+
+        form = self._form(ver_edificio=self.predio.pk)
+
+        self.assertFalse(form["edificio"].value())
+        self.assertNotIn(str(self.predio.pk), [valor for valor, _ in form.fields["edificio"].choices])
+
+
+class EdificioInicialDelFormularioTests(SimpleTestCase):
+    def _form(self, edificio_inicial, n=2):
+        edificios = [Edificio(pk=pk, codigo=f"ED-{pk}", nombre=f"Edificio {pk}") for pk in range(1, n + 1)]
+        return AsignarRelevamientoDispositivoForm(
+            edificios=edificios, agentes=get_user_model().objects.none(), edificio_inicial=edificio_inicial
+        )
+
+    def test_con_varios_y_el_inicial_elegible_queda_preseleccionado(self):
+        form = self._form(2)
+
+        self.assertEqual(form.fields["edificio"].initial, "2")
+        self.assertEqual(form["edificio"].value(), "2")
+        self.assertFalse(form.edificio_fijo)
+
+    def test_con_el_inicial_no_elegible_queda_vacio(self):
+        self.assertFalse(self._form(99)["edificio"].value())
+
+    def test_sin_inicial_queda_vacio(self):
+        self.assertFalse(self._form(None)["edificio"].value())
+
+    def test_con_uno_solo_va_fijo_aunque_el_inicial_sea_otro(self):
+        form = self._form(99, n=1)
+
+        self.assertTrue(form.edificio_fijo)
+        self.assertEqual(form["edificio"].value(), "1")
 
 
 class AlcanceDelRelevamientoTests(BaseTarjetas):
