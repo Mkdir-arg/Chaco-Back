@@ -32,7 +32,7 @@ from datetime import datetime, time, timedelta
 from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
 from django.utils import timezone
 
-from programas.models import Dispositivo, EntregaKit, Estadia, LineaEntrega, TrazaEntrega
+from programas.models import Dispositivo, Edificio, EntregaKit, Estadia, LineaEntrega, TrazaEntrega
 from programas.services.dispositivos import (
     dispositivos_en_alcance,
     puede_operar_dispositivo,
@@ -370,6 +370,19 @@ def mis_dispositivos(usuario):
 # ---------------------------------------------------------------------------
 # Paso 1 del asistente: el destino
 # ---------------------------------------------------------------------------
+
+
+def edificios_a_elegir(dispositivo, original=None):
+    """Los edificios entre los que se elige al armar una entrega (Cambio 523).
+
+    Solo si el destino ocupa más de uno y no hay una entrega que reponer con edificio de la que sacarlo; con uno
+    solo queda fijo y no se elige. Una consulta.
+    """
+
+    if original is not None and original.edificio_id is not None:
+        return []
+    vinculados = list(Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre"))
+    return vinculados if len(vinculados) > 1 else []
 
 
 def destinos_posibles(texto=""):

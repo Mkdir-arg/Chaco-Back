@@ -184,6 +184,11 @@
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
             {% include "components/_field.html" with field=form_novedad.tipo wrapper_class="" %}
           </div>
+          {% if edificio_novedad.modo == "elegir" %}
+            {% include "components/_field.html" with field=form_novedad.edificio wrapper_class="" %}
+          {% elif edificio_novedad.modo == "fijo" %}
+            <p class="text-sm text-body"><span class="font-medium text-heading">Edificio:</span> {{ edificio_novedad.nombre }}</p>
+          {% endif %}
           {% include "components/_field.html" with field=form_novedad.momento wrapper_class="" %}
           {% include "components/_field.html" with field=form_novedad.texto wrapper_class="" %}
           {% if personas %}{% include "components/_field.html" with field=form_novedad.personas wrapper_class="" %}{% endif %}

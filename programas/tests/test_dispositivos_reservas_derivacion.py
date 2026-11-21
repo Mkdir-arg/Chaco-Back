@@ -963,7 +963,7 @@ class BitacoraAutomaticaSinMovimientoTests(BaseDerivacion):
         self._guardia_24h()
         entrada = self._anotar()
 
-        pantalla = pantalla_bitacora(self.cis, puede_cargar=True)
+        pantalla = pantalla_bitacora(self.cis, puede_cargar=True, usuario=self.operador_cis)
 
         (dibujada,) = pantalla["entradas"]
         self.assertTrue(dibujada["automatica"])

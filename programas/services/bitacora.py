@@ -59,7 +59,9 @@ from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
     CAP_VER,
     alcance_de_edificios,
+    edificio_de_plaza,
     puede_operar_dispositivo,
+    puede_operar_edificio,
     puede_operar_institucion,
 )
 from programas.services.nombre_plaza import nombre_de_plaza
@@ -396,12 +398,46 @@ def _guardar_adjuntos(dispositivo, usuario, archivos, *, heredados=0):
 VENTANA_DOBLE_ENVIO = timedelta(seconds=10)
 
 
-def ve_la_bitacora(usuario, dispositivo):
-    """Si ``usuario`` lee la bitácora de ``dispositivo``: ``dispositivo.ver`` con alcance sobre **toda** la institución.
+def edificios_para_novedad(usuario, dispositivo):
+    """``(edificios, obligatorio)``: los edificios del dispositivo entre los que ``usuario`` carga una novedad.
 
-    Es el único dueño de esta regla (Cambio 523): las novedades todavía no llevan edificio, así que con alcance
-    Edificios no se leen, ni se corrigen, ni se nombran ni se vinculan personas. La usan la pantalla, el detalle, el
-    alta y la corrección.
+    Alcance Edificios: los suyos (con más de uno hay que elegir; con uno queda fijo). Alcance Institución: todos los
+    del dispositivo y el edificio es opcional. La regla de «qué edificios alcanza» es de ``alcance_de_edificios``.
+    """
+
+    from programas.models import Edificio
+
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_BITACORA)
+    edificios = Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "id")
+    if alcance.todo:
+        return list(edificios), False
+    return list(alcance.filtrar(edificios, "pk")), True
+
+
+def _edificio_de_la_novedad(usuario, dispositivo, edificio):
+    """El ``edificio_id`` de una novedad manual: el pedido, o el único del alcance; ``None`` solo con alcance Institución."""
+
+    opciones, obligatorio = edificios_para_novedad(usuario, dispositivo)
+    ids = [e.pk for e in opciones]
+    pedido = getattr(edificio, "pk", edificio) or None
+    if isinstance(pedido, str):
+        pedido = int(pedido) if pedido.strip().isdigit() else None
+    if pedido is not None and pedido not in ids:
+        if obligatorio:
+            raise PermissionDenied("No tenés alcance sobre ese edificio.")
+        raise ValidationError({"edificio": "El edificio tiene que estar vinculado al dispositivo."})
+    if pedido is None and obligatorio:
+        if len(ids) == 1:
+            return ids[0]
+        raise ValidationError({"edificio": "Elegí el edificio de la novedad."})
+    return pedido
+
+
+def ve_a_las_personas(usuario, dispositivo):
+    """Si ``usuario`` nombra y vincula personas en la bitácora: ``dispositivo.ver`` con alcance sobre **toda** la institución.
+
+    Las novedades ya llevan edificio y se leen por él, pero las estadías (personas) no se parten por edificio en la
+    bitácora: con alcance Edificios no se nombran ni se vinculan (Cambio 523).
     """
 
     return alcance_de_edificios(usuario, dispositivo, CAP_VER).todo
@@ -409,17 +445,19 @@ def ve_la_bitacora(usuario, dispositivo):
 
 @archivos_atomicos
 @transaction.atomic
-def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=()):
+def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=(), edificio=None):
     """Carga una novedad del turno en curso. Devuelve la `EntradaBitacora` (versión 1).
 
     `momento` es cuándo pasó; por omisión, ahora. Puede ser anterior a la carga —se
     anota a las 16:52 lo que pasó a las 16:10— pero tiene que caer en el turno en curso.
     `personas` son estadías del dispositivo abiertas en ese momento; `adjuntos`, los
-    archivos subidos.
+    archivos subidos. ``edificio``: ver :func:`_edificio_de_la_novedad` (con más de un edificio en alcance es
+    obligatorio; con uno queda fijo; con alcance Institución es opcional).
     """
 
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_BITACORA):
         raise PermissionDenied("No tenés alcance para cargar la bitácora de este dispositivo.")
+    edificio_id = _edificio_de_la_novedad(usuario, dispositivo, edificio)
     if dispositivo.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": "Solo se carga la bitácora de un dispositivo activo."})
 
@@ -432,8 +470,8 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
     # Primero las estadías de `personas`, en orden de pk, y recién después el dispositivo: egreso,
     # cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el
     # dispositivo (FK). Con el orden inverso acá, los dos se esperan: deadlock.
-    if not ve_la_bitacora(usuario, dispositivo):
-        personas = ()  # quien no lee la bitácora no vincula personas
+    if not ve_a_las_personas(usuario, dispositivo):
+        personas = ()  # con alcance Edificios no se vinculan personas
     ids_personas = _ids_de_personas(personas)
     if ids_personas:
         list(
@@ -452,6 +490,7 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
             responsable=usuario,
             tipo=tipo,
             origen=EntradaBitacora.Origen.MANUAL,
+            edificio_id=edificio_id,
             texto=texto_limpio,
             version=1,
             # Una novedad ya corregida dejó de ser la vigente: repetirla no es un doble envío.
@@ -476,6 +515,7 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
         responsable=usuario,
         tipo=tipo,
         origen=EntradaBitacora.Origen.MANUAL,
+        edificio_id=edificio_id,
         texto=texto_limpio,
     )
     entrada.clean()
@@ -587,8 +627,12 @@ def anotar_en_bitacora(movimiento):
     if situado is None:
         return None
 
+    # El edificio sale de la plaza (destino; en un egreso, la que dejó) → sector → edificio; sector sin edificio, vacío.
+    plaza_id = movimiento.plaza_destino_id or movimiento.plaza_origen_id
+    edificio_id = edificio_de_plaza(plaza_id)
     entrada = _escribir_automatica(
         situado,
+        edificio_id=edificio_id,
         dispositivo_id=movimiento.dispositivo_id,
         momento=movimiento.momento,
         responsable_id=movimiento.responsable_id,
@@ -610,7 +654,7 @@ TIPO_NO_ADMITIDO_SIN_MOVIMIENTO = (
 )
 
 
-def anotar_novedad_automatica(*, dispositivo, tipo, texto, momento=None, usuario=None):
+def anotar_novedad_automatica(*, dispositivo, tipo, texto, momento=None, usuario=None, edificio_id=None):
     """Una novedad `AUTOMATICA` **sin movimiento de estadía**. Devuelve la entrada, o `None`.
 
     Para los hechos que el sistema acepta sobre un dispositivo y que no son un ingreso, un
@@ -655,7 +699,13 @@ def anotar_novedad_automatica(*, dispositivo, tipo, texto, momento=None, usuario
         return None
 
     return _escribir_automatica(
-        situado, dispositivo=dispositivo, momento=momento, responsable=usuario, tipo=tipo, texto=texto
+        situado,
+        dispositivo=dispositivo,
+        edificio_id=edificio_id,
+        momento=momento,
+        responsable=usuario,
+        tipo=tipo,
+        texto=texto,
     )
 
 
@@ -747,10 +797,10 @@ def corregir_entrada(
     borra un adjunto ni su archivo.
     """
 
-    if not puede_operar_dispositivo(usuario, entrada.dispositivo, CAP_BITACORA) or not ve_la_bitacora(
-        usuario, entrada.dispositivo
-    ):
+    if not puede_operar_edificio(usuario, entrada.dispositivo, entrada.edificio_id, CAP_BITACORA):
         raise PermissionDenied("No tenés alcance para cargar la bitácora de este dispositivo.")
+    if not ve_a_las_personas(usuario, entrada.dispositivo):
+        sumar_personas, quitar_personas = (), ()  # con alcance Edificios no se vinculan ni se desvinculan personas
 
     # Primero la original, siempre: es la fila común a todas las correcciones de la
     # cadena, así que dos operadores que corrigen la misma entrada se forman acá, en el
@@ -786,6 +836,7 @@ def corregir_entrada(
         responsable=usuario,
         tipo=tipo or corregida.tipo,
         origen=corregida.origen,
+        edificio_id=corregida.edificio_id,
         texto=(texto or "").strip(),
         version=corregida.version + 1,
         entrada_original_id=corregida.raiz_id,

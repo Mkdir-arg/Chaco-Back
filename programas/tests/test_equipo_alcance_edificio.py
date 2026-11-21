@@ -261,8 +261,9 @@ class KitsPorEdificioTests(BaseAlcance):
         destino = self.cis
         self.assertEqual(servicio_kits._edificio_de_la_entrega(destino, self.edif_b, None), self.edif_b.pk)
         self.assertEqual(servicio_kits._edificio_de_la_entrega(destino, None, self.entrega_a), self.edif_a.pk)
-        # Con dos edificios y sin origen, queda vacío.
-        self.assertIsNone(servicio_kits._edificio_de_la_entrega(destino, None, None))
+        # Con dos edificios y sin origen, elegirlo es obligatorio (decisión del PM, 21-nov-2026).
+        with self.assertRaises(ValidationError):
+            servicio_kits._edificio_de_la_entrega(destino, None, None)
         # Con uno solo, es ese.
         self.edif_b.dispositivos.remove(self.cis)
         self.assertEqual(servicio_kits._edificio_de_la_entrega(destino, None, None), self.edif_a.pk)
@@ -428,25 +429,24 @@ class CorreccionesDeAuditoriaTests(BaseAlcance):
             crear_turno(dispositivo=self.cis, usuario=de_a, nombre="Nuevo", hora_desde=time(1), hora_hasta=time(2))
         editar_turno(turno=self.manana, usuario=self._fresco(self.de_inst), nombre="Mañana")
 
-    def test_corregir_una_novedad_sin_leer_la_bitacora_da_403_y_no_crea_version(self):
+    def test_corregir_una_novedad_fuera_de_alcance_se_rechaza_igual_que_una_inexistente(self):
         entrada = self._cargar(_local(MIERCOLES, 15), texto="Novedad de toda la casa")
         self.client.force_login(self._fresco(self.de_a))
+        url = reverse("dispositivos:bitacora_corregir", args=[self.cis.pk])
         with _reloj():
-            respuesta = self.client.post(
-                reverse("dispositivos:bitacora_corregir", args=[self.cis.pk]),
-                {"entrada": entrada.pk, "texto": "Pisada", "motivo": "x"},
+            ajena = self.client.post(
+                url,
+                {"entrada": entrada.pk, "tipo": entrada.tipo, "texto": "Pisada", "motivo": "x"},
                 HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             )
-        self.assertEqual(respuesta.status_code, 403)
-        self.assertEqual(EntradaBitacora.objects.filter(entrada_original=entrada).count(), 0)
-        # Un id que no existe responde igual: la compuerta va antes del formulario y no revela ids.
-        with _reloj():
             inexistente = self.client.post(
-                reverse("dispositivos:bitacora_corregir", args=[self.cis.pk]),
-                {"entrada": 999999, "texto": "x"},
+                url,
+                {"entrada": 999999, "tipo": entrada.tipo, "texto": "Pisada", "motivo": "x"},
                 HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             )
-        self.assertEqual(inexistente.status_code, 403)
+        self.assertEqual(ajena.status_code, 400)
+        self.assertEqual(ajena.json(), inexistente.json())  # no revela si el id existe
+        self.assertEqual(EntradaBitacora.objects.filter(entrada_original=entrada).count(), 0)
 
     def test_el_servicio_no_corrige_ni_vincula_personas_sin_leer_la_bitacora(self):
         entrada = self._cargar(_local(MIERCOLES, 15), texto="Novedad de toda la casa")
