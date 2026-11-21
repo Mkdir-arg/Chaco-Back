@@ -37,6 +37,7 @@ from core.services.throttle import (
 )
 from programas.api.serializers import (
     AdjuntoFormularioSerializer,
+    ConsultaPersonaEmergenciaSerializer,
     ConsultaPersonaRespuestaSerializer,
     ConsultaPersonaSerializer,
     FormularioListSerializer,
@@ -504,7 +505,19 @@ def consultar_persona_becas(request):
     )
 
 
-def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajos=False):
+def _consulta_solo_en_legajos(dni):
+    """La consulta de Emergencia sin sexo: solo el legajo con ese DNI, nunca Base de Personas."""
+    del_legajo = identificar_en_legajo(dni)
+    if del_legajo is None:
+        return Response(
+            {"success": False, "no_en_legajo": True, "error": "No figura en los legajos de DATAÑACH."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    del_legajo.update(dni=dni)
+    return Response({"success": True, "origen": ORIGEN_LEGAJO, "data": del_legajo, "datos_api": {}})
+
+
+def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajos=False, sexo_opcional=False):
     """La consulta de identidad de la app de campo: valida, identifica y arma la respuesta.
 
     La comparten ``POST /api/becas/personas/consultar/`` y
@@ -522,10 +535,13 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
       aunque Base de Personas la haya encontrado con otros datos: es la persona de la que
       ``crear_caso`` va a colgar el caso (Cambio 486). Una persona que Base de Personas
       informa fallecida sigue siendo 404. Becas no lo activa y no cambia.
+    * ``sexo_opcional`` (solo Emergencia, junto con ``buscar_en_legajos``): el sexo puede faltar.
+      Sin sexo se busca **solo en legajos**, sin llamar a Base de Personas: 200 con el legajo o
+      404 ``no_en_legajo``. Con sexo F/M no cambia nada; un sexo inválido sigue siendo 400.
 
     El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.
     """
-    entrada = ConsultaPersonaSerializer(data=datos)
+    entrada = (ConsultaPersonaEmergenciaSerializer if sexo_opcional else ConsultaPersonaSerializer)(data=datos)
     if not entrada.is_valid():
         # El cuerpo del 400 es el de siempre: la app en producción lee `error`,
         # no el diccionario de campos que devolvería `raise_exception=True`.
@@ -534,7 +550,10 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
             status=status.HTTP_400_BAD_REQUEST,
         )
     dni = entrada.validated_data["dni"]
-    sexo = entrada.validated_data["sexo"]
+    sexo = entrada.validated_data.get("sexo", "")
+
+    if sexo_opcional and not sexo:
+        return _consulta_solo_en_legajos(dni)
 
     # Cascada del Cambio 57 en el servidor: padrón de la convocatoria → Base de
     # Personas (si está activa) → manual. Mismo contrato de respuesta que antes;
