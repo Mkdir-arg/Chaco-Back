@@ -493,7 +493,9 @@ def _mensaje_ya_derivado(caso):
 
 
 @transaction.atomic
-def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes=False, edificio=None):
+def derivar_caso(
+    caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes=False, edificio=None, sin_edificio=False
+):
     """Deriva un caso ``EN_GESTION`` a ``dispositivo``: queda ``DERIVADO`` con una derivación ``PENDIENTE``.
 
     El dueño o quien supervisa (HU-2.3). Reglas:
@@ -508,7 +510,9 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
       garantía.
     * Con ``edificio`` (Cambio 519), la institución tiene que tener sectores en ese edificio
       (``ValidationError`` si no) y las camas que se cuentan son **las de ese edificio**. La
-      derivación lo guarda. Sin él, cuentan todas las camas de la institución, como antes.
+      derivación lo guarda. Con ``sin_edificio=True`` (el grupo «sin edificio asignado» del panel)
+      cuentan solo las camas de sus sectores sin edificio, las mismas que mostró el panel. Sin
+      ninguno de los dos, cuentan todas las camas de la institución, como antes.
     * ``vence_en`` es ahora más la vigencia configurada en E7 (RN-2.7).
     * Un caso tiene a lo sumo una derivación vigente (RN-2.6). Si el caso ya está derivado
       —la segunda pestaña— levanta :class:`EstadoCambio` diciendo a dónde y a qué hora. Si
@@ -535,10 +539,10 @@ def derivar_caso(caso, usuario, dispositivo, plazas_pedidas, confirmar_faltantes
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
     ocupacion = camas_de(dispositivo).de(dispositivo)
-    if edificio is None:
+    if edificio is None and not sin_edificio:
         conteo = ocupacion.conteo
-    elif edificio.pk in ocupacion.edificios():
-        conteo = ocupacion.conteo_del_edificio(edificio.pk)
+    elif (edificio.pk if edificio is not None else None) in ocupacion.edificios():
+        conteo = ocupacion.conteo_del_edificio(edificio.pk if edificio is not None else None)
     else:
         raise ValidationError({"edificio": EDIFICIO_AJENO})
     libres = camas_libres_del_conteo(conteo)

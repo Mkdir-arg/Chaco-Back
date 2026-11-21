@@ -149,6 +149,24 @@ class PanelPorEdificioTests(BaseMesa):
         derivacion = servicio.derivar_caso(caso, self.operador, self.club, 5, edificio=norte)
         self.assertEqual(derivacion.edificio, norte)
 
+    def test_el_grupo_sin_edificio_cuenta_solo_sus_camas_como_el_panel(self):
+        caso = self._caso_tomado(menores_f=3)  # 5 personas
+        mixta = self._dispositivo("Mixta", camas=2)  # 2 camas en un sector sin edificio
+        predio = Edificio.objects.create(codigo="ED-N", nombre="Predio Norte", localidad="Resistencia")
+        predio.dispositivos.add(mixta)
+        nuevo = mixta.sectores.create(nombre="Nuevo", capacidad=10, edificio=predio)
+        for n in range(10):
+            nuevo.plazas.create(codigo=f"N{n}")
+
+        tarjetas = self._ficha(caso).context["panel"]["edificios"]
+        grupo = next(t for t in tarjetas if t["pk"] == f"d{mixta.pk}")
+        self.assertEqual((grupo["libres"], grupo["marca"]), (2, "FALTAN"))
+        with self.assertRaises(servicio.FaltanPlazas):
+            servicio.derivar_caso(caso, self.operador, mixta, 5, sin_edificio=True)
+        respuesta = self._post("caso_derivar", caso, {"dispositivo": mixta.pk, "plazas": "5"})
+        self.assertFalse(Derivacion.objects.exists())
+        self.assertIn("2 de las 5 plazas", self._avisos(respuesta)[0])
+
     def test_no_se_deriva_a_un_edificio_donde_la_institucion_no_tiene_camas(self):
         caso = self._caso_tomado()
         otro = self._dispositivo("Parroquia", camas=3)

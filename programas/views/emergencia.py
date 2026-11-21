@@ -347,6 +347,8 @@ class DerivarCasoView(_AccionDeCasoView):
             form.cleaned_data["plazas"],
             confirmar_faltantes=form.cleaned_data["confirmar_faltantes"],
             edificio=form.cleaned_data["edificio"],
+            # La ficha siempre deriva desde un grupo del panel: sin edificio es el grupo «sin edificio asignado».
+            sin_edificio=form.cleaned_data["edificio"] is None,
         )
         donde = f" ({derivacion.edificio.nombre})" if derivacion.edificio_id else ""
         return f"Caso {caso.numero} derivado a {derivacion.dispositivo.nombre}{donde}. Queda esperando que lo acepten."
