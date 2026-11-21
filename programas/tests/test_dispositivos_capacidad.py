@@ -677,7 +677,8 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         self.assertContains(respuesta, '<button type="button" @click="modalSectorNuevo=true"', count=2)
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
         self.assertContains(respuesta, "Este dispositivo no tiene edificio cargado")
-        self.assertContains(respuesta, "edificio=nuevo")
+        # Una sola vez: el alta la ofrece la barra («Agregar edificio»), no el estado vacío (Cambio 524).
+        self.assertContains(respuesta, "edificio=nuevo", count=1)
         sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
         self.assertContains(self.client.get(url), f"sectorPlazas='{sector.pk}'; modalPlazas=true")
 

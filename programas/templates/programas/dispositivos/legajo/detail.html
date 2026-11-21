@@ -301,20 +301,15 @@
 
       {# ===== TAB: Infraestructura (Cambio 439: tarjetas por edificio y, al abrir uno, su ficha; P19 del MVP) ===== #}
       <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
+        {% include "programas/dispositivos/legajo/_infra_acciones.html" %}
         {% if infraestructura.modo == 'listado' %}
         {% include "programas/dispositivos/legajo/_infra_listado.html" %}
         {% elif infraestructura.modo == 'ficha' %}
         {% include "programas/dispositivos/legajo/_infra_ficha.html" %}
         {% else %}
-        {% if puede_editar or puede_crear_relevamiento %}
-        <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
-          <p class="text-xs text-body-subtle">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
-          {% include "programas/dispositivos/legajo/_infra_acciones.html" %}
-        </div>
-        {% endif %}
         {% if puede_editar %}
-        {% url 'dispositivos:detalle' dispositivo.pk as url_base_edificio %}
-        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Cargá el inmueble donde funciona la institución, o vinculá uno que ya exista si comparte el predio." accion_url=url_base_edificio|add:"?tab=infraestructura&edificio=nuevo" accion_texto="Cargar edificio" accion_icono="fa-plus" %}
+        {# Sin botón propio: «Agregar edificio» de la barra de arriba ya carga o vincula (Cambio 524). #}
+        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Usá «Agregar edificio» para cargar el inmueble donde funciona la institución, o vincular uno que ya exista si comparte el predio." %}
         {% else %}
         {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio: aparecen cuando se le asigne uno." %}
         {% endif %}
@@ -338,6 +333,7 @@
               <tr class="nodo-thead-row">
                 <th class="nodo-th">Persona</th>
                 <th class="nodo-th hidden lg:table-cell">Rol</th>
+                <th class="nodo-th hidden lg:table-cell">Contratación</th>
                 <th class="nodo-th hidden lg:table-cell">Responsable</th>
                 {% if puede_gestionar_equipo %}<th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
               </tr>
@@ -350,11 +346,13 @@
                   {# En celular el Rol y el Responsable van bajo el nombre: la columna fija de acciones tapa el resto de la fila. #}
                   <div class="lg:hidden mt-1 flex flex-col items-start gap-1 text-xs text-body-subtle">
                     <span>{{ miembro.rol.name }}</span>
+                    <span>{{ miembro.get_tipo_contratacion_display|default:"Sin dato" }}</span>
                     {% if not miembro.vigente %}<span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}
                     {% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% endif %}
                   </div>
                 </td>
                 <td class="nodo-td hidden lg:table-cell">{{ miembro.rol.name }}{% if not miembro.vigente %} <span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}</td>
+                <td class="nodo-td hidden lg:table-cell">{% if miembro.tipo_contratacion %}{{ miembro.get_tipo_contratacion_display }}{% else %}<span class="text-body-subtle">Sin dato</span>{% endif %}</td>
                 <td class="nodo-td hidden lg:table-cell">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
                 {% if puede_gestionar_equipo %}
                 <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
@@ -374,7 +372,7 @@
               </tr>
               {% empty %}
               <tr>
-                <td colspan="{% if puede_gestionar_equipo %}4{% else %}3{% endif %}" class="p-0">
+                <td colspan="{% if puede_gestionar_equipo %}5{% else %}4{% endif %}" class="p-0">
                   {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Este dispositivo no tiene Equipo" texto="Cuando se sume a alguien, aparece acá con su rol." %}
                 </td>
               </tr>
@@ -654,6 +652,7 @@
             <p class="mt-2 text-xs text-body-subtle">{{ mensaje_pedir_alta }}</p>
             {% endif %}
           </div>
+          <div>{% with field=form_equipo.tipo_contratacion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
           <div>{% with field=form_equipo.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEquipo=false" accion_texto="Sumar al Equipo" %}
@@ -679,6 +678,7 @@
           <div>{% with field=form_crear_persona.last_name %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
           <div>{% with field=form_crear_persona.email %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
           <div>{% with field=form_crear_persona.rol %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          <div>{% with field=form_crear_persona.tipo_contratacion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
           <div>{% with field=form_crear_persona.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCrearPersona=false" accion_texto="Crear y sumar al Equipo" %}

@@ -128,7 +128,12 @@ class AccionesDelEquipoTests(BaseUI):
     def test_el_responsable_suma_a_una_persona(self):
         self._entrar(self.resp)
         respuesta = self.client.post(
-            self._urls_post()["sumar"], {"persona_rol": f"{self.admin.pk}:{self.rol_admin.pk}", "es_responsable": "on"}
+            self._urls_post()["sumar"],
+            {
+                "persona_rol": f"{self.admin.pk}:{self.rol_admin.pk}",
+                "es_responsable": "on",
+                "tipo_contratacion": "BECADO",
+            },
         )
         self.assertRedirects(respuesta, self.url_detalle + "?tab=equipo")
         nuevo = MiembroEquipoDispositivo.objects.get(dispositivo=self.disp_a, usuario=self.admin)
@@ -139,7 +144,7 @@ class AccionesDelEquipoTests(BaseUI):
         self._entrar(self.admin)
         respuesta = self.client.post(
             self._urls_post()["sumar"],
-            {"persona_rol": f"{self.agente.pk}:{self.rol_agente.pk}"},
+            {"persona_rol": f"{self.agente.pk}:{self.rol_agente.pk}", "tipo_contratacion": "BECADO"},
             headers=AJAX,
         )
         self.assertEqual(respuesta.status_code, 400)

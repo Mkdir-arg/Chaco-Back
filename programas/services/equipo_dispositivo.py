@@ -136,7 +136,7 @@ def _exigir_otro_responsable(dispositivo, miembro):
         raise ValidationError("El dispositivo no puede quedar sin responsables: marcá a otra persona antes.")
 
 
-def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False):
+def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False, tipo_contratacion=None):
     """Suma a ``usuario`` con ``rol``; si la fila existía de baja, la reactiva."""
 
     from programas.models import MiembroEquipoDispositivo
@@ -146,14 +146,20 @@ def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False):
         _exigir_gestion(actor, dispositivo)
         _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
         miembro, creado = MiembroEquipoDispositivo.objects.get_or_create(
-            dispositivo=dispositivo, usuario=usuario, rol=rol, defaults={"es_responsable": es_responsable}
+            dispositivo=dispositivo,
+            usuario=usuario,
+            rol=rol,
+            defaults={"es_responsable": es_responsable, "tipo_contratacion": tipo_contratacion},
         )
         if not creado:
             estaba_de_baja = not miembro.activo
             miembro.activo = True
             # De baja vuelve como se pide; si ya estaba activa (dos altas a la vez) no se le saca la marca.
             miembro.es_responsable = es_responsable if estaba_de_baja else miembro.es_responsable or es_responsable
-            miembro.save(update_fields=["activo", "es_responsable", "modificado"])
+            if estaba_de_baja and tipo_contratacion:
+                # Reactivar es un alta nueva del puesto: manda la contratación que se elige ahora.
+                miembro.tipo_contratacion = tipo_contratacion
+            miembro.save(update_fields=["activo", "es_responsable", "tipo_contratacion", "modificado"])
         return miembro
 
 
@@ -183,7 +189,7 @@ def datos_de_alta_de_persona(*, actor, dni, nombre, apellido, correo, rol):
     return UserCreationForm(data=datos, operador=actor, roles_acotados=roles_para_crear_persona(actor))
 
 
-def crear_persona_y_sumar(*, actor, dispositivo, alta, rol, es_responsable=False):
+def crear_persona_y_sumar(*, actor, dispositivo, alta, rol, es_responsable=False, tipo_contratacion=None):
     """Crea el usuario de ``alta`` (``UserCreationForm`` válido) y lo suma al Equipo, **todo o nada**.
 
     Una sola transacción: si sumar al Equipo falla, no queda ni el usuario. La escritura del usuario es la
@@ -200,7 +206,14 @@ def crear_persona_y_sumar(*, actor, dispositivo, alta, rol, es_responsable=False
         if not roles_para_crear_persona(actor).filter(pk=rol.pk).exists():
             raise ValidationError({"rol": "Ese rol no se puede dar al crear una persona."})
         usuario = UsuariosAdminService.create_user_from_form(alta, alcance_group_ids=alcance_roles_ids(actor))
-        sumar_miembro(actor=actor, dispositivo=dispositivo, usuario=usuario, rol=rol, es_responsable=es_responsable)
+        sumar_miembro(
+            actor=actor,
+            dispositivo=dispositivo,
+            usuario=usuario,
+            rol=rol,
+            es_responsable=es_responsable,
+            tipo_contratacion=tipo_contratacion,
+        )
     return usuario
 
 

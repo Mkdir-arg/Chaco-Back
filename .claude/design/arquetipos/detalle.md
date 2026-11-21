@@ -153,7 +153,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   Las acciones del encabezado de P4 salen de banderas que arma la vista, no de un `{% if %}` sobre el estado: «Ingresar persona» (`puede_admitir`, misma función que el gate del asistente: `dispositivo.admitir` con alcance y `ciudadano.ver`) y «Enviar a validación» (`puede_enviar_validacion`, desde borrador, observado o rechazado con `dispositivo.editar`).
   El menú «Más acciones» de P4 lleva además el ítem de navegación «Emergencia · Llegadas»: la vista manda `url_llegadas_emergencia` solo a quien tiene `dispositivo.admitir` con alcance —lo que exige esa pantalla— y sin la URL el ítem no se dibuja.
   La `dl` de datos de la solapa Datos rotula las franjas de P3 como «Horario de atención» (solo informativo; no son los turnos de la Bitácora).
-  Solapa «Equipo» de P4 (Cambio 411): la ve quien ve el dispositivo; tabla canónica (`nodo-th`, `menu_fila` con `confirm_url`; baja y quitar responsable en `peligro`) y «Sumar persona» `btn-brand btn-sm btn-fit` que abre un modal de `data-ajax`. Botón, columna de acciones y modal van bajo `puede_gestionar_equipo` (la vista re-verifica en cada POST); la marca de responsable es `badge badge-dot badge-success` y una fila cuyo rol ya no vale lleva `badge badge-warning badge-sm` «Rol no vigente». Bajo `lg`, Rol y Responsable van apilados bajo el nombre (`lg:hidden`) y sus columnas son `hidden lg:table-cell` (Cambio 447: la columna fija de acciones tapaba el resto de la fila).
+  Solapa «Equipo» de P4 (Cambio 411): la ve quien ve el dispositivo; tabla canónica (`nodo-th`, `menu_fila` con `confirm_url`; baja y quitar responsable en `peligro`) y «Sumar persona» `btn-brand btn-sm btn-fit` que abre un modal de `data-ajax`. Botón, columna de acciones y modal van bajo `puede_gestionar_equipo` (la vista re-verifica en cada POST); la marca de responsable es `badge badge-dot badge-success` y una fila cuyo rol ya no vale lleva `badge badge-warning badge-sm` «Rol no vigente». Bajo `lg`, Rol y Responsable van apilados bajo el nombre (`lg:hidden`) y sus columnas son `hidden lg:table-cell` (Cambio 447: la columna fija de acciones tapaba el resto de la fila). La tabla suma la columna «Contratación» (`nodo-th hidden lg:table-cell`, «Sin dato» en `text-body-subtle` si es NULL; bajo `lg` va bajo el nombre junto al rol), y los dos modales de alta llevan el desplegable `tipo_contratacion` (Cambio 523).
 - Respuestas de un formulario del constructor en la solapa Datos de P4: una `section`
   `border-t border-light mt-6 pt-5` por formulario respondido, con `h2` y `badge badge-gray`
   «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`
@@ -161,15 +161,18 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   lo visible según las condiciones de la foto respondida.
 - Infraestructura de P4/P19: tres modos que arma `infraestructura_del_dispositivo` (`modo`); los parciales son
   `legajo/_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html` (sectores sin edificio) y
-  `_infra_acciones.html` (Vincular, Cargar y Crear relevamiento; `ocultar_vinculo` los deja en uno), y las URL
-  de todos las arma el servicio. Sin edificio, el
-  estado vacío con las acciones. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
-  grave nombrado, acciones (Vincular, Cargar edificio, Crear relevamiento), filtro por estado con chips
+  `_infra_acciones.html` (la barra de la institución), y las URL
+  de todos las arma el servicio. La **barra** va una sola vez arriba del panel, igual en listado, ficha y sin edificio
+  (`px-5 py-4 border-b border-light`): rótulo «Edificios de X» con la frase del predio y, a la derecha, el menú
+  `menu_fila texto="Agregar edificio"` («Cargar un edificio nuevo», «Vincular uno existente», con `puede_editar`) y
+  «Crear relevamiento» (`puede_crear_relevamiento`, preselecciona el edificio de la ficha). Sin edificio, el
+  estado vacío con la acción. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
+  grave nombrado (sin acciones), filtro por estado con chips
   (`estado_edificio`, del lado del servidor, `components/_chips_enlace.html`) y una grilla de
   `components/_tarjeta_edificio.html` del más grave al mejor, sin relevar al final. Sin tablas ni tarjetas
   globales. Con uno solo, o con `?tab=infraestructura&ver_edificio=<pk>`, la **ficha** del edificio
-  (`_infra_ficha.html`): último relevamiento, sectores con ocupadas, instituciones del predio, datos con
-  `_ubicacion.html` y el registro fotográfico como `_linea_tiempo` plegable (`plegable=True`) por relevamiento, con su paginación; con 2 o más
+  (`_infra_ficha.html`, una sola columna): cabecera con «Editar edificio» y ⋮ (`menu_fila` con «Desvincular de X» en `peligro`, ambos con `puede_editar`), último relevamiento, sectores con ocupadas, Ubicación con
+  `_ubicacion.html`, instituciones del predio y el registro fotográfico como `_linea_tiempo` plegable (`plegable=True`) por relevamiento, con su paginación; con 2 o más
   edificios suma los chips para cambiar de uno a otro y «Los N edificios». Un id no vinculado se ignora y vuelve
   el listado. Alta, edición y vínculo se abren en los modales canónicos y exigen alcance de edición.
   La tarjeta separa el estado (criticidad de la última realizada) del aviso «Vencido» (`danger`, relevamiento en

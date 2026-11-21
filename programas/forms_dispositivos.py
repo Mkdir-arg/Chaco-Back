@@ -13,7 +13,7 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.forms_sugerencias import attrs_sugerencias
 from core.widgets import SwitchInput
 from programas.forms import INPUT_CLASS
-from programas.models import Edificio, MotivoEgreso, Plaza, Sector
+from programas.models import Edificio, MiembroEquipoDispositivo, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
@@ -410,7 +410,8 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
     un relevamiento en curso, de este dispositivo). Con uno solo va fijo y de solo lectura:
     un campo deshabilitado ignora lo que llegue por POST y usa el inicial, así que no se
     puede cambiar. El agente lo acota la vista (``agentes_asignables_para``) y lo decide el
-    servicio contra el edificio elegido.
+    servicio contra el edificio elegido. ``edificio_inicial`` (pk, opcional) preelige el de la ficha
+    abierta cuando hay varios elegibles.
     """
 
     edificio = forms.ChoiceField(
@@ -423,7 +424,7 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
         },
     )
 
-    def __init__(self, *args, edificios, aviso_formulario="", **kwargs):
+    def __init__(self, *args, edificios, aviso_formulario="", edificio_inicial=None, **kwargs):
         super().__init__(*args, **kwargs)
         # D3: el tipo de la institución no tiene formulario «Relevamiento» (lo decide la vista).
         self.aviso_formulario = aviso_formulario
@@ -437,6 +438,9 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
         else:
             campo.choices = [("", "Elegí un edificio"), *opciones]
             campo.help_text = "Solo los edificios de la institución que no tienen un relevamiento en curso."
+            # El edificio cuya ficha se está mirando llega preelegido (sigue editable); si no es elegible, queda vacío.
+            if edificio_inicial is not None and str(edificio_inicial) in self._edificios:
+                campo.initial = str(edificio_inicial)
 
     @property
     def edificio_fijo(self):
@@ -767,6 +771,12 @@ class SumarMiembroEquipoForm(forms.Form):
         widget=forms.HiddenInput(),
         error_messages={"required": "Elegí a la persona y el rol de la lista de sugerencias."},
     )
+    tipo_contratacion = forms.ChoiceField(
+        label="Tipo de contratación",
+        choices=[("", "Elegí el tipo de contratación"), *MiembroEquipoDispositivo.TipoContratacion.choices],
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"required": "Elegí el tipo de contratación."},
+    )
     es_responsable = forms.BooleanField(
         label="Es responsable del dispositivo",
         required=False,
@@ -789,7 +799,6 @@ class SumarMiembroEquipoForm(forms.Form):
         from django.contrib.auth.models import Group
         from django.core.exceptions import ValidationError
 
-        from programas.models import MiembroEquipoDispositivo
         from programas.services import equipo_dispositivo as equipo
 
         invalido = forms.ValidationError("Esa persona y ese rol no se pueden sumar al Equipo.", code="invalid_choice")
@@ -842,6 +851,12 @@ class CrearPersonaEquipoForm(forms.Form):
             "required": "Elegí el rol con el que se suma.",
             "invalid_choice": "Ese rol no se puede dar al crear una persona.",
         },
+    )
+    tipo_contratacion = forms.ChoiceField(
+        label="Tipo de contratación",
+        choices=[("", "Elegí el tipo de contratación"), *MiembroEquipoDispositivo.TipoContratacion.choices],
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"required": "Elegí el tipo de contratación."},
     )
     es_responsable = forms.BooleanField(
         label="Es responsable del dispositivo",

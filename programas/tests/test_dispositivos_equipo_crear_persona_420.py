@@ -64,6 +64,7 @@ class BaseCrear(BaseEquipo):
             "last_name": "Ferreyra",
             "email": "lucia@example.com",
             "rol": self.rol_admitir.pk,
+            "tipo_contratacion": "BECADO",
         }
         datos.update(extra)
         return datos
@@ -560,7 +561,11 @@ class BuscadorDeParesTests(BaseCrear):
         self._entrar(self.admin_programa)
         respuesta = self.client.post(
             reverse("dispositivos:equipo_sumar", args=[self.disp_a.pk]),
-            {"persona": "Ana Gómez — Admite", "persona_rol": f"{self.ana.pk}:{self.rol_admitir.pk}"},
+            {
+                "persona": "Ana Gómez — Admite",
+                "persona_rol": f"{self.ana.pk}:{self.rol_admitir.pk}",
+                "tipo_contratacion": "BECADO",
+            },
             headers=AJAX,
         )
 
@@ -583,7 +588,9 @@ class BuscadorDeParesTests(BaseCrear):
             f"{self.ana.pk}:{self.rol_agente.pk}",
         ):
             with self.subTest(valor=valor):
-                respuesta = self.client.post(url, {"persona": "Ana", "persona_rol": valor}, headers=AJAX)
+                respuesta = self.client.post(
+                    url, {"persona": "Ana", "persona_rol": valor, "tipo_contratacion": "BECADO"}, headers=AJAX
+                )
                 self.assertEqual(respuesta.status_code, 400)
                 self.assertIn("persona_rol", respuesta.json()["errors"])
         self.assertFalse(MiembroEquipoDispositivo.objects.filter(usuario=self.ana).exists())
@@ -594,7 +601,7 @@ class BuscadorDeParesTests(BaseCrear):
 
         respuesta = self.client.post(
             reverse("dispositivos:equipo_sumar", args=[self.disp_a.pk]),
-            {"persona_rol": f"{self.ana.pk}:{self.rol_ver.pk}"},
+            {"persona_rol": f"{self.ana.pk}:{self.rol_ver.pk}", "tipo_contratacion": "BECADO"},
             headers=AJAX,
         )
 
