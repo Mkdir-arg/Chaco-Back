@@ -854,6 +854,14 @@ class UbicacionTest(SimpleTestCase):
         self.assertNotIn("<script", html)
         self.assertNotIn("<iframe", html)
 
+    def test_el_texto_del_enlace_se_puede_cambiar(self):
+        con = {"latitud": Decimal("-27.45"), "longitud": Decimal("-58.98")}
+
+        self.assertIn("Ver en el mapa", render_to_string(UBICACION, con))
+        html = render_to_string(UBICACION, {**con, "texto_enlace": "Ver dónde se tomó"})
+        self.assertIn("Ver dónde se tomó", html)
+        self.assertNotIn("Ver en el mapa", html)
+
     def test_sin_coordenadas_muestra_el_vacio_y_ningun_enlace(self):
         for contexto in ({}, {"latitud": None, "longitud": None}, {"latitud": Decimal("-27.4"), "longitud": None}):
             html = render_to_string(UBICACION, contexto)

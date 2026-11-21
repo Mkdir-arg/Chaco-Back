@@ -6,6 +6,8 @@ Cambio 493: el legajo del ciudadano y el Formulario 1 de Emergencia validan con 
 repetir los límites en cada form.
 """
 
+from urllib.parse import quote
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 MENSAJE_LATITUD = "La latitud va de -90 a 90."
@@ -36,3 +38,19 @@ def url_en_google_maps(latitud, longitud):
     if latitud is None or longitud is None or latitud == "" or longitud == "":
         return None
     return f"https://www.google.com/maps/search/?api=1&query={float(latitud):.6f},{float(longitud):.6f}"
+
+
+def url_domicilio_en_google_maps(direccion, localidad="", provincia="Chaco"):
+    """Enlace que busca un domicilio escrito (no un punto) en Google Maps, fuera del sistema.
+
+    Para cuando las coordenadas guardadas no son las del domicilio: en un caso de Emergencia la latitud y la
+    longitud son de dónde se tomó el caso, y la familia vive en la dirección y la localidad cargadas. Busca
+    «dirección, localidad, provincia, Argentina», como la pieza `_ubicacion_domicilio.html`. ``None`` sin dirección.
+    """
+
+    direccion = str(direccion or "").strip()
+    if not direccion:
+        return None
+    partes = [direccion, str(localidad or "").strip(), provincia, "Argentina"]
+    consulta = ", ".join(parte for parte in partes if parte)
+    return f"https://www.google.com/maps/search/?api=1&query={quote(consulta, safe='')}"
