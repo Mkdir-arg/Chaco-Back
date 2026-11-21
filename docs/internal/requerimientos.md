@@ -58143,9 +58143,13 @@ Fase 3: revertir sus commits y `migrate mapa zero` (borra los puntos cargados); 
   simplificaciones.
 - **21/11/2026:** QA en testing (sin key de Google): `/mapa/` mostraba «Agregar punto» a quien tiene
   `mapa.editar`, y al tocarlo quedaba «Tocá el mapa donde va el punto» sin mapa que tocar. Sin
-  `GOOGLE_MAPS_API_KEY` la vista apaga `editable` (no salen el botón, la barra, el modal ni `mapa-general.js`);
-  la lista de puntos se sigue viendo. Test `test_sin_key_no_ofrece_agregar_punto` y regla en la ficha
-  `arquetipos/mapa.md`.
+  `GOOGLE_MAPS_API_KEY`, `capas_del_mapa` apaga `editable` con `services.mapa_disponible()`: no salen el botón,
+  la barra, el modal ni `mapa-general.js`, y los puntos tampoco vienen movibles ni con «Eliminar» (MINOR de la
+  auditoría del #1278: el flag y los puntos, de un solo cálculo). La API sigue validando `mapa.editar` aparte.
+  La lista de puntos se sigue viendo. Tests `test_sin_key_no_ofrece_agregar_punto` y
+  `test_sin_key_nada_editable_aunque_tenga_mapa_editar`, y regla en la ficha `arquetipos/mapa.md`. Entra además
+  el recorte de la celda «Tarjeta de dispositivo para derivar» del inventario (498 → menos de 450 caracteres; el
+  detalle ya estaba en su ficha), que tenía en rojo `check_design_agent --limites` en `development`.
 
 ---
 

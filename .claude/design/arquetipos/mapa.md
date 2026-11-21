@@ -68,7 +68,7 @@ Mapa con capas (`componentes/mapa_capas.md`) y, si se edita, `static/custom/js/m
   ocultos. La pantalla escucha `becas-saved` (`detail` = respuesta) para sumar el punto y el ítem que devuelve el
   servidor ya renderizado. Mover = soltar el marcador
   (`PATCH`); si el servidor lo rechaza, vuelve a su lugar. Eliminar = acción del detalle → `ModernModal` con
-  `danger: true` → `DELETE`. **Sin `GOOGLE_MAPS_API_KEY` no se ofrece el alta** (la vista apaga `editable`):
+  `danger: true` → `DELETE`. **Sin `GOOGLE_MAPS_API_KEY` no se ofrece el alta** (`capas_del_mapa` apaga `editable` con `mapa_disponible()`):
   la pieza muestra su estado vacío y no hay mapa que tocar.
 - La API responde JSON también en 401/403 y exige CSRF (`X-CSRFToken`).
 

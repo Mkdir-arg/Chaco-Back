@@ -13,6 +13,7 @@ no pudiera ver por otro lado.
 Las coordenadas viajan como float; un registro sin las dos no se dibuja y se cuenta aparte.
 """
 
+from django.conf import settings
 from django.db.models import Exists, OuterRef
 from django.urls import reverse
 from django.utils import timezone
@@ -46,6 +47,12 @@ _CON_COORDENADAS = {"latitud__isnull": False, "longitud__isnull": False}
 
 def puede_editar(user):
     return rbac.puede(user, CAP_EDITAR)
+
+
+def mapa_disponible():
+    """Hay key de Google: sin ella la pieza muestra su estado vacío y no hay mapa donde ubicar ni mover un punto."""
+
+    return bool(getattr(settings, "GOOGLE_MAPS_API_KEY", ""))
 
 
 def _coordenadas(obj):
@@ -156,7 +163,8 @@ def capas_del_mapa(user):
     """
 
     capas, puntos = [], []
-    editable = puede_editar(user)
+    # La API valida `mapa.editar` por su cuenta; acá se decide solo qué ofrece la pantalla.
+    editable = puede_editar(user) and mapa_disponible()
 
     dispositivos = dispositivos_visibles(user)
     if dispositivos.exists():

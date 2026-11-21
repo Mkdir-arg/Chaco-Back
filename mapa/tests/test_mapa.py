@@ -228,6 +228,20 @@ class CapasTests(TestCase):
         self.assertNotIn("acciones", suelto)
         self.assertEqual(suelto["grupo"], Punto.Categoria.VEHICULO)
 
+    def test_sin_key_nada_editable_aunque_tenga_mapa_editar(self):
+        # El flag y los puntos salen del mismo cálculo: sin Google no hay mapa donde ubicar ni mover.
+        self.user = usuario_con("mapa.ver", "mapa.editar", username="editor")
+        with override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba"):
+            con_key = self.capas()
+        with override_settings(GOOGLE_MAPS_API_KEY=""):
+            sin_key = self.capas()
+        self.assertTrue(con_key["editable"])
+        self.assertTrue(next(p for p in con_key["puntos"] if p["capa"] == "punto")["movible"])
+        self.assertFalse(sin_key["editable"])
+        suelto = next(p for p in sin_key["puntos"] if p["capa"] == "punto")
+        self.assertNotIn("movible", suelto)
+        self.assertNotIn("acciones", suelto)
+
     def test_consultas_constantes_al_crecer_las_cuatro_capas(self):
         self.capas()  # las capacidades del usuario quedan en caché, como en un request
         with CaptureQueriesContext(connection) as antes:
