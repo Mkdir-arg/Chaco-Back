@@ -29,6 +29,21 @@ def q_sin_ubicacion_reservada(prefijo=""):
     return Q(**{f"{prefijo}tipo__ubicacion_reservada": False})
 
 
+def edificio_es_reservado(edificio=None, *, dispositivo=None):
+    """¿Algún dispositivo que ocupa el edificio es de un tipo de ubicación reservada? (Cambio 526)
+
+    La misma regla de ``/mapa/`` y del panel «Derivar»: basta una institución reservada para que el edificio lo sea.
+    Con ``edificio=None`` (un edificio que se está por dar de alta) vale el ``dispositivo`` desde el que se lo carga,
+    que es la institución a la que va a quedar vinculado. **1 consulta** con edificio, ninguna sin él.
+    """
+
+    if dispositivo is not None and dispositivo.tipo.ubicacion_reservada:
+        return True
+    if edificio is None:
+        return False
+    return edificio.dispositivos.filter(tipo__ubicacion_reservada=True).exists()
+
+
 def separar_por_ubicacion_reservada(elementos, *, dispositivo=None):
     """``(publicables, reservados)`` en el orden de entrada. Sin consultas.
 

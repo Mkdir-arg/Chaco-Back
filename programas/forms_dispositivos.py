@@ -9,12 +9,14 @@ from django.core.validators import MaxValueValidator
 from django.utils import timezone
 from django.utils.html import format_html
 
+from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.forms_sugerencias import attrs_sugerencias
 from core.widgets import SwitchInput
 from programas.forms import INPUT_CLASS
 from programas.models import Edificio, MiembroEquipoDispositivo, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
+from programas.services.edificios import COORDENADAS as COORDENADAS_EDIFICIO
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
 from programas.services.plazas import CAPACIDAD_DECLARADA_MAXIMA, TOPE_POR_LOTE
@@ -694,7 +696,10 @@ class EdificioForm(forms.Form):
         error_messages={"required": "El edificio necesita un nombre."},
     )
     calle = forms.CharField(
-        label="Calle", max_length=160, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+        label="Calle",
+        max_length=160,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
     numero = forms.CharField(
         label="Número", max_length=20, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
@@ -715,14 +720,37 @@ class EdificioForm(forms.Form):
     codigo_postal = forms.CharField(
         label="Código postal", max_length=10, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
     )
+    # Cambio 493/520: el punto del inmueble, del Geocoder de Google o marcado en el mapa
+    # (`components/_ubicacion_domicilio.html`). Es lo que lee la distancia de «Derivar» de Emergencia.
+    latitud = forms.DecimalField(
+        label="Latitud",
+        required=False,
+        max_digits=9,
+        decimal_places=6,
+        validators=VALIDADORES_LATITUD,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
+    )
+    longitud = forms.DecimalField(
+        label="Longitud",
+        required=False,
+        max_digits=9,
+        decimal_places=6,
+        validators=VALIDADORES_LONGITUD,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
+    )
 
     def __init__(self, *args, edificio=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.edificio = edificio
         if edificio is not None and not self.is_bound:
             self.initial.setdefault("codigo", edificio.codigo)
-            for campo in CAMPOS_EDIFICIO:
+            for campo in (*CAMPOS_EDIFICIO, *COORDENADAS_EDIFICIO):
                 self.initial.setdefault(campo, getattr(edificio, campo))
+
+    def clean(self):
+        datos = super().clean()
+        exigir_par(self)
+        return datos
 
 
 class VincularEdificioForm(forms.Form):

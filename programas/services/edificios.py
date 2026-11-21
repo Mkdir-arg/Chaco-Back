@@ -39,10 +39,7 @@ CAP_EDITAR = "dispositivo.editar"
 
 #: Campos que el MVP carga del edificio: identidad y domicilio normalizado. Tenencia,
 #: servicios, estado físico y plano son de la Versión 2 completa y no están ni en el
-#: modelo. Las **coordenadas** sí están en el modelo y el MVP igual no las pide: la task 37
-#: las dejó fuera de la solapa Infraestructura junto con el mapa (C-14), y
-#: `FueraDelMvpTests` lo exige. Un campo que no se puede ver después es un campo que nadie
-#: corrige.
+#: modelo. Las **coordenadas** van aparte (`COORDENADAS`): no son texto y no se normalizan.
 CAMPOS = (
     "nombre",
     "calle",
@@ -52,6 +49,9 @@ CAMPOS = (
     "provincia",
     "codigo_postal",
 )
+
+#: El punto del inmueble (Cambio 493/520), del mapa del formulario. Es lo que lee la distancia de «Derivar».
+COORDENADAS = ("latitud", "longitud")
 
 DISPOSITIVO_CERRADO = "El dispositivo está cerrado: no se puede cambiar su edificio."
 RELEVAMIENTO_EN_CURSO = "El edificio tiene un relevamiento en curso: no puede quedar sin dispositivos."
@@ -110,6 +110,7 @@ def crear_edificio(*, dispositivo, usuario, codigo, **datos):
     edificio = Edificio.objects.create(
         codigo=codigo,
         **{campo: _normalizar(datos.get(campo)) for campo in CAMPOS},
+        **{campo: datos.get(campo) for campo in COORDENADAS},
     )
     edificio.dispositivos.add(dispositivo)
     _trazar(dispositivo, usuario, "EDIFICIO_CREADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
@@ -145,7 +146,11 @@ def editar_edificio(*, edificio, dispositivo, usuario, codigo, **datos):
     edificio.codigo = codigo
     for campo in CAMPOS:
         setattr(edificio, campo, _normalizar(datos.get(campo)))
-    edificio.save(update_fields=["codigo", *CAMPOS, "modificado"])
+    # El formulario manda siempre las dos: vaciarlas en el mapa borra el punto. Una llamada que no las trae no las toca.
+    for campo in COORDENADAS:
+        if campo in datos:
+            setattr(edificio, campo, datos[campo])
+    edificio.save(update_fields=["codigo", *CAMPOS, *COORDENADAS, "modificado"])
 
     _trazar(dispositivo, usuario, "EDIFICIO_EDITADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
     return edificio

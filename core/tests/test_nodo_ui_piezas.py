@@ -1003,6 +1003,21 @@ class UbicacionDomicilioTest(SimpleTestCase):
             self.assertIn(atributo, html)
         self.assertIn('class="sm:col-span-2 nodo-ubicacion"', html)
 
+    def test_la_altura_aparte_se_cablea_solo_si_se_pide(self):
+        self.assertNotIn("data-domicilio-extra", self.render(self.Form()))
+        self.assertIn(
+            'data-domicilio-extra="id_localidad"', self.render(self.Form(), domicilio_extra_id="id_localidad")
+        )
+
+    def test_con_el_domicilio_externo_no_repite_el_campo_pero_sigue_cableado(self):
+        html = self.render(self.Form(), domicilio_externo=True)
+
+        self.assertNotIn('name="domicilio"', html)
+        self.assertIn('data-domicilio="id_domicilio"', html)
+        self.assertIn("data-ubicacion-buscar", html)
+        self.assertIn("data-ubicacion-ayuda-mapa", html)
+        self.assertIn('name="latitud"', html)
+
     def test_trae_las_tres_alertas_canonicas_para_el_js(self):
         html = self.render(self.Form())
 
