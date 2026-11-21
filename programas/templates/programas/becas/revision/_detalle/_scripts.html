@@ -30,21 +30,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // SEC-33: el mapa se carga recien cuando alguien lo pide. El `src` viaja en
-  // `data-src` para que abrir el caso no le mande las coordenadas del domicilio
-  // —ni la IP, ni el Referer— a OpenStreetMap.
-  const btnVerMapa = document.getElementById('ver-mapa');
-  const mapaDelCaso = document.getElementById('mapa-del-caso');
-  if (btnVerMapa && mapaDelCaso) {
-    btnVerMapa.addEventListener('click', function () {
-      if (!mapaDelCaso.getAttribute('src')) {
-        mapaDelCaso.setAttribute('src', mapaDelCaso.dataset.src);
-      }
-      mapaDelCaso.classList.remove('hidden');
-      btnVerMapa.classList.add('hidden');
-    });
-  }
-
   // Historial de envios a SIIS: mismo plegado que el de validaciones.
   const btnHistorialEnvios = document.getElementById('btn-historial-envios-siis');
   const historialEnvios = document.getElementById('historial-envios-siis');

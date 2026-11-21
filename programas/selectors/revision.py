@@ -27,8 +27,8 @@ por timeout contra la base de ECOM.
 """
 
 from pathlib import Path
-from urllib.parse import urlencode
 
+from core.coordenadas import url_en_google_maps
 from core.rbac import puede
 from programas.forms import CiudadanoGeneroRevisionForm, DatosSiisForm, ForzarIdentidadForm
 from programas.models import Formulario, PreguntaGlobal, RequisitoNativo, TipoCampo
@@ -67,9 +67,6 @@ SIIS_ETIQUETAS_VALOR = {
     "BENEFICIO_ACTIVO_EXISTENTE": "Tiene un beneficio activo incompatible",
     "SUSPENDIDO_TEMPORAL": "Tiene una suspensión temporal vigente",
 }
-
-#: Margen en grados alrededor del punto GPS para el recuadro del mapa embebido.
-MARGEN_MAPA = 0.005
 
 
 def detalle_validacion_siis(validacion):
@@ -191,29 +188,29 @@ def sin_vinculados(bloques):
 
 
 def mapa_de_la_toma(formulario):
-    """El recuadro de OpenStreetMap del punto donde se tomó la carga.
+    """El punto donde se tomó la carga, para la pieza Mapa con capas (Cambio 493, fase 4).
 
-    ``None`` cuando el caso no trae GPS —el link público no lo pide— y entonces
-    la sección de trazabilidad no dibuja el mapa.
+    ``None`` cuando el caso no trae GPS —el link público no lo pide— y entonces la sección de trazabilidad no
+    dibuja el mapa. El mapa va **a pedido** (SEC-33): abrir el caso no le manda nada a Google.
     """
     if formulario.gps_lat is None or formulario.gps_lng is None:
         return None
-    lat = float(formulario.gps_lat)
-    lng = float(formulario.gps_lng)
-    margen = MARGEN_MAPA
     return {
         "latitud": formulario.gps_lat,
         "longitud": formulario.gps_lng,
-        "embed_url": "https://www.openstreetmap.org/export/embed.html?"
-        + urlencode(
+        "puntos": [
             {
-                "bbox": (f"{lng - margen:.6f},{lat - margen:.6f},{lng + margen:.6f},{lat + margen:.6f}"),
-                "layer": "mapnik",
-                "marker": f"{lat:.6f},{lng:.6f}",
+                "id": "toma",
+                "capa": "toma",
+                "lat": float(formulario.gps_lat),
+                "lng": float(formulario.gps_lng),
+                "etiqueta": "Lugar de la toma",
+                "icono": "fa-location-dot",
+                "tono": "brand",
+                "titulo": "Lugar de la toma",
             }
-        ),
-        "open_url": "https://www.openstreetmap.org/?"
-        + urlencode({"mlat": f"{lat:.6f}", "mlon": f"{lng:.6f}", "zoom": 16}),
+        ],
+        "open_url": url_en_google_maps(formulario.gps_lat, formulario.gps_lng),
     }
 
 

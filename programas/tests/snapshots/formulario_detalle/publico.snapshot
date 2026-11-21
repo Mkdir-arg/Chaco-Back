@@ -1811,6 +1811,7 @@ function getCookie(name) {
         
         
         
+
 <script src="/static/custom/js/becas-modal.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -1840,21 +1841,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
       btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
       historialSiis.classList.toggle('hidden', abierto);
-    });
-  }
-
-  // SEC-N: el mapa se carga recien cuando alguien lo pide. El `src` viaja en
-  // `data-src` para que abrir el caso no le mande las coordenadas del domicilio
-  // —ni la IP, ni el Referer— a OpenStreetMap.
-  const btnVerMapa = document.getElementById('ver-mapa');
-  const mapaDelCaso = document.getElementById('mapa-del-caso');
-  if (btnVerMapa && mapaDelCaso) {
-    btnVerMapa.addEventListener('click', function () {
-      if (!mapaDelCaso.getAttribute('src')) {
-        mapaDelCaso.setAttribute('src', mapaDelCaso.dataset.src);
-      }
-      mapaDelCaso.classList.remove('hidden');
-      btnVerMapa.classList.add('hidden');
     });
   }
 

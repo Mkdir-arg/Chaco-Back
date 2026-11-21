@@ -1,6 +1,7 @@
 """Tests de la revisión de formularios de Becas (#77)."""
 
 import csv
+import json
 from datetime import date
 from decimal import Decimal
 from io import StringIO
@@ -15,7 +16,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
 from django.template import TemplateDoesNotExist
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
@@ -179,7 +180,8 @@ class EdicionTrazaTests(_BaseRevisionTest):
         self.assertContains(resp, "Mapa del lugar donde se realizó la toma")
         self.assertContains(resp, "-34.577067")
         self.assertContains(resp, "-58.486240")
-        self.assertContains(resp, "openstreetmap.org")
+        self.assertContains(resp, "https://www.google.com/maps/search/?api=1&amp;query=-34.577067,-58.486240")
+        self.assertNotContains(resp, "openstreetmap")
 
     def test_detalle_sin_gps_informa_que_no_hay_coordenadas(self):
         resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
@@ -2015,7 +2017,7 @@ class ContextoDetalleTests(_BaseRevisionTest):
         self.assertEqual(len(resp.context["historial_envios_sis"]), 1)
         self.assertEqual(resp.context["detalles_envio_siis"][0][0], "barrio_actual")
         self.assertEqual(len(resp.context["trazas"]), 1)
-        self.assertIn("embed_url", resp.context["mapa"])
+        self.assertIn("puntos", resp.context["mapa"])
         self.assertTrue(resp.context["puede_enviar_siis"])
         self.assertTrue(resp.context["mostrar_apoderado"])
         self.assertEqual(resp.context["titulo_caso"], "Caso " + str(self.form_a.numero))
@@ -2191,19 +2193,45 @@ class MapaDelCasoTests(_BaseRevisionTest):
     def _detalle(self):
         return self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
 
-    def test_abrir_el_caso_no_pide_nada_a_openstreetmap(self):
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_abrir_el_caso_no_pide_nada_a_google(self):
         html = self._detalle().content.decode()
 
-        # El espacio de adelante es lo que distingue el `src` de verdad —el que
-        # dispara el pedido— del `data-src`, que es un dato inerte.
-        self.assertNotIn(' src="https://www.openstreetmap.org/export/embed.html', html)
-        self.assertIn('data-src="https://www.openstreetmap.org/export/embed.html', html)
+        # La pieza va a pedido: el script de Google lo pide nodo-mapa.js recién con «Ver mapa».
+        self.assertIn('data-mapa-capas="toma"', html)
+        self.assertIn("data-a-pedido", html)
+        self.assertIn("data-mapa-ver", html)
+        self.assertNotIn("maps.googleapis.com", html)
+        self.assertNotIn("<iframe", html)
 
-    def test_el_iframe_no_manda_referer(self):
-        self.assertContains(self._detalle(), 'referrerpolicy="no-referrer"')
+    @override_settings(GOOGLE_MAPS_API_KEY="AIza-prueba")
+    def test_el_punto_es_solo_el_lugar_de_la_toma(self):
+        html = self._detalle().content.decode()
+        inicio = html.index('id="mapa-capas-toma-puntos"')
+        puntos = json.loads(html[html.index(">", inicio) + 1 : html.index("</script>", inicio)])
 
-    def test_la_pantalla_ofrece_verlo(self):
-        self.assertContains(self._detalle(), 'id="ver-mapa"')
+        self.assertEqual(
+            puntos,
+            [
+                {
+                    "id": "toma",
+                    "capa": "toma",
+                    "lat": -27.451,
+                    "lng": -58.9868,
+                    "etiqueta": "Lugar de la toma",
+                    "icono": "fa-location-dot",
+                    "tono": "brand",
+                    "titulo": "Lugar de la toma",
+                }
+            ],
+        )
+
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_sin_key_queda_el_enlace_externo(self):
+        html = self._detalle().content.decode()
+
+        self.assertIn("El mapa no está disponible en este ambiente", html)
+        self.assertIn("https://www.google.com/maps/search/?api=1&amp;query=-27.451000,-58.986800", html)
 
     def test_un_caso_sin_gps_sigue_diciendo_que_no_hay(self):
         self.form_a.gps_lat = None

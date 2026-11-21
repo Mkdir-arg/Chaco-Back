@@ -7,6 +7,8 @@
 
    Avisos: siempre el sistema único (window.toast de nodo-toast, tipo primero).
    Confirmación de solapamiento (409): ModernModal, nunca la ventana nativa.
+   Para vaciar los errores de un form desde la pantalla (p. ej. al reabrir un modal):
+   window.becasAjax.limpiarErrores(form), que también saca aria-invalid y aria-describedby.
    Contrato JSON: {ok,target,html,message} · {ok,redirect,message} ·
    400 {ok:false,errors} · 409 {confirm_required,message}.{% endcomment %}
 <script>
@@ -301,6 +303,8 @@
   }
   document.addEventListener('input', limpiarAlCorregir);
   document.addEventListener('change', limpiarAlCorregir);
+
+  window.becasAjax = { limpiarErrores: limpiarErrores };
 
   // Volver con «atrás» (bfcache) después de navegar: los botones como estaban.
   window.addEventListener('pageshow', function (e) {

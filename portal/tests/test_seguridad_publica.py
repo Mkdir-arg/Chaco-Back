@@ -480,9 +480,9 @@ class SinRecursosDeTercerosTests(TestCase):
         # Cambio 68: el <noscript> de Google Tag Manager; solo se renderiza con
         # GTM_CONTAINER_ID configurado y la CSP lo abre en ese mismo caso.
         "https://www.googletagmanager.com/ns.html",
-        # Ubicación sin mapa (C-14): es un <a target="_blank"> que navega fuera del
-        # sistema; no carga nada en la página ni pide abrir la CSP.
-        "https://www.openstreetmap.org/?mlat=",
+        # Ubicación sin mapa (C-14) y lugar de la toma de Becas: un <a target="_blank"> a Google Maps que navega
+        # fuera del sistema (Cambio 493, fase 4); no carga nada en la página ni pide abrir la CSP.
+        "https://www.google.com/maps/search/",
     )
 
     # Archivos que están dentro de una dependencia y que **no se sirven**. El
