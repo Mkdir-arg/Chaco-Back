@@ -32,7 +32,7 @@ Render: `dl` de dos columnas (mismo patrón que las solapas de datos) + `btn-sec
 
 - Los enlaces externos llevan `target="_blank"` y `rel="noopener noreferrer"`, con aviso
   `sr-only` de que abren una pestaña nueva.
-- Las coordenadas del enlace van con `unlocalize` (punto decimal), nunca con la coma local.
+- El enlace lo arma `core.coordenadas.url_en_google_maps`: punto decimal y 6 decimales, nunca la coma local.
 - Va dentro de una card; no es una card propia.
 - El badge «Geolocalizado» lo decide la pantalla con las mismas coordenadas; esta pieza no lo dibuja.
 
@@ -52,8 +52,8 @@ Render: `dl` de dos columnas (mismo patrón que las solapas de datos) + `btn-sec
   `None`, no `0`.
 - **`plano_url` tiene que venir de un archivo adjunto** (`FileField.url`), no de una URL libre. El
   autoescape protege del marcado, pero no de un esquema `javascript:`.
-- **Los valores van como `Decimal`, `float` o `None`.** Un texto no numérico no rompe ni permite
-  inyección —sale escapado—, pero produce un enlace con basura.
+- **Los valores van como `Decimal`, `float` o `None`.** El enlace pasa las coordenadas por `float()`: un texto no
+  numérico rompe el render. Los consumidores de hoy pasan campos `DecimalField`.
 - **El proveedor del mapa está en un solo lugar:** `core.coordenadas.url_en_google_maps`, que usan esta pieza
   y el lugar de la toma de Becas. Si se cambia, hay que actualizar también la lista de permitidos de
   `SinRecursosDeTercerosTests` (`portal/tests/test_seguridad_publica.py`), que hoy admite

@@ -89,6 +89,8 @@ from django.conf import settings
 from django.http import QueryDict
 from django.template.base import NodeList, token_kwargs
 
+from core.coordenadas import url_en_google_maps
+
 register = template.Library()
 
 
@@ -540,8 +542,6 @@ def do_hero_inicio(parser, token):
 @register.simple_tag
 def url_google_maps(latitud, longitud):
     """``{% url_google_maps lat lng as url %}``: el enlace externo a Google Maps (``core.coordenadas``)."""
-    from core.coordenadas import url_en_google_maps
-
     return url_en_google_maps(latitud, longitud) or ""
 
 
