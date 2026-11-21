@@ -125,6 +125,11 @@ class CargaManualTests(BaseBitacoraAlcance):
         entrada = self._cargar(_local(MIERCOLES, 15), usuario=self.de_ab, edificio=str(self.edif_b.pk))
         self.assertEqual(entrada.edificio_id, self.edif_b.pk)
 
+    def test_el_servicio_rechaza_un_edificio_que_no_es_un_numero(self):
+        with self.assertRaises(ValidationError) as ctx:
+            self._cargar(_local(MIERCOLES, 15), usuario=self.de_inst, edificio="abc")
+        self.assertIn("edificio", ctx.exception.message_dict)
+
     def test_corregir_una_novedad_ajena_no_se_puede_y_la_version_hereda_el_edificio(self):
         with _reloj(), self.assertRaises(PermissionDenied):
             corregir_entrada(entrada=self.entrada_b, usuario=self.de_a, texto="cambio")
