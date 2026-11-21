@@ -1,7 +1,7 @@
 {% extends "includes/base.html" %}
 {% load static nodo_ui dispositivos %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }}{% endblock %}
-{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% if form_edificio and not edificio_reservado %}<link rel="stylesheet" href="{% static 'custom/css/nodo-ubicacion.css' %}">{% endif %}{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
 
 {% block main-content %}
 {% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
@@ -550,7 +550,7 @@
             <div>
               <label for="{{ form_edificio.calle.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Calle</label>
               {{ form_edificio.calle }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="calle"></p>
+              <p id="{{ form_edificio.calle.auto_id }}-error" class="mt-1 text-xs text-fg-danger hidden" data-error="calle"></p>
             </div>
             <div>
               <label for="{{ form_edificio.numero.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Número</label>
@@ -577,6 +577,16 @@
               {{ form_edificio.codigo_postal }}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="codigo_postal"></p>
             </div>
+            {# Cambio 526: «Ubicar en el mapa» a pedido (el modal está cerrado al cargar: un mapa creado ahí nace sin tamaño). Busca con calle, número, localidad y provincia de arriba. Un edificio de ubicación reservada (Cambio 499) no manda su domicilio a Google: solo coordenadas a mano. #}
+            {% if edificio_reservado %}
+            <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4" data-edificio-reservado>
+              {% include "components/_field.html" with field=form_edificio.latitud wrapper_class="" %}
+              {% include "components/_field.html" with field=form_edificio.longitud wrapper_class="" %}
+              <div class="sm:col-span-2">{% include "components/_alerta.html" with tono="info" texto="Este edificio es de ubicación reservada: su domicilio no se busca en Google. Cargá latitud y longitud a mano." %}</div>
+            </div>
+            {% else %}
+            {% include "components/_ubicacion_domicilio.html" with domicilio=form_edificio.calle latitud=form_edificio.latitud longitud=form_edificio.longitud localidad_id=form_edificio.localidad.id_for_label provincia_id=form_edificio.provincia.id_for_label domicilio_extra_id=form_edificio.numero.id_for_label domicilio_externo=True a_pedido=True %}
+            {% endif %}
           </div>
           {% include "components/_alerta.html" with tono="info" texto="Los datos son del inmueble, no del legajo: si el predio lo comparten varias instituciones, el cambio lo ven todas." %}
         </div>
@@ -693,6 +703,8 @@
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>
+{% if form_edificio and not edificio_reservado %}{% include "components/_google_maps.html" %}
+<script src="{% static 'custom/js/nodo-ubicacion.js' %}"></script>{% endif %}
 {% if formulario_egreso %}
 <script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 <script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
