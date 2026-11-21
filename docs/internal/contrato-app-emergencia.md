@@ -189,7 +189,7 @@ presente que no sea F ni M sigue siendo 400.
 
 | Código | Cuerpo | Cuándo |
 |---|---|---|
-| 400 | `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` | Falta el DNI, o el sexo viene y no es F ni M |
+| 400 | `{"success": false, "error": "DNI y sexo (F o M) son requeridos."}` | Falta el DNI, o el sexo viene y no es F ni M. El texto nombra el sexo aunque acá sea opcional: queda igual a propósito, porque la app publicada lee `error` |
 | 404 | `{"success": false, "no_en_legajo": true, "error": "…"}` | Solo sin sexo: no figura en los legajos |
 | 404 | `{"success": false, "error": "…"}` | No figura en Base de Personas ni en legajos: pedir nombre y apellido (alta mínima) |
 | 404 | `{"success": false, "fallecido": true, "error": "…"}` | Base de Personas la informa fallecida |

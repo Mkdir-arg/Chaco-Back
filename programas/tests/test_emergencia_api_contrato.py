@@ -397,7 +397,9 @@ class RaizYPerfilTests(BaseApiEmergencia):
 # ---------------------------------------------------------------------------
 
 
-class ConsultaDePersonaTests(BaseApiEmergencia):
+class _ConsultaDePersonaBase(BaseApiEmergencia):
+    """Fixture y helpers de la consulta de persona, sin tests: los comparten las dos clases de abajo."""
+
     PERSONA = {"success": True, "data": {"nombre": "Rosa", "apellido": "Benitez", "fecha_nacimiento": "1984-03-02"}}
 
     def setUp(self):
@@ -409,6 +411,26 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
     def _consultar(self, usuario, url=URL_CONSULTAR, **cuerpo):
         return self._como(usuario).post(url, {"dni": "30.111.222", "sexo": "f", **cuerpo}, format="json")
 
+    def _legajo(self, **campos):
+        from core.models import Localidad
+        from legajos.models import Ciudadano
+
+        localidad = Localidad.objects.create(nombre="Resistencia")
+        base = dict(
+            dni="30111222",
+            nombre="Rosa",
+            apellido="Benitez",
+            fecha_nacimiento="1984-03-02",
+            genero="F",
+            localidad=localidad,
+        )
+        return Ciudadano.objects.create(**{**base, **campos})
+
+    def _gran_base_no_la_encuentra(self):
+        self.gran_base.return_value = {"success": False, "error": "No se encontró", "not_found": True}
+
+
+class ConsultaDePersonaTests(_ConsultaDePersonaBase):
     def test_el_agente_y_la_guardia_consultan_con_el_contrato_de_becas(self):
         for usuario in (self.agente, self.guardia):
             with self.subTest(usuario=usuario.username):
@@ -473,24 +495,6 @@ class ConsultaDePersonaTests(BaseApiEmergencia):
         self.assertEqual(sorted(no_figura.json()), ["error", "success"])
         self.assertEqual(caida.status_code, 502)
         self.assertEqual(caida.json(), {"success": False, "error": "Timeout"})
-
-    def _legajo(self, **campos):
-        from core.models import Localidad
-        from legajos.models import Ciudadano
-
-        localidad = Localidad.objects.create(nombre="Resistencia")
-        base = dict(
-            dni="30111222",
-            nombre="Rosa",
-            apellido="Benitez",
-            fecha_nacimiento="1984-03-02",
-            genero="F",
-            localidad=localidad,
-        )
-        return Ciudadano.objects.create(**{**base, **campos})
-
-    def _gran_base_no_la_encuentra(self):
-        self.gran_base.return_value = {"success": False, "error": "No se encontró", "not_found": True}
 
     def test_el_legajo_responde_si_base_de_personas_no_la_encuentra(self):
         legajo = self._legajo()
@@ -902,7 +906,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
         self.assertEqual(componentes["CasoEmergenciaPrioridadEnum"]["enum"], list(Prioridad.values))
 
 
-class ConsultaDePersonaSinSexoTests(ConsultaDePersonaTests):
+class ConsultaDePersonaSinSexoTests(_ConsultaDePersonaBase):
     """La puerta del dispositivo sabe el DNI y no el sexo: sin sexo se busca solo en legajos."""
 
     def _sin_sexo(self, usuario, **cuerpo):
