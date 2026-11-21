@@ -104,10 +104,12 @@ class NovedadForm(_PersonasYAdjuntosForm):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 4}),
         error_messages={"required": "Contá qué pasó."},
     )
-    edificio = forms.ChoiceField(
+    edificio = forms.TypedChoiceField(
         label="Edificio",
         required=False,
         choices=(),
+        coerce=int,
+        empty_value=None,
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
     etiqueta_personas = "Personas involucradas"

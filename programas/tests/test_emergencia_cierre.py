@@ -78,6 +78,7 @@ class CerrarElIngresoTests(BaseAlojar):
                 "tarjeta_entregada": True,
                 "tarjeta_numero": "0042",
                 "encargado": "guardia_club",
+                "encargado_id": self.guardia.pk,
             },
         )
         self.assertFalse(alojado.ingreso_parcial)

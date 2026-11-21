@@ -592,7 +592,7 @@ class CompletarFichaTests(BaseAlojar):
         with self.assertRaises(ValidationError):
             servicio.completar_ficha(caso=caso, orden=2, usuario=self.guardia, ficha={"trabajo": {"sin_datos": True}})
 
-    def test_a_un_menor_no_se_le_puede_borrar_el_adulto_responsable(self):
+    def test_a_un_menor_no_se_le_borra_el_adulto_responsable_al_guardar_observaciones(self):
         caso, _derivacion = self._aceptado()
         self._confirmar(
             caso,
@@ -601,11 +601,10 @@ class CompletarFichaTests(BaseAlojar):
             datos_personales={"fecha_nacimiento": "2015-05-05"},
             observaciones={"adulto_responsable": "Rosa Benítez"},
         )
-        with self.assertRaises(ValidationError) as error:
-            servicio.completar_ficha(
-                caso=caso, orden=3, usuario=self.guardia, ficha={"observaciones": {"mascotas": True}}
-            )
-        self.assertEqual(set(error.exception.error_dict), {"adulto_responsable"})
+        guardada = servicio.completar_ficha(
+            caso=caso, orden=3, usuario=self.guardia, ficha={"observaciones": {"mascotas": True}}
+        )
+        self.assertEqual(guardada.ficha["observaciones"]["adulto_responsable"], "Rosa Benítez")
 
     def test_sin_alcance_no_se_completa(self):
         caso, _derivacion = self._aceptado()
