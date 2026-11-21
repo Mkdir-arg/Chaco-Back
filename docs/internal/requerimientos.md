@@ -646,6 +646,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` `#infra` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 | 521 | Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso | Emergencia · llegada de familias (API M2-3/M2-4) | `#emergencia` `#api` `#mobile` | Usuario — sesión de trabajo, caso 2026-C-000018 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 1 de 4: columnas y desplegable) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 1 de 4** | `programas.0132` |
 | 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -60716,6 +60717,86 @@ Desplegar el código anterior. Sin datos ni esquema.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+
+# Cambio 523 — Equipo de Dispositivos: alcance por institución o edificios y tipo de contratación
+
+🟡 **PARCIAL — PR 1 de 4 — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Equipo |
+| **Etiquetas** | `#dispositivos` `#rbac` `#datos` |
+| **Solicitante** | PM — sesión de trabajo |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `programas.0132` |
+
+## Pedido original
+Que cada persona del Equipo de un dispositivo pueda tener alcance sobre toda la institución o solo sobre algunos de
+sus edificios, y que el Equipo registre el tipo de contratación de cada puesto (becado, locación, servicio, planta
+permanente).
+
+## Alcance acordado
+Plan en 4 PRs:
+
+1. **(este) Migración + contratación.** Las columnas `alcance`, `edificios` y `tipo_contratacion`, el desplegable de
+   contratación en las altas y la columna en la tabla. **No cambia ninguna regla de alcance.**
+2. Regla por edificio en los servicios (`puede_operar_dispositivo` y afines leen `alcance`/`edificios`).
+3. Bitácora por edificio.
+4. Selector de alcance en el modal del Equipo y la app.
+
+## Decisiones tomadas
+Decisiones del PM del 21/11/2026:
+
+1. El alcance puede ser **varios edificios** de la institución.
+2. La **bitácora** se filtra por edificio.
+3. La contratación es **del puesto** (la fila del Equipo), no del perfil de la persona.
+4. El alcance por edificio **no edita el legajo** de la institución.
+5. La contratación es **obligatoria solo en altas nuevas** (Sumar persona y Crear persona); editar un miembro
+   existente no la exige y los anteriores se ven como «Sin dato».
+6. Los **turnos siguen por institución**: es un default del juez, revisable.
+7. **Fail-closed:** un alcance `EDIFICIOS` sin edificios vigentes no ve nada.
+
+Decisiones técnicas de este PR: `alcance` NULL equivale a `INSTITUCION` (todas las filas existentes, sin backfill);
+`tipo_contratacion` NULL se muestra como «Sin dato»; el servicio acepta `tipo_contratacion=None` para no romper
+llamadores y los formularios son los que lo exigen; reactivar una fila de baja guarda la contratación elegida ahora.
+
+## Implementación
+`MiembroEquipoDispositivo` suma `alcance` (Toda la institución / Edificios), `edificios` (M2M a `Edificio`) y
+`tipo_contratacion`. «Sumar persona» y «Crear persona» piden «Tipo de contratación» (obligatorio) y la tabla del
+Equipo muestra la columna «Contratación». Ninguna regla de autorización lee `alcance` ni `edificios` todavía.
+`sumar_responsables_al_crear` (alta de institución con responsables) no se amplió y sus filas quedan sin dato.
+
+## Archivos
+`programas/models/__init__.py`, `programas/migrations/0132_miembro_equipo_alcance_contratacion.py`,
+`programas/forms_dispositivos.py`, `programas/services/equipo_dispositivo.py`,
+`programas/views/dispositivos_equipo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`,
+`programas/tests/test_dispositivos_equipo_contratacion.py` (nuevo) y los tests 411 y 420 (el campo en los POST).
+
+## Base de datos
+`programas.0132`: expand puro. Dos columnas `varchar` nulas (`alcance`, `tipo_contratacion`) y la tabla M2M
+`edificios`. Sin `RunPython`; segura sobre datos existentes.
+
+## Validación
+Tests nuevos (19) y los 177 de Equipo/legajo/agente: OK. Mutación: con `required=False` en el campo, 4 tests quedan
+rojos (formularios y vistas de sumar y crear). `manage.py check`, `makemigrations --check` (con
+`DJANGO_SYNCDB_PROJECT_APPS=False`), `check_migraciones.py`, `ruff`, `design_audit --ratchet` (0 nuevos) y
+`compile_templates --bloques` (0): OK.
+
+## Puesta en marcha en el servidor
+No requiere más que el deploy (corre la migración).
+
+## Pendientes / a definir
+PR 2, 3 y 4 del plan. Decisión revisable: turnos por institución.
+
+## Reversión
+Desplegar el código anterior; las columnas y la tabla M2M quedan sin uso. Revertir la migración borra la
+contratación cargada.
+
+## Historial
+
+- **21/11/2026:** alta del cambio (PR 1 de 4).
 
 ---
 
