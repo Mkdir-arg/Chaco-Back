@@ -58141,6 +58141,11 @@ Fase 3: revertir sus commits y `migrate mapa zero` (borra los puntos cargados); 
   `_ubicacion` (`url_en_google_maps` en vez de `unlocalize`, texto no numérico), el docstring de
   `MapaDelCasoTests`, el caso de Emergencia entre las pantallas con enlace, el import del tag y tres
   simplificaciones.
+- **21/11/2026:** QA en testing (sin key de Google): `/mapa/` mostraba «Agregar punto» a quien tiene
+  `mapa.editar`, y al tocarlo quedaba «Tocá el mapa donde va el punto» sin mapa que tocar. Sin
+  `GOOGLE_MAPS_API_KEY` la vista apaga `editable` (no salen el botón, la barra, el modal ni `mapa-general.js`);
+  la lista de puntos se sigue viendo. Test `test_sin_key_no_ofrece_agregar_punto` y regla en la ficha
+  `arquetipos/mapa.md`.
 
 ---
 

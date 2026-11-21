@@ -94,6 +94,18 @@ class PantallaTests(TestCase):
         self.assertIn('"movible": true', html)
         self.assertIn('"accion": "eliminar"', html)
 
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_sin_key_no_ofrece_agregar_punto(self):
+        # Sin Google no hay mapa que tocar: «Agregar punto» dejaba a la persona en «Tocá el mapa…» sin salida.
+        punto()
+        self.client.force_login(usuario_con("mapa.ver", "mapa.editar"))
+        html = self.client.get(reverse("mapa:inicio")).content.decode()
+        self.assertIn("El mapa no está disponible en este ambiente", html)
+        self.assertIn("Camioneta 3", html)
+        self.assertNotIn("data-mapa-agregar", html)
+        self.assertNotIn("data-mapa-barra", html)
+        self.assertNotIn("mapa-general.js", html)
+
 
 class CapasTests(TestCase):
     """Cada capa con la regla de su módulo; los selectores de alcance se prueban en sus propios módulos."""

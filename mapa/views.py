@@ -8,6 +8,7 @@ Responde siempre JSON, también el 403 (la llama el `fetch` de la pantalla), y u
 import json
 from functools import wraps
 
+from django.conf import settings
 from django.http import JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -58,6 +59,9 @@ def _errores(form):
 @requiere(services.CAP_VER)
 def mapa(request):
     datos = services.capas_del_mapa(request.user)
+    # Sin key de Google la pieza muestra su estado vacío: no hay mapa que tocar para ubicar un punto nuevo.
+    if not getattr(settings, "GOOGLE_MAPS_API_KEY", ""):
+        datos = {**datos, "editable": False}
     return render(
         request,
         "mapa/mapa.html",
