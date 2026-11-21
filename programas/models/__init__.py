@@ -745,7 +745,22 @@ class MiembroEquipoDispositivo(TimeStamped):
     Es el alcance fino por **persona**: varias filas por dispositivo, y una misma persona puede
     estar con roles distintos en dispositivos distintos. La baja es ``activo=False`` (volver a
     sumarla reactiva la fila). ``es_responsable`` marca a quienes arman el Equipo.
+
+    ``alcance`` y ``edificios`` (alcance por edificio, PR 1: solo los datos, ninguna regla los lee todavía):
+    ``alcance`` NULL equivale a ``INSTITUCION`` (todas las filas existentes) y ``edificios`` solo
+    tiene sentido con ``EDIFICIOS``. ``tipo_contratacion`` es del puesto (la fila), no del perfil de la
+    persona; NULL se muestra como «Sin dato».
     """
+
+    class Alcance(models.TextChoices):
+        INSTITUCION = "INSTITUCION", "Toda la institución"
+        EDIFICIOS = "EDIFICIOS", "Edificios"
+
+    class TipoContratacion(models.TextChoices):
+        BECADO = "BECADO", "Becado"
+        LOCACION = "LOCACION", "Contrato de locación"
+        SERVICIO = "SERVICIO", "Contrato de servicio"
+        PLANTA_PERMANENTE = "PLANTA_PERMANENTE", "Planta permanente"
 
     dispositivo = models.ForeignKey(
         Dispositivo,
@@ -767,6 +782,11 @@ class MiembroEquipoDispositivo(TimeStamped):
     )
     es_responsable = models.BooleanField(default=False, verbose_name="Es responsable")
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+    alcance = models.CharField(max_length=12, choices=Alcance.choices, null=True, blank=True, verbose_name="Alcance")
+    edificios = models.ManyToManyField("Edificio", blank=True, related_name="miembros_equipo", verbose_name="Edificios")
+    tipo_contratacion = models.CharField(
+        max_length=20, choices=TipoContratacion.choices, null=True, blank=True, verbose_name="Tipo de contratación"
+    )
 
     class Meta:
         verbose_name = "Miembro del equipo de un dispositivo"

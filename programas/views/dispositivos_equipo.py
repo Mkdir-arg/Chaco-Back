@@ -95,6 +95,7 @@ class EquipoSumarView(_EquipoAccionView):
             usuario=usuario,
             rol=rol,
             es_responsable=form.cleaned_data["es_responsable"],
+            tipo_contratacion=form.cleaned_data["tipo_contratacion"],
         )
 
 
@@ -142,6 +143,7 @@ class EquipoCrearPersonaView(_EquipoAccionView):
                 alta=alta,
                 rol=datos["rol"],
                 es_responsable=datos["es_responsable"],
+                tipo_contratacion=datos["tipo_contratacion"],
             )
         except IntegrityError as error:
             # La carrera: dos altas con el mismo valor pasan la validación y la segunda choca con el índice único.
