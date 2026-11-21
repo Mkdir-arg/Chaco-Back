@@ -38,7 +38,7 @@ from django.db import transaction
 
 from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import codigos_del_sector, plazas_tomadas_del_sector
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_edificio
 from programas.services.estadias import _plaza_tomada_por, reserva_abierta_de
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ESTADO_OCUPADA
@@ -123,7 +123,10 @@ def puede_configurar_plazas(usuario, dispositivo, *, puede_editar=None):
     return puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
 
 
-def _exigir_alcance(dispositivo, usuario):
+_SIN_EDIFICIO_PEDIDO = object()
+
+
+def _exigir_alcance(dispositivo, usuario, edificio_id=_SIN_EDIFICIO_PEDIDO):
     """La capacidad con alcance al dispositivo, y que el dispositivo no esté cerrado.
 
     Editar lo que ya existe solo lo frena el cierre; que un dispositivo rechazado no admita capacidad
@@ -134,6 +137,11 @@ def _exigir_alcance(dispositivo, usuario):
 
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para configurar las plazas de este dispositivo.")
+    # Con alcance Edificios, solo lo que cuelga de sus edificios; un sector sin edificio no entra (RN4).
+    if edificio_id is not _SIN_EDIFICIO_PEDIDO and not puede_operar_edificio(
+        usuario, dispositivo, edificio_id, CAP_EDITAR
+    ):
+        raise PermissionDenied("No tenés alcance para configurar las plazas de este edificio.")
     if dispositivo.estado == Dispositivo.Estado.CERRADO:
         raise ValidationError({"__all__": DISPOSITIVO_CERRADO})
 
@@ -256,7 +264,7 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil=""
     El edificio es obligatorio y tiene que ser uno de los vinculados al dispositivo (Cambio 429).
     """
 
-    _exigir_alcance(dispositivo, usuario)
+    _exigir_alcance(dispositivo, usuario, getattr(edificio, "pk", None))
     _exigir_capacidad_declarada(capacidad)
     _exigir_que_se_pueda_ampliar(dispositivo)
     nombre = _normalizar(nombre)
@@ -303,7 +311,10 @@ def editar_sector(
     toman ese mismo bloqueo, así que no pueden ocuparlas entre la consulta y el guardado.
     """
 
-    _exigir_alcance(sector.dispositivo, usuario)
+    _exigir_alcance(sector.dispositivo, usuario, sector.edificio_id)
+    if edificio is not None and edificio.pk != sector.edificio_id:
+        # Pasar un sector a otro edificio exige alcance sobre el de destino también.
+        _exigir_alcance(sector.dispositivo, usuario, edificio.pk)
     nombre = _normalizar(nombre)
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
@@ -369,7 +380,7 @@ def reactivar_sector(*, sector, usuario):
     pudo haberlo tomado otro). Va bajo el bloqueo del dispositivo, el mismo del alta.
     """
 
-    _exigir_alcance(sector.dispositivo, usuario)
+    _exigir_alcance(sector.dispositivo, usuario, sector.edificio_id)
     dispositivo = _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     if sector.activo:
@@ -432,7 +443,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     mismo sector no toman el mismo número.
     """
 
-    _exigir_alcance(sector.dispositivo, usuario)
+    _exigir_alcance(sector.dispositivo, usuario, sector.edificio_id)
     _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
@@ -482,7 +493,7 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
-    _exigir_alcance(dispositivo, usuario)
+    _exigir_alcance(dispositivo, usuario, plaza.sector.edificio_id)
 
     codigo = _normalizar(codigo)
     if not codigo:
@@ -543,7 +554,7 @@ def dar_de_baja_plaza(*, plaza, usuario):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
-    _exigir_alcance(dispositivo, usuario)
+    _exigir_alcance(dispositivo, usuario, plaza.sector.edificio_id)
 
     _bloquear_dispositivo(dispositivo)
     plaza = Plaza.todas.select_for_update().get(pk=plaza.pk)
@@ -571,7 +582,7 @@ def reactivar_plaza(*, plaza, usuario):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
-    _exigir_alcance(dispositivo, usuario)
+    _exigir_alcance(dispositivo, usuario, plaza.sector.edificio_id)
 
     _bloquear_dispositivo(dispositivo)
     plaza = Plaza.todas.select_for_update().get(pk=plaza.pk)

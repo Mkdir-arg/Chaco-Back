@@ -66,11 +66,13 @@ por sector, así que un dispositivo con ocho pabellones costaba veinticuatro con
 nada más que para dibujarse.
 """
 
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
 from programas.selectors.capacidad_dispositivo import nombre_de_edificio
+from programas.services.dispositivos import CAP_VER, q_edificios_en_alcance
 from programas.services.estadias import reserva_abierta_de
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import (
@@ -223,6 +225,20 @@ def enlaces_de_plaza(dispositivo, estado, acciones, plaza_pk):
     return enlaces
 
 
+def _q_plazas_en_alcance(usuario):
+    """Sin ``usuario`` no acota (lo usan los cálculos sin persona); con él, los edificios que alcanza leyendo."""
+
+    if usuario is None:
+        return Q()
+    return q_edificios_en_alcance(usuario, CAP_VER, "sector__dispositivo_id", "sector__edificio_id")
+
+
+def _q_sectores_en_alcance(usuario):
+    if usuario is None:
+        return Q()
+    return q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id")
+
+
 def plaza_para_accion(
     dispositivo,
     plaza_pk,
@@ -231,8 +247,11 @@ def plaza_para_accion(
     puede_configurar_plazas=False,
     puede_ver_personas=False,
     puede_egresar=False,
+    usuario=None,
 ):
     """La plaza que pide `?plaza=<id>`, con su acción resuelta, o ``None``.
+
+    Con ``usuario``, la plaza de un edificio fuera de su alcance es ``None`` como la ajena (RN4).
 
     ``None`` para la plaza inexistente, la de otra institución, la de un sector dado de
     baja —ninguna de las tres se dibuja en el mapa— y la que el usuario no puede
@@ -245,6 +264,7 @@ def plaza_para_accion(
 
     plaza = (
         Plaza.objects.filter(pk=plaza_pk, sector__dispositivo=dispositivo, sector__activo=True)
+        .filter(_q_plazas_en_alcance(usuario))
         .select_related("sector")
         .first()
     )
@@ -385,12 +405,15 @@ def sectores_con_plazas(
     puede_configurar_plazas=False,
     puede_ver_personas=False,
     puede_egresar=False,
+    usuario=None,
 ):
     """Todo lo que la pantalla dibuja: sectores activos con su mapa acotado y los totales.
 
     Las cifras del encabezado y de cada sector salen de `ocupacion.ocupacion_de_plazas` y
     los estados de las celdas de `ocupacion.estado_de_plazas`: las dos son el mismo
     servicio, así que el encabezado y el mapa no pueden decir cosas distintas.
+
+    Con ``usuario``, solo los sectores de los edificios que alcanza (RN4); sin él, todos.
 
     `puede_liberar` (`dispositivo.admitir`; también habilita reubicar) y `puede_configurar_plazas`
     (`dispositivo.editar`) los resuelve la vista con alcance al dispositivo. Una plaza
@@ -407,10 +430,12 @@ def sectores_con_plazas(
     # Un solo instante para las dos: la vigencia de una reserva es por tiempo, y con dos
     # `now()` distintos el encabezado y una celda podrían discrepar justo en su borde.
     momento = timezone.now()
-    ocupacion = ocupacion_de_plazas(dispositivo, momento).de(dispositivo)
+    ocupacion = ocupacion_de_plazas(dispositivo, momento, q_sectores=_q_sectores_en_alcance(usuario)).de(dispositivo)
     sectores = {
         sector.pk: sector
-        for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True).select_related("edificio")
+        for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True)
+        .filter(_q_sectores_en_alcance(usuario))
+        .select_related("edificio")
     }
     por_sector = _plazas_por_sector(list(sectores))
 

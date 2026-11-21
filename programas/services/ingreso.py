@@ -21,13 +21,14 @@ from typing import NamedTuple
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 
 from core.dni import normalizar_dni
 from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
 from programas.models import Plaza, ReservaPlaza, Sector
-from programas.services.dispositivos import dispositivos_en_alcance
+from programas.services.dispositivos import dispositivos_en_alcance, q_edificios_en_alcance
 from programas.services.estadias import (
     CAP_ADMITIR,
     ingresar_persona,
@@ -126,7 +127,7 @@ def plaza_reservada_de(ciudadano_id, dispositivo):
     return reserva.plaza_id if reserva is not None else None
 
 
-def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_id=None):
+def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_id=None, usuario=None):
     """El mapa del paso 2: sectores activos con cada plaza y su estado, sin bloquear nada.
 
     El estado de cada plaza lo deriva `ocupacion.estado_de_plazas`, el mismo que usa
@@ -137,10 +138,21 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_
     `plaza_propia_id` es la plaza que la persona que ingresa tiene reservada o prestada
     (:func:`plaza_reservada_de`): es elegible **solo para ella**, y no suma a los
     `disponibles` del sector, que cuentan lo que le queda a cualquier otra persona.
+
+    Con ``usuario``, solo los sectores de los edificios que alcanza para admitir (RN4); el servicio de
+    ingreso lo vuelve a exigir al escribir.
     """
 
     tipo = dispositivo.tipo
-    sectores = list(Sector.objects.filter(dispositivo=dispositivo, activo=True).order_by("nombre"))
+    sectores = list(
+        Sector.objects.filter(dispositivo=dispositivo, activo=True)
+        .filter(
+            q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id")
+            if usuario is not None
+            else Q()
+        )
+        .order_by("nombre")
+    )
     plazas = Plaza.objects.filter(sector__in=sectores).only(
         "id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio"
     )

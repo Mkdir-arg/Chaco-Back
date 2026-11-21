@@ -23,7 +23,7 @@ no las repite: si el servicio rechaza, muestra su mensaje en el campo que corres
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -44,10 +44,11 @@ from programas.services.bitacora import (
     crear_turno,
     editar_turno,
     registrar_entrada,
+    ve_la_bitacora,
 )
 from programas.services.bitacora_detalle import detalle_entrada
 from programas.services.bitacora_pantalla import pantalla_bitacora
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_institucion
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
@@ -67,7 +68,7 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object
         usuario = self.request.user
         puede_cargar = puede_operar_dispositivo(usuario, dispositivo, CAP_BITACORA)
-        puede_configurar = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+        puede_configurar = puede_operar_institucion(usuario, dispositivo, CAP_EDITAR)
         nombrar_personas = rbac.puede(usuario, CAP_VER_CIUDADANO)
         url_base = reverse("dispositivos:bitacora", args=[dispositivo.pk])
 
@@ -80,6 +81,7 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             puede_configurar=puede_configurar,
             nombrar_personas=nombrar_personas,
             url_base=url_base,
+            usuario=usuario,
         )
         context.update(datos)
         context["puede_configurar"] = puede_configurar
@@ -148,6 +150,8 @@ class BitacoraEntradaView(DispositivoObjectPermissionMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         dispositivo = self.object
+        if not ve_la_bitacora(self.request.user, dispositivo):
+            raise Http404("La novedad no existe.")
         entrada = get_object_or_404(EntradaBitacora, pk=self.kwargs["entrada_pk"], dispositivo=dispositivo)
         datos = detalle_entrada(entrada, nombrar_personas=rbac.puede(self.request.user, CAP_VER_CIUDADANO))
         context.update(datos)
@@ -210,9 +214,13 @@ class _BitacoraPostView(DispositivoProgramaPermissionMixin, View):
     http_method_names = ["post"]
     form_class = None
     mensaje_exito = ""
+    #: Corregir exige leer la bitácora: se pregunta antes del formulario, para no revelar ids de novedades.
+    exige_ver_la_bitacora = False
 
     def post(self, request, pk):
         dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
+        if self.exige_ver_la_bitacora and not ve_la_bitacora(request.user, dispositivo):
+            return _prohibido(request, "No tenés alcance para corregir la bitácora de este dispositivo.")
         volver = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         form = self.armar_form(request, dispositivo)
         if not form.is_valid():
@@ -260,6 +268,7 @@ class NovedadCorregirView(_BitacoraPostView):
     """Corrige una novedad agregando una versión: la anterior sigue visible."""
 
     capacidad_requerida = CAP_BITACORA
+    exige_ver_la_bitacora = True
     mensaje_exito = "Novedad corregida: la versión anterior sigue visible."
 
     def armar_form(self, request, dispositivo):
