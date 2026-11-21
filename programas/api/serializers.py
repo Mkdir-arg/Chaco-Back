@@ -404,6 +404,22 @@ class ConsultaPersonaSerializer(serializers.Serializer):
         return super().to_internal_value(crudo)
 
 
+class ConsultaPersonaEmergenciaSerializer(ConsultaPersonaSerializer):
+    """Cuerpo de ``POST /api/emergencia/personas/consultar/``: el de Becas con ``sexo`` opcional.
+
+    Sin sexo (ausente o vacío) la consulta mira solo los legajos —la puerta del dispositivo
+    sabe el DNI y no el sexo—; con sexo F/M es la consulta de siempre. Un sexo presente e
+    inválido sigue siendo 400. Becas conserva ``ConsultaPersonaSerializer`` y exige el sexo.
+    """
+
+    sexo = serializers.ChoiceField(
+        choices=ConsultaPersonaSerializer.SEXOS,
+        required=False,
+        allow_blank=True,
+        help_text="F o M. Si falta, se busca solo en los legajos (sin Base de Personas).",
+    )
+
+
 class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
     """La respuesta 200 de la consulta de identidad (Cambio 57)."""
 
