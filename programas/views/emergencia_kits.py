@@ -51,7 +51,7 @@ from programas.models import EntregaKit
 from programas.selectors import kits as selectores
 from programas.services import kits as servicio
 from programas.services.configuracion_emergencia import catalogo_kits
-from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo, q_edificios_en_alcance
+from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa, recibe_kits
 
@@ -580,10 +580,7 @@ class RecibirKitView(RecepcionKitsMixin, View):
 
     def _entrega(self, pk):
         # Del dispositivo de la URL y de un edificio del alcance de quien mira: la de otro es un 404.
-        en_alcance = q_edificios_en_alcance(self.request.user, CAP_RECIBIR_KIT, "dispositivo_id", "edificio_id")
-        return get_object_or_404(
-            EntregaKit.objects.select_related("dispositivo").filter(en_alcance), pk=pk, dispositivo=self.dispositivo
-        )
+        return get_object_or_404(selectores.entregas_de(self.dispositivo, self.request.user), pk=pk)
 
     def _render(self, request, entrega, form, status=200):
         contexto = {

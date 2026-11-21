@@ -162,16 +162,21 @@ class CorreccionForm(_PersonasYAdjuntosForm):
     etiqueta_adjuntos = "Sumar adjuntos"
     ayuda_adjuntos = "Hasta {max} archivos por novedad, contando los que ya tiene: PDF, imágenes o documentos de 5 MB."
 
-    def __init__(self, *args, dispositivo=None, corregibles=(), **kwargs):
+    def __init__(self, *args, dispositivo=None, corregibles=(), q_alcance=None, **kwargs):
         # Los dos modales conviven en la página: sin prefijo de id repetirían `id_texto`, etc.
         kwargs.setdefault("auto_id", "id_corr_%s")
         super().__init__(*args, **kwargs)
         self.dispositivo = dispositivo
+        # Acote por edificio (Cambio 523): una novedad fuera de alcance se rechaza igual que una que no existe.
+        self.q_alcance = q_alcance
         self.fields["tipo"].choices = [("", "Elegí el tipo"), *TIPOS_MANUALES]
         self.fields["entrada"].widget.choices = [("", "Elegí la novedad"), *corregibles]
 
     def clean_entrada(self):
-        entrada = EntradaBitacora.objects.filter(pk=self.cleaned_data["entrada"], dispositivo=self.dispositivo).first()
+        candidatas = EntradaBitacora.objects.filter(pk=self.cleaned_data["entrada"], dispositivo=self.dispositivo)
+        if self.q_alcance is not None:
+            candidatas = candidatas.filter(self.q_alcance)
+        entrada = candidatas.first()
         if entrada is None:
             raise forms.ValidationError("Esa novedad no es de este dispositivo.")
         return entrada

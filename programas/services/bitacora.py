@@ -58,6 +58,7 @@ from programas.models import (
 )
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
+    CAP_VER,
     alcance_de_edificios,
     puede_operar_dispositivo,
     puede_operar_edificio,
@@ -430,6 +431,16 @@ def _edificio_de_la_novedad(usuario, dispositivo, edificio):
     return pedido
 
 
+def ve_a_las_personas(usuario, dispositivo):
+    """Si ``usuario`` nombra y vincula personas en la bitácora: ``dispositivo.ver`` con alcance sobre **toda** la institución.
+
+    Las novedades ya llevan edificio y se leen por él, pero las estadías (personas) no se parten por edificio en la
+    bitácora: con alcance Edificios no se nombran ni se vinculan (Cambio 523).
+    """
+
+    return alcance_de_edificios(usuario, dispositivo, CAP_VER).todo
+
+
 @archivos_atomicos
 @transaction.atomic
 def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=(), edificio=None):
@@ -457,6 +468,8 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
     # Primero las estadías de `personas`, en orden de pk, y recién después el dispositivo: egreso,
     # cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el
     # dispositivo (FK). Con el orden inverso acá, los dos se esperan: deadlock.
+    if not ve_a_las_personas(usuario, dispositivo):
+        personas = ()  # con alcance Edificios no se vinculan personas
     ids_personas = _ids_de_personas(personas)
     if ids_personas:
         list(
@@ -786,6 +799,8 @@ def corregir_entrada(
 
     if not puede_operar_edificio(usuario, entrada.dispositivo, entrada.edificio_id, CAP_BITACORA):
         raise PermissionDenied("No tenés alcance para cargar la bitácora de este dispositivo.")
+    if not ve_a_las_personas(usuario, entrada.dispositivo):
+        sumar_personas, quitar_personas = (), ()  # con alcance Edificios no se vinculan ni se desvinculan personas
 
     # Primero la original, siempre: es la fila común a todas las correcciones de la
     # cadena, así que dos operadores que corrigen la misma entrada se forman acá, en el

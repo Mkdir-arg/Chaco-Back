@@ -28,6 +28,7 @@ from programas.models import (
     AdjuntoRespuestaIngreso,
     DisenoFormulario,
     Edificio,
+    EntradaBitacora,
     EntregaKit,
     MiembroEquipoDispositivo,
     MomentoFormulario,
@@ -38,7 +39,7 @@ from programas.models import (
 from programas.selectors import kits as selectores_kits
 from programas.services import equipo_dispositivo as equipo
 from programas.services import kits as servicio_kits
-from programas.services.bitacora import crear_turno, editar_turno
+from programas.services.bitacora import corregir_entrada, crear_turno, editar_turno, registrar_entrada
 from programas.services.detalle_dispositivo import eventos_de_historial
 from programas.services.dispositivos import (
     alcance_de_edificios,
@@ -426,6 +427,42 @@ class CorreccionesDeAuditoriaTests(BaseAlcance):
         with self.assertRaises(PermissionDenied):
             crear_turno(dispositivo=self.cis, usuario=de_a, nombre="Nuevo", hora_desde=time(1), hora_hasta=time(2))
         editar_turno(turno=self.manana, usuario=self._fresco(self.de_inst), nombre="Mañana")
+
+    def test_corregir_una_novedad_fuera_de_alcance_se_rechaza_igual_que_una_inexistente(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), texto="Novedad de toda la casa")
+        self.client.force_login(self._fresco(self.de_a))
+        url = reverse("dispositivos:bitacora_corregir", args=[self.cis.pk])
+        with _reloj():
+            ajena = self.client.post(
+                url,
+                {"entrada": entrada.pk, "tipo": entrada.tipo, "texto": "Pisada", "motivo": "x"},
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+            inexistente = self.client.post(
+                url,
+                {"entrada": 999999, "tipo": entrada.tipo, "texto": "Pisada", "motivo": "x"},
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(ajena.status_code, 400)
+        self.assertEqual(ajena.json(), inexistente.json())  # no revela si el id existe
+        self.assertEqual(EntradaBitacora.objects.filter(entrada_original=entrada).count(), 0)
+
+    def test_el_servicio_no_corrige_ni_vincula_personas_sin_leer_la_bitacora(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), texto="Novedad de toda la casa")
+        with self.assertRaises(PermissionDenied):
+            corregir_entrada(entrada=entrada, usuario=self._fresco(self.de_a), texto="Pisada")
+        estadia = self.estadia_ana
+        momento = _local(MIERCOLES, 16)
+        with _reloj(momento):
+            propia = registrar_entrada(
+                dispositivo=self.cis,
+                usuario=self._fresco(self.de_a),
+                tipo=EntradaBitacora.Tipo.INCIDENTE,
+                texto="Desde el edificio A",
+                momento=momento,
+                personas=[estadia],
+            )
+        self.assertEqual(propia.personas.count(), 0)
 
     # MINOR: verificar_alojamiento_en_red
     def test_verificar_alojamiento_no_da_la_plaza_de_otro_edificio(self):

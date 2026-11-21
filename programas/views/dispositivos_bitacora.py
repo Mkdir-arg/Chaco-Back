@@ -45,6 +45,7 @@ from programas.services.bitacora import (
     edificios_para_novedad,
     editar_turno,
     registrar_entrada,
+    ve_a_las_personas,
 )
 from programas.services.bitacora_detalle import detalle_entrada
 from programas.services.bitacora_pantalla import pantalla_bitacora
@@ -94,8 +95,6 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             edificios_filtro=edificios_filtro,
             edificio=self.request.GET.get("edificio", ""),
         )
-        if not todo:
-            datos["personas"] = []
         context.update(datos)
         context["puede_configurar"] = puede_configurar
         if datos["puede_cargar"]:
@@ -180,7 +179,10 @@ class BitacoraEntradaView(DispositivoObjectPermissionMixin, DetailView):
             pk=self.kwargs["entrada_pk"],
             dispositivo=dispositivo,
         )
-        datos = detalle_entrada(entrada, nombrar_personas=rbac.puede(self.request.user, CAP_VER_CIUDADANO))
+        nombrar_personas = ve_a_las_personas(self.request.user, dispositivo) and rbac.puede(
+            self.request.user, CAP_VER_CIUDADANO
+        )
+        datos = detalle_entrada(entrada, nombrar_personas=nombrar_personas)
         context.update(datos)
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
@@ -276,8 +278,7 @@ class NovedadCrearView(_BitacoraPostView):
 
     def ejecutar(self, request, dispositivo, datos):
         # Sin `ciudadano.ver` el modal no ofrece personas: si llegan igual, no se vinculan.
-        con_alcance = alcance_de_edificios(request.user, dispositivo, CAP_VER).todo
-        personas = datos["personas"] if con_alcance and rbac.puede(request.user, CAP_VER_CIUDADANO) else ()
+        personas = datos["personas"] if rbac.puede(request.user, CAP_VER_CIUDADANO) else ()
         registrar_entrada(
             dispositivo=dispositivo,
             usuario=request.user,
@@ -302,6 +303,7 @@ class NovedadCorregirView(_BitacoraPostView):
             request.FILES,
             dispositivo=dispositivo,
             personas=_personas_posteadas(request),
+            q_alcance=q_edificios_en_alcance(request.user, CAP_BITACORA, "dispositivo_id", "edificio_id"),
         )
 
     def ejecutar(self, request, dispositivo, datos):
