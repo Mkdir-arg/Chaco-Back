@@ -323,11 +323,12 @@ def integrantes_de(caso):
             "integrantes": [
                 {"n": 1, "estado": "CONFIRMADA", "ficha_completa": False,
                  "persona": {"id": 9, "nombre": "Pérez, Juan", "dni": "30111222"},
+                 "responsable": {"id": 9, "nombre": "Pérez, Juan", "dni": "30111222"},  # solo en la 1
                  "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)", "sector_id": 3},
                  "parentesco": "Jefe/a de hogar",
                  "confirmada_en": datetime, "egresado_en": None, "estadia_id": 77},
                 {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": False,
-                 "persona": None, "plaza": None, "parentesco": "",
+                 "persona": None, "responsable": None, "plaza": None, "parentesco": "",
                  "confirmada_en": None, "egresado_en": None, "estadia_id": None},
                 …
             ],
@@ -392,21 +393,34 @@ def integrante_de(caso, n):
     }
 
 
-def ficha_precargada_del_responsable(responsable, caso):
-    """La ficha inicial de la persona 1: el responsable como jefe/a de hogar, con lo que ya se sabe de él.
+def datos_del_responsable(responsable, caso):
+    """Lo que se sabe del responsable para precargar a la persona 1: la **única** lista de esos campos.
 
-    Lo mismo que precarga la ficha web de la guardia (``FichaIntegranteView._iniciales``): parentesco,
-    DNI, nombre, apellido, sexo, nacimiento y el teléfono del Formulario 1. Solo las claves con dato.
+    DNI, nombre, apellido, sexo y nacimiento salen del legajo; el teléfono, del Formulario 1
+    (``caso.situacion``). La fecha va como ``date`` (o ``None``) y los vacíos quedan: cada uso la
+    adapta. La usan la ficha de la API (:func:`ficha_precargada_del_responsable`) y la ficha web de
+    la guardia (``FichaIntegranteView._iniciales``), así las dos precargan lo mismo. Sin consultas.
     """
 
-    datos = {
+    return {
         "dni": responsable.dni,
         "nombre": responsable.nombre,
         "apellido": responsable.apellido,
         "sexo": responsable.genero,
-        "fecha_nacimiento": responsable.fecha_nacimiento.isoformat() if responsable.fecha_nacimiento else "",
+        "fecha_nacimiento": responsable.fecha_nacimiento,
         "telefono": (caso.situacion or {}).get("telefono", ""),
     }
+
+
+def ficha_precargada_del_responsable(responsable, caso):
+    """La ficha inicial de la persona 1: el responsable como jefe/a de hogar, con :func:`datos_del_responsable`.
+
+    Con el formato de la ficha guardada: por secciones, la fecha en ISO y solo las claves con dato.
+    """
+
+    datos = datos_del_responsable(responsable, caso)
+    if datos["fecha_nacimiento"]:
+        datos["fecha_nacimiento"] = datos["fecha_nacimiento"].isoformat()
     return {
         SECCION_PARENTESCO: {"parentesco": IntegranteGrupo.Parentesco.JEFE.value},
         SECCION_DATOS: {campo: valor for campo, valor in datos.items() if valor},

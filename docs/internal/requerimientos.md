@@ -60613,3 +60613,8 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer; la app vuel
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** los dos MINOR de la auditoría del #1273. La lista de campos de la precarga queda en un solo lugar
+  (`selectors.emergencia_alojar.datos_del_responsable`), que usan la ficha de la API y `FichaIntegranteView._iniciales`
+  (antes la web los armaba por su cuenta); el rótulo «Apellido, Nombre (responsable)» de la guardia web tiene test
+  (`test_emergencia_alojar_vistas`) y el docstring de `integrantes_de` muestra `responsable`. Sin cambio de
+  comportamiento.
