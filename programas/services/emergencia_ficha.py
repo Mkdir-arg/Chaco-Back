@@ -89,8 +89,13 @@ SECCION_OBSERVACIONES = "observaciones"
 #:                            "enfermedades_cronicas": "…", "medicacion_habitual": "…"},
 #:       "trabajo":          {"sin_datos": false, "ocupacion": "…", "ingresos": "…"},
 #:       "observaciones":    {"sin_datos": false, "observaciones": "…", "mascotas": false,
-#:                            "adulto_responsable": "…"}
+#:                            "adulto_responsable": "…", "adulto_responsable_orden": "2"}
 #:     }
+#:
+#: ``adulto_responsable_orden`` es el N.° (``orden``) de un adulto confirmado del mismo grupo: el
+#: backoffice lo elige de una lista y el servicio lo valida y copia su nombre en
+#: ``adulto_responsable`` (que es lo que se muestra). Sin él, ``adulto_responsable`` sigue siendo
+#: texto (lo que manda la app vieja y lo guardado antes de este campo).
 #:
 #: Las tres primeras secciones son el **mínimo** para confirmar (:func:`ficha_minima_valida`);
 #: las otras cinco se pueden completar después (:func:`completar_ficha`) y llevan
@@ -145,6 +150,7 @@ ESQUEMA_FICHA = {
         "observaciones": (TEXTO, 1000),
         "mascotas": (BOOLEANO, None),
         "adulto_responsable": (TEXTO, 200),
+        "adulto_responsable_orden": (TEXTO, 3),
     },
 }
 

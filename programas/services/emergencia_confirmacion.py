@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.dni import dni_valido, normalizar_dni
-from core.edad import fecha_o_none
+from core.edad import MAYORIA_DE_EDAD, edad_en_anios, fecha_o_none
 from legajos.models import Ciudadano
 from legajos.models.contactos import TipoVinculo, VinculoFamiliar
 from programas.models import (
@@ -25,6 +25,7 @@ from programas.services.emergencia_alta import _como_uuid, nombre_en_conflicto
 from programas.services.emergencia_comun import _trazar
 from programas.services.emergencia_ficha import (
     SECCION_DATOS,
+    SECCION_OBSERVACIONES,
     SECCION_PARENTESCO,
     SECCIONES_OPCIONALES,
     SIN_NUMERO_DE_DOCUMENTO,
@@ -54,6 +55,7 @@ from programas.services.ingreso import (
 )
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.reservas_derivacion import consumir_reserva_de_derivacion
+from programas.validacion_contacto import normalizar_telefono
 
 SIN_CAMA_LIBRE = "Sin cama libre · liberá una o cerrá con diferencia."
 
@@ -150,6 +152,93 @@ def _con_lo_del_legajo(ficha, ciudadano):
     return ficha
 
 
+def _fecha_firme(datos):
+    """La fecha de nacimiento que puede entrar al legajo: ninguna si la ficha la marca aproximada.
+
+    El legajo es compartido (Becas, el padrón y los reportes por edad lo leen como dato firme) y
+    ``Ciudadano`` no tiene dónde marcar «aproximada»: una fecha estimada queda solo en la ficha.
+    """
+
+    if datos.get("fecha_nacimiento_aproximada"):
+        return ""
+    return datos["fecha_nacimiento"]
+
+
+def _normalizar_telefono(ficha):
+    """El teléfono de la ficha con la regla del legajo del dispositivo (8 a 15 dígitos).
+
+    Solo al confirmar: ahí entra el dato y de ahí pasa a ``Ciudadano.telefono``. ``completar_ficha``
+    no lo toca (la identidad no se cambia después), y no se revalida lo ya guardado.
+    """
+
+    datos = ficha[SECCION_DATOS]
+    if not datos.get("telefono"):
+        return
+    try:
+        datos["telefono"] = normalizar_telefono(datos["telefono"])
+    except ValidationError as error:
+        raise ValidationError({"telefono": error.messages[0]}) from error
+
+
+def _edad_de_la_fila(fila, hoy=None):
+    """Años de un integrante confirmado: la fecha de su ficha (vale aproximada) o la del legajo."""
+
+    datos = (fila.ficha or {}).get(SECCION_DATOS) or {}
+    nacimiento = datos.get("fecha_nacimiento") or (fila.ciudadano.fecha_nacimiento if fila.ciudadano_id else None)
+    return edad_en_anios(nacimiento, hoy)
+
+
+def adultos_del_grupo(filas, *, excluir_orden=None, hoy=None):
+    """Los adultos **confirmados** de la familia que pueden ser adulto responsable de otro.
+
+    ``filas`` son las del grupo (``_filas_de``). Adulto = 18 años cumplidos
+    (``core.edad.MAYORIA_DE_EDAD``), por la fecha de la ficha o la del legajo; una fila sin
+    confirmar no cuenta (no se sabe quién es) y una persona no es su propio adulto responsable
+    (``excluir_orden``). Devuelve ``[{"orden", "nombre"}]`` por orden.
+    """
+
+    adultos = []
+    for fila in filas:
+        if not fila.confirmada or fila.orden == excluir_orden or fila.egresado_en is not None:
+            continue
+        edad = _edad_de_la_fila(fila, hoy)
+        if edad is not None and edad >= MAYORIA_DE_EDAD:
+            adultos.append({"orden": fila.orden, "nombre": fila.ciudadano.apellido_nombre})
+    return adultos
+
+
+def adultos_de_la_familia(grupo, *, excluir_orden=None, hoy=None):
+    """:func:`adultos_del_grupo` leyendo las filas del grupo (``_filas_de``): lo que ofrece el selector."""
+
+    return adultos_del_grupo(_filas_de(grupo), excluir_orden=excluir_orden, hoy=hoy)
+
+
+def _resolver_adulto_responsable(ficha, filas, orden):
+    """Si la ficha trae ``adulto_responsable_orden``: tiene que ser un adulto del grupo; copia su nombre.
+
+    Sin ese campo no hace nada: ``adulto_responsable`` sigue siendo el texto de siempre (la app
+    vieja y las fichas guardadas antes). Va **antes** de ``ficha_minima_valida``, que exige el
+    nombre para los menores.
+    """
+
+    observaciones = ficha[SECCION_OBSERVACIONES]
+    elegido = observaciones.get("adulto_responsable_orden")
+    if not elegido:
+        return
+    adultos = {adulto["orden"]: adulto["nombre"] for adulto in adultos_del_grupo(filas, excluir_orden=orden)}
+    if not elegido.isdigit() or int(elegido) not in adultos:
+        raise ValidationError(
+            {
+                "adulto_responsable_orden": (
+                    "Elegí un adulto de esta familia que ya esté confirmado. "
+                    "Si el adulto todavía no se confirmó, confirmalo primero."
+                )
+            }
+        )
+    observaciones["adulto_responsable_orden"] = str(int(elegido))
+    observaciones["adulto_responsable"] = adultos[int(elegido)][:200]
+
+
 def _dar_de_alta(ficha):
     """El alta mínima del legajo, la misma del asistente de ingreso (``ingreso.alta_minima_de_persona``).
 
@@ -164,7 +253,7 @@ def _dar_de_alta(ficha):
                 "dni": datos["dni"],
                 "nombre": datos["nombre"],
                 "apellido": datos["apellido"],
-                "fecha_nacimiento": datos["fecha_nacimiento"],
+                "fecha_nacimiento": _fecha_firme(datos),
                 "genero": datos["sexo"],
                 "telefono": datos.get("telefono", ""),
             }
@@ -189,7 +278,7 @@ def _completar_legajo(ciudadano, ficha):
     if not ciudadano.genero and datos.get("sexo"):
         ciudadano.genero = datos["sexo"]
         campos.append("genero")
-    if ciudadano.fecha_nacimiento is None and datos.get("fecha_nacimiento"):
+    if ciudadano.fecha_nacimiento is None and datos.get("fecha_nacimiento") and _fecha_firme(datos):
         ciudadano.fecha_nacimiento = fecha_o_none(datos["fecha_nacimiento"])
         campos.append("fecha_nacimiento")
     if not ciudadano.telefono and datos.get("telefono"):
@@ -399,6 +488,7 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
         )
 
     ficha = normalizar_ficha(ficha)
+    _normalizar_telefono(ficha)
     dni = ficha[SECCION_DATOS].get("dni")
     if not dni_valido(dni):
         raise ValidationError({"dni": SIN_NUMERO_DE_DOCUMENTO})
@@ -415,6 +505,7 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
         and not _es_el_responsable_con_identidad_a_revisar(caso, grupo, existente, datos)
     ):
         raise ValidationError({"dni": MENSAJE_DNI_DE_OTRA_PERSONA})
+    _resolver_adulto_responsable(ficha, filas, orden)
     ficha = ficha_minima_valida(_con_lo_del_legajo(ficha, existente))
     cama = _cama_del_dispositivo(plaza, dispositivo, derivacion)
 
@@ -513,7 +604,9 @@ def completar_ficha(*, caso, orden, usuario, ficha):
     reemplaza a la guardada; las que no vienen, y las tres del mínimo —la identidad no se
     cambia después de confirmar—, quedan como estaban. Recalcula ``ficha_completa``.
 
-    Un menor de 16 no puede quedar sin adulto responsable: se revalida el mínimo.
+    Un menor de 16 no puede quedar sin adulto responsable: se revalida el mínimo. El adulto elegido
+    (``adulto_responsable_orden``) se valida solo si la sección «Observaciones» llega con uno; sin él se
+    conserva el que había (orden y texto).
 
     Devuelve el ``IntegranteGrupo``.
     """
@@ -530,6 +623,18 @@ def completar_ficha(*, caso, orden, usuario, ficha):
     for seccion in SECCIONES_OPCIONALES:
         if seccion in ficha:
             nueva[seccion] = ficha[seccion]
+    nueva = normalizar_ficha(nueva)
+    if SECCION_OBSERVACIONES in ficha:
+        # Solo si la sección llega: guardar otra sección no revalida (ni pierde) al adulto de antes. Si llega
+        # sin adulto —ni orden ni texto—, se conserva lo guardado: «sin tocar» no es «borralo».
+        enviada = normalizar_ficha({SECCION_OBSERVACIONES: ficha[SECCION_OBSERVACIONES]})[SECCION_OBSERVACIONES]
+        if enviada.get("adulto_responsable_orden") or enviada.get("adulto_responsable"):
+            _resolver_adulto_responsable(nueva, _filas_de(caso.grupo), orden)
+        else:
+            guardado = integrante.ficha.get(SECCION_OBSERVACIONES) or {}
+            for clave in ("adulto_responsable", "adulto_responsable_orden"):
+                if guardado.get(clave):
+                    nueva[SECCION_OBSERVACIONES][clave] = guardado[clave]
     nueva = ficha_minima_valida(nueva)
     nueva.update(_claves_de_envio(integrante.ficha))
     integrante.ficha = nueva
