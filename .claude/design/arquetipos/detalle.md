@@ -215,7 +215,7 @@ incluidos los cancelados. La asignación la ven el coordinador del edificio y el
 nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura enlaza cada
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
 Con alcance por edificios (Cambio 523) el Historial trae solo los movimientos de las plazas de sus edificios, las
-correcciones de sus novedades y los relevamientos de sus edificios; las trazas del legajo no llevan edificio y quedan para
+correcciones de sus novedades y los relevamientos de sus edificios; las trazas del dispositivo (legajo, plazas, sectores, turnos) no llevan edificio y quedan para
 quien tiene toda la institución (`eventos_de_historial`, `edificios_en_alcance`).
 El badge del registro es siempre la criticidad; la revisión agrega «Revisado» en el panel, más revisor y fecha/hora, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
