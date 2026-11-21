@@ -7,6 +7,9 @@ dispositivo: dice a qué edificio pertenece la institución, en qué estado est�
 **Consumidor de referencia:** `programas/templates/programas/dispositivos/legajo/_infra_listado.html` (P4, solapa
 Infraestructura con 2 o más edificios). Solo usa clases y tokens que ya existen; las pocas utilidades nuevas
 entraron al CSS compilado con `npm run build:tailwind`.
+Las acciones de la institución (Agregar edificio, Crear relevamiento) no van en el listado: las dibuja la barra
+`legajo/_infra_acciones.html` arriba del panel, igual en ficha, listado y sin edificio (Cambio 524). La ficha de un
+edificio repite el patrón de la tarjeta: «Editar edificio» a la vista y «Desvincular» dentro del `menu_fila`.
 
 ## Por qué no es `_lista_tarjetas`
 

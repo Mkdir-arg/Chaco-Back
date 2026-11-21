@@ -646,6 +646,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` `#infra` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 | 521 | Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso | Emergencia · llegada de familias (API M2-3/M2-4) | `#emergencia` `#api` `#mobile` | Usuario — sesión de trabajo, caso 2026-C-000018 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60711,6 +60712,79 @@ La app (Chaco-mobile) consume el contrato en un PR aparte: la puerta del disposi
 
 ## Reversión
 Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+
+- **21/11/2026:** alta del cambio.
+
+---
+
+# Cambio 524 — Dispositivos · solapa Infraestructura: barra de la institución y ficha del edificio en una columna
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo (P4/P19, solapa Infraestructura) |
+| **Etiquetas** | `#dispositivos` `#infra` `#ui` |
+| **Solicitante** | Usuario — sesión de trabajo, sobre el legajo 16 (CIS II) de testing |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` y parciales `_infra_*` · Servidor: `forms_dispositivos.py`, `views/dispositivos_legajo.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+«No me cierra mucho esta pantalla, siento que está mal distribuida cuando tengo 1 o varios edificios. Los botones
+(Desvincular, Editar edificio, Vincular un edificio, Cargar edificio) parecen que están dentro del registro y hay
+algunos que son generales, como Cargar edificio.» Después, sobre el mockup: «las opciones 3, 4 y 5 tienen que estar
+una abajo de la otra» → una sola columna; «Cargar edificio» dentro del menú; y «Crear relevamiento» dentro de un
+edificio tiene que tomar ese edificio.
+
+## Alcance acordado
+Solo la solapa Infraestructura del legajo (ficha, listado y sin edificio). Las tarjetas y los filtros del listado
+(Cambio 439) no cambian.
+
+## Decisiones tomadas
+- **Dos niveles de acciones.** La institución tiene una barra arriba del panel, igual en los tres modos: rótulo
+  «Edificios de X», la frase del inmueble, un menú «Agregar edificio» (Cargar un edificio nuevo / Vincular uno
+  existente, con `puede_editar`) y «Crear relevamiento» como única primaria. El edificio, junto a su nombre: «Editar
+  edificio» y un menú ⋮ con «Desvincular» (peligro, con la misma confirmación), igual que en `_tarjeta_edificio`.
+  Desaparece `ocultar_vinculo`: la ficha de un edificio entre varios también ofrece Agregar.
+- **Ficha en una columna**: Último relevamiento → Sectores → Ubicación → Instituciones en el predio → Registro
+  fotográfico. Salen la `_alerta` «Predio compartido» (repetía el badge) y el `dl` Código/Domicilio (ya están en la
+  cabecera).
+- **Crear relevamiento preelige el edificio de la ficha** (`edificio_inicial` del formulario), editable; si ese
+  edificio tiene un relevamiento en curso no es elegible y el selector queda vacío. En el listado no preelige.
+- Sin piezas nuevas: `menu_fila` (con y sin `texto=`), `_menu_fila_item`, `_chips_enlace`, `_ubicacion`.
+  Mockup aprobado por el usuario antes de implementar.
+
+## Implementación
+`_infra_acciones.html` pasa a ser la barra y lo incluye `detail.html` una sola vez arriba del panel; `_infra_ficha`
+y `_infra_listado` dejan de incluirlo. `AsignarRelevamientoDispositivoForm` acepta `edificio_inicial`;
+`_preparar_relevamiento` le pasa el pk de `infraestructura.viendo` en modo ficha.
+
+## Archivos
+`programas/templates/programas/dispositivos/legajo/_infra_acciones.html`, `_infra_ficha.html`, `_infra_listado.html`,
+`detail.html`, `programas/forms_dispositivos.py`, `programas/views/dispositivos_legajo.py`,
+`programas/tests/test_dispositivos_infraestructura_tarjetas.py`, `.claude/design/arquetipos/detalle.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+62 módulos `test_dispositivos_*` de legajo/relevamiento/infraestructura más `core.tests.test_nodo_ui_piezas`: 2103
+tests OK. Tests nuevos de la barra por capacidad, Desvincular dentro del menú, orden de la ficha en una columna y
+preselección (form y vista), verificados por mutación. `manage.py check`, `design_audit --ratchet` (0 nuevos),
+`compile_templates --bloques` (0), `check_design_agent --base origin/development` y ruff: OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior. No hay datos ni esquema que deshacer.
 
 ## Historial
 
