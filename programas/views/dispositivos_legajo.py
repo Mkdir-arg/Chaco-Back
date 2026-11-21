@@ -81,7 +81,6 @@ from programas.services.detalle_dispositivo import (
     sectores_del_censo,
 )
 from programas.services.dispositivos import (
-    alcance_de_edificios,
     buscar_posibles_duplicados,
     cerrar_dispositivo,
     dispositivos_en_alcance,
@@ -439,12 +438,8 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         sectores = sectores_del_censo(ocupacion)
         estado, sector = normalizar_filtros(get.get("estado", ""), get.get("sector", ""), {s["pk"] for s in sectores})
         q_estadias = q_edificios_en_alcance(user, "dispositivo.ver", "dispositivo_id", "plaza__sector__edificio_id")
-        # El Historial junta trazas de toda la institución (legajo, personas, plazas de todos los edificios):
-        # con alcance Edificios no se abre (fail-closed; decisión abierta para el PM, ver el PR).
-        if alcance_de_edificios(user, dispositivo, "dispositivo.ver").todo:
-            historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"), user)
-        else:
-            historial, eventos = Paginator([], 1).get_page(1), []
+        # Con alcance Edificios el Historial queda vacío: lo decide `eventos_de_historial`.
+        historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"), user)
         estadias = estadias_del_dispositivo(
             dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"), q_alcance=q_estadias
         )

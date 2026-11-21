@@ -56,7 +56,7 @@ from programas.models import (
     Turno,
 )
 from programas.services.bitacora_detalle import plural as _plural
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_institucion
 from programas.services.nombre_plaza import nombre_de_plaza
 
 #: Cargar y corregir novedades del turno.
@@ -225,7 +225,7 @@ def crear_turno(*, dispositivo, usuario, nombre, hora_desde, hora_hasta, orden=0
     superponerse: la regla es sobre los activos.
     """
 
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
+    if not puede_operar_institucion(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para configurar los turnos de este dispositivo.")
     nombre = (nombre or "").strip()
     if not nombre:
@@ -259,7 +259,7 @@ def editar_turno(*, turno, usuario, nombre=None, hora_desde=None, hora_hasta=Non
     entradas lo apuntan con `PROTECT`—: se desactiva.
     """
 
-    if not puede_operar_dispositivo(usuario, turno.dispositivo, CAP_EDITAR):
+    if not puede_operar_institucion(usuario, turno.dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para configurar los turnos de este dispositivo.")
 
     dispositivo = _bloquear_dispositivo(turno.dispositivo)
