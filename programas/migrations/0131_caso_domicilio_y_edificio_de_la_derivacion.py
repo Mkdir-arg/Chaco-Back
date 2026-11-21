@@ -4,6 +4,7 @@ Solo *expand*: tres columnas nuevas que nacen nulas, sin datos que mover. La rel
 lee ni las escribe, y un alta suya deja ``NULL``, que es un valor válido. La reversa es borrarlas.
 """
 
+import django.db.models.deletion
 from django.db import migrations, models
 
 
