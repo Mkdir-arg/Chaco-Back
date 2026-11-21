@@ -361,6 +361,7 @@ class PresupuestoConMarcasTests(tests_mesa.BaseMesa):
             self.assertContains(respuesta, marca)
 
     def test_e3_con_las_marcas_cuesta_lo_mismo(self):
+        self._edificio("Club", self.club)  # el presupuesto de E3 se mide con las camas en un edificio
         caso = self._caso_tomado()
         Derivacion.objects.create(
             caso=caso,

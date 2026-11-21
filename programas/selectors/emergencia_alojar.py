@@ -453,7 +453,7 @@ def llegadas_del_dispositivo(dispositivo, usuario):
             Q(estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO)
             | Q(estado=Derivacion.Estado.ACEPTADA, caso__estado=CasoEmergencia.Estado.INGRESO_EN_CURSO)
         )
-        .select_related("caso__grupo__responsable", "derivada_por")
+        .select_related("caso__grupo__responsable", "derivada_por", "edificio")
         .annotate(
             confirmadas=Count(
                 "caso__grupo__integrantes", filter=Q(caso__grupo__integrantes__confirmada_en__isnull=False)

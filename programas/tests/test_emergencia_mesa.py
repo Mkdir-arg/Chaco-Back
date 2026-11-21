@@ -38,8 +38,11 @@ from programas.models import (
     CasoEmergencia,
     ContactoCaso,
     Derivacion,
+    Edificio,
     GrupoFamiliar,
     NumeradorEmergencia,
+    Plaza,
+    Sector,
     TrazaCaso,
 )
 from programas.selectors import emergencia_mesa as mesa
@@ -85,6 +88,20 @@ class BaseMesa(BaseCasos):
 
     def _url(self, nombre, caso):
         return reverse(f"emergencia:{nombre}", args=[caso.pk])
+
+    def _edificio(self, nombre, *dispositivos, localidad="Resistencia", latitud=None, longitud=None, calle=""):
+        """Un edificio con los sectores de ``dispositivos`` adentro (Cambio 520)."""
+        edificio = Edificio.objects.create(
+            codigo=f"ED-{Edificio.objects.count() + 1}",
+            nombre=nombre,
+            localidad=localidad,
+            calle=calle,
+            latitud=latitud,
+            longitud=longitud,
+        )
+        edificio.dispositivos.add(*dispositivos)
+        Sector.objects.filter(dispositivo__in=dispositivos).update(edificio=edificio)
+        return edificio
 
     def _ficha(self, caso, **parametros):
         return self.client.get(self._url("caso_detalle", caso), parametros)
@@ -659,58 +676,101 @@ class FichaTests(BaseMesa):
         self.assertEqual([evento["titulo"] for evento in respuesta.context["eventos"]], ["Tomado", "Caso creado"])
         self.assertContains(respuesta, "Lo tenés tomado vos.")
 
-    def test_el_duenio_ve_el_panel_de_derivar_con_los_dispositivos(self):
+    def test_el_duenio_ve_el_panel_de_derivar_por_edificio(self):
         caso = self._caso_tomado(menores_f=3)  # 5 personas
         chico = self._dispositivo("Parroquia", camas=3)
         lleno = self._dispositivo("Escuela 12", camas=2)
         self._ocupar(lleno, 2)
         Dispositivo = type(self.club)
         self._dispositivo("Inactivo", camas=9, estado=Dispositivo.Estado.INACTIVO)
+        predio = self._edificio("Predio Norte", self.club, chico, calle="Av. Italia")
+        escuela = self._edificio("Escuela 12", lleno)
 
         respuesta = self._ficha(caso)
 
         panel = respuesta.context["panel"]
         self.assertEqual(panel["plazas"], 5)
-        tarjetas = {tarjeta["nombre"]: tarjeta for tarjeta in panel["dispositivos"]}
-        self.assertEqual(list(tarjetas), ["Club Sarmiento", "Parroquia", "Escuela 12"])
+        self.assertIsNone(panel["grupo"])
+        tarjetas = {tarjeta["nombre"]: tarjeta for tarjeta in panel["edificios"]}
+        self.assertEqual(list(tarjetas), ["Predio Norte", "Escuela 12"])
+        # El edificio suma las camas de todas sus instituciones.
+        self.assertEqual(tarjetas["Predio Norte"]["libres"], 13)
+        self.assertEqual(tarjetas["Predio Norte"]["localidad"], "Av. Italia · Resistencia")
         self.assertEqual(
-            tarjetas["Club Sarmiento"]["accion_url"],
-            f"{self._url('caso_detalle', caso)}?plazas=5&derivar={self.club.pk}",
+            tarjetas["Predio Norte"]["accion_url"], f"{self._url('caso_detalle', caso)}?grupo=e{predio.pk}"
         )
-        self.assertEqual((tarjetas["Parroquia"]["marca"], tarjetas["Parroquia"]["faltan"]), ("FALTAN", 2))
-        self.assertIn(f"derivar={chico.pk}", tarjetas["Parroquia"]["accion_url"])
+        self.assertEqual(tarjetas["Predio Norte"]["accion_texto"], "Ver las 2 instituciones")
         # RN-2.5: sin plazas no se deriva, y se dice por qué.
         self.assertEqual(tarjetas["Escuela 12"]["accion_motivo"], "Sin plazas disponibles")
         self.assertNotIn("accion_url", tarjetas["Escuela 12"])
-        self.assertContains(respuesta, "Faltan 2 plazas")
         self.assertContains(respuesta, "Sin plazas disponibles")
-        self.assertContains(respuesta, "Derivar a Club Sarmiento")
+        self.assertContains(respuesta, "Ver las 2 instituciones")
         self.assertNotContains(respuesta, "Inactivo")
-        # RU-14: nada de la operación interna del dispositivo.
+        self.assertNotIn(f"e{escuela.pk}", {t["pk"] for t in panel["edificios"] if "accion_url" in t})
+
+        adentro = self._ficha(caso, grupo=f"e{predio.pk}")
+
+        grupo = adentro.context["panel"]["grupo"]
+        instituciones = {tarjeta["nombre"]: tarjeta for tarjeta in grupo["tarjetas"]}
+        self.assertEqual(list(instituciones), ["Club Sarmiento", "Parroquia"])
         self.assertEqual(
-            set(tarjetas["Parroquia"]) - {"pk", "accion_texto", "accion_url"},
-            {"id", "nombre", "localidad", "libres", "reservadas", "distancia_km", "marca", "faltan"},
+            instituciones["Club Sarmiento"]["accion_url"],
+            f"{self._url('caso_detalle', caso)}?plazas=5&grupo=e{predio.pk}&derivar={self.club.pk}",
         )
+        self.assertEqual((instituciones["Parroquia"]["marca"], instituciones["Parroquia"]["faltan"]), ("FALTAN", 2))
+        self.assertContains(adentro, "Faltan 2 plazas")
+        self.assertContains(adentro, "Derivar a Club Sarmiento")
+        self.assertContains(adentro, "Volver a los edificios")
+        # RU-14: nada de la operación interna de la institución.
+        self.assertEqual(
+            set(instituciones["Parroquia"]) - {"pk", "accion_texto", "accion_url", "localidad", "distancia_texto"},
+            {"id", "nombre", "libres", "reservadas", "marca", "faltan"},
+        )
+
+    def test_el_edificio_reparte_las_camas_de_una_institucion_que_ocupa_dos(self):
+        caso = self._caso_tomado()
+        norte = self._edificio("Predio Norte", self.club)
+        sur = Edificio.objects.create(codigo="ED-SUR", nombre="Predio Sur", localidad="Resistencia")
+        sur.dispositivos.add(self.club)
+        sector = Sector.objects.create(dispositivo=self.club, nombre="Anexo", capacidad=4, edificio=sur)
+        Plaza.objects.bulk_create([Plaza(sector=sector, codigo=f"S{n}") for n in range(4)])
+
+        grupos = {tarjeta["nombre"]: tarjeta["libres"] for tarjeta in self._ficha(caso).context["panel"]["edificios"]}
+
+        self.assertEqual(grupos, {"Predio Norte": 10, "Predio Sur": 4})
+        self.assertEqual(norte.sectores.count(), 1)
+
+    def test_una_institucion_sin_edificio_asignado_aparece_sola(self):
+        caso = self._caso_tomado()
+        tarjeta = self._ficha(caso).context["panel"]["edificios"][0]
+        self.assertEqual(tarjeta["nombre"], "Club Sarmiento (sin edificio asignado)")
+        self.assertEqual(tarjeta["pk"], f"d{self.club.pk}")
 
     def test_el_panel_recalcula_con_las_plazas_y_filtra_por_nombre_y_localidad(self):
         caso = self._caso_tomado()
-        self._dispositivo("Parroquia", camas=3, localidad="Fontana")
+        parroquia = self._dispositivo("Parroquia", camas=3, localidad="Fontana")
+        self._edificio("Club", self.club)
+        self._edificio("Capilla", parroquia, localidad="Fontana")
 
         con_mas = self._ficha(caso, plazas="6")
         self.assertEqual(con_mas.context["panel"]["plazas"], 6)
-        marcas = {tarjeta["nombre"]: tarjeta["marca"] for tarjeta in con_mas.context["panel"]["dispositivos"]}
-        self.assertEqual(marcas, {"Club Sarmiento": "ALCANZA", "Parroquia": "FALTAN"})
+        marcas = {tarjeta["nombre"]: tarjeta["marca"] for tarjeta in con_mas.context["panel"]["edificios"]}
+        self.assertEqual(marcas, {"Club": "ALCANZA", "Capilla": "FALTAN"})
         self.assertContains(con_mas, 'name="plazas" value="6"')
 
-        por_nombre = self._ficha(caso, q="parro")
-        self.assertEqual([t["nombre"] for t in por_nombre.context["panel"]["dispositivos"]], ["Parroquia"])
+        # Busca por el edificio y por sus instituciones.
+        por_institucion = self._ficha(caso, q="parro")
+        self.assertEqual([t["nombre"] for t in por_institucion.context["panel"]["edificios"]], ["Capilla"])
+        por_edificio = self._ficha(caso, q="capi")
+        self.assertEqual([t["nombre"] for t in por_edificio.context["panel"]["edificios"]], ["Capilla"])
         por_localidad = self._ficha(caso, localidad_dispositivo="Resistencia")
-        self.assertEqual([t["nombre"] for t in por_localidad.context["panel"]["dispositivos"]], ["Club Sarmiento"])
+        self.assertEqual([t["nombre"] for t in por_localidad.context["panel"]["edificios"]], ["Club"])
         self.assertEqual(por_localidad.context["panel"]["localidades"], ["Fontana", "Resistencia"])
         sin_nada = self._ficha(caso, q="zzz")
-        self.assertContains(sin_nada, "Ningún dispositivo para derivar")
+        self.assertContains(sin_nada, "Ningún edificio para derivar")
         # Un valor inválido no rompe: vuelve al total del grupo.
         self.assertEqual(self._ficha(caso, plazas="0").context["panel"]["plazas"], 2)
+        self.assertIsNone(self._ficha(caso, grupo="x'1").context["panel"]["grupo"])
 
     def test_el_panel_tiene_tope_y_avisa_cuantos_quedan_afuera(self):
         caso = self._caso_tomado()
@@ -719,31 +779,34 @@ class FichaTests(BaseMesa):
         respuesta = self._ficha(caso)
         panel = respuesta.context["panel"]
         self.assertEqual((panel["mostrados"], panel["total"]), (mesa.TOPE_DISPOSITIVOS, mesa.TOPE_DISPOSITIVOS + 5))
-        self.assertContains(
-            respuesta, f"Mostrando {mesa.TOPE_DISPOSITIVOS} de {mesa.TOPE_DISPOSITIVOS + 5} dispositivos"
-        )
+        self.assertContains(respuesta, f"Mostrando {mesa.TOPE_DISPOSITIVOS} de {mesa.TOPE_DISPOSITIVOS + 5} edificios")
 
-    def test_elegir_un_dispositivo_abre_la_confirmacion_con_post_y_csrf(self):
+    def test_elegir_una_institucion_abre_la_confirmacion_con_post_y_csrf(self):
         caso = self._caso_tomado()
-        respuesta = self._ficha(caso, derivar=self.club.pk)
+        predio = self._edificio("Predio Norte", self.club)
+        respuesta = self._ficha(caso, grupo=f"e{predio.pk}", derivar=self.club.pk)
         confirmacion = respuesta.context["confirmar_derivar"]
         self.assertEqual(
             (confirmacion["titulo"], confirmacion["faltan"], confirmacion["accion"]),
             ("Derivar a Club Sarmiento", False, "Sí, derivar"),
         )
+        self.assertIn("Predio Norte", confirmacion["subtitulo"])
         self.assertContains(respuesta, f'<form method="post" action="{self._url("caso_derivar", caso)}"')
         self.assertContains(respuesta, f'name="dispositivo" value="{self.club.pk}"')
+        self.assertContains(respuesta, f'name="edificio" value="{predio.pk}"')
         self.assertContains(respuesta, "modalDerivar: true")
         self.assertNotContains(respuesta, "¿Seguís?")
         # Abrir la confirmación no deriva nada.
         self.assertEqual(self._fila(caso)["estado"], Estado.EN_GESTION)
         self.assertFalse(Derivacion.objects.exists())
+        # Sin el edificio en la URL no hay confirmación: se elige primero el edificio.
+        self.assertIsNone(self._ficha(caso, derivar=self.club.pk).context["confirmar_derivar"])
 
     def test_con_menos_plazas_que_las_pedidas_la_confirmacion_pregunta(self):
         """RN-2.5: «Vas a reservar 5 de 7 plazas. ¿Seguís?»."""
         caso = self._caso_tomado(menores_f=5)  # 7 personas
         parroquia = self._dispositivo("Parroquia", camas=5)
-        respuesta = self._ficha(caso, derivar=parroquia.pk)
+        respuesta = self._ficha(caso, grupo=f"d{parroquia.pk}", derivar=parroquia.pk)
         confirmacion = respuesta.context["confirmar_derivar"]
         self.assertEqual((confirmacion["faltan"], confirmacion["accion"]), (True, "Sí, derivar igual"))
         self.assertContains(respuesta, "Vas a reservar 5 de 7 plazas. ¿Seguís?")
@@ -755,7 +818,7 @@ class FichaTests(BaseMesa):
         self._ocupar(lleno, 1)
         for pedido in (lleno.pk, 999_999, "abc"):
             with self.subTest(derivar=pedido):
-                respuesta = self._ficha(caso, derivar=pedido)
+                respuesta = self._ficha(caso, grupo=f"d{lleno.pk}", derivar=pedido)
                 self.assertIsNone(respuesta.context["confirmar_derivar"])
                 self.assertContains(respuesta, "modalDerivar: false")
 
@@ -1072,7 +1135,7 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
 
         self.assertRedirects(
             sin_confirmar,
-            f"{self._url('caso_detalle', caso)}?plazas=7&derivar={parroquia.pk}",
+            f"{self._url('caso_detalle', caso)}?plazas=7&grupo=d{parroquia.pk}&derivar={parroquia.pk}",
             fetch_redirect_response=False,
         )
         self.assertIn("5 de las 7 plazas", self._avisos(sin_confirmar)[0])
@@ -1218,8 +1281,9 @@ class PresupuestoDeConsultasTests(BaseMesa):
     #: localidades del filtro (2).
     CONSULTAS_E2 = 16
     #: E3: las cinco del shell, el caso (1), el SLA (1), los duplicados (3), fotos, contactos y
-    #: traza (3), el responsable alojado (1) y el panel de derivar (4).
-    CONSULTAS_E3 = 18
+    #: traza (3), el responsable alojado (1) y el panel de derivar (6: los elegibles, las tres del censo,
+    #: los edificios y los centroides de las localidades; Cambio 520).
+    CONSULTAS_E3 = 20
 
     def _casos_en_lote(self, cuantos):
         """``cuantos`` casos abiertos sin pasar por el servicio: acá se mide leer, no crear."""
@@ -1285,6 +1349,7 @@ class PresupuestoDeConsultasTests(BaseMesa):
     def test_e3_con_50_dispositivos(self):
         for numero in range(50):
             dispositivo = self._dispositivo(f"Centro {numero:02d}", camas=4, latitud="-27.45", longitud="-58.98")
+            self._edificio(f"Edificio {numero:02d}", dispositivo, latitud="-27.45", longitud="-58.98")
             if numero % 2:
                 self._ocupar(dispositivo, 2)
         caso = self._caso_tomado(latitud="-27.451", longitud="-58.986", precision_m=10)
@@ -1297,12 +1362,15 @@ class PresupuestoDeConsultasTests(BaseMesa):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.context["panel"]["total"], 51)
-        self.assertEqual(len(respuesta.context["panel"]["dispositivos"]), mesa.TOPE_DISPOSITIVOS)
+        self.assertEqual(len(respuesta.context["panel"]["edificios"]), mesa.TOPE_DISPOSITIVOS)
         # Con la confirmación abierta cuesta lo mismo: sale de lo que el panel ya leyó.
         with self.assertNumQueries(self.CONSULTAS_E3):
-            self.assertIsNotNone(self._ficha(caso, derivar=self.club.pk).context["confirmar_derivar"])
+            self.assertIsNotNone(
+                self._ficha(caso, grupo=f"d{self.club.pk}", derivar=self.club.pk).context["confirmar_derivar"]
+            )
 
     def test_e3_cuesta_lo_mismo_con_un_dispositivo(self):
+        self._edificio("Club", self.club)
         caso = self._caso_tomado()
         self.client.force_login(self.operador)
         self._ficha(caso)

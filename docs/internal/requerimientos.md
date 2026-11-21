@@ -643,6 +643,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 517 | Dispositivos · Ola 0: seguimiento de las auditorías (regla de visibilidad en un solo dueño, guarda de roles medida por AST) | Dispositivos | `#dispositivos` `#seguridad` `#rbac` | Auditorías de los PR de la Ola 0 — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 518 | Emergencia · ficha del caso: «Ver en el mapa» muestra el domicilio (dirección y localidad), no el GPS de la toma | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#gps` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 519 | Emergencia · ficha del caso: los rótulos de los datos (Responsable, DNI, Fuerza que traslada…) en negrita | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** (fase 1 de 2) | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 
 **Notas del índice**
 
@@ -60349,8 +60350,8 @@ midiendo distancias desde la latitud y la longitud del caso).
   no cambia.
 
 ## Implementación
-`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad)` arma el enlace (codificado; sin dirección,
-`None`). `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
+`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad, provincia)` arma el enlace (codificado; sin
+dirección, `None`); la provincia la pasa el selector desde `core.selectors.geografia.PROVINCIA_OPERATIVA`. `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
 `casos/detail.html` lo dibuja como `btn-secondary btn-sm` con pestaña nueva y aviso `sr-only`.
 
 ## Archivos
@@ -60436,3 +60437,113 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+
+# Cambio 520 — Emergencia · «Derivar» por edificio y distancia desde el domicilio de la familia
+
+🟢 **HECHO — fase 1 el 21/11/2026** (la fase 2, distancia por calle con Google, queda pendiente)
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · mesa (ficha del caso E3, panel «Derivar») |
+| **Etiquetas** | `#emergencia` `#gps` `#datos` `#ui` |
+| **Solicitante** | Usuario — sesión de trabajo |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `programas.0131` (3 `AddField` nulos, solo expand) |
+
+## Pedido original
+«En Derivar, donde dice distancia del dispositivo, que te diga cuánto es. La idea es que primero muestre los
+edificios, no el dispositivo, ya que el edificio tiene las plazas; después, con la API de Maps, calcule la
+distancia de la casa de la persona (localidad y calle) con la localidad y domicilio del edificio.» Y: «Que te
+muestre el edificio con la cantidad de plazas totales. Cuando seleccionás el edificio, te muestre las
+instituciones con sus respectivas plazas […]. Seleccionás la institución y se deriva. Así sabés en qué edificio
+y en qué institución.»
+
+## Alcance acordado
+Dos fases. **Fase 1 (esta entrega):** el panel por edificio en dos pasos, la derivación que guarda el edificio,
+el punto del domicilio de la familia separado del GPS y la distancia en línea recta (exacta o aproximada por
+localidad). **Fase 2:** la distancia por calle con Google para los 10 edificios más cercanos, la ubicación del
+domicilio de los casos de campo con Google al abrir «Derivar», y «Ubicar en el mapa» en el formulario de edificio.
+Afuera: la API de la app (no expone el edificio de la derivación) y la elección de camas al aceptar, que sigue
+siendo de la institución.
+
+## Decisiones tomadas
+- **Se deriva a la institución dentro de un edificio** (decisión del usuario, 21/11/2026): el panel muestra los
+  edificios con el total de camas libres de todas sus instituciones; al elegir uno, sus instituciones con sus
+  camas **en ese edificio**; al elegir una, se deriva. `Derivacion.edificio` guarda el edificio: una institución
+  puede ocupar varios.
+- **La marca del edificio es la de su mejor institución.** Se deriva a una sola, así que un edificio con 100
+  camas repartidas de a 10 no «alcanza» para una familia de 12.
+- **Las camas del edificio salen del mismo censo** (`camas_de`): `OcupacionSector` suma `edificio_id`, que viaja en
+  la misma fila; `OcupacionDispositivo.conteo_del_edificio` suma los sectores de un edificio. Sin consultas nuevas
+  en el censo. `derivar_caso(…, edificio=…)` valida que la institución tenga sectores ahí y cuenta esas camas.
+- **La distancia se mide desde el domicilio de la familia** (decisión del usuario): el punto del domicilio
+  (`CasoEmergencia.domicilio_latitud/longitud`); en un caso de la mesa anterior a este cambio, `latitud` y
+  `longitud` (ahí se guardaba el domicilio ubicado en el mapa; solo origen mesa, porque un «Ingreso directo» puede
+  venir de la app con GPS sin precisión); si no, el centroide de su localidad (aproximada); el GPS de la toma, solo
+  si no hay nada de eso. Hasta el edificio: sus coordenadas o el centroide de su localidad. Una coordenada fuera de
+  la caja del Chaco (`ubicacion_valida`, la de E8) cuenta como que no está, y los homónimos de localidad se cuentan
+  sobre todas las localidades, con centroide o sin él.
+- **El punto del mapa del Formulario 1 del backoffice es el domicilio**, no el GPS. Cambia la decisión del
+  Cambio 493 fase 2 («llegan a `crear_caso` como la posición del GPS»): la mesa y la puerta del dispositivo no
+  tienen GPS de teléfono. La API de la app sigue mandando su GPS en `latitud`/`longitud`.
+- **Edificios de ubicación reservada** (Cambio 499; decisión del usuario): siguen en «Derivar», pero sin domicilio
+  (solo nombre y localidad) y con la distancia en línea recta calculada en el servidor; en la fase 2 no se mandan
+  a Google. Un edificio es reservado si lo ocupa alguna institución de tipo reservado, la regla de `/mapa/`.
+- **Sectores sin edificio** (anteriores al Cambio 429): la institución aparece sola, «(sin edificio asignado)»,
+  ubicada con sus propias coordenadas, y se deriva sin edificio con `derivar_caso(…, sin_edificio=True)`, que
+  cuenta solo esas camas, las mismas que mostró el panel (auditoría del PR #1271).
+- **Una institución sin sectores ya no aparece** en el panel: no tiene camas que ofrecer.
+
+## Implementación
+- `programas/selectors/emergencia_derivar.py` (nuevo): `edificios_para_derivar` arma los edificios con sus
+  instituciones, la marca, la distancia y su texto («a 3,1 km en línea recta», «≈ 12,0 km (por localidad)»).
+  **6 consultas fijas** (5 si ninguna cama está en un edificio).
+- `selectors.emergencia_mesa.panel_de_derivar` arma las tarjetas de los dos pasos con la URL (`grupo=e12`, o `d34`
+  para los sectores sin edificio de una institución); la confirmación lleva el edificio oculto.
+- `_tarjeta_dispositivo_derivar.html` suma `distancia_texto` (opcional), que gana sobre `distancia_km`.
+- La ficha muestra el edificio en «Derivación vigente», y las «Llegadas» de la institución lo muestran en la fila.
+
+## Archivos
+`programas/models/__init__.py`, `programas/migrations/0131_caso_domicilio_y_edificio_de_la_derivacion.py`,
+`programas/services/ocupacion.py`, `programas/services/emergencia.py`, `programas/services/emergencia_alta.py`,
+`programas/services/ubicacion_reservada.py`, `programas/selectors/emergencia_derivar.py`,
+`programas/selectors/emergencia_mesa.py`, `programas/selectors/emergencia_alojar.py`,
+`programas/selectors/emergencia_llegadas.py`, `programas/forms_emergencia.py`, `programas/views/emergencia.py`,
+`programas/templates/programas/emergencia/casos/detail.html`, `templates/components/_tarjeta_dispositivo_derivar.html`,
+`.claude/design/componentes/tarjeta_dispositivo_derivar.md`, `.claude/agents/chaco-design-system.md`; tests en
+`programas/tests/test_emergencia_derivar.py` (nuevo) y `programas/tests/test_emergencia_mesa.py`.
+
+## Base de datos
+`programas.0131`: `casoemergencia.domicilio_latitud`, `casoemergencia.domicilio_longitud` (`DECIMAL(9,6)` nulos) y
+`derivacion.edificio_id` (FK nula a `programas_edificio`). Solo expand: la release anterior no las lee y sus altas
+dejan `NULL`. Sin datos que mover.
+
+## Validación
+`manage.py check` y `makemigrations --check` **sin** `DJANGO_SYNCDB_PROJECT_APPS` (con él no se cargan las
+migraciones: así se escapó un import faltante en `0131`, que marcó la auditoría) OK; tests de Emergencia y de ocupación OK (incluye
+`test_emergencia_derivar`, nuevo, y el presupuesto de E3: 20 consultas con 50 edificios). `design_audit.py
+--ratchet`: 0 nuevos; `check_design_agent.py --changed`: OK; `compile_templates.py --bloques`: 0; `ruff` OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- **Fase 2:** distancia por calle con Google (Distance Matrix/Routes en el navegador, 10 más cercanos, sin
+  edificios reservados), ubicar el domicilio de los casos de campo al abrir «Derivar» y «Ubicar en el mapa» en el
+  formulario de edificio.
+- `selectors.emergencia.dispositivos_para_derivar` quedó sin pantalla que lo use (lo cubren sus tests): retirarlo
+  junto con sus pruebas cuando se confirme que no vuelve.
+- La API de la app no expone el edificio de la derivación.
+- Una migración de datos que copie `latitud/longitud` → `domicilio_*` en los casos de la mesa anteriores al cambio,
+  para retirar esa regla de `punto_de_la_familia`.
+
+## Reversión
+Desplegar el código anterior: el panel vuelve a listar dispositivos. Las columnas nuevas pueden quedar (la release
+anterior las ignora); si se revierte `programas.0131`, se pierde el edificio de las derivaciones hechas y el punto
+del domicilio de los casos cargados desde la mesa.
+
+## Historial
+
+- **21/11/2026:** alta del cambio (fase 1).

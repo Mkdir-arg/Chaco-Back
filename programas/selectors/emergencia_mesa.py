@@ -26,6 +26,7 @@ from core.selectors.geografia import PROVINCIA_OPERATIVA
 from programas.models import AdjuntoCaso, CasoEmergencia, ContactoCaso, Derivacion, GrupoFamiliar, TrazaCaso
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_alojar as selectores_alojar
+from programas.selectors import emergencia_derivar as selectores_derivar
 from programas.services.emergencia import (
     ESTADOS_PARA_TOMAR,
     NECESIDADES,
@@ -45,7 +46,7 @@ Estado = CasoEmergencia.Estado
 #: Valor del filtro «Tomado por» que significa «los que tengo yo».
 OPERADOR_MIOS = "mios"
 
-#: Cuántos dispositivos muestra el panel «Derivar» de una vez. El resto se alcanza filtrando.
+#: Cuántos edificios muestra el panel «Derivar» de una vez. El resto se alcanza filtrando.
 TOPE_DISPOSITIVOS = 20
 
 #: RN-1.8: la fila avisa «Relevado 14:20 · enviado 16:05» cuando difieren más que esto.
@@ -520,12 +521,17 @@ def derivacion_pendiente_de(caso):
 def _derivacion_vigente(caso):
     """La derivación vigente tal como la muestra la ficha, o ``None``. **1 consulta.**"""
 
-    derivacion = Derivacion.objects.filter(clave_vigente=caso.pk).select_related("dispositivo", "derivada_por").first()
+    derivacion = (
+        Derivacion.objects.filter(clave_vigente=caso.pk)
+        .select_related("dispositivo", "edificio", "derivada_por")
+        .first()
+    )
     if derivacion is None:
         return None
     pendiente = derivacion.estado == Derivacion.Estado.PENDIENTE
     return {
         "dispositivo": derivacion.dispositivo.nombre,
+        "edificio": derivacion.edificio.nombre if derivacion.edificio_id else "",
         "localidad": derivacion.dispositivo.localidad,
         "plazas": _plazas(derivacion.plazas_pedidas),
         "derivada_por": nombre_de(derivacion.derivada_por),
@@ -536,47 +542,83 @@ def _derivacion_vigente(caso):
     }
 
 
-def panel_de_derivar(caso, usuario, *, plazas=None, texto="", localidad="", url_de_accion=None):
-    """El panel «Derivar» de E3: los dispositivos como los pide ``_tarjeta_dispositivo_derivar.html``.
+def panel_de_derivar(
+    caso, usuario, *, plazas=None, texto="", localidad="", grupo=None, url_de_grupo=None, url_de_accion=None
+):
+    """El panel «Derivar» de E3 por edificio (Cambio 520), como lo pide ``_tarjeta_dispositivo_derivar.html``.
 
-    ``plazas`` es lo que la mesa quiere reservar (por omisión, el total declarado; nunca
-    menos de 1). ``texto`` y ``localidad`` filtran la lista por nombre y por localidad del
-    dispositivo. ``url_de_accion(dispositivo_id, plazas)`` arma el destino del botón «Derivar a …»;
-    un dispositivo sin plazas va con el botón bloqueado y el motivo a la vista (RN-2.5).
+    Dos pasos en la misma pantalla: la lista de **edificios** con sus camas libres y su distancia a la
+    familia; con ``grupo`` (la clave de un edificio de la lista), las **instituciones** de ese edificio con
+    sus camas ahí, cada una con su botón «Derivar a …».
 
-    Devuelve ``{"plazas", "dispositivos", "total", "mostrados", "localidades", "filas"}``:
-    ``dispositivos`` son a lo sumo :data:`TOPE_DISPOSITIVOS` tarjetas, en el orden del
-    selector (alcanza primero, después por distancia); ``filas`` es lo que contestó el
-    selector, sin recortar, indexado por id.
+    ``plazas`` es lo que la mesa quiere reservar (por omisión, el total declarado; nunca menos de 1).
+    ``texto`` busca en el nombre y el domicilio del edificio y en el nombre de sus instituciones;
+    ``localidad`` filtra por la del edificio. ``url_de_grupo(clave)`` arma el botón de un edificio y
+    ``url_de_accion(clave, dispositivo_id, plazas)`` el de una institución. Un edificio o una institución
+    sin camas va con el botón bloqueado y el motivo a la vista (RN-2.5).
 
-    **Presupuesto: 4 consultas**, las de ``dispositivos_para_derivar``, haya 5 o 500.
+    Devuelve ``{"plazas", "edificios", "total", "mostrados", "localidades", "grupo", "grupos"}``:
+    ``edificios`` son a lo sumo :data:`TOPE_DISPOSITIVOS` tarjetas, en el orden del selector (alcanza
+    primero, después por distancia); ``grupo`` es el edificio elegido con sus tarjetas de institución, o
+    ``None``; ``grupos`` es todo lo que contestó el selector, sin recortar, por clave.
+
+    **Presupuesto: 6 consultas**, las de ``edificios_para_derivar``, haya 5 edificios o 500.
     """
 
     pedidas = caso.grupo.total_declarado if plazas is None else max(int(plazas), 1)
-    filas = selectores.dispositivos_para_derivar(caso, usuario, plazas=pedidas)
-    localidades = sorted({fila["localidad"] for fila in filas if fila["localidad"]})
+    todos = selectores_derivar.edificios_para_derivar(caso, usuario, plazas=pedidas)
+    localidades = sorted({fila["localidad"] for fila in todos if fila["localidad"]})
     texto = (texto or "").strip().casefold()
-    visibles = [
-        fila
-        for fila in filas
-        if (not texto or texto in fila["nombre"].casefold()) and (not localidad or fila["localidad"] == localidad)
-    ]
+    visibles = [fila for fila in todos if _coincide(fila, texto) and (not localidad or fila["localidad"] == localidad)]
     tarjetas = []
     for fila in visibles[:TOPE_DISPOSITIVOS]:
-        tarjeta = {**fila, "pk": fila["id"], "accion_texto": f"Derivar a {fila['nombre']}"}
+        cuantas = len(fila["instituciones"])
+        tarjeta = {
+            **fila,
+            "pk": fila["clave"],
+            "localidad": fila["ubicacion"],
+            "accion_texto": f"Ver {'la institución' if cuantas == 1 else f'las {cuantas} instituciones'}",
+        }
         if fila["marca"] == selectores.MARCA_SIN_PLAZAS:
             tarjeta["accion_motivo"] = MOTIVO_SIN_PLAZAS
-        elif url_de_accion is not None:
-            tarjeta["accion_url"] = url_de_accion(fila["id"], pedidas)
+        elif url_de_grupo is not None:
+            tarjeta["accion_url"] = url_de_grupo(fila["clave"])
         tarjetas.append(tarjeta)
+
+    grupos = {fila["clave"]: fila for fila in todos}
+    elegido = grupos.get(grupo) if grupo else None
+    if elegido is not None:
+        instituciones = []
+        for institucion in elegido["instituciones"]:
+            tarjeta = {
+                **institucion,
+                "pk": f"{elegido['clave']}-{institucion['id']}",
+                "localidad": elegido["nombre"],
+                "distancia_texto": elegido["distancia_texto"],
+                "accion_texto": f"Derivar a {institucion['nombre']}",
+            }
+            if institucion["marca"] == selectores.MARCA_SIN_PLAZAS:
+                tarjeta["accion_motivo"] = MOTIVO_SIN_PLAZAS
+            elif url_de_accion is not None:
+                tarjeta["accion_url"] = url_de_accion(elegido["clave"], institucion["id"], pedidas)
+            instituciones.append(tarjeta)
+        elegido = {**elegido, "tarjetas": instituciones}
     return {
         "plazas": pedidas,
-        "dispositivos": tarjetas,
+        "edificios": tarjetas,
         "total": len(visibles),
         "mostrados": len(tarjetas),
         "localidades": localidades,
-        "filas": {fila["id"]: fila for fila in filas},
+        "grupo": elegido,
+        "grupos": grupos,
     }
+
+
+def _coincide(fila, texto):
+    if not texto:
+        return True
+    nombres = [fila["nombre"], fila["ubicacion"], *(institucion["nombre"] for institucion in fila["instituciones"])]
+    return any(texto in nombre.casefold() for nombre in nombres)
 
 
 def ficha_de_caso(caso, usuario, sla, ahora):

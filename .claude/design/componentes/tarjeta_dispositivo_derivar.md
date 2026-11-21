@@ -45,6 +45,7 @@ Claves de `dispositivo` (dict armado **en la vista o el selector**, nunca un mod
 | `localidad` | Opcional; vacía = «Sin localidad cargada» |
 | `libres`, `reservadas` | Plazas ya contadas. Sin ellas se muestra 0 |
 | `distancia_km` | Número (km desde el caso), se muestra con un decimal («a 3,2 km»). `None` = «distancia desconocida»; un 0 es una distancia |
+| `distancia_texto` | Opcional. La distancia ya escrita por la vista («a 3,1 km en línea recta», «≈ 12,0 km (por localidad)»): gana sobre `distancia_km`. La usa el panel «Derivar» por edificio, que distingue la distancia exacta de la aproximada |
 | `marca` | `ALCANZA`, `FALTAN` o `SIN_PLAZAS`, **ya resuelta**. Otro valor, o ninguno, no dibuja marca |
 | `faltan` | Con `FALTAN`: cuántas faltan («Faltan 2 plazas», «Falta 1 plaza»; sin número, «Faltan plazas») |
 | `accion_texto` | Opcional. Texto del botón, con el dispositivo («Derivar a CIS N.º 3»). Sin él no hay pie |
@@ -71,7 +72,8 @@ reservadas). El pie (`border-t border-light bg-secondary`) solo existe si hay ac
 - La marca va siempre en texto (badge con punto); el color solo la refuerza.
 - La acción bloqueada es un `<button disabled>` con `aria-describedby` hacia el motivo, que queda visible
   al lado: se ve por qué no se puede. No se esconde el botón.
-- La distancia es un número; el formato («a 3,2 km») lo pone la pieza con el separador del idioma.
+- La distancia es un número; el formato («a 3,2 km») lo pone la pieza con el separador del idioma. Si la vista
+  tiene que decir además de dónde sale (línea recta, por localidad), la manda escrita en `distancia_texto`.
 - Autoescape siempre: ningún `|safe`.
 
 ## Prohibido
