@@ -60926,3 +60926,4 @@ Desplegar el código anterior.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** MINOR de la auditoría del #1289: la frase prometía que un relevamiento vencido se libera tras el cierre de las 03:10, pero el cron lo pasa a EN_REVISION, que sigue en la gracia de 24 h. Ahora pide las dos condiciones: «Si ya pasaron 24 h de la fecha de fin y sigue en curso, se libera con el cierre automático de la madrugada (03:10).»
