@@ -350,9 +350,25 @@ class MarcarEnCaminoTests(BaseKits):
         self.assertEqual(traza.detalle, "Salió a las 10:00 · Camioneta AB123CD")
 
     def test_la_hora_de_salida_la_puede_cargar_la_mesa(self):
+        self.reloj.ahora = T0 - timedelta(minutes=60)
+        entrega = self._entrega()
+        self.reloj.ahora = T0
         salida = T0 - timedelta(minutes=40)
 
-        self.assertEqual(servicio.marcar_en_camino(self._entrega(), self.operador, hora=salida).despachada_en, salida)
+        self.assertEqual(servicio.marcar_en_camino(entrega, self.operador, hora=salida).despachada_en, salida)
+
+    def test_una_hora_de_salida_anterior_a_la_armada_se_rechaza(self):
+        entrega = self._entrega()
+
+        with self.assertRaises(ValidationError) as error:
+            servicio.marcar_en_camino(entrega, self.operador, hora=T0 - timedelta(minutes=1))
+        self.assertEqual(error.exception.message_dict["hora"], [servicio.HORA_ANTERIOR_A_LA_ENTREGA])
+        self.assertEqual(EntregaKit.objects.get(pk=entrega.pk).estado, Estado.PREPARADA)
+
+    def test_la_hora_de_salida_igual_a_la_armada_vale(self):
+        entrega = self._entrega()
+
+        self.assertEqual(servicio.marcar_en_camino(entrega, self.operador, hora=T0).despachada_en, T0)
 
     def test_una_hora_de_salida_futura_se_rechaza(self):
         entrega = self._entrega()

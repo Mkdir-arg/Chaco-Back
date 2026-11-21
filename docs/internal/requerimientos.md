@@ -650,6 +650,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 525 | Dispositivos · Edificios: la dirección se parte en líneas en el celular; Becas · eliminar: el bloqueo avisa que se libera con el cierre automático de la madrugada | Dispositivos · Edificios / Becas · eliminación | `#dispositivos` `#relevamientos` `#ui` `#textos` | QA en testing del 19/11/2026 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61005,7 +61006,85 @@ No requiere.
 ## Reversión
 Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las lee «Derivar».
 
+## Reversión
+Desplegar el código anterior. Lo guardado (`encargado_id`, `adulto_responsable_orden`) queda en el JSON y el código viejo lo ignora; las fechas aproximadas que no entraron al legajo siguen en la ficha.
+
 ## Historial
 
 - **21/11/2026:** alta del cambio.
 - **21/11/2026:** auditoría del #1290: el edificio reservado no va a Google, orden de los campos del modal y error de coordenadas visible.
+
+---
+
+# Cambio 527 — Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia (Formulario 1 y Formulario 2, kits) y Dispositivos (formulario de edificio) |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#datos` `#ui` |
+| **Solicitante** | PM — decisiones del 21/11/2026 sobre la auditoría de formularios de Dispositivos y Emergencia |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice y API (la app móvil no necesita cambios) |
+| **Migración** | No requiere (los datos nuevos viajan en el JSON de `situacion` y de la ficha) |
+
+## Pedido original
+Seis correcciones que el PM decidió sobre la auditoría de formularios: el «Encargado que recibe» no se tipea, el adulto
+responsable de un menor se elige, la fecha aproximada no se copia al legajo, la localidad del edificio sale del catálogo,
+el teléfono de Emergencia se valida como el de Dispositivos y la hora de salida de un kit no puede ser anterior a su armado.
+
+## Alcance acordado
+Los seis puntos, sin migración de esquema. Antes de diseñar se consultó el archivo vivo por `encargado`, `adulto responsable`,
+`aproximada`, `localidad` y `telefono`: ninguna decisión registrada choca (el Cambio 343 guardó el nombre de la localidad del
+dispositivo en el `CharField`, y acá el edificio hace lo mismo; el Cambio 469 definió el adulto responsable como texto
+obligatorio para menores de 16).
+
+## Decisiones tomadas
+- **Encargado que recibe = quien aloja.** El campo sale del formulario y el servicio lo registra desde el usuario autenticado:
+  `situacion["alojamiento"]` guarda `encargado_id` (el id del usuario, como `Estadia.ingresada_por`) y `encargado` (su nombre, que
+  es lo que se muestra). Los casos viejos con el texto se siguen mostrando tal cual. La API sigue **aceptando** `encargado` (la app
+  vieja lo manda) pero lo ignora; el contrato de la app queda con el campo marcado obsoleto.
+- **Adulto responsable.** Nuevo campo `adulto_responsable_orden` en la sección «Observaciones» de la ficha: el `orden` de un adulto
+  (18 años cumplidos, `core.edad.MAYORIA_DE_EDAD`) **ya confirmado** del mismo grupo, que no sea la propia persona ni esté egresado.
+  El backoffice lo ofrece como selector (sin texto libre) y el servicio lo valida en `confirmar_integrante` y en `completar_ficha`;
+  copia el nombre del legajo en `adulto_responsable`, que es lo que se muestra. Se pidió el mismo criterio en la API: vale para quien
+  mande `adulto_responsable_orden`. Como el adulto tiene que estar confirmado, hay que confirmar primero a los adultos.
+- **Fecha de nacimiento aproximada.** Con `fecha_nacimiento_aproximada` verdadera, la fecha no entra al legajo, ni en el alta de una
+  persona nueva ni al completar a quien no tenía fecha. Queda en la ficha, con su marca.
+- **Localidad del edificio.** `EdificioForm.localidad` es el selector del catálogo (`_opciones_de_localidad`, el de `DispositivoForm`)
+  y guarda el nombre en el mismo `CharField`. Un valor guardado que no está en el catálogo se ofrece como «(cargado antes)» para que
+  editar otro campo no lo borre.
+- **Teléfono de Emergencia.** `validacion_contacto.normalizar_telefono` (8 a 15 dígitos, solo dígitos y un `+` inicial) en la mesa y la
+  app (`crear_caso`) y en la confirmación de cada persona (ficha, mesa del dispositivo y app), con `MENSAJE_TELEFONO_INVALIDO`.
+  No se revalida lo ya guardado: `completar_ficha` no toca los datos personales.
+- **Kits.** `marcar_en_camino` rechaza una hora de salida anterior a `entrega.creado` (igual vale), con
+  `HORA_ANTERIOR_A_LA_ENTREGA`.
+
+## Pendientes
+- **App móvil:** ofrecer un selector con los adultos confirmados del grupo y mandar `adulto_responsable_orden`; hasta entonces
+  sigue mandando el texto libre, que el servidor acepta como siempre. Con esto el criterio del adulto responsable no es
+  obligatorio en la API.
+- Dejar de mandar `encargado` en la app.
+- Las fichas guardadas con texto libre quedan como están; en el backoffice, al volver a guardar las secciones 4 a 8 de un menor,
+  hay que elegir al adulto del selector.
+
+## Implementación
+`services/emergencia_cierre.py`, `forms_emergencia_dispositivo.py` y `views/emergencia_dispositivo.py` (encargado y selector);
+`services/emergencia_ficha.py` y `services/emergencia_confirmacion.py` (esquema, `adultos_del_grupo`, `_resolver_adulto_responsable`,
+`_fecha_firme`, `_normalizar_telefono`); `services/emergencia_alta.py` (teléfono del Formulario 1); `forms_dispositivos.py` (localidad
+del edificio); `services/kits.py` (hora de salida); `api/serializers_emergencia.py` y `api/views_emergencia_llegadas.py` (`encargado`
+obsoleto).
+
+## Archivos
+Los de arriba, `docs/internal/contrato-app-emergencia.md` y los tests: `programas/tests/test_emergencia_formularios_correcciones.py`
+(nuevo), `test_emergencia_cierre.py`, `test_emergencia_alojar_vistas.py`, `test_emergencia_casos.py`, `test_emergencia_mesa.py`,
+`test_emergencia_kits.py` y `test_emergencia_kits_vistas.py`. Cada regla se verificó por mutación (la hora del kit, el adulto, la
+fecha, el teléfono, la localidad y el encargado del servicio ponen en rojo su test).
+
+## Base de datos
+No requiere: `encargado_id` y `adulto_responsable_orden` van en JSON.
+
+## Historial
+- **21/11/2026:** alta del cambio.

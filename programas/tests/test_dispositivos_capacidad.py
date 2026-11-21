@@ -31,6 +31,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import Localidad, Municipio, Provincia
 from programas.forms_dispositivos import AgregarPlazasForm
 from programas.models import Dispositivo, Edificio, Plaza, ReservaPlaza, Sector, TipoDispositivo, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables, plazas_tomadas_del_sector
@@ -65,6 +66,11 @@ class BaseCapacidad(BaseEstadias):
         reloj.start()
         self.addCleanup(reloj.stop)
         super().setUp()
+        # La localidad del edificio es un selector del catálogo (Cambio 527): «Resistencia» tiene que existir.
+        provincia, _ = Provincia.objects.get_or_create(nombre="Chaco")
+        Localidad.objects.create(
+            nombre="Resistencia", municipio=Municipio.objects.create(nombre="Resistencia", provincia=provincia)
+        )
         # Sin sectores ni plazas no hay capacidad que configurar: el tipo del terreno las maneja.
         self.tipo.plaza_obligatoria_al_ingresar = True
         self.tipo.save()

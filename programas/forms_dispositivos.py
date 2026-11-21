@@ -13,7 +13,7 @@ from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_p
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.forms_sugerencias import attrs_sugerencias
 from core.widgets import SwitchInput
-from programas.forms import INPUT_CLASS
+from programas.forms import INPUT_CLASS, _opciones_de_localidad
 from programas.models import Edificio, MiembroEquipoDispositivo, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
 from programas.services.edificios import COORDENADAS as COORDENADAS_EDIFICIO
@@ -707,8 +707,14 @@ class EdificioForm(forms.Form):
     piso_departamento = forms.CharField(
         label="Piso/Departamento", max_length=40, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
     )
-    localidad = forms.CharField(
-        label="Localidad", max_length=120, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    # Como `DispositivoForm.localidad` (Cambio 343): el catálogo es lo que se elige y lo que un POST
+    # puede mandar, y se guarda el **nombre** en el mismo CharField. Escrita a mano, la localidad
+    # deja al edificio sin centroide en «Derivar» y fuera de los filtros por localidad.
+    localidad = forms.ChoiceField(
+        label="Localidad",
+        required=False,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"invalid_choice": "Elegí una localidad del listado."},
     )
     provincia = forms.CharField(
         label="Provincia",
@@ -742,6 +748,7 @@ class EdificioForm(forms.Form):
     def __init__(self, *args, edificio=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.edificio = edificio
+        self.fields["localidad"].choices = _opciones_de_localidad(edificio.localidad if edificio is not None else "")
         if edificio is not None and not self.is_bound:
             self.initial.setdefault("codigo", edificio.codigo)
             for campo in (*CAMPOS_EDIFICIO, *COORDENADAS_EDIFICIO):
