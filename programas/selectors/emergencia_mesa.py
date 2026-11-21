@@ -545,7 +545,7 @@ def _derivacion_vigente(caso):
 def panel_de_derivar(
     caso, usuario, *, plazas=None, texto="", localidad="", grupo=None, url_de_grupo=None, url_de_accion=None
 ):
-    """El panel «Derivar» de E3 por edificio (Cambio 519), como lo pide ``_tarjeta_dispositivo_derivar.html``.
+    """El panel «Derivar» de E3 por edificio (Cambio 520), como lo pide ``_tarjeta_dispositivo_derivar.html``.
 
     Dos pasos en la misma pantalla: la lista de **edificios** con sus camas libres y su distancia a la
     familia; con ``grupo`` (la clave de un edificio de la lista), las **instituciones** de ese edificio con

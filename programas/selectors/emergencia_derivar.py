@@ -1,4 +1,4 @@
-"""El panel «Derivar» de la mesa por edificio (Cambio 519): dónde hay camas y a qué distancia de la familia.
+"""El panel «Derivar» de la mesa por edificio (Cambio 520): dónde hay camas y a qué distancia de la familia.
 
 La mesa elige primero el **edificio** —el inmueble, que es donde están las camas— y después la
 **institución** que lo ocupa: un edificio puede alojar a tres instituciones y una institución puede
@@ -8,7 +8,7 @@ Emergencia), repartidas por el edificio de cada sector, que viaja en la misma fi
 La distancia se mide desde el **domicilio de la familia**, no desde el GPS de la toma:
 
 1. el punto del domicilio que ubicó el backoffice (``domicilio_latitud``/``domicilio_longitud``);
-2. en un caso cargado por la mesa antes del Cambio 519 (sin precisión de GPS), ``latitud``/``longitud``, que
+2. en un caso cargado por la mesa antes del Cambio 520 (sin precisión de GPS), ``latitud``/``longitud``, que
    ahí guardaban el domicilio ubicado en el mapa;
 3. el centroide de la localidad del caso (``core.UbicacionLocalidad``): aproximada;
 4. el GPS del teléfono al relevar, solo si no hay nada de lo anterior.

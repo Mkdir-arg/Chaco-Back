@@ -1,4 +1,4 @@
-"""El punto del domicilio del caso y el edificio de la derivación (Cambio 519).
+"""El punto del domicilio del caso y el edificio de la derivación (Cambio 520).
 
 Solo *expand*: tres columnas nuevas que nacen nulas, sin datos que mover. La release anterior no las
 lee ni las escribe, y un alta suya deja ``NULL``, que es un valor válido. La reversa es borrarlas.

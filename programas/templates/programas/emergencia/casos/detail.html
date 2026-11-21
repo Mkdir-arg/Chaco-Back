@@ -85,7 +85,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
             <dl class="grid gap-5 sm:grid-cols-2">
               {% for dato in datos %}
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
+                <dt class="text-xs font-bold uppercase text-heading">{{ dato.etiqueta }}</dt>
                 <dd class="mt-1 text-sm text-heading">{% if dato.formato == "dni" %}{{ dato.valor|dni }}{% else %}{{ dato.valor|default:"—" }}{% endif %}</dd>
                 {% if dato.url_mapa %}<a href="{{ dato.url_mapa }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm mt-2"><i class="fas fa-house" aria-hidden="true"></i> Ver domicilio en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
               </div>
@@ -146,7 +146,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
             <dl class="grid gap-5 sm:grid-cols-3">
               {% for dato in personas.asistencia %}
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
+                <dt class="text-xs font-bold uppercase text-heading">{{ dato.etiqueta }}</dt>
                 <dd class="mt-1 text-sm font-semibold text-heading">{{ dato.valor }}</dd>
               </div>
               {% endfor %}
@@ -192,11 +192,11 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
           {% if alojamiento.donde %}
           <dl class="p-5 border-t border-light grid gap-5 sm:grid-cols-2">
             <div>
-              <dt class="text-xs font-semibold uppercase text-body-subtle">Dónde quedó la familia</dt>
+              <dt class="text-xs font-bold uppercase text-heading">Dónde quedó la familia</dt>
               <dd class="mt-1 text-sm text-heading">{{ alojamiento.donde.sector|default:"Sin sector indicado" }}{% if alojamiento.donde.aula %} · {{ alojamiento.donde.aula }}{% endif %}</dd>
             </div>
             <div>
-              <dt class="text-xs font-semibold uppercase text-body-subtle">Tarjeta familiar</dt>
+              <dt class="text-xs font-bold uppercase text-heading">Tarjeta familiar</dt>
               <dd class="mt-1 text-sm text-heading">{% if alojamiento.donde.tarjeta_entregada %}Entregada · N.° {{ alojamiento.donde.tarjeta_numero }}{% else %}No se entregó{% endif %}{% if alojamiento.donde.encargado %} · recibió {{ alojamiento.donde.encargado }}{% endif %}</dd>
             </div>
           </dl>
@@ -304,26 +304,26 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
           <div class="p-5 space-y-4">
             <dl class="grid gap-4">
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">Dispositivo</dt>
+                <dt class="text-xs font-bold uppercase text-heading">Dispositivo</dt>
                 <dd class="mt-1 text-sm font-semibold text-heading">{{ derivacion.dispositivo }}{% if derivacion.localidad %} <span class="font-normal text-body-subtle">· {{ derivacion.localidad }}</span>{% endif %}</dd>
               </div>
               {% if derivacion.edificio %}
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">Edificio</dt>
+                <dt class="text-xs font-bold uppercase text-heading">Edificio</dt>
                 <dd class="mt-1 text-sm text-heading">{{ derivacion.edificio }}</dd>
               </div>
               {% endif %}
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">Plazas pedidas</dt>
+                <dt class="text-xs font-bold uppercase text-heading">Plazas pedidas</dt>
                 <dd class="mt-1 text-sm text-heading">{{ derivacion.plazas }}</dd>
               </div>
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">Derivada por</dt>
+                <dt class="text-xs font-bold uppercase text-heading">Derivada por</dt>
                 <dd class="mt-1 text-sm text-heading">{{ derivacion.derivada_por }} · {{ derivacion.derivada_en }}</dd>
               </div>
               {% if derivacion.pendiente %}
               <div>
-                <dt class="text-xs font-semibold uppercase text-body-subtle">Vence</dt>
+                <dt class="text-xs font-bold uppercase text-heading">Vence</dt>
                 <dd class="mt-1 text-sm text-heading">{{ derivacion.vence }}</dd>
               </div>
               {% endif %}

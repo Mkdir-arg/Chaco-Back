@@ -209,7 +209,7 @@ class OcupacionSector:
     capacidad_declarada: int
     conteo: Conteo
     #: El edificio donde está el sector (Cambio 429), o ``None`` si todavía no tiene uno asignado. Viaja
-    #: en la misma fila: el panel «Derivar» suma las camas por edificio sin otra consulta (Cambio 519).
+    #: en la misma fila: el panel «Derivar» suma las camas por edificio sin otra consulta (Cambio 520).
     edificio_id: int | None = None
 
 

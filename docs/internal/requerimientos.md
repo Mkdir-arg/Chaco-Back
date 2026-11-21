@@ -642,7 +642,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 516 | Auditoría 2026-11: se generalizan títulos de fichas de seguridad abiertas en el informe público de Dispositivos (detalle reservado) | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#seguridad` `#metodo` | PM — decisión sobre el informe público de la auditoría | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 517 | Dispositivos · Ola 0: seguimiento de las auditorías (regla de visibilidad en un solo dueño, guarda de roles medida por AST) | Dispositivos | `#dispositivos` `#seguridad` `#rbac` | Auditorías de los PR de la Ola 0 — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 518 | Emergencia · ficha del caso: «Ver en el mapa» muestra el domicilio (dirección y localidad), no el GPS de la toma | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#gps` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
-| 519 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** (fase 1 de 2) | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
+| 519 | Emergencia · ficha del caso: los rótulos de los datos (Responsable, DNI, Fuerza que traslada…) en negrita | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** (fase 1 de 2) | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 
 **Notas del índice**
 
@@ -60349,8 +60350,8 @@ midiendo distancias desde la latitud y la longitud del caso).
   no cambia.
 
 ## Implementación
-`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad, provincia)` arma el enlace (codificado; sin
-dirección, `None`); la provincia la pasa el selector desde `core.selectors.geografia.PROVINCIA_OPERATIVA`. `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
+`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad)` arma el enlace (codificado; sin dirección,
+`None`). `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
 `casos/detail.html` lo dibuja como `btn-secondary btn-sm` con pestaña nueva y aviso `sr-only`.
 
 ## Archivos
@@ -60384,7 +60385,60 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
   `core.selectors.geografia.PROVINCIA_OPERATIVA` (el selector la pasa; el helper ya no trae «Chaco» por defecto),
   para que siga siendo el único lugar a cambiar. La URL no cambia.
 
-# Cambio 519 — Emergencia · «Derivar» por edificio y distancia desde el domicilio de la familia
+# Cambio 519 — Emergencia · ficha del caso: los rótulos de los datos en negrita
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · mesa (ficha del caso E3) |
+| **Etiquetas** | `#emergencia` `#ui` |
+| **Solicitante** | Usuario — sesión de trabajo, sobre el caso 18 de testing (`/emergencia/casos/18/`) |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+«Quiero que resaltes los títulos con negrita, ejemplo: Responsable, DNI, Fuerza que traslada y los demás.»
+
+## Alcance acordado
+Todos los rótulos `<dt>` de la ficha del caso de la mesa (`casos/detail.html`): «Lo que se relevó», asistencia de
+«Personas que ingresan juntas», «Dónde quedó la familia», «Tarjeta familiar» y la derivación vigente. Afuera: el
+resto de las fichas del sistema.
+
+## Decisiones tomadas
+- **Negrita y color de título, mismo tamaño.** Pasan de `font-semibold text-body-subtle` (gris claro) a
+  `font-bold text-heading`; se conservan `text-xs uppercase`. Son clases existentes: no hace falta recompilar
+  Tailwind.
+
+## Implementación
+Reemplazo de la clase de los 8 `<dt>` en `casos/detail.html`; la variante «Apilado con panel lateral» del arquetipo
+Detalle lo deja anotado.
+
+## Archivos
+`programas/templates/programas/emergencia/casos/detail.html`, `.claude/design/arquetipos/detalle.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`design_audit.py --ratchet`: 0 nuevos. `check_design_agent.py --changed`: OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **21/11/2026:** alta del cambio.
+
+# Cambio 520 — Emergencia · «Derivar» por edificio y distancia desde el domicilio de la familia
 
 🟢 **HECHO — fase 1 el 21/11/2026** (la fase 2, distancia por calle con Google, queda pendiente)
 

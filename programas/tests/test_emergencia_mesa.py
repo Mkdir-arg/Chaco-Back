@@ -90,7 +90,7 @@ class BaseMesa(BaseCasos):
         return reverse(f"emergencia:{nombre}", args=[caso.pk])
 
     def _edificio(self, nombre, *dispositivos, localidad="Resistencia", latitud=None, longitud=None, calle=""):
-        """Un edificio con los sectores de ``dispositivos`` adentro (Cambio 519)."""
+        """Un edificio con los sectores de ``dispositivos`` adentro (Cambio 520)."""
         edificio = Edificio.objects.create(
             codigo=f"ED-{Edificio.objects.count() + 1}",
             nombre=nombre,
@@ -1282,7 +1282,7 @@ class PresupuestoDeConsultasTests(BaseMesa):
     CONSULTAS_E2 = 16
     #: E3: las cinco del shell, el caso (1), el SLA (1), los duplicados (3), fotos, contactos y
     #: traza (3), el responsable alojado (1) y el panel de derivar (6: los elegibles, las tres del censo,
-    #: los edificios y los centroides de las localidades; Cambio 519).
+    #: los edificios y los centroides de las localidades; Cambio 520).
     CONSULTAS_E3 = 20
 
     def _casos_en_lote(self, cuantos):

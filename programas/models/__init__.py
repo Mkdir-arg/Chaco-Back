@@ -5788,7 +5788,7 @@ class CasoEmergencia(TimeStamped):
     longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Longitud")
     precision_m = models.PositiveIntegerField(null=True, blank=True, verbose_name="Precisión del GPS (m)")
     direccion = models.CharField(max_length=240, verbose_name="Dirección")
-    # El punto del domicilio de la familia (Cambio 519): lo ubica el backoffice con Google a partir de
+    # El punto del domicilio de la familia (Cambio 520): lo ubica el backoffice con Google a partir de
     # `direccion` y `localidad`. No es `latitud`/`longitud`, que son el GPS del teléfono al relevar. Es el
     # origen de la distancia del panel «Derivar».
     domicilio_latitud = models.DecimalField(
@@ -6053,7 +6053,7 @@ class Derivacion(TimeStamped):
         related_name="derivaciones_emergencia",
         verbose_name="Dispositivo",
     )
-    # A qué edificio de la institución va la familia (Cambio 519): una institución puede ocupar varios.
+    # A qué edificio de la institución va la familia (Cambio 520): una institución puede ocupar varios.
     # Nulo en las derivaciones anteriores y en las que se hacen a una institución con camas en sectores
     # que todavía no tienen edificio asignado.
     edificio = models.ForeignKey(
