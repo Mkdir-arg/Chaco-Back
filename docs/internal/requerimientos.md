@@ -646,7 +646,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 520 | Emergencia · «Derivar» por edificio: primero el edificio con sus plazas, después la institución; distancia desde el domicilio de la familia | Emergencia · mesa (ficha del caso E3, panel «Derivar») | `#emergencia` `#gps` `#datos` `#ui` `#infra` | Usuario — sesión de trabajo | 21/11/2026 | 🟢 **Hecho** | Sí — `programas.0131` (3 `AddField` nulos, solo expand) |
 | 521 | Emergencia · app: la persona 1 llega precargada con el responsable que cargó el caso | Emergencia · llegada de familias (API M2-3/M2-4) | `#emergencia` `#api` `#mobile` | Usuario — sesión de trabajo, caso 2026-C-000018 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 522 | Emergencia · API: la consulta de persona admite `sexo` opcional y busca solo en legajos (puerta del dispositivo) | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pantalla de «puerta» del dispositivo de la app (Chaco-mobile) | 21/11/2026 | 🟢 **Hecho** | No requiere |
-| 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 2 de 4: regla por edificio en los servicios) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 2 de 4** | `programas.0132`, `programas.0133` |
+| 523 | Dispositivos · Equipo: alcance por institución o edificios y tipo de contratación (PR 3 de 4: bitácora por edificio) | Dispositivos · Equipo | `#dispositivos` `#rbac` `#datos` | PM — sesión de trabajo | 21/11/2026 | 🟡 **Parcial — PR 3 de 4** | `programas.0132`, `programas.0133`, `programas.0134` |
 | 524 | Dispositivos · solapa Infraestructura: barra de la institución arriba (Agregar edificio ▾ y Crear relevamiento), acciones del edificio junto a su nombre y ficha en una columna | Dispositivos · legajo (P4/P19, solapa Infraestructura) | `#dispositivos` `#infra` `#ui` | Usuario — sesión de trabajo, legajo 16 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 525 | Dispositivos · Edificios: la dirección se parte en líneas en el celular; Becas · eliminar: el bloqueo avisa que se libera con el cierre automático de la madrugada | Dispositivos · Edificios / Becas · eliminación | `#dispositivos` `#relevamientos` `#ui` `#textos` | QA en testing del 19/11/2026 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
@@ -60765,6 +60765,12 @@ Decisiones del PM del 21/11/2026:
 8. **Kits «con edificio»** (PM, 21/11/2026, PR 2): `EntregaKit.edificio` (FK nulo). Con alcance Edificios se ven y se
    reciben solo las entregas de sus edificios; las que no tienen edificio, solo con alcance Institución. Las entregas
    viejas quedan sin edificio y no se reasignan.
+9. **Censo de la bitácora con alcance Edificios** (PM, 21/11/2026): solo de **sus** edificios, no los totales de la
+   institución (ingresos, egresos, existencias y cifras de plazas). Entra en el PR 3.
+10. **Historial con alcance Edificios** (PM, 21/11/2026): muestra solo lo de sus edificios, no queda vacío. Va en un PR
+    nuevo apilado después del PR 3 (el PR 4 del carril; el #1284 sigue frenado).
+11. **Entrega de kits** (PM, 21/11/2026): elegir el edificio es **obligatorio** cuando el destino tiene más de uno; con
+    uno solo queda fijo. Entra en el PR 3 (el paso «Confirmar» del asistente).
 
 Decisiones técnicas de este PR: `alcance` NULL equivale a `INSTITUCION` (todas las filas existentes, sin backfill);
 `tipo_contratacion` NULL se muestra como «Sin dato»; el servicio acepta `tipo_contratacion=None` para no romper
@@ -60818,9 +60824,8 @@ rojos (formularios y vistas de sumar y crear). `manage.py check`, `makemigration
 No requiere más que el deploy (corre la migración).
 
 ## Pendientes / a definir
-PR 3 y 4 del plan. Decisiones revisables: turnos por institución; la mesa todavía no elige el edificio al armar una
-entrega de kits (con varios edificios la entrega nueva queda sin edificio y solo la ve alcance Institución); el Historial de la institución queda vacío
-con alcance Edificios hasta que la bitácora lleve edificio (PR 3), y la bitácora P10 (novedades, personas, actas) también, aunque el censo del día sigue mostrando los totales de la institución. Con alcance Edificios **se carga pero no se ve**: puede registrar una novedad (sin personas) y no la lee ni la corrige hasta el PR 3; la regla es un solo predicado, `ve_la_bitacora`, que usan el servicio, la pantalla, el detalle y la corrección; validar, observar y rechazar siguen por
+PR 3 y 4 del plan. Decisiones revisables: turnos por institución; el Historial de la institución queda vacío
+con alcance Edificios hasta el PR 4 (decisión 10), y la bitácora P10 solo muestra las novedades y el censo de sus edificios (sin personas: decisión abierta); validar, observar y rechazar siguen por
 institución.
 
 ## Reversión
@@ -60838,6 +60843,15 @@ contratación cargada.
   edificio (404); la bitácora (novedades, personas, actas, turnos) y el Historial quedan para quien tiene toda la institución
   —la regla del Historial vive en `eventos_de_historial`—; `verificar_alojamiento_en_red` no da la plaza de otro edificio.
   Un test por escenario (`CorreccionesDeAuditoriaTests`) y cada guarda verificada por mutación.
+- **21/11/2026:** PR 3 de 4 (#1283, apilado sobre el PR 2): `EntradaBitacora.edificio` (FK nullable, `programas.0134`, expand puro;
+  las anteriores quedan sin edificio). Las automáticas toman el edificio de plaza → sector → edificio (ingreso, egreso,
+  movimiento, permiso) o de la derivación/entrega (Emergencia, kits); sector sin edificio, vacío. La manual lo elige quien tiene
+  más de un edificio (obligatorio), queda fijo con uno y es opcional con alcance Institución. Con alcance Edificios se ven solo
+  las novedades de sus edificios (las sin edificio, solo Institución), y también sus adjuntos (404 por URL directa), el detalle y la
+  solapa de novedades de la estadía; Institución tiene el filtro «Edificio» (Todos / cada uno / Sin edificio). Sigue sin
+  nombrar ni ofrecer personas con alcance Edificios. `Turno` no cambia. Tests: `programas/tests/test_equipo_alcance_bitacora.py`;
+  mutación de cada guarda (filtro de la pantalla, adjunto, obligatoriedad, corregir) en rojo.
+- **21/11/2026:** decisiones del PM 9 y 11 en el PR 3: el censo del día (ingresos, egresos, existencias) y las cifras de plazas de la bitácora se acotan a los edificios del alcance (`censo_por_dia(usuario=...)`; la estadía cuenta en el edificio donde está hoy, así que un traslado entre edificios no mueve su historia) y «Confirmar» de una entrega de kits pide el edificio cuando el destino tiene más de uno (`crear_entrega` lo exige). Tests `CensoPorEdificioTests` y `NuevaEntregaTests`, con mutación.
 
 ---
 

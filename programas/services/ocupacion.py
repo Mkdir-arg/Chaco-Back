@@ -300,16 +300,18 @@ def alojada_en(fecha_ingreso, fecha_egreso, momento) -> bool:
     return fecha_ingreso < momento and (fecha_egreso is None or fecha_egreso >= momento)
 
 
-def estadias_alojadas_entre(dispositivo, desde, hasta):
+def estadias_alojadas_entre(dispositivo, desde, hasta, *, q_estadias=None):
     """``(fecha_ingreso, fecha_egreso)`` de las estadías alojadas en algún instante de ``[desde, hasta]``.
 
     Es el universo sobre el que :func:`alojada_en` se evalúa en Python para cualquier
     instante del rango: una consulta para todo el rango y no una por instante. Filtra
-    solo por fechas, sin ``Trunc*``. ``dispositivo`` es la instancia o su id.
+    solo por fechas, sin ``Trunc*``. ``dispositivo`` es la instancia o su id. ``q_estadias`` acota las estadías
+    (``Q`` sobre ``Estadia``): el alcance por edificio de quien mira.
     """
 
     return (
         Estadia.objects.filter(dispositivo_id=getattr(dispositivo, "pk", dispositivo), fecha_ingreso__lt=hasta)
+        .filter(q_estadias if q_estadias is not None else Q())
         .filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gte=desde))
         .order_by()
         .values_list("fecha_ingreso", "fecha_egreso")

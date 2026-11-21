@@ -23,7 +23,7 @@ no las repite: si el servicio rechaza, muestra su mensaje en el campo que corres
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -36,19 +36,25 @@ from programas.mixins_dispositivos import (
     DispositivoProgramaPermissionMixin,
     dispositivo_operable_o_404,
 )
-from programas.models import Dispositivo, EntradaBitacora
+from programas.models import Dispositivo, Edificio, EntradaBitacora
 from programas.services.bitacora import (
     CAP_BITACORA,
     CAP_EDITAR,
     corregir_entrada,
     crear_turno,
+    edificios_para_novedad,
     editar_turno,
     registrar_entrada,
-    ve_la_bitacora,
+    ve_a_las_personas,
 )
 from programas.services.bitacora_detalle import detalle_entrada
 from programas.services.bitacora_pantalla import pantalla_bitacora
-from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_institucion
+from programas.services.dispositivos import (
+    alcance_de_edificios,
+    puede_operar_dispositivo,
+    puede_operar_institucion,
+    q_edificios_en_alcance,
+)
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
@@ -69,8 +75,17 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
         usuario = self.request.user
         puede_cargar = puede_operar_dispositivo(usuario, dispositivo, CAP_BITACORA)
         puede_configurar = puede_operar_institucion(usuario, dispositivo, CAP_EDITAR)
-        nombrar_personas = rbac.puede(usuario, CAP_VER_CIUDADANO)
+        # Alcance por edificio (Cambio 523): las entradas se acotan con la función central; solo quien ve toda la
+        # institución tiene el filtro «Edificio» y ve a las personas (con alcance Edificios, ni nombres ni opciones).
+        todo = alcance_de_edificios(usuario, dispositivo, CAP_VER).todo
+        nombrar_personas = todo and rbac.puede(usuario, CAP_VER_CIUDADANO)
         url_base = reverse("dispositivos:bitacora", args=[dispositivo.pk])
+        # El filtro lista los edificios del dispositivo (lectura): no depende de la capacidad de carga.
+        edificios_filtro = (
+            list(Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "id").values_list("pk", "nombre"))
+            if todo
+            else []
+        )
 
         datos = pantalla_bitacora(
             dispositivo,
@@ -81,12 +96,25 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             puede_configurar=puede_configurar,
             nombrar_personas=nombrar_personas,
             url_base=url_base,
+            q_entradas=q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id"),
+            edificios_filtro=edificios_filtro,
+            edificio=self.request.GET.get("edificio", ""),
             usuario=usuario,
         )
         context.update(datos)
         context["puede_configurar"] = puede_configurar
         if datos["puede_cargar"]:
-            context["form_novedad"] = NovedadForm(personas=datos["personas"], max_adjuntos=datos["max_adjuntos"])
+            opciones, obligatorio = edificios_para_novedad(usuario, dispositivo)
+            context["form_novedad"] = NovedadForm(
+                personas=datos["personas"],
+                max_adjuntos=datos["max_adjuntos"],
+                edificios=[(e.pk, e.nombre) for e in opciones],
+            )
+            # «elegir»: más de uno (o Institución, donde es opcional); «fijo»: uno solo bajo alcance Edificios.
+            if len(opciones) > 1 or (opciones and not obligatorio):
+                context["edificio_novedad"] = {"modo": "elegir", "obligatorio": obligatorio}
+            elif opciones:
+                context["edificio_novedad"] = {"modo": "fijo", "nombre": opciones[0].nombre}
             if datos["corregibles"]:
                 context["form_correccion"] = CorreccionForm(
                     corregibles=[(item["pk"], item["etiqueta"]) for item in datos["corregibles"]],
@@ -150,10 +178,17 @@ class BitacoraEntradaView(DispositivoObjectPermissionMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         dispositivo = self.object
-        if not ve_la_bitacora(self.request.user, dispositivo):
-            raise Http404("La novedad no existe.")
-        entrada = get_object_or_404(EntradaBitacora, pk=self.kwargs["entrada_pk"], dispositivo=dispositivo)
-        datos = detalle_entrada(entrada, nombrar_personas=rbac.puede(self.request.user, CAP_VER_CIUDADANO))
+        entrada = get_object_or_404(
+            EntradaBitacora.objects.filter(
+                q_edificios_en_alcance(self.request.user, CAP_VER, "dispositivo_id", "edificio_id")
+            ),
+            pk=self.kwargs["entrada_pk"],
+            dispositivo=dispositivo,
+        )
+        nombrar_personas = ve_a_las_personas(self.request.user, dispositivo) and rbac.puede(
+            self.request.user, CAP_VER_CIUDADANO
+        )
+        datos = detalle_entrada(entrada, nombrar_personas=nombrar_personas)
         context.update(datos)
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
@@ -214,13 +249,9 @@ class _BitacoraPostView(DispositivoProgramaPermissionMixin, View):
     http_method_names = ["post"]
     form_class = None
     mensaje_exito = ""
-    #: Corregir exige leer la bitácora: se pregunta antes del formulario, para no revelar ids de novedades.
-    exige_ver_la_bitacora = False
 
     def post(self, request, pk):
         dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
-        if self.exige_ver_la_bitacora and not ve_la_bitacora(request.user, dispositivo):
-            return _prohibido(request, "No tenés alcance para corregir la bitácora de este dispositivo.")
         volver = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         form = self.armar_form(request, dispositivo)
         if not form.is_valid():
@@ -248,6 +279,7 @@ class NovedadCrearView(_BitacoraPostView):
             request.POST,
             request.FILES,
             personas=_personas_posteadas(request),
+            edificios=[(e.pk, e.nombre) for e in edificios_para_novedad(request.user, dispositivo)[0]],
         )
 
     def ejecutar(self, request, dispositivo, datos):
@@ -261,6 +293,7 @@ class NovedadCrearView(_BitacoraPostView):
             momento=datos["momento"],
             personas=personas,
             adjuntos=datos["adjuntos"],
+            edificio=datos.get("edificio") or None,
         )
 
 
@@ -268,7 +301,6 @@ class NovedadCorregirView(_BitacoraPostView):
     """Corrige una novedad agregando una versión: la anterior sigue visible."""
 
     capacidad_requerida = CAP_BITACORA
-    exige_ver_la_bitacora = True
     mensaje_exito = "Novedad corregida: la versión anterior sigue visible."
 
     def armar_form(self, request, dispositivo):
@@ -277,6 +309,7 @@ class NovedadCorregirView(_BitacoraPostView):
             request.FILES,
             dispositivo=dispositivo,
             personas=_personas_posteadas(request),
+            q_alcance=q_edificios_en_alcance(request.user, CAP_BITACORA, "dispositivo_id", "edificio_id"),
         )
 
     def ejecutar(self, request, dispositivo, datos):

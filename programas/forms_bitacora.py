@@ -104,13 +104,23 @@ class NovedadForm(_PersonasYAdjuntosForm):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 4}),
         error_messages={"required": "Contá qué pasó."},
     )
+    edificio = forms.TypedChoiceField(
+        label="Edificio",
+        required=False,
+        choices=(),
+        coerce=int,
+        empty_value=None,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
     etiqueta_personas = "Personas involucradas"
     etiqueta_adjuntos = "Adjuntos"
     ayuda_adjuntos = "Hasta {max} archivos: PDF, imágenes o documentos de 5 MB."
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, edificios=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["tipo"].choices = [("", "Elegí el tipo"), *TIPOS_MANUALES]
+        # Las opciones las decide el servicio (`bitacora.edificios_para_novedad`); si no hay ninguna, el campo no se usa.
+        self.fields["edificio"].choices = [("", "Elegí el edificio"), *[(str(pk), nombre) for pk, nombre in edificios]]
 
 
 class CorreccionForm(_PersonasYAdjuntosForm):
@@ -154,16 +164,21 @@ class CorreccionForm(_PersonasYAdjuntosForm):
     etiqueta_adjuntos = "Sumar adjuntos"
     ayuda_adjuntos = "Hasta {max} archivos por novedad, contando los que ya tiene: PDF, imágenes o documentos de 5 MB."
 
-    def __init__(self, *args, dispositivo=None, corregibles=(), **kwargs):
+    def __init__(self, *args, dispositivo=None, corregibles=(), q_alcance=None, **kwargs):
         # Los dos modales conviven en la página: sin prefijo de id repetirían `id_texto`, etc.
         kwargs.setdefault("auto_id", "id_corr_%s")
         super().__init__(*args, **kwargs)
         self.dispositivo = dispositivo
+        # Acote por edificio (Cambio 523): una novedad fuera de alcance se rechaza igual que una que no existe.
+        self.q_alcance = q_alcance
         self.fields["tipo"].choices = [("", "Elegí el tipo"), *TIPOS_MANUALES]
         self.fields["entrada"].widget.choices = [("", "Elegí la novedad"), *corregibles]
 
     def clean_entrada(self):
-        entrada = EntradaBitacora.objects.filter(pk=self.cleaned_data["entrada"], dispositivo=self.dispositivo).first()
+        candidatas = EntradaBitacora.objects.filter(pk=self.cleaned_data["entrada"], dispositivo=self.dispositivo)
+        if self.q_alcance is not None:
+            candidatas = candidatas.filter(self.q_alcance)
+        entrada = candidatas.first()
         if entrada is None:
             raise forms.ValidationError("Esa novedad no es de este dispositivo.")
         return entrada

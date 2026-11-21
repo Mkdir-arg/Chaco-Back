@@ -377,7 +377,7 @@ def puede_operar_edificio(user, dispositivo, edificio_id, capacidad):
     ).permite(edificio_id)
 
 
-def _edificio_de_plaza(plaza):
+def edificio_de_plaza(plaza):
     """El edificio del sector de ``plaza`` (un ``Plaza``, su id, o ``None``); ``None`` si no hay plaza o sector sin edificio."""
 
     from programas.models import Plaza
@@ -399,7 +399,7 @@ def puede_operar_plaza(user, dispositivo, plaza, capacidad):
     if not puede_operar_dispositivo(user, dispositivo, capacidad):
         return False
     alcance = alcance_de_edificios(user, dispositivo, capacidad)
-    return alcance.todo or alcance.permite(_edificio_de_plaza(plaza))
+    return alcance.todo or alcance.permite(edificio_de_plaza(plaza))
 
 
 def puede_operar_institucion(user, dispositivo, capacidad):

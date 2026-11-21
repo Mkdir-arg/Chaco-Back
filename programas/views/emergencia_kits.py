@@ -352,11 +352,17 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
             original = self._original(request.POST.get("repone_a"), destino)
             if not cargado.is_valid():
                 return self._paso_items(request, destino, cargado, original, status=400)
-            form = ConfirmarEntregaForm(initial=cargado.cantidades_cargadas(), catalogo=catalogo)
+            form = ConfirmarEntregaForm(
+                initial=cargado.cantidades_cargadas(),
+                catalogo=catalogo,
+                edificios=selectores.edificios_a_elegir(destino, original),
+            )
             return self._resumen(request, destino, form, original, cargado.lineas())
 
-        form = ConfirmarEntregaForm(request.POST, catalogo=catalogo)
         original = self._original(request.POST.get("repone_a"), destino)
+        form = ConfirmarEntregaForm(
+            request.POST, catalogo=catalogo, edificios=selectores.edificios_a_elegir(destino, original)
+        )
         if not form.is_valid():
             return self._resumen(request, destino, form, original, form.lineas(), status=400)
         try:
@@ -366,6 +372,7 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
                 form.lineas(),
                 observacion=form.cleaned_data["observacion"],
                 repone_a=form.cleaned_data["repone_a"],
+                edificio=form.cleaned_data.get("edificio"),
             )
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
@@ -600,11 +607,11 @@ class RecibirKitView(RecepcionKitsMixin, View):
         entrega = self._entrega(pk)
         if not entrega.abierta:
             return self._ya_no_esta_abierta(request, entrega)
-        return self._render(request, entrega, RecepcionKitForm(lineas=selectores.lineas_de(entrega)))
+        return self._render(request, entrega, RecepcionKitForm(lineas=list(entrega.lineas.all())))
 
     def post(self, request, dispositivo, pk):
         entrega = self._entrega(pk)
-        form = RecepcionKitForm(request.POST, request.FILES, lineas=selectores.lineas_de(entrega))
+        form = RecepcionKitForm(request.POST, request.FILES, lineas=list(entrega.lineas.all()))
         if not form.is_valid():
             return self._render(request, entrega, form, status=400)
         try:

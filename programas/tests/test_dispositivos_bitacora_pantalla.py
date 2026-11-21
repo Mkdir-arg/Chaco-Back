@@ -699,7 +699,12 @@ class CorregirQuitandoTests(BasePantalla):
 
         with _reloj():
             datos = pantalla_bitacora(
-                self.cis, puede_cargar=True, puede_configurar=True, nombrar_personas=True, url_base=self.url
+                self.cis,
+                puede_cargar=True,
+                puede_configurar=True,
+                nombrar_personas=True,
+                url_base=self.url,
+                usuario=self.operador,
             )
 
         self.assertEqual([item["pk"] for item in datos["corregibles"]], [self.entrada.pk])
@@ -1014,7 +1019,12 @@ class PresupuestoTests(BasePantalla):
     def _medir_servicio(self):
         with _reloj(), CaptureQueriesContext(connection) as consultas:
             pantalla_bitacora(
-                self.cis, puede_cargar=True, puede_configurar=True, nombrar_personas=True, url_base=self.url
+                self.cis,
+                puede_cargar=True,
+                puede_configurar=True,
+                nombrar_personas=True,
+                url_base=self.url,
+                usuario=self.operador,
             )
         return len(consultas)
 

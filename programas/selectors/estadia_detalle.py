@@ -415,19 +415,20 @@ def detalle_de_estadia(estadia, momento=None):
 NOVEDADES_POR_PAGINA = 20
 
 
-def novedades_de_estadia(estadia, pagina=None):
+def novedades_de_estadia(estadia, pagina=None, q_entradas=None):
     """Las novedades de la bitácora en las que la persona está involucrada, paginadas.
 
     Solo la versión vigente de cada novedad (`EntradaBitacora.objects.vigentes()`): las
     reemplazadas se miran en la bitácora del turno. De lectura. **Dos consultas fijas**
     —el ``COUNT`` del paginador y la página, con el responsable traído—, sin importar
-    cuántas novedades tenga la persona. Devuelve el ``Page`` con filas ya armadas: al
+    cuántas novedades tenga la persona. ``q_entradas`` acota por el edificio del alcance de quien mira. Devuelve el ``Page`` con filas ya armadas: al
     template no llega ningún modelo.
     """
 
     entradas = (
         EntradaBitacora.objects.vigentes()
         .filter(personas=estadia)
+        .filter(q_entradas or Q())
         .select_related("responsable")
         .only(
             "id",

@@ -10,7 +10,7 @@ from django import forms
 
 from programas.forms import INPUT_CLASS
 from programas.forms_emergencia import ErroresDelServicioMixin
-from programas.models import EntregaKit
+from programas.models import Edificio, EntregaKit
 from programas.selectors.kits import SOLAPA_ABIERTAS, SOLAPAS
 from programas.services.kits import (
     CANTIDAD_INVALIDA,
@@ -30,6 +30,7 @@ PREFIJO_CANTIDAD = "cantidad_"
 FORMATO_FECHA_HORA = "%Y-%m-%dT%H:%M"
 ELEGI_UNA_HORA_VALIDA = "Indicá la fecha y la hora de salida, o dejala vacía para usar la de ahora."
 CANTIDAD_RECIBIDA_REQUERIDA = "Indicá cuánto llegó, aunque sea cero."
+ELEGI_EL_EDIFICIO_DE_LA_ENTREGA = "Elegí el edificio al que va la entrega."
 ITEM_FUERA_DEL_CATALOGO = "Algún ítem ya no está en el catálogo activo. Volvé al paso anterior y revisá las cantidades."
 CANTIDAD_RECIBIDA_INVALIDA = "Tiene que ser un número entero, cero o más."
 
@@ -162,8 +163,25 @@ class ConfirmarEntregaForm(ItemsEntregaForm):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
     )
 
+    def __init__(self, *args, edificios=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        # Cambio 523: un destino con más de un edificio exige elegir a cuál va la entrega; con uno solo queda
+        # fijo y el campo no existe (lo resuelve ``crear_entrega``).
+        edificios = list(edificios)
+        if edificios:
+            self.fields["edificio"] = forms.ModelChoiceField(
+                label="Edificio de destino",
+                queryset=Edificio.objects.filter(pk__in=[e.pk for e in edificios]).order_by("nombre"),
+                empty_label="Elegí el edificio",
+                widget=forms.Select(attrs={"class": INPUT_CLASS}),
+                error_messages={
+                    "required": ELEGI_EL_EDIFICIO_DE_LA_ENTREGA,
+                    "invalid_choice": ELEGI_EL_EDIFICIO_DE_LA_ENTREGA,
+                },
+            )
+
     def campos_visibles(self):
-        return [self["observacion"]]
+        return [self[nombre] for nombre in ("edificio", "observacion") if nombre in self.fields]
 
     def agregar_errores_del_servicio(self, error):
         """Lo que rechace ``crear_entrega`` va arriba del formulario: ninguno es de un campo visible."""
