@@ -60350,8 +60350,8 @@ midiendo distancias desde la latitud y la longitud del caso).
   no cambia.
 
 ## Implementación
-`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad)` arma el enlace (codificado; sin dirección,
-`None`). `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
+`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad, provincia)` arma el enlace (codificado; sin
+dirección, `None`); la provincia la pasa el selector desde `core.selectors.geografia.PROVINCIA_OPERATIVA`. `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
 `casos/detail.html` lo dibuja como `btn-secondary btn-sm` con pestaña nueva y aviso `sr-only`.
 
 ## Archivos
