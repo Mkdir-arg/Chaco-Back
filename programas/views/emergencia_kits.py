@@ -352,11 +352,17 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
             original = self._original(request.POST.get("repone_a"), destino)
             if not cargado.is_valid():
                 return self._paso_items(request, destino, cargado, original, status=400)
-            form = ConfirmarEntregaForm(initial=cargado.cantidades_cargadas(), catalogo=catalogo)
+            form = ConfirmarEntregaForm(
+                initial=cargado.cantidades_cargadas(),
+                catalogo=catalogo,
+                edificios=selectores.edificios_a_elegir(destino, original),
+            )
             return self._resumen(request, destino, form, original, cargado.lineas())
 
-        form = ConfirmarEntregaForm(request.POST, catalogo=catalogo)
         original = self._original(request.POST.get("repone_a"), destino)
+        form = ConfirmarEntregaForm(
+            request.POST, catalogo=catalogo, edificios=selectores.edificios_a_elegir(destino, original)
+        )
         if not form.is_valid():
             return self._resumen(request, destino, form, original, form.lineas(), status=400)
         try:
@@ -366,6 +372,7 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
                 form.lineas(),
                 observacion=form.cleaned_data["observacion"],
                 repone_a=form.cleaned_data["repone_a"],
+                edificio=form.cleaned_data.get("edificio"),
             )
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
@@ -579,8 +586,8 @@ class RecibirKitView(RecepcionKitsMixin, View):
     """El formulario de recepción: precargado con lo enviado, más el remito y la observación."""
 
     def _entrega(self, pk):
-        # Del dispositivo de la URL, que ya pasó el alcance: la de otro es un 404.
-        return get_object_or_404(EntregaKit.objects.select_related("dispositivo"), pk=pk, dispositivo=self.dispositivo)
+        # Del dispositivo de la URL y de un edificio del alcance de quien mira: la de otro es un 404.
+        return get_object_or_404(selectores.entregas_de(self.dispositivo, self.request.user), pk=pk)
 
     def _render(self, request, entrega, form, status=200):
         contexto = {

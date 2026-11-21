@@ -22,7 +22,7 @@ from programas.models import (
     TrazaCaso,
 )
 from programas.services.bitacora import anotar_novedad_automatica
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_edificio, puede_operar_institucion
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _hora
 from programas.services.reservas_derivacion import reservar_plazas_de_derivacion
@@ -60,10 +60,23 @@ def _camas(cantidad):
 # ---------------------------------------------------------------------------
 
 
-def _exigir_alcance(usuario, dispositivo):
-    """RU-8: ``dispositivo.admitir`` sobre **este** dispositivo. Sin él, ``PermissionDenied``."""
+def _exigir_alcance(usuario, dispositivo, derivacion=None, *, institucion=False):
+    """RU-8: ``dispositivo.admitir`` sobre **este** dispositivo. Sin él, ``PermissionDenied``.
 
-    if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    Con alcance Edificios (Cambio 523): si se conoce la ``derivacion``, tiene que ser de uno de sus edificios
+    (``derivacion.edificio``; sin edificio no entra); con ``institucion=True`` (lo que no cuelga de una
+    derivación, como el ingreso directo) hace falta alcance sobre toda la institución.
+    """
+
+    if dispositivo is None:
+        raise PermissionDenied(SIN_ALCANCE)
+    if derivacion is not None:
+        permitido = puede_operar_edificio(usuario, dispositivo, derivacion.edificio_id, CAP_ADMITIR)
+    elif institucion:
+        permitido = puede_operar_institucion(usuario, dispositivo, CAP_ADMITIR)
+    else:
+        permitido = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+    if not permitido:
         raise PermissionDenied(SIN_ALCANCE)
 
 
@@ -75,7 +88,7 @@ def _dispositivo_de(derivacion, usuario):
     """
 
     dispositivo = Dispositivo.objects.select_related("tipo").filter(pk=derivacion.dispositivo_id).first()
-    _exigir_alcance(usuario, dispositivo)
+    _exigir_alcance(usuario, dispositivo, derivacion)
     return dispositivo
 
 
@@ -117,7 +130,7 @@ def ingreso_sin_candado(caso, usuario, *estados):
     derivacion = (
         Derivacion.objects.filter(caso_id=pk).select_related("caso__grupo", "dispositivo__tipo").order_by("-id").first()
     )
-    _exigir_alcance(usuario, derivacion.dispositivo if derivacion is not None else None)
+    _exigir_alcance(usuario, derivacion.dispositivo if derivacion is not None else None, derivacion)
     caso = derivacion.caso
     if estados and (derivacion.estado != Derivacion.Estado.ACEPTADA or caso.estado not in estados):
         raise EstadoCambio(_por_que_ya_no(caso, derivacion), estado_actual=caso.estado, caso=caso)
@@ -281,7 +294,7 @@ def _confirmadas(filas):
     return sum(1 for fila in filas if fila.confirmada)
 
 
-def _anotar_en_bitacora(dispositivo, usuario, texto, momento):
+def _anotar_en_bitacora(dispositivo, usuario, texto, momento, edificio_id=None):
     """La novedad ``GENERAL`` automática del turno (RN-3.14). Sin turno no escribe: no es un error."""
 
     return anotar_novedad_automatica(
@@ -290,6 +303,7 @@ def _anotar_en_bitacora(dispositivo, usuario, texto, momento):
         texto=texto,
         momento=momento,
         usuario=usuario,
+        edificio_id=edificio_id,
     )
 
 

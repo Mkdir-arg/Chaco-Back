@@ -108,7 +108,7 @@ class EntregasDelDispositivoView(_VistaDeKits):
         if request.query_params.get("pendientes") in ("1", "true", "True"):
             entregas = selectores_kits.entregas_pendientes_de(dispositivo, request.user)
         else:
-            entregas = selectores_kits.entregas_de(dispositivo)[:TOPE_ENTREGAS]
+            entregas = selectores_kits.entregas_de(dispositivo, request.user)[:TOPE_ENTREGAS]
         return Response(EntregaKitSerializer(entregas, many=True).data)
 
 

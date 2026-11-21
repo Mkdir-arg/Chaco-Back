@@ -57,7 +57,7 @@ from programas.selectors import emergencia_alojar as selectores
 from programas.selectors import emergencia_llegadas as pantalla
 from programas.selectors.emergencia_mesa import nombre_de
 from programas.services import emergencia_alojar as servicio
-from programas.services.dispositivos import puede_en_programa_dispositivos
+from programas.services.dispositivos import puede_en_programa_dispositivos, q_edificios_en_alcance
 from programas.services.emergencia import EstadoCambio
 
 CAP_ADMITIR = "dispositivo.admitir"
@@ -140,6 +140,7 @@ class LlegadasView(GuardiaView):
             return None
         return (
             Derivacion.objects.filter(
+                q_edificios_en_alcance(self.request.user, "dispositivo.admitir", "dispositivo_id", "edificio_id"),
                 pk=pk,
                 dispositivo=self.dispositivo,
                 estado__in=Derivacion.ESTADOS_VIGENTES,
@@ -200,7 +201,13 @@ class _AccionDeDerivacionView(GuardiaView):
 
     def preparar(self, request, **kwargs):
         # La guarda de C2/RU-9: se busca filtrada por el dispositivo de la URL.
-        self.derivacion = get_object_or_404(Derivacion, pk=kwargs["derivacion_pk"], dispositivo=self.dispositivo)
+        self.derivacion = get_object_or_404(
+            Derivacion.objects.filter(
+                q_edificios_en_alcance(request.user, "dispositivo.admitir", "dispositivo_id", "edificio_id")
+            ),
+            pk=kwargs["derivacion_pk"],
+            dispositivo=self.dispositivo,
+        )
 
     def despues_de_un_cambio(self, cambio):
         if cambio.estado_actual == Estado.INGRESO_EN_CURSO:
@@ -260,7 +267,11 @@ class _IngresoView(GuardiaView):
 
     def preparar(self, request, **kwargs):
         derivacion = (
-            Derivacion.objects.filter(caso_id=kwargs["caso_pk"], dispositivo=self.dispositivo)
+            Derivacion.objects.filter(
+                q_edificios_en_alcance(request.user, "dispositivo.admitir", "dispositivo_id", "edificio_id"),
+                caso_id=kwargs["caso_pk"],
+                dispositivo=self.dispositivo,
+            )
             .select_related("caso__grupo__responsable")
             .order_by("-id")
             .first()

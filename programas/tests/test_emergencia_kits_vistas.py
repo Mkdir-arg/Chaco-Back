@@ -462,6 +462,35 @@ class NuevaEntregaTests(BaseVistasKits):
         self.assertContains(respuesta, "Paso 3 de 3")
         self.assertFalse(EntregaKit.objects.exists())
 
+    def _edificios_del_club(self, cuantos):
+        from programas.models import Edificio
+
+        edificios = [Edificio.objects.create(codigo=f"EK-{n}", nombre=f"Edificio {n}") for n in range(cuantos)]
+        for edificio in edificios:
+            edificio.dispositivos.add(self.club)
+        return edificios
+
+    def test_con_varios_edificios_el_paso_3_pide_elegir_y_la_entrega_sale_con_ese(self):
+        a, b = self._edificios_del_club(2)
+        datos = self._cantidades(a=(self.colchon, 2))
+        resumen = self.client.post(self.url_confirmar, datos)
+        self.assertContains(resumen, 'name="edificio"')
+
+        sin_elegir = self.client.post(self.url_confirmar, {**datos, "confirmar": "1"})
+        self.assertEqual(sin_elegir.status_code, 400)
+        self.assertContains(sin_elegir, "Elegí el edificio al que va la entrega.", status_code=400)
+        self.assertFalse(EntregaKit.objects.exists())
+
+        self.client.post(self.url_confirmar, {**datos, "confirmar": "1", "edificio": b.pk})
+        self.assertEqual(EntregaKit.objects.get().edificio_id, b.pk)
+
+    def test_con_un_solo_edificio_no_se_pregunta_y_queda_fijo(self):
+        (unico,) = self._edificios_del_club(1)
+        datos = self._cantidades(a=(self.colchon, 2))
+        self.assertNotContains(self.client.post(self.url_confirmar, datos), 'name="edificio"')
+        self.client.post(self.url_confirmar, {**datos, "confirmar": "1"})
+        self.assertEqual(EntregaKit.objects.get().edificio_id, unico.pk)
+
     def test_hu_4_1_confirmar_crea_la_entrega_preparada(self):
         datos = self._cantidades(a=(self.colchon, 10), b=(self.alimentos, 3))
         datos.update(confirmar="1", observacion="Entregar a la directora.")

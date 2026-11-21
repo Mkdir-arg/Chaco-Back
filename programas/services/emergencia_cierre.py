@@ -174,7 +174,13 @@ def alojar_familia(
         estado_anterior=Estado.INGRESO_EN_CURSO,
         detalle=f"Familia alojada en {dispositivo.nombre} · {resumen}" + (f" · {donde}" if donde else ""),
     )
-    _anotar_en_bitacora(dispositivo, usuario, f"Emergencia · familia alojada {resumen} · caso N.° {caso.numero}", ahora)
+    _anotar_en_bitacora(
+        dispositivo,
+        usuario,
+        f"Emergencia · familia alojada {resumen} · caso N.° {caso.numero}",
+        ahora,
+        derivacion.edificio_id,
+    )
     caso.reservas_liberadas = liberadas
     _cerrar_si_no_queda_nadie(caso, usuario, ahora)
     return caso
@@ -256,6 +262,7 @@ def cerrar_con_diferencia(*, caso, usuario, motivo, observacion="", derivacion_v
         usuario,
         f"Emergencia · ingreso cerrado con diferencia {resumen} · {rotulo.lower()} · caso N.° {caso.numero}",
         ahora,
+        derivacion.edificio_id,
     )
     caso.reservas_liberadas = liberadas
     _cerrar_si_no_queda_nadie(caso, usuario, ahora)
