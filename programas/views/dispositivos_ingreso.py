@@ -48,7 +48,7 @@ from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm,
 from programas.mixins_dispositivos import dispositivo_operable_o_404
 from programas.models import Dispositivo, MomentoFormulario, Plaza
 from programas.services.bitacora import turno_vigente
-from programas.services.dispositivos import puede_en_programa_dispositivos
+from programas.services.dispositivos import puede_en_programa_dispositivos, q_edificios_en_alcance
 from programas.services.estadias import (
     CAP_ADMITIR,
     CAP_VER_CIUDADANO,
@@ -480,6 +480,7 @@ class IngresoPlazaView(IngresoBaseView):
                 self.dispositivo,
                 puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
                 plaza_propia_id=self.plaza_propia(),
+                usuario=self.request.user,
             )
         return self._mapa
 
@@ -500,7 +501,14 @@ class IngresoPlazaView(IngresoBaseView):
         """
 
         if not hasattr(self, "_tension"):
-            conteo = ocupacion_de_plazas(self.dispositivo).de(self.dispositivo).conteo
+            conteo = (
+                ocupacion_de_plazas(
+                    self.dispositivo,
+                    q_sectores=q_edificios_en_alcance(self.request.user, CAP_ADMITIR, "dispositivo_id", "edificio_id"),
+                )
+                .de(self.dispositivo)
+                .conteo
+            )
             self._tension = tension_de_ocupacion(conteo, tipo=self.dispositivo.tipo)
         return self._tension
 

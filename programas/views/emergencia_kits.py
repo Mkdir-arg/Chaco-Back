@@ -579,8 +579,8 @@ class RecibirKitView(RecepcionKitsMixin, View):
     """El formulario de recepción: precargado con lo enviado, más el remito y la observación."""
 
     def _entrega(self, pk):
-        # Del dispositivo de la URL, que ya pasó el alcance: la de otro es un 404.
-        return get_object_or_404(EntregaKit.objects.select_related("dispositivo"), pk=pk, dispositivo=self.dispositivo)
+        # Del dispositivo de la URL y de un edificio del alcance de quien mira: la de otro es un 404.
+        return get_object_or_404(selectores.entregas_de(self.dispositivo, self.request.user), pk=pk)
 
     def _render(self, request, entrega, form, status=200):
         contexto = {

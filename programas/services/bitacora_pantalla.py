@@ -44,7 +44,7 @@ Presupuesto ``dispositivos_bitacora_turno`` en ``scripts/perf_budgets.json``.
 
 from datetime import date, timedelta
 
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -52,7 +52,7 @@ from django.utils.text import capfirst
 
 from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
-from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
+from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos, ve_la_bitacora
 from programas.services.bitacora_detalle import adjuntos_de
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.nombre_plaza import plaza_con_sector
@@ -199,8 +199,10 @@ def _opcion_correccion(entrada, *, nombrar_personas: bool):
     }
 
 
-def _del_turno(dispositivo, fecha, turno, tipo):
-    entradas = EntradaBitacora.objects.filter(dispositivo=dispositivo, fecha_operativa=fecha, turno=turno)
+def _del_turno(dispositivo, fecha, turno, tipo, filtro=None):
+    entradas = EntradaBitacora.objects.filter(dispositivo=dispositivo, fecha_operativa=fecha, turno=turno).filter(
+        filtro or Q()
+    )
     if tipo:
         entradas = entradas.filter(tipo=tipo)
     return entradas
@@ -346,6 +348,7 @@ def pantalla_bitacora(
     puede_configurar=False,
     nombrar_personas=False,
     url_base="",
+    usuario=None,
 ):
     """Todo lo que dibuja P10 para un día operativo del dispositivo.
 
@@ -355,7 +358,15 @@ def pantalla_bitacora(
     día anterior, el primero). ``tipo`` filtra las entradas. Los ``puede_*`` y
     ``nombrar_personas`` los resuelve la vista con ``puede_operar_dispositivo`` y
     ``rbac.puede``: acá solo deciden qué se arma.
+
+    ``usuario`` es quien mira: si no lee la bitácora (``ve_la_bitacora``: alcance Edificios) no ve entradas ni
+    personas. Sin usuario no se acota (solo para las pruebas del armado).
     """
+
+    filtro = Q()
+    if usuario is not None and not ve_la_bitacora(usuario, dispositivo):
+        filtro = Q(pk__in=[])
+        nombrar_personas = False
 
     ahora = ahora or timezone.now()
     turnos = turnos_activos(dispositivo)
@@ -382,6 +393,7 @@ def pantalla_bitacora(
     cantidades = dict(
         EntradaBitacora.objects.vigentes()
         .filter(dispositivo=dispositivo, fecha_operativa=fecha)
+        .filter(filtro)
         .values_list("turno_id")
         .annotate(cuantas=Count("id"))
         .order_by()
@@ -427,7 +439,7 @@ def pantalla_bitacora(
     entradas, total, versiones, adjuntos, vigentes = [], 0, [], [], []
     if turno is not None:
         vigentes = list(
-            _del_turno(dispositivo, fecha, turno, tipo)
+            _del_turno(dispositivo, fecha, turno, tipo, filtro)
             .vigentes()
             .select_related("responsable")
             .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
@@ -435,7 +447,7 @@ def pantalla_bitacora(
         )
         total = len(vigentes)
         if total > TOPE_ENTRADAS:
-            total = _del_turno(dispositivo, fecha, turno, tipo).vigentes().count()
+            total = _del_turno(dispositivo, fecha, turno, tipo, filtro).vigentes().count()
             vigentes = vigentes[:TOPE_ENTRADAS]
         entradas = [_entrada(entrada, nombrar_personas=nombrar_personas) for entrada in vigentes]
         for entrada in vigentes:
@@ -449,7 +461,7 @@ def pantalla_bitacora(
                     }
                 )
         reemplazadas = (
-            _del_turno(dispositivo, fecha, turno, tipo)
+            _del_turno(dispositivo, fecha, turno, tipo, filtro)
             .filter(correccion__isnull=False)
             .select_related("responsable")
             .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
@@ -477,6 +489,7 @@ def pantalla_bitacora(
                 turno=en_curso.turno,
                 origen=EntradaBitacora.Origen.MANUAL,
             )
+            .filter(filtro)
             .only("id", "momento", "tipo", "texto")
             .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
             .order_by("-momento", "-id")[:TOPE_CORREGIBLES]

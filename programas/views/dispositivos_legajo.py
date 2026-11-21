@@ -90,9 +90,11 @@ from programas.services.dispositivos import (
     inactivar_dispositivo,
     observar_dispositivo,
     puede_configurar_dispositivos,
+    puede_editar_legajo,
     puede_en_programa_dispositivos,
     puede_enviar_desde_formulario,
     puede_operar_dispositivo,
+    q_edificios_en_alcance,
     reactivar_dispositivo,
     rechazar_dispositivo,
     registrar_alta_dispositivo,
@@ -224,7 +226,7 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         dispositivos = list(context["dispositivos"])
         ids = [dispositivo.pk for dispositivo in dispositivos]
         semaforos = semaforos_de_dispositivos(ids)
-        censo = ocupacion_de_plazas(ids)
+        censo = ocupacion_de_plazas(ids, q_sectores=_q_sectores_visibles(self.request.user))
         for dispositivo in dispositivos:
             dispositivo.semaforo = semaforos[dispositivo.pk]
             dispositivo.plazas = tension_de_ocupacion(censo.de(dispositivo).conteo, tipo=dispositivo.tipo)
@@ -385,7 +387,7 @@ class DispositivoFormularioTipoView(LoginRequiredMixin, View):
                     .filter(pk=pk)
                     .first()
                 )
-            if dispositivo is None:
+            if dispositivo is None or not puede_editar_legajo(usuario, dispositivo, "dispositivo.editar"):
                 raise Http404
         elif not (
             puede_en_programa_dispositivos(usuario, "dispositivo.crear") and puede_configurar_dispositivos(usuario)
@@ -422,7 +424,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
     def _mapa_de_ingreso(self):
         """Plazas elegibles, solo cuando una acción de cambio las necesita."""
         if not hasattr(self, "_mapa"):
-            self._mapa = plazas_para_ingresar(self.object)
+            self._mapa = plazas_para_ingresar(self.object, usuario=self.request.user)
         return self._mapa
 
     def get_context_data(self, **kwargs):
@@ -433,16 +435,21 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
 
         # Una sola llamada al censo: la franja, el desglose por sector y el contador de la
         # solapa salen del mismo cálculo. La pantalla no deriva el estado de ninguna plaza.
-        ocupacion = ocupacion_de_plazas(dispositivo).de(dispositivo)
+        ocupacion = ocupacion_de_plazas(dispositivo, q_sectores=_q_sectores_visibles(user)).de(dispositivo)
         sectores = sectores_del_censo(ocupacion)
         estado, sector = normalizar_filtros(get.get("estado", ""), get.get("sector", ""), {s["pk"] for s in sectores})
+        q_estadias = q_edificios_en_alcance(user, "dispositivo.ver", "dispositivo_id", "plaza__sector__edificio_id")
+        # Con alcance Edificios el Historial queda vacío: lo decide `eventos_de_historial`.
         historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"), user)
-        estadias = estadias_del_dispositivo(dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"))
+        estadias = estadias_del_dispositivo(
+            dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"), q_alcance=q_estadias
+        )
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         puede_validar = puede_operar_dispositivo(user, dispositivo, "dispositivo.validar")
-        puede_editar = puede_operar_dispositivo(user, dispositivo, CAP_EDITAR)
+        # Editar el legajo es de alcance institución (RN5): con alcance Edificios, no.
+        puede_editar = puede_editar_legajo(user, dispositivo, CAP_EDITAR)
         con_plazas = maneja_plazas(dispositivo)
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
@@ -483,7 +490,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "indicadores": indicadores_de_plazas(ocupacion.conteo, tipo=dispositivo.tipo),
                 "sectores": sectores,
                 "n_plazas": ocupacion.conteo.totales,
-                "n_alojadas": contar_alojadas(dispositivo),
+                "n_alojadas": contar_alojadas(dispositivo, q_alcance=q_estadias),
                 "estadias": estadias,
                 "pildoras": pildoras_de_estadias(estado, sector, sectores),
                 # La píldora es un <form method="get">: sin esto, filtrar perdería la solapa de la URL.
@@ -586,7 +593,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 raise PermissionDenied
             # Un id ajeno, inexistente o no ASCII tiene la misma respuesta.
             estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
-            estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
+            estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, self.request.user)
             estadia.persona_visible = (
                 estadia.ciudadano.apellido_nombre if context["puede_ver_ciudadano"] else "Persona alojada"
             )
@@ -700,6 +707,9 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
         dispositivo = super().get_object(queryset)
         if dispositivo.estado == Dispositivo.Estado.CERRADO:
             raise PermissionDenied
+        if not puede_editar_legajo(self.request.user, dispositivo, self.capacidad_requerida):
+            # RN5: con alcance Edificios la institución se ve, pero su legajo no se edita.
+            raise PermissionDenied
         return dispositivo
 
     @archivos_atomicos
@@ -776,12 +786,18 @@ class DispositivoActionView(DispositivoProgramaPermissionMixin, View):
     accion = None
     #: Los campos que el modal de la acción dibuja y puede marcar con `data-error`.
     campos_del_modal = ()
+    #: Las acciones que editan el legajo de la institución (RN5) no las hace quien tiene alcance Edificios.
+    edita_legajo = False
 
     def ejecutar(self, dispositivo, request):
         raise NotImplementedError
 
     def post(self, request, pk):
         dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
+        if self.edita_legajo and not puede_editar_legajo(request.user, dispositivo, self.capacidad_requerida):
+            if is_ajax(request):
+                return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
+            raise PermissionDenied
         volver = reverse("dispositivos:detalle", args=[dispositivo.pk])
         try:
             self.ejecutar(dispositivo, request)
@@ -799,6 +815,7 @@ class DispositivoActionView(DispositivoProgramaPermissionMixin, View):
 
 class DispositivoEnviarValidacionView(DispositivoActionView):
     capacidad_requerida = "dispositivo.editar"
+    edita_legajo = True
     mensaje_exito = "Dispositivo enviado a validación."
 
     def ejecutar(self, dispositivo, request):
@@ -833,6 +850,7 @@ class DispositivoRechazarView(DispositivoActionView):
 
 class DispositivoInactivarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.editar"
+    edita_legajo = True
     mensaje_exito = "Dispositivo inactivado."
 
     def ejecutar(self, dispositivo, request):
@@ -841,6 +859,7 @@ class DispositivoInactivarView(DispositivoActionView):
 
 class DispositivoReactivarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.editar"
+    edita_legajo = True
     mensaje_exito = "Dispositivo reactivado."
 
     def ejecutar(self, dispositivo, request):
@@ -849,6 +868,7 @@ class DispositivoReactivarView(DispositivoActionView):
 
 class DispositivoCerrarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.editar"
+    edita_legajo = True
     mensaje_exito = "Dispositivo cerrado."
 
     def ejecutar(self, dispositivo, request):
@@ -861,6 +881,16 @@ def _entero(valor):
 
     valor = (valor or "").strip()
     return int(valor) if valor.isascii() and valor.isdecimal() else None
+
+
+def _q_sectores_visibles(usuario):
+    """Los sectores de los edificios que ``usuario`` alcanza leyendo (``Q`` sobre ``Sector``; RN4)."""
+
+    return q_edificios_en_alcance(usuario, "dispositivo.ver", "dispositivo_id", "edificio_id")
+
+
+def _q_plazas_visibles(usuario):
+    return q_edificios_en_alcance(usuario, "dispositivo.ver", "sector__dispositivo_id", "sector__edificio_id")
 
 
 class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
@@ -911,6 +941,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 puede_liberar=puede_liberar,
                 puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
+                usuario=usuario,
             )
             if pk is not None
             else None
@@ -940,14 +971,15 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
                 puede_egresar=puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR),
+                usuario=usuario,
             )
         )
         context["puede_reubicar"] = puede_liberar
         # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
         context["ver_inactivos"] = self.request.GET.get("inactivos") == "1"
         if context["ver_inactivos"]:
-            context["sectores_inactivos"] = sectores_inactivos(dispositivo)
-            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo)
+            context["sectores_inactivos"] = sectores_inactivos(dispositivo, q_alcance=_q_sectores_visibles(usuario))
+            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo, q_alcance=_q_plazas_visibles(usuario))
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
@@ -983,7 +1015,13 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # sector no se puede editar.
         if pedido and pedido != "nuevo":
             pk = _entero(pedido)
-            sector = Sector.objects.filter(pk=pk, dispositivo=dispositivo).first() if pk is not None else None
+            sector = (
+                Sector.objects.filter(pk=pk, dispositivo=dispositivo)
+                .filter(_q_sectores_visibles(self.request.user))
+                .first()
+                if pk is not None
+                else None
+            )
             if sector is None:
                 messages.warning(self.request, "Ese sector ya no se puede editar desde acá.")
             else:
@@ -994,14 +1032,22 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         if context["sectores"] and context["puede_ampliar_capacidad"]:
             context["form_plazas"] = AgregarPlazasForm(
                 dispositivo=dispositivo,
-                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
+                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True).filter(
+                    _q_sectores_visibles(self.request.user)
+                ),
             )
             context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
 
         pedido = self.request.GET.get("editar_plaza", "")
         if pedido:
             pk = _entero(pedido)
-            plaza = Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo).first() if pk is not None else None
+            plaza = (
+                Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo)
+                .filter(_q_plazas_visibles(self.request.user))
+                .first()
+                if pk is not None
+                else None
+            )
             if plaza is None:
                 messages.warning(self.request, "Esa plaza ya no se puede editar desde acá.")
             else:
@@ -1061,6 +1107,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 puede_configurar_plazas=puede_configurar_plazas,
                 puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
                 puede_egresar=puede_operar_dispositivo(self.request.user, dispositivo, CAP_EGRESAR),
+                usuario=self.request.user,
             )
             if pk is not None
             else None
@@ -1115,7 +1162,9 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         estadia.persona_visible = (
             estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
         )
-        form, url = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(dispositivo))
+        form, url = _form_de_cambio_de_plaza(
+            dispositivo, estadia, _sectores_para_cambio(dispositivo, self.request.user)
+        )
         context["estadia_cambio"] = estadia
         accion["bloqueo"] = bloqueo_de_plaza(
             accion["estado"], ACCION_REUBICAR, hay_plazas_libres=form.hay_plazas_libres
@@ -1184,7 +1233,12 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         plaza = get_object_or_404(
             # Con el sector y su dispositivo ya traídos: los servicios los leen del objeto
             # que reciben para resolver el alcance, y sin esto serían dos consultas más.
-            Plaza.objects.select_related("sector__dispositivo"),
+            Plaza.objects.select_related("sector__dispositivo").filter(
+                # Alcance por edificio: la plaza de un edificio ajeno es un 404 como la de otra institución.
+                q_edificios_en_alcance(
+                    request.user, self.capacidad_requerida, "sector__dispositivo_id", "sector__edificio_id"
+                )
+            ),
             pk=plaza_pk,
             sector__dispositivo=dispositivo,
             sector__activo=True,
@@ -1387,7 +1441,13 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
 
     def post(self, request, pk, estadia_pk):
         dispositivo = dispositivo_operable_o_404(request, pk, CAP_EGRESAR)
-        estadia = get_object_or_404(Estadia.objects.select_related("ciudadano"), pk=estadia_pk, dispositivo=dispositivo)
+        estadia = get_object_or_404(
+            Estadia.objects.select_related("ciudadano").filter(
+                q_edificios_en_alcance(request.user, CAP_EGRESAR, "dispositivo_id", "plaza__sector__edificio_id")
+            ),
+            pk=estadia_pk,
+            dispositivo=dispositivo,
+        )
         volver = self._volver(request, dispositivo, estadia)
 
         form = EgresoForm(request.POST, estadia=estadia)
@@ -1506,25 +1566,25 @@ MOVIMIENTOS_POR_PAGINA = 25
 AUTO_ID_CAMBIO = "cambio_%s"
 
 
-def _estadia_del_dispositivo(dispositivo, estadia_pk):
-    """La estadía, solo si es de ese dispositivo: un id de otro da 404, nunca la estadía ajena."""
+def _estadia_del_dispositivo(dispositivo, estadia_pk, usuario, capacidad="dispositivo.ver"):
+    """La estadía, solo si es de ese dispositivo y de un edificio alcanzado: un id ajeno da 404 (RN4)."""
 
     return get_object_or_404(
         Estadia.objects.select_related(
             "ciudadano", "dispositivo", "plaza__sector", "motivo", "ingresada_por", "egresada_por"
-        ),
+        ).filter(q_edificios_en_alcance(usuario, capacidad, "dispositivo_id", "plaza__sector__edificio_id")),
         pk=estadia_pk,
         dispositivo=dispositivo,
     )
 
 
-def _sectores_para_cambio(dispositivo):
+def _sectores_para_cambio(dispositivo, usuario):
     """Las plazas del dispositivo con su estado, de `ocupacion.estado_de_plazas` (vía el asistente de ingreso).
 
     Es la misma fuente que el mapa y que el ingreso: acá no se decide qué es una plaza libre.
     """
 
-    sectores, _elegibles = plazas_para_ingresar(dispositivo)
+    sectores, _elegibles = plazas_para_ingresar(dispositivo, usuario=usuario)
     return sectores
 
 
@@ -1559,7 +1619,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = super().get_object(queryset)
         if not puede(self.request.user, CAP_VER_CIUDADANO):
             raise PermissionDenied
-        self.estadia = _estadia_del_dispositivo(dispositivo, self.kwargs["estadia_pk"])
+        self.estadia = _estadia_del_dispositivo(dispositivo, self.kwargs["estadia_pk"], self.request.user)
         return dispositivo
 
     def get_context_data(self, **kwargs):
@@ -1602,7 +1662,9 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         )
         context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)
         if context["puede_cambiar_plaza"]:
-            form_cambio, url_cambio = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(dispositivo))
+            form_cambio, url_cambio = _form_de_cambio_de_plaza(
+                dispositivo, estadia, _sectores_para_cambio(dispositivo, self.request.user)
+            )
             # Sin plazas libres no se ofrece: el modal no tendría a dónde mover a nadie.
             context["puede_cambiar_plaza"] = form_cambio.hay_plazas_libres
             context["form_cambio"] = form_cambio
@@ -1629,7 +1691,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
 
     def post(self, request, pk, estadia_pk):
         dispositivo = dispositivo_operable_o_404(request, pk, CAP_ADMITIR)
-        estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
+        estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, request.user, CAP_ADMITIR)
         destino = request.POST.get("volver")
         if destino == "dispositivo":
             volver = url_solapa_estadias(dispositivo.pk)
@@ -1639,7 +1701,10 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
             volver = url_volver_a_la_estadia(request.user, dispositivo, estadia)
 
         form = CambioPlazaForm(
-            request.POST, estadia=estadia, sectores=_sectores_para_cambio(dispositivo), auto_id=AUTO_ID_CAMBIO
+            request.POST,
+            estadia=estadia,
+            sectores=_sectores_para_cambio(dispositivo, request.user),
+            auto_id=AUTO_ID_CAMBIO,
         )
         if not form.is_valid():
             return EstadiaEgresarView._rechazar(request, form.errors, volver)

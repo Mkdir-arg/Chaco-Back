@@ -38,6 +38,7 @@ from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio, sectores_por_edificio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
+from programas.services.dispositivos import CAP_VER, alcance_de_edificios, q_edificios_en_alcance
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
     DIAS_POR_VENCER,
@@ -156,10 +157,18 @@ def sectores_del_censo(ocupacion):
     ]
 
 
-def contar_alojadas(dispositivo):
-    """Las personas alojadas hoy (estadías activas): el contador de la solapa. Una consulta."""
+def contar_alojadas(dispositivo, *, q_alcance=None):
+    """Las personas alojadas hoy (estadías activas): el contador de la solapa. Una consulta.
 
-    return Estadia.objects.activas().filter(dispositivo=dispositivo).count()
+    ``q_alcance`` es el acote por edificio sobre ``Estadia`` (``q_edificios_en_alcance``).
+    """
+
+    return (
+        Estadia.objects.activas()
+        .filter(dispositivo=dispositivo)
+        .filter(q_alcance if q_alcance is not None else Q())
+        .count()
+    )
 
 
 def normalizar_filtros(estado, sector, sector_ids):
@@ -202,7 +211,7 @@ def pildoras_de_estadias(estado, sector, sectores):
     return pildoras
 
 
-def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1):
+def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1, q_alcance=None):
     """La página de estadías del dispositivo, lista para dibujar.
 
     Trae a la persona y a la plaza con su sector en la misma consulta y solo las columnas
@@ -212,6 +221,7 @@ def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None
 
     consulta = (
         Estadia.objects.filter(dispositivo=dispositivo)
+        .filter(q_alcance if q_alcance is not None else Q())
         .select_related("ciudadano", "plaza__sector")
         .only(
             "id",
@@ -296,8 +306,14 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     regla de `inspecciones.ve_la_asignacion` hay que volver a aplicarla acá; el alcance se
     resuelve en **una** consulta para toda la página.
     Sin usuario no se expone la identidad de las personas; la vista siempre pasa quién mira.
+
+    El Historial junta trazas de toda la institución (legajo, personas, plazas de todos los edificios): sin alcance
+    sobre toda la institución (con alcance Edificios) no se abre (fail-closed; decisión abierta para el
+    PM, Cambio 523). Va acá y no en la vista para que ninguna otra pantalla lo muestre entero.
     """
 
+    if usuario is not None and not alcance_de_edificios(usuario, dispositivo, "dispositivo.ver").todo:
+        return Paginator([], 1).get_page(1), []
     con_asignacion = edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo)
     usuario_id = usuario.pk if getattr(usuario, "is_authenticated", False) else None
     feed = auditoria_del_dispositivo(
@@ -697,7 +713,14 @@ def infraestructura_del_dispositivo(
     base = reverse("dispositivos:detalle", args=[dispositivo.pk]) + "?tab=infraestructura"
     edificios = list(
         Edificio.objects.filter(
-            pk__in=Edificio.dispositivos.through.objects.filter(dispositivo=dispositivo).values("edificio_id")
+            pk__in=Edificio.dispositivos.through.objects.filter(dispositivo=dispositivo)
+            # Con alcance Edificios, solo los suyos (RN4); sin usuario no se acota.
+            .filter(
+                q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id")
+                if usuario is not None
+                else Q()
+            )
+            .values("edificio_id")
         )
         .annotate(
             ultima_id=subconsulta_ultima_realizada(),
