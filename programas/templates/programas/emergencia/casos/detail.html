@@ -87,6 +87,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
               <div>
                 <dt class="text-xs font-semibold uppercase text-body-subtle">{{ dato.etiqueta }}</dt>
                 <dd class="mt-1 text-sm text-heading">{% if dato.formato == "dni" %}{{ dato.valor|dni }}{% else %}{{ dato.valor|default:"—" }}{% endif %}</dd>
+                {% if dato.url_mapa %}<a href="{{ dato.url_mapa }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm mt-2"><i class="fas fa-house" aria-hidden="true"></i> Ver domicilio en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
               </div>
               {% endfor %}
             </dl>
@@ -97,8 +98,9 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
             </div>
             {% endif %}
             <div>
-              <h3 class="text-sm font-bold text-heading mb-2">Posición del GPS</h3>
-              {% include "components/_ubicacion.html" with latitud=caso.latitud longitud=caso.longitud compacto=True %}
+              <h3 class="text-sm font-bold text-heading">Dónde se tomó el caso</h3>
+              <p class="mt-1 mb-2 text-xs text-body-subtle">Posición del GPS al relevar. No es el domicilio de la familia: ese es la dirección y la localidad.</p>
+              {% include "components/_ubicacion.html" with latitud=caso.latitud longitud=caso.longitud compacto=True texto_enlace="Ver dónde se tomó" %}
               {% if caso.con_gps and caso.precision_m is not None %}
               <p class="mt-2 text-xs text-body-subtle">Precisión: {{ caso.precision_m }} m.{% if caso.ubicacion_aproximada %} <span class="badge badge-gray">Ubicación aproximada</span>{% endif %}</p>
               {% endif %}
