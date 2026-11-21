@@ -35,6 +35,7 @@ from programas.models import (
     Plaza,
     RespuestasIngresoEstadia,
     Sector,
+    TrazaDispositivo,
 )
 from programas.selectors import kits as selectores_kits
 from programas.services import equipo_dispositivo as equipo
@@ -402,9 +403,27 @@ class CorreccionesDeAuditoriaTests(BaseAlcance):
         self.assertIs(_autorizar(self._fresco(self.de_inst), adjunto.archivo.name), True)
 
     # 4. Historial: la regla vive en el servicio
-    def test_el_historial_se_vacia_en_el_servicio_sin_alcance_total(self):
-        self.assertEqual(eventos_de_historial(self.cis, 1, self._fresco(self.de_a))[1], [])
-        self.assertNotEqual(eventos_de_historial(self.cis, 1, self._fresco(self.de_inst))[1], [])
+    def test_el_historial_con_alcance_edificios_trae_solo_lo_de_sus_edificios(self):
+        persona = Ciudadano.objects.create(dni="30999444", nombre="Ema", apellido="Rey")
+        self._ingresar(persona, self.plaza_b, _local(MARTES, 13))
+        de_a = " | ".join(
+            e["titulo"] + e["detalle"] for e in eventos_de_historial(self.cis, 1, self._fresco(self.de_a))[1]
+        )
+        de_inst = " | ".join(
+            e["titulo"] + e["detalle"] for e in eventos_de_historial(self.cis, 1, self._fresco(self.de_inst))[1]
+        )
+        self.assertIn(self.plaza_a.codigo, de_a)
+        self.assertNotIn(self.plaza_b.codigo, de_a)
+        self.assertIn(self.plaza_a.codigo, de_inst)
+        self.assertIn(self.plaza_b.codigo, de_inst)
+
+    def test_el_historial_con_alcance_edificios_no_trae_las_trazas_del_legajo(self):
+        TrazaDispositivo.objects.create(dispositivo=self.cis, accion="EDITADO", detalle="{}")
+        self.assertEqual(
+            [e for e in eventos_de_historial(self.cis, 1, self._fresco(self.de_a))[1] if "Edición" in e["titulo"]], []
+        )
+        titulos = [e["titulo"] for e in eventos_de_historial(self.cis, 1, self._fresco(self.de_inst))[1]]
+        self.assertTrue(any("Edición" in titulo for titulo in titulos))
 
     # 5. bitácora de la institución
     def test_la_bitacora_no_muestra_entradas_a_quien_solo_tiene_edificios(self):

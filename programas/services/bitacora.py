@@ -421,7 +421,10 @@ def _edificio_de_la_novedad(usuario, dispositivo, edificio):
     ids = [e.pk for e in opciones]
     pedido = getattr(edificio, "pk", edificio) or None
     if isinstance(pedido, str):
-        pedido = int(pedido) if pedido.strip().isdigit() else None
+        try:
+            pedido = int(pedido.strip()) if pedido.strip() else None
+        except ValueError:
+            raise ValidationError({"edificio": "El edificio no es válido."}) from None
     if pedido is not None and pedido not in ids:
         if obligatorio:
             raise PermissionDenied("No tenés alcance sobre ese edificio.")
