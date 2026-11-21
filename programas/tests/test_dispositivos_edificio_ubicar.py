@@ -10,8 +10,9 @@ from django.test import override_settings
 from django.urls import reverse
 
 from programas.forms_dispositivos import EdificioForm
-from programas.models import Edificio
+from programas.models import Dispositivo, Edificio, TipoDispositivo
 from programas.services.edificios import crear_edificio, editar_edificio
+from programas.services.ubicacion_reservada import edificio_es_reservado
 from programas.tests.test_dispositivos_capacidad import BaseCapacidad
 
 
@@ -159,3 +160,61 @@ class ModalDeEdificioConMapaTests(BaseCapacidad):
             self.assertIn(f'name="{nombre}"', html)
         self.assertNotIn("maps.googleapis.com", html)
         self.assertIn('data-ubicacion-alerta="sin-mapa"', html)
+
+
+@override_settings(GOOGLE_MAPS_API_KEY="clave-de-prueba", GOOGLE_MAPS_MAP_ID="mapa-de-prueba")
+class EdificioReservadoNoVaAGoogleTests(BaseCapacidad):
+    """Cambio 499/520: el domicilio de un edificio de ubicación reservada no sale hacia Google."""
+
+    def setUp(self):
+        super().setUp()
+        self.tipo_reservado = TipoDispositivo.objects.create(
+            codigo="PROTECCION", nombre="Protección", ubicacion_reservada=True
+        )
+
+    def _modal(self, **query):
+        self.client.force_login(self.operador_cis)
+        respuesta = self.client.get(
+            reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura", **query}
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        return respuesta.content.decode()
+
+    def _reservar(self, dispositivo):
+        Dispositivo.objects.filter(pk=dispositivo.pk).update(tipo=self.tipo_reservado)
+
+    def _solo_coordenadas_a_mano(self, html):
+        self.assertIn("data-edificio-reservado", html)
+        for nombre in ("calle", "latitud", "longitud"):
+            self.assertIn(f'name="{nombre}"', html)
+        for rastro in ("data-nodo-ubicacion", "nodo-ubicacion.js", "nodo-ubicacion.css", "maps.googleapis.com"):
+            self.assertNotIn(rastro, html)
+
+    def test_el_alta_desde_una_institucion_reservada_no_ofrece_el_mapa(self):
+        self._reservar(self.cis)
+
+        self._solo_coordenadas_a_mano(self._modal(edificio="nuevo"))
+
+    def test_editar_un_edificio_que_ocupa_otra_institucion_reservada_tampoco(self):
+        edificio = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, codigo="EDI-9", nombre="Predio")
+        edificio.dispositivos.add(self.parador)
+        self._reservar(self.parador)
+
+        self._solo_coordenadas_a_mano(self._modal(edificio=edificio.pk))
+
+    def test_un_edificio_comun_conserva_el_mapa(self):
+        html = self._modal(edificio="nuevo")
+
+        self.assertIn("data-nodo-ubicacion", html)
+        self.assertNotIn("data-edificio-reservado", html)
+
+    def test_la_regla_es_la_de_cualquier_institucion_que_lo_ocupa(self):
+        edificio = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, codigo="EDI-8", nombre="Predio")
+        self.assertFalse(edificio_es_reservado(edificio, dispositivo=self.cis))
+        self.assertFalse(edificio_es_reservado(None, dispositivo=self.cis))
+
+        self._reservar(self.parador)
+        edificio.dispositivos.add(self.parador)
+
+        self.assertTrue(edificio_es_reservado(edificio, dispositivo=self.cis))
+        self.assertTrue(edificio_es_reservado(None, dispositivo=Dispositivo.objects.get(pk=self.parador.pk)))

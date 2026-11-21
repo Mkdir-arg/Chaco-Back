@@ -16,6 +16,7 @@ from core.widgets import SwitchInput
 from programas.forms import INPUT_CLASS
 from programas.models import Edificio, MiembroEquipoDispositivo, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
+from programas.services.edificios import COORDENADAS as COORDENADAS_EDIFICIO
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
 from programas.services.plazas import CAPACIDAD_DECLARADA_MAXIMA, TOPE_POR_LOTE
@@ -699,7 +700,6 @@ class EdificioForm(forms.Form):
         max_length=160,
         required=False,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
-        help_text="Con el número, la localidad y la provincia, es lo que busca Google para ubicar el edificio.",
     )
     numero = forms.CharField(
         label="Número", max_length=20, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
@@ -744,7 +744,7 @@ class EdificioForm(forms.Form):
         self.edificio = edificio
         if edificio is not None and not self.is_bound:
             self.initial.setdefault("codigo", edificio.codigo)
-            for campo in (*CAMPOS_EDIFICIO, "latitud", "longitud"):
+            for campo in (*CAMPOS_EDIFICIO, *COORDENADAS_EDIFICIO):
                 self.initial.setdefault(campo, getattr(edificio, campo))
 
     def clean(self):

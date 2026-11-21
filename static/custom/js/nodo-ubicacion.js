@@ -230,6 +230,13 @@
     resumen.hidden = false;
     q('ubicacion-ayuda-mapa').hidden = false;
     abrirManual(raiz.hasAttribute('data-manual-abierto'));
+    // El guardado AJAX escribe el error de latitud o longitud sin recargar: si el bloque está plegado, quedaría escondido.
+    new MutationObserver(function () {
+      var conError = Array.prototype.some.call(manual.querySelectorAll('[data-error]'), function (p) {
+        return p.textContent.trim() && !p.classList.contains('hidden');
+      });
+      if (conError && manual.hidden) { abrirManual(true); }
+    }).observe(manual, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
     estado(conPunto ? 'guardado' : 'vacio');
     if (conPunto) {
       q('ubicacion-lat').textContent = lat0.toFixed(6);

@@ -60961,6 +60961,13 @@ usuario).
   pantalla no le habla a Google hasta que alguien toca «Ubicar en el mapa» (o «Ver en el mapa» con punto guardado).
   La pantalla solo carga Google y la pieza cuando el modal de edificio está abierto.
 - **Sin key de Google** el formulario sigue igual: calle, número, latitud y longitud a mano, con el aviso de la pieza.
+- **Un edificio de ubicación reservada no manda su domicilio a Google** (Cambio 499; decisión del Cambio 520: «en la
+  fase 2 no se mandan a Google»; auditoría del #1290). Lo es el que ocupa alguna institución de un tipo con
+  `ubicacion_reservada` (`edificio_es_reservado`, la misma regla de `/mapa/` y «Derivar»; en un alta, la institución desde
+  la que se carga). Su modal ofrece solo latitud y longitud a mano: sin mapa, sin búsqueda y sin cargar el script de Google.
+- **Orden del modal**: calle, número, piso, localidad, provincia, código postal y, al final, el mapa (`domicilio_externo`:
+  la pieza no repite el campo de la calle y busca con el que ya está arriba).
+- **Un error de latitud o longitud abre «Cargar coordenadas a mano»** (en un modal AJAX quedaba escondido).
 - **Un punto a medias o fuera de rango se rechaza** (`core.coordenadas`: ±90/±180 y «las dos o ninguna»), como en
   Ciudadano y Emergencia. Vaciar las dos en el formulario borra el punto.
 - **Una llamada al servicio que no trae las coordenadas no las toca** (`editar_edificio`); el formulario las manda
@@ -60974,7 +60981,8 @@ Google, `nodo-ubicacion.js` y `nodo-ubicacion.css` solo con el modal abierto.
 ## Archivos
 `programas/forms_dispositivos.py`, `programas/services/edificios.py`,
 `programas/templates/programas/dispositivos/legajo/detail.html`, `templates/components/_ubicacion_domicilio.html`,
-`static/custom/js/nodo-ubicacion.js`, `.claude/design/componentes/ubicacion_domicilio.md`,
+`static/custom/js/nodo-ubicacion.js`, `programas/services/ubicacion_reservada.py`,
+`programas/views/dispositivos_legajo.py`, `.claude/design/componentes/ubicacion_domicilio.md`,
 `.claude/agents/chaco-design-system.md`; tests en `programas/tests/test_dispositivos_edificio_ubicar.py` (nuevo) y
 `core/tests/test_nodo_ui_piezas.py`.
 
@@ -60992,8 +61000,6 @@ No requiere.
 
 ## Pendientes / a definir
 - El aviso cuando el domicilio que ubica Google es aproximado (espera decisión del usuario).
-- Un edificio de ubicación reservada (Cambio 499) también puede buscarse con Google desde este formulario: la
-  dirección sale hacia Google con la acción del operador. Confirmar si debe ofrecerse solo la carga a mano.
 
 ## Reversión
 Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las lee «Derivar».
@@ -61001,3 +61007,4 @@ Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** auditoría del #1290: el edificio reservado no va a Google, orden de los campos del modal y error de coordenadas visible.

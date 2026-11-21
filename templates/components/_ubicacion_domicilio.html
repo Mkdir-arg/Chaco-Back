@@ -6,6 +6,9 @@ Contexto:
   domicilio, latitud, longitud  BoundField (obligatorios). Se dibujan con el mismo label, ayuda y error que
                                 components/_field.html.
   localidad_id   opcional: id del control de localidad; su texto se suma a la búsqueda.
+  domicilio_externo  opcional. Con True el campo del domicilio ya se dibujó en otro lugar de la grilla (con su propio
+                 label, ayuda y error, p. ej. con `_field.html`): la pieza no lo repite y solo trae el botón, el mapa y las
+                 coordenadas. Sigue buscando con ese campo.
   domicilio_extra_id  opcional: id de otro control cuyo texto se suma al domicilio al buscar (la altura, cuando
                  calle y número son campos separados, como en el edificio).
   provincia_id   opcional: id del control de provincia; si tiene una elegida, reemplaza a `provincia`.
@@ -21,17 +24,18 @@ Ficha: .claude/design/componentes/ubicacion_domicilio.md
 {% endcomment %}{% load nodo_ui %}
 <div class="{{ wrapper_class|default:'sm:col-span-2' }} nodo-ubicacion" data-nodo-ubicacion data-localidad="{{ localidad_id|default:'' }}" data-provincia="{{ provincia|default:'Chaco' }}" data-provincia-id="{{ provincia_id|default:'' }}"{% if domicilio_extra_id %} data-domicilio-extra="{{ domicilio_extra_id }}"{% endif %}{% if a_pedido %} data-a-pedido{% endif %} data-latitud="{{ latitud.auto_id }}" data-longitud="{{ longitud.auto_id }}" data-domicilio="{{ domicilio.auto_id }}"{% if latitud.errors or longitud.errors %} data-manual-abierto{% endif %}>
   <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
-    <label id="{{ domicilio.auto_id }}-etiqueta" class="block text-sm font-medium text-heading"{% if domicilio.id_for_label %} for="{{ domicilio.id_for_label }}"{% endif %}>
+    {% if not domicilio_externo %}<label id="{{ domicilio.auto_id }}-etiqueta" class="block text-sm font-medium text-heading"{% if domicilio.id_for_label %} for="{{ domicilio.id_for_label }}"{% endif %}>
       {{ domicilio.label }}{% if domicilio.field.required or domicilio.field.marca_requerido %} <span class="text-fg-danger">*</span>{% endif %}
-    </label>
+    </label>{% else %}<span class="block text-sm font-medium text-heading">Ubicación en el mapa</span>{% endif %}
     <span class="badge badge-gray" data-ubicacion-estado role="status" hidden><i class="fas fa-location-dot" aria-hidden="true"></i> Sin ubicar</span>
   </div>
   <div class="nodo-ubicacion__fila">
-    {% campo_control domicilio %}
+    {% if not domicilio_externo %}{% campo_control domicilio %}{% endif %}
     <button type="button" class="btn-nodo btn-secondary btn-base" data-ubicacion-buscar hidden><i class="fas fa-location-crosshairs" aria-hidden="true"></i> <span>Ubicar en el mapa</span></button>
   </div>
-  <p id="{{ domicilio.auto_id }}-ayuda" class="mt-1 text-xs text-body-subtle">{% if domicilio.help_text %}{{ domicilio.help_text }}{% else %}Calle y número.{% endif %} <span data-ubicacion-ayuda-mapa hidden>Con «Ubicar en el mapa», Google lo busca en la localidad elegida. Si el punto no queda exacto, arrastrá el marcador.</span></p>
-  <p id="{{ domicilio.auto_id }}-error" class="mt-1 text-xs text-fg-danger{% if not domicilio.errors %} hidden{% endif %}" data-error="{{ domicilio.name }}">{{ domicilio.errors|join:" " }}</p>
+  {% if domicilio_externo %}<p class="mt-1 text-xs text-body-subtle"><span data-ubicacion-ayuda-mapa hidden>Con «Ubicar en el mapa», Google busca el domicilio de arriba. Si el punto no queda exacto, arrastrá el marcador.</span></p>
+  {% else %}<p id="{{ domicilio.auto_id }}-ayuda" class="mt-1 text-xs text-body-subtle">{% if domicilio.help_text %}{{ domicilio.help_text }}{% else %}Calle y número.{% endif %} <span data-ubicacion-ayuda-mapa hidden>Con «Ubicar en el mapa», Google lo busca en la localidad elegida. Si el punto no queda exacto, arrastrá el marcador.</span></p>
+  <p id="{{ domicilio.auto_id }}-error" class="mt-1 text-xs text-fg-danger{% if not domicilio.errors %} hidden{% endif %}" data-error="{{ domicilio.name }}">{{ domicilio.errors|join:" " }}</p>{% endif %}
 
   <div class="mt-3" data-ubicacion-aviso hidden></div>
 
