@@ -40,12 +40,14 @@ def url_en_google_maps(latitud, longitud):
     return f"https://www.google.com/maps/search/?api=1&query={float(latitud):.6f},{float(longitud):.6f}"
 
 
-def url_domicilio_en_google_maps(direccion, localidad="", provincia="Chaco"):
+def url_domicilio_en_google_maps(direccion, localidad, provincia):
     """Enlace que busca un domicilio escrito (no un punto) en Google Maps, fuera del sistema.
 
     Para cuando las coordenadas guardadas no son las del domicilio: en un caso de Emergencia la latitud y la
     longitud son de dónde se tomó el caso, y la familia vive en la dirección y la localidad cargadas. Busca
     «dirección, localidad, provincia, Argentina», como la pieza `_ubicacion_domicilio.html`. ``None`` sin dirección.
+    La provincia la pasa quien llama (``core.selectors.geografia.PROVINCIA_OPERATIVA``): no se importa acá porque
+    este módulo lo cargan los modelos y ese selector importa modelos.
     """
 
     direccion = str(direccion or "").strip()
