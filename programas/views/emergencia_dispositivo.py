@@ -438,8 +438,7 @@ class FichaIntegranteView(_IntegranteView):
     def _adultos(self):
         """Los adultos confirmados de la familia: lo que puede elegir el selector del adulto responsable."""
 
-        filas = IntegranteGrupo.objects.filter(grupo_id=self.caso.grupo_id).select_related("ciudadano")
-        return servicio.adultos_del_grupo(filas, excluir_orden=self.integrante.orden)
+        return servicio.adultos_de_la_familia(self.caso.grupo, excluir_orden=self.integrante.orden)
 
     def _render(self, request, form, cama=None, status=200):
         integrante = self.integrante

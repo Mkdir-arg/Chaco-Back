@@ -61006,9 +61006,6 @@ No requiere.
 ## Reversión
 Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las lee «Derivar».
 
-## Reversión
-Desplegar el código anterior. Lo guardado (`encargado_id`, `adulto_responsable_orden`) queda en el JSON y el código viejo lo ignora; las fechas aproximadas que no entraron al legajo siguen en la ficha.
-
 ## Historial
 
 - **21/11/2026:** alta del cambio.
@@ -61048,9 +61045,15 @@ obligatorio para menores de 16).
   vieja lo manda) pero lo ignora; el contrato de la app queda con el campo marcado obsoleto.
 - **Adulto responsable.** Nuevo campo `adulto_responsable_orden` en la sección «Observaciones» de la ficha: el `orden` de un adulto
   (18 años cumplidos, `core.edad.MAYORIA_DE_EDAD`) **ya confirmado** del mismo grupo, que no sea la propia persona ni esté egresado.
-  El backoffice lo ofrece como selector (sin texto libre) y el servicio lo valida en `confirmar_integrante` y en `completar_ficha`;
-  copia el nombre del legajo en `adulto_responsable`, que es lo que se muestra. Se pidió el mismo criterio en la API: vale para quien
-  mande `adulto_responsable_orden`. Como el adulto tiene que estar confirmado, hay que confirmar primero a los adultos.
+  El backoffice lo ofrece como selector y el servicio lo valida en `confirmar_integrante` y, en `completar_ficha`, **solo si la
+  sección «Observaciones» llega en el envío** (guardar otra sección no revalida nada, así que un adulto que egresó después no
+  bloquea al menor). Si la sección llega sin `adulto_responsable_orden` ni `adulto_responsable`, se conservan los dos valores
+  guardados. El servicio copia el nombre del legajo en `adulto_responsable`, que es lo que se muestra. El selector es opcional
+  en el servidor y la ficha mínima sigue exigiendo un adulto para menores de 16 (`adulto_responsable` ya cargado alcanza).
+- **Sin adultos confirmados (default del juez, a confirmar con el PM).** Si el grupo no tiene ningún adulto confirmado, el
+  backoffice ofrece el texto libre `adulto_responsable`, igual que la API, para no dejar un menor sin poder confirmarse (un
+  grupo de menores solos, o con el adulto egresado). Con adultos, el selector reemplaza al texto y el texto ya guardado se
+  muestra como dato de solo lectura junto al selector. Si el PM prefiere otra salida, cambia solo `FichaIntegranteForm._adulto_responsable`.
 - **Fecha de nacimiento aproximada.** Con `fecha_nacimiento_aproximada` verdadera, la fecha no entra al legajo, ni en el alta de una
   persona nueva ni al completar a quien no tenía fecha. Queda en la ficha, con su marca.
 - **Localidad del edificio.** `EdificioForm.localidad` es el selector del catálogo (`_opciones_de_localidad`, el de `DispositivoForm`)
@@ -61059,16 +61062,16 @@ obligatorio para menores de 16).
 - **Teléfono de Emergencia.** `validacion_contacto.normalizar_telefono` (8 a 15 dígitos, solo dígitos y un `+` inicial) en la mesa y la
   app (`crear_caso`) y en la confirmación de cada persona (ficha, mesa del dispositivo y app), con `MENSAJE_TELEFONO_INVALIDO`.
   No se revalida lo ya guardado: `completar_ficha` no toca los datos personales.
-- **Kits.** `marcar_en_camino` rechaza una hora de salida anterior a `entrega.creado` (igual vale), con
-  `HORA_ANTERIOR_A_LA_ENTREGA`.
+- **Kits.** `marcar_en_camino` rechaza una hora de salida anterior a `entrega.creado` truncado al minuto (`datetime-local` no
+  lleva segundos, así que salir en el minuto de armado vale), con `HORA_ANTERIOR_A_LA_ENTREGA`.
 
 ## Pendientes
 - **App móvil:** ofrecer un selector con los adultos confirmados del grupo y mandar `adulto_responsable_orden`; hasta entonces
   sigue mandando el texto libre, que el servidor acepta como siempre. Con esto el criterio del adulto responsable no es
   obligatorio en la API.
 - Dejar de mandar `encargado` en la app.
-- Las fichas guardadas con texto libre quedan como están; en el backoffice, al volver a guardar las secciones 4 a 8 de un menor,
-  hay que elegir al adulto del selector.
+- Las fichas guardadas con texto libre quedan como están: el texto se conserva al guardar otras secciones y se ve junto al selector.
+- Confirmar con el PM la salida del grupo sin adultos confirmados (texto libre, ver Decisiones tomadas).
 
 ## Implementación
 `services/emergencia_cierre.py`, `forms_emergencia_dispositivo.py` y `views/emergencia_dispositivo.py` (encargado y selector);
@@ -61086,5 +61089,21 @@ fecha, el teléfono, la localidad y el encargado del servicio ponen en rojo su t
 ## Base de datos
 No requiere: `encargado_id` y `adulto_responsable_orden` van en JSON.
 
+## Validación
+`manage.py check`, `makemigrations --check` (sin cambios), ruff, `design_audit --ratchet` (0 nuevos) y
+`check_design_agent --base origin/development`: OK. Tests de Emergencia (alojar, vistas, cierre, confirmación, ficha, API, casos, mesa),
+kits y Dispositivos en verde. Cada regla nueva se verificó por mutación: el adulto (validar solo si llega la sección, conservar lo
+guardado, excluir egresados y sin confirmar, texto cuando no hay adultos, texto guardado visible), la fecha aproximada, el teléfono,
+la localidad, el encargado y la hora del kit (incluido el mismo minuto) ponen en rojo su test.
+
+## Puesta en marcha en el servidor
+No requiere: sin migración ni variables. La app móvil sigue funcionando sin cambios.
+
+## Reversión
+Desplegar el código anterior. Lo guardado (`encargado_id`, `adulto_responsable_orden`) queda en el JSON y el código viejo lo
+ignora; las fechas aproximadas que no entraron al legajo siguen en la ficha.
+
 ## Historial
 - **21/11/2026:** alta del cambio.
+- **21/11/2026:** auditoría del #1294: el adulto responsable ya no bloquea al menor (se valida solo si llega la sección, se conserva lo
+  guardado, texto libre si no hay adultos) y la hora del kit se compara al minuto.

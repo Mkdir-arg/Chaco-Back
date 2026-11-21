@@ -416,7 +416,8 @@ class IntegrantesTests(BaseLlegadas):
         form = FichaIntegranteForm()
         self.assertEqual([seccion["numero"] for seccion in form.secciones()], [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertEqual([s["codigo"] for s in form.secciones() if s["minimo"]], list(servicio.SECCIONES_MINIMAS))
-        self.assertTrue(del_esquema - {"adulto_responsable"} <= set(form.fields))  # el adulto es un selector
+        # Sin adultos confirmados en la familia, el adulto responsable es el texto libre; con ellos, el selector.
+        self.assertTrue(del_esquema - {"adulto_responsable_orden"} <= set(form.fields))
 
     def test_la_ficha_ofrece_primero_una_cama_reservada_para_la_familia(self):
         respuesta = self.client.get(self._url("ficha", self.caso.pk, 2))

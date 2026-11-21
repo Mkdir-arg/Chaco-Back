@@ -365,6 +365,18 @@ class MarcarEnCaminoTests(BaseKits):
         self.assertEqual(error.exception.message_dict["hora"], [servicio.HORA_ANTERIOR_A_LA_ENTREGA])
         self.assertEqual(EntregaKit.objects.get(pk=entrega.pk).estado, Estado.PREPARADA)
 
+    def test_salir_en_el_mismo_minuto_de_la_armada_vale(self):
+        """`datetime-local` no lleva segundos: «10:00» con la entrega armada a las 10:00:30 es del mismo minuto."""
+
+        self.reloj.ahora = T0 + timedelta(seconds=30)
+        entrega = self._entrega()
+
+        self.assertEqual(servicio.marcar_en_camino(entrega, self.operador, hora=T0).despachada_en, T0)
+
+        otra = self._entrega()
+        with self.assertRaises(ValidationError):
+            servicio.marcar_en_camino(otra, self.operador, hora=T0 - timedelta(minutes=1))
+
     def test_la_hora_de_salida_igual_a_la_armada_vale(self):
         entrega = self._entrega()
 

@@ -911,7 +911,7 @@ manda** (o se manda `null` o `""`); `false` **es** una respuesta. Lo que se guar
 | `observaciones` | `observaciones` | texto ≤ 1000 | no |
 | | `mascotas` | booleano | no |
 | | `adulto_responsable` | texto ≤ 200 | **sí si la persona tiene menos de 16 años** |
-| | `adulto_responsable_orden` | texto ≤ 3 (el `orden` de la persona) | no. Opcional y **todavía sin uso en la app**: si viene, tiene que ser un adulto (18 años o más) ya confirmado de la misma familia, y el servidor copia su nombre en `adulto_responsable`. Sin él, `adulto_responsable` sigue siendo texto libre (pendiente de la app: ofrecer un selector con los adultos confirmados) |
+| | `adulto_responsable_orden` | texto ≤ 3 (el `orden` de la persona) | no. Opcional y **todavía sin uso en la app**: si viene, tiene que ser un adulto (18 años o más) ya confirmado de la misma familia, y el servidor copia su nombre en `adulto_responsable`. Sin él, `adulto_responsable` sigue siendo texto libre (pendiente de la app: ofrecer un selector con los adultos confirmados). Al guardar una sección que no sea «observaciones», o «observaciones» sin ninguno de los dos campos, se conservan los valores guardados y no se revalida el adulto |
 
 Las secciones 4 a 8 (`educacion` a `observaciones`) aceptan además `"sin_datos": true` («pregunté y no
 hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `true` cuando las cinco

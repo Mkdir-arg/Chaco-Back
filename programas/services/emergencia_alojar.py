@@ -121,6 +121,7 @@ from programas.services.emergencia_confirmacion import (  # noqa: F401
     SIN_CAMA_LIBRE,
     VINCULO_DE_PARENTESCO,
     PersonaYaAlojada,
+    adultos_de_la_familia,
     adultos_del_grupo,
     agregar_integrante,
     completar_ficha,

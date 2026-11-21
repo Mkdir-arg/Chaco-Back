@@ -366,7 +366,8 @@ def marcar_en_camino(entrega, usuario, transporte="", hora=None):
 
     bloqueada = _bloquear_entrega(entrega)
     _exigir_estado(bloqueada, Estado.PREPARADA, si_sigue_abierta=YA_EN_CAMINO.format(numero=bloqueada.numero))
-    if hora is not None and hora < bloqueada.creado:
+    # `datetime-local` no lleva segundos y `creado` sí: salir en el mismo minuto en que se armó es válido.
+    if hora is not None and hora < bloqueada.creado.replace(second=0, microsecond=0):
         raise ValidationError({"hora": HORA_ANTERIOR_A_LA_ENTREGA})
     bloqueada.estado = Estado.EN_CAMINO
     bloqueada.despachada_en = hora or ahora

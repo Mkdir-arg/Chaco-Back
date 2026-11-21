@@ -126,9 +126,15 @@ CONTROLES_DE_LA_FICHA = {
     "ingresos": lambda: _texto("Ingresos", 200),
     "observaciones": lambda: _parrafo("Observaciones", 1000),
     "mascotas": lambda: _si_no("¿Vino con mascotas?"),
-    # El backoffice no tiene texto libre: el control es un selector que ``FichaIntegranteForm`` llena
-    # con los adultos confirmados de la familia. ``adulto_responsable`` (texto) queda para la app.
-    "adulto_responsable": None,
+    # Con adultos confirmados en la familia, el control es el selector ``adulto_responsable_orden``; sin
+    # ninguno (el adulto está en otra parte de la red, egresó, no tuvo cama), el texto libre
+    # ``adulto_responsable``, como la API. ``FichaIntegranteForm`` deja uno de los dos.
+    "adulto_responsable": lambda: _texto(
+        "Adulto responsable",
+        200,
+        f"Obligatorio si es menor de {servicio.EDAD_SIN_ADULTO_RESPONSABLE} años: quién responde por la persona. "
+        "No hay un adulto confirmado en esta familia para elegir.",
+    ),
     "adulto_responsable_orden": lambda: _opcion(
         "Adulto responsable",
         [],
@@ -181,16 +187,38 @@ class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
                     self.fields[campo].marca_requerido = True
             if seccion in servicio.SECCIONES_OPCIONALES:
                 self.fields[f"{seccion}_{servicio.SIN_DATOS}"] = _sin_datos(seccion)
-        if "adulto_responsable_orden" in self.fields:
-            self.fields["adulto_responsable_orden"].choices = [
-                ("", "Sin indicar"),
-                *((str(adulto["orden"]), f"{adulto['nombre']} (persona {adulto['orden']})") for adulto in adultos),
-            ]
+        self._adulto_responsable(adultos, ficha)
+
+    def _adulto_responsable(self, adultos, ficha):
+        """Selector si hay adultos confirmados para elegir; si no, el texto libre.
+
+        Con selector, el texto que la persona ya tenía guardado se muestra como dato de solo lectura
+        (en la ayuda del selector) y se conserva mientras no se elija a otro adulto.
+        """
+
+        if "adulto_responsable_orden" not in self.fields:
+            return
+        if not adultos:
+            del self.fields["adulto_responsable_orden"]
+            return
+        selector = self.fields["adulto_responsable_orden"]
+        selector.choices = [
+            ("", "Sin indicar"),
+            *((str(adulto["orden"]), f"{adulto['nombre']} (persona {adulto['orden']})") for adulto in adultos),
+        ]
+        self.fields.pop("adulto_responsable", None)
+        guardado = (((ficha or {}).get(servicio.SECCION_OBSERVACIONES)) or {}).get("adulto_responsable")
+        if guardado:
+            selector.help_text = f"Guardado: {guardado}. Si no elegís a nadie, se conserva. {selector.help_text}"
 
     def agregar_errores_del_servicio(self, error):
         """El adulto responsable es texto para el servicio y selector acá: su error va al selector."""
 
-        if hasattr(error, "error_dict") and "adulto_responsable" in error.error_dict:
+        if (
+            hasattr(error, "error_dict")
+            and "adulto_responsable" in error.error_dict
+            and "adulto_responsable_orden" in self.fields
+        ):
             error = ValidationError(
                 {
                     ("adulto_responsable_orden" if clave == "adulto_responsable" else clave): errores
@@ -206,8 +234,6 @@ class FichaIntegranteForm(ErroresDelServicioMixin, forms.Form):
         iniciales = {}
         for campo, valor in servicio.ficha_a_plano(ficha).items():
             control = CONTROLES_DE_LA_FICHA.get(campo)
-            if campo == "adulto_responsable":
-                continue
             es_si_no = control is not None and isinstance(control(), forms.TypedChoiceField)
             iniciales[campo] = (SI if valor else NO) if es_si_no and isinstance(valor, bool) else valor
         return iniciales

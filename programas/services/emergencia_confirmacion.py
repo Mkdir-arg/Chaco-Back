@@ -207,6 +207,12 @@ def adultos_del_grupo(filas, *, excluir_orden=None, hoy=None):
     return adultos
 
 
+def adultos_de_la_familia(grupo, *, excluir_orden=None, hoy=None):
+    """:func:`adultos_del_grupo` leyendo las filas del grupo (``_filas_de``): lo que ofrece el selector."""
+
+    return adultos_del_grupo(_filas_de(grupo), excluir_orden=excluir_orden, hoy=hoy)
+
+
 def _resolver_adulto_responsable(ficha, filas, orden):
     """Si la ficha trae ``adulto_responsable_orden``: tiene que ser un adulto del grupo; copia su nombre.
 
@@ -598,7 +604,9 @@ def completar_ficha(*, caso, orden, usuario, ficha):
     reemplaza a la guardada; las que no vienen, y las tres del mínimo —la identidad no se
     cambia después de confirmar—, quedan como estaban. Recalcula ``ficha_completa``.
 
-    Un menor de 16 no puede quedar sin adulto responsable: se revalida el mínimo.
+    Un menor de 16 no puede quedar sin adulto responsable: se revalida el mínimo. El adulto elegido
+    (``adulto_responsable_orden``) se valida solo si la sección «Observaciones» llega con uno; sin él se
+    conserva el que había (orden y texto).
 
     Devuelve el ``IntegranteGrupo``.
     """
@@ -616,7 +624,17 @@ def completar_ficha(*, caso, orden, usuario, ficha):
         if seccion in ficha:
             nueva[seccion] = ficha[seccion]
     nueva = normalizar_ficha(nueva)
-    _resolver_adulto_responsable(nueva, _filas_de(caso.grupo), orden)
+    if SECCION_OBSERVACIONES in ficha:
+        # Solo si la sección llega: guardar otra sección no revalida (ni pierde) al adulto de antes. Si llega
+        # sin adulto —ni orden ni texto—, se conserva lo guardado: «sin tocar» no es «borralo».
+        enviada = normalizar_ficha({SECCION_OBSERVACIONES: ficha[SECCION_OBSERVACIONES]})[SECCION_OBSERVACIONES]
+        if enviada.get("adulto_responsable_orden") or enviada.get("adulto_responsable"):
+            _resolver_adulto_responsable(nueva, _filas_de(caso.grupo), orden)
+        else:
+            guardado = integrante.ficha.get(SECCION_OBSERVACIONES) or {}
+            for clave in ("adulto_responsable", "adulto_responsable_orden"):
+                if guardado.get(clave):
+                    nueva[SECCION_OBSERVACIONES][clave] = guardado[clave]
     nueva = ficha_minima_valida(nueva)
     nueva.update(_claves_de_envio(integrante.ficha))
     integrante.ficha = nueva

@@ -18,7 +18,7 @@ from programas.models import CasoEmergencia, IntegranteGrupo, Sector
 from programas.services import emergencia_alojar as servicio
 from programas.tests.base_emergencia_api import BaseApiLlegadas, _url
 from programas.tests.test_emergencia_alojar_base import BaseAlojar
-from programas.tests.test_emergencia_casos import BaseCasos
+from programas.tests.test_emergencia_casos import T0, BaseCasos
 from programas.validacion_contacto import MENSAJE_TELEFONO_INVALIDO
 
 MENOR = {"fecha_nacimiento": "2015-05-05"}
@@ -138,11 +138,97 @@ class AdultoResponsableTests(BaseAlojar):
         self.assertNotIn("adulto_responsable", form.fields)
 
     def test_el_error_del_menor_sin_adulto_cae_en_el_selector(self):
-        form = FichaIntegranteForm({}, adultos=[])
+        form = FichaIntegranteForm({}, adultos=[{"orden": 1, "nombre": "Benítez, Rosa"}])
         form.is_valid()
         form.agregar_errores_del_servicio(ValidationError({"adulto_responsable": "Falta."}))
 
         self.assertEqual(form.errors["adulto_responsable_orden"], ["Falta."])
+
+    def test_sin_adultos_el_backoffice_ofrece_el_texto_libre(self):
+        form = FichaIntegranteForm({"adulto_responsable": "Rosa Benítez"}, adultos=[])
+        form.is_valid()
+
+        self.assertIn("adulto_responsable", form.fields)
+        self.assertNotIn("adulto_responsable_orden", form.fields)
+        self.assertEqual(form.ficha()["observaciones"]["adulto_responsable"], "Rosa Benítez")
+        form.agregar_errores_del_servicio(ValidationError({"adulto_responsable": "Falta."}))
+        self.assertEqual(form.errors["adulto_responsable"], ["Falta."])
+
+    def test_un_grupo_sin_adultos_confirma_al_menor_con_texto(self):
+        self.assertEqual(servicio.adultos_de_la_familia(self.caso.grupo, excluir_orden=3), [])
+
+        menor = self._confirmar_n(
+            3, "55000111", datos_personales=MENOR, observaciones={"adulto_responsable": "Rosa Benítez"}
+        )
+
+        self.assertEqual(
+            IntegranteGrupo.objects.get(pk=menor.pk).ficha["observaciones"]["adulto_responsable"], "Rosa Benítez"
+        )
+
+    def test_el_selector_muestra_como_solo_lectura_el_texto_guardado(self):
+        ficha = {"observaciones": {"adulto_responsable": "Tía Marta"}}
+
+        form = FichaIntegranteForm(solo_opcionales=True, ficha=ficha, adultos=[{"orden": 1, "nombre": "Benítez, Rosa"}])
+
+        self.assertIn("Guardado: Tía Marta", form.fields["adulto_responsable_orden"].help_text)
+        self.assertNotIn("adulto_responsable", form.fields)
+
+    def test_con_el_adulto_egresado_otra_seccion_se_guarda_sin_error(self):
+        """La app guarda «Trabajo» del menor: el adulto que eligió egresó y eso no es un 400."""
+
+        self._confirmar_n(1, "30111222")
+        self._confirmar_n(3, "55000111", datos_personales=MENOR, observaciones={"adulto_responsable_orden": "1"})
+        IntegranteGrupo.objects.filter(grupo=self.caso.grupo, orden=1).update(egresado_en=T0)
+
+        guardada = servicio.completar_ficha(
+            caso=self.caso, orden=3, usuario=self.guardia, ficha={"trabajo": {"ocupacion": "Ninguna"}}
+        )
+
+        observaciones = guardada.ficha["observaciones"]
+        self.assertEqual(observaciones["adulto_responsable_orden"], "1")
+        self.assertTrue(observaciones["adulto_responsable"])
+
+    def test_el_texto_se_conserva_al_guardar_otra_seccion_o_observaciones_sin_adulto(self):
+        menor = self._confirmar_n(
+            3, "55000111", datos_personales=MENOR, observaciones={"adulto_responsable": "Rosa Benítez"}
+        )
+        for enviada in ({"trabajo": {"ocupacion": "Ninguna"}}, {"observaciones": {"mascotas": True}}):
+            with self.subTest(enviada=enviada):
+                guardada = servicio.completar_ficha(caso=self.caso, orden=3, usuario=self.guardia, ficha=enviada)
+
+                self.assertEqual(guardada.ficha["observaciones"]["adulto_responsable"], "Rosa Benítez")
+        self.assertTrue(IntegranteGrupo.objects.get(pk=menor.pk).ficha["observaciones"]["mascotas"])
+
+    def test_un_mayor_no_pierde_su_adulto_responsable_al_guardar_observaciones(self):
+        persona = self._confirmar_n(2, "45000111", observaciones={"adulto_responsable": "Tía Marta", "mascotas": False})
+
+        guardada = servicio.completar_ficha(
+            caso=self.caso, orden=2, usuario=self.guardia, ficha={"observaciones": {"mascotas": True}}
+        )
+
+        self.assertEqual(guardada.pk, persona.pk)
+        self.assertEqual(guardada.ficha["observaciones"], {"adulto_responsable": "Tía Marta", "mascotas": True})
+
+    def test_un_adulto_egresado_no_se_ofrece_ni_vale_como_responsable(self):
+        self._confirmar_n(1, "30111222")
+        IntegranteGrupo.objects.filter(grupo=self.caso.grupo, orden=1).update(egresado_en=T0)
+
+        self.assertEqual(servicio.adultos_del_grupo(self._filas(), excluir_orden=3), [])
+        with self.assertRaises(ValidationError):
+            self._confirmar_n(3, "55000111", datos_personales=MENOR, observaciones={"adulto_responsable_orden": "1"})
+
+    def test_la_seccion_que_llega_con_un_adulto_invalido_si_se_rechaza(self):
+        self._confirmar_n(3, "55000111", datos_personales=MENOR, observaciones={"adulto_responsable": "Rosa Benítez"})
+
+        with self.assertRaises(ValidationError) as error:
+            servicio.completar_ficha(
+                caso=self.caso,
+                orden=3,
+                usuario=self.guardia,
+                ficha={"observaciones": {"adulto_responsable_orden": "2"}},
+            )
+
+        self.assertEqual(set(error.exception.error_dict), {"adulto_responsable_orden"})
 
 
 class FechaAproximadaTests(BaseAlojar):
