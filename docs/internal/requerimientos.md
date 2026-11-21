@@ -641,6 +641,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 515 | Dispositivos Ola 0: D-SEG-01 (detalle reservado) | Dispositivos · altas rápidas | `#seguridad` `#rbac` | PM — issue #1238 (Ola 0) | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 516 | Auditoría 2026-11: se generalizan títulos de fichas de seguridad abiertas en el informe público de Dispositivos (detalle reservado) | Transversal · documentación interna (`docs/internal/auditoria-2026-11-perf/`) | `#seguridad` `#metodo` | PM — decisión sobre el informe público de la auditoría | 20/11/2026 | 🟢 **Hecho** | No requiere |
 | 517 | Dispositivos · Ola 0: seguimiento de las auditorías (regla de visibilidad en un solo dueño, guarda de roles medida por AST) | Dispositivos | `#dispositivos` `#seguridad` `#rbac` | Auditorías de los PR de la Ola 0 — #1238 | 20/11/2026 | 🟢 **Hecho** | No requiere |
+| 518 | Emergencia · ficha del caso: «Ver en el mapa» muestra el domicilio (dirección y localidad), no el GPS de la toma | Emergencia · mesa (ficha del caso E3) | `#emergencia` `#gps` `#ui` | Usuario — sesión de trabajo, caso 18 de testing | 21/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60311,3 +60312,70 @@ Desplegar el código anterior. No hay datos ni esquema que deshacer.
 ## Historial
 
 - **20/11/2026:** alta del cambio.
+
+# Cambio 518 — Emergencia · ficha del caso: «Ver en el mapa» muestra el domicilio, no el GPS de la toma
+
+🟢 **HECHO — 21/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · mesa (ficha del caso E3) |
+| **Etiquetas** | `#emergencia` `#gps` `#ui` |
+| **Solicitante** | Usuario — sesión de trabajo, sobre el caso 18 de testing (`/emergencia/casos/18/`) |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+«Cuando toco Ver en el mapa tendría que mostrar en el mapa los datos Dirección y Localidad ingresados, ya que es
+la dirección de la persona. Latitud y Longitud son de donde se tomó el caso.»
+
+## Alcance acordado
+Solo la ficha del caso de la mesa. Afuera: la app de campo, la API, `/mapa/` y el panel «Derivar» (que sigue
+midiendo distancias desde la latitud y la longitud del caso).
+
+## Decisiones tomadas
+- **Dos enlaces, cada uno con su nombre.** «Ver domicilio en el mapa», debajo de la Dirección, busca
+  «dirección, localidad, Chaco, Argentina» en Google Maps (la misma búsqueda que la pieza
+  `_ubicacion_domicilio.html`). El bloque del GPS pasa a llamarse «Dónde se tomó el caso», con una línea que
+  aclara que no es el domicilio, y su enlace dice «Ver dónde se tomó». Motivo: las coordenadas no se borran
+  —sirven para la distancia a los dispositivos—, pero el texto «Ver en el mapa» a secas hacía creer que eran
+  la casa de la familia.
+- **Búsqueda por texto, sin geocodificar en el servidor.** Es un `<a>` a la URL pública de búsqueda de Maps:
+  no gasta cuota de la key ni abre la CSP, igual que el enlace de coordenadas (Cambio 493, fase 4).
+- **`_ubicacion.html` suma `texto_enlace`** (opcional, por defecto «Ver en el mapa»): el resto de las fichas
+  no cambia.
+
+## Implementación
+`core.coordenadas.url_domicilio_en_google_maps(direccion, localidad)` arma el enlace (codificado; sin dirección,
+`None`). `selectors.emergencia_mesa._datos_del_relevamiento` lo agrega como `url_mapa` en el dato «Dirección» y
+`casos/detail.html` lo dibuja como `btn-secondary btn-sm` con pestaña nueva y aviso `sr-only`.
+
+## Archivos
+`core/coordenadas.py`, `programas/selectors/emergencia_mesa.py`,
+`programas/templates/programas/emergencia/casos/detail.html`, `templates/components/_ubicacion.html`,
+`.claude/agents/chaco-design-system.md`, `.claude/design/componentes/ubicacion.md`; tests en
+`core/tests/test_coordenadas.py` (nuevo), `core/tests/test_nodo_ui_piezas.py`, `programas/tests/test_emergencia_mesa.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check` OK; `core.tests.test_coordenadas`, `core.tests.test_nodo_ui_piezas`,
+`programas.tests.test_emergencia_mesa` y `portal.tests.test_seguridad_publica`: 323 tests OK. `design_audit.py
+--ratchet`: 0 nuevos. `check_design_agent.py --changed`: OK. `compile_templates.py --bloques`: 0 errores. `ruff` OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- Testing de ECOM todavía abre OpenStreetMap: tiene una release anterior al Cambio 493 fase 4. El cambio llega
+  con el próximo espejo.
+
+## Reversión
+Desplegar el código anterior. No hay datos ni esquema que deshacer.
+
+## Historial
+
+- **21/11/2026:** alta del cambio.

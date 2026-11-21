@@ -647,7 +647,14 @@ class FichaTests(BaseMesa):
         self.assertEqual((personas["total"], personas["total_femenino"], personas["total_masculino"]), (4, 3, 1))
         self.assertEqual(personas["necesidades"], ["Mascotas"])
         self.assertContains(respuesta, "Casa con agua hasta la ventana")
-        self.assertContains(respuesta, "Ver en el mapa")
+        # Dos enlaces distintos: el domicilio (dirección + localidad) y el GPS de dónde se tomó el caso.
+        self.assertContains(respuesta, "Ver domicilio en el mapa")
+        self.assertContains(
+            respuesta, "https://www.google.com/maps/search/?api=1&amp;query=Av.%20Sarmiento%201200%2C%20Resistencia%2C"
+        )
+        self.assertContains(respuesta, "Ver dónde se tomó")
+        self.assertContains(respuesta, "https://www.google.com/maps/search/?api=1&amp;query=-27.451000,-58.986000")
+        self.assertNotContains(respuesta, "Ver en el mapa<")
         self.assertContains(respuesta, "Se completa cuando el dispositivo confirma las fichas")
         self.assertEqual([evento["titulo"] for evento in respuesta.context["eventos"]], ["Tomado", "Caso creado"])
         self.assertContains(respuesta, "Lo tenés tomado vos.")

@@ -20,6 +20,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core import rbac
+from core.coordenadas import url_domicilio_en_google_maps
 from core.models import Localidad
 from programas.models import AdjuntoCaso, CasoEmergencia, ContactoCaso, Derivacion, GrupoFamiliar, TrazaCaso
 from programas.selectors import emergencia as selectores
@@ -318,14 +319,20 @@ def _datos_del_relevamiento(caso):
     if grupo.traslado == GrupoFamiliar.Traslado.OTRA and grupo.traslado_otro:
         traslado = f"Otra: {grupo.traslado_otro}"
     edad = responsable.edad
+    localidad = caso.localidad.nombre if caso.localidad_id else ""
     return [
         {"etiqueta": "Responsable", "valor": responsable.apellido_nombre},
         {"etiqueta": "DNI", "valor": responsable.dni, "formato": "dni"},
         {"etiqueta": "Edad", "valor": f"{edad} años" if edad is not None else ""},
         {"etiqueta": "Teléfono de contacto", "valor": caso.situacion.get("telefono", "")},
         {"etiqueta": "Fuerza que traslada", "valor": traslado},
-        {"etiqueta": "Dirección", "valor": caso.direccion},
-        {"etiqueta": "Localidad", "valor": caso.localidad.nombre if caso.localidad_id else ""},
+        {
+            "etiqueta": "Dirección",
+            "valor": caso.direccion,
+            # La familia vive acá; la latitud y la longitud del caso son de dónde se lo tomó.
+            "url_mapa": url_domicilio_en_google_maps(caso.direccion, localidad),
+        },
+        {"etiqueta": "Localidad", "valor": localidad},
         {"etiqueta": "Origen", "valor": caso.get_origen_display()},
         {"etiqueta": "Relevado por", "valor": nombre_de(caso.relevado_por)},
         {"etiqueta": "Relevado", "valor": _fecha_hora(caso.relevado_en)},

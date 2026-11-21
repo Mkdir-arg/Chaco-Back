@@ -23,6 +23,7 @@ necesita el mapa adentro, usa la pieza Mapa con capas (`mapa_capas.md`), no esta
 | `latitud`, `longitud` | Decimal o `None`. Se muestran con 6 decimales. Sin las dos: estado vacío y sin enlace |
 | `plano_url` | Opcional. Enlace al plano del edificio, en pestaña nueva |
 | `plano_nombre` | Texto del enlace del plano; por defecto «Plano del edificio» |
+| `texto_enlace` | Opcional. Texto del enlace al mapa; por defecto «Ver en el mapa». Para coordenadas que no son el domicilio (caso de Emergencia: «Ver dónde se tomó») |
 | `compacto` | Opcional. Sin coordenadas, el vacío es una línea con ícono («Sin ubicación cargada…», `text-sm text-body-subtle`) en vez de `_estado_vacio.html`. Con coordenadas no cambia nada |
 
 Render: `dl` de dos columnas (mismo patrón que las solapas de datos) + `btn-secondary btn-sm`

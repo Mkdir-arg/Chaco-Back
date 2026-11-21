@@ -11,6 +11,8 @@ Contexto:
                      Tiene que ser la URL de un archivo adjunto (FileField.url), no una URL libre:
                      el autoescape protege del marcado, pero no de un esquema `javascript:`.
   plano_nombre       texto del enlace del plano; por defecto «Plano del edificio».
+  texto_enlace       opcional: texto del enlace al mapa; por defecto «Ver en el mapa». Sirve cuando las
+                     coordenadas no son las del domicilio (el caso de Emergencia: «Ver dónde se tomó»).
   compacto           opcional (booleano): sin coordenadas, el vacío es una sola línea con ícono en vez del
                      estado vacío grande. Con coordenadas no cambia nada.
 El enlace «Ver en el mapa» abre Google Maps en una pestaña nueva (Cambio 493, fase 4): no carga nada dentro de
@@ -33,7 +35,7 @@ la prueba `SinRecursosDeTercerosTests` de `portal/tests/`, la red que impide vol
   {% endif %}
   {% if url_mapa or plano_url %}
   <div class="flex flex-wrap items-center gap-3">
-    {% if url_mapa %}<a href="{{ url_mapa }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> Ver en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
+    {% if url_mapa %}<a href="{{ url_mapa }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> {{ texto_enlace|default:"Ver en el mapa" }}<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
     {% if plano_url %}<a href="{{ plano_url }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ plano_nombre|default:"Plano del edificio" }}<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
   </div>
   {% endif %}
