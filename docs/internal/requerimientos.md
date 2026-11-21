@@ -61086,10 +61086,10 @@ obligatorio para menores de 16).
   bloquea al menor). Si la sección llega sin `adulto_responsable_orden` ni `adulto_responsable`, se conservan los dos valores
   guardados. El servicio copia el nombre del legajo en `adulto_responsable`, que es lo que se muestra. El selector es opcional
   en el servidor y la ficha mínima sigue exigiendo un adulto para menores de 16 (`adulto_responsable` ya cargado alcanza).
-- **Sin adultos confirmados (default del juez, a confirmar con el PM).** Si el grupo no tiene ningún adulto confirmado, el
+- **Sin adultos confirmados (decisión del PM, 21/11/2026).** Si el grupo no tiene ningún adulto confirmado, el
   backoffice ofrece el texto libre `adulto_responsable`, igual que la API, para no dejar un menor sin poder confirmarse (un
   grupo de menores solos, o con el adulto egresado). Con adultos, el selector reemplaza al texto y el texto ya guardado se
-  muestra como dato de solo lectura junto al selector. Si el PM prefiere otra salida, cambia solo `FichaIntegranteForm._adulto_responsable`.
+  muestra como dato de solo lectura junto al selector.
 - **Fecha de nacimiento aproximada.** Con `fecha_nacimiento_aproximada` verdadera, la fecha no entra al legajo, ni en el alta de una
   persona nueva ni al completar a quien no tenía fecha. Queda en la ficha, con su marca.
 - **Localidad del edificio.** `EdificioForm.localidad` es el selector del catálogo (`_opciones_de_localidad`, el de `DispositivoForm`)
@@ -61107,7 +61107,6 @@ obligatorio para menores de 16).
   obligatorio en la API.
 - Dejar de mandar `encargado` en la app.
 - Las fichas guardadas con texto libre quedan como están: el texto se conserva al guardar otras secciones y se ve junto al selector.
-- Confirmar con el PM la salida del grupo sin adultos confirmados (texto libre, ver Decisiones tomadas).
 
 ## Implementación
 `services/emergencia_cierre.py`, `forms_emergencia_dispositivo.py` y `views/emergencia_dispositivo.py` (encargado y selector);
