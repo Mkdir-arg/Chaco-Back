@@ -181,7 +181,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   `_alerta` warning; «Asignar edificio» solo con `puede_asignar_edificio`. P2 usa el mismo servicio.
 - Ficha propia del edificio (`programas/templates/programas/dispositivos/edificios/detail.html`, `{# arquetipo: detalle + apilado #}`):
   solo lectura, sin métricas, desde la sección Edificios (`EdificioDetailView`, `ficha_de_edificio` de
-  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo» y «Crear relevamiento» solo con `url_asignar`;
+  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo» y «Crear relevamiento» solo con `url_asignar`; los títulos de sección son `h2 text-heading font-bold`;
   secciones Datos (`_ubicacion.html` compacto), Instituciones del predio, Sectores por institución, Último relevamiento y Registro
   fotográfico (`_linea_tiempo` plegable + `_paginacion`). Quién relevó, observaciones y el registro solo con `ve_detalle` (Cambio 428). La fila
   del listado abre la ficha con el nombre enlazado y un `nodo-icon-btn` «Ver», junto al de «Crear relevamiento».

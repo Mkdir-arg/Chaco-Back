@@ -665,6 +665,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 543 | Dispositivos · configuración y formularios (PR-D del relevamiento de diseño): «Cancelar» al editar, interruptores del tipo, JS del legajo en archivos, filtro de localidad como select y exportaciones al menú | Dispositivos · legajo, listado y tipos; Emergencia · «Nuevo caso» (marcador) | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-D) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 542 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 544 | Dispositivos · ficha propia del edificio: títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
@@ -62378,6 +62379,44 @@ tipo del botón y `aria-labelledby` del modal de recepción, «Paso 2 de 3», `w
 - `programas/templates/programas/emergencia/kits/` (`recibir`, `pendientes`).
 - Fichas: `.claude/design/arquetipos/modal.md` y `.claude/design/componentes/ficha_timeline.md`.
 - Tests: `test_emergencia_kits_vistas.py`, `test_emergencia_kits_guardia_vistas.py` y `test_emergencia_alojar_vistas.py`.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 544 — Dispositivos · ficha propia del edificio: títulos de sección canónicos
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Edificios (ficha propia, `edificios/detail.html`) |
+| **Etiquetas** | `#dispositivos` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (PR-E) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgos 11 (la ficha del edificio no tiene «Editar», la de Infraestructura sí) y 22 (clases de `h3`/`dt` inconsistentes entre `_infra_ficha.html` y `casos/detail.html`).
+
+## Alcance acordado
+Solo adherencia con clases existentes. Fuera: el campo «Orden» de los turnos (10), vocabulario cama/plaza y cualquier cambio de lógica.
+
+## Decisiones tomadas
+- **11 · «Editar» NO se implementa.** El hallazgo 11 (Editar desde la ficha del edificio) NO se implementa: contradice R9/CA12 del #1164 y el Cambio 487 (decisión del PM del 18/11/2026, solo lectura + Crear relevamiento).
+- **22 · Títulos.** Los 5 `h2` de sección de la ficha del edificio pasan de `text-sm font-bold text-heading` a `h2 text-heading font-bold` (título de surface del inventario). Los `h3` de `_infra_ficha.html` y de `casos/detail.html` ya eran iguales.
+- **Relevamiento de `edificios/*` y `_infra_*`:** sin más desvíos (íconos con `aria-hidden`, `page_header`, `btn-fit` donde corresponde).
+
+## Pendiente
+- **Decisión del PM:** ¿levantar R9/CA12 para ofrecer un acceso a la edición existente del legajo? Si se levanta: una sola consulta para resolver la institución editable, test con alcance Edificios (Cambio 523) y actualizar TC-1168-24.
+- **22 · `dt`.** `casos/detail.html` usa `font-bold text-heading` por decisión del PM (Cambio 519, «afuera: el resto de las fichas»); el resto del sistema (68 usos, incluidas la ficha de Infraestructura y la del edificio) usa `font-semibold text-body-subtle`. Unificar en cualquier sentido es decisión del PM.
+
+## Archivos
+`programas/templates/programas/dispositivos/edificios/detail.html` y `.claude/design/arquetipos/detalle.md`.
 
 ## Reversión
 Desplegar el código anterior.
