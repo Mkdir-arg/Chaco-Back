@@ -662,7 +662,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
-| 544 | Dispositivos · ficha propia del edificio: «Editar edificio» y títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 544 | Dispositivos · ficha propia del edificio: títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
@@ -62220,7 +62220,7 @@ Desplegar el código anterior.
 ## Historial
 - **22/11/2026:** alta del cambio.
 
-# Cambio 544 — Dispositivos · ficha propia del edificio: «Editar edificio» y títulos de sección canónicos
+# Cambio 544 — Dispositivos · ficha propia del edificio: títulos de sección canónicos
 
 🟢 **HECHO — 22/11/2026**
 
@@ -62238,24 +62238,19 @@ Desplegar el código anterior.
 Hallazgos 11 (la ficha del edificio no tiene «Editar», la de Infraestructura sí) y 22 (clases de `h3`/`dt` inconsistentes entre `_infra_ficha.html` y `casos/detail.html`).
 
 ## Alcance acordado
-Sumar «Editar edificio» con la misma regla del modal de Infraestructura y unificar lo que la ficha del arquetipo Detalle manda, solo con clases existentes. Fuera: el campo «Orden»
-de los turnos (10), vocabulario cama/plaza y cualquier cambio de lógica. Consultado el archivo vivo por `dispositivos` y «edificio»: la edición es por institución (Cambio 439).
+Solo adherencia con clases existentes. Fuera: el campo «Orden» de los turnos (10), vocabulario cama/plaza y cualquier cambio de lógica.
 
 ## Decisiones tomadas
-- **11 · «Editar edificio».** El edificio no tiene capacidad propia: se edita desde una institución que lo ocupa (`editar_edificio`). `ficha_de_edificio` arma `url_editar` con la misma
-  regla del modal: `puede_editar_legajo` (`dispositivo.editar` con alcance institución) sobre la primera institución del predio que el usuario abre y no está cerrada, y apunta al
-  modal de su legajo (`?tab=infraestructura&edificio=<id>`). Sin esa regla no hay botón. No suma consultas con admin ni `ver_todos`; con Equipo, una por institución probada hasta la primera que alcanza.
-  Se reemplaza la aserción «ninguna acción de escritura» (CA12) por «Editar» solo con la regla; «Desvincular» y «Cargar» siguen fuera de la ficha.
-- **22 · Títulos.** Los `h2` de sección de la ficha del edificio pasan de `text-sm font-bold text-heading` a `h2 text-heading font-bold` (título de surface del inventario). Los `h3` de
-  `_infra_ficha.html` y de `casos/detail.html` ya eran iguales (`text-sm font-bold text-heading`).
+- **11 · «Editar» NO se implementa.** El hallazgo 11 (Editar desde la ficha del edificio) NO se implementa: contradice R9/CA12 del #1164 y el Cambio 487 (decisión del PM del 18/11/2026, solo lectura + Crear relevamiento).
+- **22 · Títulos.** Los 5 `h2` de sección de la ficha del edificio pasan de `text-sm font-bold text-heading` a `h2 text-heading font-bold` (título de surface del inventario). Los `h3` de `_infra_ficha.html` y de `casos/detail.html` ya eran iguales.
+- **Relevamiento de `edificios/*` y `_infra_*`:** sin más desvíos (íconos con `aria-hidden`, `page_header`, `btn-fit` donde corresponde).
 
 ## Pendiente
-- **22 · `dt`.** `casos/detail.html` usa `font-bold text-heading` por decisión del PM (Cambio 519, «afuera: el resto de las fichas»); el resto del sistema (68 usos, incluidas
-  la ficha de Infraestructura y la del edificio) usa `font-semibold text-body-subtle`. Unificar en cualquier sentido es decisión del PM: se devuelve al juez.
+- **Decisión del PM:** ¿levantar R9/CA12 para ofrecer un acceso a la edición existente del legajo? Si se levanta: una sola consulta para resolver la institución editable, test con alcance Edificios (Cambio 523) y actualizar TC-1168-24.
+- **22 · `dt`.** `casos/detail.html` usa `font-bold text-heading` por decisión del PM (Cambio 519, «afuera: el resto de las fichas»); el resto del sistema (68 usos, incluidas la ficha de Infraestructura y la del edificio) usa `font-semibold text-body-subtle`. Unificar en cualquier sentido es decisión del PM.
 
 ## Archivos
-`programas/templates/programas/dispositivos/edificios/detail.html`, `programas/selectors/edificios.py`, `.claude/design/arquetipos/detalle.md` y
-`programas/tests/test_dispositivos_edificios_ficha.py`.
+`programas/templates/programas/dispositivos/edificios/detail.html` y `.claude/design/arquetipos/detalle.md`.
 
 ## Reversión
 Desplegar el código anterior.

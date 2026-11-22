@@ -22,7 +22,7 @@ from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector
+from programas.models import Edificio, InspeccionEdificio, Sector
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.detalle_dispositivo import (
@@ -32,12 +32,10 @@ from programas.services.detalle_dispositivo import (
     registro_de_relevamientos,
 )
 from programas.services.dispositivos import (
-    CAP_EDITAR,
     CAP_VER_EDIFICIOS,
     dispositivos_en_alcance,
     dispositivos_visibles,
     puede_configurar_dispositivos,
-    puede_editar_legajo,
 )
 from programas.services.inspecciones import (
     edificios_en_alcance,
@@ -253,24 +251,6 @@ def filas_del_listado(user, edificios):
     ]
 
 
-def _url_editar(user, edificio, instituciones):
-    """El enlace de «Editar» del edificio, o ``""`` si el usuario no puede editarlo.
-
-    El edificio no tiene capacidad propia: se edita **desde una institución que lo ocupa**, con el modal de
-    Infraestructura de su legajo (`?tab=infraestructura&edificio=<id>`) y la misma regla que ese modal y que
-    `editar_edificio`: ``dispositivo.editar`` con alcance sobre la institución entera, institución no cerrada.
-    Se prueban solo las que el usuario puede abrir y se corta en la primera; sin ninguna, no hay acción.
-    """
-
-    for institucion in instituciones:
-        if not institucion["url"] or institucion["estado"] == Dispositivo.Estado.CERRADO:
-            continue
-        # La regla solo mira el id de la institución: no hace falta leerla de la base.
-        if puede_editar_legajo(user, Dispositivo(pk=institucion["pk"]), CAP_EDITAR):
-            return f"{institucion['url']}?tab=infraestructura&edificio={edificio.pk}"
-    return ""
-
-
 def ficha_de_edificio(user, edificio, pagina=1):
     """Lo que dibuja la ficha propia del edificio (#1168): la de Infraestructura, a nivel edificio.
 
@@ -346,5 +326,4 @@ def ficha_de_edificio(user, edificio, pagina=1):
         "eventos": eventos,
         "relevamientos": relevamientos,
         "url_listado": reverse("dispositivos:edificios"),
-        "url_editar": _url_editar(user, edificio, instituciones),
     }
