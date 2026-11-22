@@ -292,6 +292,32 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil=""
     return sector
 
 
+def _exigir_sector_sin_gente_para_mudarlo(sector):
+    """Un sector con gente adentro o plazas reservadas no se muda de edificio (Cambio 536).
+
+    Pasar de «sin edificio» a uno sí se permite: no saca a nadie de ningún lado. Se llama con
+    el sector y sus plazas ya bloqueados por quien edita.
+    """
+    from programas.selectors.compromisos_institucion import compromisos_del_sector
+
+    # El mismo bloqueo que el ingreso y la reserva toman: nadie ocupa una plaza entre la cuenta y el guardado.
+    list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
+    c = compromisos_del_sector(sector)
+    if c.alojadas or c.reservas:
+        partes = []
+        if c.alojadas:
+            partes.append(f"{c.alojadas} persona{'s' if c.alojadas != 1 else ''} alojada{'s' if c.alojadas != 1 else ''}")
+        if c.reservas:
+            partes.append(f"{c.reservas} reserva{'s' if c.reservas != 1 else ''} vigente{'s' if c.reservas != 1 else ''}")
+        raise ValidationError(
+            {
+                "edificio": "No se puede cambiar el sector de edificio: tiene "
+                + " y ".join(partes)
+                + ". Reubicá a esas personas o liberá las reservas antes."
+            }
+        )
+
+
 @transaction.atomic
 def editar_sector(
     *, sector, usuario, nombre, tipo, edificio=None, perfil="", capacidad=0, condiciones_uso="", activo=True
@@ -352,6 +378,8 @@ def editar_sector(
             )
 
     cambio_edificio = (edificio.pk if edificio else None) != sector.edificio_id
+    if cambio_edificio and sector.edificio_id is not None:
+        _exigir_sector_sin_gente_para_mudarlo(sector)
     sector.edificio = edificio
     sector.nombre = nombre
     sector.tipo = tipo

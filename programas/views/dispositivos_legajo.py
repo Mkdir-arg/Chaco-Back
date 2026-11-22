@@ -867,7 +867,14 @@ class DispositivoInactivarView(DispositivoActionView):
     mensaje_exito = "Dispositivo inactivado."
 
     def ejecutar(self, dispositivo, request):
-        inactivar_dispositivo(dispositivo, request.user)
+        inactivado = inactivar_dispositivo(dispositivo, request.user)
+        liberadas = inactivado.reservas_liberadas
+        if liberadas:
+            self.mensaje_exito = (
+                f"Dispositivo inactivado. Se liberó {liberadas} reserva."
+                if liberadas == 1
+                else f"Dispositivo inactivado. Se liberaron {liberadas} reservas."
+            )
 
 
 class DispositivoReactivarView(DispositivoActionView):

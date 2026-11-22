@@ -111,6 +111,9 @@ from programas.models import (
 from programas.senales import estadia_egresada
 from programas.services.bitacora import anotar_en_bitacora
 from programas.services.dispositivos import (
+    estados_que_cambian_de_plaza,
+    estados_que_reservan,
+    exigir_institucion_en_estado,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
     puede_operar_plaza,
@@ -673,6 +676,8 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
     ):
         raise PermissionDenied("No tenés alcance para cambiar de plaza a personas de este dispositivo.")
 
+    exigir_institucion_en_estado(dispositivo, estados_que_cambian_de_plaza(), "cambiar de plaza")
+
     motivo = (motivo or "").strip()
     if not motivo:
         raise ValidationError({"motivo": "El cambio de plaza exige un motivo."})
@@ -827,6 +832,8 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
         # El mismo error para la plaza inexistente y para la de una institución sin
         # alcance: no se distingue «no existe» de «no es tuya».
         raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
+    verbo = "prestar" if tipo == ReservaPlaza.Tipo.PRESTAMO else "reservar"
+    exigir_institucion_en_estado(dispositivo, estados_que_reservan(), f"{verbo} una plaza")
     plaza = _tomar_plaza(pk, dispositivo, momento=ahora)
     _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, momento=ahora)
 

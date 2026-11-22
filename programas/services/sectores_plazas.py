@@ -126,6 +126,7 @@ def acciones_de_plaza(
     puede_buscar_personas=False,
     puede_egresar=False,
     dispositivo_activo=False,
+    dispositivo_cerrado=False,
 ):
     """Las acciones que admite una plaza y que quien mira puede ejercer, en el orden del modal.
 
@@ -146,7 +147,7 @@ def acciones_de_plaza(
     if con_reserva_abierta:
         return [ACCION_LIBERAR] if puede_admitir else []
     if estado.estado == ESTADO_OCUPADA:
-        acciones = [ACCION_REUBICAR] if puede_admitir else []
+        acciones = [ACCION_REUBICAR] if puede_admitir and not dispositivo_cerrado else []
         if puede_buscar_personas:
             acciones += [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO]
         if puede_egresar:
@@ -158,7 +159,7 @@ def acciones_de_plaza(
     if puede_admitir and puede_buscar_personas:
         if dispositivo_activo:
             acciones.append(ACCION_INGRESAR)
-        acciones += [ACCION_RESERVAR, ACCION_PRESTAR]
+            acciones += [ACCION_RESERVAR, ACCION_PRESTAR]
     if puede_editar:
         acciones.append(ACCION_FUERA_SERVICIO)
     return acciones
@@ -281,6 +282,7 @@ def plaza_para_accion(
         puede_buscar_personas=puede_ver_personas,
         puede_egresar=puede_egresar,
         dispositivo_activo=dispositivo.estado == Dispositivo.Estado.ACTIVO,
+        dispositivo_cerrado=dispositivo.estado == Dispositivo.Estado.CERRADO,
     )
     if not acciones:
         return None
@@ -447,6 +449,7 @@ def sectores_con_plazas(
     armados = []
     plazas_modal = {}
     activo = dispositivo.estado == Dispositivo.Estado.ACTIVO
+    cerrado = dispositivo.estado == Dispositivo.Estado.CERRADO
     for item in ocupacion.sectores:
         sector = sectores[item.sector_id]
         plazas = por_sector.get(item.sector_id, [])
@@ -461,6 +464,7 @@ def sectores_con_plazas(
                 puede_buscar_personas=puede_ver_personas,
                 puede_egresar=puede_egresar,
                 dispositivo_activo=activo,
+                dispositivo_cerrado=cerrado,
             )
             url = f"?plaza={plaza.pk}" if acciones else ""
             click = ""
