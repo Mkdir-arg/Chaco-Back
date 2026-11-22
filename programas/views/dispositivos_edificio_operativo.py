@@ -13,6 +13,7 @@ La solapa «Sectores y plazas» (Cambio 565) es el cuerpo de la pantalla de sect
 """
 
 from django.http import Http404
+from django.urls import reverse
 from django.views.generic import DetailView
 
 from programas.mixins_dispositivos import DispositivoObjectPermissionMixin
@@ -26,6 +27,7 @@ from programas.services.edificio_operativo import (
     estadias_del_edificio,
     q_estadias_del_edificio,
 )
+from programas.services.edificio_operativo_edilicio import contexto_edilicio
 from programas.services.ingreso import maneja_plazas
 
 
@@ -64,6 +66,17 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         # El panel de Estadías se arma solo con la solapa abierta: la página no paga las consultas de las otras.
         if context["tab"] == "estadias":
             context.update(self._estadias_del_edificio(self.request.user, dispositivo, self.edificio_fijo))
+        # Estado edilicio (Cambio 567): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=edilicio`.
+        # La tabla de relevamientos, o el detalle de uno; uno ajeno o que no ve es 404.
+        edificio = self.edificio_fijo
+        url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
+        context["url_solapa_edilicio"] = f"{url_pagina}?tab=edilicio"
+        context["edilicio_cargado"] = context["tab"] == "edilicio"
+        if context["edilicio_cargado"]:
+            edilicio = contexto_edilicio(self.request.user, dispositivo, edificio, self.request.GET, url_pagina)
+            if edilicio is None:
+                raise Http404("Ese relevamiento no es de este edificio o no está en tu alcance.")
+            context.update(edilicio)
         return context
 
     def _estadias_del_edificio(self, user, dispositivo, edificio):

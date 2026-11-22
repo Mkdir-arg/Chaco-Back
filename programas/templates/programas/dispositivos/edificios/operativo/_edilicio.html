@@ -1,2 +1,102 @@
-{# Panel «Estado edilicio de este edificio» de la página operativa del edificio. Hoy es un estado vacío con salida a donde se opera hoy; el PR del lote que lo implementa reemplaza SOLO este archivo (Cambio 563). #}
-{% include "components/_estado_vacio.html" with icono="fa-building" titulo="Estado edilicio de este edificio" texto="Esta sección llega en breve. Mientras tanto, el estado edilicio se ve desde Infraestructura." accion_url=enlaces_de_institucion.edilicio accion_texto="Ir a Infraestructura" accion_icono="fa-arrow-right" %}
+{# Panel «Estado edilicio» de la página operativa del edificio (Cambio 567): tabla de relevamientos → detalle, en la misma solapa. El panel va sin padding (el contenedor no lleva `p-5`): cada bloque trae el suyo. Contexto: `edilicio_lista` o `edilicio_detalle` (programas.services.edificio_operativo_edilicio). #}
+{% if edilicio_detalle %}
+<div>
+  <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+    <div class="min-w-0">
+      <a href="{{ edilicio_detalle.url_volver }}" class="text-sm text-fg-brand hover:underline font-medium"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a los relevamientos</a>
+      <h2 class="text-heading font-bold mt-2">Relevamiento {{ edilicio_detalle.numero }}</h2>
+      <p class="text-xs text-body-subtle mt-1">{{ edilicio_detalle.subtitulo }}</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="badge badge-{{ edilicio_detalle.tono }}">Criticidad {{ edilicio_detalle.criticidad|lower }}</span>
+      <a href="{{ edilicio_detalle.url_informe }}" class="btn-nodo btn-secondary btn-sm btn-fit"><i class="fas fa-file-pdf" aria-hidden="true"></i> Descargar informe</a>
+    </div>
+  </div>
+
+  <section aria-labelledby="datos-relevamiento-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h3 id="datos-relevamiento-titulo" class="text-sm font-bold text-heading">Datos del relevamiento</h3>
+    </div>
+    <div class="p-5 space-y-4">
+      <dl class="grid gap-5 sm:grid-cols-3">
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Criticidad</dt><dd class="mt-1 text-body">{{ edilicio_detalle.criticidad }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{{ edilicio_detalle.fecha }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevó</dt><dd class="mt-1 text-body">{{ edilicio_detalle.relevo }}</dd></div>
+      </dl>
+      {% if edilicio_detalle.observaciones %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Observaciones" texto=edilicio_detalle.observaciones role="status" %}
+      {% else %}
+      <p class="text-sm text-body-subtle">Este relevamiento no dejó observaciones.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="border-t border-light" aria-labelledby="registro-fotografico-titulo">
+    <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h3 id="registro-fotografico-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h3>
+        <p class="text-xs text-body-subtle mt-1">Las fotos que se cargaron en este relevamiento.</p>
+      </div>
+      <span class="text-xs text-body-subtle">{{ edilicio_detalle.texto_fotos }}</span>
+    </div>
+    <div class="p-5">
+      {% include "components/_galeria_fotos.html" with fotos=edilicio_detalle.fotos total=edilicio_detalle.total_fotos %}
+    </div>
+  </section>
+</div>
+{% elif edilicio_lista %}
+<div>
+  <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+    <div class="min-w-0">
+      <h2 class="text-heading font-bold">Relevamientos del edificio</h2>
+      <p class="text-xs text-body-subtle mt-1">{{ edificio.codigo }} · {{ edilicio_lista.texto_total }}, del más nuevo al más viejo. El relevamiento es del edificio: lo ven todas las instituciones del predio.</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="badge badge-dot badge-{{ estado_edilicio.tono }}">{{ estado_edilicio.texto }}</span>
+      {% if url_relevamiento %}
+      <a href="{{ url_relevamiento }}" class="btn-nodo btn-brand btn-sm btn-fit"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Crear relevamiento</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if edilicio_lista.filas %}
+  <div class="overflow-x-auto">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr class="nodo-thead-row">
+          <th class="nodo-th">Relevamiento</th>
+          <th class="nodo-th">Fecha</th>
+          <th class="nodo-th">Relevó</th>
+          <th class="nodo-th">Criticidad</th>
+          <th class="nodo-th">Observaciones</th>
+          <th class="nodo-th">Fotos</th>
+          <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in edilicio_lista.filas %}
+        <tr class="hover:bg-secondary">
+          <td class="nodo-td text-heading font-medium">{{ fila.numero }}{% if fila.marca %}<span class="block text-xs text-body-subtle">{{ fila.marca }}</span>{% endif %}</td>
+          <td class="nodo-td text-body">{{ fila.fecha }}<span class="block text-xs text-body-subtle">{{ fila.hace }}</span></td>
+          <td class="nodo-td text-body">{% if fila.con_detalle %}{{ fila.relevo }}{% else %}—{% endif %}</td>
+          <td class="nodo-td">{% if fila.con_detalle %}<span class="badge badge-{{ fila.tono }}">{{ fila.criticidad }}</span>{% else %}—{% endif %}</td>
+          <td class="nodo-td text-body">{% if fila.con_detalle %}{{ fila.observaciones }}{% else %}—{% endif %}</td>
+          <td class="nodo-td text-body">{% if fila.con_detalle %}{{ fila.fotos }}{% else %}—{% endif %}</td>
+          <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+            {% if fila.url_detalle %}
+            <a href="{{ fila.url_detalle }}" class="btn-nodo btn-secondary btn-sm btn-fit" aria-label="Ver el detalle de {{ fila.numero }}"><i class="fas fa-eye" aria-hidden="true"></i> Ver detalle</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if edilicio_lista.hay_sin_detalle %}
+  <p class="px-5 py-3 text-xs text-body-subtle border-t border-light">El detalle de cada relevamiento lo ve quien opera o coordina la institución del edificio.</p>
+  {% endif %}
+  {% include "components/_paginacion.html" with page_obj=edilicio_lista.pagina entidad="relevamiento" param="relevamientos_page" extra_qs="tab=edilicio" %}
+  {% else %}
+  {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todavía no hay relevamientos" texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus observaciones y sus fotos." %}
+  {% endif %}
+</div>
+{% endif %}
