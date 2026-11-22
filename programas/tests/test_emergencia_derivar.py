@@ -215,6 +215,7 @@ class AltaDesdeLaMesaTests(BaseMesa):
         self.assertFalse(caso.con_gps)
 
 
+@override_settings(GOOGLE_MAPS_API_KEY="clave-de-prueba")  # sin key la vista deja `distancias` en None (issue 1297)
 class DistanciaPorCalleTests(BaseMesa):
     """Fase 2: lo que el panel le pasa al JS y el guardado del domicilio que ubica Google."""
 

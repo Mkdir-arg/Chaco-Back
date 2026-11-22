@@ -20,6 +20,7 @@ Los avisos salen por ``messages``, que el shell muestra como toast.
 
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -233,6 +234,9 @@ def _panel_de_la_ficha(request, caso):
         ),
     )
     panel["url_volver"] = _url_ficha(caso, **conservados)
+    if panel["distancias"] and not getattr(settings, "GOOGLE_MAPS_API_KEY", ""):
+        # Sin key de Google no hay botón ni script (issue 1297): «hay Google» se decide acá y el template solo mira esto.
+        panel["distancias"] = None
     if panel["distancias"]:
         panel["distancias"]["ubicar_url"] = reverse("emergencia:caso_ubicar_domicilio", args=[caso.pk])
     # Para mostrar, un formulario sin enlazar: así «Plazas a pedir» arranca en el total del grupo.
