@@ -89,7 +89,8 @@ sin acción.
 Los avisos de la mesa arriba de la ficha del caso (`programas/templates/programas/emergencia/casos/detail.html`,
 armados por `avisos_de_la_mesa` de `programas/selectors/emergencia_mesa.py`) van uno por include con `only`. La
 condición de cada aviso es una sola y la comparten el tablero, la fila de la bandeja y la ficha
-(`CasoEmergencia.esperando_en_la_puerta`, `selectors.emergencia.rechazo_sin_nueva_accion`): el template no
+(`CasoEmergencia.esperando_en_la_puerta`, `selectors.emergencia.rechazo_sin_nueva_accion`, y «Derivación vencida sin marcar»,
+que sale de la subconsulta `derivacion_vencida_sin_marcar` de `con_avisos_de_la_mesa`): el template no
 decide cuándo se muestra.
 
 ## Deuda conocida
