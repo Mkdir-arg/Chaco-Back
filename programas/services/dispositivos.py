@@ -264,6 +264,22 @@ def dispositivos_visibles(user):
     return dispositivos_en_alcance(user, CAP_VER)
 
 
+def localidades_visibles(user):
+    """Las localidades distintas de los dispositivos que el usuario puede consultar, ordenadas.
+
+    Es lo que ofrece el filtro «Localidad» del listado; `reportes.filtrar_dispositivos` las recibe para decidir
+    si el valor pedido se filtra exacto o como texto libre.
+    """
+
+    return list(
+        dispositivos_visibles(user)
+        .exclude(localidad="")
+        .order_by("localidad")
+        .values_list("localidad", flat=True)
+        .distinct()
+    )
+
+
 def dispositivos_en_alcance(user, capacidad):
     """Dispositivos sobre los que el usuario tiene ``capacidad``, con el alcance fino.
 
@@ -743,7 +759,8 @@ def bloquear_instituciones(ids):
     """Bloqueo **compartido** de las filas de estas instituciones, por pk. Devuelve ``{pk: estado}``.
 
     Es el primer candado de todo camino que toca plazas, reservas o estadías de una institución
-    (Cambio 536, pendiente cerrado por el cambio siguiente). El orden de siempre es::
+    (pendiente del Cambio 536, cerrado en el Cambio 545). Esta función es la **fuente única** del orden
+    de candados de Dispositivos; los demás módulos remiten acá en vez de repetirlo::
 
         institución → plaza (por pk) → reserva / estadía → persona
 

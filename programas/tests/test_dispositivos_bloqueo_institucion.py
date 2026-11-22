@@ -19,6 +19,7 @@ poner la estadía antes que el dispositivo en `registrar_entrada`; y sacar el co
 transacción del helper.
 """
 
+from contextlib import contextmanager
 from datetime import datetime, time
 from unittest import mock
 
@@ -30,7 +31,7 @@ from django.utils import timezone
 from core import db
 from core.tests.candados import orden_de_candados
 from legajos.models import Ciudadano
-from programas.models import Dispositivo, EntradaBitacora, Estadia, Plaza, ReservaPlaza, Turno
+from programas.models import Dispositivo, EntradaBitacora, Estadia, Plaza, ReservaPlaza, TipoDispositivo, Turno
 from programas.services import emergencia_alojar as servicio
 from programas.services.bitacora import registrar_entrada
 from programas.services.dispositivos import bloquear_institucion, bloquear_instituciones
@@ -68,6 +69,21 @@ def _sin_repetir(orden):
     return list(dict.fromkeys(orden))
 
 
+@contextmanager
+def _espiar_bloqueos_compartidos():
+    """Las instituciones que cada llamada a `leer_con_bloqueo_compartido` tomó, en orden de llamada."""
+
+    llamadas = []
+    original = db.leer_con_bloqueo_compartido
+
+    def espiar(modelo, pks, campo):
+        llamadas.append(set(pks))
+        return original(modelo, pks, campo)
+
+    with mock.patch.object(db, "leer_con_bloqueo_compartido", espiar):
+        yield llamadas
+
+
 class _InstitucionPrimero:
     def assertInstitucionAntesDeLaPlaza(self, orden):
         self.assertIn("institucion", orden, f"no bloqueó la institución: {orden}")
@@ -87,8 +103,6 @@ class HelperFueraDeTransaccionTests(TransactionTestCase):
 
 class HelperTests(TestCase):
     def test_devuelve_el_estado_fresco_de_cada_institucion(self):
-        from programas.models import TipoDispositivo
-
         tipo = TipoDispositivo.objects.create(codigo="T-BQ", nombre="Tipo")
         a = Dispositivo.objects.create(tipo=tipo, codigo="A-BQ", nombre="A", estado=Dispositivo.Estado.ACTIVO)
         b = Dispositivo.objects.create(tipo=tipo, codigo="B-BQ", nombre="B", estado=Dispositivo.Estado.CERRADO)
@@ -207,14 +221,7 @@ class CaminosDeDispositivosTests(_InstitucionPrimero, BaseEstadias):
         """`confirmar_ingreso` cierra reservas de otros dispositivos: todas las instituciones primero, por pk."""
 
         reservar_plaza(plaza=self.plaza_parador, ciudadano=self.persona, usuario=self.operador_parador)
-        llamadas = []
-        original = db.leer_con_bloqueo_compartido
-
-        def espiar(modelo, pks, campo):
-            llamadas.append(set(pks))
-            return original(modelo, pks, campo)
-
-        with mock.patch.object(db, "leer_con_bloqueo_compartido", espiar):
+        with _espiar_bloqueos_compartidos() as llamadas:
             with _orden() as orden:
                 confirmar_ingreso(
                     dispositivo=self.cis,
@@ -268,14 +275,7 @@ class CaminosDeEmergenciaTests(_InstitucionPrimero, BaseAlojar):
         persona = Ciudadano.objects.create(dni="45000111", nombre="Juan", apellido="Pérez")
         escuela = Plaza.objects.filter(sector__dispositivo=self.escuela).order_by("pk").first()
         reservar_plaza(plaza=escuela, ciudadano=persona, usuario=self.guardia_escuela)
-        llamadas = []
-        original = db.leer_con_bloqueo_compartido
-
-        def espiar(modelo, pks, campo):
-            llamadas.append(set(pks))
-            return original(modelo, pks, campo)
-
-        with mock.patch.object(db, "leer_con_bloqueo_compartido", espiar):
+        with _espiar_bloqueos_compartidos() as llamadas:
             with _orden() as orden:
                 self._confirmar(caso, 2, "45000111", plaza=self._cama_libre())
         self.assertEqual(_sin_repetir(orden), ["institucion", "plaza", "reserva", "persona"])
