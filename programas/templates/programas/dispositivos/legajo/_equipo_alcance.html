@@ -1,6 +1,6 @@
 {% comment %}
 Alcance del puesto en los modales del Equipo (Cambio 523, PR 4): «Alcance» y, con «Edificios», los edificios a elegir.
-Lo usan «Sumar persona», «Crear persona» y «Cambiar alcance»; el `<form>` que lo incluye trae `x-data="{ alcance: ... }"`.
+Lo usan «Sumar persona», «Crear persona» y «Cambiar alcance»; el `x-data` del selector vive acá, no en el `<form>`.
 Con edificio fijo («Agregar persona al edificio») no hay selector: se muestra el edificio y viaja oculto.
 Las opciones llegan ya acotadas por el servicio (`opciones_de_alcance`); el servidor vuelve a validarlas al guardar.
 {% endcomment %}
@@ -11,6 +11,8 @@ Las opciones llegan ya acotadas por el servicio (`opciones_de_alcance`); el serv
   <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio_fijo"></p>
 </div>
 {% else %}
+<div class="space-y-5" x-data="{ alcance: '{{ form.alcance.value|default_if_none:''|escapejs }}' }">
 <div>{% with field=form.alcance %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
 <div x-show="alcance === 'EDIFICIOS'" x-cloak>{% with field=form.edificios %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+</div>
 {% endif %}

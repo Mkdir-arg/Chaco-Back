@@ -367,10 +367,9 @@
                   {% url 'dispositivos:equipo_baja' dispositivo.pk miembro.pk as url_baja %}
                   {% url 'dispositivos:equipo_responsable' dispositivo.pk miembro.pk as url_responsable %}
                   {% url 'dispositivos:equipo_quitar_responsable' dispositivo.pk miembro.pk as url_quitar_responsable %}
-                  {% url 'dispositivos:detalle' dispositivo.pk as url_detalle_equipo %}{% with pk_texto=miembro.pk|stringformat:"s" %}
                   {% menu_fila id=miembro.pk etiqueta="Acciones de "|add:miembro.persona %}
                     {% if miembro.puede_cambiar_alcance %}
-                    {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" url=url_detalle_equipo|add:"?tab=equipo&equipo=alcance&miembro="|add:pk_texto only %}
+                    {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" url=miembro.url_cambiar_alcance only %}
                     {% else %}
                     {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" motivo="Solo en tus propios edificios" only %}
                     {% endif %}
@@ -380,7 +379,7 @@
                     {% include "components/_menu_fila_item.html" with texto="Marcar como responsable" icono="fa-user-check" confirm_url=url_responsable confirm_title="¿Marcar como responsable?" confirm_text="La persona podrá sumar y dar de baja a otras del Equipo." confirm_ok="Sí, marcar" only %}
                     {% endif %}
                     {% include "components/_menu_fila_item.html" with texto="Dar de baja" icono="fa-user-slash" confirm_url=url_baja confirm_title="¿Dar de baja del Equipo?" confirm_text="La persona deja de operar este dispositivo. Volver a sumarla la repone." confirm_ok="Sí, dar de baja" peligro=True only %}
-                  {% endmenu_fila %}{% endwith %}
+                  {% endmenu_fila %}
                 </td>
                 {% endif %}
               </tr>
@@ -592,7 +591,7 @@
       {% else %}
       {% include "programas/becas/_modal_header.html" with titulo="Sumar persona al Equipo" titulo_id="modal-equipo-titulo" subtitulo="La persona opera el dispositivo con el rol que elijas." icono="fa-user-plus" cerrar="modalEquipo=false" %}
       {% endif %}
-      <form method="post" action="{{ url_equipo_sumar }}" data-ajax x-data="{ alcance: '{{ form_equipo.alcance.value|default_if_none:''|escapejs }}' }" class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{{ url_equipo_sumar }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
@@ -625,7 +624,7 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-alcance-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Cambiar alcance" titulo_id="modal-alcance-titulo" subtitulo=miembro_alcance.persona icono="fa-building" cerrar="modalAlcance=false" %}
-      <form method="post" action="{{ url_equipo_alcance }}" data-ajax x-data="{ alcance: '{{ form_alcance.alcance.value|default_if_none:''|escapejs }}' }" class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{{ url_equipo_alcance }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <p class="text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -643,7 +642,7 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-crear-persona-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Crear persona" titulo_id="modal-crear-persona-titulo" subtitulo="Se crea el usuario y se suma al Equipo con el rol que elijas." icono="fa-user-plus" cerrar="modalCrearPersona=false" %}
-      <form method="post" action="{{ url_equipo_crear_persona }}" data-ajax x-data="{ alcance: '{{ form_crear_persona.alcance.value|default_if_none:''|escapejs }}' }" class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{{ url_equipo_crear_persona }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>

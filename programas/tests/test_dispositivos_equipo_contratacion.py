@@ -15,7 +15,7 @@ formulario y de vista quedan rojos.
 from django.contrib.auth.models import User
 from django.urls import reverse
 
-from programas.forms_dispositivos import CrearPersonaEquipoForm, SumarMiembroEquipoForm
+from programas.forms_equipo_dispositivo import CrearPersonaEquipoForm, SumarMiembroEquipoForm
 from programas.models import MiembroEquipoDispositivo
 from programas.services import equipo_dispositivo as equipo
 from programas.services.dispositivos import puede_operar_dispositivo

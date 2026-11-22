@@ -24,13 +24,9 @@ from programas.forms_dispositivos import (
     AUTO_ID_PLAZA_RESERVAR,
     AUTO_ID_PLAZA_SACAR,
     AUTO_ID_RELEVAMIENTO,
-    MENSAJE_EQUIPO_PEDIR_ALTA,
-    MENSAJE_EQUIPO_SIN_PERSONA,
     AgregarPlazasForm,
-    AlcanceMiembroEquipoForm,
     AsignarRelevamientoDispositivoForm,
     CambioPlazaForm,
-    CrearPersonaEquipoForm,
     EdificioForm,
     EgresoForm,
     LiberarPlazaForm,
@@ -39,8 +35,14 @@ from programas.forms_dispositivos import (
     ReservarPlazaForm,
     SacarPlazaDeServicioForm,
     SectorForm,
-    SumarMiembroEquipoForm,
     VincularEdificioForm,
+)
+from programas.forms_equipo_dispositivo import (
+    MENSAJE_EQUIPO_PEDIR_ALTA,
+    MENSAJE_EQUIPO_SIN_PERSONA,
+    AlcanceMiembroEquipoForm,
+    CrearPersonaEquipoForm,
+    SumarMiembroEquipoForm,
 )
 from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
     DispositivoAltaPermissionMixin,
@@ -109,8 +111,8 @@ from programas.services.equipo_dispositivo import (
     edificios_donde_agregar_persona,
     equipo_del_dispositivo,
     opciones_de_alcance,
+    permisos_del_equipo,
     puede_crear_persona,
-    puede_gestionar_equipo,
     roles_para_crear_persona,
     sumar_responsables_al_crear,
 )
@@ -471,7 +473,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         # Editar el legajo es de alcance institución (RN5): con alcance Edificios, no.
         puede_editar = puede_editar_legajo(user, dispositivo, CAP_EDITAR)
         # «Agregar persona al edificio»: la regla del Equipo (gestiona, no cerrado, RN6), resuelta una vez para todas las tarjetas.
-        donde_agregar = edificios_donde_agregar_persona(user, dispositivo)
+        donde_agregar = edificios_donde_agregar_persona(user, dispositivo, self._permisos_equipo(dispositivo))
         agregar_persona_en = (
             None if donde_agregar == set() else (lambda pk: donde_agregar is None or pk in donde_agregar)
         )
@@ -581,6 +583,13 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         self._preparar_equipo(context, dispositivo)
         return context
 
+    def _permisos_equipo(self, dispositivo):
+        """``permisos_del_equipo`` de quien mira, resueltos una sola vez por request."""
+
+        if not hasattr(self, "_permisos_del_equipo"):
+            self._permisos_del_equipo = permisos_del_equipo(self.request.user, dispositivo)
+        return self._permisos_del_equipo
+
     def _preparar_equipo(self, context, dispositivo):
         """Solapa «Equipo» (Cambio 411): la ve quien ve el dispositivo; arma quien lo gestiona.
 
@@ -588,12 +597,18 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         ``?tab=equipo&equipo=alcance&miembro=<id>`` y ``?tab=infraestructura&agregar_persona=<edificio>`` (Cambio 523, PR 4).
         """
 
-        user = self.request.user
-        miembros = equipo_del_dispositivo(dispositivo, user)
+        permisos = self._permisos_equipo(dispositivo)
+        miembros = equipo_del_dispositivo(dispositivo, permisos)
+        if permisos.gestiona:
+            url_detalle = reverse("dispositivos:detalle", args=[dispositivo.pk])
+            for miembro in miembros:
+                if miembro.puede_cambiar_alcance:
+                    consulta = urlencode({"tab": "equipo", "equipo": "alcance", "miembro": miembro.pk})
+                    miembro.url_cambiar_alcance = f"{url_detalle}?{consulta}"
         context["equipo"] = miembros
         context["n_equipo"] = len(miembros)
-        context["puede_gestionar_equipo"] = puede_gestionar_equipo(user, dispositivo)
-        if not context["puede_gestionar_equipo"]:
+        context["puede_gestionar_equipo"] = permisos.gestiona
+        if not permisos.gestiona:
             return
         pedido = self.request.GET.get("equipo")
         agregar = self.request.GET.get("agregar_persona")
@@ -601,27 +616,27 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         # sigue costando lo mismo.
         if pedido == "sumar":
             context["tab"] = "equipo"
-            self._modal_sumar_persona(context, dispositivo)
+            self._modal_sumar_persona(context, dispositivo, permisos)
         elif pedido == "alcance":
             context["tab"] = "equipo"
-            self._modal_alcance(context, dispositivo, miembros)
+            self._modal_alcance(context, dispositivo, miembros, permisos)
         elif agregar:
-            self._modal_sumar_persona(context, dispositivo, edificio_pk=_entero(agregar), en_edificio=True)
+            self._modal_sumar_persona(context, dispositivo, permisos, edificio_pk=_entero(agregar), en_edificio=True)
 
-    def _modal_sumar_persona(self, context, dispositivo, edificio_pk=None, en_edificio=False):
+    def _modal_sumar_persona(self, context, dispositivo, permisos, edificio_pk=None, en_edificio=False):
         user = self.request.user
         edificio = None
         if en_edificio:
-            donde = edificios_donde_agregar_persona(user, dispositivo)
+            donde = edificios_donde_agregar_persona(user, dispositivo, permisos)
             edificio = Edificio.objects.filter(pk=edificio_pk, dispositivos=dispositivo).first()
             if edificio is None or (donde is not None and edificio.pk not in donde):
                 messages.warning(self.request, "No se pueden agregar personas a ese edificio.")
                 return
         # «Crear persona» (Cambio 420) es de quien además administra los usuarios de Dispositivos: el resto ve
         # el pedido al administrador, tanto en el aviso de «sin resultados» como bajo el buscador.
-        puede_crear = puede_crear_persona(user, dispositivo)
+        puede_crear = puede_crear_persona(user, dispositivo, permisos.gestiona)
         context["puede_crear_persona"] = puede_crear
-        opciones = None if edificio else opciones_de_alcance(user, dispositivo)
+        opciones = None if edificio else opciones_de_alcance(user, dispositivo, permisos)
         initial = {"edificio_fijo": edificio.pk} if edificio else None
         url_sugerencias = reverse("dispositivos:equipo_personas_buscar", args=[dispositivo.pk])
         context["form_equipo"] = SumarMiembroEquipoForm(
@@ -647,7 +662,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         else:
             context["mensaje_pedir_alta"] = MENSAJE_EQUIPO_PEDIR_ALTA
 
-    def _modal_alcance(self, context, dispositivo, miembros):
+    def _modal_alcance(self, context, dispositivo, miembros, permisos):
         """«Cambiar alcance» de una fila del Equipo, solo si el servidor se lo va a aceptar a quien lo abre."""
 
         pk = _entero(self.request.GET.get("miembro"))
@@ -657,7 +672,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             return
         context["miembro_alcance"] = miembro
         context["form_alcance"] = AlcanceMiembroEquipoForm(
-            opciones=opciones_de_alcance(self.request.user, dispositivo),
+            opciones=opciones_de_alcance(self.request.user, dispositivo, permisos),
             miembro=miembro,
             auto_id="alcance_%s",
         )

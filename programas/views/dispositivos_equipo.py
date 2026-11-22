@@ -20,7 +20,7 @@ from django.views import View
 
 from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
-from programas.forms_dispositivos import AlcanceMiembroEquipoForm, CrearPersonaEquipoForm, SumarMiembroEquipoForm
+from programas.forms_equipo_dispositivo import AlcanceMiembroEquipoForm, CrearPersonaEquipoForm, SumarMiembroEquipoForm
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, MiembroEquipoDispositivo
 from programas.selectors.equipo_sugeridas import sugerir_pares_equipo
@@ -87,7 +87,7 @@ class EquipoSumarView(_EquipoAccionView):
     #: «Agregar persona al edificio» (viaja ``edificio_fijo``): qué le pasó a la fila de una persona que ya estaba.
     MENSAJES_EN_EDIFICIO = {
         equipo.RESULTADO_SUMADA: "Persona sumada al Equipo en ese edificio.",
-        equipo.RESULTADO_AGREGADA: "Edificio sumado al alcance de la persona.",
+        equipo.RESULTADO_AGREGADA: "Edificio sumado al alcance de la persona; su rol, contratación y marca de responsable no cambian.",
         equipo.RESULTADO_YA_ALCANZA: "La persona ya tiene alcance sobre ese edificio: no se cambió nada.",
     }
 
@@ -148,8 +148,6 @@ class EquipoCrearPersonaView(_EquipoAccionView):
         if not form.is_valid():
             raise ValidationError({campo: list(mensajes) for campo, mensajes in form.errors.items()})
         datos = form.cleaned_data
-        if form.edificio_fijo:
-            equipo.exigir_alta_en_edificio(request.user, dispositivo, datos["edificio_fijo"])
         alta = equipo.datos_de_alta_de_persona(
             actor=request.user,
             dni=datos["dni"],
@@ -168,6 +166,7 @@ class EquipoCrearPersonaView(_EquipoAccionView):
                 rol=datos["rol"],
                 es_responsable=datos["es_responsable"],
                 tipo_contratacion=datos["tipo_contratacion"],
+                edificio_fijo=datos["edificio_fijo"] if form.edificio_fijo else None,
                 **form.datos_de_alcance(),
             )
         except IntegrityError as error:

@@ -9,7 +9,8 @@ Infraestructura con 2 o más edificios). Solo usa clases y tokens que ya existen
 entraron al CSS compilado con `npm run build:tailwind`.
 Las acciones de la institución (Agregar edificio, Crear relevamiento) no van en el listado: las dibuja la barra
 `legajo/_infra_acciones.html` arriba del panel, igual en ficha, listado y sin edificio (Cambio 524). La ficha de un
-edificio repite el patrón de la tarjeta: «Editar edificio» a la vista y «Desvincular» dentro del `menu_fila`.
+edificio repite el patrón de la tarjeta: «Editar edificio» a la vista y «Desvincular» dentro del `menu_fila`. El
+menú de la ficha también lleva «Agregar persona al edificio» (Cambio 556) y puede aparecer solo con ese ítem.
 
 ## Por qué no es `_lista_tarjetas`
 

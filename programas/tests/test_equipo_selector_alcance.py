@@ -11,6 +11,7 @@ Todo por la vista, con POST reales:
 
 from django.contrib.auth.models import User
 from django.db import connection
+from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
@@ -250,6 +251,30 @@ class TablaDelEquipoTests(BaseSelector):
         self.assertEqual(consultas(), antes)
 
 
+#: Consultas del detalle visto por un responsable con alcance Edificios, con la caché ya caliente. Si suben, algo
+#: del Equipo volvió a leer los permisos más de una vez por request.
+CONSULTAS_DETALLE_RESPONSABLE = 33
+CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA = 34
+
+
+@tag("performance")
+class PresupuestoDelDetalleDelResponsableTests(BaseSelector):
+    def _consultas(self, url):
+        self.client.get(url)  # la primera lectura llena cachés de contenido y permisos
+        with CaptureQueriesContext(connection) as captura:
+            self.assertEqual(self.client.get(url).status_code, 200)
+        return len(captura)
+
+    def test_el_detalle_comun_cuesta_lo_fijado(self):
+        self._entrar(self.resp_ed)
+        self.assertEqual(self._consultas(self.url_detalle), CONSULTAS_DETALLE_RESPONSABLE)
+
+    def test_el_detalle_con_agregar_persona_cuesta_lo_fijado(self):
+        self._entrar(self.resp_ed)
+        url = f"{self.url_detalle}?tab=infraestructura&agregar_persona={self.ed1.pk}"
+        self.assertEqual(self._consultas(url), CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA)
+
+
 class AgregarPersonaAlEdificioTests(BaseSelector):
     def setUp(self):
         super().setUp()
@@ -348,6 +373,12 @@ class AgregarPersonaAlEdificioTests(BaseSelector):
         self._agregar(self.resp_ed, edificio=self.ed1)
         self.assertEqual(self._agregar(self.resp_ed, edificio=self.ed2).status_code, 403)
         self.assertEqual(self._ids(self._fila_de_ana()), {self.ed1.pk})
+
+    def test_el_responsable_no_toca_la_fila_de_quien_el_admin_dejo_en_otro_edificio(self):
+        # La persona ya está con Edificios {ED-2}: agregarla en ED-1 (que sí es del responsable) la movería de ED-2.
+        self._sumar(alcance="EDIFICIOS", edificios=[self.ed2.pk])
+        self.assertEqual(self._agregar(self.resp_ed, edificio=self.ed1).status_code, 403)
+        self.assertEqual(self._ids(self._fila_de_ana()), {self.ed2.pk})
 
     def test_un_edificio_de_otra_institucion_se_rechaza(self):
         respuesta = self._agregar(edificio=self.ed_ajeno)
