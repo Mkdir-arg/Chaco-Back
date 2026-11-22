@@ -137,12 +137,13 @@
           <i class="fas fa-building" aria-hidden="true"></i> Estado edilicio
           <span class="badge badge-dot badge-{{ estado_edilicio.tono }}">{{ estado_edilicio.texto }}</span>
         </button>
-        {# Historial: sin contador hasta el PR 7, que define qué eventos entran #}
-        <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
+        {# El historial se arma solo con la solapa abierta (`historial_cargado`): si no vino, el botón navega a ella #}
+        <button @click="{% if historial_cargado %}tab='historial'{% else %}window.location.href='{{ url_solapa_historial|escapejs }}'{% endif %}" type="button" role="tab" id="tab-historial" aria-controls="panel-historial" {% if not historial_cargado %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='historial'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial
+          <span class="badge" :class="tab==='historial' ? 'badge-info' : 'badge-gray'">{{ contadores.historial }}</span>
         </button>
       </div>
       </div>
@@ -173,8 +174,8 @@
         {% include "programas/dispositivos/edificios/operativo/_edilicio.html" %}
       </div>
 
-      <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial" class="p-5">
-        {% include "programas/dispositivos/edificios/operativo/_historial.html" %}
+      <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial">
+        {% if historial_cargado %}{% include "programas/dispositivos/edificios/operativo/_historial.html" %}{% endif %}
       </div>
     </div>
 
