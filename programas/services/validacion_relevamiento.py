@@ -46,6 +46,23 @@ def _valor_de_campo(campo, valor):
     return (limpio.isoformat() if campo.get("tipo") == "DATE" else valor), None
 
 
+def avisos_de_archivos_obligatorios(foto, respuestas, hoy=None):
+    """Un texto por cada campo ARCHIVO obligatorio y visible que el envío no trae.
+
+    Es un **aviso, no un error**: el archivo llega después por el endpoint de adjuntos, así que
+    ``validar_respuestas_de_campo`` no lo exige y el resultado se cierra igual. Pero quien lo
+    manda tiene que enterarse de lo que falta (lo ve la app en la respuesta del resultado; el
+    informe del relevamiento lo marca después). Mira el mismo marcador que las condiciones
+    ``adjuntado`` / ``no_adjuntado``: un valor no vacío en la clave.
+    """
+
+    return [
+        f"Falta adjuntar «{campo.get('texto') or campo['clave']}», que es obligatorio."
+        for campo in faltantes_de(foto, respuestas, hoy)
+        if campo.get("tipo") == "ARCHIVO"
+    ]
+
+
 def validar_respuestas_de_campo(foto, respuestas, hoy=None):
     """Valida lo que mandó la app contra la foto vigente, con el mismo motor que el alta.
 

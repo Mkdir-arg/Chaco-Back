@@ -836,6 +836,14 @@ class LecturasDeDispositivosTests(BaseDerivacion):
         despues = RELOJ + timedelta(days=30)
         self.assertEqual(list(alertas_dispositivos.reservas_vencidas(self.cis, momento=despues)), [])
 
+    def test_no_dispara_la_alerta_de_reserva_abierta_hace_mas_de_siete_dias(self):
+        """Tampoco la de «abierta hace mucho»: su plazo lo manda la derivación, no esta alerta."""
+
+        self._reservar(self.plazas[:3])
+        ReservaPlaza.objects.filter(derivacion=self.derivacion).update(desde=RELOJ - timedelta(days=30))
+
+        self.assertEqual(list(alertas_dispositivos.reservas_abiertas_hace_mucho(self.cis, momento=RELOJ)), [])
+
 
 class IndiceDeLaDerivacionTests(SimpleTestCase):
     """`ReservaPlaza` no puede tener un índice compuesto que empiece por `derivacion`.

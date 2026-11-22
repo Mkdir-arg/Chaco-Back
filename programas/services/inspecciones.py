@@ -92,7 +92,7 @@ from programas.services.respuestas_dispositivo import (
     foto_vigente,
     guardar_respuestas_relevamiento,
 )
-from programas.services.validacion_relevamiento import validar_respuestas_de_campo
+from programas.services.validacion_relevamiento import avisos_de_archivos_obligatorios, validar_respuestas_de_campo
 
 CAP_ASIGNAR = "inspeccion.asignar"
 CAP_RELEVAR = "inspeccion.relevar"
@@ -639,6 +639,8 @@ def registrar_resultado(
     )
     if diseno is not None:
         guardar_respuestas_relevamiento(inspeccion, diseno, foto, efectivas, usuario, version_capturada)
+    # Avisa y no bloquea: el archivo llega después. Atributo de la instancia, como `ya_existia`.
+    inspeccion.avisos = avisos_de_archivos_obligatorios(foto, respuestas) if diseno is not None else []
     cantidad = 0
     for una_foto in fotos:
         archivo, descripcion = una_foto if isinstance(una_foto, tuple) else (una_foto, "")

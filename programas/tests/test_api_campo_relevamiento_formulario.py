@@ -439,6 +439,23 @@ class ResultadoConRespuestasTests(BaseFormulario):
         self.assertEqual(respuesta.status_code, 200, respuesta.data)
         # Solo cuenta como «adjuntado» para las condiciones: no se valida su forma.
         self.assertEqual(RespuestasRelevamiento.objects.get().respuestas[self.plano.clave], "plano.pdf")
+        self.assertEqual(respuesta.data["avisos"], [])
+
+    def test_el_archivo_obligatorio_que_el_envio_no_trae_se_avisa_sin_bloquear(self):
+        respuesta = self._resultado_con(self._completas())
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+        self.assertEqual(respuesta.data["estado"], "REALIZADA")
+        self.assertEqual(respuesta.data["avisos"], ["Falta adjuntar «Plano», que es obligatorio."])
+
+    def test_el_reenvio_idempotente_no_repite_los_avisos_y_sigue_siendo_200(self):
+        cuerpo = {"uuid_cliente": str(uuid.uuid4())}
+        primera = self._resultado_con(self._completas(), **cuerpo)
+        segunda = self._resultado_con(self._completas(), **cuerpo)
+
+        self.assertEqual(len(primera.data["avisos"]), 1)
+        self.assertEqual(segunda.status_code, 200)
+        self.assertEqual(segunda.data["avisos"], [])
 
 
 class SinFormularioTests(BaseApiInspecciones):

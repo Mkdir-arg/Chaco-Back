@@ -95,6 +95,35 @@ class ContenidoTests(BaseSugerencias):
     def test_por_prefijo_de_dni_con_puntos(self):
         self.assertEqual([f["dni"] for f in self._buscar("30.333").json()["resultados"]], ["30333444"])
 
+    def test_encuentra_las_fichas_guardadas_con_puntos(self):
+        """`Ciudadano.save` normaliza, pero las fichas viejas con `12.345.678` siguen en la base."""
+
+        for dni, apellido in (("12.345.678", "Vieja"), ("9.876.543", "Antigua")):
+            Ciudadano.objects.bulk_create([Ciudadano(dni=dni, nombre="Ana", apellido=apellido)])
+
+        for tecleado, esperado in (
+            ("123", "12.345.678"),
+            ("12345", "12.345.678"),
+            ("12.345", "12.345.678"),
+            ("12345678", "12.345.678"),
+            ("987", "9.876.543"),
+            ("9876543", "9.876.543"),
+        ):
+            with self.subTest(tecleado=tecleado):
+                self.assertEqual([f["dni"] for f in self._buscar(tecleado).json()["resultados"]], [esperado])
+
+    def test_no_mezcla_dni_que_solo_coinciden_en_los_puntos(self):
+        Ciudadano.objects.bulk_create([Ciudadano(dni="12.345.678", nombre="Ana", apellido="Vieja")])
+
+        self.assertEqual(self._buscar("124").json()["resultados"], [])
+
+    def test_los_prefijos_con_puntos_siguen_siendo_prefijos_del_texto_guardado(self):
+        from programas.selectors.personas_sugeridas import _prefijos_con_puntos
+
+        self.assertEqual(_prefijos_con_puntos("123"), ["1.23", "12.3"])
+        self.assertEqual(_prefijos_con_puntos("1234567"), ["1.234.567", "12.345.67"])
+        self.assertEqual(_prefijos_con_puntos("12345678"), ["12.345.678"])
+
     def test_por_prefijo_de_apellido_en_minuscula(self):
         # Los acentos los resuelve la collation de MySQL/MariaDB; SQLite no, y acá solo importa el prefijo.
         resultados = self._buscar("pér").json()["resultados"]
@@ -210,6 +239,15 @@ class CostoTests(BaseSugerencias):
         # Prefijo sobre la columna tal cual: sin función en el WHERE que impida el índice.
         self.assertNotIn("UPPER(", sql.split("WHERE", 1)[1].replace("ORDER BY", ""))
         self.assertNotIn("CAST(", sql.split("WHERE", 1)[1])
+
+    def test_buscar_fichas_con_puntos_sigue_siendo_una_consulta_sin_funciones_ni_recorrido_total(self):
+        with CaptureQueriesContext(connection) as consultas:
+            sugerir_personas("12345")
+
+        self.assertEqual(len(consultas), 1)
+        donde = consultas[0]["sql"].upper().split("WHERE", 1)[1]
+        for funcion in ("REGEXP", "REPLACE(", "CAST(", "UPPER("):
+            self.assertNotIn(funcion, donde)
 
 
 class IntegracionConElModalTests(BaseSugerencias):

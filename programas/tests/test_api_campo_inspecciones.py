@@ -268,7 +268,9 @@ class ResultadoTests(BaseApiInspecciones):
         respuesta = self._enviar_resultado(self.agente, self.inspeccion.pk, envio, Criticidad.ALTA)
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(sorted(respuesta.data), CLAVES_DETALLE)
+        # El detalle de siempre más `avisos` (Cambio 534): lo que falta y no bloquea el cierre.
+        self.assertEqual(sorted(respuesta.data), sorted([*CLAVES_DETALLE, "avisos"]))
+        self.assertEqual(respuesta.data["avisos"], [])
         self.assertEqual(respuesta.data["estado"], Estado.REALIZADA)
         self.inspeccion.refresh_from_db()
         self.assertEqual(self.inspeccion.criticidad, Criticidad.ALTA)
