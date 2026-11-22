@@ -16,6 +16,7 @@ Qué fija este archivo:
   vigente, y nadie más fuera de la mesa.
 """
 
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -44,6 +45,7 @@ from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
 from programas.tests.test_emergencia_alojar_base import DNI_DE_LOS_RESPONSABLES, GUARDIA, BaseAlojar
 from programas.tests.test_emergencia_casos import JPEG
+from programas.views.emergencia_dispositivo import _clave_borrador_ficha
 
 Estado = CasoEmergencia.Estado
 
@@ -153,6 +155,15 @@ class AccesoTests(BaseLlegadas):
             for url in self.posts:
                 with self.subTest(usuario=usuario.username, url=url):
                     self.assertEqual(self.client.post(url, {}).status_code, 403)
+
+    def test_elegir_cama_sin_acceso_no_deja_borrador_en_la_sesion(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        for usuario, estado in ((self.operador, 403), (self.guardia_escuela, 404)):
+            with self.subTest(usuario=usuario.username):
+                self.client.force_login(usuario)
+                respuesta = self.client.post(url, {"elegir_cama": "1", "telefono": "111"})
+                self.assertEqual(respuesta.status_code, estado)
+                self.assertFalse([k for k in self.client.session.keys() if k.startswith("emergencia_borrador_ficha")])
 
     def test_con_la_capacidad_pero_sin_alcance_sobre_el_dispositivo_es_404(self):
         """Plan C2: el mismo 404 que un dispositivo que no existe."""
@@ -508,6 +519,124 @@ class IntegrantesTests(BaseLlegadas):
         respuesta = self.client.get(self._url("ficha", self.caso.pk, 2), {"cama": libre.pk})
         self.assertContains(respuesta, f'name="plaza" value="{libre.pk}"')
         self.assertContains(respuesta, "Disponible")
+
+    def _clave(self, orden, caso=None):
+        caso = caso or self.caso
+        persona = IntegranteGrupo.objects.get(grupo=caso.grupo, orden=orden)
+        return _clave_borrador_ficha(self.club.pk, caso.pk, persona.pk)
+
+    def test_elegir_cama_guarda_lo_escrito_como_borrador_sin_validar_ni_tocar_la_base(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        libre = self._cama_libre()
+        antes = IntegranteGrupo.objects.filter(grupo=self.caso.grupo, confirmada_en__isnull=False).count()
+
+        # Sin DNI ni nombre: un POST normal daría 400; acá solo se guarda lo escrito.
+        respuesta = self.client.post(
+            url, {"elegir_cama": "1", "plaza": str(libre.pk), "telefono": "3624 111111", "parentesco": "HIJO"}
+        )
+
+        self.assertRedirects(
+            respuesta, self._url("cama", self.caso.pk, 2) + f"?cama={libre.pk}", fetch_redirect_response=False
+        )
+        borrador = self.client.session[self._clave(2)]
+        self.assertEqual(borrador["telefono"], "3624 111111")
+        self.assertEqual(borrador["parentesco"], "HIJO")
+        self.assertEqual(borrador["dni"], "")
+        self.assertNotIn("elegir_cama", borrador)
+        self.assertNotIn("plaza", borrador)
+        self.assertEqual(
+            IntegranteGrupo.objects.filter(grupo=self.caso.grupo, confirmada_en__isnull=False).count(), antes
+        )
+
+    def test_al_volver_del_mapa_la_ficha_se_precarga_con_el_borrador_y_la_cama_elegida(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        libre = self._cama_libre()
+        self.client.post(url, {"elegir_cama": "1", "plaza": "", "telefono": "3624 111111", "nombre": "Juana"})
+
+        respuesta = self.client.get(url, {"cama": libre.pk})
+
+        form = respuesta.context["form"]
+        self.assertFalse(form.is_bound)
+        self.assertEqual(form.initial["telefono"], "3624 111111")
+        self.assertEqual(form.initial["nombre"], "Juana")
+        self.assertEqual(form.initial["plaza"], libre.pk)
+        self.assertContains(respuesta, 'value="3624 111111"')
+        self.assertFalse(form.errors)
+
+    def test_un_dato_precargado_que_el_operador_borro_no_vuelve_con_la_precarga(self):
+        url = self._url("ficha", self.caso.pk, 1)
+        self.assertTrue(self.client.get(url).context["form"].initial.get("dni"))
+
+        self.client.post(url, {"elegir_cama": "1", "dni": "", "nombre": "Otra"})
+
+        initial = self.client.get(url).context["form"].initial
+        self.assertEqual(initial["dni"], "")
+        self.assertEqual(initial["nombre"], "Otra")
+
+    def test_elegir_cama_sobre_una_persona_ya_confirmada_no_escribe_nada(self):
+        self._confirmar(self.caso, 2, "45000111", plaza=self.reservas[1].plaza)
+        persona = IntegranteGrupo.objects.get(grupo=self.caso.grupo, orden=2)
+        ficha = persona.ficha
+        url = self._url("ficha", self.caso.pk, 2)
+
+        respuesta = self.client.post(url, {"elegir_cama": "1", "nivel_educativo": "SECUNDARIO"})
+
+        self.assertRedirects(respuesta, url, fetch_redirect_response=False)
+        persona.refresh_from_db()
+        self.assertEqual(persona.ficha, ficha)
+        self.assertNotIn(self._clave(2), self.client.session)
+
+    def test_cada_valor_del_borrador_se_recorta_al_largo_de_su_campo(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        maximo = FichaIntegranteForm().fields["telefono"].max_length or 1000
+
+        self.client.post(url, {"elegir_cama": "1", "telefono": "9" * 5000})
+
+        self.assertEqual(len(self.client.session[self._clave(2)]["telefono"]), maximo)
+
+    def test_el_borrador_no_se_filtra_a_otra_ficha_ni_a_otro_caso(self):
+        libre = self._cama_libre()
+        self.client.post(
+            self._url("ficha", self.caso.pk, 2), {"elegir_cama": "1", "plaza": str(libre.pk), "telefono": "111"}
+        )
+
+        otra_persona = self.client.get(self._url("ficha", self.caso.pk, 3))
+        self.assertNotIn("telefono", otra_persona.context["form"].initial)
+
+        caso_b, _derivacion_b = self._aceptado(dni="30999888", menores_f=0, menores_m=0, adultos_f=1, adultos_m=1)
+        otro_caso = self.client.get(self._url("ficha", caso_b.pk, 2))
+        self.assertNotIn("telefono", otro_caso.context["form"].initial)
+
+    def test_el_borrador_se_borra_al_confirmar_la_persona(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        plaza = self.reservas[1].plaza
+        self.client.post(url, {"elegir_cama": "1", "plaza": str(plaza.pk), "telefono": "111"})
+        clave = self._clave(2)
+        self.assertIn(clave, self.client.session)
+
+        respuesta = self.client.post(url, ficha_post("45000111", plaza=str(plaza.pk)))
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertNotIn(clave, self.client.session)
+
+    def test_el_post_normal_de_la_ficha_no_deja_borrador_y_sigue_validando(self):
+        url = self._url("ficha", self.caso.pk, 2)
+
+        respuesta = self.client.post(url, {"telefono": "111"})
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertFalse([k for k in self.client.session.keys() if k.startswith("emergencia_borrador_ficha")])
+
+    def test_el_boton_elegir_cama_es_un_envio_del_formulario_de_la_ficha(self):
+        respuesta = self.client.get(self._url("ficha", self.caso.pk, 2))
+
+        self.assertContains(respuesta, 'name="elegir_cama"')
+        # Enter en un campo manda el primer botón de envío: no puede ser «Elegir cama».
+        primero = re.search(
+            r'<button type="submit"[^>]*>', respuesta.content.decode().split('<form method="post" class="bg-white')[1]
+        )
+        self.assertNotIn("name=", primero.group(0))
+        self.assertNotContains(respuesta, f'href="{self._url("cama", self.caso.pk, 2)}')
 
     def test_una_cama_que_no_se_puede_elegir_cae_en_la_sugerida(self):
         ajena = Plaza.objects.filter(sector__dispositivo=self.escuela).first()
