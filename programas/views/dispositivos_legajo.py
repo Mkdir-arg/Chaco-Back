@@ -162,13 +162,14 @@ from programas.services.sectores_plazas import (
     PARAM_EDIFICIO_SECTORES,
     bloqueo_de_plaza,
     datos_para_el_modal,
-    edificios_para_filtrar,
+    filtro_de_edificio,
     plaza_para_accion,
     se_puede_cambiar_plaza,
     sectores_con_plazas,
     url_modal_egreso,
     url_solapa_estadias,
     url_solapa_sectores,
+    url_vuelta_a_sectores,
 )
 from programas.services.ubicacion_reservada import edificio_es_reservado
 from programas.views.ajax_utils import ajax_redirect, is_ajax
@@ -442,7 +443,8 @@ class SectoresPlazasMixin:
     la plaza no se puede gestionar —ajena, inexistente, de un sector dado de baja o sin la
     capacidad— el modal no se abre y el aviso es el mismo para los cuatro casos.
 
-    «Editar sector» se abre igual, con `?sector=<id>`. «Nuevo sector» y «+ Agregar plazas» no:
+    «Editar sector» se abre igual, con `?<param_editar_sector>=<id>` (`sector` en la pantalla suelta,
+    `editar_sector` en la ficha). «Nuevo sector» y «+ Agregar plazas» no:
     no dependen de un registro, así que sus formularios llegan con la página y los abre el
     botón, como el modal de la golden. Los tres se arman **solo** si quien mira puede
     configurar las plazas: sin eso, el formulario llegaría armado a quien la acción va a
@@ -472,6 +474,7 @@ class SectoresPlazasMixin:
         usuario = request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
         configura_plazas = puede_configurar_plazas(usuario, dispositivo)
+        edificio_id, _pildoras = filtro_de_edificio(usuario, dispositivo, request.GET.get(PARAM_EDIFICIO_SECTORES, ""))
         pk = _entero(request.GET.get("plaza", ""))
         accion = (
             plaza_para_accion(
@@ -491,18 +494,27 @@ class SectoresPlazasMixin:
             "dispositivo": dispositivo,
             "plaza_accion": accion,
             "puede_configurar_plazas": configura_plazas,
-            "qs_sectores": "tab=sectores&" if self.en_solapa else "",
+            "qs_sectores": self._qs_sectores(edificio_id),
+            "edificio_filtrado": edificio_id,
         }
         if not self._preparar_reubicar(context, dispositivo, accion):
             raise Http404
         return render(request, "programas/dispositivos/sectores/_modal_reubicar.html", context)
+
+    def _qs_sectores(self, edificio_id):
+        """Lo que los enlaces del cuerpo conservan: la solapa y el filtro «Edificio» (el resto abre modales)."""
+
+        qs = "tab=sectores&" if self.en_solapa else ""
+        if edificio_id is not None:
+            qs += f"{PARAM_EDIFICIO_SECTORES}={edificio_id}&"
+        return qs
 
     def _preparar_sectores_y_plazas(self, context, dispositivo):
         """Arma todo lo que dibuja `sectores/_cuerpo.html` y lo suma a ``context``.
 
         El mapa va en `sectores_mapa` (y no en `sectores`, que en la ficha ya es el censo por sector).
         El filtro «Edificio» acota el mapa, los totales y los inactivos; su valor se valida contra los
-        edificios que quien mira alcanza (`edificios_para_filtrar`): uno ajeno, inexistente o fuera de su
+        edificios que quien mira alcanza (`filtro_de_edificio`): uno ajeno, inexistente o fuera de su
         alcance se ignora y queda «Todos». Con uno solo en alcance no hay filtro.
         """
 
@@ -510,14 +522,12 @@ class SectoresPlazasMixin:
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
         configura_plazas = puede_configurar_plazas(usuario, dispositivo)
 
-        edificios = edificios_para_filtrar(usuario, dispositivo)
-        pedido = self.request.GET.get(PARAM_EDIFICIO_SECTORES, "")
-        edificio_id = next((pk for pk, _nombre in edificios if str(pk) == pedido), None) if len(edificios) > 1 else None
+        edificio_id, pildoras = filtro_de_edificio(
+            usuario, dispositivo, self.request.GET.get(PARAM_EDIFICIO_SECTORES, "")
+        )
         ver_inactivos = self.request.GET.get("inactivos") == "1"
         # Lo que los enlaces del cuerpo conservan: la solapa y el filtro (el resto de los parámetros abre modales).
-        qs = "tab=sectores&" if self.en_solapa else ""
-        if edificio_id is not None:
-            qs += f"{PARAM_EDIFICIO_SECTORES}={edificio_id}&"
+        qs = self._qs_sectores(edificio_id)
         ocultos = [("tab", "sectores")] if self.en_solapa else []
         if ver_inactivos:
             ocultos.append(("inactivos", "1"))
@@ -537,19 +547,8 @@ class SectoresPlazasMixin:
         context["qs_sectores"] = qs
         context["en_solapa"] = self.en_solapa
         context["param_editar_sector"] = self.param_editar_sector
-        context["pildoras_sectores"] = (
-            [
-                {
-                    "nombre": PARAM_EDIFICIO_SECTORES,
-                    "etiqueta": "Edificio",
-                    "opciones": [(str(pk), nombre) for pk, nombre in edificios],
-                    "valor": str(edificio_id or ""),
-                    "todos": "Todos",
-                }
-            ]
-            if len(edificios) > 1
-            else []
-        )
+        context["pildoras_sectores"] = pildoras
+        context["edificio_filtrado"] = edificio_id
         context["ocultos_sectores"] = ocultos
         context["puede_reubicar"] = puede_liberar
         # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
@@ -915,7 +914,6 @@ class DispositivoDetailView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
                     if puede_cambiar
                     else None
                 ),
-                "url_sectores": url_solapa_sectores(dispositivo.pk),
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
                 # «Emergencia · Kits» del menú: solo para quien recibe kits en ESTE dispositivo.
@@ -1354,7 +1352,7 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
 
     def post(self, request, pk, plaza_pk):
         dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
-        volver = url_solapa_sectores(dispositivo.pk)
+        volver = url_vuelta_a_sectores(request, dispositivo)
         # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
         # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
         # Sin alcance es 404; con alcance pero sin `ciudadano.ver` (capacidad) sigue siendo 403.
@@ -1831,7 +1829,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         if destino == "dispositivo":
             volver = url_solapa_estadias(dispositivo.pk)
         elif destino == "sectores":
-            volver = url_solapa_sectores(dispositivo.pk)
+            volver = url_vuelta_a_sectores(request, dispositivo)
         else:
             volver = url_volver_a_la_estadia(request.user, dispositivo, estadia)
 

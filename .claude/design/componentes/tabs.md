@@ -57,7 +57,8 @@ Lo da `static/custom/js/nodo-tabs.js`, que el shell carga **una sola vez** para 
 backoffice: ← → mueven el foco con vuelta circular, Home/End van a los extremos, y el
 `tabindex` itinerante deja tabulable solo la solapa activa (Tab entra y sale de la barra en
 un paso). Activa la solapa disparando su `click()`, así que no necesita saber nada del
-estado de la pantalla; lee `aria-selected` para repartir el `tabindex` y un
+estado de la pantalla (salvo la solapa marcada con `data-solapa-navega`, que es la que, sin su contenido, abre otra
+página: con las flechas solo recibe el foco, y se abre con Enter, Espacio o clic); lee `aria-selected` para repartir el `tabindex` y un
 `MutationObserver` lo recalcula cuando ese atributo cambia. Si la barra desborda en horizontal (celular), al montar y en cada cambio deja a la vista la solapa activa moviendo solo el `scrollLeft` de la barra; sin desborde no hace nada y nunca toca el scroll vertical.
 
 **Una pantalla no escribe su propio manejo de teclado.** Lo único que tiene que hacer es
@@ -69,6 +70,9 @@ declarar el ARIA del contrato de arriba.
   del encabezado (`btn-nodo btn-secondary btn-sm`), no como una solapa con `ml-auto`.
 - Solapa con carga diferida: su `@click` agrega `$dispatch('<evento>')` y el JS escucha ese
   evento en `window`.
+- Solapa que navega (`data-solapa-navega`, solo mientras su contenido no está cargado): su `@click` es
+  `window.location.href='<url con ?tab=>'`; el atributo evita que pasar por ella con las flechas recargue la página.
+  Ver `arquetipos/detalle.md`.
 - Solapa condicionada por permiso: el mismo `{% if %}` envuelve **el botón y el panel**.
 - Si una solapa tiene listado paginado, ver la limitación de `components/_paginacion.html` en su
   ficha: una sola lista paginada por pantalla.

@@ -8,10 +8,24 @@ del modal (`_modal_reubicar.html`) a `?plaza=<id>&fragmento=reubicar` y lo inyec
 navega a `?plaza=<id>&opcion=reubicar`, que arma el mismo modal en el servidor (variante «abierto por parámetro GET» de P21).
 El modal sigue la golden de Modal (becas/config/programa_list.html).
 
-«Editar sector», en el encabezado de cada sector, usa la misma variante, con `?sector=<id>`.
+«Editar sector», en el encabezado de cada sector, usa la misma variante, con `?<param_editar_sector>=<id>` (`sector` en la pantalla suelta, `editar_sector` en la ficha).
 «Nuevo sector» y «+ Agregar plazas» no dependen de un registro: sus modales llegan con la
 página y los abre el botón, como el de la golden; el «Agregar plazas» de un sector vacío
-además lo elige en el select (`sectorPlazas`).{% endcomment %}
+además lo elige en el select (`sectorPlazas`).
+
+Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
+- mapa: `sectores_mapa` (cada item: `sector`, `resumen`, `plazas`, `edificio_nombre`, `difiere_de_lo_declarado`), `leyenda`,
+  `plazas_modal` y `urls_plaza` (los `json_script` que lee el modal de la plaza), `plaza_inicial` y `plaza_accion`
+  (el modal abierto por `?plaza=`).
+- totales: `totales` (los pinta `_totales.html`).
+- filtro «Edificio»: `pildoras_sectores` (vacío con un solo edificio), `ocultos_sectores`, `edificio_filtrado`
+  (id validado contra el alcance, o `None`: va en el oculto `sectores_edificio` de cada formulario) y `qs_sectores`
+  (lo que los enlaces conservan: la solapa y el filtro).
+- pantalla: `en_solapa`, `param_editar_sector`, `ver_inactivos`, `sectores_inactivos`, `plazas_dadas_de_baja`.
+- capacidades: `puede_configurar_plazas`, `puede_ampliar_capacidad`, `puede_reubicar`.
+- formularios (solo con `puede_configurar_plazas` o la acción habilitada): `form_sector_nuevo` / `url_sector_nuevo`,
+  `form_sector` / `url_sector` / `sector_en_edicion`, `form_plazas` / `url_plazas`, `form_editar_plaza` /
+  `url_editar_plaza`, `form_reservar`, `form_prestar`, `form_sacar`, `form_liberar`, `form_volver`, `form_baja`.{% endcomment %}
 <div x-data="{ modalPlaza: {% if plaza_inicial %}true{% else %}false{% endif %},
                plazaSel: {% if plaza_inicial %}{{ plaza_inicial }}{% else %}null{% endif %}, opcion: '',
                plazasModal: JSON.parse(document.getElementById('plazas-modal-datos').textContent),
@@ -265,6 +279,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% if form_reservar %}
       <form method="post" :action="urlDe('reservar')" data-ajax x-show="accion === 'reservar'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
@@ -281,6 +296,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% if form_prestar %}
       <form method="post" :action="urlDe('prestar')" data-ajax x-show="accion === 'prestar'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -308,6 +324,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       </div>
       <form method="post" :action="urlDe('fuera_servicio')" data-ajax x-show="accion === 'fuera_servicio' && !plazasModal[plazaSel]?.bloqueo" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -322,6 +339,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% if form_liberar %}
       <form method="post" :action="urlDe('liberar')" data-ajax x-show="accion === 'liberar'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <p class="text-sm text-body">Suelta la reserva o el préstamo: la plaza vuelve a estar disponible.</p>
           <div>
@@ -339,6 +357,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       </form>
       <form method="post" :action="urlDe('volver')" data-ajax x-show="accion === 'volver'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -358,6 +377,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       </div>
       <form method="post" :action="urlDe('baja')" data-ajax x-show="accion === 'baja' && !plazasModal[plazaSel]?.bloqueo_baja" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -401,6 +421,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% include "programas/becas/_modal_header.html" with titulo="Editar plaza" titulo_id="modal-editar-plaza-titulo" subtitulo=plaza_en_edicion.codigo icono="fa-bed" cerrar="modalEditarPlaza=false" %}
       <form method="post" action="{{ url_editar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -415,7 +436,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
   </div>
   {% endif %}
 
-  {# Modales: Nuevo sector (llega con la página) y Editar sector (lo abre `?sector=<id>`) #}
+  {# Modales: Nuevo sector (llega con la página) y Editar sector (lo abre `?<param_editar_sector>=<id>`) #}
   {% if form_sector_nuevo %}
   {% include "programas/dispositivos/sectores/_modal_sector.html" with form=form_sector_nuevo url=url_sector_nuevo abierto="modalSectorNuevo" titulo_id="modal-sector-nuevo-titulo" sector=None %}
   {% endif %}
@@ -432,6 +453,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% include "programas/becas/_modal_header.html" with titulo="Agregar plazas" titulo_id="modal-plazas-titulo" subtitulo="Un lote con el código autogenerado. Nacen operativas." icono="fa-bed" cerrar="modalPlazas=false" %}
       <form method="post" action="{{ url_plazas }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>

@@ -133,6 +133,28 @@ class TecladoDeSolapasTests(SimpleTestCase):
         self.assertEqual(log["focos"], ["t3", "t0"])
         self.assertEqual(log["clicks"], ["t3", "t0"])
 
+    def test_una_solapa_que_navega_recibe_el_foco_pero_no_se_activa_con_flechas(self):
+        """`data-solapa-navega`: pasar por ella con ← → no puede recargar la página."""
+        log = _correr(
+            "var l = __barra(3, 0, {1: {'data-solapa-navega': ''}});\n"
+            "__tecla(l.hijos[0], 'ArrowRight');\n"
+            "__tecla(l.hijos[1], 'ArrowRight');\n"
+        )
+
+        self.assertEqual(log["focos"], ["t1", "t2"])
+        self.assertEqual(
+            log["clicks"], ["t2"], "solo la solapa común se activa; la que navega se abre con Enter o clic"
+        )
+
+    def test_home_y_end_tampoco_activan_una_solapa_que_navega(self):
+        log = _correr(
+            "var l = __barra(3, 1, {2: {'data-solapa-navega': ''}});\n"
+            "__tecla(l.hijos[1], 'End');\n__tecla(l.hijos[2], 'Home');\n"
+        )
+
+        self.assertEqual(log["focos"], ["t2", "t0"])
+        self.assertEqual(log["clicks"], ["t0"])
+
     def test_otras_teclas_no_hacen_nada(self):
         log = _correr(
             "var l = __barra(3, 0);\n"

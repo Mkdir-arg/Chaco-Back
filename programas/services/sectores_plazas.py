@@ -234,6 +234,46 @@ def edificios_para_filtrar(usuario, dispositivo):
     return list(alcance.filtrar(edificios_del_dispositivo(dispositivo), "pk").values_list("pk", "nombre"))
 
 
+def filtro_de_edificio(usuario, dispositivo, pedido):
+    """`(edificio_id, pildoras)` del filtro «Edificio» de la solapa, validado contra el alcance de ``usuario``.
+
+    ``pedido`` es lo que llegó (querystring o campo oculto de un POST): solo vale si es uno de los edificios
+    que ``usuario`` alcanza (`edificios_para_filtrar`); uno ajeno, inexistente o inválido se ignora y queda
+    «Todos» (`None`). Con un solo edificio en alcance no hay filtro: ni valor ni píldora. Es el único lugar
+    que decide esto: lo usan el armado de la solapa, el fragmento del modal y las vistas de acción que
+    vuelven a ella.
+    """
+
+    edificios = edificios_para_filtrar(usuario, dispositivo)
+    if len(edificios) < 2:
+        return None, []
+    pedido = str(pedido or "")
+    edificio_id = next((pk for pk, _nombre in edificios if str(pk) == pedido), None)
+    pildoras = [
+        {
+            "nombre": PARAM_EDIFICIO_SECTORES,
+            "etiqueta": "Edificio",
+            "opciones": [(str(pk), nombre) for pk, nombre in edificios],
+            "valor": str(edificio_id or ""),
+            "todos": "Todos",
+        }
+    ]
+    return edificio_id, pildoras
+
+
+def url_vuelta_a_sectores(request, dispositivo):
+    """La solapa «Sectores y plazas» a la que vuelve una acción, con el filtro «Edificio» que traía el POST.
+
+    El formulario lleva el filtro en el oculto `sectores_edificio`; se valida con `filtro_de_edificio`, así
+    que un valor ajeno o inválido vuelve a «Todos». La URL sigue saliendo de `url_solapa_sectores`.
+    """
+
+    edificio_id, _pildoras = filtro_de_edificio(
+        request.user, dispositivo, request.POST.get(PARAM_EDIFICIO_SECTORES, "")
+    )
+    return url_solapa_sectores(dispositivo.pk, edificio_id)
+
+
 def url_modal_egreso(dispositivo_pk, estadia_pk):
     """El detalle del dispositivo con el modal de egreso de esa estadía abierto (`?tab=estadias&egreso=`).
 

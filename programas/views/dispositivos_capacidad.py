@@ -49,7 +49,7 @@ from programas.services.plazas import (
     reactivar_plaza,
     reactivar_sector,
 )
-from programas.services.sectores_plazas import url_solapa_sectores
+from programas.services.sectores_plazas import url_vuelta_a_sectores
 from programas.views.ajax_utils import ajax_redirect, errores_del_servicio, is_ajax, rechazar
 
 #: Adónde vuelve cada familia de acciones. Las de sectores y plazas, al mapa (P5); las del
@@ -62,12 +62,6 @@ def _id_de_seleccion(valor):
     if not (valor.isascii() and valor.isdecimal()):
         raise Http404
     return int(valor)
-
-
-def url_mapa_de_plazas(dispositivo_pk):
-    """Adónde vuelven las altas y ediciones de capacidad: la solapa «Sectores y plazas» de la ficha."""
-
-    return url_solapa_sectores(dispositivo_pk)
 
 
 def url_solapa_infraestructura(dispositivo_pk):
@@ -131,7 +125,9 @@ class _AccionDeCapacidadView(DispositivoProgramaPermissionMixin, View):
 
 class _AccionDeSectorView(_AccionDeCapacidadView):
     def volver(self, dispositivo):
-        return url_mapa_de_plazas(dispositivo.pk)
+        """La solapa «Sectores y plazas», con el filtro «Edificio» que traía el formulario."""
+
+        return url_vuelta_a_sectores(self.request, dispositivo)
 
 
 def _q_sectores(usuario):

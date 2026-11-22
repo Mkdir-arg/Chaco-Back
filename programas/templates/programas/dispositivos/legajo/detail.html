@@ -131,7 +131,7 @@
         </button>
         {% if maneja_plazas %}
         {# El mapa se arma solo con la solapa abierta (`sectores_cargados`): si no vino, el botón navega a ella #}
-        <button @click="{% if sectores_cargados %}tab='sectores'{% else %}window.location.href='{{ url_solapa_sectores|escapejs }}'{% endif %}" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
+        <button @click="{% if sectores_cargados %}tab='sectores'{% else %}window.location.href='{{ url_solapa_sectores|escapejs }}'{% endif %}" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores" {% if not sectores_cargados %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='sectores'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
