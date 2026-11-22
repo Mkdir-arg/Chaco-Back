@@ -67,6 +67,7 @@ from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
 from programas.models import Dispositivo, Edificio, InspeccionEdificio, Plaza, ReservaPlaza, TrazaDispositivo, Turno
 from programas.services.dispositivos import puede_en_programa_dispositivos, puede_operar_dispositivo
 from programas.services.inspecciones import CAP_ASIGNAR, subconsulta_ultima_realizada
+from programas.services.sectores_plazas import url_solapa_sectores
 
 AMBITO = "dispositivos"
 
@@ -86,7 +87,7 @@ MAX_PLAZAS_NOMBRADAS = 5
 
 
 def _url_mapa(dispositivo):
-    return reverse("dispositivos:sectores", args=[dispositivo.pk])
+    return url_solapa_sectores(dispositivo.pk)
 
 
 def _url_relevamientos(usuario):

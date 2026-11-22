@@ -17,6 +17,7 @@ from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils.html import escape
 
 from programas.forms import FranjaHorariaFormSet, formulario_tipo_para
 from programas.models import (
@@ -31,6 +32,7 @@ from programas.models import (
 from programas.services import constructor
 from programas.services.formularios_tipo import crear_formulario, puede_eliminar_formulario
 from programas.services.respuestas_dispositivo import formularios_respondidos, respuestas_de_versiones_anteriores
+from programas.services.sectores_plazas import url_solapa_sectores
 from programas.tests.js_harness import correr_harness_js, requiere_node
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import LUNES, _post_franjas, catalogo_chaco
@@ -299,7 +301,7 @@ class AvisoPlazasTests(_Base):
         dispositivo = Dispositivo.objects.get(codigo="FA-1")
         respuesta = self.client.get(reverse("dispositivos:editar", args=[dispositivo.pk]))
         self.assertContains(respuesta, self.EDICION)
-        self.assertContains(respuesta, reverse("dispositivos:sectores", args=[dispositivo.pk]))
+        self.assertContains(respuesta, escape(url_solapa_sectores(dispositivo.pk)))
         self.assertNotContains(respuesta, self.ALTA)
 
     def test_edicion_con_tipo_sin_plazas_no_muestra_el_aviso(self):

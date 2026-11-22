@@ -72,9 +72,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
-from programas.selectors.capacidad_dispositivo import nombre_de_edificio
+from programas.selectors.capacidad_dispositivo import edificios_del_dispositivo, nombre_de_edificio
 from programas.services.dispositivos import (
     CAP_VER,
+    alcance_de_edificios,
     estados_que_cambian_de_plaza,
     estados_que_reservan,
     q_edificios_en_alcance,
@@ -210,6 +211,67 @@ def url_solapa_estadias(dispositivo_pk):
     """El detalle del dispositivo abierto en la solapa Estadías."""
 
     return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
+
+
+#: Parámetro GET del filtro «Edificio» de la solapa. No se llama `edificio`: ese ya abre los modales del edificio.
+PARAM_EDIFICIO_SECTORES = "sectores_edificio"
+
+
+def url_solapa_sectores(dispositivo_pk, edificio_id=None):
+    """El detalle del dispositivo abierto en la solapa «Sectores y plazas» (con el filtro «Edificio», si lo hay)."""
+
+    url = f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=sectores"
+    return f"{url}&{PARAM_EDIFICIO_SECTORES}={edificio_id}" if edificio_id else url
+
+
+def edificios_para_filtrar(usuario, dispositivo):
+    """`[(id, nombre)]` de los edificios del dispositivo que ``usuario`` alcanza leyendo: las opciones del filtro «Edificio».
+
+    El mismo alcance que acota los sectores (`alcance_de_edificios`): con alcance Edificios, solo los suyos.
+    """
+
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_VER)
+    return list(alcance.filtrar(edificios_del_dispositivo(dispositivo), "pk").values_list("pk", "nombre"))
+
+
+def filtro_de_edificio(usuario, dispositivo, pedido):
+    """`(edificio_id, pildoras)` del filtro «Edificio» de la solapa, validado contra el alcance de ``usuario``.
+
+    ``pedido`` es lo que llegó (querystring o campo oculto de un POST): solo vale si es uno de los edificios
+    que ``usuario`` alcanza (`edificios_para_filtrar`); uno ajeno, inexistente o inválido se ignora y queda
+    «Todos» (`None`). Con un solo edificio en alcance no hay filtro: ni valor ni píldora. Es el único lugar
+    que decide esto: lo usan el armado de la solapa, el fragmento del modal y las vistas de acción que
+    vuelven a ella.
+    """
+
+    edificios = edificios_para_filtrar(usuario, dispositivo)
+    if len(edificios) < 2:
+        return None, []
+    pedido = str(pedido or "")
+    edificio_id = next((pk for pk, _nombre in edificios if str(pk) == pedido), None)
+    pildoras = [
+        {
+            "nombre": PARAM_EDIFICIO_SECTORES,
+            "etiqueta": "Edificio",
+            "opciones": [(str(pk), nombre) for pk, nombre in edificios],
+            "valor": str(edificio_id or ""),
+            "todos": "Todos",
+        }
+    ]
+    return edificio_id, pildoras
+
+
+def url_vuelta_a_sectores(request, dispositivo):
+    """La solapa «Sectores y plazas» a la que vuelve una acción, con el filtro «Edificio» que traía el POST.
+
+    El formulario lleva el filtro en el oculto `sectores_edificio`; se valida con `filtro_de_edificio`, así
+    que un valor ajeno o inválido vuelve a «Todos». La URL sigue saliendo de `url_solapa_sectores`.
+    """
+
+    edificio_id, _pildoras = filtro_de_edificio(
+        request.user, dispositivo, request.POST.get(PARAM_EDIFICIO_SECTORES, "")
+    )
+    return url_solapa_sectores(dispositivo.pk, edificio_id)
 
 
 def url_modal_egreso(dispositivo_pk, estadia_pk):
@@ -425,8 +487,14 @@ def sectores_con_plazas(
     puede_ver_personas=False,
     puede_egresar=False,
     usuario=None,
+    edificio_id=None,
+    qs_url="",
 ):
     """Todo lo que la pantalla dibuja: sectores activos con su mapa acotado y los totales.
+
+    ``edificio_id`` acota además a un edificio (el filtro «Edificio»; la vista ya lo validó contra el alcance, y
+    el alcance se aplica igual). ``qs_url`` antecede a `plaza=` y `editar_plaza=` en los enlaces de las celdas
+    (`"tab=sectores&"` cuando el mapa vive en la solapa de la ficha).
 
     Las cifras del encabezado y de cada sector salen de `ocupacion.ocupacion_de_plazas` y
     los estados de las celdas de `ocupacion.estado_de_plazas`: las dos son el mismo
@@ -449,11 +517,14 @@ def sectores_con_plazas(
     # Un solo instante para las dos: la vigencia de una reserva es por tiempo, y con dos
     # `now()` distintos el encabezado y una celda podrían discrepar justo en su borde.
     momento = timezone.now()
-    ocupacion = ocupacion_de_plazas(dispositivo, momento, q_sectores=_q_sectores_en_alcance(usuario)).de(dispositivo)
+    q_sectores = _q_sectores_en_alcance(usuario)
+    if edificio_id is not None:
+        q_sectores &= Q(edificio_id=edificio_id)
+    ocupacion = ocupacion_de_plazas(dispositivo, momento, q_sectores=q_sectores).de(dispositivo)
     sectores = {
         sector.pk: sector
         for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True)
-        .filter(_q_sectores_en_alcance(usuario))
+        .filter(q_sectores)
         .select_related("edificio")
     }
     por_sector = _plazas_por_sector(list(sectores))
@@ -480,7 +551,7 @@ def sectores_con_plazas(
                 puede_egresar=puede_egresar,
                 estado_dispositivo=dispositivo.estado,
             )
-            url = f"?plaza={plaza.pk}" if acciones else ""
+            url = f"?{qs_url}plaza={plaza.pk}" if acciones else ""
             click = ""
             if acciones == [ACCION_REUBICAR]:
                 # Nada más que ofrecer: la celda va directo al formulario, sin menú.
@@ -497,7 +568,7 @@ def sectores_con_plazas(
                 )
             if not url and puede_configurar_plazas:
                 # Editar la identidad no libera la reserva ni exige dispositivo.admitir.
-                url = f"?editar_plaza={plaza.pk}"
+                url = f"?{qs_url}editar_plaza={plaza.pk}"
             celdas.append(_plaza_para_el_mapa(plaza, estado, url, click))
         armados.append(
             {
