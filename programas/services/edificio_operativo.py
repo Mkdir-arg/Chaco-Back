@@ -36,6 +36,7 @@ from programas.services.dispositivos import (
     CAP_EDITAR,
     CAP_VER,
     alcance_de_edificios,
+    miembros_del_edificio,
     puede_editar_legajo,
     puede_operar_edificio,
 )
@@ -135,23 +136,15 @@ def _estado_edilicio(user, edificio):
     return {"texto": estado["texto"], "tono": estado["tono"], "detalle": detalle}
 
 
-def _equipo_del_edificio(dispositivo, edificio, permisos):
-    """Las personas activas del Equipo con alcance a este edificio: toda la institución o este edificio.
-
-    Una fila sin alcance cargado vale «toda la institución». Los responsables van primero. Dos consultas, vengan 3
-    o 300 miembros (las filas y el ``prefetch`` único de sus edificios).
-    """
-
-    return equipo_del_edificio(dispositivo, edificio.pk, permisos)
-
-
-def _contexto_equipo(dispositivo, edificio, permisos, equipo, url_pagina):
-    """Lo que la solapa Equipo necesita de las acciones: quién gestiona, adónde vuelve cada una y qué ofrece.
+def _contexto_equipo(user, dispositivo, edificio, url_pagina):
+    """Lo propio del panel Equipo (solo con su solapa abierta): filas, quién gestiona, adónde vuelve cada una y qué ofrece.
 
     Cada fila trae ``url_cambiar_alcance`` (modal por URL, como en la ficha de la institución). Las acciones con
     confirmación (baja, responsable) vuelven a esta solapa con ``?next=``; los modales, con ``next_url``.
     """
 
+    permisos = permisos_del_equipo(user, dispositivo)
+    equipo = equipo_del_edificio(dispositivo, edificio.pk, permisos)
     volver = f"{url_pagina}?tab=equipo"
     if permisos.gestiona:
         for miembro in equipo:
@@ -161,6 +154,7 @@ def _contexto_equipo(dispositivo, edificio, permisos, equipo, url_pagina):
     donde = edificios_donde_agregar_persona(None, dispositivo, permisos)
     puede_sumar = donde is None or edificio.pk in donde
     return {
+        "equipo": equipo,
         "permisos_equipo": permisos,
         "puede_gestionar_equipo": permisos.gestiona,
         "puede_sumar_persona": puede_sumar,
@@ -269,9 +263,9 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         conteo = censo.conteo_del_edificio(edificio.pk)
         indicadores = indicadores_de_plazas(conteo, tipo=dispositivo.tipo)
 
-    url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
-    permisos = permisos_del_equipo(user, dispositivo)
-    equipo = _equipo_del_edificio(dispositivo, edificio, permisos)
+    # Una fila sin alcance cargado vale «toda la institución»; los responsables van primero. Alimenta el contador y la
+    # franja «Equipo en turno», que se ven con cualquier solapa abierta.
+    equipo = miembros_del_edificio(dispositivo, edificio.pk)
     estado = _estado_edilicio(user, edificio)
     disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
     pendientes_de_kit = (
@@ -282,11 +276,17 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         else 0
     )
     url_institucion = reverse("dispositivos:detalle", args=[dispositivo.pk])
-    return {
+    tab = normalizar_solapa(tab_pedida, disponibles)
+    url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
+    contexto = {
         "dispositivo": dispositivo,
         "edificio": edificio,
         "maneja_plazas": con_plazas,
-        "tab": normalizar_solapa(tab_pedida, disponibles),
+        "tab": tab,
+        # Lo propio del panel Equipo (permisos, edificios de las filas, modales) se arma solo con su solapa abierta:
+        # si no vino, el botón de la solapa navega a ella. El contador y la franja usan la lista corta de arriba.
+        "equipo_cargado": tab == "equipo",
+        "url_solapa_equipo": f"{url_pagina}?tab=equipo",
         "solapas": disponibles,
         "url_institucion": url_institucion,
         "migas": [
@@ -307,8 +307,6 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "kits": pendientes_de_kit,
             "equipo": len(equipo),
         },
-        "equipo": equipo,
-        **_contexto_equipo(dispositivo, edificio, permisos, equipo, url_pagina),
         # Dónde se opera hoy cada solapa, hasta que los PR siguientes la llenen: el vacío no es un callejón sin salida.
         "enlaces_de_institucion": {
             "sectores": f"{url_institucion}?tab=sectores",
@@ -320,3 +318,6 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         },
         **acciones,
     }
+    if tab == "equipo":
+        contexto.update(_contexto_equipo(user, dispositivo, edificio, url_pagina))
+    return contexto

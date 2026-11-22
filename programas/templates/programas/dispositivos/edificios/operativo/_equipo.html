@@ -3,8 +3,9 @@ Panel «Equipo» de la página operativa del edificio (Cambio 569, PR 4 del lote
 Diseño: Edificio-Equipo.dc.html y Equipo-Sumar-1..4.dc.html. Las filas son las de `equipo_del_edificio`: quienes tienen toda la
 institución o este edificio. Las acciones son las de la institución (`dispositivos:equipo_*`) y vuelven a esta solapa (`next`).
 Contexto: `equipo`, `puede_gestionar_equipo`, `puede_sumar_persona`, `url_equipo_sumar_modal`, `query_volver`, `dispositivo`, `edificio`,
-y los de `legajo/_equipo_modales.html` cuando la URL abre un modal. Los scripts van en `customJS` de la página.
+y los de `legajo/_equipo_modales.html` cuando la URL abre un modal. Se arma solo con la solapa abierta (`equipo_cargado`). Los scripts van en `customJS` de la página.
 {% endcomment %}
+{% if equipo_cargado %}
 <div x-data="{
        modalEquipo: {% if form_equipo %}true{% else %}false{% endif %},
        modalCrearPersona: false,
@@ -34,7 +35,7 @@ y los de `legajo/_equipo_modales.html` cuando la URL abre un modal. Los scripts 
       </thead>
       <tbody>
         {% for miembro in equipo %}
-        <tr class="hover:bg-secondary transition">
+        <tr class="hover:bg-secondary transition{% if miembro.pk == miembro_nuevo %} bg-success-soft{% endif %}">
           <td class="nodo-td">
             <span class="font-medium text-heading">{{ miembro.persona }}</span>
             {# En celular el resto de la fila va bajo el nombre: la columna fija de acciones tapa lo demás #}
@@ -82,3 +83,4 @@ y los de `legajo/_equipo_modales.html` cuando la URL abre un modal. Los scripts 
   </div>
   {% include "programas/dispositivos/legajo/_equipo_modales.html" %}
 </div>
+{% endif %}

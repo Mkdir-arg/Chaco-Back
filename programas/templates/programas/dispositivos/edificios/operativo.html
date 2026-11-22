@@ -2,7 +2,7 @@
 {% extends "includes/base.html" %}
 {% load static nodo_ui %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }} · {{ edificio.nombre }}{% endblock %}
-{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
+{% block page_css %}{% if equipo_cargado %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endif %}{% endblock %}
 
 {% block main-content %}
 {# La solapa abierta la normaliza el servicio (`normalizar_solapa`): una que este usuario no tiene cae en la de siempre #}
@@ -117,7 +117,8 @@
           <span class="badge" :class="tab==='kits' ? 'badge-info' : 'badge-gray'">{{ contadores.kits }}</span>
         </button>
         {% endif %}
-        <button @click="tab='equipo'" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo"
+        {# El Equipo se arma solo con la solapa abierta (`equipo_cargado`): si no vino, el botón navega a ella #}
+        <button @click="{% if equipo_cargado %}tab='equipo'{% else %}window.location.href='{{ url_solapa_equipo|escapejs }}'{% endif %}" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo" {% if not equipo_cargado %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='equipo'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='equipo' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -176,6 +177,6 @@
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% if equipo_cargado %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
-<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endif %}{% endblock %}

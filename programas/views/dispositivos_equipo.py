@@ -26,7 +26,7 @@ from programas.models import Dispositivo, Edificio, MiembroEquipoDispositivo
 from programas.selectors.equipo_sugeridas import sugerir_pares_equipo
 from programas.services import equipo_dispositivo as equipo
 from programas.services.dispositivos import nombre_de_persona
-from programas.views.ajax_utils import ajax_redirect, destino_seguro, errores_del_servicio, is_ajax
+from programas.views.ajax_utils import ajax_redirect, con_parametro, destino_seguro, errores_del_servicio, is_ajax
 from users.forms import MENSAJE_DNI_DUPLICADO
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.views.quick_create import MENSAJES_COLISION, MENSAJES_DNI_DUPLICADO, _campo_en_colision
@@ -58,6 +58,8 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
     capacidad_requerida = "dispositivo.ver"
     http_method_names = ["post"]
     mensaje_exito = ""
+    #: La fila que la acción dejó sumada, si la hay: la página de vuelta la resalta (``?nuevo=<id>``).
+    miembro_nuevo_pk = None
 
     def ejecutar(self, request, dispositivo, miembro):
         raise NotImplementedError
@@ -86,10 +88,19 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
                 return JsonResponse({"ok": False, "errors": errores_del_servicio(error, self.form)}, status=400)
             messages.error(request, error.messages[0])
             return redirect(volver)
+        if self.miembro_nuevo_pk:
+            volver = con_parametro(volver, "nuevo", self.miembro_nuevo_pk)
         if is_ajax(request):
             return ajax_redirect(request, volver, self.mensaje_exito)
         messages.success(request, self.mensaje_exito)
         return redirect(volver)
+
+
+def _mensaje_sumada_en_edificio(usuario, edificio_id, rol):
+    """El aviso de quien entra al Equipo desde un edificio (Equipo-Sumar-4): «<Nombre> se sumó al Equipo de <Edificio> como <Rol>.»."""
+
+    nombre_edificio = Edificio.objects.filter(pk=edificio_id).values_list("nombre", flat=True).first()
+    return f"{nombre_de_persona(usuario)} se sumó al Equipo de {nombre_edificio} como {rol.name}."
 
 
 class EquipoSumarView(_EquipoAccionView):
@@ -122,14 +133,13 @@ class EquipoSumarView(_EquipoAccionView):
         )
         if form.edificio_fijo:
             edificio_id = form.cleaned_data["edificio_fijo"]
-            _, resultado = equipo.sumar_miembro_en_edificio(edificio_id=edificio_id, **datos)
+            miembro, resultado = equipo.sumar_miembro_en_edificio(edificio_id=edificio_id, **datos)
             if resultado == equipo.RESULTADO_SUMADA:
-                nombre_edificio = Edificio.objects.filter(pk=edificio_id).values_list("nombre", flat=True).first()
-                self.mensaje_exito = (
-                    f"{nombre_de_persona(usuario)} se sumó al Equipo de {nombre_edificio} como {rol.name}."
-                )
+                self.mensaje_exito = _mensaje_sumada_en_edificio(usuario, edificio_id, rol)
             else:
                 self.mensaje_exito = self.MENSAJES_EN_EDIFICIO[resultado]
+            if resultado != equipo.RESULTADO_YA_ALCANZA:
+                self.miembro_nuevo_pk = miembro.pk
         else:
             equipo.sumar_miembro(**datos, **form.datos_de_alcance())
 
@@ -193,7 +203,11 @@ class EquipoCrearPersonaView(_EquipoAccionView):
             logger.warning("Alta de persona desde el Equipo: colisión de unicidad (campo %s)", campo)
             raise ValidationError({"dni" if campo in ("dni", "username") else "__all__": MENSAJES_COLISION[campo]})
         aviso = self._entregar_clave(request, usuario, datos["rol"])
-        self.mensaje_exito = f"Persona creada y sumada al Equipo. {aviso}"
+        if form.edificio_fijo:
+            sumada = _mensaje_sumada_en_edificio(usuario, datos["edificio_fijo"], datos["rol"])
+            self.mensaje_exito = f"{sumada} {aviso}"
+        else:
+            self.mensaje_exito = f"Persona creada y sumada al Equipo. {aviso}"
 
     @staticmethod
     def _errores_del_alta(alta):

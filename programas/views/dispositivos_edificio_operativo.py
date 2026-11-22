@@ -29,10 +29,11 @@ def modales_del_equipo(request, dispositivo, edificio, contexto):
     """
 
     pedido = request.GET.get("equipo")
-    permisos = contexto["permisos_equipo"]
-    if pedido not in ("sumar", "alcance") or not permisos.gestiona:
+    if not contexto["equipo_cargado"] or pedido not in ("sumar", "alcance"):
         return
-    contexto["tab"] = "equipo"
+    permisos = contexto["permisos_equipo"]
+    if not permisos.gestiona:
+        return
     if pedido == "sumar":
         if contexto["puede_sumar_persona"]:
             contexto.update(contexto_modal_sumar_persona(dispositivo, request.user, edificio, permisos))
@@ -62,4 +63,6 @@ class EdificioOperativoView(DispositivoProgramaPermissionMixin, TemplateView):
             raise Http404("Ese edificio no es de esta institución o no está en tu alcance.")
         context.update(contexto_del_edificio(user, dispositivo, edificio, self.request.GET.get("tab", "")))
         modales_del_equipo(self.request, dispositivo, edificio, context)
+        # La fila que el alta acaba de dejar (`?nuevo=<id>`) sale resaltada.
+        context["miembro_nuevo"] = _entero(self.request.GET.get("nuevo"))
         return context

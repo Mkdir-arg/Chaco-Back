@@ -9,6 +9,8 @@ contenido de ``target`` con ese HTML. Si el form es inválido, devuelve
 Las vistas siguen funcionando sin AJAX (fallback a redirect tradicional).
 """
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -98,3 +100,12 @@ def destino_seguro(request, defecto, *, desde=("POST",), prefijo=""):
     if prefijo and not candidato.startswith(prefijo):
         return defecto
     return candidato
+
+
+def con_parametro(url, nombre, valor):
+    """``url`` con ``nombre=valor`` en su query (reemplaza el que hubiera); el resto de la URL queda igual."""
+
+    partes = urlsplit(url)
+    consulta = [(k, v) for k, v in parse_qsl(partes.query, keep_blank_values=True) if k != nombre]
+    consulta.append((nombre, str(valor)))
+    return urlunsplit(partes._replace(query=urlencode(consulta)))

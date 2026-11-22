@@ -271,8 +271,13 @@
     },
     "dispositivos_edificio_operativo": {
       "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
-      "consultas_fijas": 22,
-      "motivo": "Pagina operativa del edificio dentro de una institucion (Cambio 563, PR 0): la pagina entera, con el cliente logueado y la cache del programa caliente. Medido con 2 y 8 plazas en el edificio y con 1 y 2 instituciones en el predio: 22 en los dos casos (con la tabla del Equipo, Cambio 569, tambien con 1 y 9 miembros), asi que no crece con los datos. Cinco son del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); el resto es la institucion, el edificio vinculado con su alcance, el censo de plazas del edificio, las entregas de kit abiertas, el Equipo con sus capacidades (permisos del Equipo y el prefetch unico de edificios de sus filas) y su turno vigente, el estado edilicio (ultima inspeccion realizada) y las capacidades de cada accion sobre este edificio. Los paneles de las solapas son estados vacios sin consultas propias: cada PR del lote que llena uno suma su costo y actualiza este techo."
+      "consultas_fijas": 20,
+      "motivo": "Pagina operativa del edificio dentro de una institucion (Cambio 563, PR 0): la pagina entera, con el cliente logueado y la cache del programa caliente. Medido con 2 y 8 plazas en el edificio y con 1 y 2 instituciones en el predio: 20 en los dos casos, asi que no crece con los datos. Cinco son del request autenticado (sesion, usuario, grupos, perfil, capacidades RBAC); el resto es la institucion, el edificio vinculado con su alcance, el censo de plazas del edificio, las entregas de kit abiertas, el Equipo y su turno vigente, el estado edilicio (ultima inspeccion realizada) y las capacidades de cada accion sobre este edificio. Los paneles de las solapas son estados vacios sin consultas propias: cada PR del lote que llena uno suma su costo y actualiza este techo."
+    },
+    "dispositivos_edificio_operativo_equipo": {
+      "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
+      "consultas_fijas": 14,
+      "motivo": "Presupuesto nuevo (Cambio 569, PR 4 del lote del edificio operativo): la pagina del edificio con la solapa Equipo abierta (?tab=equipo). El panel se arma SOLO con su solapa: los permisos del Equipo, las filas con el prefetch unico de los edificios de todas las filas y las URL de cada accion; con otra solapa la pagina no paga nada de eso y el boton Equipo navega a ?tab=equipo, asi que dispositivos_edificio_operativo queda en 20. El contador y la franja Equipo en turno usan la lista corta del encabezado (una consulta) en todas las solapas. Medido con admin del programa, con la base del test y con 8 miembros mas con alcance a edificios: 14 en los dos casos, asi que no crece por miembro (la forma natural, pedir los edificios o el alcance de cada fila, seria un N+1 que este techo impide). Los modales se arman solo con ?equipo=sumar|alcance y no entran en este techo."
     },
     "dispositivos_bitacora_turno": {
       "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",

@@ -19,7 +19,6 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -815,10 +814,7 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     def get_success_url(self):
         # "next" permite volver a la pantalla de origen (p. ej. el detalle de la
         # convocatoria cuando se crea desde su modal).
-        next_url = self.request.POST.get("next")
-        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={self.request.get_host()}):
-            return next_url
-        return str(self.success_url)
+        return destino_seguro(self.request, str(self.success_url))
 
 
 def _aviso_cierre_automatico(rel, puede_volver_a_campo):

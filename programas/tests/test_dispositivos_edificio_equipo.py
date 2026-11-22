@@ -9,6 +9,9 @@
 6. ``destino_seguro``: el único validador de ``next``.
 """
 
+import json
+
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import connection
 from django.test import RequestFactory, SimpleTestCase
@@ -16,11 +19,14 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from programas.models import MiembroEquipoDispositivo
+from programas.services.dispositivos import miembros_del_edificio
 from programas.tests.test_dispositivos_equipo_crear_persona_420 import AJAX
 from programas.tests.test_equipo_selector_alcance import BaseSelector
-from programas.views.ajax_utils import destino_seguro
+from programas.views.ajax_utils import con_parametro, destino_seguro
 
 Alcance = MiembroEquipoDispositivo.Alcance
+PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
+CLAVE_PRESUPUESTO = "dispositivos_edificio_operativo_equipo"
 
 
 class BaseEquipoEdificio(BaseSelector):
@@ -104,7 +110,7 @@ class QuienApareceTests(BaseEquipoEdificio):
 
 class SumarPersonaTests(BaseEquipoEdificio):
     def test_el_boton_abre_el_modal_con_este_edificio_fijo(self):
-        respuesta = self._get()
+        respuesta = self._get(tab="equipo")
 
         self.assertContains(respuesta, "Sumar persona")
         self.assertContains(respuesta, f"{self.url}?tab=equipo&amp;equipo=sumar")
@@ -138,13 +144,68 @@ class SumarPersonaTests(BaseEquipoEdificio):
             headers=AJAX,
         )
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        self.assertEqual(respuesta.json()["redirect"], self.url_equipo)
+        self.assertEqual(respuesta.json()["redirect"], f"{self.url_equipo}&nuevo={self._fila_de_ana().pk}")
 
         fila = self._fila_de_ana()
         self.assertEqual((fila.alcance, self._ids(fila)), (Alcance.EDIFICIOS, {self.ed1.pk}))
         pagina = self.client.get(self.url_equipo)
         self.assertContains(pagina, "Gomez")
         self.assertContains(pagina, f"Ana Gomez se sumó al Equipo de {self.ed1.nombre} como {self.rol_admitir.name}.")
+
+    def test_la_fila_recien_sumada_sale_resaltada_y_las_demas_no(self):
+        self._entrar()
+        respuesta = self.client.post(
+            self.url_sumar_post,
+            {
+                "persona_rol": f"{self.ana.pk}:{self.rol_admitir.pk}",
+                "tipo_contratacion": "BECADO",
+                "edificio_fijo": self.ed1.pk,
+                "next": self.url_equipo,
+            },
+            headers=AJAX,
+        )
+        nueva = self._fila_de_ana()
+        self.assertEqual(respuesta.json()["redirect"], f"{self.url_equipo}&nuevo={nueva.pk}")
+
+        pagina = self.client.get(respuesta.json()["redirect"])
+
+        self.assertEqual(pagina.context["miembro_nuevo"], nueva.pk)
+        resaltada = 'class="hover:bg-secondary transition bg-success-soft"'
+        self.assertContains(pagina, resaltada, count=1)
+        self.assertNotContains(self.client.get(self.url_equipo), resaltada)
+
+    def test_si_ya_alcanzaba_no_se_resalta_nada(self):
+        self._entrar()
+        datos = {
+            "persona_rol": f"{self.ana.pk}:{self.rol_admitir.pk}",
+            "tipo_contratacion": "BECADO",
+            "edificio_fijo": self.ed1.pk,
+            "next": self.url_equipo,
+        }
+        self.client.post(self.url_sumar_post, datos, headers=AJAX)
+        otra_vez = self.client.post(self.url_sumar_post, datos, headers=AJAX)
+
+        self.assertEqual(otra_vez.json()["redirect"], self.url_equipo)
+
+    def test_crear_persona_en_el_edificio_avisa_con_el_texto_de_sumar_y_conserva_las_credenciales(self):
+        self._entrar()
+        respuesta = self.client.post(
+            self.url_crear, self._datos(edificio_fijo=self.ed1.pk, next=self.url_equipo), headers=AJAX
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+
+        pagina = self.client.get(respuesta.json()["redirect"])
+
+        self.assertContains(
+            pagina, f"Lucía Ferreyra se sumó al Equipo de {self.ed1.nombre} como {self.rol_admitir.name}."
+        )
+        self.assertContains(pagina, "correo")
+
+    def test_el_modal_nombra_el_edificio_con_su_codigo_y_pide_la_persona(self):
+        abierto = self._get(tab="equipo", equipo="sumar")
+
+        self.assertContains(abierto, f"{self.ed1.nombre} ({self.ed1.codigo})")
+        self.assertTrue(abierto.context["form_equipo"].fields["persona"].marca_requerido)
 
     def test_un_edificio_de_otra_institucion_no_se_acepta_por_post(self):
         self._entrar()
@@ -271,19 +332,71 @@ class AccionesDeFilaTests(BaseEquipoEdificio):
         self.assertContains(respuesta, "Solo en tus propios edificios")
 
 
+class SoloConSuSolapaTests(BaseEquipoEdificio):
+    def test_con_otra_solapa_no_se_arma_el_panel_y_el_boton_navega(self):
+        respuesta = self._get(tab="estadias")
+
+        self.assertFalse(respuesta.context["equipo_cargado"])
+        self.assertNotIn("permisos_equipo", respuesta.context)
+        for texto in ("Sumar persona", "Dar de baja", "Quiroga"):
+            self.assertNotContains(respuesta, texto)
+        self.assertContains(respuesta, "window.location.href=")
+        self.assertEqual(respuesta.context["url_solapa_equipo"], self.url_equipo)
+        self.assertContains(respuesta, "data-solapa-navega")
+
+    def test_el_contador_y_la_franja_siguen_con_cualquier_solapa(self):
+        respuesta = self._get(tab="estadias")
+
+        self.assertEqual(
+            respuesta.context["contadores"]["equipo"], len(miembros_del_edificio(self.disp_a, self.ed1.pk))
+        )
+        self.assertGreater(respuesta.context["contadores"]["equipo"], 0)
+        self.assertTrue(respuesta.context["equipo_en_turno"]["nombres"])
+        self.assertContains(respuesta, "Equipo en turno")
+
+    def test_un_modal_pedido_con_otra_solapa_no_se_abre(self):
+        respuesta = self._get(tab="estadias", equipo="sumar")
+
+        self.assertNotContains(respuesta, "modal-equipo-titulo")
+
+    def test_con_su_solapa_abierta_el_panel_va_armado_y_el_boton_no_navega(self):
+        respuesta = self._get(tab="equipo")
+
+        self.assertTrue(respuesta.context["equipo_cargado"])
+        self.assertNotContains(respuesta, "data-solapa-navega")
+
+
 class PresupuestoDelEquipoTests(BaseEquipoEdificio):
-    def _medir(self):
+    def _medir(self, url):
         self._entrar()
-        self.client.get(self.url)  # calienta sesión y caché
+        self.client.get(url)  # calienta sesión y caché
         with CaptureQueriesContext(connection) as consultas:
-            self.assertEqual(self.client.get(self.url_equipo).status_code, 200)
+            self.assertEqual(self.client.get(url).status_code, 200)
         return len(consultas)
 
-    def test_la_tabla_no_cuesta_mas_con_mas_miembros(self):
-        antes = self._medir()
+    def test_la_solapa_no_cuesta_mas_con_mas_miembros_y_entra_en_su_techo(self):
+        antes = self._medir(self.url_equipo)
         for numero in range(8):
             self._persona(f"mas{numero}", f"Mas{numero}", "Gente", Alcance.EDIFICIOS, [self.ed1, self.ed2])
-        self.assertEqual(self._medir(), antes)
+        despues = self._medir(self.url_equipo)
+
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
+        self.assertEqual(antes, despues)
+        self.assertLessEqual(despues, techo["consultas_fijas"])
+
+    def test_la_pagina_con_otra_solapa_no_paga_lo_del_panel(self):
+        # El techo de la página (`dispositivos_edificio_operativo`) no incluye lo propio del Equipo.
+        con_otra = self._medir(f"{self.url}?tab=estadias")
+        con_equipo = self._medir(self.url_equipo)
+
+        self.assertLess(con_otra, con_equipo)
+
+
+class ConParametroTests(SimpleTestCase):
+    def test_agrega_y_reemplaza_sin_tocar_el_resto(self):
+        self.assertEqual(con_parametro("/a/?tab=equipo", "nuevo", 7), "/a/?tab=equipo&nuevo=7")
+        self.assertEqual(con_parametro("/a/?nuevo=1&tab=equipo", "nuevo", 7), "/a/?tab=equipo&nuevo=7")
+        self.assertEqual(con_parametro("/a/", "nuevo", 7), "/a/?nuevo=7")
 
 
 class DestinoSeguroTests(SimpleTestCase):
