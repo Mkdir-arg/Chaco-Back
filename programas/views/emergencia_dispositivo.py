@@ -24,7 +24,8 @@ Quién entra (plan C2, Cambio 432)
   ``self.dispositivo``, así que no existen (RU-9).
 
 El estado del recorrido es el del caso, no la sesión: no hay nada que una segunda pestaña
-pueda pisar, y cada paso se abre por su URL.
+pueda pisar, y cada paso se abre por su URL. Salvo el borrador de la ficha, por persona, que
+vive en la sesión (Cambio 546).
 """
 
 import uuid
@@ -494,8 +495,37 @@ class ElegirCamaView(_IntegranteView):
         return render(request, f"{TEMPLATES}cama.html", contexto)
 
 
+def _clave_borrador_ficha(dispositivo_pk, caso_pk, integrante_pk):
+    """La clave de sesión del borrador: atada al dispositivo, el caso y la persona, para que no pase a otra ficha."""
+
+    return f"emergencia_borrador_ficha:{dispositivo_pk}:{caso_pk}:{integrante_pk}"
+
+
 class FichaIntegranteView(_IntegranteView):
-    """M2-4: la ficha individual. Sin confirmar, con el mínimo y la cama; confirmada, las secciones que faltan."""
+    """M2-4: la ficha individual. Sin confirmar, con el mínimo y la cama; confirmada, las secciones que faltan.
+
+    «Elegir cama» es un envío del mismo formulario (``elegir_cama``): lo escrito queda como **borrador en la
+    sesión** (sin validar y sin tocar la base) y se precarga al volver del mapa; se borra al confirmar.
+    El borrador son solo los valores de los campos de la ficha: nada de archivos, y nunca va a un log.
+    """
+
+    @property
+    def _clave_borrador(self):
+        return _clave_borrador_ficha(self.dispositivo.pk, self.caso.pk, self.integrante.pk)
+
+    def _guardar_borrador(self, request, form):
+        """Lo escrito, sin validar: solo los campos de la ficha (no el token, no la cama, no los archivos)."""
+
+        campos = set(form.fields) - {"plaza"}
+        # También lo que llegó vacío: un dato que el operador borró no tiene que volver con la precarga.
+        request.session[self._clave_borrador] = {
+            clave: request.POST.get(clave, "")[: getattr(form.fields[clave], "max_length", None) or 1000]
+            for clave in campos
+        }
+
+    def _borrador(self, request):
+        borrador = request.session.get(self._clave_borrador)
+        return borrador if isinstance(borrador, dict) else {}
 
     def _iniciales(self):
         """La persona 1 arranca con los datos del responsable: es quien suele llegar primero."""
@@ -526,7 +556,6 @@ class FichaIntegranteView(_IntegranteView):
             form=form,
             confirmada=integrante.confirmada,
             cama=cama,
-            url_cama=self.url("cama", self.caso.pk, integrante.orden, cama=cama["id"] if cama else None),
         )
         if integrante.confirmada:
             cama_actual = integrante.estadia.plaza if integrante.estadia_id and integrante.estadia.plaza_id else None
@@ -548,15 +577,22 @@ class FichaIntegranteView(_IntegranteView):
             )
         cama = self.cama_pedida(request.GET.get("cama"))
         form = FichaIntegranteForm(
-            initial={**self._iniciales(), "plaza": cama["id"] if cama else None}, adultos=self._adultos()
+            initial={**self._iniciales(), **self._borrador(request), "plaza": cama["id"] if cama else None},
+            adultos=self._adultos(),
         )
         return self._render(request, form, cama)
 
     def post(self, request, pk, caso_pk, orden):
         if self.integrante.confirmada:
+            if "elegir_cama" in request.POST:
+                # Otra guardia la confirmó mientras tanto: no hay cama que elegir y no se escribe nada.
+                return redirect(self.url("ficha", caso_pk, orden))
             return self._completar(request)
         form = FichaIntegranteForm(request.POST, adultos=self._adultos())
         cama = self.cama_pedida(request.POST.get("plaza"))
+        if "elegir_cama" in request.POST:
+            self._guardar_borrador(request, form)
+            return redirect(self.url("cama", self.caso.pk, orden, cama=cama["id"] if cama else None))
         if not form.is_valid():
             return self._render(request, form, cama, status=400)
         try:
@@ -574,6 +610,7 @@ class FichaIntegranteView(_IntegranteView):
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
             return self._render(request, form, cama, status=400)
+        request.session.pop(self._clave_borrador, None)
         plaza = integrante.estadia.plaza
         messages.success(
             request,
