@@ -165,6 +165,7 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   Evidencia: «Crear relevamiento» en la solapa Infraestructura de P4
   (`programas/templates/programas/dispositivos/legajo/detail.html`).
 - **Modales del Equipo**: viven en `legajo/_equipo_modales.html`, que `legajo/detail.html` incluye; piden al contenedor `modalEquipo`, `modalCrearPersona` y `modalAlcance`.
+- **Modales de la estadía** (cambiar o asignar plaza, registrar egreso): viven en `legajo/_estadia_modales.html` (scripts del egreso en `_estadia_modales_js.html`), que `legajo/detail.html` y la solapa Estadías del edificio incluyen; piden al contenedor `modalCambio`, `modalEgreso` y `egreso`, y `next_url` opcional para volver a la página que los abrió.
 
 ## Prohibido
 
