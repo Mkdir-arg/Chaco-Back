@@ -14,6 +14,7 @@ Lo que se verifica, y por qué:
 
 import json
 import re
+from collections import Counter
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -494,6 +495,15 @@ class IdentidadDeEstadiasTests(BaseDetalle):
                 self.assertNotContains(respuesta, "Ver estadía")
                 if parametro:
                     self.assertContains(respuesta, f'aria-labelledby="modal-{parametro}-titulo"')
+
+    def test_el_modal_de_egreso_usa_el_cuerpo_compartido_y_la_pagina_no_repite_ids(self):
+        """El cuerpo es `_form_egreso.html` (el mismo de la estadía) y sus campos no chocan con otros modales."""
+        respuesta = self.client.get(self.url, {"tab": "estadias", "egreso": self.estadia.pk})
+
+        self.assertTemplateUsed(respuesta, "programas/dispositivos/_form_egreso.html")
+        html = respuesta.content.decode()
+        repetidos = [i for i, n in Counter(re.findall(r'\sid="([^"]+)"', html)).items() if n > 1]
+        self.assertEqual(repetidos, [])
 
     def test_con_ciudadano_ver_se_muestran_nombre_y_dni_sin_avatar(self):
         for parametro in (None, "egreso", "cambio"):

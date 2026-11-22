@@ -397,7 +397,7 @@ def _reserva_sobrante(derivacion, por_confirmar_despues):
 
 
 def _liberar_la_sobrante(*, derivacion, por_confirmar_despues, usuario):
-    """Libera la reserva sobrante tras quitar a una persona. Mismo orden de candados: plaza por pk, después la reserva.
+    """Libera la reserva sobrante tras quitar a una persona. Mismo orden de candados (`dispositivos.bloquear_instituciones`): institución, plaza por pk, después la reserva.
 
     Sin el alcance de quien opera, como en :func:`_ingresar_en_cama_libre`: es de la derivación cuyo alcance ya se
     exigió y puede estar en otro edificio si se reservó antes del Cambio 532.

@@ -669,6 +669,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 545 | Dispositivos · la institución se bloquea primero, en compartido: reservar, ingresar, cambiar de plaza y liberar no se cuelan en un «Cerrar» o «Inactivar» ni se cruzan con él en un deadlock | Dispositivos (estadías, reservas, plazas, bitácora) / Emergencia (reservas de derivación y confirmación) | `#dispositivos` `#emergencia` `#datos` | Pendiente del Cambio 536 | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 547 | Dispositivos / Emergencia · MINOR de las auditorías de #1317–#1321: carreras de la institución contra el motor real, orden de candados con una sola fuente, filtro «Localidad» exacto y limpieza de tests | Dispositivos (estadías, legajo, reportes) / Emergencia (candados, kits) | `#dispositivos` `#emergencia` `#datos` `#ui` | MINOR de las auditorías de los PR #1317, #1318, #1319 y #1321 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -62593,6 +62594,111 @@ No requiere.
 
 ## Reversión
 Desplegar el código anterior: no hay datos nuevos.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+---
+
+# Cambio 547 — Dispositivos y Emergencia · MINOR de las auditorías de #1317–#1321
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (estadías, legajo, reportes, selectores) y Emergencia (docstrings del orden de candados, tests de kits) |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#datos` `#ui` |
+| **Solicitante** | MINOR de las auditorías de los PR #1317, #1318, #1319 y #1321 (PR de MINOR del carril) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (el filtro «Localidad» y su exportación) · tests · documentación |
+| **Migración** | No requiere |
+
+## Pedido original
+Cerrar en un solo PR los MINOR que dejaron las auditorías de los PR #1317, #1318, #1319 y #1321, empezando por el Pendiente del
+Cambio 545: un test `@tag("mysql")` que deje en el job «Motor real» las carreras de la institución contra «Cerrar» e «Inactivar».
+
+## Alcance acordado
+Consultado el archivo vivo (Cambios 536, 541, 542, 543 y 545): ninguna decisión registrada choca. **Entra:** el test de carrera, los
+docstrings del orden de candados, la limpieza de `test_dispositivos_bloqueo_institucion.py`, la regla del filtro «Localidad», el
+selector `localidades_visibles`, `exportar_qs` local, el test del JS de duplicados, el id del select de responsables, el test de la
+variante `formulario + asistencia` del auditor, los MINOR de Kits y el egreso, y la copia de `_plural`. **Queda afuera:** los MINOR de
+los PR #1322 y #1323 (`_ajax_js.html`, `tipo_detail.html`, `test_dispositivos_config.py`, `emergencia_dispositivo.py`,
+`test_emergencia_alojar_vistas.py`, con PR abiertos) y los que obligan a tocar `programas/selectors/kits.py` o fichas de `.claude/`
+(ver Pendientes).
+
+## Decisiones tomadas
+- **Carreras contra el motor real** (`CarreraDeInstitucionTests`, sobre `_BaseCarrera`, `@tag("mysql")`): cada pareja corre en los dos
+  sentidos con `en_paralelo`, que exige a B en `LOCK WAIT` mientras A conserva la transacción. A o B esperan en el
+  `SELECT … LOCK IN SHARE MODE` de `bloquear_instituciones` (compartido) o en el `SELECT … FOR UPDATE` de `_transicionar` (exclusivo).
+  *Reservar contra cerrar:* con la reserva primero, el cierre espera y después se rechaza («hay 1 reserva vigente»), la institución
+  sigue `ACTIVO` y la reserva vigente; con el cierre primero, la reserva espera y se rechaza («el dispositivo está cerrado») y no queda
+  ninguna reserva sobre una institución cerrada. *Liberar contra inactivar:* con liberar primero, «Inactivar» espera y termina (las dos
+  operaciones, sin perdedor); con «Inactivar» primero, liberar espera **antes** de tomar la plaza y se rechaza con «La reserva ya no
+  está vigente», sin `ERROR 1213`. Ese último sentido es el del deadlock original del Cambio 545.
+- **`bloquear_instituciones` es la fuente única del orden de candados** (institución → plaza → reserva / estadía → persona): los
+  docstrings de `emergencia.py`, `emergencia_alojar.py`, `reservas_derivacion.py`, `emergencia_confirmacion.py` y `estadias.py` remiten
+  a ella en vez de repetirlo, y Emergencia lo escribe como «caso → derivación → [orden de Dispositivos]». En `dispositivos.py` «el cambio
+  siguiente» pasó a ser «el Cambio 545». Solo comentarios y docstrings.
+- **Filtro «Localidad» (default del juez, a confirmar por el PM):** si el valor recibido es una de las localidades que el select ofrece
+  —las de `localidades_visibles(user)`, es decir, las del alcance de quien mira— se filtra exacto (`iexact`); si es texto libre (un
+  enlace viejo, `barran`) sigue como siempre con `icontains`. Así «Corzuela» ya no trae «Corzuela Norte». La regla vive en un solo lugar,
+  `reportes.filtrar_dispositivos(..., localidades_ofrecidas=…)`, y la usan el listado y la exportación. Se eligió comparar contra la lista
+  ofrecida y no contra la base para no sumar una consulta (el listado ya tiene presupuesto fijado en el Cambio 543). El campo de
+  búsqueda libre `q` no cambia: sigue buscando por contenido también en la localidad.
+- **`localidades_visibles(user)`** sale de la vista a `services/dispositivos.py`, junto a `dispositivos_visibles` (la misma consulta, sin
+  cambios). La vista la calcula una vez en `get_queryset` y la reusa en el contexto.
+- **`exportar_qs`** deja de ser variable de contexto (solo la leían los tests): los tests miran `url_exportar_csv` y `url_exportar_xlsx`.
+- **Id de responsables:** se eligió el menor diff, un test que afirma que el alta dibuja `id="id_responsables"`, que es el que busca
+  `dispositivos-legajo-responsables.js`. No se pasó por `data-select`.
+- **Variante `formulario + asistencia`:** test con el `legajo/form.html` real (0 hallazgos con la declaración, 1 sin ella).
+- **`id_motivo` repetido en la misma página:** se verificó contra el render real del legajo (P4, modal de egreso) y de la estadía (P7) y
+  **no se repite** (la estadía ya lo cubría con `auto_id` propio en el modal de cambio de plaza). Se dejó un test que lo afirma para el
+  legajo y la verificación de que ambos usan `_form_egreso.html`.
+- **`_plural`** de `services/detalle_dispositivo.py` se reemplaza por `bitacora_detalle.plural`, como ya hacía `estado_institucion.py`.
+
+## Implementación
+Sin cambios de comportamiento salvo el filtro «Localidad» (ver arriba): lo ofrecido por el select filtra exacto. El resto es tests,
+documentación del código y mover una consulta a su selector.
+
+## Archivos
+`programas/tests/test_dispositivos_concurrencia.py` (`CarreraDeInstitucionTests`, 4 tests `@tag("mysql")`),
+`programas/services/dispositivos.py` (docstring y `localidades_visibles`), `programas/services/reportes.py`,
+`programas/views/dispositivos_legajo.py`, `programas/views/reportes.py`, `programas/services/detalle_dispositivo.py`,
+`programas/services/emergencia.py`, `emergencia_alojar.py`, `reservas_derivacion.py`, `emergencia_confirmacion.py` y `estadias.py`
+(docstrings), y los tests `test_dispositivos_bloqueo_institucion.py`, `test_dispositivos_diseno_d.py`, `test_dispositivos_listado.py`,
+`test_dispositivos_detalle.py`, `test_dispositivos_estadia_detalle.py`, `test_emergencia_kits_vistas.py`, `js/duplicados_fi.cjs` y
+`core/tests/test_design_audit_estructura.py`.
+
+## Base de datos
+No requiere. Sin columnas ni migraciones; `makemigrations --check --dry-run` (con `DJANGO_SYNCDB_PROJECT_APPS=False`) sin cambios. Las
+consultas del listado no cambian: la de localidades ya existía y ahora la usa también el filtro.
+
+## Validación
+- **Mutación** (cada una en rojo, restaurando leyendo y escribiendo el archivo, sin `stash`): `bloquear_instituciones` leyendo sin
+  candado compartido → los 4 tests de carrera; `liberar_reserva` tomando la plaza antes que la institución → el sentido «Inactivar
+  primero»; el filtro siempre `icontains` / siempre `iexact` / la exportación sin la lista ofrecida → los tests de localidad; `fetch`
+  a otra URL → `test_dispositivos_fidelidad_fi`; otro `id` en el select de responsables → el test del alta; la variante
+  `formulario + asistencia` renombrada → el test del auditor; sacar `_form_egreso.html` de la estadía o del legajo → sus tests.
+- **Motor real:** las cuatro carreras corridas contra MariaDB 10.11 en Docker (`MARIADB_INITDB_SKIP_TZINFO=1`, base efímera, el contenedor
+  se borró al terminar). Quedan en el job «Motor real» del CI.
+- `test_dispositivos_*` y `test_emergencia_*` en SQLite, `manage.py check`, `design_audit --ratchet`, `compile_templates --bloques`,
+  `check_design_agent --limites`, ruff y `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- **Pregunta al PM:** ¿el filtro «Localidad» exacto para lo que el select ofrece es lo que se quiere? Es un default del juez; revertirlo
+  es sacar el `iexact` de `filtrar_dispositivos`.
+- **Quedaron afuera por tocar piezas canónicas o `.claude/`:** `programas/selectors/kits.py` (docstring de `entregas_pendientes_de`) y
+  las fichas de `.claude/design/` (incluida la cita de `_liberar_reservas_al_inactivar` en `dominio/becas.md`). Siguen siendo los
+  Pendientes del Cambio 541.
+- **MINOR de los PR #1322 y #1323:** en su propio PR cuando se cierren los abiertos.
+- Sigue el pendiente del 536 sobre `asignar_plaza` en una institución cerrada o inactiva.
+
+## Reversión
+Desplegar el código anterior. Los tests y los docstrings no tienen efecto en datos.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

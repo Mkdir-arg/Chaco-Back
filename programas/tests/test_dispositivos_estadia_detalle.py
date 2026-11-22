@@ -547,9 +547,11 @@ class PantallaTests(BaseDetalle):
     def test_la_pantalla_no_repite_ids(self):
         """Los dos modales tienen un campo `motivo`: sin `auto_id` propio saldrían dos `id_motivo`."""
 
-        html = self._get().content.decode()
+        respuesta = self._get()
+        html = respuesta.content.decode()
         repetidos = [i for i, n in Counter(re.findall(r'\sid="([^"]+)"', html)).items() if n > 1]
 
+        self.assertTemplateUsed(respuesta, "programas/dispositivos/_form_egreso.html")
         self.assertEqual(repetidos, [])
         self.assertIn('id="cambio_motivo"', html)
         self.assertIn('id="id_motivo"', html)

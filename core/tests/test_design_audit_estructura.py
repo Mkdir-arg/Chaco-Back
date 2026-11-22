@@ -378,6 +378,25 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
             self.assertEqual(self.marcadores("detalle", [str(con)])[0], 0)
             self.assertEqual(self.marcadores("detalle", [str(sin)])[0], 1)
 
+    def test_la_variante_formulario_con_asistencia_se_declara_y_no_se_infiere(self):
+        """El legajo de Dispositivos (P3) declara `formulario + asistencia`; sin la declaración no pasa.
+
+        Su `<form>` es contenedor `space-y-5` y las tarjetas son sus hijas: eso no es el formulario común, y
+        el gate solo lo acepta si alguien lo escribió. Mutación: sacar la entrada de
+        `VARIANTES_DE_ARQUETIPO` o la declaración del template da el resultado contrario.
+        """
+        legajo = Path(__file__).resolve().parents[2] / "programas/templates/programas/dispositivos/legajo/form.html"
+        declarado = legajo.read_text(encoding="utf-8")
+        declaracion = "{# arquetipo: formulario + asistencia #}"
+        self.assertIn(declaracion, declarado)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            sin = Path(tmp) / "sin.html"
+            sin.write_text(declarado.replace(declaracion, ""), encoding="utf-8")
+
+            self.assertEqual(self.marcadores("formulario", [str(legajo)])[0], 0)
+            self.assertEqual(self.marcadores("formulario", [str(sin)])[0], 1)
+
     def test_la_variante_apilada_exige_el_nombre_accesible_de_la_seccion(self):
         """Sin solapas, la sección es la unidad navegable: el nombre no es opcional."""
         sin_nombre = (

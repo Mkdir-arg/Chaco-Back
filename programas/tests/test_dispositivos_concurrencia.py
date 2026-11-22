@@ -91,6 +91,7 @@ from programas.services.estadias import (
     liberar_reserva,
     reservar_plaza,
 )
+from programas.services.estado_institucion import cerrar_dispositivo, inactivar_dispositivo
 from programas.services.inspecciones import (
     CONFLICTO_YA_REALIZADA,
     InspeccionEnConflicto,
@@ -542,6 +543,122 @@ class CarreraDePlazaTests(_BaseCarrera):
         else:
             self.assertEqual(reserva.estado, ReservaPlaza.Estado.LIBERADA)
             self.assertFalse(alojada, "la reserva se liberó y quedó alguien alojado igual")
+
+
+# --------------------------------------------------------------------------- #
+# La institución se bloquea primero (Cambio 545)
+# --------------------------------------------------------------------------- #
+
+
+def _institucion_en_compartido(sql):
+    """El `SELECT … LOCK IN SHARE MODE` de `bloquear_instituciones` sobre la institución."""
+
+    return "LOCK IN SHARE MODE" in sql and punto_critico(Dispositivo, "bloquear_instituciones")(sql)
+
+
+#: El `SELECT … FOR UPDATE` con el que `_transicionar` (cerrar, inactivar) toma la institución.
+INSTITUCION_EN_EXCLUSIVO = punto_critico(Dispositivo, "_transicionar")
+
+
+@tag("mysql")
+class CarreraDeInstitucionTests(_BaseCarrera):
+    """«Cerrar» e «Inactivar» contra los caminos que bloquean la institución en compartido (Cambio 545).
+
+    Lo que se mide es el orden institución → plaza → reserva, que en SQLite no existe: sin él, estas
+    parejas se esperaban en cruz y el motor cortaba una con `ERROR 1213` (un 500), o una reserva se
+    colaba en una institución que otro operador estaba cerrando. Cada pareja se corre en los dos
+    sentidos: quien tiene el candado primero es A, y B se exige en LOCK WAIT.
+    """
+
+    def _reservar(self, ciudadano):
+        def operacion():
+            return reservar_plaza(
+                plaza=Plaza.objects.get(pk=self.plaza.pk),
+                ciudadano=Ciudadano.objects.get(pk=ciudadano.pk),
+                usuario=self._fresco(self.operador),
+            )
+
+        return operacion
+
+    def _cerrar(self):
+        return lambda: cerrar_dispositivo(Dispositivo.objects.get(pk=self.cis.pk), self._fresco(self.operador))
+
+    def _inactivar(self):
+        return lambda: inactivar_dispositivo(Dispositivo.objects.get(pk=self.cis.pk), self._fresco(self.operador))
+
+    def _liberar(self, reserva):
+        return lambda: liberar_reserva(
+            reserva=ReservaPlaza.objects.get(pk=reserva.pk),
+            usuario=self._fresco(self.operador),
+            motivo="La persona no se presentó",
+        )
+
+    def _estado(self):
+        return Dispositivo.objects.get(pk=self.cis.pk).estado
+
+    def _vigentes(self):
+        return ReservaPlaza.objects.filter(plaza__sector__dispositivo=self.cis, estado=ReservaPlaza.Estado.VIGENTE)
+
+    def test_reservar_primero_hace_esperar_al_cierre_que_despues_se_rechaza(self):
+        resultados, errores = en_paralelo(
+            self._reservar(self.ana),
+            self._cerrar(),
+            punto_a=_institucion_en_compartido,
+            punto_b=INSTITUCION_EN_EXCLUSIVO,
+        )
+
+        self.assertEqual(len(resultados), 1, "la reserva se perdió")
+        error = self._un_error(errores)
+        self.assertIn("No se puede cerrar", str(error))
+        self.assertEqual(self._estado(), Dispositivo.Estado.ACTIVO)
+        self.assertEqual(self._vigentes().count(), 1)
+
+    def test_cerrar_primero_hace_esperar_a_la_reserva_que_despues_se_rechaza(self):
+        resultados, errores = en_paralelo(
+            self._cerrar(),
+            self._reservar(self.ana),
+            punto_a=INSTITUCION_EN_EXCLUSIVO,
+            punto_b=_institucion_en_compartido,
+        )
+
+        self.assertEqual(len(resultados), 1, "el cierre se perdió")
+        error = self._un_error(errores)
+        self.assertIn("No se puede reservar una plaza", str(error))
+        self.assertEqual(self._estado(), Dispositivo.Estado.CERRADO)
+        self.assertEqual(self._vigentes().count(), 0, "quedó una reserva sobre una institución cerrada")
+
+    def test_liberar_primero_hace_esperar_a_inactivar_que_despues_termina(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.ana, usuario=self._fresco(self.operador))
+
+        resultados, errores = en_paralelo(
+            self._liberar(reserva),
+            self._inactivar(),
+            punto_a=_institucion_en_compartido,
+            punto_b=INSTITUCION_EN_EXCLUSIVO,
+        )
+
+        self.assertEqual((len(resultados), errores), (2, []), f"sin deadlock ni perdedor: {errores!r}")
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.LIBERADA)
+        self.assertEqual(self._estado(), Dispositivo.Estado.INACTIVO)
+
+    def test_inactivar_primero_hace_esperar_a_liberar_que_despues_se_rechaza_sin_deadlock(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.ana, usuario=self._fresco(self.operador))
+
+        resultados, errores = en_paralelo(
+            self._inactivar(),
+            self._liberar(reserva),
+            punto_a=INSTITUCION_EN_EXCLUSIVO,
+            punto_b=_institucion_en_compartido,
+        )
+
+        self.assertEqual(len(resultados), 1, "inactivar se perdió")
+        error = self._un_error(errores)
+        self.assertIn("ya no está vigente", str(error))
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.LIBERADA)
+        self.assertEqual(reserva.motivo, "Se inactivó la institución")
+        self.assertEqual(self._estado(), Dispositivo.Estado.INACTIVO)
 
 
 # --------------------------------------------------------------------------- #

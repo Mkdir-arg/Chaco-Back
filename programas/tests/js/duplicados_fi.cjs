@@ -34,8 +34,9 @@ const nombre = input('Institución FI');
 const localidad = input('Resistencia');
 const elementos = { id_codigo: codigo, id_nombre: nombre, id_localidad: localidad,
   'duplicate-search': aviso, 'duplicate-empty': vacio, 'duplicate-count': contador };
+const URL_DUPLICADOS = '/dispositivos/duplicados/';
 global.document = {
-  currentScript: { dataset: { url: '/dispositivos/duplicados/' } },
+  currentScript: { dataset: { url: URL_DUPLICADOS } },
   getElementById: id => elementos[id],
   createElement: () => ({ appendChild() {} }),
 };
@@ -46,10 +47,14 @@ global.Swal = { fire: (...args) => {
 } };
 const limpio = { codigo_duplicado: false, coincidencias: [] };
 const respuesta = data => Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
+// El primer argumento de cada `fetch` se registra: el JS tiene que pedir a la URL inyectada en el <script>.
+const pedidas = [];
+const pedir = url => { pedidas.push(String(url)); };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function pendienteQueSeAborta() {
   let primera = true;
-  global.fetch = (_, options) => {
+  global.fetch = (url, options) => {
+    pedir(url);
     if (!primera) return respuesta(limpio);
     primera = false;
     return new Promise((resolve, reject) => options.signal.addEventListener('abort',
@@ -75,20 +80,20 @@ eval(script);
   assert.equal(enviado, 0);
 
   const coincidencias = [{codigo: 'FJ-1', nombre: 'Institución FJ', localidad: 'Resistencia'}];
-  global.fetch = () => respuesta({ codigo_duplicado: false, coincidencias });
+  global.fetch = url => { pedir(url); return respuesta({ codigo_duplicado: false, coincidencias }); };
   codigo.listeners.blur();
   await tick();
   nombre.listeners.blur();
   await tick();
   assert.equal(lista.hijos.length, 1, 'Dos búsquedas deben reemplazar la lista, sin acumular hijos');
   assert.equal(Number(contador.textContent), 1, 'El badge cuenta las coincidencias visibles');
-  global.fetch = () => respuesta({ codigo_duplicado: false, coincidencias: [...coincidencias, ...coincidencias] });
+  global.fetch = url => { pedir(url); return respuesta({ codigo_duplicado: false, coincidencias: [...coincidencias, ...coincidencias] }); };
   codigo.listeners.blur();
   await tick();
   assert.equal(Number(contador.textContent), 2, 'El badge se actualiza con cada búsqueda');
 
   // Coincidencia que el endpoint no puede revelar por alcance: explica y bloquea.
-  global.fetch = () => respuesta({ codigo_duplicado: true, coincidencias: [] });
+  global.fetch = url => { pedir(url); return respuesta({ codigo_duplicado: true, coincidencias: [] }); };
   codigo.listeners.blur();
   await tick();
   assert.equal(aviso.classList.hidden, false, 'El código repetido sin filas visibles debe explicar el bloqueo');
@@ -100,7 +105,7 @@ eval(script);
   assert.equal(focos, 1, 'El bloqueo debe llevar el foco al aviso');
   assert.equal(Number(contador.textContent), 0, 'No se cuentan coincidencias fuera del alcance');
 
-  global.fetch = () => respuesta(limpio);
+  global.fetch = url => { pedir(url); return respuesta(limpio); };
   codigo.listeners.blur();
   await tick();
   assert.equal(aviso.classList.hidden, true);
@@ -117,4 +122,6 @@ eval(script);
   await tick();
   assert.equal(enviado, 1);
   assert.equal(ultimoBoton, boton, 'El envío debe conservar accion=enviar_validacion');
+  assert.ok(pedidas.length > 0, 'Nunca pidió duplicados');
+  assert.ok(pedidas.every(url => url.startsWith(URL_DUPLICADOS)), `Pidió fuera de la URL inyectada: ${pedidas}`);
 })().catch(error => { process.stderr.write(error.stack); process.exitCode = 1; });

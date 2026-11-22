@@ -38,6 +38,7 @@ from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio, sectores_por_edificio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import CAP_VER, alcance_de_edificios, q_edificios_en_alcance
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
@@ -438,10 +439,6 @@ _LARGO_OBSERVACION = 140
 #: edificio de la ficha (`chips_enlace.md`: hasta 6 en una fila; el resto queda detrás de «Los N edificios»).
 _TOPE_TARJETAS = 60
 _TOPE_CHIPS = 6
-
-
-def _plural(cantidad, singular, plural):
-    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
 def clave_estado_edilicio(ultima):

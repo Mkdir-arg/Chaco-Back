@@ -43,9 +43,10 @@ Cómo está hecha cada función
 El orden de los candados
 ------------------------
 
-El global del módulo (plan §8, R1)::
+El global del módulo (plan §8, R1): el caso y la derivación, y después el orden de Dispositivos, cuya
+fuente única es `dispositivos.bloquear_instituciones` (institución → plaza → reserva → persona)::
 
-    caso → derivación → plazas (por pk) → reservas → persona
+    caso → derivación → [institución → plaza (por pk) → reserva → persona]
 
 * El caso y la derivación los bloquea **este módulo**; ``estadias.py`` y
   ``reservas_derivacion.py`` no los bloquean ni los releen (contrato del PR 6). Sin JOIN, como
