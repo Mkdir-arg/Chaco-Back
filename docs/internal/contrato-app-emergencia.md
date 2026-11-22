@@ -597,7 +597,7 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
 | `resultado` | Qué significa | Qué hace la app |
 |---|---|---|
 | `DERIVACION` | Hay una derivación `PENDIENTE` o `ACEPTADA` **hacia este dispositivo** | `PENDIENTE` → M2-2 (aceptar o rechazar). `ACEPTADA` → M2-3 con `derivacion.caso.id` |
-| `SIN_DERIVACION` | No hay nada para este dispositivo. **Incluye** una derivación a otro: no se dice cuál ni que existe (RU-9) | M2-6: «Ingresar igual» si `puede_ingresar_igual` y `plazas_libres ≥ 1`; «Avisar a la mesa» si `puede_avisar_a_la_mesa`. Mostrar `mensaje` (si la derivación de acá venció, lo dice) |
+| `SIN_DERIVACION` | No hay nada para este dispositivo. **Incluye** una derivación a otro dispositivo: no se dice cuál ni que existe (RU-9). La excepción es la derivación a **otro edificio de este mismo dispositivo**: sigue siendo `SIN_DERIVACION`, pero `derivada_a_otro_edificio` viene en `true` | M2-6: «Ingresar igual» si `puede_ingresar_igual` y `plazas_libres ≥ 1`; «Avisar a la mesa» si `puede_avisar_a_la_mesa`. Mostrar `mensaje` (si la derivación de acá venció, lo dice) |
 | `ALOJADA` | La persona tiene una estadía abierta en la red | Mostrar `mensaje` y nada más. `alojada_aca`: si es en este dispositivo. `alojada_en` y `alojada_desde`, solo si el usuario puede ver ese dispositivo; si no, vacíos |
 
 - `puede_ingresar_igual` y `puede_avisar_a_la_mesa` (Cambio 532, **aditivas**): solo con `SIN_DERIVACION`
@@ -606,6 +606,14 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
   también **Edificios**. `puede_ingresar_igual` no mira las camas: el botón va si es `true` **y**
   `plazas_libres ≥ 1`. Una app anterior que no las lee sigue andando: con alcance Edificios, `ingreso-directo`
   le contesta 404 como hasta ahora (§13.10).
+- `derivacion.edificio` (Cambio 553, **aditiva**): `{id, nombre}` del edificio al que se derivó la familia, o
+  `null` si la derivación no lo trae. Solo con `DERIVACION`.
+- `derivada_a_otro_edificio` y `edificio_derivado` (Cambio 553, **aditivas**): con `SIN_DERIVACION`, `true` y
+  `{id, nombre}` cuando la familia ya tiene una derivación `PENDIENTE` o `ACEPTADA` hacia **otro edificio de
+  este dispositivo**, fuera del alcance del usuario (en los demás casos, `false` y `null`). El `mensaje` ya trae
+  el texto («La familia ya está derivada al edificio X de este dispositivo. No la avises a la mesa.») y
+  `puede_avisar_a_la_mesa` / `puede_ingresar_igual` vienen en `false`: la app muestra `mensaje` y no ofrece
+  ningún botón. Solo se nombra el edificio destino.
 - `plazas_libres` cuenta las camas libres de **todo el dispositivo** que el usuario alcanza (con alcance
   Edificios, las de sus edificios), **no** las del edificio de la derivación. Sirve para decidir el botón de
   M2-6 y como referencia; no anticipa cuántas reserva «Aceptar», que toma solo del edificio derivado
@@ -697,6 +705,7 @@ u `observacion`; 409 si ya no estaba pendiente.
 | `integrantes[].persona` | La persona confirmada (legajo); `null` hasta confirmar |
 | `integrantes[].responsable` | Solo en `n` 1: el responsable que cargó el caso, `{id, nombre, dni}`, **también sin confirmar** (Cambio 521). La app rotula con él la persona 1 en vez de «Persona 1». En las demás, `null` |
 | `integrantes[].plaza` | La cama **de hoy** (si la cambiaron desde el mapa, la nueva) |
+| `integrantes[].es_adulto` | (Cambio 553, **aditiva**) `true` solo si la persona está `CONFIRMADA`, sin egresar y con 18 años cumplidos (por la fecha de la ficha o la del legajo): la misma regla con la que el servidor valida `adulto_responsable_orden`. La app ofrece en el selector las filas con `es_adulto` y excluye la fila propia |
 | `integrantes[].id` | (Cambio 539, **aditiva**) La clave de la **fila**, no de la persona: `n` se reusa cuando se quita una agregada y se suma otra, `id` no. «Quitar persona» lo reenvía en el cuerpo. Una app que no lo lee sigue andando |
 | `integrantes[].puede_quitarse` | (Cambio 537, **aditiva**) `true` si la persona se agregó en la puerta con «Agregar persona», sigue `SIN_CONFIRMAR` y el ingreso está en curso: la app ofrece «Quitar persona». Nunca es `true` para el responsable ni para las del Formulario 1 (`n` de 1 a `declaradas_al_relevar`). Una app que no la lee sigue andando |
 | `confirmadas` / `total_declarado` | El contador «1 de 7 confirmadas» |
@@ -776,7 +785,7 @@ persona todavía no se confirmó, o por campo si un valor no es del tipo.
 ```json
 {"caso": 184,
  "sectores": [
-   {"sector": {"id": 3, "nombre": "Pabellón A", "perfil": "Familias"},
+   {"sector": {"id": 3, "nombre": "Pabellón A", "perfil": "Familias", "edificio": {"id": 2, "nombre": "Edificio Central"}},
     "plazas": [
       {"id": 41, "codigo": "A-01", "nombre": "A-01 (Pabellón A)", "estado": "RESERVADA_FAMILIA",
        "elegible": true, "texto": "Reservada para esta familia", "tono": "warning", "detalle": ""},
@@ -793,6 +802,8 @@ persona todavía no se confirmó, o por campo si un valor no es del tipo.
 | `FUERA_SERVICIO` | no | `detalle` trae el motivo |
 | `RESERVADA` | no | Guardada para **otra** persona o familia. No se dice para quién |
 
+- `sector.edificio` (Cambio 553, **aditiva**): `{id, nombre}` del edificio del sector, o `null` si no tiene.
+  Con alcance Edificios solo vienen los sectores de los edificios del usuario.
 - La app mira solo `elegible` para dejar elegir. `texto` y `tono` son los del backoffice: se pueden
   ignorar.
 - `?caso=` tiene que ser un caso derivado a **este** dispositivo (si no, 404). Sin él, ninguna cama
@@ -940,6 +951,12 @@ alcance Edificios contesta 404, como un dispositivo ajeno; la app no ofrece el b
 caso `NUEVO` con la marca «En la puerta de …»; la mesa lo deriva y la guardia busca de nuevo. No exige
 camas. Respuesta **201** (o **200** en el reenvío) `{"caso": {…}}`. Idempotente igual que el ingreso
 directo. Vale con cualquier alcance del Equipo, también Edificios (Cambio 532; antes contestaba 404).
+
+**400 si la familia ya está derivada a este dispositivo** (Cambio 553): si el DNI del responsable tiene una
+derivación `PENDIENTE` o `ACEPTADA` hacia este mismo dispositivo, de cualquier edificio, el servidor rechaza con
+`{"detail": "La familia ya está derivada al edificio X de este dispositivo. No la avises a la mesa.", "code":
+"VALIDACION", "non_field_errors": [...]}` y **no crea el caso**. Es el mismo texto de `mensaje` de §13.2. Un
+reintento con el mismo `uuid_cliente` de un aviso ya creado no pasa por esta guarda.
 
 ### 13.11 La ficha individual (Formulario 2)
 

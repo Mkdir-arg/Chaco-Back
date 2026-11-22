@@ -10,7 +10,6 @@ from datetime import datetime
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models, transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
@@ -32,13 +31,15 @@ from programas.services.emergencia_ingreso_comun import (
     _asegurar_filas,
     _bloquear_derivacion,
     _camas,
+    _de_la_persona,
     _devolver_a_la_mesa,
     _dia_y_mes,
     _dispositivo_de,
     _por_que_ya_no,
     _reservar_camas,
     _resumen_de_reservas,
-    derivacion_vigente_a_otro_edificio,
+    derivacion_en_curso_de,
+    derivaciones_en_curso_de,
     mensaje_otro_edificio,
     mensaje_vencida,
     puede_avisar_a_la_mesa,
@@ -163,20 +164,11 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     if ciudadano is None:
         return _sin_derivacion(usuario, dispositivo, dni, libres, SIN_DERIVACION, puede_avisar)
 
-    de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     derivacion = (
-        Derivacion.objects.en_curso()
-        .filter(
-            de_la_persona,
-            # La guarda de RU-9: solo lo derivado a **este** dispositivo. Es la única línea
-            # que separa a la guardia de A de la familia que va a B.
-            dispositivo=dispositivo,
-        )
+        derivaciones_en_curso_de(ciudadano, dispositivo)
         # Con alcance Edificios, solo lo derivado a uno de sus edificios: la de otro es «sin derivación».
         .filter(q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id"))
-        .select_related("caso__grupo__responsable", "caso__localidad", "derivada_por", "respondida_por", "edificio")
-        .distinct()
-        .order_by("-id")
+        .select_related("caso__grupo__responsable", "caso__localidad", "derivada_por", "respondida_por")
         .first()
     )
     if derivacion is not None:
@@ -204,7 +196,7 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     # Una derivación vigente a **este** dispositivo que el alcance de edificios dejó afuera: la familia ya tiene
     # su cama en otro edificio. «Avisar a la mesa» crearía un caso duplicado: no se ofrece, y se dice dónde está.
     # Solo se nombra el edificio destino (la guardia del dispositivo lo ve en su institución).
-    del_otro_edificio = derivacion_vigente_a_otro_edificio(ciudadano, dispositivo)
+    del_otro_edificio = derivacion_en_curso_de(ciudadano, dispositivo)
     if del_otro_edificio is not None:
         edificio = del_otro_edificio.edificio
         return ResultadoBusqueda(
@@ -219,7 +211,7 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     # RN-3.3: una derivación a este dispositivo que ya venció no se acepta, pero se cuenta por qué.
     vencida = (
         Derivacion.objects.filter(
-            de_la_persona,
+            _de_la_persona(ciudadano),
             dispositivo=dispositivo,
             estado=Derivacion.Estado.VENCIDA,
             caso__estado__in=(Estado.NUEVO, Estado.EN_GESTION),

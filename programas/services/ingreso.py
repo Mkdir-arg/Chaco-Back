@@ -17,6 +17,7 @@ Dos reglas que no se pueden perder:
    no queda un legajo huérfano.
 """
 
+import logging
 from typing import NamedTuple
 
 from django.core.exceptions import ValidationError
@@ -37,6 +38,8 @@ from programas.services.estadias import (
 )
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import ESTADO_PRESTADA, ESTADO_RESERVADA, estado_de_plazas
+
+logger = logging.getLogger(__name__)
 
 #: Los estados en los que una plaza puede ser la que la persona tiene guardada.
 ESTADOS_GUARDADOS = (ESTADO_RESERVADA, ESTADO_PRESTADA)
@@ -84,6 +87,10 @@ def buscar_ciudadano_por_dni(dni):
     return None
 
 
+MOTIVO_NO_ESTA_EN_REGISTRO = "No está en el Registro de Personas."
+MOTIVO_REGISTRO_NO_CONSULTADO = "No se pudo consultar el Registro de Personas."
+
+
 class RespuestaRegistro(NamedTuple):
     """Lo que respondió el Registro de Personas, con el motivo de la falla por separado."""
 
@@ -95,7 +102,9 @@ class RespuestaRegistro(NamedTuple):
 def buscar_en_registro_de_personas(dni, sexo):
     """Pide los datos a RENAPER y devuelve `RespuestaRegistro(datos, motivo, fallecido)`.
 
-    `motivo` es el texto de la falla, sin prefijo ni punto final (vacío si hubo datos);
+    `motivo` es un texto fijo y legible para el operador, con su punto final (vacío si hubo datos):
+    «No está en el Registro de Personas.» o «No se pudo consultar el Registro de Personas.». El log
+    registra solo el código HTTP, nunca el texto de error del proveedor (puede traer el DNI).
     `fallecido` distingue a la persona que figura fallecida, que nunca se aloja.
     """
 
@@ -103,8 +112,17 @@ def buscar_en_registro_de_personas(dni, sexo):
     if resultado.get("fallecido"):
         return RespuestaRegistro(None, "La persona consultada figura como fallecida en el Registro de Personas.", True)
     if not resultado.get("success"):
-        motivo = str(resultado.get("error") or "error desconocido").strip().rstrip(".")
-        return RespuestaRegistro(None, motivo, False)
+        # Solo datos no personales: el error crudo del proveedor puede traer el eco de lo que se le mandó (el DNI).
+        codigo = resultado.get("status_code")
+        logger.warning(
+            "Registro de Personas sin datos en el ingreso: consulta fallida (%s)",
+            f"HTTP {codigo}" if codigo else "sin respuesta HTTP",
+        )
+        return RespuestaRegistro(
+            None,
+            MOTIVO_NO_ESTA_EN_REGISTRO if resultado.get("status_code") == 404 else MOTIVO_REGISTRO_NO_CONSULTADO,
+            False,
+        )
     datos = {campo: resultado["data"].get(campo) for campo in CAMPOS_RENAPER}
     datos["dni"] = normalizar_dni(datos["dni"] or dni)
     return RespuestaRegistro(datos, "", False)
