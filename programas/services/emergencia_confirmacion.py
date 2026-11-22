@@ -12,7 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.dni import dni_valido, normalizar_dni
-from core.edad import MAYORIA_DE_EDAD, edad_en_anios, fecha_o_none
+from core.edad import fecha_o_none
 from legajos.models import Ciudadano
 from legajos.models.contactos import TipoVinculo, VinculoFamiliar
 from programas.models import (
@@ -22,7 +22,7 @@ from programas.models import (
     ReservaPlaza,
     TrazaCaso,
 )
-from programas.selectors.emergencia_alojar import camas_libres
+from programas.selectors.emergencia_alojar import camas_libres, es_adulto_confirmado
 from programas.services.dispositivos import bloquear_institucion, bloquear_instituciones
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_alta import _como_uuid, nombre_en_conflicto
@@ -184,14 +184,6 @@ def _normalizar_telefono(ficha):
         raise ValidationError({"telefono": error.messages[0]}) from error
 
 
-def _edad_de_la_fila(fila, hoy=None):
-    """Años de un integrante confirmado: la fecha de su ficha (vale aproximada) o la del legajo."""
-
-    datos = (fila.ficha or {}).get(SECCION_DATOS) or {}
-    nacimiento = datos.get("fecha_nacimiento") or (fila.ciudadano.fecha_nacimiento if fila.ciudadano_id else None)
-    return edad_en_anios(nacimiento, hoy)
-
-
 def adultos_del_grupo(filas, *, excluir_orden=None, hoy=None):
     """Los adultos **confirmados** de la familia que pueden ser adulto responsable de otro.
 
@@ -203,10 +195,9 @@ def adultos_del_grupo(filas, *, excluir_orden=None, hoy=None):
 
     adultos = []
     for fila in filas:
-        if not fila.confirmada or fila.orden == excluir_orden or fila.egresado_en is not None:
+        if fila.orden == excluir_orden:
             continue
-        edad = _edad_de_la_fila(fila, hoy)
-        if edad is not None and edad >= MAYORIA_DE_EDAD:
+        if es_adulto_confirmado(fila, hoy):
             adultos.append({"orden": fila.orden, "nombre": fila.ciudadano.apellido_nombre})
     return adultos
 
