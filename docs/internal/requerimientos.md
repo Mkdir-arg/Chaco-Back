@@ -652,6 +652,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 530 | Emergencia · Llegadas: el administrador del programa y el superusuario recibían 403 al aceptar una derivación o «Ingresar igual» (`exclude` con el `Q()` vacío del alcance total) | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` | QA en testing del 21/11/2026 (#1298) | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -60722,6 +60723,7 @@ Desplegar el código anterior. Sin datos ni esquema.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **22/11/2026:** la decisión «con sexo en la consulta se pisa igual que antes» la revierte el Cambio 528 (la consulta devuelve siempre el sexo del legajo).
 - **21/11/2026:** MINOR de la auditoría del #1279, sin cambio de comportamiento: `sexo_opcional` se derivó de `buscar_en_legajos` (era un segundo flag que solo Emergencia pasaba y siempre junto al primero), el 200 del legajo salió a `_respuesta_del_legajo`, los helpers de los tests pasaron a `_ConsultaDePersonaBase` (la clase sin sexo heredaba de la de tests y volvía a correr sus 22 casos) y se documentó en el contrato por qué el 400 de Emergencia sigue nombrando el sexo.
 
 # Cambio 523 — Equipo de Dispositivos: alcance por institución o edificios y tipo de contratación
@@ -61235,3 +61237,67 @@ Ninguno.
 
 ## Reversión
 Desplegar el código anterior: vuelve el 403 para el admin y el superusuario. No hay datos que revertir.
+
+# Cambio 528 — Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · API de campo (consulta de identidad) |
+| **Etiquetas** | `#emergencia` `#api` `#mobile` |
+| **Solicitante** | Usuario — pruebas de la app de campo en testing, 21/11/2026 (#1301, #1299, #1300) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | #1301 (back), #1299 punto 4 (back) |
+| **Partes afectadas** | Servidor/API · Mobile (PRs aparte en Chaco-mobile) |
+| **Migración** | No requiere |
+
+## Pedido original
+En testing, el DNI 49103788 (legajo femenino) se buscó eligiendo masculino y la respuesta devolvió `sexo: "M"`: la consulta
+pisaba el sexo del legajo con el pedido. Además, el DNI de la app tiene que comportarse como el paso 1 de Dispositivos,
+incluidas las sugerencias mientras se escribe.
+
+## Alcance acordado
+`POST /api/emergencia/personas/consultar/` (sexo) y un extremo nuevo de sugerencias. Afuera: Becas (sigue igual), la
+búsqueda con sexo por Base de Personas, RBAC y los topes.
+
+## Decisiones tomadas
+- **El `sexo` de la respuesta es el del legajo** cuando responde el legajo, venga o no `sexo` en el cuerpo (`F`, `M` o `""` si
+  el legajo no lo tiene o es «X»). Revierte la última frase de la decisión del Cambio 522 («con sexo en la consulta se pisa
+  igual que antes»). Con sexo en el cuerpo la consulta sigue pasando por Base de Personas (fallecida, 502) como antes.
+- **Sugerencias para la app** (#1299, punto 4): `GET /api/emergencia/personas/sugerir/?q=`, permiso `emergencia.relevar`,
+  cubeta `personas_campo` (SEC-25, la de la consulta), reusando `sugerir_personas` del Cambio 415/416 (prefijo de DNI,
+  tope 10, solo apellido/nombre/DNI). Con menos de 5 dígitos no busca ni descuenta (el backoffice sigue con 3: una unidad de
+  cubeta revela hasta 10 personas). `Cache-Control: no-store`. No entra al
+  índice de la raíz, que no cambia.
+- **Riesgo conocido:** la cubeta es de 120 por hora y cada sugerencia que busca descuenta una; la app limita los pedidos
+  (mínimo 5 dígitos, espera entre teclas) y trata el 429 como «sin sugerencias». Si en campo se agota, separar una cubeta propia.
+
+## Implementación
+`programas/api/views.py` (`responder_consulta_de_persona`), `programas/api/views_emergencia.py` (`SugerirPersonasEmergenciaView`),
+`programas/api/serializers.py`, `programas/api_emergencia_urls.py`.
+
+## Archivos
+Los de arriba, `docs/internal/contrato-app-emergencia.md` (§4 y «Sugerencias de personas») y
+`programas/tests/test_emergencia_api_contrato.py` (+ `base_emergencia_api.py`).
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos: legajo F consultado con M devuelve F; legajo «X» devuelve `""`; sugerencias (prefijo, puntos, mínimo de 5,
+permiso `emergencia.relevar` incluso con el módulo abierto —la guardia da 403—, sin token (401), cubeta compartida, lo que no busca no descuenta, esquema con 429) y el barrido del namespace. El test que fijaba
+`sexo: "M"` se reemplazó. `manage.py check`, `makemigrations --check` y ruff: OK.
+
+## Puesta en marcha en el servidor
+No requiere. App vieja contra este back: sigue igual (con sexo recibe el del legajo). App nueva contra back viejo: la consulta
+sin sexo ya existe desde el Cambio 522; las sugerencias dan 404 y la app no las muestra.
+
+## Pendientes / a definir
+La app (Chaco-mobile): buscar solo por DNI, mostrar el sexo devuelto, normalización del DNI, sugerencias y los interruptores de #1300.
+
+## Reversión
+Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+- **22/11/2026:** alta del cambio.
