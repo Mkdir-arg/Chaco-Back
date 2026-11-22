@@ -30,6 +30,62 @@ from programas.services.equipo_dispositivo import (
 )
 
 
+def contexto_modal_sumar_persona(dispositivo, usuario, edificio_fijo=None, permisos=None):
+    """Contexto de «Sumar persona al Equipo» y de «Crear persona»; con ``edificio_fijo``, «Agregar persona al edificio».
+
+    La reutiliza cualquier vista que monte ``legajo/_equipo_modales.html``. No decide si ``usuario`` puede gestionar el
+    Equipo ni si el edificio es de ese dispositivo y está a su alcance: eso lo valida quien llama (la vista lo hace antes,
+    con ``edificios_donde_agregar_persona``), y el POST lo vuelve a exigir en el servidor.
+    """
+
+    permisos = permisos or permisos_del_equipo(usuario, dispositivo)
+    # «Crear persona» (Cambio 420) es de quien además administra los usuarios de Dispositivos: el resto ve
+    # el pedido al administrador, tanto en el aviso de «sin resultados» como bajo el buscador.
+    puede_crear = puede_crear_persona(usuario, dispositivo, permisos.gestiona)
+    context = {"puede_crear_persona": puede_crear}
+    opciones = None if edificio_fijo else opciones_de_alcance(usuario, dispositivo, permisos)
+    initial = {"edificio_fijo": edificio_fijo.pk} if edificio_fijo else None
+    url_sugerencias = reverse("dispositivos:equipo_personas_buscar", args=[dispositivo.pk])
+    context["form_equipo"] = SumarMiembroEquipoForm(
+        dispositivo=dispositivo,
+        url_sugerencias=url_sugerencias + ("?incluir=1" if edificio_fijo else ""),
+        sin_resultados=MENSAJE_EQUIPO_SIN_PERSONA if puede_crear else MENSAJE_EQUIPO_PEDIR_ALTA,
+        auto_id="equipo_%s",
+        opciones=opciones,
+        edificio_fijo=edificio_fijo is not None,
+        initial=initial,
+    )
+    context["url_equipo_sumar"] = reverse("dispositivos:equipo_sumar", args=[dispositivo.pk])
+    context["edificio_fijo"] = edificio_fijo
+    if puede_crear:
+        context["form_crear_persona"] = CrearPersonaEquipoForm(
+            roles=roles_para_crear_persona(usuario),
+            auto_id="crear_persona_%s",
+            opciones=opciones,
+            edificio_fijo=edificio_fijo is not None,
+            initial=initial,
+        )
+        context["url_equipo_crear_persona"] = reverse("dispositivos:equipo_crear_persona", args=[dispositivo.pk])
+    else:
+        context["mensaje_pedir_alta"] = MENSAJE_EQUIPO_PEDIR_ALTA
+    return context
+
+
+def contexto_modal_alcance(dispositivo, usuario, miembro, permisos=None):
+    """Contexto de «Cambiar alcance» de ``miembro``; quien llama ya comprobó ``miembro.puede_cambiar_alcance``."""
+
+    permisos = permisos or permisos_del_equipo(usuario, dispositivo)
+    return {
+        "miembro_alcance": miembro,
+        "form_alcance": AlcanceMiembroEquipoForm(
+            opciones=opciones_de_alcance(usuario, dispositivo, permisos),
+            miembro=miembro,
+            auto_id="alcance_%s",
+        ),
+        "url_equipo_alcance": reverse("dispositivos:equipo_alcance", args=[dispositivo.pk, miembro.pk]),
+    }
+
+
 class EquipoDelLegajoMixin:
     """La solapa «Equipo» de `DispositivoDetailView`: permisos, listado y modales de sumar y de alcance."""
 
@@ -74,43 +130,14 @@ class EquipoDelLegajoMixin:
             self._modal_sumar_persona(context, dispositivo, permisos, edificio_pk=_entero(agregar), en_edificio=True)
 
     def _modal_sumar_persona(self, context, dispositivo, permisos, edificio_pk=None, en_edificio=False):
-        user = self.request.user
         edificio = None
         if en_edificio:
-            donde = edificios_donde_agregar_persona(user, dispositivo, permisos)
+            donde = edificios_donde_agregar_persona(self.request.user, dispositivo, permisos)
             edificio = Edificio.objects.filter(pk=edificio_pk, dispositivos=dispositivo).first()
             if edificio is None or (donde is not None and edificio.pk not in donde):
                 messages.warning(self.request, "No se pueden agregar personas a ese edificio.")
                 return
-        # «Crear persona» (Cambio 420) es de quien además administra los usuarios de Dispositivos: el resto ve
-        # el pedido al administrador, tanto en el aviso de «sin resultados» como bajo el buscador.
-        puede_crear = puede_crear_persona(user, dispositivo, permisos.gestiona)
-        context["puede_crear_persona"] = puede_crear
-        opciones = None if edificio else opciones_de_alcance(user, dispositivo, permisos)
-        initial = {"edificio_fijo": edificio.pk} if edificio else None
-        url_sugerencias = reverse("dispositivos:equipo_personas_buscar", args=[dispositivo.pk])
-        context["form_equipo"] = SumarMiembroEquipoForm(
-            dispositivo=dispositivo,
-            url_sugerencias=url_sugerencias + ("?incluir=1" if edificio else ""),
-            sin_resultados=MENSAJE_EQUIPO_SIN_PERSONA if puede_crear else MENSAJE_EQUIPO_PEDIR_ALTA,
-            auto_id="equipo_%s",
-            opciones=opciones,
-            edificio_fijo=edificio is not None,
-            initial=initial,
-        )
-        context["url_equipo_sumar"] = reverse("dispositivos:equipo_sumar", args=[dispositivo.pk])
-        context["edificio_fijo"] = edificio
-        if puede_crear:
-            context["form_crear_persona"] = CrearPersonaEquipoForm(
-                roles=roles_para_crear_persona(user),
-                auto_id="crear_persona_%s",
-                opciones=opciones,
-                edificio_fijo=edificio is not None,
-                initial=initial,
-            )
-            context["url_equipo_crear_persona"] = reverse("dispositivos:equipo_crear_persona", args=[dispositivo.pk])
-        else:
-            context["mensaje_pedir_alta"] = MENSAJE_EQUIPO_PEDIR_ALTA
+        context.update(contexto_modal_sumar_persona(dispositivo, self.request.user, edificio, permisos))
 
     def _modal_alcance(self, context, dispositivo, miembros, permisos):
         """«Cambiar alcance» de una fila del Equipo, solo si el servidor se lo va a aceptar a quien lo abre."""
@@ -120,10 +147,4 @@ class EquipoDelLegajoMixin:
         if miembro is None or not miembro.puede_cambiar_alcance:
             messages.warning(self.request, "No se puede cambiar el alcance de esa persona.")
             return
-        context["miembro_alcance"] = miembro
-        context["form_alcance"] = AlcanceMiembroEquipoForm(
-            opciones=opciones_de_alcance(self.request.user, dispositivo, permisos),
-            miembro=miembro,
-            auto_id="alcance_%s",
-        )
-        context["url_equipo_alcance"] = reverse("dispositivos:equipo_alcance", args=[dispositivo.pk, miembro.pk])
+        context.update(contexto_modal_alcance(dispositivo, self.request.user, miembro, permisos))
