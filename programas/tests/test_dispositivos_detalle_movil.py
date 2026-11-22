@@ -22,7 +22,7 @@ class SolapasEnUnaFilaTests(BaseUI):
         html = self.client.get(self.url_detalle).content.decode()
         botones = re.findall(r'<button[^>]*role="tab"[^>]*>', html)
 
-        self.assertGreaterEqual(len(botones), 5)
+        self.assertGreaterEqual(len(botones), 4)
         for boton in botones:
             self.assertIn("shrink-0", boton)
             self.assertIn("whitespace-nowrap", boton)

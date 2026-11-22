@@ -278,7 +278,7 @@ def _url_editar(user, edificio, instituciones):
     )
     for institucion in candidatas:
         if institucion["pk"] in editables:
-            return f"{reverse('dispositivos:detalle', args=[institucion['pk']])}?tab=infraestructura&edificio={edificio.pk}"
+            return f"{reverse('dispositivos:detalle', args=[institucion['pk']])}?edificio={edificio.pk}"
     return ""
 
 

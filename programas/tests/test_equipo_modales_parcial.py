@@ -36,7 +36,7 @@ class MarkupDeLosModalesTests(BaseSelector):
 
     def test_agregar_persona_al_edificio_cambia_el_titulo_y_fija_el_edificio(self):
         self._entrar(self.admin_programa)
-        respuesta = self.client.get(f"{self.url_detalle}?tab=infraestructura&agregar_persona={self.ed1.pk}")
+        respuesta = self.client.get(f"{self.url_detalle}?agregar_persona={self.ed1.pk}")
 
         self.assertContains(respuesta, "Agregar persona al edificio")
         self.assertContains(respuesta, "Crear y sumar al Equipo")

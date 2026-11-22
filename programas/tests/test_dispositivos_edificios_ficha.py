@@ -175,7 +175,7 @@ class EditarEdificioTests(BaseFicha):
     """«Editar edificio» (Cambio 555): lleva al modal de Infraestructura de una institución que el usuario edita."""
 
     def _destino(self, dispositivo):
-        return f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?tab=infraestructura&edificio={self.predio.pk}"
+        return f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={self.predio.pk}"
 
     def _miembro_que_edita(self, nombre, dispositivo, alcance=None, edificios=()):
         usuario = self._usuario(nombre, ("edificio.ver", "dispositivo.ver", "dispositivo.editar"), [dispositivo])

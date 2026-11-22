@@ -198,19 +198,6 @@ class AgenteOcultoTests(BaseInforme):
         self.assertTrue(ve_la_asignacion(self._fresco(self.agente), inspeccion))
         self.assertFalse(ve_la_asignacion(self._fresco(self.otro_agente), inspeccion))
 
-    def test_en_la_solapa_infraestructura_el_evento_dice_en_curso_y_nada_mas(self):
-        self._en_curso()
-
-        respuesta = self._cliente(self.operador_geriatrico).get(
-            reverse("dispositivos:detalle", args=[self.geriatrico.pk])
-        )
-        evento = respuesta.context["infraestructura"]["eventos"][0]
-
-        self.assertEqual(evento["cuando"], "en curso")
-        # La pantalla entera, no solo el panel: la solapa Historial lee la misma asignación
-        # desde `TrazaInspeccion`, cuyo detalle se escribió con el nombre adentro.
-        self.assertNotIn(self.nombre_agente, respuesta.content.decode())
-
     def test_el_historial_tampoco_nombra_al_agente_mientras_esta_en_curso(self):
         """La traza de la asignación guarda el nombre en el texto: se rearma sin él."""
 
@@ -238,14 +225,6 @@ class AgenteOcultoTests(BaseInforme):
         asignada = [e for e in respuesta.context["eventos"] if "asign" in e["titulo"].lower()]
 
         self.assertIn(self.nombre_agente, asignada[0]["detalle"])
-
-    def test_el_coordinador_si_ve_el_agente_en_la_solapa(self):
-        self._en_curso()
-
-        respuesta = self._cliente(self.coordinador).get(reverse("dispositivos:detalle", args=[self.parador.pk]))
-        evento = respuesta.context["infraestructura"]["eventos"][0]
-
-        self.assertIn(f"asignado a {self.nombre_agente}", evento["cuando"])
 
     def test_lo_realizado_si_dice_quien_relevo(self):
         """Lo que se oculta es la asignación, no el resultado: el informe es auditable."""
@@ -342,19 +321,6 @@ class EnlacesTests(BaseInforme):
         self.assertIn(reverse("dispositivos:relevamiento_informe", args=[realizado.pk]), html)
         self.assertNotIn(reverse("dispositivos:relevamiento_informe", args=[en_curso.pk]), html)
 
-    def test_la_linea_de_tiempo_de_p4_enlaza_cada_relevamiento(self):
-        inspeccion = self._realizado()
-
-        respuesta = self._cliente(self.operador_geriatrico).get(
-            reverse("dispositivos:detalle", args=[self.geriatrico.pk])
-        )
-        esperado = (
-            reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]) + f"?dispositivo={self.geriatrico.pk}"
-        )
-
-        self.assertEqual(respuesta.context["infraestructura"]["eventos"][0]["enlace"], esperado)
-        self.assertContains(respuesta, esperado)
-
     def test_volver_devuelve_al_detalle_cuando_se_entro_desde_ahi(self):
         inspeccion = self._realizado()
 
@@ -362,7 +328,8 @@ class EnlacesTests(BaseInforme):
 
         self.assertEqual(
             respuesta.context["volver_url"],
-            reverse("dispositivos:detalle", args=[self.geriatrico.pk]) + "?tab=infraestructura",
+            reverse("dispositivos:detalle", args=[self.geriatrico.pk])
+            + f"?tab=infraestructura&ver_edificio={inspeccion.edificio_id}",
         )
         self.assertEqual(respuesta.context["volver_label"], "Geriátrico")
 

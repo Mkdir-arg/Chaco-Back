@@ -566,7 +566,7 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
             inspecciones_visibles(user).select_related("edificio", "asignado_a", "realizada_por", "revisado_por"),
             pk=kwargs["pk"],
         )
-        volver_url, volver_label = self._volver(user, self.request.GET)
+        volver_url, volver_label = self._volver(user, self.request.GET, relevamiento.edificio_id)
         context.update(informe_de_relevamiento(user, relevamiento))
         context.update({"volver_url": volver_url, "volver_label": volver_label})
         context["url_revisar"] = reverse("dispositivos:relevamiento_revisar", args=[relevamiento.pk])
@@ -576,7 +576,7 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
         return context
 
     @staticmethod
-    def _volver(user, params):
+    def _volver(user, params, edificio_id=None):
         """A dónde vuelve el botón: de donde se entró, y nunca a una pantalla que daría 403.
 
         Las URL se arman con `reverse` y el querystring del listado se **rearma** con
@@ -588,7 +588,11 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
             dispositivo = Dispositivo.objects.filter(pk=pk).only("id", "nombre").first()
             if dispositivo is not None and puede_operar_dispositivo(user, dispositivo, CAP_VER):
                 url = reverse("dispositivos:detalle", args=[dispositivo.pk])
-                return f"{url}?tab=infraestructura", dispositivo.nombre
+                # Con el edificio del relevamiento, «Volver» cae en su Estado edilicio y no en Datos.
+                destino = f"{url}?tab=infraestructura"
+                if edificio_id:
+                    destino += f"&ver_edificio={edificio_id}"
+                return destino, dispositivo.nombre
         pk = _entero(params.get("edificio"))
         if pk is not None:
             # La misma regla que abre la ficha: sin `edificio.ver` o fuera de alcance no hay edificio y se sigue de largo.

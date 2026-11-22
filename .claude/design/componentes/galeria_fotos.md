@@ -4,8 +4,8 @@
 **Evidencia:** `templates/components/_galeria_fotos.html` (+ `_galeria_fotos_celda.html`), `core/tests/test_nodo_ui_lote_b.py`
 (`GaleriaFotosTest`).
 **Consumidores de referencia:** `templates/components/_linea_tiempo.html`, que la anida dentro de cada
-evento que trae `fotos` (ficha `ficha_timeline.md`); a través de ella, la solapa Infraestructura del
-detalle de Dispositivos (`programas/templates/programas/dispositivos/legajo/detail.html`, mockup P19),
+evento que trae `fotos` (ficha `ficha_timeline.md`); a través de ella, el registro fotográfico de la ficha
+del edificio (`programas/templates/programas/dispositivos/edificios/detail.html`, mockup P19),
 una tanda por relevamiento.
 
 En P19, `fecha` es `InspeccionEdificio.realizada_en`, la misma del evento. Una foto de un

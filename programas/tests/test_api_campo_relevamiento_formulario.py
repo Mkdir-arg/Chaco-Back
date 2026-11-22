@@ -323,9 +323,11 @@ class ModalDeAsignarTests(BaseFormulario):
 
     def test_el_modal_avisa_cuando_el_tipo_no_tiene_formulario(self):
         eliminar_formulario(self.diseno)  # sin respuestas: se borra
-        detalle = self.client.get(reverse("dispositivos:detalle", args=[self.parador.pk]), {"tab": "infraestructura"})
+        # El modal «Nuevo relevamiento» vive en el listado de relevamientos, abierto sobre el edificio del parador.
+        modal = self.client.get(reverse("dispositivos:relevamientos"), {"asignar": self.predio.pk})
 
-        self.assertContains(detalle, "no tiene un formulario «Relevamiento»")
+        self.assertEqual(modal.status_code, 200)
+        self.assertContains(modal, "no tiene un formulario «Relevamiento»")
 
 
 # ── A4 · lo que la app lee ───────────────────────────────────────────────────

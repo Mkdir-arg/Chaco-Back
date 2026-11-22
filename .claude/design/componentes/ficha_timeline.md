@@ -45,7 +45,7 @@ Ese mismo selector prepara el `persona` del encabezado, y lo nombra **«Apellido
 Estadías de P4— lo escribe en la celda, en el menú y en los modales, y el título tiene que decir
 lo mismo que la fila. Contrato de la variable en `arquetipos/revision.md`.
 
-En Infraestructura (P19), el badge del encabezado es **siempre la criticidad** del relevamiento (semáforo de
+En el registro del edificio (P19), el badge del encabezado es **siempre la criticidad** del relevamiento (semáforo de
 `SEMAFOROS`, con su tono); un evento en curso o asignado muestra su estado. El estado de revisión («Revisado»)
 va adentro del panel, en `detalle`, y el revisor y la fecha/hora se agregan a `cuando`.
 El servicio carga `revisado_por` junto con la página de relevamientos.
@@ -56,7 +56,7 @@ escapado, solo con esta variante), `detalle`, `fotos` y `enlace`; el anillo de f
 focus-visible:ring-brand` (`ringColor.brand` en `tailwind.config.js`). Un evento sin nada de eso no dibuja botón ni
 chevron: queda en texto plano. Mismo riel y mismo punto; sin `plegable` el HTML
 no cambia. Los `id` de los paneles son `evento-<n>`: **una línea de tiempo plegable por pantalla**. Consumidor: la
-ficha del edificio de P4/P19 (`_infra_ficha.html`), que no arma `<details>` propio. El revisor y la fecha de la
+ficha propia del edificio (`programas/templates/programas/dispositivos/edificios/detail.html`), que no arma `<details>` propio. El revisor y la fecha de la
 revisión van en `cuando` y, por lo tanto, siempre visibles.
 
 **La lista llega acotada.** El componente dibuja todos los eventos que recibe y una estadía larga trae
@@ -70,7 +70,7 @@ auditoría de cuatro fuentes— la página la arma la vista y el control va **de
 en la vista o el servicio) y `enlace_texto` (por defecto «Ver»): se dibuja como un link al final de
 la misma línea del texto, y su nombre accesible le suma el `cuando` del evento para que diez «Ver»
 no se llamen igual. Es lo que convierte la línea de tiempo en el «historial» con acción por fila que
-pide P19 (`programas/templates/programas/dispositivos/legajo/detail.html`, solapa Infraestructura →
+pide P19 (`programas/templates/programas/dispositivos/edificios/detail.html`, registro fotográfico →
 «Ver informe»). Sin `enlace` el HTML del evento es el de siempre, carácter por carácter.
 
 **Fotos dentro del evento (opcional).** Un evento puede traer `fotos` (lista de dicts con el
@@ -78,8 +78,8 @@ contrato de `components/_galeria_fotos.html`: `url`, `alt`, `rotulo`, `fecha`) y
 (la cantidad real si la vista recortó la tanda). La pieza dibuja la galería **dentro del `<li>`**,
 debajo del texto, en un `div mt-3`: una sola `<ol>` con el riel continuo y cada tanda colgada de su
 evento (P19, «Registro fotográfico»). Sin `fotos` —o con la lista vacía— el HTML del evento es el de
-siempre, carácter por carácter. Consumidor: la solapa Infraestructura de
-`programas/templates/programas/dispositivos/legajo/detail.html`.
+siempre, carácter por carácter. Consumidor: el registro fotográfico de
+`programas/templates/programas/dispositivos/edificios/detail.html`.
 
 **Sección de ficha plegada, solo lectura (Cambio 405).** `_ficha_seccion.html` con `abierta=False` y `campos`
 `{etiqueta, valor}` es también el bloque «De versiones anteriores» de la solapa Datos de P4

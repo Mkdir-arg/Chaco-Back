@@ -219,10 +219,14 @@ PARAM_EDIFICIO_SECTORES = "sectores_edificio"
 
 
 def url_solapa_sectores(dispositivo_pk, edificio_id=None):
-    """El detalle del dispositivo abierto en la solapa «Sectores y plazas» (con el filtro «Edificio», si lo hay)."""
+    """La pantalla «Sectores y plazas» de la institución (con el filtro «Edificio», si lo hay).
 
-    url = f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=sectores"
-    return f"{url}&{PARAM_EDIFICIO_SECTORES}={edificio_id}" if edificio_id else url
+    Desde el Cambio 570 la ficha ya no tiene la solapa: el cuerpo vive en esta pantalla (todos los edificios) y en la
+    solapa de la página de cada edificio. El nombre se conserva porque lo importan las vistas de acción.
+    """
+
+    url = reverse("dispositivos:sectores", args=[dispositivo_pk])
+    return f"{url}?{PARAM_EDIFICIO_SECTORES}={edificio_id}" if edificio_id else url
 
 
 def edificios_para_filtrar(usuario, dispositivo):

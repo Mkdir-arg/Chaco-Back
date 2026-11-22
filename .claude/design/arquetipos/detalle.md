@@ -148,17 +148,16 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   arma con `?tab=<x>`, el panel va vacío hasta entonces y el `@click` del botón, mientras no esté cargado, es
   `window.location.href='<url con ?tab=<x>>'`. Ese botón lleva `data-solapa-navega` (solo mientras no está cargado): con
   ← → recibe el foco pero no se activa (recorrer la barra no recarga la página); se abre con Enter, Espacio o clic. Lo
-  lee `static/custom/js/nodo-tabs.js` (`componentes/tabs.md`). Molde: la solapa «Sectores y plazas» de
-  `programas/templates/programas/dispositivos/legajo/detail.html`, cuyo cuerpo es `dispositivos/sectores/_cuerpo.html`,
-  el mismo que dibuja la pantalla suelta de siempre y la solapa «Sectores y plazas» de la página del edificio
-  (`dispositivos/edificios/operativo.html`, con el edificio fijo y sin el filtro «Edificio»; Cambio 565).
+  lee `static/custom/js/nodo-tabs.js` (`componentes/tabs.md`). Molde: la solapa «Sectores y plazas» de la
+  página del edificio (`dispositivos/edificios/operativo.html`), cuyo cuerpo es `dispositivos/sectores/_cuerpo.html`, el
+  mismo que dibuja la pantalla suelta de siempre, con el edificio fijo y sin el filtro «Edificio» (Cambio 565).
 - Solapa condicionada por permiso: el `{% if %}` envuelve **el botón y el panel**.
 - Solapa inicial validada por el servidor: en P4
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
   El menú «Más acciones» de P4 suma «Emergencia · Kits» (ítem con `url`) solo si la vista manda `url_kits_emergencia`: quien tiene `emergencia.recibir_kit` en el Equipo de ese dispositivo.
-  Las acciones del encabezado de P4 salen de banderas que arma la vista, no de un `{% if %}` sobre el estado: «Ingresar persona» (`puede_admitir`, misma función que el gate del asistente: `dispositivo.admitir` con alcance y `ciudadano.ver`) y «Enviar a validación» (`puede_enviar_validacion`, desde borrador, observado o rechazado con `dispositivo.editar`).
+  Las acciones del encabezado de P4 salen de banderas que arma la vista, no de un `{% if %}` sobre el estado: «Editar» (`puede_editar`) y «Enviar a validación» (`puede_enviar_validacion`, desde borrador, observado o rechazado con `dispositivo.editar`).
   El menú «Más acciones» de P4 lleva además el ítem de navegación «Emergencia · Llegadas»: la vista manda `url_llegadas_emergencia` solo a quien tiene `dispositivo.admitir` con alcance —lo que exige esa pantalla— y sin la URL el ítem no se dibuja.
   La `dl` de datos de la solapa Datos rotula las franjas de P3 como «Horario de atención» (solo informativo; no son los turnos de la Bitácora).
   Solapa «Equipo» de P4 (Cambio 411): la ve quien ve el dispositivo; tabla canónica (`nodo-th`, `menu_fila` con `confirm_url`; baja y quitar responsable en `peligro`) y «Sumar persona» `btn-brand btn-sm btn-fit` que abre un modal de `data-ajax`. Botón, columna de acciones y modal van bajo `puede_gestionar_equipo` (la vista re-verifica en cada POST); la marca de responsable es `badge badge-dot badge-success` y una fila cuyo rol ya no vale lleva `badge badge-warning badge-sm` «Rol no vigente». Bajo `lg`, Rol y Responsable van apilados bajo el nombre (`lg:hidden`) y sus columnas son `hidden lg:table-cell` (Cambio 447: la columna fija de acciones tapaba el resto de la fila). La tabla suma la columna «Contratación» (`nodo-th hidden lg:table-cell`, «Sin dato» en `text-body-subtle` si es NULL; bajo `lg` va bajo el nombre junto al rol), y los dos modales de alta llevan el desplegable `tipo_contratacion` (Cambio 523).
@@ -167,29 +166,20 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`
   `grid gap-5 sm:grid-cols-2` de los datos; el archivo es un enlace con `fa-paperclip`. Solo
   lo visible según las condiciones de la foto respondida.
-- Infraestructura de P4/P19: tres modos que arma `infraestructura_del_dispositivo` (`modo`); los parciales son
-  `legajo/_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html` (sectores sin edificio) y
-  `_infra_acciones.html` (la barra de la institución), y las URL
-  de todos las arma el servicio. La **barra** va una sola vez arriba del panel, igual en listado, ficha y sin edificio
-  (`px-5 py-4 border-b border-light`): rótulo «Edificios de X» con la frase del predio y, a la derecha, el menú
-  `menu_fila texto="Agregar edificio"` («Cargar un edificio nuevo», «Vincular uno existente», con `puede_editar`) y
-  «Crear relevamiento» (`puede_crear_relevamiento`, preselecciona el edificio de la ficha). Sin edificio, el
-  estado vacío con la acción. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
-  grave nombrado (sin acciones), filtro por estado con chips
-  (`estado_edificio`, del lado del servidor, `components/_chips_enlace.html`) y una grilla de
-  `components/_tarjeta_edificio.html` del más grave al mejor, sin relevar al final. Sin tablas ni tarjetas
-  globales. Con uno solo, o con `?tab=infraestructura&ver_edificio=<pk>`, la **ficha** del edificio
-  (`_infra_ficha.html`, una sola columna): cabecera con «Editar edificio» y ⋮ (`menu_fila` con «Desvincular de X» en `peligro`, ambos con `puede_editar`), último relevamiento, sectores con ocupadas, Ubicación con
-  `_ubicacion.html`, instituciones del predio y el registro fotográfico como `_linea_tiempo` plegable (`plegable=True`) por relevamiento, con su paginación; con 2 o más
-  edificios suma los chips para cambiar de uno a otro y «Los N edificios». Un id no vinculado se ignora y vuelve
-  el listado. Alta, edición y vínculo se abren en los modales canónicos y exigen alcance de edición.
-  La tarjeta separa el estado (criticidad de la última realizada) del aviso «Vencido» (`danger`, relevamiento en
-  curso vencido) o «Vence en N días» (`warning`, dentro de `DIAS_POR_VENCER`). El semáforo agregado conserva
-  «Crítico» aunque haya vencidos; sin inmuebles, «Sin edificio cargado». Los sectores sin edificio van en una
-  `_alerta` warning; «Asignar edificio» solo con `puede_asignar_edificio`. P2 usa el mismo servicio.
+- Edificios de P4 (Cambio 570): sección «Edificios · N» en el cuerpo, **fuera de las solapas** y entre los indicadores y
+  las solapas: `section` con `aria-labelledby`, encabezado «Edificios · N» con «Vincular edificio» (`btn-tertiary`) y
+  «Agregar edificio» (`btn-secondary`) bajo `puede_editar`, y una grilla `lg:grid-cols-3` de
+  `components/_tarjeta_edificio.html` (hasta 60, las más graves primero; `n_sin_mostrar` avisa el resto). Cada tarjeta
+  abre la página del edificio (`dispositivos:edificio_operativo`). Sin edificio, el estado vacío; los sectores sin
+  edificio van en `_infra_sin_edificio.html` (una `_alerta` warning; «Asignar edificio» solo con
+  `puede_asignar_edificio`). Un edificio sin plazas disponibles sale en una `_alerta` warning sobre los indicadores
+  (`ficha_edificios.aviso_sin_plazas`: uno se nombra con su enlace; varios, un solo resumen). Alta, edición y vínculo del
+  edificio siguen en los modales canónicos, abiertos por `?edificio=nuevo|vincular|<pk>`. Las solapas son Datos, Personas
+  alojadas (clave `estadias`), Equipo e Historial: los enlaces viejos a `?tab=sectores|infraestructura` los resuelve
+  `ficha_edificios.redireccion_de_solapa_vieja`. La ficha no ingresa personas ni lleva la bitácora: son del edificio.
 - Ficha propia del edificio (`programas/templates/programas/dispositivos/edificios/detail.html`, `{# arquetipo: detalle + apilado #}`):
   sin métricas, solo lectura salvo «Editar edificio», desde la sección Edificios (`EdificioDetailView`, `ficha_de_edificio` de
-  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo», «Crear relevamiento» solo con `url_asignar` y «Editar edificio» (`btn-secondary btn-sm`) solo con `url_editar`, que lleva al modal de la solapa Infraestructura de la primera institución del predio (por nombre) que el usuario abre, que no está cerrada y sobre la que alcanza toda la institución (`dispositivo.editar`; con alcance Edificios no se ofrece); los títulos de sección son `h2 text-heading font-bold`;
+  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo», «Crear relevamiento» solo con `url_asignar` y «Editar edificio» (`btn-secondary btn-sm`) solo con `url_editar`, que lleva al modal de edición de la ficha (`?edificio=<pk>`) de la primera institución del predio (por nombre) que el usuario abre, que no está cerrada y sobre la que alcanza toda la institución (`dispositivo.editar`; con alcance Edificios no se ofrece); los títulos de sección son `h2 text-heading font-bold`;
   secciones Datos (`_ubicacion.html` compacto), Instituciones del predio, Sectores por institución, Último relevamiento y Registro
   fotográfico (`_linea_tiempo` plegable + `_paginacion`). Quién relevó, observaciones y el registro solo con `ve_detalle` (Cambio 428). La fila
   del listado abre la ficha con el nombre enlazado y un `nodo-icon-btn` «Ver», junto al de «Crear relevamiento».
@@ -216,27 +206,27 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).
 
-En P4, `programas/services/detalle_dispositivo.py` prepara Infraestructura e Historial según
+En P4, `programas/services/detalle_dispositivo.py` prepara la sección Edificios, el registro del edificio y el Historial según
 quien mira: la institución no recibe el nombre del agente de un relevamiento sin realizar,
 incluidos los cancelados. La asignación la ven el coordinador del edificio y el propio agente
 (`programas.services.inspecciones.ve_la_asignacion`). El Historial rearma esas trazas sin
-nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura enlaza cada
+nombres; una vez realizado, el resultado muestra quién relevó. el registro fotográfico del edificio enlaza cada
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
 Con alcance por edificios (Cambio 523) el Historial trae solo los movimientos de las plazas de sus edificios, las
 correcciones de sus novedades y los relevamientos de sus edificios; las trazas del dispositivo (legajo, plazas, sectores, turnos y edificios) no llevan edificio y quedan para
 quien tiene toda la institución (`eventos_de_historial`, `edificios_en_alcance`).
 El badge del registro es siempre la criticidad; la revisión agrega «Revisado» en el panel, más revisor y fecha/hora, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
-Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y la ficha de
-Infraestructura solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
+Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y en la ficha del
+edificio solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
 El estado edilicio de cada edificio (clave del filtro, rótulo y tono del semáforo, y el aviso «Vencido» / «Vence en
 N días») sale de `clave_estado_edilicio` y `aviso_de_vencimiento` de `programas/services/detalle_dispositivo.py`, las
 mismas que usa el listado de la sección Edificios (`programas/selectors/edificios.py`): una sola definición para la
 tarjeta, la ficha y la fila.
 El registro fotográfico (página de relevamientos, fotos y quién ve la asignación) sale de
-`registro_de_relevamientos` del mismo servicio: la ficha de Infraestructura y la ficha propia del edificio
+`registro_de_relevamientos` del mismo servicio: la tarjeta del edificio en la ficha de la institución y la ficha propia del edificio
 muestran el mismo registro del mismo edificio.
-El enlace «Ver informe» lleva el origen para volver: `?dispositivo=<pk>` desde Infraestructura y
+El enlace «Ver informe» lleva el origen para volver: `?dispositivo=<pk>` desde la institución y
 `?edificio=<pk>` desde la ficha del edificio; el informe solo arma ese «Volver» si el usuario puede abrir esa pantalla.
 
 ## Prohibido

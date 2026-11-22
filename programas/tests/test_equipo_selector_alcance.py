@@ -252,9 +252,11 @@ class TablaDelEquipoTests(BaseSelector):
 
 
 #: Consultas del detalle visto por un responsable con alcance Edificios, con la caché ya caliente. Si suben, algo
-#: del Equipo volvió a leer los permisos más de una vez por request.
-CONSULTAS_DETALLE_RESPONSABLE = 33
-CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA = 34
+#: del Equipo volvió a leer los permisos más de una vez por request. 33 -> 34 (Cambio 570): las tarjetas de «Edificios · N»
+#: leen el equipo de cada edificio (2 consultas fijas) y los movimientos de hoy (1), y la ficha ya no arma el
+#: relevamiento ni la solapa Infraestructura.
+CONSULTAS_DETALLE_RESPONSABLE = 34
+CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA = 35
 
 
 @tag("performance")
@@ -271,14 +273,20 @@ class PresupuestoDelDetalleDelResponsableTests(BaseSelector):
 
     def test_el_detalle_con_agregar_persona_cuesta_lo_fijado(self):
         self._entrar(self.resp_ed)
-        url = f"{self.url_detalle}?tab=infraestructura&agregar_persona={self.ed1.pk}"
+        url = f"{self.url_detalle}?agregar_persona={self.ed1.pk}"
         self.assertEqual(self._consultas(url), CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA)
 
 
 class AgregarPersonaAlEdificioTests(BaseSelector):
     def setUp(self):
         super().setUp()
-        self.url_agregar = f"{self.url_detalle}?tab=infraestructura&agregar_persona={self.ed1.pk}"
+        self.url_agregar = f"{self.url_detalle}?agregar_persona={self.ed1.pk}"
+
+    def _enlace_de_alta(self, edificio):
+        """El ítem del ⋮ de la tarjeta lleva a la solapa Equipo de la página del edificio, con el alta abierta."""
+
+        pagina = reverse("dispositivos:edificio_operativo", args=[self.disp_a.pk, edificio.pk])
+        return f"{pagina}?tab=equipo&amp;equipo=sumar"
 
     def _agregar(self, usuario=None, edificio=None, **extra):
         self._entrar(usuario or self.admin_programa)
@@ -292,28 +300,28 @@ class AgregarPersonaAlEdificioTests(BaseSelector):
 
     def test_el_menu_de_cada_edificio_ofrece_la_accion_al_admin(self):
         self._entrar(self.admin_programa)
-        respuesta = self.client.get(self.url_detalle + "?tab=infraestructura")
+        respuesta = self.client.get(self.url_detalle)
         self.assertContains(respuesta, "Agregar persona al edificio")
-        self.assertContains(respuesta, f"agregar_persona={self.ed1.pk}")
-        self.assertContains(respuesta, f"agregar_persona={self.ed2.pk}")
+        self.assertContains(respuesta, self._enlace_de_alta(self.ed1))
+        self.assertContains(respuesta, self._enlace_de_alta(self.ed2))
 
     def test_el_responsable_de_edificios_la_ve_solo_en_los_suyos(self):
         self._entrar(self.resp_ed)
-        respuesta = self.client.get(self.url_detalle + "?tab=infraestructura")
-        self.assertContains(respuesta, f"agregar_persona={self.ed1.pk}")
-        self.assertNotContains(respuesta, f"agregar_persona={self.ed2.pk}")
+        respuesta = self.client.get(self.url_detalle)
+        self.assertContains(respuesta, self._enlace_de_alta(self.ed1))
+        self.assertNotContains(respuesta, self._enlace_de_alta(self.ed2))
 
     def test_quien_no_arma_el_equipo_no_la_ve(self):
         rol = self._rol("Solo ve", ("dispositivo.ver",))
         usuario = self._usuario("solo_ve", rol)
         self._miembro(self.disp_a, usuario, rol)
         self._entrar(usuario)
-        self.assertNotContains(self.client.get(self.url_detalle + "?tab=infraestructura"), "agregar_persona=")
+        self.assertNotContains(self.client.get(self.url_detalle), "Agregar persona al edificio")
 
     def test_un_dispositivo_cerrado_no_la_ofrece_ni_la_acepta(self):
         Dispositivo.objects.filter(pk=self.disp_a.pk).update(estado=Dispositivo.Estado.CERRADO)
         self._entrar(self.admin_programa)
-        self.assertNotContains(self.client.get(self.url_detalle + "?tab=infraestructura"), "agregar_persona=")
+        self.assertNotContains(self.client.get(self.url_detalle), "Agregar persona al edificio")
         self.assertNotIn("form_equipo", self.client.get(self.url_agregar).context)
         self.assertEqual(self._agregar().status_code, 400)
         self.assertFalse(MiembroEquipoDispositivo.objects.filter(usuario=self.ana).exists())

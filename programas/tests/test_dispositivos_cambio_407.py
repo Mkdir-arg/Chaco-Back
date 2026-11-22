@@ -71,22 +71,6 @@ class IngresarPersonaSoloConCiudadanoVerTests(_UnClientePorUsuario):
         asistente = self._cliente(usuario).get(reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
         self.assertEqual(asistente.status_code, 403)
 
-    def test_con_ciudadano_ver_el_boton_se_ofrece_y_el_asistente_abre(self):
-        respuesta = self._detalle(self.operador)
-
-        self.assertTrue(respuesta.context["puede_admitir"])
-        self.assertContains(respuesta, TEXTO_BOTON)
-        asistente = self._cliente().get(reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
-        self.assertEqual(asistente.status_code, 200, asistente.headers.get("Location"))
-
-    def test_sin_admitir_el_boton_tampoco_se_ofrece(self):
-        usuario = self._sin("Sin admitir", "dispositivo.admitir")
-
-        respuesta = self._detalle(usuario)
-
-        self.assertFalse(respuesta.context["puede_admitir"])
-        self.assertNotContains(respuesta, TEXTO_BOTON)
-
     def test_egresar_sin_ciudadano_ver_no_manda_a_un_403(self):
         usuario = self._sin("Egresa sin padron", "ciudadano.ver")
         datos = {

@@ -97,7 +97,7 @@ class EditarDesdeInactivosTests(_Base):
 
         pagina = self.client.get(self._url_mapa(), {"inactivos": "1", "sector": sector.pk})
 
-        self.assertContains(pagina, "Vinculá un edificio al dispositivo desde la solapa Infraestructura")
+        self.assertContains(pagina, "Vinculá un edificio a la institución desde su ficha")
 
     def test_nombre_duplicado_al_activar_da_el_mismo_mensaje_que_reactivar(self):
         inactivo = self._sector(self.edificio_a, nombre="Repetido", activo=False)

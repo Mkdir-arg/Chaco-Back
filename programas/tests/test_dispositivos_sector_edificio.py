@@ -354,29 +354,6 @@ class VistaJerarquicaTests(BaseSectorEdificio):
         self.client.force_login(self.operador_cis)
         return self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
 
-    def test_cada_edificio_trae_sus_sectores_y_el_bloque_sin_edificio(self):
-        sector = self._sector(self.edificio_a, "Pabellón 1")
-        Plaza.objects.create(sector=sector, codigo="A-01")
-        Plaza.objects.create(sector=sector, codigo="A-02")
-        self._sector(self.edificio_a, "Pabellón 2")
-        huerfano = self._sector(None, "Sin ubicar")
-        Plaza.objects.create(sector=huerfano, codigo="S-01")
-        self._sector(self.edificio_b, "Dado de baja", activo=False)
-
-        respuesta = self._infraestructura()
-
-        infra = respuesta.context["infraestructura"]
-        por_codigo = {fila["codigo"]: fila for fila in infra["edificios"]}
-        self.assertEqual([s["nombre"] for s in por_codigo["EDI-A"]["sectores"]], ["Pabellón 1", "Pabellón 2"])
-        self.assertEqual(por_codigo["EDI-A"]["n_plazas"], 2)
-        self.assertEqual(por_codigo["EDI-B"]["sectores"], [])
-        self.assertEqual([s["nombre"] for s in infra["sin_edificio"]["sectores"]], ["Sin ubicar"])
-        self.assertEqual(infra["sin_edificio"]["n_plazas"], 1)
-        self.assertContains(respuesta, "Pabellón 1 (2)")
-        self.assertContains(respuesta, "Pabellón 2 (0)")
-        self.assertContains(respuesta, "Todavía no hay sectores")
-        self.assertContains(respuesta, "1 sector todavía no tiene edificio")
-
     def test_sin_sectores_huerfanos_no_hay_bloque_sin_edificio(self):
         self._sector(self.edificio_a)
 
@@ -384,29 +361,3 @@ class VistaJerarquicaTests(BaseSectorEdificio):
 
         self.assertIsNone(respuesta.context["infraestructura"]["sin_edificio"])
         self.assertNotContains(respuesta, "Quedan acá hasta que un administrador")
-
-    def test_con_un_solo_edificio_tambien_se_ven_los_sectores(self):
-        self.edificio_b.dispositivos.remove(self.cis)
-        self._sector(self.edificio_a, "Único")
-
-        respuesta = self._infraestructura()
-
-        infra = respuesta.context["infraestructura"]
-        self.assertEqual(infra["modo"], "ficha")
-        self.assertEqual([s["nombre"] for s in infra["viendo"]["sectores"]], ["Único"])
-        self.assertContains(respuesta, "Único")
-
-    def test_al_abrir_un_edificio_solo_se_ve_su_jerarquia(self):
-        self._sector(self.edificio_a, "En A")
-        self._sector(self.edificio_b, "En B")
-        self._sector(None, "Huérfano")
-        self.client.force_login(self.operador_cis)
-
-        respuesta = self.client.get(
-            reverse("dispositivos:detalle", args=[self.cis.pk]),
-            {"tab": "infraestructura", "ver_edificio": self.edificio_b.pk},
-        )
-
-        infra = respuesta.context["infraestructura"]
-        self.assertEqual([f["codigo"] for f in infra["edificios"]], ["EDI-B"])
-        self.assertIsNone(infra["sin_edificio"])

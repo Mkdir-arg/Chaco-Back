@@ -227,7 +227,7 @@ class SolapaEnLaUrlTests(BaseDetalle):
         """Como en la golden: `?tab=` manda, y sin él se abre la solapa que P4 muestra activa."""
 
         self.assertContains(self.client.get(self.url, {"tab": "historial"}), "tab: 'historial'")
-        self.assertContains(self.client.get(self.url), "tab: 'estadias'")
+        self.assertContains(self.client.get(self.url), "tab: 'datos'")
 
 
 class SolapaNormalizadaTests(BaseDetalle):
@@ -240,24 +240,16 @@ class SolapaNormalizadaTests(BaseDetalle):
     def test_una_solapa_inventada_cae_en_la_de_siempre(self):
         respuesta = self.client.get(self.url, {"tab": "inventada"})
 
-        self.assertEqual(respuesta.context["tab"], "estadias")
-        self.assertContains(respuesta, "tab: 'estadias'")
+        self.assertEqual(respuesta.context["tab"], "datos")
+        self.assertContains(respuesta, "tab: 'datos'")
 
-    def test_sectores_en_un_tipo_que_no_maneja_plazas_cae_en_la_de_siempre(self):
-        """El caso del pedido: `?tab=sectores` donde esa solapa ni siquiera se dibuja."""
-
-        con_plazas = self.client.get(self.url, {"tab": "sectores"})
-        self.assertContains(con_plazas, 'id="tab-sectores"')
-        self.assertEqual(con_plazas.context["tab"], "sectores")
-
-        self.tipo.plaza_obligatoria_al_ingresar = False
-        self.tipo.save()
+    def test_sectores_ya_no_es_una_solapa_de_la_ficha(self):
+        """Cambio 570: `?tab=sectores` se redirige (pantalla de Sectores o página del edificio), no abre la ficha."""
 
         respuesta = self.client.get(self.url, {"tab": "sectores"})
 
-        self.assertNotContains(respuesta, 'id="tab-sectores"')
-        self.assertEqual(respuesta.context["tab"], "estadias")
-        self.assertContains(respuesta, "tab: 'estadias'")
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertNotContains(self.client.get(self.url), 'id="tab-sectores"')
 
     def test_la_estadia_normaliza_su_propia_solapa(self):
         """P7 tiene el mismo `?tab=` y el mismo agujero: ficha, movimientos o novedades."""
@@ -554,8 +546,7 @@ class AccionesYAlcanceTests(BaseDetalle):
 
     def test_quien_solo_ve_no_recibe_acciones_que_el_servidor_va_a_rechazar(self):
         acciones = [
-            reverse(f"dispositivos:{nombre}", args=[self.cis.pk])
-            for nombre in ("cerrar", "inactivar", "ingreso_persona", "editar")
+            reverse(f"dispositivos:{nombre}", args=[self.cis.pk]) for nombre in ("cerrar", "inactivar", "editar")
         ]
         # Primero el caso positivo, en el mismo estado del dispositivo: si no, el negativo
         # pasaría también con una pantalla que no dibujara ninguna acción.
@@ -596,7 +587,8 @@ class AccionesYAlcanceTests(BaseDetalle):
         # con guion. Con regex, para no depender de qué carácter sigue al atributo.
         self.assertIsNone(re.search(r"data-confirm(?![-\w])", respuesta.content.decode()))
         self.assertNotContains(respuesta, "_swal_confirm")
-        self.assertContains(respuesta, reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
+        # «Ingresar persona» es del edificio: la ficha ya no lo ofrece (Cambio 570).
+        self.assertNotContains(respuesta, reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
 
     def test_pendiente_de_validacion_ofrece_observar_y_rechazar_con_motivo(self):
         validador = self._operador("Validador", self.cis, ("dispositivo.ver", "dispositivo.validar"))
@@ -742,7 +734,6 @@ class SinPlazasTests(BaseDetalle):
     def test_un_tipo_sin_plazas_no_muestra_franja_ni_solapa_de_sectores(self):
         con_plazas = self.client.get(self.url)
         self.assertContains(con_plazas, "Indicadores operativos")
-        self.assertContains(con_plazas, 'id="tab-sectores"')
 
         self.tipo.plaza_obligatoria_al_ingresar = False
         self.tipo.save()
@@ -750,7 +741,6 @@ class SinPlazasTests(BaseDetalle):
         respuesta = self.client.get(self.url)
 
         self.assertNotContains(respuesta, "Indicadores operativos")
-        self.assertNotContains(respuesta, 'id="tab-sectores"')
 
 
 class HistorialTests(BaseDetalle):

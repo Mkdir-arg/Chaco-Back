@@ -1,8 +1,9 @@
-"""«Sectores y plazas» dentro de la ficha de la institución: el mismo cuerpo que la pantalla, con filtro por edificio.
+"""«Sectores y plazas» de la institución (todos sus edificios): el cuerpo compartido, con filtro por edificio.
 
-La solapa se arma solo cuando se la abre (`?tab=sectores` o un parámetro que abre uno de sus modales). El
-filtro «Edificio» acota el mapa y se valida contra los edificios que quien mira alcanza; sus acciones siguen
-exigiendo su capacidad y vuelven a la solapa.
+Hasta el Cambio 570 era una solapa de la ficha; ahora es la pantalla suelta `dispositivos:sectores` (y la solapa de la
+página de cada edificio, que prueba `test_dispositivos_edificio_operativo`). El filtro «Edificio» acota el mapa y se
+valida contra los edificios que quien mira alcanza; sus acciones siguen exigiendo su capacidad y vuelven a esta pantalla.
+Los enlaces viejos a `?tab=sectores` de la ficha los cubre `test_dispositivos_ficha_edificios`.
 """
 
 from contextlib import ExitStack
@@ -13,7 +14,6 @@ from django.test import Client, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.html import escapejs
 
 from programas.models import Edificio, Plaza, Sector
 from programas.services.estadias import CAP_ADMITIR
@@ -29,11 +29,11 @@ class SolapaSectoresTests(BaseAlcance):
         # La solapa solo existe en los tipos que manejan plazas.
         self.tipo.plaza_obligatoria_al_ingresar = True
         self.tipo.save()
-        self.ficha = reverse("dispositivos:detalle", args=[self.cis.pk])
+        self.ficha = reverse("dispositivos:sectores", args=[self.cis.pk])
 
     def _solapa(self, usuario=None, **params):
         self.client.force_login(usuario or self.de_inst)
-        return self.client.get(self.ficha, {"tab": "sectores", **params})
+        return self.client.get(self.ficha, params)
 
     def _ajeno(self):
         """Un edificio de **otra** institución: no es de este dispositivo."""
@@ -46,8 +46,6 @@ class SolapaSectoresTests(BaseAlcance):
         respuesta = self._solapa()
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.context["tab"], "sectores")
-        self.assertTrue(respuesta.context["sectores_cargados"])
         self.assertTemplateUsed(respuesta, "programas/dispositivos/sectores/_cuerpo.html")
         self.assertContains(respuesta, "Varones · Edificio ED-A · 2 plazas")
         self.assertContains(respuesta, "Mujeres · Edificio ED-B · 1 plaza")
@@ -64,14 +62,11 @@ class SolapaSectoresTests(BaseAlcance):
     def test_el_filtro_es_enlazable_y_conserva_la_solapa(self):
         respuesta = self._solapa(**{PARAM_EDIFICIO_SECTORES: self.edif_b.pk, "inactivos": "1"})
 
-        self.assertContains(respuesta, '<input type="hidden" name="tab" value="sectores">', html=True)
         self.assertContains(respuesta, '<input type="hidden" name="inactivos" value="1">', html=True)
-        self.assertEqual(respuesta.context["qs_sectores"], f"tab=sectores&{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}&")
+        self.assertEqual(respuesta.context["qs_sectores"], f"{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}&")
         # Las plazas del mapa siguen en la solapa y en el filtro elegido.
         celda = next(c for item in respuesta.context["sectores_mapa"] for c in item["plazas"])
-        self.assertEqual(
-            celda["url"], f"?tab=sectores&{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}&plaza={self.plaza_b.pk}"
-        )
+        self.assertEqual(celda["url"], f"?{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}&plaza={self.plaza_b.pk}")
 
     def test_el_filtro_ofrece_todos_y_los_edificios_de_la_institucion(self):
         pildora = self._solapa().context["pildoras_sectores"][0]
@@ -131,7 +126,7 @@ class SolapaSectoresTests(BaseAlcance):
         # La memoria vive en `mixins_dispositivos`, y `puede_ingresar_persona` (estadias) pregunta por su cuenta
         # si no se le pasa la respuesta: se espían los lugares desde donde se llega a la regla.
         sitios = ("programas.mixins_dispositivos", "programas.services.estadias", "programas.views.dispositivos_legajo")
-        for params in ({"tab": "sectores"}, {"tab": "sectores", "plaza": self.plaza_a.pk}):
+        for params in ({}, {"plaza": self.plaza_a.pk}):
             with self.subTest(params=params):
                 with ExitStack() as pila:
                     llamadas = [
@@ -144,19 +139,17 @@ class SolapaSectoresTests(BaseAlcance):
                 self.assertIn(CAP_ADMITIR, capacidades)
                 self.assertEqual(len(capacidades), len(set(capacidades)), capacidades)
 
-    def test_sin_abrir_la_solapa_no_se_arma_el_mapa(self):
+    def test_la_ficha_ya_no_arma_el_mapa_de_plazas(self):
         self.client.force_login(self.de_inst)
+        ficha = reverse("dispositivos:detalle", args=[self.cis.pk])
 
         for params in ({}, {"tab": "estadias"}, {"tab": "equipo"}):
             with self.subTest(params=params):
-                respuesta = self.client.get(self.ficha, params)
+                respuesta = self.client.get(ficha, params)
 
                 self.assertEqual(respuesta.status_code, 200)
-                self.assertFalse(respuesta.context["sectores_cargados"])
                 self.assertNotIn("sectores_mapa", respuesta.context)
                 self.assertNotContains(respuesta, "Agregar plazas")
-        # Y el botón de la solapa navega a ella en vez de mostrar un panel vacío.
-        self.assertContains(respuesta, f"window.location.href='{escapejs(url_solapa_sectores(self.cis.pk))}'")
 
     def test_las_consultas_de_la_solapa_no_crecen_con_sectores_ni_plazas(self):
         """Ni con un usuario de toda la institución ni con uno de alcance Edificios, con o sin filtro e inactivos."""
@@ -218,21 +211,18 @@ class SolapaSectoresTests(BaseAlcance):
     def test_los_parametros_de_los_modales_abren_la_solapa(self):
         self.client.force_login(self.de_inst)
 
-        editar = self.client.get(self.ficha, {"editar_sector": self.sector_b.pk})
+        editar = self.client.get(self.ficha, {"sector": self.sector_b.pk})
         plaza = self.client.get(self.ficha, {"plaza": self.plaza_b.pk})
         editar_plaza = self.client.get(self.ficha, {"editar_plaza": self.plaza_b.pk})
 
-        self.assertEqual(editar.context["tab"], "sectores")
         self.assertEqual(editar.context["sector_en_edicion"], self.sector_b)
-        self.assertEqual(plaza.context["tab"], "sectores")
         self.assertEqual(plaza.context["plaza_inicial"], self.plaza_b.pk)
-        self.assertEqual(editar_plaza.context["tab"], "sectores")
         self.assertEqual(editar_plaza.context["plaza_en_edicion"], self.plaza_b)
 
     def test_un_sector_o_plaza_de_un_edificio_fuera_del_alcance_no_abre_el_modal(self):
         self.client.force_login(self.de_a)
 
-        editar = self.client.get(self.ficha, {"editar_sector": self.sector_b.pk})
+        editar = self.client.get(self.ficha, {"sector": self.sector_b.pk})
         plaza = self.client.get(self.ficha, {"plaza": self.plaza_b.pk})
 
         self.assertNotIn("sector_en_edicion", editar.context)
@@ -280,7 +270,7 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
         self.tipo.plaza_obligatoria_al_ingresar = True
         self.tipo.save()
         self.client.force_login(self.de_inst)
-        self.ficha_url = reverse("dispositivos:detalle", args=[self.cis.pk])
+        self.ficha_url = reverse("dispositivos:sectores", args=[self.cis.pk])
 
     def _ajeno(self):
         ajeno = Edificio.objects.create(codigo="ED-Z", nombre="Edificio ajeno")
@@ -363,7 +353,7 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
 
     def test_los_botones_reactivar_llevan_el_filtro_en_su_url(self):
         self._dar_de_baja_un_sector_y_una_plaza_de_b()
-        parametros = {"tab": "sectores", "inactivos": "1"}
+        parametros = {"inactivos": "1"}
         con = self.client.get(self.ficha_url, {**parametros, PARAM_EDIFICIO_SECTORES: self.edif_b.pk})
         sin = self.client.get(self.ficha_url, parametros)
 
@@ -404,8 +394,8 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
         self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk, self.edif_b.pk), fetch_redirect_response=False)
 
     def test_los_formularios_de_la_solapa_llevan_el_filtro_en_un_oculto(self):
-        con = self.client.get(self.ficha_url, {"tab": "sectores", PARAM_EDIFICIO_SECTORES: self.edif_b.pk})
-        sin = self.client.get(self.ficha_url, {"tab": "sectores"})
+        con = self.client.get(self.ficha_url, {PARAM_EDIFICIO_SECTORES: self.edif_b.pk})
+        sin = self.client.get(self.ficha_url)
         oculto = f'<input type="hidden" name="{PARAM_EDIFICIO_SECTORES}" value="{self.edif_b.pk}">'
 
         self.assertContains(con, oculto)
@@ -420,9 +410,7 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
         )
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(
-            respuesta, f"?tab=sectores&amp;{PARAM_EDIFICIO_SECTORES}={self.edif_a.pk}&amp;editar_plaza="
-        )
+        self.assertContains(respuesta, f"?{PARAM_EDIFICIO_SECTORES}={self.edif_a.pk}&amp;editar_plaza=")
         self.assertContains(
             respuesta, f'<input type="hidden" name="{PARAM_EDIFICIO_SECTORES}" value="{self.edif_a.pk}">'
         )
@@ -475,23 +463,5 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
         medidas = {nombre: consultas(usuario, edificio) for nombre, usuario, edificio in casos}
         for nombre, cantidad in medidas.items():
             with self.subTest(caso=nombre):
-                self.assertLessEqual(cantidad, 21)
-
-
-class SolapaQueNavegaTests(BaseAlcance):
-    """El botón de la solapa sin cargar lleva `data-solapa-navega`: las flechas no recargan la página."""
-
-    def setUp(self):
-        super().setUp()
-        self.tipo.plaza_obligatoria_al_ingresar = True
-        self.tipo.save()
-        self.client.force_login(self.de_inst)
-        self.ficha = reverse("dispositivos:detalle", args=[self.cis.pk])
-
-    def test_sin_cargar_la_solapa_el_boton_navega_y_se_marca(self):
-        self.assertContains(
-            self.client.get(self.ficha), 'id="tab-sectores" aria-controls="panel-sectores" data-solapa-navega'
-        )
-
-    def test_con_la_solapa_cargada_el_boton_es_una_solapa_comun(self):
-        self.assertNotContains(self.client.get(self.ficha, {"tab": "sectores"}), "data-solapa-navega")
+                # 22 en la pantalla suelta (Cambio 570: el fragmento ya no lo sirve la ficha, que armaba una menos).
+                self.assertLessEqual(cantidad, 22)

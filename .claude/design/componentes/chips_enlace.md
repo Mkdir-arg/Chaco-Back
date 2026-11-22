@@ -3,11 +3,8 @@
 **Clasificación:** Canónico reutilizable. Una fila de enlaces en píldora para cambiar de filtro o de registro sin
 salir de la pantalla: cada chip recarga con la URL que armó la vista.
 **Evidencia:** `templates/components/_chips_enlace.html`, `core/tests/test_nodo_ui_piezas.py`
-(`ChipsEnlaceTest`), `programas/tests/test_dispositivos_infraestructura_tarjetas.py` (`ChipsTests`).
-**Consumidor de referencia:** `programas/templates/programas/dispositivos/legajo/_infra_listado.html` (filtro por
-estado) y `_infra_ficha.html` (cambiar de edificio), en la solapa Infraestructura de P4.
-
-También las solapas de la bandeja de casos de Emergencia (`programas/templates/programas/emergencia/casos/list.html`):
+(`ChipsEnlaceTest`).
+**Consumidor de referencia:** las solapas de la bandeja de casos de Emergencia (`programas/templates/programas/emergencia/casos/list.html`):
 dos filas de chips con conteo (seis por estado y, en la segunda, «Otras vistas de la bandeja»: «Fuera de SLA»,
 «Ingreso directo» y «Alojados»), cada una con su `nombre`.
 
