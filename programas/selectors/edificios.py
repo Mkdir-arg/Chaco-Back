@@ -1,7 +1,7 @@
 """Los edificios que un usuario puede ver, para la sección «Edificios» de Dispositivos (#1166).
 
 Es la base del listado (#1167) y de la ficha (#1168), y es solo lectura: alta, edición, vínculo e
-inactivación siguen en la solapa Infraestructura de cada institución (`services/edificios.py`).
+inactivación siguen en la sección «Edificios» de cada institución (`services/edificios.py`).
 
 Alcance (análisis #1164, R2 y R3)
 ---------------------------------
@@ -255,7 +255,7 @@ def filas_del_listado(user, edificios):
 
 
 def _url_editar(user, edificio, instituciones):
-    """El enlace al modal «Editar edificio» de la solapa Infraestructura de una institución del predio, o ``""``.
+    """El enlace al modal «Editar edificio» de la sección «Edificios» de una institución del predio, o ``""``.
 
     La edición es del legajo (`dispositivo.editar` con alcance **institución**, RN5) y siempre se hace *desde* una
     institución que ocupa el edificio: es la regla de `services.edificios.editar_edificio`, que vuelve a exigirla

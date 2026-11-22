@@ -1,7 +1,7 @@
 """Alta y edición de la capacidad instalada: edificio, sectores y plazas (carril C5 · P5 y P19).
 
 Las acciones que P5 ofrece en su encabezado («Nuevo sector», «+ Agregar plazas») y en el
-de cada sector («Editar sector»), más el edificio de la solapa Infraestructura de P4/P19.
+de cada sector («Editar sector»), más el edificio de la sección «Edificios» de P4/P19.
 Todas mutan, así que son **solo POST con CSRF**; los modales que las disparan los abre un
 parámetro GET sobre la pantalla que ya existe y los arma el servidor, que es la variante
 del arquetipo Modal que P21 sentó y P5 ya usa para las acciones de una plaza. Los de las dos
@@ -278,7 +278,7 @@ class PlazaReactivarView(_AccionDeSectorView):
 
 
 # --------------------------------------------------------------------------- #
-# Edificio (solapa Infraestructura de P4 · P19)
+# Edificio (sección «Edificios» de P4 · P19)
 # --------------------------------------------------------------------------- #
 
 

@@ -15,7 +15,7 @@ Dos personas, dos capacidades del `CATALOGO` (módulo ``inspecciones``):
   otro agente: la guarda es `asignado_a`, no el alcance sobre el dispositivo.
 
 Quien opera el dispositivo (``dispositivo.ver`` con su alcance) **lee** los relevamientos
-de los edificios que ocupa: es la solapa Infraestructura (P19), y el informe de cada uno
+de los edificios que ocupa: es la sección «Edificios» (P19), y el informe de cada uno
 (:func:`informe_de_relevamiento`). Lo que **no** ve es de quién es la tarea: el nombre del
 agente asignado y las indicaciones de la coordinación son :func:`ve_la_asignacion`, porque
 el agente externo solo sirve si la institución no sabe de antemano quién va a ir.
@@ -79,6 +79,8 @@ from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
     dispositivos_operados,
+    fecha_corta,
+    nombre_o,
     programa_dispositivos,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
@@ -343,10 +345,6 @@ def _bloquear(inspeccion):
     return InspeccionEdificio.objects.select_for_update().get(pk=inspeccion.pk)
 
 
-def _nombre(usuario):
-    return (usuario.get_full_name() or usuario.get_username()) if usuario is not None else "—"
-
-
 def _trazar(inspeccion, usuario, accion, detalle):
     """Una línea de auditoría por acción, en la misma transacción que el cambio (#699).
 
@@ -400,7 +398,7 @@ def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indica
         inspeccion,
         usuario,
         TrazaInspeccion.Accion.ASIGNADA,
-        f"Edificio {edificio.nombre} · agente {_nombre(asignado_a)} · vence el {fecha_vencimiento:%d/%m/%Y}",
+        f"Edificio {edificio.nombre} · agente {nombre_o(asignado_a)} · vence el {fecha_vencimiento:%d/%m/%Y}",
     )
     return inspeccion
 
@@ -440,7 +438,7 @@ def reasignar_inspeccion(usuario, inspeccion, asignado_a):
         inspeccion,
         usuario,
         TrazaInspeccion.Accion.REASIGNADA,
-        f"Edificio {inspeccion.edificio.nombre} · de {_nombre(anterior)} a {_nombre(asignado_a)}",
+        f"Edificio {inspeccion.edificio.nombre} · de {nombre_o(anterior)} a {nombre_o(asignado_a)}",
     )
     return inspeccion
 
@@ -488,7 +486,7 @@ def marcar_revisado(usuario, inspeccion):
         inspeccion,
         usuario,
         TrazaInspeccion.Accion.REVISADA,
-        f"Edificio {inspeccion.edificio.nombre} · revisado por {_nombre(usuario)}",
+        f"Edificio {inspeccion.edificio.nombre} · revisado por {nombre_o(usuario)}",
     )
     return inspeccion
 
@@ -1149,7 +1147,7 @@ def ve_la_asignacion(usuario, inspeccion):
 def edificios_con_asignacion_visible(usuario, edificio_ids):
     """La versión por lote de :func:`ve_la_asignacion`: ids de edificio, en **una** consulta.
 
-    La usa la solapa Infraestructura, que dibuja varios relevamientos: preguntar por fila
+    La usa la sección «Edificios», que dibuja varios relevamientos: preguntar por fila
     sería un N+1 proporcional a la página. Sin la capacidad no consulta nada
     (`edificios_en_alcance` devuelve `none()`).
     """
@@ -1200,10 +1198,6 @@ def edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo):
     return set(edificios_en_alcance(usuario, CAP_ASIGNAR).filter(dispositivos=dispositivo).values_list("pk", flat=True))
 
 
-def _fecha_corta(momento):
-    return date_format(timezone.localtime(momento), "d/m/Y")
-
-
 def fotos_para_galeria(inspeccion, fotos):
     """Los dicts que pide `components/_galeria_fotos.html` para la tanda de un relevamiento.
 
@@ -1215,7 +1209,7 @@ def fotos_para_galeria(inspeccion, fotos):
     de una imagen rota; ninguna nueva puede serlo.
     """
 
-    fecha = _fecha_corta(inspeccion.realizada_en or inspeccion.creado)
+    fecha = fecha_corta(inspeccion.realizada_en or inspeccion.creado)
     galeria = []
     for numero, foto in enumerate(fotos, start=1):
         rotulo = foto.descripcion or f"Foto {numero}"
@@ -1231,7 +1225,7 @@ def fotos_para_galeria(inspeccion, fotos):
 
 
 #: Los tonos que el sistema de diseño sabe colorear en una stat card; el resto va con el de marca.
-_TONOS_CON_COLOR = ("success", "warning", "danger")
+TONOS_CON_COLOR = ("success", "warning", "danger")
 
 #: Color del badge de cada situación en curso, para que el informe diga lo mismo que P21.
 _TONOS_DE_SITUACION = {
@@ -1248,7 +1242,7 @@ def _indicadores_del_informe(inspeccion, semaforo, situacion_texto, total_fotos,
         estado = {"valor": semaforo.texto, "tono": semaforo.tono, "nota": "criticidad del último resultado"}
         cuando = {
             "etiqueta": "Relevado el",
-            "valor": _fecha_corta(inspeccion.realizada_en),
+            "valor": fecha_corta(inspeccion.realizada_en),
             "icono": "fa-calendar-check",
             "nota": "queda en el registro del edificio",
         }
@@ -1270,7 +1264,7 @@ def _indicadores_del_informe(inspeccion, semaforo, situacion_texto, total_fotos,
             "valor": estado["valor"],
             "icono": "fa-building",
             # La stat card chica no tiene gris: sin color, va con el de marca y el texto manda.
-            "tono": estado["tono"] if estado["tono"] in _TONOS_CON_COLOR else "brand",
+            "tono": estado["tono"] if estado["tono"] in TONOS_CON_COLOR else "brand",
             "nota": estado["nota"],
         },
         {**cuando, "tono": "brand"},
@@ -1312,11 +1306,11 @@ def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
         "situacion": situacion,
         "situacion_texto": situacion_texto,
         "semaforo": semaforo,
-        "relevo": _nombre(inspeccion.realizada_por) if realizada else "",
-        "revisor": _nombre(inspeccion.revisado_por) if inspeccion.revisado_en else "",
+        "relevo": nombre_o(inspeccion.realizada_por) if realizada else "",
+        "revisor": nombre_o(inspeccion.revisado_por) if inspeccion.revisado_en else "",
         "puede_revisar": puede_revisar(usuario, inspeccion),
         # Vacío = no se muestra. El nombre que no se puede ver no llega al template.
-        "agente": _nombre(inspeccion.asignado_a) if ve_asignacion else "",
+        "agente": nombre_o(inspeccion.asignado_a) if ve_asignacion else "",
         "indicaciones": inspeccion.indicaciones if ve_asignacion else "",
         "fotos": fotos_para_galeria(inspeccion, fotos),
         "total_fotos": total_fotos,

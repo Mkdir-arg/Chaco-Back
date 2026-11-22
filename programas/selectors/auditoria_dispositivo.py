@@ -356,7 +356,7 @@ def evento_de_inspeccion(traza, ve_asignacion=True):
 
     Con ``ve_asignacion`` en falso —quien solo opera la institución— y el relevamiento
     **sin realizar (en curso o cancelado)**, la línea no nombra a nadie: ni al agente asignado ni a quien
-    ejecutó la acción. Es la misma regla que la solapa Infraestructura
+    ejecutó la acción. Es la misma regla que la sección «Edificios»
     (`programas.services.inspecciones.ve_la_asignacion`), que acá hay que volver a aplicar
     porque el detalle de la traza se escribió legible **con el nombre adentro**. El texto se
     **rearma desde el modelo** en vez de recortar el guardado: recortar depende del formato

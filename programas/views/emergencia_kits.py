@@ -34,7 +34,6 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from programas.forms_emergencia_kits import (
@@ -55,6 +54,7 @@ from programas.services.configuracion_emergencia import catalogo_kits
 from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa, recibe_kits
+from programas.views.ajax_utils import destino_seguro
 
 TEMPLATE_LISTADO = "programas/emergencia/kits/list.html"
 TEMPLATE_DETALLE = "programas/emergencia/kits/detail.html"
@@ -567,12 +567,7 @@ class RecepcionKitsMixin(LoginRequiredMixin):
     def _siguiente(self, request):
         """El ``next`` del formulario si es de este sitio (la solapa Kits del edificio); si no, ``""``. Nunca el valor crudo."""
 
-        siguiente = request.POST.get("next", "")
-        if siguiente and url_has_allowed_host_and_scheme(
-            siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-        ):
-            return siguiente
-        return ""
+        return destino_seguro(request, "")
 
     def _destino(self, request):
         """Adónde vuelve el POST: el ``next`` válido y si no, las pendientes del dispositivo."""

@@ -19,7 +19,7 @@ la solapa que resolvió el servidor y filtrar desde otra volvía a «En curso».
 
 :class:`RelevamientoInformeView` muestra el resultado de un relevamiento y **no
 es solo del coordinador**: también entra quien opera una institución del edificio, desde la
-solapa Infraestructura. Por eso no lleva el mixin de capacidad: la única regla es
+sección «Edificios». Por eso no lleva el mixin de capacidad: la única regla es
 `inspecciones_visibles`, y lo ajeno da el mismo 404 que lo inexistente.
 """
 
@@ -89,7 +89,7 @@ from programas.views.ajax_utils import ajax_redirect, is_ajax
 PARAMETROS_DE_MODAL = ("nuevo", "asignar", "reasignar", "cancelar")
 PARAMETRO_VOLVER = "volver"
 #: Lo que el informe recuerda de dónde se entró, para volver ahí y para que «Revisado» vuelva al informe con lo mismo:
-#: el listado de P21 (`volver`), la solapa Infraestructura de una institución (`dispositivo`) o la ficha del
+#: el listado de P21 (`volver`), la sección «Edificios» de una institución (`dispositivo`) o la ficha del
 #: edificio de la sección Edificios (`edificio`, Cambio 487).
 PARAMETROS_DE_ORIGEN = (PARAMETRO_VOLVER, "dispositivo", "edificio")
 #: Lo que se conserva al elegir el edificio de «Nuevo relevamiento»: la solapa y los filtros.
@@ -547,7 +547,7 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
 
     **Sin mixin de capacidad a propósito.** La entran tres personas distintas —el
     coordinador desde P21, el agente que lo cargó y quien opera una institución del edificio
-    desde la solapa Infraestructura— y cada una tiene una capacidad distinta. Poner una sola
+    desde la sección «Edificios»— y cada una tiene una capacidad distinta. Poner una sola
     acá sería una segunda regla de alcance que se desincroniza de `inspecciones_visibles`:
     la única es esa, y lo que no está en ella da **404**, el mismo que un id inexistente (sin
     oráculo de existencia). Quien no tiene ninguna capacidad de Dispositivos cae ahí también,

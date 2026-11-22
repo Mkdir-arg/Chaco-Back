@@ -1,6 +1,6 @@
 """Alta, edición y vinculación del **edificio** de una institución (MVP v2, carril C5 · P19).
 
-`Edificio` existía desde la etapa 1 y lo leían la solapa Infraestructura, el semáforo
+`Edificio` existía desde la etapa 1 y lo leían la sección «Edificios», el semáforo
 edilicio y los relevamientos del coordinador, pero **no había forma de crear uno**: el
 estado vacío decía «aparecen cuando se le asigne uno» y no había dónde asignarlo. Esto es
 ese dónde.
@@ -122,7 +122,7 @@ def crear_edificio(*, dispositivo, usuario, codigo, **datos):
     """Da de alta el inmueble y lo vincula a la institución desde la que se lo carga.
 
     El alta y el vínculo van juntos a propósito: un edificio sin ninguna institución no lo
-    ve nadie —ni la solapa Infraestructura, que filtra por dispositivo, ni el coordinador,
+    ve nadie —ni la sección «Edificios», que filtra por dispositivo, ni el coordinador,
     cuyo alcance sale de los dispositivos— y quedaría huérfano apenas se crea.
     """
 

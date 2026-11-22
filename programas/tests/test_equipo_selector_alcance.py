@@ -252,11 +252,12 @@ class TablaDelEquipoTests(BaseSelector):
 
 
 #: Consultas del detalle visto por un responsable con alcance Edificios, con la caché ya caliente. Si suben, algo
-#: del Equipo volvió a leer los permisos más de una vez por request. 33 -> 34 (Cambio 570): las tarjetas de «Edificios · N»
+#: del Equipo volvió a leer los permisos más de una vez por request. 34 -> 32 (Cambio 572: la ficha ya no lee las instituciones
+#: del predio ni los totales de relevamientos). 33 -> 34 (Cambio 570): las tarjetas de «Edificios · N»
 #: leen el equipo de cada edificio (2 consultas fijas) y los movimientos de hoy (1), y la ficha ya no arma el
-#: relevamiento ni la solapa Infraestructura.
-CONSULTAS_DETALLE_RESPONSABLE = 34
-CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA = 35
+#: relevamiento ni la sección «Edificios».
+CONSULTAS_DETALLE_RESPONSABLE = 32
+CONSULTAS_DETALLE_RESPONSABLE_AGREGAR_PERSONA = 33
 
 
 @tag("performance")

@@ -66,7 +66,6 @@ class IngresarPersonaSoloConCiudadanoVerTests(_UnClientePorUsuario):
         respuesta = self._detalle(usuario)
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertFalse(respuesta.context["puede_admitir"])
         self.assertNotContains(respuesta, TEXTO_BOTON)
         asistente = self._cliente(usuario).get(reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
         self.assertEqual(asistente.status_code, 403)

@@ -4,7 +4,7 @@ Lo que se fija acá, y por qué:
 
 1. **La pantalla tiene una sola regla de alcance**, `inspecciones_visibles`, y la entran
    tres personas distintas: el coordinador desde P21, el agente que lo cargó y quien opera
-   una institución del edificio desde la solapa Infraestructura. Lo ajeno y lo inexistente
+   una institución del edificio desde la sección «Edificios». Lo ajeno y lo inexistente
    dan el **mismo 404**, con el mismo cuerpo: no hay oráculo de existencia.
 2. **La institución relevada no ve el nombre del agente asignado** ni las indicaciones que
    le dio la coordinación (decisión del juez). Un relevamiento en curso le dice «en curso»

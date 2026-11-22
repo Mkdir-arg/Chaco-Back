@@ -5,6 +5,7 @@ import json
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 
 from core import db as core_db
 from core import rbac
@@ -46,6 +47,26 @@ TONOS_ESTADO = {
     "INACTIVO": "gray",
     "CERRADO": "gray",
 }
+
+
+def entero_de_parametro(valor):
+    """El id de un parámetro GET, o `None`. Solo dígitos ASCII: un superíndice o un dígito
+    arábigo pasan `isdigit()` y rompen `int()`."""
+
+    texto = str(valor or "").strip()
+    return int(texto) if texto.isascii() and texto.isdecimal() else None
+
+
+def nombre_o(usuario, vacio="—"):
+    """El nombre de `usuario`, o `vacio` si no hay (una asignación sin agente, un autor borrado)."""
+
+    return vacio if usuario is None else nombre_de_persona(usuario)
+
+
+def fecha_corta(momento):
+    """«22/11/2026» en hora local: la fecha de un relevamiento o de una carga, sin la hora."""
+
+    return timezone.localtime(momento).strftime("%d/%m/%Y")
 
 
 def estado_de_dispositivo(dispositivo):
