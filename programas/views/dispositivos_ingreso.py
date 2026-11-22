@@ -57,7 +57,6 @@ from programas.services.estadias import (
 )
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
-    buscar_en_registro_de_personas,
     confirmar_ingreso,
     maneja_plazas,
     plaza_reservada_de,
@@ -313,7 +312,7 @@ class IngresoPersonaView(IngresoBaseView):
                 {
                     "alta_form": alta,
                     "alta_aviso": (
-                        "No está en el Legajo Ciudadano ni en el Registro de Personas"
+                        "No está en el Legajo Ciudadano"
                         + (f" ({motivo})" if motivo else "")
                         + ". Cargá sus datos para seguir con el ingreso."
                     ),
@@ -333,7 +332,7 @@ class IngresoPersonaView(IngresoBaseView):
         return IngresoPersonaForm(*args, url_sugerencias=url, **kwargs)
 
     def _alta_minima_form(self, sin_registro, data=None):
-        return IngresoAltaMinimaForm(data, dni=sin_registro["dni"], sexo=sin_registro.get("sexo") or "")
+        return IngresoAltaMinimaForm(data, dni=sin_registro["dni"])
 
     def get(self, request, pk):
         pedida = request.GET.get("plaza", "")
@@ -346,7 +345,7 @@ class IngresoPersonaView(IngresoBaseView):
         estado = self.estado()
         sin_registro = estado.get("sin_registro")
         if sin_registro and puede(request.user, CAP_CREAR_CIUDADANO):
-            form = self._form_buscar(initial={"dni": sin_registro["dni"], "sexo": sin_registro.get("sexo") or ""})
+            form = self._form_buscar(initial={"dni": sin_registro["dni"]})
             return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro))
         persona = self.resumen_persona(estado)
         form = self._form_buscar(initial={"dni": persona["dni"]} if persona else None)
@@ -386,14 +385,13 @@ class IngresoPersonaView(IngresoBaseView):
     def post(self, request, pk):
         if request.POST.get("accion") == "alta_minima":
             return self._post_alta_minima(request)
-        # Cada consulta reemplaza a la anterior: DNI inválido, sin sexo, fallecida o ya
+        # Cada consulta reemplaza a la anterior: DNI inválido o ya
         # alojada cortan con error sin tocar la sesión, y la alta mínima vieja no puede volver.
         self._descartar_alta_minima()
         form = self._form_buscar(request.POST)
         if not form.is_valid():
             return self.render_paso(request, form)
         dni = form.cleaned_data["dni"]
-        sexo = form.cleaned_data["sexo"]
 
         ciudadano = buscar_ciudadano_por_dni(dni)
         if ciudadano is not None:
@@ -401,23 +399,14 @@ class IngresoPersonaView(IngresoBaseView):
         if not puede(request.user, CAP_CREAR_CIUDADANO):
             form.add_error("dni", "La persona no está en el Legajo Ciudadano y no tenés permiso para darla de alta.")
             return self.render_paso(request, form)
-        if not sexo:
-            form.add_error("sexo", "Indicá el sexo para consultar el Registro de Personas.")
-            return self.render_paso(request, form)
-        datos, motivo, fallecido = buscar_en_registro_de_personas(dni, sexo)
-        if fallecido:
-            form.add_error("dni", motivo)
-            return self.render_paso(request, form)
-        if datos is None:
-            # Ni el legajo ni el Registro la tienen: se ofrece el alta mínima. La sesión
-            # solo recuerda qué se consultó; no hay persona elegida ni se escribe nada.
-            sin_registro = {"dni": dni, "sexo": sexo}
-            self.guardar(self._con_sugerida({"sin_registro": sin_registro}))
-            return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro), motivo=motivo)
-        return self._guardar_y_seguir({"ciudadano_id": None, "renaper": datos, "sexo": sexo})
+        # Sin legajo, el sexo ya no se pide para consultar el Registro de Personas (como la consulta de
+        # Emergencia, Cambio 522): se ofrece directo el alta mínima, que lleva el género opcional.
+        sin_registro = {"dni": dni}
+        self.guardar(self._con_sugerida({"sin_registro": sin_registro}))
+        return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro))
 
     def _post_alta_minima(self, request):
-        """Envío del formulario chico: el DNI y el sexo salen de la sesión, no del POST."""
+        """Envío del formulario chico: el DNI sale de la sesión, no del POST."""
 
         if not puede(request.user, CAP_CREAR_CIUDADANO):
             raise PermissionDenied
@@ -425,8 +414,7 @@ class IngresoPersonaView(IngresoBaseView):
         if not sin_registro:
             return redirect(self.urls()["persona"])
         dni = sin_registro["dni"]
-        sexo = sin_registro.get("sexo") or ""
-        buscar = self._form_buscar(initial={"dni": dni, "sexo": sexo})
+        buscar = self._form_buscar(initial={"dni": dni})
 
         if request.POST.get("persona") != self.huella_sin_registro(sin_registro):
             # Otra pestaña cambió a quién se está dando de alta: no se guarda nada.
@@ -449,7 +437,7 @@ class IngresoPersonaView(IngresoBaseView):
             "fecha_nacimiento": fecha.isoformat() if fecha else None,
             "genero": datos["genero"],
         }
-        return self._guardar_y_seguir({"ciudadano_id": None, "manual": manual, "sexo": sexo})
+        return self._guardar_y_seguir({"ciudadano_id": None, "manual": manual})
 
 
 class IngresoPlazaView(IngresoBaseView):

@@ -14,24 +14,14 @@ from programas.forms import INPUT_CLASS
 
 
 class IngresoPersonaForm(forms.Form):
-    """Paso 1 del asistente de ingreso: a quién se aloja (DNI y, si hace falta, sexo)."""
+    """Paso 1 del asistente de ingreso: a quién se aloja (el DNI; sin legajo se ofrece el alta mínima)."""
 
-    GENERO_CHOICES = [("", "Seleccionar...")] + [
-        ("M", "Masculino"),
-        ("F", "Femenino"),
-        ("X", "No binario"),
-    ]
+    # Las etiquetas del género que muestra el paso de confirmación.
+    GENERO_CHOICES = [("", "Seleccionar..."), ("M", "Masculino"), ("F", "Femenino"), ("X", "No binario")]
 
     dni = forms.CharField(
         label="DNI",
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Ej.: 30123456", "inputmode": "numeric"}),
-    )
-    sexo = forms.ChoiceField(
-        label="Sexo",
-        required=False,
-        choices=GENERO_CHOICES,
-        help_text="Solo si la persona no está en el Legajo Ciudadano: el Registro de Personas lo pide.",
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
 
     def __init__(self, *args, url_sugerencias=None, **kwargs):
@@ -87,8 +77,8 @@ class IngresoAltaMinimaForm(forms.Form):
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
 
-    def __init__(self, *args, dni, sexo="", **kwargs):
-        kwargs["initial"] = {"dni": dni, "genero": sexo}
+    def __init__(self, *args, dni, **kwargs):
+        kwargs["initial"] = {"dni": dni}
         # Convive con IngresoPersonaForm en la misma página: sin prefijo se repetirían id_dni & co.
         kwargs.setdefault("auto_id", "id_alta_%s")
         super().__init__(*args, **kwargs)
