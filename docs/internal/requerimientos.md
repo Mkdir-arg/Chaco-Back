@@ -661,6 +661,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 541 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -62212,6 +62213,57 @@ Sin consultas nuevas: el paginador corta la lista antes de armar las filas.
 - `programas/templates/programas/emergencia/dispositivo/` (`llegadas`, `ficha`, `cama`, `integrantes`, `alojar`) y `kits/` (`pendientes`, `recibir`).
 - `programas/views/emergencia_dispositivo.py`, `programas/views/emergencia_kits.py`, `programas/forms_emergencia_dispositivo.py`, `programas/selectors/emergencia_llegadas.py`.
 - Tests: `test_emergencia_alojar_vistas.py` y `test_emergencia_kits_vistas.py`.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+---
+
+# Cambio 541 — Dispositivos · ficha y modales con piezas canónicas, y MINOR del #1316
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo, estadía y egreso; Emergencia · Kits del dispositivo |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (PR-C) y MINOR de la auditoría del #1316 |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgos 13 y 14 del relevamiento (modales de la ficha del dispositivo a mano y modal de egreso duplicado) más los MINOR de la auditoría del #1316.
+
+## Alcance acordado
+Solo adherencia, sin clases, JS ni variantes nuevas, sin tocar nombres de campos, validación ni URLs de POST. Fuera de alcance: el hallazgo 9 (glosario
+cama/plaza y «Egresar/Registrar egreso»), decisión del PM. Consultado el archivo vivo por `dispositivos` (Cambios 523, 526, 527, 540): ninguna decisión choca.
+
+## Decisiones tomadas
+- **Recibir entrega de kits:** el submit del formulario (botón o Enter en una cantidad) ya no envía: `@submit` abre el modal si el navegador valida
+  (`reportValidity()`), y el botón es `type="submit"`. `nodo-submit-guard.js` ya suelta la marca si el envío termina cancelado (segunda lectura de `defaultPrevented`).
+- **Título de Kits:** el `h1` dice «Kits» (el `<title>` y el menú «Emergencia · Kits» no cambian).
+- **Egreso:** el cuerpo del modal sale a `dispositivos/_form_egreso.html` (los cinco campos con `_field.html`; «Pertenencias devueltas» como `SwitchInput`
+  en su propia fila, con el label arriba como en el modal de Equipo) y lo incluyen el legajo (P4) y la estadía (P7). Cada pantalla conserva su encabezado, `<form>` y pie.
+- **Edificio y «Vincular un edificio»** pasan a `_field.html` con `wrapper_class=""` (los labels salen del form; mismo asterisco).
+
+## Pendiente
+- **Observar y Rechazar (P4)** conservan su `textarea` a mano: no tienen Form de Django y es el canon de «Confirmación con motivo» del arquetipo Modal.
+- **Hallazgo 9** (glosario) queda para el PM.
+
+## Implementación
+Tests de la guardia movidos a `test_emergencia_kits_guardia_vistas.py` (el original pasaba de 1000 líneas). Aserciones reforzadas, verificadas con mutación:
+tipo del botón y `aria-labelledby` del modal de recepción, «Paso 2 de 3», `window.__becasConfirmJs` en Llegadas y el `h1` de Kits.
+
+## Archivos
+- `programas/templates/programas/dispositivos/_form_egreso.html` (nuevo), `legajo/detail.html`, `estadia/detalle.html`.
+- `programas/templates/programas/emergencia/kits/` (`recibir`, `pendientes`).
+- Fichas: `.claude/design/arquetipos/modal.md` y `.claude/design/componentes/ficha_timeline.md`.
+- Tests: `test_emergencia_kits_vistas.py`, `test_emergencia_kits_guardia_vistas.py` y `test_emergencia_alojar_vistas.py`.
 
 ## Reversión
 Desplegar el código anterior.
