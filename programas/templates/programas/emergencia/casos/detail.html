@@ -12,6 +12,7 @@ Las acciones con datos (cerrar, cancelar, reasignar, prioridad, derivar) son el 
 cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la tarjeta del dispositivo solo navega.{% endcomment %}
 <div x-data="{ modalCerrar: {% if modal_abierto == 'cerrar' %}true{% else %}false{% endif %}, modalCancelar: {% if modal_abierto == 'cancelar' %}true{% else %}false{% endif %},
                modalPrioridad: {% if modal_abierto == 'prioridad' %}true{% else %}false{% endif %}, modalReasignar: {% if modal_abierto == 'reasignar' %}true{% else %}false{% endif %},
+               modalCancelarIngreso: {% if modal_abierto == 'cancelar_ingreso' %}true{% else %}false{% endif %},
                modalDerivar: {% if confirmar_derivar %}true{% else %}false{% endif %} }">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
@@ -342,6 +343,11 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
               <button type="button" @click="modalCancelar=true" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar derivación</button>
             </div>
             {% endif %}
+            {% if form_cancelar_ingreso %}
+            <div class="flex justify-end">
+              <button type="button" @click="modalCancelarIngreso=true" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar ingreso</button>
+            </div>
+            {% endif %}
           </div>
         </section>
         {% else %}
@@ -372,6 +378,9 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
           {% include "components/_alerta.html" with tono="warning" titulo=confirmar_derivar.aviso texto="El dispositivo no tiene lugar para toda la familia. Si seguís, el caso se deriva igual con las plazas que pediste y el dispositivo resuelve a quién aloja." %}
           {% else %}
           {% include "components/_alerta.html" with tono="info" texto="El dispositivo ve el caso apenas lo derivás. Las camas se reservan cuando lo acepta." %}
+          {% endif %}
+          {% if confirmar_derivar.ya_pedidas %}
+          {% include "components/_alerta.html" with tono="info" texto=confirmar_derivar.ya_pedidas %}
           {% endif %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalDerivar=false" accion_texto=confirmar_derivar.accion %}
@@ -415,6 +424,27 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
           {% include "components/_alerta.html" with tono="warning" texto="El dispositivo deja de ver el caso y el caso vuelve a gestión, a tu nombre, para derivarlo a otro lado o cerrarlo." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelar=false" cancelar_texto="Volver" accion_texto="Sí, cancelar la derivación" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cancelar_ingreso %}
+  {# Modal: Cancelar ingreso — solo quien supervisa, sin nadie confirmado (arquetipo Modal, Cambio 535) #}
+  <div x-show="modalCancelarIngreso" x-cloak x-becas-modal="modalCancelarIngreso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCancelarIngreso=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-ingreso-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cancelar ingreso" titulo_id="modal-cancelar-ingreso-titulo" icono="fa-ban" tono="danger" cerrar="modalCancelarIngreso=false" %}
+      <form method="post" action="{% url 'emergencia:caso_cancelar_ingreso' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for error in form_cancelar_ingreso.non_field_errors %}{% include "components/_alerta.html" with tono="danger" texto=error %}{% endfor %}
+          {{ form_cancelar_ingreso.derivacion }}
+          {% with field=form_cancelar_ingreso.motivo %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          {% include "components/_alerta.html" with tono="warning" texto="El dispositivo deja de esperar a la familia, se liberan las camas que reservó y el caso vuelve a la mesa para derivarlo de nuevo o cerrarlo." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelarIngreso=false" cancelar_texto="Volver" accion_texto="Sí, cancelar el ingreso" accion_tono="danger" %}
       </form>
     </div>
   </div>

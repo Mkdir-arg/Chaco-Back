@@ -32,6 +32,7 @@ from django.views import View
 from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import (
     CancelarDerivacionForm,
+    CancelarIngresoMesaForm,
     CierreCasoForm,
     ContactoCasoForm,
     DerivarCasoForm,
@@ -47,10 +48,11 @@ from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_mesa as mesa
-from programas.selectors.emergencia_derivar import clave_de_grupo
+from programas.selectors.emergencia_derivar import clave_de_grupo, pedidas_pendientes
 from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import CasoDeOtroOperador, EstadoCambio, FaltanPlazas
+from programas.services.emergencia_cierre import cancelar_ingreso_por_la_mesa
 from programas.services.emergencia_programa import puede_supervisar_la_mesa
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
@@ -176,94 +178,115 @@ class NuevoCasoView(MesaPermissionMixin, View):
 # ---------------------------------------------------------------------------
 
 
+def _ya_pedidas(dispositivo_id, edificio_id):
+    """«Ya hay 5 camas pedidas en 2 derivaciones pendientes…» para el modal de derivar, o ``""`` (Cambio 535)."""
+
+    camas, derivaciones = pedidas_pendientes(dispositivo_id, edificio_id)
+    if not derivaciones:
+        return ""
+    en = "1 derivación pendiente" if derivaciones == 1 else f"{derivaciones} derivaciones pendientes"
+    pedidas = "1 cama pedida" if camas == 1 else f"{camas} camas pedidas"
+    return (
+        f"Ya hay {pedidas} en {en} de aceptar acá. No se descuentan de las libres: "
+        "se reservan recién cuando la institución acepta."
+    )
+
+
+def _panel_de_la_ficha(request, caso):
+    """El panel «Derivar» por edificio y, si la URL lo pide, la confirmación de derivar a una institución."""
+
+    pedido = PanelDerivarForm(request.GET)
+    conservados = {clave: pedido.valor(clave) for clave in PARAMETROS_DEL_PANEL}
+    panel = mesa.panel_de_derivar(
+        caso,
+        request.user,
+        plazas=pedido.valor("plazas"),
+        texto=pedido.valor("q") or "",
+        localidad=pedido.valor("localidad_dispositivo") or "",
+        grupo=pedido.valor("grupo"),
+        url_de_grupo=lambda grupo: _url_ficha(caso, **conservados, grupo=grupo),
+        url_de_accion=lambda grupo, pk, plazas: _url_ficha(
+            caso, **{**conservados, "plazas": plazas, "grupo": grupo, "derivar": pk}
+        ),
+    )
+    panel["url_volver"] = _url_ficha(caso, **conservados)
+    if panel["distancias"]:
+        panel["distancias"]["ubicar_url"] = reverse("emergencia:caso_ubicar_domicilio", args=[caso.pk])
+    # Para mostrar, un formulario sin enlazar: así «Plazas a pedir» arranca en el total del grupo.
+    panel["form"] = PanelDerivarForm(
+        initial={**conservados, "plazas": panel["plazas"], "grupo": pedido.valor("grupo")}, auto_id="panel_%s"
+    )
+    panel["form"].ofrecer_localidades(panel["localidades"])
+    grupo = panel["grupo"]
+    elegido = None
+    if grupo is not None:
+        elegido = next((fila for fila in grupo["instituciones"] if fila["id"] == pedido.valor("derivar")), None)
+    confirmacion = None
+    if elegido is not None and elegido["marca"] != selectores.MARCA_SIN_PLAZAS:
+        faltan = elegido["marca"] == selectores.MARCA_FALTAN
+        confirmacion = {
+            "titulo": f"Derivar a {elegido['nombre']}",
+            "subtitulo": f"{grupo['nombre']} · {elegido['libres']} plazas libres · {elegido['reservadas']} reservadas",
+            "tono": "warning" if faltan else "brand",
+            "faltan": faltan,
+            # La mesa pide: las camas las reserva la institución cuando acepta (Cambio 535).
+            "aviso": f"Vas a pedir {panel['plazas']} plazas y hay {elegido['libres']} libres. ¿Seguís?",
+            "ya_pedidas": _ya_pedidas(elegido["id"], grupo["edificio_id"]),
+            "accion": "Sí, derivar igual" if faltan else "Sí, derivar",
+            "form": DerivarCasoForm(
+                initial={
+                    "dispositivo": elegido["id"],
+                    "edificio": grupo["edificio_id"],
+                    "plazas": panel["plazas"],
+                    "confirmar_faltantes": faltan,
+                },
+                auto_id="derivar_%s",
+            ),
+        }
+    return panel, confirmacion
+
+
+def contexto_de_ficha(request, caso, *, atados=None, modal=None):
+    """El contexto de la ficha (E3): lo arman el GET y la vuelta de una acción que falló.
+
+    ``atados`` pone formularios ya enlazados (con lo que se mandó y sus errores) en lugar de los
+    vacíos y ``modal`` dice cuál modal abre la página, para no perder lo escrito cuando una acción
+    falla (Cambio 533).
+    """
+
+    contexto = mesa.ficha_de_caso(caso, request.user, sla_vigente(), timezone.now())
+    contexto["url_ficha"] = _url_ficha(caso)
+    if contexto["duplicado"]:
+        contexto["duplicado"]["url"] = reverse("emergencia:caso_detalle", args=[contexto["duplicado"]["pk"]])
+    if contexto["puede_derivar"]:
+        contexto["panel"], contexto["confirmar_derivar"] = _panel_de_la_ficha(request, caso)
+    if contexto["puede_actuar"]:
+        contexto["form_contacto"] = ContactoCasoForm(auto_id="contacto_%s")
+        contexto["form_prioridad"] = PrioridadCasoForm(initial={"prioridad": caso.prioridad}, auto_id="prioridad_%s")
+    if contexto["puede_cerrar"]:
+        contexto["form_cierre"] = CierreCasoForm(auto_id="cierre_%s")
+    if contexto["puede_cancelar_derivacion"]:
+        contexto["form_cancelar"] = CancelarDerivacionForm(auto_id="cancelar_%s")
+    if contexto["puede_reasignar"]:
+        contexto["form_reasignar"] = ReasignarCasoForm(auto_id="reasignar_%s")
+    if contexto["puede_cancelar_ingreso"]:
+        contexto["form_cancelar_ingreso"] = CancelarIngresoMesaForm(
+            initial={"derivacion": contexto["derivacion"]["id"] if contexto["derivacion"] else None},
+            auto_id="cancelar_ingreso_%s",
+        )
+    for clave, form in (atados or {}).items():
+        if clave in contexto:
+            contexto[clave] = form
+    contexto["modal_abierto"] = modal
+    return contexto
+
+
 class CasoDetalleView(MesaPermissionMixin, View):
     """E3: lo relevado, los contactos, la traza y, a la derecha, derivar o la derivación vigente."""
 
-    def _panel(self, request, caso):
-        """El panel «Derivar» por edificio y, si la URL lo pide, la confirmación de derivar a una institución."""
-
-        pedido = PanelDerivarForm(request.GET)
-        conservados = {clave: pedido.valor(clave) for clave in PARAMETROS_DEL_PANEL}
-        panel = mesa.panel_de_derivar(
-            caso,
-            request.user,
-            plazas=pedido.valor("plazas"),
-            texto=pedido.valor("q") or "",
-            localidad=pedido.valor("localidad_dispositivo") or "",
-            grupo=pedido.valor("grupo"),
-            url_de_grupo=lambda grupo: _url_ficha(caso, **conservados, grupo=grupo),
-            url_de_accion=lambda grupo, pk, plazas: _url_ficha(
-                caso, **{**conservados, "plazas": plazas, "grupo": grupo, "derivar": pk}
-            ),
-        )
-        panel["url_volver"] = _url_ficha(caso, **conservados)
-        if panel["distancias"]:
-            panel["distancias"]["ubicar_url"] = reverse("emergencia:caso_ubicar_domicilio", args=[caso.pk])
-        # Para mostrar, un formulario sin enlazar: así «Plazas a reservar» arranca en el total del grupo.
-        panel["form"] = PanelDerivarForm(
-            initial={**conservados, "plazas": panel["plazas"], "grupo": pedido.valor("grupo")}, auto_id="panel_%s"
-        )
-        panel["form"].ofrecer_localidades(panel["localidades"])
-        grupo = panel["grupo"]
-        elegido = None
-        if grupo is not None:
-            elegido = next((fila for fila in grupo["instituciones"] if fila["id"] == pedido.valor("derivar")), None)
-        confirmacion = None
-        if elegido is not None and elegido["marca"] != selectores.MARCA_SIN_PLAZAS:
-            faltan = elegido["marca"] == selectores.MARCA_FALTAN
-            confirmacion = {
-                "titulo": f"Derivar a {elegido['nombre']}",
-                "subtitulo": f"{grupo['nombre']} · {elegido['libres']} plazas libres · {elegido['reservadas']} reservadas",
-                "tono": "warning" if faltan else "brand",
-                "faltan": faltan,
-                "aviso": f"Vas a reservar {elegido['libres']} de {panel['plazas']} plazas. ¿Seguís?",
-                "accion": "Sí, derivar igual" if faltan else "Sí, derivar",
-                "form": DerivarCasoForm(
-                    initial={
-                        "dispositivo": elegido["id"],
-                        "edificio": grupo["edificio_id"],
-                        "plazas": panel["plazas"],
-                        "confirmar_faltantes": faltan,
-                    },
-                    auto_id="derivar_%s",
-                ),
-            }
-        return panel, confirmacion
-
-    def contexto(self, request, caso, *, atados=None, modal=None):
-        """El contexto de la ficha.
-
-        ``atados`` pone formularios ya enlazados (con lo que se mandó y sus errores) en lugar de los
-        vacíos y ``modal`` dice cuál modal abre la página, para no perder lo escrito cuando una acción
-        falla (Cambio 533).
-        """
-
-        contexto = mesa.ficha_de_caso(caso, request.user, sla_vigente(), timezone.now())
-        contexto["url_ficha"] = _url_ficha(caso)
-        if contexto["duplicado"]:
-            contexto["duplicado"]["url"] = reverse("emergencia:caso_detalle", args=[contexto["duplicado"]["pk"]])
-        if contexto["puede_derivar"]:
-            contexto["panel"], contexto["confirmar_derivar"] = self._panel(request, caso)
-        if contexto["puede_actuar"]:
-            contexto["form_contacto"] = ContactoCasoForm(auto_id="contacto_%s")
-            contexto["form_prioridad"] = PrioridadCasoForm(
-                initial={"prioridad": caso.prioridad}, auto_id="prioridad_%s"
-            )
-        if contexto["puede_cerrar"]:
-            contexto["form_cierre"] = CierreCasoForm(auto_id="cierre_%s")
-        if contexto["puede_cancelar_derivacion"]:
-            contexto["form_cancelar"] = CancelarDerivacionForm(auto_id="cancelar_%s")
-        if contexto["puede_reasignar"]:
-            contexto["form_reasignar"] = ReasignarCasoForm(auto_id="reasignar_%s")
-        for clave, form in (atados or {}).items():
-            if clave in contexto:
-                contexto[clave] = form
-        contexto["modal_abierto"] = modal
-        return contexto
-
     def get(self, request, pk):
         caso = get_object_or_404(mesa.casos_para_ficha(), pk=pk)
-        return render(request, TEMPLATE_FICHA, self.contexto(request, caso))
+        return render(request, TEMPLATE_FICHA, contexto_de_ficha(request, caso))
 
 
 # ---------------------------------------------------------------------------
@@ -291,10 +314,18 @@ class _AccionDeCasoView(MesaPermissionMixin, View):
         return _url_ficha(caso)
 
     def volver_a_mostrar(self, request, caso, form):
-        """La ficha otra vez, con el formulario enlazado (lo enviado y el error) y su modal abierto."""
+        """La ficha otra vez, con el formulario enlazado (lo enviado y el error) y su modal abierto.
+
+        Si quien manda ya no tiene esa acción en la ficha (otro tomó el caso, cambió el estado), no hay
+        formulario donde mostrar el error: vuelve el aviso por toast y la ficha, como antes del
+        Cambio 533, en vez de un 400 sin el formulario (Cambio 535).
+        """
 
         caso = get_object_or_404(mesa.casos_para_ficha(), pk=caso.pk)
-        contexto = CasoDetalleView().contexto(request, caso, atados={self.clave_form: form}, modal=self.modal)
+        contexto = contexto_de_ficha(request, caso, atados={self.clave_form: form}, modal=self.modal)
+        if self.clave_form not in contexto:
+            messages.error(request, _errores_de(form))
+            return redirect(_url_ficha(caso))
         return render(request, TEMPLATE_FICHA, contexto, status=400)
 
     def post(self, request, pk):
@@ -310,7 +341,7 @@ class _AccionDeCasoView(MesaPermissionMixin, View):
         try:
             aviso = self.ejecutar(request, caso, form)
         except (EstadoCambio, CasoDeOtroOperador) as cambio:
-            messages.warning(request, getattr(cambio, "mensaje", None) or str(cambio))
+            messages.warning(request, cambio.mensaje)
             return redirect(_url_ficha(caso))
         except FaltanPlazas as faltan:
             return self.faltan_plazas(request, caso, form, faltan)
@@ -453,6 +484,29 @@ class CancelarDerivacionView(_AccionDeCasoView):
             )
         servicio.cancelar_derivacion(derivacion, request.user, form.cleaned_data["motivo"])
         return f"Derivación a {derivacion.dispositivo.nombre} cancelada. El caso volvió a gestión."
+
+
+class CancelarIngresoMesaView(_AccionDeCasoView):
+    """Quien supervisa destraba un ingreso aceptado sin nadie confirmado (Cambio 535). El servicio lo vuelve a exigir."""
+
+    form_class = CancelarIngresoMesaForm
+    clave_form = "form_cancelar_ingreso"
+    auto_id = "cancelar_ingreso_%s"
+    modal = "cancelar_ingreso"
+
+    def tiene_permiso(self, user):
+        return puede_supervisar_la_mesa(user)
+
+    def ejecutar(self, request, caso, form):
+        actualizado = cancelar_ingreso_por_la_mesa(
+            caso=caso,
+            usuario=request.user,
+            motivo=form.cleaned_data["motivo"],
+            derivacion_vista=form.cleaned_data["derivacion"],
+        )
+        liberadas = actualizado.reservas_liberadas
+        camas = "1 cama liberada" if liberadas == 1 else f"{liberadas} camas liberadas"
+        return f"Ingreso del caso {caso.numero} cancelado ({camas}). El caso volvió a la mesa."
 
 
 class CerrarCasoView(_AccionDeCasoView):

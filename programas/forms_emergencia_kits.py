@@ -6,6 +6,8 @@ las reglas de la entrega (ítems activos, destino activo, quién puede y en qué
 remito en JPEG) las decide `programas/services/kits.py`, que es lo mismo que usa la app.
 """
 
+import uuid
+
 from django import forms
 
 from programas.forms import INPUT_CLASS
@@ -89,6 +91,9 @@ class ItemsEntregaForm(forms.Form):
     oculta_cantidades = False
 
     repone_a = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+    #: Nace al abrir el paso 2 y viaja oculto hasta «Crear entrega»: reenviar el mismo armado (volver
+    #: atrás en el navegador) devuelve la entrega ya creada en vez de otra (Cambio 535).
+    uuid_cliente = forms.UUIDField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, catalogo, **kwargs):
         super().__init__(*args, **kwargs)
@@ -136,6 +141,7 @@ class ItemsEntregaForm(forms.Form):
 
         iniciales = {_campo_de(item.pk): cantidad for item, cantidad in self.lineas()}
         iniciales["repone_a"] = self.cleaned_data.get("repone_a")
+        iniciales["uuid_cliente"] = self.cleaned_data.get("uuid_cliente") or uuid.uuid4()
         return iniciales
 
     @staticmethod
@@ -145,6 +151,12 @@ class ItemsEntregaForm(forms.Form):
         iniciales = {_campo_de(item.pk): cantidad for item, cantidad in faltantes}
         iniciales["repone_a"] = getattr(repone_a, "pk", repone_a)
         return iniciales
+
+    @staticmethod
+    def armado_nuevo(iniciales=None):
+        """``iniciales`` con un ``uuid_cliente`` nuevo: el del armado que se abre (Cambio 535)."""
+
+        return {**(iniciales or {}), "uuid_cliente": uuid.uuid4()}
 
 
 class ConfirmarEntregaForm(ItemsEntregaForm):

@@ -656,6 +656,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 531 | Dispositivos · ficha de la institución: aviso de derivaciones de Emergencia por recibir | Dispositivos (legajo) / Emergencia (Llegadas) | `#emergencia` `#dispositivos` `#ui` `#rbac` | PM — pruebas de Emergencia del 21/11/2026 (#1302) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
 
 **Notas del índice**
 
@@ -61532,6 +61533,113 @@ No requiere.
 
 ## Reversión
 Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 535 — Emergencia · ingreso en curso que no se destraba, camas ya pedidas y entregas de kits duplicadas
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · mesa (bandeja E2, ficha E3, panel «Derivar», E7) y Kits (armar entrega) |
+| **Etiquetas** | `#emergencia` `#rbac` `#ui` `#datos` |
+| **Solicitante** | Relevamiento de lógica de Emergencia y Dispositivos del 22/11/2026 (PR L5) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | — |
+| **Partes afectadas** | Servidor (backoffice) |
+| **Migración** | `programas.0135` (2 columnas nuevas) y `programas.0136` (`char(36)` en MySQL/MariaDB) |
+
+## Pedido original
+Cuatro hallazgos del relevamiento de lógica: (A) un caso en «Ingreso en curso» no vence y, si la guardia no confirma a
+nadie ni lo cancela, queda tomando camas para siempre: la mesa no tiene cómo destrabarlo; (B) el panel «Derivar» no dice
+cuántas camas ya se pidieron a esa institución en derivaciones sin contestar, y su confirmación hablaba de «reservar»;
+(C) «Crear entrega» de kits crea una entrega por cada POST (volver atrás y reenviar duplica); (D1) un DNI escrito con
+espacios no encuentra el caso; (D2) una acción con formulario cuyo modal ya no está en la ficha devolvía un 400 sin el
+formulario. Más tres arreglos de estructura de la vista y el servicio de la mesa.
+
+## Alcance acordado
+`services/emergencia_cierre.py`, `services/emergencia.py`, `services/kits.py`, `selectors/emergencia*.py` (salvo
+`emergencia_alojar.py`), `views/emergencia.py`, `views/emergencia_kits.py`, los formularios, E7 y las plantillas de la
+ficha, la configuración y el paso 2 de kits. Afuera, porque los tiene abiertos el #1308: `views/emergencia_dispositivo.py`,
+`services/emergencia_recepcion.py`, `services/emergencia_ingreso_comun.py`, `services/emergencia_sin_derivacion.py` y
+`selectors/emergencia_alojar.py`.
+
+## Consulta previa de requerimientos
+`requerimientos.py --tag emergencia`, `--buscar "ingreso"` y `--buscar "uuid"`. Nada contradicho. El 533 decidió que una
+acción fallida vuelva a dibujar la ficha con el modal abierto: D2 lo respeta y solo cubre el caso en que la ficha ya no
+tiene ese modal (vuelve el toast de antes del 533). El 99 exige `char(36)` y `q_uuid_en_texto` para todo `UUIDField`.
+
+## Decisiones tomadas
+- **A · cancelar desde la mesa.** `cancelar_ingreso_por_la_mesa` (servicio) y el botón «Cancelar ingreso» en «Derivación
+  vigente» de la ficha, con modal de sistema y motivo obligatorio (200 caracteres). Solo con `emergencia.supervisar`
+  (`puede_supervisar_la_mesa`, capacidad existente; sin capacidad nueva) y solo sin ninguna persona confirmada (la misma
+  regla que `acciones_del_ingreso(...)["cancelar"]` de la guardia): con una confirmada, el ingreso se cierra con diferencia
+  y eso es de la guardia. Libera las reservas vigentes (sin alcance sobre el dispositivo), la derivación queda
+  **`CANCELADA`** (la guardia lee «La mesa canceló la derivación»), el caso vuelve a quien lo tenía (`EN_GESTION`) o a la
+  bandeja, traza `INGRESO_CANCELADO` **por supervisor** con el motivo (se reusa la acción: sin migración de choices) y una
+  novedad en la bitácora del dispositivo **sin** el motivo libre. Candados en el orden global (caso → derivación → plazas
+  → reservas). La ficha manda la derivación que mostró: si cambió, «Recargá la ficha».
+- **A · sin vencimiento automático.** No vence nada solo. La bandeja y la ficha avisan «Aceptado sin movimiento hace N h»
+  cuando la **última traza** del caso (cualquier movimiento: aceptar, confirmar, un contacto) tiene más de N horas. N es
+  `SLAEmergencia.ingreso_sin_movimiento_h`, editable en E7, de fábrica **6 h**; **0 lo apaga**. Sale de la subconsulta
+  que la bandeja ya hacía (`ultima_traza_en` junto a `ultima_accion`): ninguna consulta por fila.
+- **B · camas ya pedidas.** El modal de confirmar «Derivar a X» suma «Ya hay N camas pedidas en M derivaciones
+  pendientes de aceptar acá. No se descuentan de las libres…» (derivaciones `PENDIENTE` a esa institución en ese
+  edificio, una consulta, solo cuando el modal está abierto). Las libres no cambian. El texto pasa a «Vas a pedir N
+  plazas y hay M libres. ¿Seguís?» y el campo, a «Plazas a pedir».
+- **C · entrega idempotente.** `EntregaKit.uuid_cliente` (UUID, `null=True`, `unique=True`; `char(36)` en
+  MySQL/MariaDB). Nace al abrir el paso 2 («Armar entrega» o «Reponer»), viaja oculto por el paso 3 y por «Anterior». Si
+  ese armado ya creó una entrega **del mismo usuario**, `crear_entrega` la devuelve (`ya_existia`) sin crear otra ni
+  dejar traza, y la vista avisa «La entrega N ya estaba armada: no se creó otra.» y va a su detalle. De otro usuario,
+  `UuidEnUso`. Dos envíos a la vez los ordena el UNIQUE (alta en `atomic` anidado y relectura ante `IntegrityError`). Sin
+  `uuid_cliente` (una pantalla abierta antes del despliegue) se comporta como antes.
+- **D1.** Si el texto entero son dígitos con espacios, puntos o guiones y forma un DNI válido, se suma con OR el DNI del
+  responsable o de un integrante, en la misma consulta. «Rosa 30333444» sigue exigiendo las dos palabras.
+- **D2.** `volver_a_mostrar`: si la ficha ya no tiene el formulario de esa acción, `messages.error` y vuelta a la ficha.
+- **Estructura.** La ficha se arma en `contexto_de_ficha` (función de módulo, la usan el GET y la vuelta de una acción
+  fallida); `CasoDeOtroOperador` tiene `self.mensaje` como `EstadoCambio` y la vista lo lee directo; `_quien_lo_tiene`
+  arma el nombre de quien tiene el caso para las dos excepciones.
+
+## Implementación
+Ver Decisiones y Archivos.
+
+## Archivos
+- `programas/models/__init__.py`, `programas/migrations/0135_…`, `0136_entrega_kit_uuid_cliente_char36.py`.
+- `programas/services/emergencia_cierre.py` (A), `services/emergencia.py` (estructura), `services/kits.py` (C),
+  `services/configuracion_emergencia.py` (E7), `services/vencimientos_emergencia.py` (docstring).
+- `programas/selectors/emergencia.py` (aviso y D1), `selectors/emergencia_mesa.py`, `selectors/emergencia_derivar.py` (B).
+- `programas/views/emergencia.py`, `views/emergencia_kits.py`, `emergencia_urls.py`, `forms_emergencia.py`,
+  `forms_emergencia_kits.py`.
+- Plantillas: `emergencia/casos/detail.html`, `emergencia/configuracion.html`, `emergencia/kits/nueva_items.html`.
+- Tests: `programas/tests/test_emergencia_ingreso_en_curso.py` (nuevo); ajustes de texto en `test_emergencia_mesa.py` y
+  de la fila de E7 en `test_emergencia_base.py`.
+
+## Base de datos
+`programas.0135`: `SLAEmergencia.ingreso_sin_movimiento_h` (`NOT NULL` con `db_default=6`, rollback-safe) y
+`EntregaKit.uuid_cliente` (nullable, UNIQUE). `programas.0136` (`atomic = False`): la columna a `char(36)` con
+`modificar_columna` (idempotente); la reversa la normaliza a hex y la vuelve a `char(32)`. Expand puro: el código viejo
+no lee ninguna de las dos.
+
+## Validación
+23 tests nuevos. **Mutación (cada una en rojo, restaurando sin stash):** sacar el chequeo de supervisor; contar 0
+confirmadas; no liberar las reservas; avisar sin umbral; `ya_pedidas` vacío; la vista sin `uuid_cliente` (reproduce el
+duplicado: `MultipleObjectsReturned`); devolver la entrega a otro usuario; sacar el OR del DNI partido; volver al 400 de
+D2. Suites `test_emergencia_*`, `test_arquitectura`, `manage.py check`, `makemigrations --check`, `check_migraciones`,
+ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent` en verde.
+
+## Puesta en marcha en el servidor
+Correr las migraciones (las corre el entrypoint).
+
+## Pendientes / a definir
+- Si el PM quiere que el ingreso **venza solo** después de N horas: hoy es decisión de una persona, a propósito.
+- El aviso cuenta desde la última traza de cualquier tipo; si la mesa quiere que un contacto propio no reinicie la
+  cuenta, hay que filtrar por acción.
+
+## Reversión
+Desplegar el código anterior. Las columnas nuevas son nullable o con DEFAULT en la base: el código viejo sigue andando.
+Para sacarlas, desaplicar `0136` y `0135`.
 
 ## Historial
 - **22/11/2026:** alta del cambio.
