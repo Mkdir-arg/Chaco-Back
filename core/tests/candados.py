@@ -48,7 +48,7 @@ def candados_tomados(manager):
 
 
 @contextmanager
-def orden_de_candados(**managers):
+def orden_de_candados(compartido=None, **managers):
     """Registra los ``select_for_update()`` de varios managers en **una sola** lista.
 
     ``candados_tomados`` mira un manager por vez y pierde el orden relativo entre dos
@@ -62,10 +62,24 @@ def orden_de_candados(**managers):
         with orden_de_candados(plaza=Plaza.objects, reserva=ReservaPlaza.objects) as orden:
             liberar_reserva(reserva=reserva, usuario=self.operador)
         self.assertEqual(orden, ["plaza", "reserva"])
+
+    ``compartido`` (un nombre) suma a la misma lista los bloqueos compartidos de
+    ``core.db.leer_con_bloqueo_compartido``, que no pasan por ``select_for_update()``:
+    ``orden_de_candados(compartido="institucion", plaza=Plaza.objects)``.
     """
 
     llamadas = []
     with ExitStack() as pila:
+        if compartido is not None:
+            from core import db
+
+            original_compartido = db.leer_con_bloqueo_compartido
+
+            def registrar_compartido(*args, **kwargs):
+                llamadas.append(compartido)
+                return original_compartido(*args, **kwargs)
+
+            pila.enter_context(patch.object(db, "leer_con_bloqueo_compartido", registrar_compartido))
         for nombre, manager in managers.items():
             original = manager.select_for_update
 

@@ -203,9 +203,10 @@ def _bloquear_dispositivo(dispositivo):
     control —cada una mira la base sin la otra— y el turno vigente deja de ser uno; y dos
     envíos idénticos de una novedad pasan los dos el chequeo de duplicado.
 
-    Orden de candados: **estadía y después dispositivo**. Egreso, cambio y asignación de plaza
-    bloquean la estadía y luego piden un lock compartido sobre el dispositivo por la FK;
-    quien pida el dispositivo primero y la estadía después arma un ciclo.
+    Orden de candados: **dispositivo y después estadía**, el de todo Dispositivos. Egreso,
+    cambio y asignación de plaza toman el dispositivo en compartido antes que la estadía
+    (`dispositivos.bloquear_institucion`); quien pida la estadía primero y el dispositivo
+    después arma un ciclo con ellos.
     """
 
     return Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
@@ -470,9 +471,14 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
         raise ValidationError({"momento": "La novedad no puede ser futura."})
     situado = _exigir_turno_en_curso(dispositivo, momento, ahora)
 
-    # Primero las estadías de `personas`, en orden de pk, y recién después el dispositivo: egreso,
-    # cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el
-    # dispositivo (FK). Con el orden inverso acá, los dos se esperan: deadlock.
+    # Primero el dispositivo y después las estadías de `personas`, en orden de pk: egreso, cambio
+    # y asignación de plaza toman la institución en compartido **antes** que la estadía
+    # (`dispositivos.bloquear_institucion`), así que el orden de todos es institución → estadía.
+    # Con el orden inverso acá, un cambio de plaza de una persona nombrada en la novedad y esta
+    # carga se esperan en cruz: deadlock.
+    # Doble envío: el candado del dispositivo hace que el segundo POST espere al primero y
+    # lo vea ya guardado. No se usa un UniqueConstraint condicional (no existe en MySQL/MariaDB).
+    _bloquear_dispositivo(dispositivo)
     if not ve_a_las_personas(usuario, dispositivo):
         personas = ()  # con alcance Edificios no se vinculan personas
     ids_personas = _ids_de_personas(personas)
@@ -480,9 +486,6 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
         list(
             Estadia.objects.select_for_update().filter(pk__in=ids_personas).order_by("pk").values_list("pk", flat=True)
         )
-    # Doble envío: el candado del dispositivo hace que el segundo POST espere al primero y
-    # lo vea ya guardado. No se usa un UniqueConstraint condicional (no existe en MySQL/MariaDB).
-    _bloquear_dispositivo(dispositivo)
     texto_limpio = (texto or "").strip()
     nombres = sorted((getattr(archivo, "name", "") or "")[:255] for archivo in adjuntos or ())
     candidatas = (

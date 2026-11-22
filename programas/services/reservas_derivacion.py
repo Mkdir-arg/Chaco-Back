@@ -74,6 +74,8 @@ from django.utils import timezone
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
 from programas.services.dispositivos import (
     alcance_de_edificios,
+    bloquear_institucion,
+    bloquear_instituciones,
     puede_operar_dispositivo,
     puede_operar_edificio,
     puede_operar_plaza,
@@ -140,7 +142,9 @@ def reservar_plazas_de_derivacion(*, derivacion, plazas, usuario, momento=None):
     alcance = alcance_de_edificios(usuario, dispositivo, CAP_ADMITIR)
     if not (puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR) and alcance.permite(derivacion.edificio_id)):
         raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
-    if dispositivo.estado != Dispositivo.Estado.ACTIVO:
+    # El estado fresco, con la institución tomada en compartido antes que las plazas: el orden
+    # institución → plaza de `dispositivos.bloquear_institucion`.
+    if bloquear_institucion(dispositivo) != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": "Solo se reservan plazas en un dispositivo activo."})
     if not derivacion.vigente:
         raise ValidationError({"derivacion": DERIVACION_NO_VIGENTE})
@@ -253,6 +257,10 @@ def consumir_reserva_de_derivacion(*, reserva, ciudadano, usuario, fecha_ingreso
         raise PermissionDenied("No tenés alcance para alojar personas en este dispositivo.")
 
     comunes = _reservas_abiertas_de(ciudadano.pk)
+    # Primero las instituciones, en compartido y por pk: la de la cama y las de las reservas comunes
+    # que se liberan (pueden ser de otros dispositivos). `ingresar_persona` y `liberar_reserva`
+    # vuelven a pedirlas, ya tomadas por esta transacción.
+    bloquear_instituciones({dispositivo.pk} | {comun.plaza.sector.dispositivo_id for comun in comunes})
     if comunes:
         # Solo el candado: `_bloquear_plaza` y `liberar_reserva` vuelven a tomar cada plaza.
         list(
@@ -333,6 +341,8 @@ def liberar_reservas_de_derivacion(*, derivacion, usuario, motivo, verificar_alc
     )
     if not vigentes:
         return 0
+    # La institución en compartido antes que las plazas (`dispositivos.bloquear_institucion`).
+    bloquear_instituciones({reserva.plaza.sector.dispositivo_id for reserva in vigentes})
     # Solo el candado: `liberar_reserva` vuelve a tomar cada plaza y relee la reserva con bloqueo.
     list(
         Plaza.objects.select_for_update()
