@@ -242,10 +242,10 @@ class SolapaPerezosaTests(BaseEdilicio):
 
         self.assertNotIn("edilicio_lista", respuesta.context)
         self.assertNotIn("edilicio_detalle", respuesta.context)
-        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertContains(respuesta, 'id="tab-edilicio" aria-controls="panel-edilicio" data-solapa-navega')
         self.assertTrue(respuesta.context["url_solapa_edilicio"].endswith("?tab=edilicio"))
 
     def test_con_la_solapa_abierta_el_boton_no_navega(self):
         respuesta = self._edilicio(self.de_inst)
 
-        self.assertNotContains(respuesta, "data-solapa-navega")
+        self.assertNotContains(respuesta, 'id="tab-edilicio" aria-controls="panel-edilicio" data-solapa-navega')
