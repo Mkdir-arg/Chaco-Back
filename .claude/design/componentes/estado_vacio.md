@@ -62,6 +62,7 @@ parámetro GET), el vacío lo abre con `accion_click` en vez de mandar a una URL
 Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/sectores/_cuerpo.html`, el cuerpo que comparten la solapa de la ficha y la pantalla suelta,
 `accion_click="modalSectorNuevo=true"`). Los campos de esos modales usan el campo canónico (`field.md`). Esa acción
 solo se ofrece si el servicio admite el alta (`puede_ampliar_capacidad`): sin ella el vacío es el de lectura.
+El mismo cuerpo conserva el filtro «Edificio» en cada acción: los formularios lo llevan en un oculto y los «Reactivar» de los vacíos de inactivos (`data-confirm-url`, sin campos), en la querystring de la URL.
 El modal «Agregar plazas» de ese mapa explica la numeración por sector (el número sigue al mayor que ya tiene el sector con ese prefijo; no pisa ni reusa), en una `_alerta` informativa y sin pieza nueva (Cambio 430).
 El modal de la plaza ocupada de ese mapa es un menú de enlaces y botones (`btn-secondary`; «Sacar de servicio» con `disabled` y su motivo debajo), sin pieza nueva (Cambio 437). «Sin edificio» lo resuelve el selector o el servicio (`edificio_nombre`: SQL en `sectores_inactivos`, `nombre_de_edificio` en los sectores activos), no el template.
 El menú de la plaza disponible abre con «Ingresar persona», un enlace (`btn-secondary`, `fa-user-plus`) al asistente de ingreso con `?plaza=<id>`, igual que «Ver estadía»; sin pieza nueva (Cambio 461).
