@@ -233,7 +233,7 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertContains(
             respuesta, f"La familia ya está derivada al edificio {self.edif_a.nombre} de este dispositivo."
         )
-        self.assertContains(respuesta, "Ya tiene su cama reservada en ese edificio")
+        self.assertContains(respuesta, "Ya está derivada a ese edificio")
         self.assertNotContains(respuesta, "avisale a la mesa")
         self.assertNotContains(respuesta, self._url("avisar"))
         self.assertNotContains(respuesta, self._url("ingreso_directo"))

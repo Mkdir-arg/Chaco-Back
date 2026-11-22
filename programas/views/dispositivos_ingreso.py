@@ -329,8 +329,8 @@ class IngresoPersonaView(IngresoBaseView):
                 {
                     "alta_form": alta,
                     "alta_aviso": (
-                        "No está en el Legajo Ciudadano."
-                        + (f" {motivo}" if motivo else "")
+                        "No está en el Legajo Ciudadano"
+                        + (f". {motivo}" if motivo else " ni en el Registro de Personas.")
                         + " Cargá sus datos para seguir con el ingreso."
                     ),
                     "alta_persona": self.huella_sin_registro(sin_registro),

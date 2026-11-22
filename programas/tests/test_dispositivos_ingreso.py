@@ -35,6 +35,9 @@ class BaseIngreso(BaseEstadias):
         self.url_plaza = reverse("dispositivos:ingreso_plaza", args=[pk])
         self.url_confirmar = reverse("dispositivos:ingreso_confirmar", args=[pk])
 
+    def _sesion(self):
+        return self.client.session.get("ingreso_asistente", {}).get(str(self.cis.pk), {})
+
     def _campos_ocultos(self, respuesta):
         """Lo que la pantalla mostró y el navegador devuelve al enviar: los ocultos, salvo el CSRF."""
 
@@ -493,8 +496,23 @@ class AltaDesdeElRegistroDePersonasTests(BaseIngreso):
         self.assertContains(respuesta, "No se pudo consultar el Registro de Personas.")
         self.assertNotContains(respuesta, "RENAPER")
         self.assertNotContains(respuesta, "Configuracion")
-        self.assertIn("Configuracion RENAPER incompleta (URL).", "\n".join(registro.output))
-        self.assertNotIn("27555666", "\n".join(registro.output), "el log no lleva el DNI")
+        self.assertIn("consulta fallida", "\n".join(registro.output))
+
+    def test_el_log_no_lleva_el_error_crudo_del_proveedor_ni_el_dni(self):
+        """El proveedor puede devolver el eco de lo que se le mandó: el log solo lleva el código HTTP."""
+
+        with (
+            mock.patch(
+                "programas.services.ingreso.CiudadanosService.consultar_renaper",
+                return_value={"success": False, "error": "Documento 27555666 inválido", "status_code": 500},
+            ),
+            self.assertLogs("programas.services.ingreso", level="WARNING") as registro,
+        ):
+            self._post_con_sexo("27555666", "F")
+        salida = "\n".join(registro.output)
+        self.assertIn("HTTP 500", salida)
+        self.assertNotIn("27555666", salida)
+        self.assertNotIn("inválido", salida)
 
 
 class SinSexoEnElBuscadorTests(BaseIngreso):
@@ -566,9 +584,6 @@ class SinSexoEnElBuscadorTests(BaseIngreso):
         )
         self.assertEqual(envio.status_code, 403)
 
-    def _estado_de_sesion(self):
-        return self.client.session.get("ingreso_asistente", {}).get(str(self.cis.pk), {})
-
     def test_el_sexo_de_otra_pestana_no_consulta_el_registro(self):
         """Dos búsquedas en la misma sesión: los ocultos de la primera ya no corresponden a lo pendiente."""
 
@@ -580,7 +595,7 @@ class SinSexoEnElBuscadorTests(BaseIngreso):
 
         consulta.assert_not_called()
         self.assertContains(respuesta, "otra pestaña")
-        self.assertEqual(self._estado_de_sesion(), {"pide_sexo": {"dni": "28999888"}})
+        self.assertEqual(self._sesion(), {"pide_sexo": {"dni": "28999888"}})
 
     def test_un_fallecido_descarta_el_pedido_del_sexo(self):
         with mock.patch(
@@ -590,14 +605,14 @@ class SinSexoEnElBuscadorTests(BaseIngreso):
             respuesta = self._post_con_sexo("27555666", "F")
 
         self.assertContains(respuesta, "figura como fallecida")
-        self.assertNotIn("pide_sexo", self._estado_de_sesion())
+        self.assertNotIn("pide_sexo", self._sesion())
         self.assertNotContains(self.client.get(self.url_persona), 'name="sexo"')
 
     def test_un_alta_minima_sin_haber_consultado_el_registro_no_escribe(self):
         """Desde `pide_sexo` no hay `sin_registro`: el alta mínima no puede saltear la consulta al Registro."""
 
         pagina = self.client.post(self.url_persona, {"dni": "27555666"})
-        self.assertEqual(self._estado_de_sesion(), {"pide_sexo": {"dni": "27555666"}})
+        self.assertEqual(self._sesion(), {"pide_sexo": {"dni": "27555666"}})
 
         respuesta = self.client.post(
             self.url_persona,
@@ -611,7 +626,7 @@ class SinSexoEnElBuscadorTests(BaseIngreso):
         )
 
         self.assertRedirects(respuesta, self.url_persona, fetch_redirect_response=False)
-        self.assertNotIn("manual", self._estado_de_sesion())
+        self.assertNotIn("manual", self._sesion())
         self.assertFalse(Ciudadano.objects.filter(dni="27555666").exists())
         self.assertContains(pagina, 'name="sexo"')
 
@@ -915,9 +930,6 @@ class AltaMinimaTests(BaseIngreso):
         ocultos = self._campos_ocultos(self.client.get(self.url_persona)) if ocultos is None else ocultos
         return self.client.post(self.url_persona, {**ocultos, **(datos or self.DATOS_FORM)})
 
-    def _sesion(self):
-        return self.client.session.get("ingreso_asistente", {}).get(str(self.cis.pk), {})
-
     def test_aparece_el_formulario_chico_y_la_sesion_recuerda_la_consulta(self):
         respuesta = self._consultar()
 
@@ -1106,6 +1118,16 @@ class AltaMinimaTests(BaseIngreso):
                 self.assertContains(respuesta, f'data-error="{faltante}">Este campo es requerido.')
                 self.assertNotIn("manual", self._sesion())
 
+    def test_el_alta_que_vuelve_con_error_conserva_la_mencion_al_registro(self):
+        self._consultar()
+
+        respuesta = self._enviar_alta({**self.DATOS_FORM, "apellido": ""})
+
+        self.assertContains(
+            respuesta,
+            "No está en el Legajo Ciudadano ni en el Registro de Personas. Cargá sus datos para seguir con el ingreso.",
+        )
+
     def test_la_fecha_de_nacimiento_futura_se_rechaza(self):
         self._consultar()
 
@@ -1122,6 +1144,9 @@ class AltaMinimaTests(BaseIngreso):
 
         self.assertRedirects(respuesta, self.url_plaza)
         self.assertIsNone(self._sesion()["manual"]["fecha_nacimiento"])
+        for url in (self.url_plaza, self.url_confirmar):
+            with self.subTest(url=url):
+                self.assertNotContains(self.client.get(url, follow=True), "Seleccionar...")
 
     def test_el_formulario_de_otra_pestana_no_guarda_nada(self):
         self._consultar()

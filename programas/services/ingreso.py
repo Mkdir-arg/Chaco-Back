@@ -103,8 +103,8 @@ def buscar_en_registro_de_personas(dni, sexo):
     """Pide los datos a RENAPER y devuelve `RespuestaRegistro(datos, motivo, fallecido)`.
 
     `motivo` es un texto fijo y legible para el operador, con su punto final (vacío si hubo datos):
-    «No está en el Registro de Personas.» o «No se pudo consultar el Registro de Personas.». El detalle
-    técnico de la falla (configuración, HTTP, proveedor) va solo al log, sin el DNI.
+    «No está en el Registro de Personas.» o «No se pudo consultar el Registro de Personas.». El log
+    registra solo el código HTTP, nunca el texto de error del proveedor (puede traer el DNI).
     `fallecido` distingue a la persona que figura fallecida, que nunca se aloja.
     """
 
@@ -112,10 +112,11 @@ def buscar_en_registro_de_personas(dni, sexo):
     if resultado.get("fallecido"):
         return RespuestaRegistro(None, "La persona consultada figura como fallecida en el Registro de Personas.", True)
     if not resultado.get("success"):
+        # Solo datos no personales: el error crudo del proveedor puede traer el eco de lo que se le mandó (el DNI).
+        codigo = resultado.get("status_code")
         logger.warning(
-            "Registro de Personas sin datos en el ingreso: %s (HTTP %s)",
-            str(resultado.get("error") or "error desconocido").strip(),
-            resultado.get("status_code"),
+            "Registro de Personas sin datos en el ingreso: consulta fallida (%s)",
+            f"HTTP {codigo}" if codigo else "sin respuesta HTTP",
         )
         return RespuestaRegistro(
             None,

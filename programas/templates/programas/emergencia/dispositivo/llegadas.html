@@ -138,7 +138,7 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
       </div>
       <div class="p-5 space-y-4">
         {% if resultado.derivada_a_otro_edificio %}
-        {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Ya tiene su cama reservada en ese edificio: la guardia de ese edificio sigue con el ingreso." %}
+        {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Ya está derivada a ese edificio: la guardia de ese edificio sigue con el ingreso." %}
         {% elif alcance_para_ingresar %}
         {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Si la familia está en la puerta, la podés ingresar igual mientras haya camas libres, o avisarle a la mesa para que la derive." %}
         {% if not puede_ingresar_igual %}

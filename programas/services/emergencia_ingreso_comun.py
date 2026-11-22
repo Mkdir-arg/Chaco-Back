@@ -343,6 +343,12 @@ def _devolver_a_la_mesa(caso):
     return caso
 
 
+def _de_la_persona(ciudadano):
+    """El filtro de las derivaciones cuya familia tiene a ``ciudadano`` de responsable o de integrante."""
+
+    return Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
+
+
 def derivaciones_en_curso_de(ciudadano, dispositivo):
     """Las derivaciones ``PENDIENTE`` o ``ACEPTADA`` de la familia de ``ciudadano`` hacia ``dispositivo``.
 
@@ -351,12 +357,11 @@ def derivaciones_en_curso_de(ciudadano, dispositivo):
     Más reciente primero; trae ``edificio`` sin consulta aparte.
     """
 
-    de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     return (
         Derivacion.objects.en_curso()
         # La guarda de RU-9: solo lo derivado a **este** dispositivo. Es la única línea que separa a la
         # guardia de A de la familia que va a B.
-        .filter(de_la_persona, dispositivo=dispositivo)
+        .filter(_de_la_persona(ciudadano), dispositivo=dispositivo)
         .select_related("edificio")
         .distinct()
         .order_by("-id")
@@ -364,12 +369,7 @@ def derivaciones_en_curso_de(ciudadano, dispositivo):
 
 
 def derivacion_en_curso_de(ciudadano, dispositivo):
-    """La derivación más reciente de :func:`derivaciones_en_curso_de`, o ``None``.
-
-    Llamada **después** de descartar la derivación dentro del alcance de quien opera, lo que queda es lo
-    derivado a otro edificio del mismo dispositivo: es la regla de «ya está derivada a otro edificio» de la
-    búsqueda por DNI y de «Avisar a la mesa».
-    """
+    """La derivación más reciente de :func:`derivaciones_en_curso_de`, o ``None``."""
 
     return derivaciones_en_curso_de(ciudadano, dispositivo).first()
 

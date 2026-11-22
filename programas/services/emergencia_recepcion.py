@@ -10,7 +10,6 @@ from datetime import datetime
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models, transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
@@ -32,6 +31,7 @@ from programas.services.emergencia_ingreso_comun import (
     _asegurar_filas,
     _bloquear_derivacion,
     _camas,
+    _de_la_persona,
     _devolver_a_la_mesa,
     _dia_y_mes,
     _dispositivo_de,
@@ -209,10 +209,9 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
         )
 
     # RN-3.3: una derivación a este dispositivo que ya venció no se acepta, pero se cuenta por qué.
-    de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     vencida = (
         Derivacion.objects.filter(
-            de_la_persona,
+            _de_la_persona(ciudadano),
             dispositivo=dispositivo,
             estado=Derivacion.Estado.VENCIDA,
             caso__estado__in=(Estado.NUEVO, Estado.EN_GESTION),
