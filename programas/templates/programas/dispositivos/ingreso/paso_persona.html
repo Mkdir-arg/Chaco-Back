@@ -3,7 +3,7 @@
 {% block title %}Dispositivos · Ingresar persona — Paso {{ paso_actual }}{% endblock %}
 {% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
 
-{% comment %}Paso de un wizard (arquetipo Wizard): campos con el esqueleto del paso intermedio; el indicador es `components/_stepper.html`. Sin legajo ni Registro de Personas, el segundo formulario es el alta mínima (`accion=alta_minima`); su oculto `persona` dice a quién mostraba.{% endcomment %}
+{% comment %}Paso de un wizard (arquetipo Wizard): campos con el esqueleto del paso intermedio; el indicador es `components/_stepper.html`. Sin legajo, el segundo formulario pide el sexo para consultar el Registro de Personas (`accion=consultar_registro`) y, si el Registro no la encuentra, es el alta mínima (`accion=alta_minima`); su oculto `persona` dice a quién mostraba.{% endcomment %}
 
 {% block main-content %}
 <div class="space-y-5">
@@ -28,6 +28,24 @@
       <button type="submit" class="btn-nodo btn-brand btn-base">Continuar <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
     </div>
   </form>
+
+  {% if sexo_form %}
+  {% include "components/_alerta.html" with tono="warning" icono="user-plus" titulo="No está en el Legajo Ciudadano" texto="Indicá el sexo para consultar el Registro de Personas." %}
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="consultar_registro">
+    <input type="hidden" name="persona" value="{{ sexo_persona }}">
+    <h2 class="text-heading font-bold mb-4">Consultar el Registro de Personas</h2>
+    {% include "components/_form_errores.html" with form=sexo_form %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for field in sexo_form %}{% include "components/_field.html" %}{% endfor %}
+    </div>
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <button type="submit" class="btn-nodo btn-brand btn-base">Consultar <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </form>
+  {% endif %}
 
   {% if alta_form %}
   {% include "components/_alerta.html" with tono="warning" icono="user-plus" titulo="No encontramos a la persona" texto=alta_aviso %}

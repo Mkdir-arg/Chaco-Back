@@ -22,10 +22,11 @@
   {% include "components/_alerta.html" with tono="warning" icono="bed" titulo="No hay plazas disponibles" texto="Todas las plazas de este dispositivo están ocupadas, reservadas, prestadas o fuera de servicio." %}
   {% endif %}
 
+  {% comment %}La leyenda va sobre la grilla y a todo el ancho: dentro de la columna del mapa empujaba las cards de sector y Persona arrancaba más arriba que la primera.{% endcomment %}
+  {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
     <div class="lg:col-span-2 min-w-0 space-y-5">
-      {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
-
       {% for item in sectores %}
       <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
         <div class="px-5 py-4 border-b border-light">
