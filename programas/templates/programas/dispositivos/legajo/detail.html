@@ -5,7 +5,7 @@
 
 {% block main-content %}
 {% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
-{# La solapa abierta la normaliza la vista (`normalizar_solapa`): una que este dispositivo no tiene cae en la de siempre #}
+{# La solapa abierta la normaliza la vista (`normalizar_solapa`): una que la ficha no tiene cae en la de siempre #}
 <div x-data="{
        tab: '{{ tab }}',
        modalObservar: false,
@@ -14,13 +14,12 @@
        modalCambio: {% if form_cambio %}true{% else %}false{% endif %},
        modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
        modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
-       modalRelevamiento: false,
        modalEquipo: {% if form_equipo %}true{% else %}false{% endif %},
        modalCrearPersona: false,
        modalAlcance: {% if form_alcance %}true{% else %}false{% endif %},
        egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
-     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false; modalEquipo=false; modalCrearPersona=false; modalAlcance=false">
+     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalEquipo=false; modalCrearPersona=false; modalAlcance=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
@@ -33,11 +32,11 @@
     {% url 'dispositivos:cerrar' dispositivo.pk as url_cerrar %}
     {% estado_dispositivo dispositivo as estado_header %}
     {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Instituciones" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
-      {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if dispositivo.domicilio %} · {{ dispositivo.domicilio }}{% if dispositivo.localidad %}, {{ dispositivo.localidad }}{% endif %}{% elif dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% if dispositivo.responsable_nombre %} · responsable {{ dispositivo.responsable_nombre }}{% endif %}{% endbajada %}
-      {# La bitácora pide lo mismo que esta pantalla (dispositivo.ver con alcance): quien está acá la puede abrir #}
-      <a href="{% url 'dispositivos:bitacora' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
-        <i class="fas fa-clock" aria-hidden="true"></i> Bitácora del turno
-      </a>
+      {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if infraestructura.n_edificios %} · {{ texto_edificios }}{% endif %}{% if dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% endbajada %}
+      {# «Ingresar persona» y la bitácora son de cada edificio: se abren desde su página #}
+      {% if puede_editar and dispositivo.estado != 'CERRADO' %}
+      <a href="{{ url_editar_dispositivo }}" class="btn-nodo btn-secondary btn-sm btn-fit"><i class="fas fa-pen" aria-hidden="true"></i> Editar</a>
+      {% endif %}
       {% if puede_enviar_validacion %}
       <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}"
@@ -52,16 +51,8 @@
               data-confirm-text="Quedará habilitado para admitir personas."
               data-confirm-danger="false" data-confirm-ok="Sí, validar">Validar</button>
       {% endif %}
-      {% if puede_admitir and dispositivo.estado == 'ACTIVO' %}
-      <a href="{{ url_ingreso }}" class="btn-nodo btn-brand btn-sm btn-fit">
-        <i class="fas fa-plus" aria-hidden="true"></i> Ingresar persona
-      </a>
-      {% endif %}
       {# Las acciones secundarias van al menú; si ninguna corresponde al estado o a la capacidad, el menú no se dibuja #}
       {% menu_fila id="acciones-dispositivo" etiqueta="Más acciones del dispositivo "|add:dispositivo.nombre texto="Más acciones" %}
-        {% if puede_editar and dispositivo.estado != 'CERRADO' %}
-        {% include "components/_menu_fila_item.html" with texto="Editar" icono="fa-pen" url=url_editar_dispositivo only %}
-        {% endif %}
         {# Emergencia: la guardia recibe a las familias derivadas. La URL llega solo con la capacidad y el alcance que exige esa pantalla #}
         {% if url_llegadas_emergencia %}
         {% include "components/_menu_fila_item.html" with texto="Emergencia · Llegadas" icono="fa-people-roof" url=url_llegadas_emergencia only %}
@@ -104,12 +95,16 @@
     </section>
     {% endif %}
 
+    {% if aviso_sin_plazas %}
+    {% include "components/_alerta.html" with tono=aviso_sin_plazas.tono icono=aviso_sin_plazas.icono titulo=aviso_sin_plazas.titulo texto=aviso_sin_plazas.texto accion_url=aviso_sin_plazas.accion_url accion_texto=aviso_sin_plazas.accion_texto role="status" %}
+    {% endif %}
+
     {# ===== Indicadores operativos: salen del censo de ocupacion_de_plazas ===== #}
     {% if maneja_plazas %}
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicadores-titulo">
       <div class="px-5 py-4 border-b border-light">
         <h2 id="indicadores-titulo" class="text-heading font-bold">Indicadores operativos</h2>
-        <p class="text-xs text-body-subtle mt-1">Derivados de plazas y estadías; no admiten carga manual.</p>
+        <p class="text-xs text-body-subtle mt-1">{{ nota_indicadores }}</p>
       </div>
       <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
         {% for indicador in indicadores %}
@@ -118,6 +113,41 @@
       </div>
     </section>
     {% endif %}
+
+    {# ===== Edificios: cada uno se opera en su página; acá solo se ven y se cargan ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="edificios-titulo">
+      <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
+        <div class="min-w-0">
+          <h2 id="edificios-titulo" class="text-heading font-bold">Edificios · {{ infraestructura.n_edificios }}</h2>
+          <p class="text-xs text-body-subtle mt-1">Cada edificio maneja sus plazas, sus ingresos y egresos, y sus kits.</p>
+        </div>
+        {% if puede_editar %}
+        <div class="flex items-center gap-2 flex-wrap">
+          <a href="{{ url_detalle }}?edificio=vincular" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-link" aria-hidden="true"></i> Vincular edificio</a>
+          <a href="{{ url_detalle }}?edificio=nuevo" class="btn-nodo btn-secondary btn-sm btn-fit"><i class="fas fa-plus" aria-hidden="true"></i> Agregar edificio</a>
+        </div>
+        {% endif %}
+      </div>
+      {% if tarjetas_edificios %}
+      <div class="p-5 grid gap-4 lg:grid-cols-3">
+        {% for edificio in tarjetas_edificios %}
+        {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=edificio.url_abrir url_editar=edificio.url_editar url_desvincular=edificio.url_desvincular url_agregar_persona=edificio.url_agregar_persona only %}
+        {% endfor %}
+      </div>
+      {% if infraestructura.n_sin_mostrar %}
+      <p class="px-5 pb-4 text-xs text-body-subtle">Se muestran los primeros {{ tarjetas_edificios|length }} edificios; hay {{ infraestructura.n_sin_mostrar }} más.</p>
+      {% endif %}
+      {% elif puede_editar %}
+      {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Esta institución no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Usá «Agregar edificio» para cargar el inmueble donde funciona la institución, o «Vincular edificio» si comparte el predio con otra." %}
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Esta institución no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio: aparecen cuando se le asigne uno." %}
+      {% endif %}
+      {% if infraestructura.sin_edificio %}
+      <div class="p-5 pt-0">
+        {% include "programas/dispositivos/legajo/_infra_sin_edificio.html" %}
+      </div>
+      {% endif %}
+    </section>
 
     {# ===== Solapas ===== #}
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
@@ -130,29 +160,12 @@
                 :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-id-card" aria-hidden="true"></i> Datos
         </button>
-        {% if maneja_plazas %}
-        {# El mapa se arma solo con la solapa abierta (`sectores_cargados`): si no vino, el botón navega a ella #}
-        <button @click="{% if sectores_cargados %}tab='sectores'{% else %}window.location.href='{{ url_solapa_sectores|escapejs }}'{% endif %}" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores" {% if not sectores_cargados %}data-solapa-navega{% endif %}
-                :aria-selected="tab==='sectores'"
-                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
-                :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
-          <i class="fas fa-bed" aria-hidden="true"></i> Sectores y plazas
-          <span class="badge" :class="tab==='sectores' ? 'badge-info' : 'badge-gray'">{{ n_plazas }}</span>
-        </button>
-        {% endif %}
         <button @click="tab='estadias'" type="button" role="tab" id="tab-estadias" aria-controls="panel-estadias"
                 :aria-selected="tab==='estadias'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='estadias' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
-          <i class="fas fa-users" aria-hidden="true"></i> Estadías
+          <i class="fas fa-users" aria-hidden="true"></i> Personas alojadas
           <span class="badge" :class="tab==='estadias' ? 'badge-info' : 'badge-gray'">{{ n_alojadas }}</span>
-        </button>
-        <button @click="tab='infraestructura'" type="button" role="tab" id="tab-infraestructura" aria-controls="panel-infraestructura"
-                :aria-selected="tab==='infraestructura'"
-                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
-                :class="tab==='infraestructura' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
-          <i class="fas fa-building" aria-hidden="true"></i> Infraestructura
-          <span class="badge badge-dot badge-{{ infraestructura.semaforo.tono }}">{{ infraestructura.semaforo.texto }}</span>
         </button>
         <button @click="tab='equipo'" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo"
                 :aria-selected="tab==='equipo'"
@@ -195,15 +208,6 @@
         {% include "programas/dispositivos/_formulario_respondido.html" with respondido=respondido ancla_prefijo="formulario-respondido-" ancla_n=forloop.counter %}
         {% endfor %}
       </div>
-
-      {# ===== TAB: Sectores y plazas (el mismo cuerpo que la pantalla «Sectores y plazas»; filtro por edificio) ===== #}
-      {% if maneja_plazas %}
-      <div x-show="tab==='sectores'" x-cloak role="tabpanel" id="panel-sectores" aria-labelledby="tab-sectores" class="p-5">
-        {% if sectores_cargados %}
-        {% include "programas/dispositivos/sectores/_cuerpo.html" %}
-        {% endif %}
-      </div>
-      {% endif %}
 
       {# ===== TAB: Estadías ===== #}
       <div x-show="tab==='estadias'" x-cloak role="tabpanel" id="panel-estadias" aria-labelledby="tab-estadias">
@@ -256,8 +260,6 @@
                 <td colspan="5" class="p-0">
                   {% if hay_filtros_estadias %}
                   {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna estadía coincide con los filtros" texto="Probá con otro estado o sector." accion_url=url_detalle|add:"?tab=estadias" %}
-                  {% elif puede_admitir and dispositivo.estado == 'ACTIVO' %}
-                  {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas" texto="Cuando se registre un ingreso, la persona aparece acá." accion_url=url_ingreso accion_texto="Ingresar persona" accion_icono="fa-plus" %}
                   {% else %}
                   {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas" texto="Cuando se registre un ingreso, la persona aparece acá." %}
                   {% endif %}
@@ -268,23 +270,6 @@
           </table>
         </div>
         {% include "components/_paginacion.html" with page_obj=estadias entidad="estadía" param="estadias_page" extra_qs="tab=estadias" %}
-      </div>
-
-      {# ===== TAB: Infraestructura (Cambio 439: tarjetas por edificio y, al abrir uno, su ficha; P19 del MVP) ===== #}
-      <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
-        {% include "programas/dispositivos/legajo/_infra_acciones.html" %}
-        {% if infraestructura.modo == 'listado' %}
-        {% include "programas/dispositivos/legajo/_infra_listado.html" %}
-        {% elif infraestructura.modo == 'ficha' %}
-        {% include "programas/dispositivos/legajo/_infra_ficha.html" %}
-        {% else %}
-        {% if puede_editar %}
-        {# Sin botón propio: «Agregar edificio» de la barra de arriba ya carga o vincula (Cambio 524). #}
-        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Usá «Agregar edificio» para cargar el inmueble donde funciona la institución, o vincular uno que ya exista si comparte el predio." %}
-        {% else %}
-        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio: aparecen cuando se le asigne uno." %}
-        {% endif %}
-        {% endif %}
       </div>
 
       {# ===== TAB: Equipo (Cambio 411) ===== #}
@@ -529,25 +514,7 @@
   </div>
   {% endif %}
 
-  {% if form_relevamiento %}
-  {# Modal: Crear relevamiento (asignar a un territorial el relevamiento de un edificio de la institución) #}
-  <div x-show="modalRelevamiento" x-cloak x-becas-modal="modalRelevamiento" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalRelevamiento=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
-         role="dialog" aria-modal="true" aria-labelledby="modal-relevamiento-titulo">
-      {% include "programas/becas/_modal_header.html" with titulo="Crear relevamiento" titulo_id="modal-relevamiento-titulo" subtitulo="Se le crea la tarea al agente territorial; la institución relevada no la puede completar." icono="fa-clipboard-list" cerrar="modalRelevamiento=false" %}
-      <form id="form-crear-relevamiento" method="post" action="{{ url_relevamiento }}" data-ajax class="flex flex-col flex-1 min-h-0">
-        {% csrf_token %}
-        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_relevamiento agente_externo=agente_externo puede_crear_agente=puede_crear_agente selector_agente="#form-crear-relevamiento select[name=asignado_a]" edificio_source="#form-crear-relevamiento [name=edificio]" only %}
-        </div>
-        {% include "programas/becas/_modal_footer.html" with cancelar="modalRelevamiento=false" accion_texto="Asignar relevamiento" %}
-      </form>
-    </div>
-  </div>
-  {% endif %}
   {% include "programas/dispositivos/legajo/_equipo_modales.html" %}
-  {% if puede_crear_agente %}{% include "user/_alta_rapida_modal.html" %}{% endif %}
 </div>
 {% endblock %}
 

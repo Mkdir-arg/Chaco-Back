@@ -1,16 +1,20 @@
 {% load nodo_ui %}{% comment %}
-Tarjeta de un edificio en el listado de Infraestructura de un dispositivo. Una por edificio, en una grilla que arma la pantalla.
+Tarjeta de un edificio en la sección «Edificios · N» de la ficha de una institución. Una por edificio, en una grilla que arma la pantalla.
   {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=url_ver url_editar=url_editar url_desvincular=url_desvincular url_agregar_persona=url_agregar_persona only %}
 Contexto:
-  edificio         dict armado por la VISTA (`programas.services.detalle_dispositivo.infraestructura_del_dispositivo`):
-                     pk, nombre, codigo, domicilio, estado {texto, tono}, aviso {texto, tono} o None, fecha_texto,
-                     observacion (vacía = no se dibuja), predio, sectores_texto, conteo, con_conteo.
-                   La observación y los conteos ya vienen recortados por alcance (Cambio 428): acá no se decide nada.
-  url_ver          obligatorio: la ficha del edificio. Es el título, el ítem «Ver» y el pie.
+  edificio         dict armado por la VISTA (`programas.services.detalle_dispositivo.infraestructura_del_dispositivo` más
+                   `programas.services.ficha_edificios.completar_tarjetas`):
+                     pk, nombre, codigo, domicilio, estado {texto, tono} (estado edilicio), aviso {texto, tono} o None,
+                     predio_compartido, ocupacion {valor, maximo, porcentaje, tono, etiqueta, texto, nombre} o None (sin
+                     plazas en el tipo: no hay barra ni «Disponibles»), disponibles (entero o None), kits {texto, clase} o
+                     None (el usuario no recibe kits: no hay fila), equipo {texto, clase}, movimientos (texto del pie).
+                   Los datos ya vienen recortados por alcance (Cambio 428): acá no se decide nada.
+  url_ver          obligatorio: la página del edificio. Es el título, el ítem «Abrir edificio» y el pie.
   url_editar       opcional: sin ella no hay «Editar edificio» (la vista la manda solo con `dispositivo.editar`).
   url_desvincular  opcional: igual, con confirmación sí/no por `data-confirm-url` (ModernModal).
   url_agregar_persona  opcional: «Agregar persona al edificio» (abre el alta del Equipo con este edificio fijo); la vista la manda solo si el servidor va a aceptar el alta.
-El ⋮ lleva siempre «Ver», así que nunca queda vacío. El estado va en texto (badge con punto) además del tono del ícono.
+El ⋮ lleva siempre «Abrir edificio», así que nunca queda vacío. El estado edilicio va en texto (badge con punto) además del tono del ícono.
+La ocupación es `_barra_umbral` (sin marcas de umbral: la leyenda es de la franja de indicadores).
 {% endcomment %}
 {% with tono=edificio.estado.tono %}
 <article class="rounded-xl border border-base bg-white shadow-sm flex flex-col overflow-hidden" aria-labelledby="edificio-{{ edificio.pk }}-titulo" data-tarjeta-edificio>
@@ -24,7 +28,7 @@ El ⋮ lleva siempre «Ver», así que nunca queda vacío. El estado va en texto
     </div>
     {% with pk_texto=edificio.pk|stringformat:"s" %}
     {% menu_fila id="edificio-"|add:pk_texto etiqueta="Acciones del edificio "|add:edificio.nombre %}
-      {% include "components/_menu_fila_item.html" with texto="Ver" icono="fa-eye" url=url_ver only %}
+      {% include "components/_menu_fila_item.html" with texto="Abrir edificio" icono="fa-arrow-right" url=url_ver only %}
       {% if url_editar %}
       {% include "components/_menu_fila_item.html" with texto="Editar edificio" icono="fa-pen" url=url_editar only %}
       {% endif %}
@@ -41,20 +45,25 @@ El ⋮ lleva siempre «Ver», así que nunca queda vacío. El estado va en texto
     <div class="flex flex-wrap items-center gap-2">
       <span class="badge badge-dot badge-{{ tono }}">{{ edificio.estado.texto }}</span>
       {% if edificio.aviso %}<span class="badge badge-{{ edificio.aviso.tono }}">{{ edificio.aviso.texto }}</span>{% endif %}
-      <span class="text-xs text-body-subtle">{{ edificio.fecha_texto }}</span>
+      {% if edificio.predio_compartido %}<span class="badge badge-info">Predio compartido</span>{% endif %}
     </div>
-    {% if edificio.observacion %}
-    <p class="rounded-lg px-3 py-2 text-sm text-body {% if tono == 'danger' %}bg-danger-soft{% elif tono == 'warning' %}bg-warning-soft{% elif tono == 'success' %}bg-success-soft{% else %}bg-secondary{% endif %}">{{ edificio.observacion }}</p>
-    {% endif %}
-    <p class="text-sm text-body flex items-center gap-2"><i class="fas fa-users text-fg-brand" aria-hidden="true"></i> {{ edificio.predio }}</p>
+    {% if edificio.ocupacion %}
     <div>
-      <p class="text-xs font-semibold uppercase text-body-subtle">Sectores de esta institución</p>
-      <p class="mt-1 text-sm font-semibold text-heading">{{ edificio.sectores_texto }}</p>
+      <p class="text-xs font-semibold uppercase text-body-subtle">Ocupación</p>
+      <div class="mt-1">
+        {% include "components/_barra_umbral.html" with valor=edificio.ocupacion.valor maximo=edificio.ocupacion.maximo porcentaje=edificio.ocupacion.porcentaje tono=edificio.ocupacion.tono etiqueta=edificio.ocupacion.etiqueta texto=edificio.ocupacion.texto nombre=edificio.ocupacion.nombre only %}
+      </div>
     </div>
+    {% endif %}
+    <dl class="divide-y divide-light text-sm">
+      {% if edificio.ocupacion %}<div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Disponibles</dt><dd class="font-semibold text-heading">{{ edificio.disponibles }}</dd></div>{% endif %}
+      {% if edificio.kits %}<div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Kits</dt><dd class="font-semibold {{ edificio.kits.clase }}">{{ edificio.kits.texto }}</dd></div>{% endif %}
+      <div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Equipo</dt><dd class="font-semibold {{ edificio.equipo.clase }}">{{ edificio.equipo.texto }}</dd></div>
+    </dl>
   </div>
   <footer class="px-5 py-3 border-t border-light bg-secondary flex items-center justify-between gap-3 text-sm">
-    <span class="text-body-subtle">{% if edificio.con_conteo %}{{ edificio.conteo }}{% endif %}</span>
-    <a href="{{ url_ver }}" class="text-fg-brand font-medium hover:underline whitespace-nowrap">{% if edificio.con_conteo %}Ver ficha y fotos{% else %}Ver ficha{% endif %} <i class="fas fa-arrow-right" aria-hidden="true"></i><span class="sr-only"> de {{ edificio.nombre }}</span></a>
+    <span class="text-body-subtle">{{ edificio.movimientos }}</span>
+    <a href="{{ url_ver }}" class="text-fg-brand font-medium hover:underline whitespace-nowrap">Abrir edificio <i class="fas fa-arrow-right" aria-hidden="true"></i><span class="sr-only"> {{ edificio.nombre }}</span></a>
   </footer>
 </article>
 {% endwith %}

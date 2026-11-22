@@ -19,8 +19,6 @@ from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
 from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_dispositivos import (
-    AUTO_ID_RELEVAMIENTO,
-    AsignarRelevamientoDispositivoForm,
     CambioPlazaForm,
     EdificioForm,
     EgresoForm,
@@ -40,7 +38,6 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
 from programas.mixins_dispositivos_equipo import EquipoDelLegajoMixin
 from programas.mixins_dispositivos_sectores import (
     AUTO_ID_CAMBIO,
-    SectoresPlazasMixin,
     _form_de_cambio_de_plaza,
     _q_sectores_visibles,
     _sectores_para_cambio,
@@ -65,8 +62,8 @@ from programas.selectors.estadia_detalle import (
 from programas.selectors.estadia_detalle import (
     normalizar_solapa as normalizar_solapa_estadia,
 )
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.detalle_dispositivo import (
-    SOLAPA_POR_DEFECTO,
     alertas_del_dispositivo,
     aviso_sin_ingresos,
     contar_alojadas,
@@ -122,15 +119,15 @@ from programas.services.estadias import (
     volver_plaza_a_servicio,
 )
 from programas.services.estado_institucion import cerrar_dispositivo, inactivar_dispositivo
-from programas.services.formularios_tipo import aviso_sin_formulario
+from programas.services.ficha_edificios import (
+    aviso_sin_plazas,
+    completar_tarjetas,
+    nota_de_indicadores,
+    redireccion_de_solapa_vieja,
+)
 from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import (
-    AGENTE_DEBE_SER_EXTERNO,
-    CAP_ASIGNAR,
-    CAP_CREAR_AGENTE,
-    agentes_asignables_para,
-    edificios_para_asignar_del_dispositivo,
     semaforos_de_dispositivos,
 )
 from programas.services.nombre_plaza import plaza_con_sector
@@ -408,8 +405,12 @@ class DispositivoFormularioTipoView(LoginRequiredMixin, View):
         )
 
 
-class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, DispositivoObjectPermissionMixin, DetailView):
-    """Detalle del dispositivo (MVP v2, etapa 2 · P4): indicadores, sectores, estadías, infraestructura e historial.
+class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMixin, DetailView):
+    """Ficha de la institución (MVP v2, etapa 2 · P4): indicadores, sus edificios, personas alojadas, equipo e historial.
+
+    Los edificios se ven en tarjetas y cada uno se opera en su página (Cambio 570, ``EdificioOperativoView``): la ficha no
+    ingresa personas ni lleva la bitácora. Los enlaces a las solapas que se fueron (``?tab=sectores|infraestructura``) se
+    redirigen a donde viven ahora (``redireccion_de_solapa_vieja``).
 
     Las cifras de plazas salen del censo de `ocupacion_de_plazas` y el resto de los datos de
     `programas.services.detalle_dispositivo`: acá solo se orquesta y se resuelven permisos.
@@ -419,12 +420,17 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
     model = Dispositivo
     template_name = "programas/dispositivos/legajo/detail.html"
     context_object_name = "dispositivo"
-    en_solapa = True
-    # `?sector=` ya es el filtro de la solapa Estadías: el sector a editar viaja con otro nombre.
-    param_editar_sector = "editar_sector"
 
     def get_queryset(self):
         return Dispositivo.objects.select_related("tipo", "area_ministerio__secretaria")
+
+    def get(self, request, *args, **kwargs):
+        # Antes de armar nada: un enlace a una solapa que ya no existe no paga la ficha entera.
+        self.object = self.get_object()
+        destino = redireccion_de_solapa_vieja(request.user, self.object, request.GET)
+        if destino:
+            return redirect(destino)
+        return self.render_to_response(self.get_context_data(object=self.object))
 
     def _mapa_de_ingreso(self):
         """Plazas elegibles, solo cuando una acción de cambio las necesita."""
@@ -492,7 +498,7 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
                 "maneja_plazas": con_plazas,
                 # La solapa abierta la resuelve el servidor y se la pasa a Alpine: una
                 # pedida que este dispositivo no tiene dejaba la tarjeta en blanco.
-                "tab": normalizar_solapa(get.get("tab", ""), con_plazas=con_plazas),
+                "tab": normalizar_solapa(get.get("tab", "")),
                 "aviso_sin_ingresos": aviso_sin_ingresos(dispositivo),
                 # Avisan y no bloquean: ninguna decide si un botón aparece o una acción
                 # procede. Son las mismas para todos; lo que depende de quién mira es el
@@ -513,10 +519,8 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
                 # curso no lo ve la institución relevada (`inspecciones.ve_la_asignacion`).
                 "infraestructura": infraestructura_del_dispositivo(
                     dispositivo,
-                    get.get("relevamientos_page"),
                     usuario=user,
-                    edificio_id=get.get("ver_edificio"),
-                    estado=get.get("estado_edificio"),
+                    solo_tarjetas=True,
                     # La ocupación sale del mismo censo de la franja: una sola lectura para toda la pantalla.
                     ocupadas_por_sector={sector["pk"]: sector["ocupadas"] for sector in sectores},
                     puede_editar=puede_editar,
@@ -533,7 +537,6 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
                 "puede_admitir": puede_ingresar_persona(user, dispositivo, puede_admitir=puede_cambiar),
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
-                "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
                 # «Emergencia · Llegadas» (E6): la misma regla que su vista, `dispositivo.admitir` con alcance.
                 "url_llegadas_emergencia": (
                     url_llegadas if puede_cambiar else ""  # `dispositivo.admitir` con alcance: ya resuelto arriba
@@ -561,29 +564,29 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
         )
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
-        self._preparar_relevamiento(context, dispositivo)
         self._preparar_equipo(context, dispositivo)
-        self._preparar_solapa_sectores(context, dispositivo, con_plazas)
+        self._preparar_edificios(context, dispositivo, ocupacion, con_plazas)
         return context
 
-    def _preparar_solapa_sectores(self, context, dispositivo, con_plazas):
-        """La solapa «Sectores y plazas»: el mapa y sus acciones, **solo** con la solapa abierta.
+    def _preparar_edificios(self, context, dispositivo, ocupacion, con_plazas):
+        """La sección «Edificios · N»: una tarjeta por edificio y el aviso del que no tiene plazas disponibles.
 
-        Armarla cuesta las consultas del mapa, y la ficha se abre casi siempre en otra solapa: sin
-        `?tab=sectores` no se pide nada y el botón de la solapa navega a esa URL (`sectores_cargados`).
-        Los parámetros que abren sus modales (`plaza`, `editar_plaza`, `editar_sector`) la abren sola.
+        Las tarjetas salen de las filas de `infraestructura_del_dispositivo` más lo que suma `completar_tarjetas`; el
+        censo es el mismo de los indicadores, así que no hay otra cuenta de plazas.
         """
 
-        get = self.request.GET
-        if not con_plazas:
-            return
-        abre_modal = any(parametro in get for parametro in ("plaza", "editar_plaza", self.param_editar_sector))
-        if abre_modal and not get.get("tab") and context["tab"] == SOLAPA_POR_DEFECTO:
-            context["tab"] = "sectores"
-        context["sectores_cargados"] = context["tab"] == "sectores"
-        context["url_solapa_sectores"] = url_solapa_sectores(dispositivo.pk)
-        if context["sectores_cargados"]:
-            self._preparar_sectores_y_plazas(context, dispositivo)
+        infraestructura = context["infraestructura"]
+        tarjetas = completar_tarjetas(
+            infraestructura["listado"],
+            user=self.request.user,
+            dispositivo=dispositivo,
+            ocupacion=ocupacion,
+            con_plazas=con_plazas,
+        )
+        context["tarjetas_edificios"] = tarjetas
+        context["aviso_sin_plazas"] = aviso_sin_plazas(tarjetas, dispositivo) if con_plazas else None
+        context["nota_indicadores"] = nota_de_indicadores(infraestructura["n_edificios"])
+        context["texto_edificios"] = _plural(infraestructura["n_edificios"], "edificio", "edificios")
 
     def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
         """Un solo modal abierto por URL, sin formularios ni consultas por fila (contrato P21)."""
@@ -669,36 +672,6 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
                 context["form_edificio"] = EdificioForm(edificio=edificio)
                 context["edificio_reservado"] = edificio_es_reservado(edificio, dispositivo=dispositivo)
                 context["url_edificio"] = reverse("dispositivos:edificio_editar", args=[dispositivo.pk, edificio.pk])
-
-    def _preparar_relevamiento(self, context, dispositivo):
-        """«Crear relevamiento» de la solapa Infraestructura: el botón y su modal, ya armado.
-
-        El modal abre con Alpine, sin recargar: el formulario y el selector de agentes llegan
-        con la página. Solo los paga quien puede asignar y solo si el dispositivo tiene algún
-        edificio elegible; para el resto el detalle no cuesta ni una consulta más. Los
-        elegibles se leen una vez (el botón, el selector y el POST usan la misma regla).
-        """
-
-        user = self.request.user
-        context["puede_crear_relevamiento"] = False
-        if not context["infraestructura"]["edificios"] or not puede_en_programa_dispositivos(user, CAP_ASIGNAR):
-            return
-        elegibles = edificios_para_asignar_del_dispositivo(user, dispositivo)
-        if not elegibles:
-            return
-        context["puede_crear_relevamiento"] = True
-        context["agente_externo"] = AGENTE_DEBE_SER_EXTERNO
-        context["puede_crear_agente"] = puede_en_programa_dispositivos(user, CAP_CREAR_AGENTE)
-        infraestructura = context["infraestructura"]
-        context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
-            edificios=elegibles,
-            # Con la ficha de un edificio abierta, «Crear relevamiento» arranca en ese (sigue editable).
-            edificio_inicial=infraestructura["viendo"]["pk"] if infraestructura["modo"] == "ficha" else None,
-            agentes=agentes_asignables_para(elegibles),
-            auto_id=AUTO_ID_RELEVAMIENTO,
-            aviso_formulario=aviso_sin_formulario(dispositivo.tipo),
-        )
-        context["url_relevamiento"] = reverse("dispositivos:relevamiento_asignar_dispositivo", args=[dispositivo.pk])
 
 
 class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermissionMixin, UpdateView):

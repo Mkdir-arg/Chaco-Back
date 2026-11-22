@@ -217,7 +217,7 @@ def _acciones(user, dispositivo, edificio):
             else ""
         ),
         "url_bitacora": reverse("dispositivos:bitacora", args=[dispositivo.pk]) + como_param,
-        "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?tab=infraestructura&edificio={pk}"
+        "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={pk}"
         if puede_editar
         else "",
         "url_llegadas": reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk]) + como_param
