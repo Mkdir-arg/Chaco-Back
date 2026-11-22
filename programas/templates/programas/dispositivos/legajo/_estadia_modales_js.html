@@ -1,0 +1,12 @@
+{% load static %}{% comment %}Scripts del modal «Registrar egreso» (formulario del tipo). Van en `customJS`, junto con `_ajax_js.html` y `becas-modal.js`; se cargan solo si llegó `formulario_egreso` (Cambio 566).{% endcomment %}
+{% if formulario_egreso %}
+<script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
+<script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-formulario-tipo.js' %}"></script>
+<script src="{% static 'custom/js/nodo-indice-secciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-firma.js' %}"></script>
+<script>
+  // Formulario de egreso del tipo, dentro del modal: mismas condiciones que evalúa el servidor al egresar.
+  window.NodoFormularioTipo.montar(document.querySelector('[data-formulario-tipo-egreso]'));
+</script>
+{% endif %}

@@ -1,0 +1,55 @@
+{% comment %}
+Modales de la estadía: «Cambiar o asignar plaza» y «Registrar egreso». Lo usan la ficha de la institución y la solapa Estadías
+de la página del edificio (Cambio 566). Cada modal se dibuja solo si llegó su formulario: los arma `contexto_modales_de_estadia`
+(`programas/views/dispositivos_legajo.py`) cuando la URL trae `?cambio=<id>` o `?egreso=<id>`.
+
+Contexto: `form_cambio`, `url_cambiar_plaza`, `estadia_cambio`, `es_asignacion` (cambio); `form_egreso`, `formulario_egreso`,
+`estadia_egreso`, `url_egresar` (egreso). `next_url` es opcional: si viene, viaja como `next` en los dos POST y la vista vuelve ahí
+(validado en el servidor); sin él vuelve a la solapa Estadías de la institución.
+
+Le pide al contenedor (el `x-data`) los booleanos de Alpine `modalCambio` y `modalEgreso` (arrancan en true si llegó su formulario)
+y `egreso: { url, persona }`, la directiva `x-becas-modal` (`becas-modal.js`) y el cierre de los dos en su `@becas-saved.window`.
+Los scripts van en `customJS` de la página: `_ajax_js.html`, `becas-modal.js` y `_estadia_modales_js.html`.
+{% endcomment %}
+  {% if form_cambio %}
+  {# Modal: Cambiar o asignar plaza (sin plaza, el motivo es opcional) — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  <div x-show="modalCambio" x-cloak x-becas-modal="modalCambio" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCambio=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cambio-titulo">
+      {% if es_asignacion %}
+      {% include "programas/becas/_modal_header.html" with titulo="Asignar plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% else %}
+      {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% endif %}
+      <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% else %}<input type="hidden" name="volver" value="dispositivo">{% endif %}
+        {% include "programas/dispositivos/_form_cambio_plaza.html" %}
+        {% if es_asignacion %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar asignación" %}
+        {% else %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar cambio" %}
+        {% endif %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if estadia_egreso %}
+  {# Modal: Registrar egreso — confirmación con motivo (arquetipo Modal); uno solo para todas las filas #}
+  <div x-show="modalEgreso" x-cloak x-becas-modal="modalEgreso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEgreso=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full {% if formulario_egreso.varios_grupos %}max-w-4xl{% else %}max-w-[560px]{% endif %} max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Registrar egreso" titulo_x_text="'Registrar egreso de ' + egreso.persona" titulo_id="modal-egreso-titulo" icono="fa-users" cerrar="modalEgreso=false" %}
+      <form method="post" x-ref="form" :action="egreso.url" data-ajax{% if formulario_egreso.varios_grupos %} data-toast-temporal{% endif %} class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        {% include "programas/dispositivos/_form_egreso.html" %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEgreso=false" accion_texto="Confirmar egreso" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+

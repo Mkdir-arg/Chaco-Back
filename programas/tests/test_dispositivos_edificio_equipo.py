@@ -343,7 +343,7 @@ class SoloConSuSolapaTests(BaseEquipoEdificio):
             self.assertNotContains(respuesta, texto)
         self.assertContains(respuesta, "window.location.href=")
         self.assertEqual(respuesta.context["url_solapa_equipo"], self.url_equipo)
-        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertContains(respuesta, 'id="tab-equipo" aria-controls="panel-equipo" data-solapa-navega')
 
     def test_el_contador_y_la_franja_siguen_con_cualquier_solapa(self):
         respuesta = self._get(tab="estadias")
@@ -389,7 +389,7 @@ class PresupuestoDelEquipoTests(BaseEquipoEdificio):
 
     def test_la_pagina_con_otra_solapa_no_paga_lo_del_panel(self):
         # El techo de la página (`dispositivos_edificio_operativo`) no incluye lo propio del Equipo.
-        con_otra = self._medir(f"{self.url}?tab=estadias")
+        con_otra = self._medir(f"{self.url}?tab=historial")
         con_equipo = self._medir(self.url_equipo)
 
         self.assertLess(con_otra, con_equipo)
