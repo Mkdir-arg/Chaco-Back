@@ -662,6 +662,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
@@ -52622,6 +52623,9 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+- **22/11/2026:** el test de la fecha del relevamiento (`test_dispositivos_relevamiento_alcance.py`) compara en hora local
+  (`timezone.localtime`), la misma zona con la que el template muestra «Relevado el»: entre las 21 y las 24 h de Argentina el
+  día en UTC ya es el siguiente y el test fallaba sin relación con el código (lo arregló el #1305; el #1307 se cerró por duplicado).
 
 ---
 
@@ -60785,6 +60789,8 @@ Decisiones del PM del 21/11/2026:
     nuevo apilado después del PR 3 (el PR 4 del carril; el #1284 sigue frenado).
 11. **Entrega de kits** (PM, 21/11/2026): elegir el edificio es **obligatorio** cuando el destino tiene más de uno; con
     uno solo queda fijo. Entra en el PR 3 (el paso «Confirmar» del asistente).
+12. **Trazas del dispositivo sin edificio** (PM, 22/11/2026): las trazas del dispositivo (legajo, plazas, sectores, turnos y
+    edificios) no llevan edificio y quedan **ocultas** con alcance Edificios; las ve quien tiene toda la institución.
 
 Decisiones técnicas de este PR: `alcance` NULL equivale a `INSTITUCION` (todas las filas existentes, sin backfill);
 `tipo_contratacion` NULL se muestra como «Sin dato»; el servicio acepta `tipo_contratacion=None` para no romper
@@ -60839,7 +60845,7 @@ No requiere más que el deploy (corre la migración).
 
 ## Pendientes / a definir
 PR 3 y 4 del plan. Decisiones revisables: turnos por institución; el Historial con alcance Edificios muestra
-solo lo de sus edificios (PR 4); las trazas del dispositivo (legajo, plazas, sectores, turnos) se ocultan con alcance Edificios porque `TrazaDispositivo` no guarda edificio —decisión abierta del cliente, con este default del juez—, y la bitácora P10 solo muestra las novedades y el censo de sus edificios (sin personas: decisión abierta); validar, observar y rechazar siguen por
+solo lo de sus edificios (PR 4); y la bitácora P10 solo muestra las novedades y el censo de sus edificios (sin personas: decisión abierta); validar, observar y rechazar siguen por
 institución.
 
 ## Reversión
@@ -60875,6 +60881,9 @@ contratación cargada.
 - **22/11/2026:** la regla por edificio llega a alojar en Emergencia en el **Cambio 532** (PR L1): «Aceptar» reserva solo
   camas del edificio derivado, «Avisar a la mesa» vale con alcance Edificios, «Ingresar igual» exige la institución entera
   y «mis dispositivos» cuenta por edificio.
+- **22/11/2026:** el **Cambio 530** corrige el `exclude` con el `Q()` vacío del alcance total: el administrador del programa y el
+  superusuario volvían a recibir 403 al reservar camas de una derivación. Decisión 12 del PM: las trazas del dispositivo
+  sin edificio quedan ocultas con alcance Edificios (pasó de Pendientes a Decisiones tomadas).
 
 ---
 
@@ -61127,6 +61136,8 @@ obligatorio para menores de 16).
   backoffice ofrece el texto libre `adulto_responsable`, igual que la API, para no dejar un menor sin poder confirmarse (un
   grupo de menores solos, o con el adulto egresado). Con adultos, el selector reemplaza al texto y el texto ya guardado se
   muestra como dato de solo lectura junto al selector.
+- **Vaciar el adulto responsable de un mayor de 16 (decisión del PM, 22/11/2026).** Vaciar el campo no borra el adulto
+  responsable de una persona de 16 años o más: se conserva el valor anterior. Se deja así.
 - **Fecha de nacimiento aproximada.** Con `fecha_nacimiento_aproximada` verdadera, la fecha no entra al legajo, ni en el alta de una
   persona nueva ni al completar a quien no tenía fecha. Queda en la ficha, con su marca.
 - **Localidad del edificio.** `EdificioForm.localidad` es el selector del catálogo (`_opciones_de_localidad`, el de `DispositivoForm`)
@@ -61321,6 +61332,9 @@ Ninguno.
 
 ## Reversión
 Desplegar el código anterior: vuelve el 403 para el admin y el superusuario. No hay datos que revertir.
+
+## Historial
+- **22/11/2026:** alta del cambio (#1305). En el Historial del Cambio 523 queda la línea que remite a este.
 
 # Cambio 528 — Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app
 
@@ -62134,7 +62148,8 @@ revisada» y la solapa «Identidad a revisar» (T6/T7 del Cambio 486, segunda en
 ## Implementación
 El formulario de «Nuevo caso» recibe `url_sugerencias` (solo presentación) y la vista la pasa si quien carga puede ver
 personas. `nodo-sugerencias.js` guarda las filas de la lista y, al elegir, escribe en los campos nombrados por
-`data-sugerencias-completa`. La ficha del componente y su fila del agente canónico lo registran.
+`data-sugerencias-completa`. La ficha del componente (`.claude/design/componentes/sugerencias.md`) lo registra; la respuesta
+compartida del buscador vive en `programas/respuestas_personas.py`.
 
 ## Archivos
 `programas/forms_emergencia.py`, `programas/views/emergencia.py`, `programas/emergencia_urls.py`,
@@ -62163,6 +62178,9 @@ No requiere.
   de la app (5 dígitos y cubeta), se endurece sin tocar el formulario.
 - La casilla «Perdió el documento» también quedó en la puerta del dispositivo; si no se quiere ahí, se saca del formulario
   hijo.
+- Si el formulario vuelve con un error de validación, lo precargado deja de seguirse: corregir el DNI ya no vacía los
+  nombres (queda como un formulario tipeado a mano antes del cambio, con los nombres a la vista). Se deja así: tomar como
+  precargado lo que viene del servidor vaciaría nombres tecleados a mano.
 
 ## Reversión
 Desplegar el código anterior. Los casos creados con la casilla quedan con la clave en `situacion`, que el código anterior
@@ -62206,15 +62224,110 @@ por `emergencia` (Cambios 532, 535, 537 y 539): ninguna decisión choca.
 - **2 · «Elegir cama» pierde lo escrito en la ficha.** Necesita guardar un borrador (sesión) o JS nuevo: no es adherencia. Se devuelve al juez.
 
 ## Implementación
-Sin consultas nuevas: el paginador corta la lista antes de armar las filas.
+En Llegadas el paginador corta la lista antes de armar las filas; en Kits suma un COUNT y el prefetch de líneas queda acotado a la página.
 
 ## Archivos
 - `programas/templates/programas/emergencia/dispositivo/` (`llegadas`, `ficha`, `cama`, `integrantes`, `alojar`) y `kits/` (`pendientes`, `recibir`).
 - `programas/views/emergencia_dispositivo.py`, `programas/views/emergencia_kits.py`, `programas/forms_emergencia_dispositivo.py`, `programas/selectors/emergencia_llegadas.py`.
+- Fichas: `.claude/design/componentes/alerta.md`, `.claude/design/componentes/contador_avance.md` y `.claude/design/componentes/mapa_plazas.md`.
 - Tests: `test_emergencia_alojar_vistas.py` y `test_emergencia_kits_vistas.py`.
 
 ## Reversión
 Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+
+# Cambio 541 — Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote y timeout del release gate
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#infra` |
+| **Solicitante** | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314, #1315 y #1316 (PR de MINOR del carril) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor (backoffice y API, sin cambio de comportamiento) · CI |
+| **Migración** | No requiere |
+
+## Pedido original
+Cerrar en un solo PR los MINOR que dejaron las auditorías del lote Emergencia/Dispositivos: ninguno cambia lógica de negocio
+ni estética. Además, subir el `timeout-minutes` del job `suite` del `release-gate.yml` (hoy se corta por tiempo y aparece como
+«cancelled») y registrar tres decisiones del PM.
+
+## Alcance acordado
+**Entra:** los MINOR de código, tests, textos y documentación de las auditorías, y las decisiones del PM en las entradas que
+corresponden (Cambios 523, 527 y 538). **Queda afuera:** el bloqueo compartido de la institución (Pendiente del Cambio 536, va en
+otro PR) y lo que sea decisión del cliente.
+
+## Decisiones tomadas
+Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
+- **Cambio 527:** vaciar el campo no borra el adulto responsable de una persona de 16 años o más; se deja así.
+- **Cambio 523:** las trazas del dispositivo sin edificio quedan ocultas con alcance Edificios (pasa de Pendientes a Decisiones tomadas).
+- **Cambio 538:** si el formulario vuelve con un error de validación, lo precargado deja de seguirse; se deja así (Pendiente nuevo).
+
+## Pendientes / a definir
+- **Bloqueo compartido de la institución** (Pendiente del Cambio 536): otro PR.
+- **«Cuántas faltan confirmar»** se calcula de dos maneras (`total_declarado` al confirmar, filas sin confirmar al quitar) en
+  `emergencia_confirmacion.py`: unificarlo puede mover la regla de la reserva sobrante, así que se deja para un PR con su propio test.
+- **La regla de qué novedades ve cada usuario** (Cambio 523, bitácora) se arma en varios lugares: centralizarla es un refactor aparte.
+- **`.claude/design/dominio/becas.md:41`** sigue citando `_liberar_reservas_al_inactivar` (hoy `_antes_de_inactivar`): es pieza canónica y
+  tocarla obliga a actualizar el agente canónico de diseño; se hace junto con el próximo cambio de UI de Dispositivos.
+- **Docstring de `entregas_pendientes_de`** (la vista paginada suma un COUNT): va con la ficha que guarda `selectors/kits.py`.
+- **`se_puede_cambiar_plaza`** debe llamar a `maneja_plazas` adentro y solo sin plaza (hoy suma una consulta en la estadía para quien no
+  tiene `dispositivo.admitir`).
+- **Copia de `_plural`** en `services/detalle_dispositivo.py:443`.
+- **El aviso del modal de cambio de plaza** deduce el motivo de un booleano.
+- **Refactor de las vistas de la mesa** (una vista que instancia a otra, texto del dueño del caso repetido en dos excepciones):
+  queda como está; no cambia lo que ve el usuario.
+
+## Implementación
+- `emergencia_confirmacion.py`: `isdecimal()` en el adulto elegido (un «²» daba 500 en lugar de 400), la sección «Observaciones» se
+  normaliza una sola vez y el prefijo de la traza «Quitada la persona N,» sale de una función que usan quien traza y quien detecta el reenvío.
+- `views/emergencia_dispositivo.py`: el POST con error de la ficha conserva la ayuda «Guardado: …» (`ficha=` al formulario).
+- `forms_emergencia.py`: «Se completan solos…» solo se muestra donde hay buscador de DNI.
+- `estado_institucion.py`: `_antes_de_inactivar` exige y después libera (un solo paso); `_plural` sale a `bitacora_detalle.plural`.
+- `services/sectores_plazas.py` (`se_puede_cambiar_plaza`): la regla de «Cambiar plaza» / «Asignar plaza» deja de estar escrita tres veces
+  en `views/dispositivos_legajo.py`; `acciones_de_plaza` pide `estado_dispositivo` (ya nadie lo omitía).
+- `views/emergencia.py`: sin key de Google la vista deja `panel["distancias"]` en `None` y el template solo lo mira.
+- Docstrings y la ficha `detalle.md`: «trazas del dispositivo (legajo, plazas, sectores, turnos y edificios)»;
+  el contrato de la app y la `description` de `…/quitar/` dicen que un `id` que no es entero da 400.
+- `.github/workflows/release-gate.yml`: `timeout-minutes` del job `suite` de 20 a 30.
+- Ya resueltos en `development` (verificado en el código): selector de edificios de la bitácora, `ValueError` del edificio de la
+  novedad, búsqueda de DNI con espacios, 400 sin formulario en la mesa, texto del Pendiente del Cambio 536, los tres MINOR del #1306
+  que se corrigieron en su propio PR.
+
+## Archivos
+También se tocan las entradas 428, 530 y 540 (Historial y corrección de Implementación/Archivos).
+
+`programas/services/emergencia_confirmacion.py`, `programas/views/emergencia_dispositivo.py`, `programas/views/emergencia.py`,
+`programas/views/dispositivos_legajo.py`, `programas/forms_emergencia.py`, `programas/services/estado_institucion.py`,
+`programas/services/sectores_plazas.py`, `programas/services/detalle_dispositivo.py`,
+`programas/selectors/auditoria_dispositivo.py`, `programas/api/views_emergencia_llegadas.py`,
+`programas/templates/programas/emergencia/casos/detail.html`, `docs/internal/contrato-app-emergencia.md`,
+`.claude/design/arquetipos/detalle.md`, `.github/workflows/release-gate.yml` y los tests
+(`test_atributo_hidden`, `test_dispositivos_estados_536`, `test_emergencia_alojar_vistas`, `test_emergencia_derivar`,
+`test_emergencia_formularios_correcciones`, `test_emergencia_identidad_nuevo_caso`).
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos: el modal y la solapa de «Cambiar plaza» en una institución cerrada, la ayuda del adulto guardado tras un error, la ayuda
+de nombre y apellido con y sin buscador, el «²» como adulto elegido y la lista de reglas `display: … !important` que no ocultan.
+**Mutación (cada una en rojo, restaurando sin stash):** `isdigit()` en lugar de `isdecimal()`; sacar `ficha=` del POST; asignar
+siempre la ayuda del buscador; quitar la guarda de «sin key» de la vista; que `se_puede_cambiar_plaza` ignore el estado; una regla
+`display: flex !important` nueva. `manage.py check`, `makemigrations --check --dry-run`, ruff, `design_audit --ratchet`,
+`compile_templates --bloques`, `check_design_agent` y `requerimientos.py --check` en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Reversión
+Desplegar el código anterior. No hay datos que revertir.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

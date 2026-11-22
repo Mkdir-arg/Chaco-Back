@@ -53,6 +53,25 @@ class ReglaGlobalDeHiddenTests(SimpleTestCase):
                 for valor in re.findall(r"(?<![-\w])display:\s*([\w-]+)", cuerpo):
                     self.assertEqual(valor, "none", f"{hoja.name}: {selector.strip()}")
 
+    def test_las_reglas_display_important_que_no_ocultan_son_las_conocidas(self):
+        """Una regla `display: … !important` distinta de `none` le gana al atributo `hidden` aunque sea global.
+
+        Hoy hay cinco, todas fuera del flujo de las piezas con `hidden` (impresión, SweetAlert y la barra lateral
+        responsive). Una nueva obliga a revisar si pisa algún elemento que nace con el atributo y a sumarla acá.
+        """
+
+        encontradas = {}
+        for hoja in sorted(CSS.glob("*.css")):
+            if hoja.name == "tailwind.css":
+                continue
+            valores = re.findall(
+                r"(?<![-\w])display:\s*([\w-]+)\s*!important", _sin_comentarios(hoja.read_text(encoding="utf-8"))
+            )
+            visibles = [valor for valor in valores if valor != "none"]
+            if visibles:
+                encontradas[hoja.name] = len(visibles)
+        self.assertEqual(encontradas, {"nodo-impresion.css": 2, "nodo-swal.css": 1, "responsive.css": 2})
+
 
 HARNESS = r"""
 const fs = require('fs');
