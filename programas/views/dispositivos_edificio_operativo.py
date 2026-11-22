@@ -23,6 +23,7 @@ from programas.mixins_dispositivos_estadias import contexto_modales_de_estadia, 
 from programas.mixins_dispositivos_sectores import SectoresPlazasMixin
 from programas.models import Dispositivo
 from programas.services.dispositivos import CAP_VER
+from programas.services.edificio_historial import contexto_historial
 from programas.services.edificio_kits import contexto_de_la_lista, contexto_del_detalle
 from programas.services.edificio_operativo import (
     contexto_del_edificio,
@@ -116,6 +117,18 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         context["kits_cargados"] = context["puede_kits"] and context["tab"] == "kits"
         if context["kits_cargados"]:
             context["kits"] = self._kits(dispositivo, edificio, self.request.GET.get("entrega", ""))
+        # Historial (Cambio 571): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=historial`.
+        if context["historial_cargado"]:
+            context.update(
+                contexto_historial(
+                    self.request.user,
+                    dispositivo,
+                    edificio,
+                    self.request.GET.get("historial_page"),
+                    puede_kits=context["puede_kits"],
+                )
+            )
+            context["contadores"]["historial"] = context["historial"].paginator.count
         modales_del_equipo(self.request, dispositivo, self.edificio_fijo, context)
         # La fila que el alta acaba de dejar (`?nuevo=<id>`) sale resaltada.
         context["miembro_nuevo"] = _entero(self.request.GET.get("nuevo"))

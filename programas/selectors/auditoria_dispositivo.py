@@ -16,14 +16,18 @@ más viejo, las cuatro trazas que hay en el programa:
 4. ``TrazaInspeccion`` — los relevamientos edilicios de los edificios que ocupa el
    dispositivo (asignar, reasignar, cancelar, resultado, fotos).
 
+La solapa Historial de la página operativa del edificio (Cambio 571) lee **esta misma fuente** acotada a un edificio
+(``edificio=`` de :class:`FeedAuditoria`) y suma una quinta, ``TrazaEntrega``: las entregas de kits a ese edificio.
+Las trazas del dispositivo que no llevan edificio entran por lo que dicen, ver :func:`q_trazas_del_edificio`.
+
 Los textos son de operador: ningún código de acción, nombre de campo crudo ni id de una
 persona llega a la pantalla.
 
 Costo
 -----
 
-Fijo: un ``COUNT`` y una lectura por fuente, ocho consultas, sin importar cuántas filas
-tenga cada una. Para la página ``p`` se leen como mucho ``p × tamaño`` filas de cada fuente
+Fijo: un ``COUNT`` y una lectura por fuente, ocho consultas (diez con los kits del edificio), sin importar cuántas
+filas tenga cada una. Para la página ``p`` se leen como mucho ``p × tamaño`` filas de cada fuente
 —ya ordenadas por la base— y se mezclan en Python; cada lectura trae lo que la línea
 muestra con ``select_related``, así que no hay una consulta por fila.
 """
@@ -32,7 +36,8 @@ import json
 import re
 
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Q
+from django.db.models import Exists, ExpressionWrapper, OuterRef, Q, TextField, Value
+from django.db.models.functions import Concat
 from django.utils import timezone
 from django.utils.formats import date_format
 
@@ -41,7 +46,10 @@ from programas.models import (
     EntradaBitacora,
     InspeccionEdificio,
     MovimientoEstadia,
+    Plaza,
+    Sector,
     TrazaDispositivo,
+    TrazaEntrega,
     TrazaInspeccion,
 )
 
@@ -115,7 +123,56 @@ def _tono_de_inspeccion(traza):
 
 
 # Fuentes, en el orden que desempata dos líneas del mismo instante.
-_TRAZA, _MOVIMIENTO, _CORRECCION, _INSPECCION = range(4)
+_TRAZA, _MOVIMIENTO, _CORRECCION, _INSPECCION, _ENTREGA = range(5)
+FUENTE_INSPECCION = _INSPECCION
+
+#: Las trazas del dispositivo que hablan de un sector (el detalle trae «edificio <código>») o de una plaza (el
+#: detalle trae «<código> (<sector>)»). Son las únicas que se pueden atar a un edificio sin un campo propio.
+ACCIONES_DE_SECTOR = ("SECTOR_CREADO", "SECTOR_EDITADO", "SECTOR_BAJA", "SECTOR_REACTIVADO")
+ACCIONES_DE_PLAZA = (
+    "PLAZA_RESERVADA",
+    "PLAZA_LIBERADA",
+    "PLAZA_FUERA_SERVICIO",
+    "PLAZA_EN_SERVICIO",
+    "PLAZA_EDITADA",
+    "PLAZA_BAJA",
+    "PLAZA_REACTIVADA",
+)
+ACCION_DE_LOTE_DE_PLAZAS = "PLAZAS_AGREGADAS"
+
+
+def q_trazas_del_edificio(edificio):
+    """Las trazas del dispositivo que son de ``edificio``: alta, cambio y baja de sectores y plazas, y las reservas.
+
+    ``TrazaDispositivo`` no guarda el edificio (y no hay migración que lo agregue), pero lo dice el detalle que
+    escriben los servicios: un sector lo nombra por **código de edificio** (``… · edificio ED-A``, y ``(antes: ED-B)``
+    si se mudó) y una plaza o un lote de plazas por **nombre de sector**. Las de sector se leen por el código, que es
+    exacto; las de plaza, por los sectores de este edificio en el mismo dispositivo, dentro de la misma consulta.
+    Límites de la derivación (la traza no guarda el edificio; guardarlo requiere una migración):
+
+    * un sector **renombrado** deja de coincidir con sus trazas de plaza viejas, que desaparecen del edificio;
+    * un sector **mudado** a otro edificio se lleva consigo las trazas de plaza que ya tenía (se leen por su nombre
+      contra el edificio actual), no solo las duplica;
+    * dos sectores del mismo dispositivo con el mismo nombre en edificios distintos (uno dado de baja libera el suyo)
+      comparten sus trazas de plaza: las de un nombre reusado se atribuyen al edificio que hoy lo tiene.
+    """
+
+    codigo = edificio.codigo
+    de_sector = Q(accion__in=ACCIONES_DE_SECTOR) & (
+        Q(detalle__endswith=f"edificio {codigo}")
+        | Q(detalle__contains=f"edificio {codigo} (antes:")
+        | Q(detalle__contains=f"(antes: {codigo})")
+    )
+    sectores = Sector.objects.filter(dispositivo_id=OuterRef("dispositivo_id"), edificio_id=edificio.pk).alias(
+        texto=ExpressionWrapper(OuterRef("detalle"), output_field=TextField())
+    )
+    de_plaza = Q(accion__in=ACCIONES_DE_PLAZA) & Q(
+        Exists(sectores.filter(texto__contains=Concat(Value("("), "nombre", Value(")"))))
+    )
+    de_lote = Q(accion=ACCION_DE_LOTE_DE_PLAZAS) & Q(
+        Exists(sectores.filter(texto__startswith=Concat(Value("Sector "), "nombre", Value(" · "))))
+    )
+    return de_sector | de_plaza | de_lote
 
 
 def _quien(usuario):
@@ -265,6 +322,31 @@ def evento_de_correccion(entrada):
     }
 
 
+_TITULOS_ENTREGA = {
+    TrazaEntrega.Accion.CREADA: "Entrega de kits armada",
+    TrazaEntrega.Accion.EN_CAMINO: "Entrega de kits en camino",
+    TrazaEntrega.Accion.RECIBIDA: "Entrega de kits recibida",
+    TrazaEntrega.Accion.CANCELADA: "Entrega de kits cancelada",
+    TrazaEntrega.Accion.OBSERVADA: "Observación sobre una entrega de kits",
+}
+_TONOS_ENTREGA = {TrazaEntrega.Accion.RECIBIDA: "success", TrazaEntrega.Accion.CANCELADA: "warning"}
+
+
+def evento_de_entrega(traza):
+    """Una línea por lo que le pasó a una entrega de kits: el número y lo que la traza escribió (ya legible)."""
+
+    detalle = f"Entrega {traza.entrega.numero}"
+    if traza.detalle:
+        detalle = f"{detalle} · {traza.detalle}"
+    return {
+        "fecha": traza.creado_en,
+        "quien": _quien(traza.usuario),
+        "titulo": _TITULOS_ENTREGA.get(traza.accion) or traza.accion_legible,
+        "detalle": detalle,
+        "tono": _TONOS_ENTREGA.get(traza.accion, ""),
+    }
+
+
 #: Lo que la institución relevada lee en lugar del nombre mientras el relevamiento no se realizó.
 EQUIPO_TERRITORIAL = "Equipo territorial"
 
@@ -317,6 +399,10 @@ class FeedAuditoria:
     institución. Con un conjunto, el feed trae solo lo que cuelga de esos edificios —movimientos de estadía en sus
     plazas, correcciones de sus novedades, relevamientos de sus edificios— y **ninguna traza del dispositivo** (legajo, plazas,
     sectores, turnos, edificios): no lleva edificio. Un conjunto vacío no trae nada (fail-closed).
+
+    ``edificio`` (Cambio 571) es el feed de **un** edificio de esta institución: lo mismo que con alcance Edificios sobre
+    ese edificio, más las trazas de sectores y plazas que se le atan (:func:`q_trazas_del_edificio`) y, con
+    ``con_kits``, sus entregas de kits. ``total()`` los cuenta en una sola consulta.
     """
 
     def __init__(
@@ -327,11 +413,15 @@ class FeedAuditoria:
         usuario_id=None,
         puede_ver_personas=False,
         edificios_en_alcance=None,
+        edificio=None,
+        con_kits=False,
     ):
         # Los edificios de los que quien mira puede ver de quién es el relevamiento. Lo
         # resuelve el servicio y llega como un conjunto de ids: el selector no evalúa
         # capacidades ni alcance, solo decide qué texto arma con lo que le dieron.
         visibles = frozenset(edificios_con_asignacion)
+        if edificio is not None:
+            edificios_en_alcance = [edificio.pk]
         limitado = edificios_en_alcance is not None
         ids = list(edificios_en_alcance or ())
         trazas = TrazaDispositivo.objects.filter(dispositivo=dispositivo).exclude(accion__in=ACCIONES_DE_ESTADIA)
@@ -339,10 +429,11 @@ class FeedAuditoria:
         correcciones = EntradaBitacora.objects.filter(dispositivo=dispositivo, version__gt=1)
         inspecciones = TrazaInspeccion.objects.filter(inspeccion__edificio__dispositivos=dispositivo)
         if limitado:
-            trazas = trazas.none()
-            movimientos = movimientos.filter(
-                Q(plaza_destino__sector__edificio_id__in=ids) | Q(plaza_origen__sector__edificio_id__in=ids)
-            )
+            trazas = trazas.filter(q_trazas_del_edificio(edificio)) if edificio is not None else trazas.none()
+            # Por ids de plaza y no por el JOIN plaza → sector → edificio en un OR: el OR no usa índice y recorre toda la
+            # tabla de movimientos. `todas` y no `objects`: entran también las plazas dadas de baja, como su historia.
+            plazas = Plaza.todas.filter(sector__edificio_id__in=ids).values("pk")
+            movimientos = movimientos.filter(Q(plaza_destino_id__in=plazas) | Q(plaza_origen_id__in=plazas))
             correcciones = correcciones.filter(edificio_id__in=ids)
             inspecciones = inspecciones.filter(inspeccion__edificio_id__in=ids)
         self.fuentes = (
@@ -377,7 +468,26 @@ class FeedAuditoria:
                 ),
             ),
         )
+        if edificio is not None and con_kits:
+            entregas = TrazaEntrega.objects.filter(entrega__dispositivo=dispositivo, entrega__edificio_id=edificio.pk)
+            self.fuentes += (
+                (
+                    _ENTREGA,
+                    entregas.select_related("usuario", "entrega").order_by("-creado_en", "-id"),
+                    evento_de_entrega,
+                ),
+            )
         self._count = None
+
+    def total(self):
+        """Cuántos eventos hay, en **una** consulta (un ``UNION ALL`` de los ``id`` de cada fuente).
+
+        Es el contador de la barra de solapas, que se dibuja con cualquier solapa abierta: ``count()`` son una consulta
+        por fuente. Da lo mismo que ``count()``.
+        """
+
+        ids = [consulta.order_by().values("pk") for _fuente, consulta, _evento in self.fuentes]
+        return ids[0].union(*ids[1:], all=True).count()
 
     def count(self):
         if self._count is None:
@@ -396,7 +506,7 @@ class FeedAuditoria:
         filas = []
         for fuente, consulta, a_evento in self.fuentes:
             for fila in consulta[:hasta]:
-                evento = a_evento(fila)
+                evento = {**a_evento(fila), "fuente": fuente}
                 filas.append(((evento["fecha"], -fuente, fila.pk), evento))
         filas.sort(key=lambda par: par[0], reverse=True)
         return [evento for _clave, evento in filas[desde:hasta]]
@@ -409,6 +519,8 @@ def auditoria_del_dispositivo(
     usuario_id=None,
     puede_ver_personas=False,
     edificios_en_alcance=None,
+    edificio=None,
+    con_kits=False,
 ):
     """El feed de auditoría del dispositivo, para paginar. Ver :class:`FeedAuditoria`."""
 
@@ -418,4 +530,6 @@ def auditoria_del_dispositivo(
         usuario_id=usuario_id,
         puede_ver_personas=puede_ver_personas,
         edificios_en_alcance=edificios_en_alcance,
+        edificio=edificio,
+        con_kits=con_kits,
     )
