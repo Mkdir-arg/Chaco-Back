@@ -34,6 +34,7 @@ parcial `_estado_badge.html` acepta modelos y dicts: resuelve `get_estado_displa
 el template y obtiene el tono con el filtro `tono_estado_dispositivo`, que lee el mismo
 `TONOS_ESTADO` (desconocido → gray). `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
 `dispositivos_de_institucion(user, capacidad)` de ese mismo servicio es `puede_operar_institucion` como queryset (alcance sobre toda la institución, no solo ciertos edificios): decide en una consulta si la ficha propia del edificio ofrece «Editar edificio» (`url_editar`, hacia la solapa Infraestructura de esa institución).
+`miembros_del_edificio(dispositivo, edificio_pk)` del mismo servicio arma el Equipo que ve la página operativa del edificio: miembros vigentes de esa institución con alcance Institución, o con alcance Edificios que incluya este edificio.
 «Enviar a validación» exige además los obligatorios visibles del formulario «Crear dispositivo»
 del tipo (`_exigir_formulario_del_tipo`), y sus faltantes entran al mismo resumen lateral de P3.
 Antes de exigir los datos, «Enviar a validación» y «Validar» ponen al día el contacto del legajo
