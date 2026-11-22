@@ -19,7 +19,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
   (el modal abierto por `?plaza=`).
 - totales: `totales` (los pinta `_totales.html`).
 - filtro «Edificio»: `pildoras_sectores` (vacío con un solo edificio), `ocultos_sectores`, `edificio_filtrado`
-  (id validado contra el alcance, o `None`: va en el oculto `sectores_edificio` de cada formulario) y `qs_sectores`
+  (id validado contra el alcance, o `None`: va en el oculto `sectores_edificio` de cada formulario y en la URL de cada «Reactivar») y `qs_sectores`
   (lo que los enlaces conservan: la solapa y el filtro).
 - pantalla: `en_solapa`, `param_editar_sector`, `ver_inactivos`, `sectores_inactivos`, `plazas_dadas_de_baja`.
 - capacidades: `puede_configurar_plazas`, `puede_ampliar_capacidad`, `puede_reubicar`.
@@ -176,7 +176,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
             </a>
             <button type="button"
                     class="btn-nodo btn-secondary btn-sm btn-fit"
-                    data-confirm-url="{% url 'dispositivos:sector_reactivar' dispositivo.pk inactivo.pk %}"
+                    data-confirm-url="{% url 'dispositivos:sector_reactivar' dispositivo.pk inactivo.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% endif %}"
                     data-confirm-title="Reactivar sector"
                     data-confirm-text="«{{ inactivo.nombre }}» vuelve al mapa con sus {{ inactivo.cantidad_plazas }} plaza{{ inactivo.cantidad_plazas|pluralize }}. Si ya hay un sector activo con ese nombre, no se puede reactivar."
                     data-confirm-ok="Sí, reactivar"
@@ -210,7 +210,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
           {% if puede_configurar_plazas %}
           <button type="button"
                   class="btn-nodo btn-secondary btn-sm btn-fit"
-                  data-confirm-url="{% url 'dispositivos:plaza_reactivar' dispositivo.pk baja.pk %}"
+                  data-confirm-url="{% url 'dispositivos:plaza_reactivar' dispositivo.pk baja.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% endif %}"
                   data-confirm-title="Reactivar plaza"
                   data-confirm-text="La plaza {{ baja.codigo }} vuelve al mapa de «{{ baja.sector.nombre }}»."
                   data-confirm-ok="Sí, reactivar"

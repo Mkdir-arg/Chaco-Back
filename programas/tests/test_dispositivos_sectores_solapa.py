@@ -5,7 +5,10 @@ filtro «Edificio» acota el mapa y se valida contra los edificios que quien mir
 exigiendo su capacidad y vuelven a la solapa.
 """
 
+from unittest.mock import patch
+
 from django.db import connection
+from django.test import Client, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -117,6 +120,21 @@ class SolapaSectoresTests(BaseAlcance):
 
         self.assertEqual(respuesta.context["pildoras_sectores"], [])
         self.assertNotContains(respuesta, f'name="{PARAM_EDIFICIO_SECTORES}"')
+
+    def test_la_solapa_pregunta_una_sola_vez_por_capacidad_si_opera_el_dispositivo(self):
+        """El detalle y la solapa piden `CAP_ADMITIR` y `CAP_EGRESAR`: cada una se resuelve una vez por pedido."""
+
+        from programas.mixins_dispositivos_sectores import puede_operar_dispositivo as original
+
+        for params in ({"tab": "sectores"}, {"tab": "sectores", "plaza": self.plaza_a.pk}):
+            with self.subTest(params=params):
+                with patch(
+                    "programas.mixins_dispositivos_sectores.puede_operar_dispositivo", wraps=original
+                ) as llamada:
+                    self._solapa(**params)
+
+                capacidades = [c.args[2] for c in llamada.call_args_list]
+                self.assertEqual(len(capacidades), len(set(capacidades)), capacidades)
 
     def test_sin_abrir_la_solapa_no_se_arma_el_mapa(self):
         self.client.force_login(self.de_inst)
@@ -301,6 +319,54 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
 
         self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk), fetch_redirect_response=False)
 
+    def _dar_de_baja_un_sector_y_una_plaza_de_b(self):
+        """Un sector inactivo y una plaza dada de baja (de un sector activo), los dos del edificio B."""
+
+        self.sector_baja = Sector.objects.create(
+            dispositivo=self.cis, nombre="Viejo", capacidad=1, edificio=self.edif_b, activo=False
+        )
+        self.plaza_baja = Plaza.objects.create(sector=self.sector_b, codigo="B-02", activa=False)
+
+    def test_reactivar_sector_y_plaza_con_filtro_vuelve_con_el_filtro(self):
+        self._dar_de_baja_un_sector_y_una_plaza_de_b()
+        for nombre, args in (
+            ("dispositivos:sector_reactivar", [self.cis.pk, self.sector_baja.pk]),
+            ("dispositivos:plaza_reactivar", [self.cis.pk, self.plaza_baja.pk]),
+        ):
+            with self.subTest(accion=nombre):
+                respuesta = self.client.post(f"{reverse(nombre, args=args)}?{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}")
+
+                self.assertRedirects(
+                    respuesta, url_solapa_sectores(self.cis.pk, self.edif_b.pk), fetch_redirect_response=False
+                )
+
+    def test_reactivar_con_filtro_ajeno_o_basura_vuelve_sin_filtro(self):
+        self._dar_de_baja_un_sector_y_una_plaza_de_b()
+        ajeno = self._ajeno()
+        for pedido in (ajeno.pk, 999999, "abc"):
+            with self.subTest(pedido=pedido):
+                respuesta = self.client.post(
+                    reverse("dispositivos:plaza_reactivar", args=[self.cis.pk, self.plaza_baja.pk])
+                    + f"?{PARAM_EDIFICIO_SECTORES}={pedido}"
+                )
+
+                self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk), fetch_redirect_response=False)
+                Plaza.todas.filter(pk=self.plaza_baja.pk).update(activa=False)
+
+    def test_los_botones_reactivar_llevan_el_filtro_en_su_url(self):
+        self._dar_de_baja_un_sector_y_una_plaza_de_b()
+        parametros = {"tab": "sectores", "inactivos": "1"}
+        con = self.client.get(self.ficha_url, {**parametros, PARAM_EDIFICIO_SECTORES: self.edif_b.pk})
+        sin = self.client.get(self.ficha_url, parametros)
+
+        for nombre, args in (
+            ("dispositivos:sector_reactivar", [self.cis.pk, self.sector_baja.pk]),
+            ("dispositivos:plaza_reactivar", [self.cis.pk, self.plaza_baja.pk]),
+        ):
+            url = reverse(nombre, args=args)
+            self.assertContains(con, f'data-confirm-url="{url}?{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}"')
+            self.assertContains(sin, f'data-confirm-url="{url}"')
+
     def test_editar_un_sector_con_filtro_vuelve_con_el_filtro(self):
         respuesta = self.client.post(
             reverse("dispositivos:sector_editar", args=[self.cis.pk, self.sector_b.pk]),
@@ -363,6 +429,45 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
         )
 
         self.assertNotContains(respuesta, PARAM_EDIFICIO_SECTORES)
+
+    @tag("performance")
+    def test_el_fragmento_con_filtro_entra_en_su_techo(self):
+        """El filtro suma las consultas de validar el edificio contra el alcance: un costo fijo, con tope propio.
+
+        Peor caso: alcance Edificios (que se resuelve otra vez para la lista de edificios) con el filtro pedido.
+        `test_dispositivos_plazas_acciones` mide el fragmento sin filtro (techo 20); con filtro el peor caso mide 21,
+        porque validar el pedido contra el alcance reabre sus consultas (`filtro_de_edificio`) y reusarlas obligaría a
+        pasar el alcance por `plaza_para_accion` y `puede_configurar_plazas`.
+        """
+
+        extra = self._edificio("ED-C")
+        de_edificios = self._miembro("De A y C", Alcance.EDIFICIOS, [self.edif_a, extra])
+        casos = (
+            ("institución", self.de_inst, self.edif_b.pk),
+            ("edificios", de_edificios, extra.pk),
+        )
+
+        clientes = {self.de_inst.pk: self.client}  # su sesión ya está abierta desde setUp (una sola por usuario)
+        cliente_de_edificios = Client()
+        cliente_de_edificios.force_login(de_edificios)
+        clientes[de_edificios.pk] = cliente_de_edificios
+
+        def consultas(usuario, edificio):
+            with CaptureQueriesContext(connection) as capturadas:
+                respuesta = clientes[usuario.pk].get(
+                    self.ficha_url,
+                    {"plaza": self.plaza_a.pk, "fragmento": "reubicar", PARAM_EDIFICIO_SECTORES: edificio},
+                    **AJAX,
+                )
+            self.assertEqual(respuesta.status_code, 200)
+            return len(capturadas)
+
+        for _nombre, usuario, edificio in casos:
+            consultas(usuario, edificio)  # calienta cachés (permisos, content types)
+        medidas = {nombre: consultas(usuario, edificio) for nombre, usuario, edificio in casos}
+        for nombre, cantidad in medidas.items():
+            with self.subTest(caso=nombre):
+                self.assertLessEqual(cantidad, 21)
 
 
 class SolapaQueNavegaTests(BaseAlcance):
