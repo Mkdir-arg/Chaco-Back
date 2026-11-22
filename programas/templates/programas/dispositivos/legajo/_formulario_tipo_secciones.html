@@ -1,0 +1,20 @@
+{% comment %}
+Formulario del tipo como SECCIONES DEL CUERPO de un modal largo (el egreso con 2 o más grupos), en vez de la tarjeta de
+`_formulario_tipo.html`: sin card ni encabezado propio; cada grupo es una sección del índice del modal
+(`components/_indice_secciones.html` + `nodo-indice-secciones.js`). Mismos campos, mismos `name` y mismos `data-item` (los lee
+`nodo-formulario-tipo.js`; una condición puede ocultar el grupo entero), con el campo canónico de `_formulario_tipo_filas.html`.
+  formulario_tipo      el formulario del tipo (lo arma la vista)
+  formulario_nota      opcional: línea chica sobre los campos con *
+  secciones_prefijo    prefijo de los `id` de las secciones («egreso-seccion» → egreso-seccion-1, -2…)
+{% endcomment %}
+{% if formulario_tipo %}
+{% include "programas/dispositivos/legajo/_formulario_tipo_contrato.html" %}
+{% if formulario_nota %}<p class="text-xs text-body-subtle">{{ formulario_nota }}</p>{% endif %}
+{% for grupo in formulario_tipo.grupos %}
+<section id="{{ secciones_prefijo }}-{{ forloop.counter }}" tabindex="-1" aria-labelledby="{{ secciones_prefijo }}-{{ forloop.counter }}-titulo" data-item="{{ grupo.clave }}" data-indice-seccion data-indice-titulo="{{ grupo.titulo|default:'Sección' }}" class="border-t border-light mt-5 pt-5 focus:outline-none">
+  <h3 id="{{ secciones_prefijo }}-{{ forloop.counter }}-titulo" class="text-sm font-bold text-heading{% if grupo.subtitulo %} mb-1{% else %} mb-4{% endif %}">{{ grupo.titulo|default:"Sección" }}</h3>
+  {% if grupo.subtitulo %}<p class="mb-4 text-xs text-body-subtle">{{ grupo.subtitulo }}</p>{% endif %}
+  {% include "programas/dispositivos/legajo/_formulario_tipo_filas.html" %}
+</section>
+{% endfor %}
+{% endif %}

@@ -7,6 +7,7 @@
 
    Avisos: siempre el sistema único (window.toast de nodo-toast, tipo primero).
    Confirmación de solapamiento (409): ModernModal, nunca la ventana nativa.
+   `data-toast-temporal` en el form: el aviso «Revisá los datos» se cierra solo a los 7 s (el resto de los avisos, igual).
    Para vaciar los errores de un form desde la pantalla (p. ej. al reabrir un modal):
    window.becasAjax.limpiarErrores(form), que también saca aria-invalid y aria-describedby.
    Contrato JSON: {ok,target,html,message} · {ok,redirect,message} ·
@@ -23,9 +24,9 @@
   }
 
   // Aviso del sistema (nodo-toast). Devuelve el nodo del toast, o null.
-  function aviso(tipo, mensaje) {
+  function aviso(tipo, mensaje, opciones) {
     if (typeof window.toast !== 'function') return null;
-    var t = window.toast(tipo, mensaje);
+    var t = window.toast(tipo, mensaje, opciones);
     if (tipo === 'error') ultimoError = t;
     return t;
   }
@@ -187,7 +188,9 @@
     });
     aviso('error', sueltos.length
       ? 'Revisá los datos del formulario: ' + sueltos.join(' ')
-      : 'Revisá los datos del formulario.');
+      : 'Revisá los datos del formulario.',
+    // Opt-in `data-toast-temporal`: un modal ancho donde el toast tapa el pie; el error ya está en su campo.
+    form.hasAttribute('data-toast-temporal') && !sueltos.length ? { duration: 7000 } : undefined);
     // El primero en orden del documento, que es el que la persona lee primero. El
     // error general (`__all__`) no tiene control: ahí no se mueve el foco y lo
     // anuncia su `role="alert"`.

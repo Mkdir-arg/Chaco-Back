@@ -1,0 +1,17 @@
+{% comment %}
+Las filas (campos y textos) de UN grupo del formulario del tipo, en su grilla. Lo comparten las dos formas de dibujar el formulario
+(la tarjeta de `_formulario_tipo.html` y sus secciones dentro de un modal); no cambia el aspecto de ninguna.
+  grupo  un elemento de `formulario_tipo.grupos` (contexto del parcial que lo incluye).
+{% endcomment %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {% for fila in grupo.items %}
+    {% if fila.tipo == "texto" %}
+    <p class="text-sm text-body sm:col-span-2" data-item="{{ fila.clave }}">{{ fila.texto|urlize }}</p>
+    {% else %}
+    <div data-item="{{ fila.clave }}" data-campo{% if fila.obligatorio %} data-obligatorio data-texto="{{ fila.bound.label }}"{% endif %}{% if fila.archivo_guardado %} data-valor="{{ fila.archivo_guardado }}"{% endif %} class="break-words{% if fila.es_checks %} nodo-checks sm:col-span-2{% endif %}">
+      {% include "components/_field.html" with field=fila.bound wrapper_class="" %}
+      {% if fila.archivo_guardado and not fila.es_firma %}<p class="mt-1 text-xs text-body-subtle">Ya cargado: {{ fila.archivo_guardado }}. Subí otro solo si lo querés reemplazar.</p>{% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
