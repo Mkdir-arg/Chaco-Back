@@ -13,6 +13,7 @@ from django.http import Http404
 from django.views.generic import TemplateView
 
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, dispositivo_operable_o_404
+from programas.mixins_dispositivos_estadias import contexto_modales_de_estadia, preparar_filas_de_estadias
 from programas.models import Dispositivo
 from programas.services.dispositivos import CAP_VER
 from programas.services.edificio_operativo import (
@@ -22,7 +23,6 @@ from programas.services.edificio_operativo import (
     q_estadias_del_edificio,
 )
 from programas.services.ingreso import maneja_plazas
-from programas.views.dispositivos_legajo import contexto_modales_de_estadia, preparar_filas_de_estadias
 
 
 class EdificioOperativoView(DispositivoProgramaPermissionMixin, TemplateView):

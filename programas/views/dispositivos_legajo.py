@@ -5,7 +5,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
 from django.db.utils import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,7 +17,6 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 from core.archivos import archivos_atomicos
 from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
-from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_dispositivos import (
     AUTO_ID_RELEVAMIENTO,
     AsignarRelevamientoDispositivoForm,
@@ -39,6 +37,12 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     dispositivo_operable_o_404,
 )
 from programas.mixins_dispositivos_equipo import EquipoDelLegajoMixin
+from programas.mixins_dispositivos_estadias import (
+    _estadia_del_dispositivo,
+    contexto_modales_de_estadia,
+    formulario_de_egreso,
+    preparar_filas_de_estadias,
+)
 from programas.mixins_dispositivos_sectores import (
     AUTO_ID_CAMBIO,
     SectoresPlazasMixin,
@@ -50,7 +54,6 @@ from programas.models import (
     Dispositivo,
     Edificio,
     Estadia,
-    MomentoFormulario,
     Plaza,
     ReservaPlaza,
     TipoDispositivo,
@@ -406,98 +409,6 @@ class DispositivoFormularioTipoView(LoginRequiredMixin, View):
                 "url_sectores": url_solapa_sectores(dispositivo.pk) if dispositivo else "",
             },
         )
-
-
-def preparar_filas_de_estadias(
-    estadias,
-    *,
-    dispositivo,
-    url_base,
-    puede_ver_ciudadano,
-    puede_cambiar,
-    puede_egresar,
-    con_plazas,
-    plazas_elegibles,
-):
-    """Deja en cada estadía de la página lo que la fila dibuja: el nombre, el enlace a la estadía y sus acciones.
-
-    La comparten la solapa Estadías de la ficha de la institución y la del edificio (Cambio 566). ``url_base`` es la
-    página que abre el modal de cambio (``?tab=estadias&cambio=<id>``); ``plazas_elegibles`` es una función que
-    devuelve el conjunto de plazas libres y solo se llama si alguna fila ofrece el cambio.
-    """
-
-    for estadia in estadias:
-        estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
-        estadia.persona_del_menu = estadia.persona_visible
-        if not puede_ver_ciudadano:
-            if estadia.plaza_id:
-                ubicacion = f"{estadia.plaza.sector.nombre} · {estadia.plaza.codigo}"
-                estadia.persona_del_menu += f" en {ubicacion}"
-            else:
-                ingreso = timezone.localtime(estadia.fecha_ingreso).strftime("%d/%m/%Y %H:%M")
-                estadia.persona_del_menu += f" con ingreso {ingreso} · estadía N.º {estadia.pk}"
-        if puede_ver_ciudadano:
-            estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
-        # Con plaza se ofrece «Cambiar plaza»; sin plaza, «Asignar plaza» (solo si el tipo
-        # maneja plazas: si no, no hay a dónde asignar). El mapa se calcula una vez.
-        estadia.asigna_plaza = estadia.plaza_id is None
-        if puede_cambiar and estadia.activa and se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=con_plazas):
-            estadia.url_cambiar = f"{url_base}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
-            estadia.motivo_cambiar = "No hay plazas libres en el dispositivo." if not plazas_elegibles() else ""
-    if puede_egresar:
-        for estadia in estadias:
-            if estadia.estado == Estadia.Estado.ACTIVA:
-                estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
-                estadia.url_modal_egreso = f"{url_base}?{urlencode({'tab': 'estadias', 'egreso': estadia.pk})}"
-
-
-def contexto_modales_de_estadia(
-    request, dispositivo, *, puede_cambiar, puede_egresar, puede_ver_ciudadano, mapa_de_ingreso, q_alcance=None
-):
-    """El modal de cambio o de egreso que pide la URL (``?cambio=<id>`` o ``?egreso=<id>``): un solo modal, o ``{}``.
-
-    Lo comparten la ficha de la institución y la página del edificio (Cambio 566). ``mapa_de_ingreso`` es una función
-    que devuelve los sectores con plazas elegibles. Un parámetro sin capacidad da 403; un id ajeno, 404.
-    """
-
-    for parametro, autorizado in (("cambio", puede_cambiar), ("egreso", puede_egresar)):
-        pedido = request.GET.get(parametro, "")
-        if not pedido:
-            continue
-        if not autorizado:
-            raise PermissionDenied
-        # Un id ajeno, inexistente o no ASCII tiene la misma respuesta.
-        estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
-        estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, request.user, q_extra=q_alcance)
-        estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
-        if not estadia.activa:
-            messages.info(request, "La estadía ya está cerrada.")
-            continue
-        if parametro == "cambio":
-            # Sin plaza es «Asignar plaza»: el mismo modal, con el motivo opcional.
-            if not se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=maneja_plazas(dispositivo)):
-                if estadia.plaza_id is not None:
-                    messages.info(request, "No se puede cambiar de plaza: el dispositivo está cerrado.")
-                continue
-            form, url = _form_de_cambio_de_plaza(dispositivo, estadia, mapa_de_ingreso())
-            if not form.hay_plazas_libres:
-                messages.info(request, "No hay plazas libres en el dispositivo.")
-                continue
-            return {
-                "form_cambio": form,
-                "url_cambiar_plaza": url,
-                "estadia_cambio": estadia,
-                "es_asignacion": form.asigna,
-                "tab": "estadias",
-            }
-        return {
-            "estadia_egreso": estadia,
-            "form_egreso": EgresoForm(estadia=estadia),
-            "formulario_egreso": formulario_de_egreso(dispositivo),
-            "url_egresar": reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk]),
-            "tab": "estadias",
-        }
-    return {}
 
 
 class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, DispositivoObjectPermissionMixin, DetailView):
@@ -1180,14 +1091,6 @@ class DispositivoEstadiasView(LoginRequiredMixin, View):
         return redirect(url_solapa_estadias(pk))
 
 
-def formulario_de_egreso(dispositivo, data=None, files=None):
-    """El formulario de «Egreso» que hoy pide el tipo del dispositivo, o ``None`` (sin formulario o dado de
-    baja). Se arma **en el servidor** para la estadía del modal: P7 lo dibuja con la pantalla y P4 con el
-    `?egreso=<id>` que abre ese modal, así que el tipo correcto llega sin un fetch por fila."""
-
-    return formulario_de_momento_para(dispositivo.tipo_id, MomentoFormulario.EGRESO, data, files)
-
-
 #: El 400 de un egreso cuyo formulario del tipo cambió con el modal abierto.
 MENSAJE_FORMULARIO_CAMBIO = "El formulario de egreso cambió mientras estaba abierto: recargá la página y completalo."
 
@@ -1323,20 +1226,6 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
 # línea de tiempo y las dos acciones que la mueven: cambiar de plaza y egresar.
 #: Movimientos por página en la solapa Movimientos.
 MOVIMIENTOS_POR_PAGINA = 25
-
-
-def _estadia_del_dispositivo(dispositivo, estadia_pk, usuario, capacidad="dispositivo.ver", q_extra=None):
-    """La estadía, solo si es de ese dispositivo y de un edificio alcanzado: un id ajeno da 404 (RN4)."""
-
-    return get_object_or_404(
-        Estadia.objects.select_related(
-            "ciudadano", "dispositivo", "plaza__sector", "motivo", "ingresada_por", "egresada_por"
-        )
-        .filter(q_edificios_en_alcance(usuario, capacidad, "dispositivo_id", "plaza__sector__edificio_id"))
-        .filter(q_extra if q_extra is not None else Q()),
-        pk=estadia_pk,
-        dispositivo=dispositivo,
-    )
 
 
 class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
