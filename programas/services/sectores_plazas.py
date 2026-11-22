@@ -92,7 +92,7 @@ from programas.services.ocupacion import (
     tension_de_ocupacion,
 )
 from programas.services.plazas import motivo_para_no_dar_de_baja
-from programas.views.ajax_utils import destino_seguro
+from programas.urls_seguras import destino_seguro
 
 # Tope por sector: el componente dibuja hasta 200 y avisa «Mostrando 200 de N»; la vista
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.

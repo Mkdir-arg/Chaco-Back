@@ -37,6 +37,7 @@ from programas.services.dispositivos import (
     dispositivos_de_institucion,
     dispositivos_en_alcance,
     dispositivos_visibles,
+    nombre_o,
     puede_configurar_dispositivos,
 )
 from programas.services.edificios import admite_editar_edificio
@@ -189,10 +190,6 @@ def _instituciones_por_edificio(user, ids):
         ]
         for edificio_id, lista in del_predio.items()
     }
-
-
-def _quien(usuario):
-    return (usuario.get_full_name() or usuario.username) if usuario else "sin responsable"
 
 
 def _url_asignar(edificio_pk):
@@ -352,7 +349,7 @@ def ficha_de_edificio(user, edificio, pagina=1):
         "latitud": edificio.latitud,
         "longitud": edificio.longitud,
         "ve_detalle": ve_detalle,
-        "relevo": _quien(ultima.realizada_por) if ve_detalle else "",
+        "relevo": nombre_o(ultima.realizada_por, "sin responsable") if ve_detalle else "",
         "observaciones": (ultima.observaciones or "").strip() if ve_detalle else "",
         "sectores": sectores,
         "n_sectores": sum(len(grupo["sectores"]) for grupo in sectores),

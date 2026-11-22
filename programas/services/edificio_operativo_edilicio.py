@@ -29,6 +29,7 @@ from programas.models import FotoInspeccion, InspeccionEdificio
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import fecha_corta, nombre_o
 from programas.services.inspecciones import fotos_para_galeria, inspecciones_visibles
+from programas.urls_seguras import entero_de_parametro
 
 POR_PAGINA = 10
 PARAM_PAGINA = "relevamientos_page"
@@ -123,8 +124,7 @@ def lista_de_relevamientos(user, edificio, pagina, url_pagina):
 
 
 def _id_valido(valor):
-    texto = str(valor or "")
-    return int(texto) if texto.isascii() and texto.isdecimal() and len(texto) < 10 else None
+    return entero_de_parametro(valor, max_digitos=9)
 
 
 def relevamiento_del_edificio(user, edificio, relevamiento_pk):

@@ -54,7 +54,7 @@ from programas.services.configuracion_emergencia import catalogo_kits
 from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa, recibe_kits
-from programas.views.ajax_utils import destino_seguro
+from programas.urls_seguras import destino_seguro
 
 TEMPLATE_LISTADO = "programas/emergencia/kits/list.html"
 TEMPLATE_DETALLE = "programas/emergencia/kits/detail.html"

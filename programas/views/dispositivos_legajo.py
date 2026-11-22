@@ -10,7 +10,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme, urlencode
+from django.utils.http import urlencode
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -150,6 +150,7 @@ from programas.services.sectores_plazas import (
     url_vuelta_a_sectores,
 )
 from programas.services.ubicacion_reservada import edificio_es_reservado
+from programas.urls_seguras import destino_seguro
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
 
@@ -1032,12 +1033,7 @@ def siguiente_de_este_sitio(request):
     edificio, Cambio 566). Una URL ajena o armada a mano se descarta y la vista vuelve a donde siempre.
     """
 
-    siguiente = request.POST.get("next", "")
-    if siguiente and url_has_allowed_host_and_scheme(
-        siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return siguiente
-    return ""
+    return destino_seguro(request, "")
 
 
 def url_volver_a_la_estadia(user, dispositivo, estadia):

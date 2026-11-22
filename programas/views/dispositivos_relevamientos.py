@@ -52,6 +52,7 @@ from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
+    nombre_de_persona,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
@@ -135,10 +136,6 @@ def _vence_relativo(fecha, hoy):
     if dias == -1:
         return "hace 1 día"
     return f"hace {-dias} días"
-
-
-def _nombre(usuario):
-    return usuario.get_full_name() or usuario.username
 
 
 #: Tono del badge de estado de las tarjetas de móvil: el mismo que decide
@@ -306,7 +303,9 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         pildora_agente = {
             "nombre": "asignado_a",
             "etiqueta": "Asignado a",
-            "opciones": [(str(u.pk), _nombre(u)) for u in agentes.order_by("first_name", "last_name", "username")],
+            "opciones": [
+                (str(u.pk), nombre_de_persona(u)) for u in agentes.order_by("first_name", "last_name", "username")
+            ],
             "valor": str(asignado_id or ""),
         }
         pildora_estado = {"nombre": "estado", "etiqueta": "Estado", "opciones": Situacion.EN_CURSO, "valor": situacion}
@@ -355,7 +354,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         for solapa in solapas:
             for relevamiento in solapa["filas"]:
                 ve_asignacion = relevamiento.pk in con_asignacion_visible
-                relevamiento.agente_visible = _nombre(relevamiento.asignado_a) if ve_asignacion else ""
+                relevamiento.agente_visible = nombre_de_persona(relevamiento.asignado_a) if ve_asignacion else ""
                 self._preparar_fila(user, relevamiento, hoy, en_alcance, vista, solapa["clave"])
 
         edificios_libres = edificios_para_asignar(user)
@@ -406,7 +405,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         for edificio in filas:
             relevamiento = en_curso.get(edificio.pk)
             edificio.relevamiento_en_curso = relevamiento
-            edificio.asignado_a = _nombre(relevamiento.asignado_a) if relevamiento else ""
+            edificio.asignado_a = nombre_de_persona(relevamiento.asignado_a) if relevamiento else ""
             consulta = vista.copy()
             consulta["tab"] = SOLAPA_SIN_RELEVAR
             consulta["asignar"] = edificio.pk
@@ -620,7 +619,7 @@ class _RelevamientoAccionView(DispositivoProgramaPermissionMixin, View):
         return redirect(self._volver())
 
     def _creado(self, edificio, agente):
-        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(agente)}.")
+        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {nombre_de_persona(agente)}.")
 
     def _errores_del_servicio(self, error, form):
         if not hasattr(error, "error_dict"):
@@ -773,7 +772,7 @@ class RelevamientoReasignarView(_RelevamientoAccionView):
             return self._prohibido(error)
         except ValidationError as error:
             return self._rechazar(self._errores_del_servicio(error, form))
-        return self._ok(f"Relevamiento de {relevamiento.edificio.nombre} reasignado a {_nombre(agente)}.")
+        return self._ok(f"Relevamiento de {relevamiento.edificio.nombre} reasignado a {nombre_de_persona(agente)}.")
 
 
 class RelevamientoCancelarView(_RelevamientoAccionView):

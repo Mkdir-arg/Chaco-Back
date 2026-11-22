@@ -575,6 +575,7 @@ def _fila_de_edificio(
     con_ocupacion,
     puede_editar,
     agregar_persona_en,
+    con_registro=True,
 ):
     """Una fila de `infraestructura_del_dispositivo`: lo que la tarjeta y la ficha dibujan de un edificio.
 
@@ -619,14 +620,19 @@ def _fila_de_edificio(
         "observacion": observacion,
         "otras_instituciones": otras,
         "n_instituciones": otras + 1,
-        "predio": _predio(otras, [i for i in del_predio if i["pk"] != dispositivo.pk]),
+        "predio": _predio(otras, [i for i in del_predio if i["pk"] != dispositivo.pk]) if con_registro else "",
         # Sin alcance no se cuenta lo que no se puede abrir: ni relevamientos ni fotos.
         "conteo": (
-            f"{_plural(realizados, 'relevamiento', 'relevamientos')} · {_plural(total.get('fotos', 0), 'foto', 'fotos')}"
-            if realizados
-            else "Sin relevamientos"
+            (
+                f"{_plural(realizados, 'relevamiento', 'relevamientos')} · "
+                f"{_plural(total.get('fotos', 0), 'foto', 'fotos')}"
+                if realizados
+                else "Sin relevamientos"
+            )
+            if con_registro
+            else ""
         ),
-        "con_conteo": ve_detalle,
+        "con_conteo": ve_detalle and con_registro,
         "url_ver": f"{base}&ver_edificio={edificio.pk}",
         "url_abrir": reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk]),
         "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={edificio.pk}"
@@ -794,17 +800,16 @@ def infraestructura_del_dispositivo(
         return {**_respuesta_base(), "modo": "vacio", "semaforo": SEMAFOROS[SIN_EDIFICIO], "url_listado": base}
 
     pedido = None
-    if solo_tarjetas:
-        pass
-    elif len(edificios) == 1:
-        pedido = edificios[0].pk
-    else:
-        try:
-            pedido = int(edificio_id)
-        except (TypeError, ValueError):
-            pedido = None
-        if pedido not in {edificio.pk for edificio in edificios}:
-            pedido = None
+    if not solo_tarjetas:
+        if len(edificios) == 1:
+            pedido = edificios[0].pk
+        else:
+            try:
+                pedido = int(edificio_id)
+            except (TypeError, ValueError):
+                pedido = None
+            if pedido not in {edificio.pk for edificio in edificios}:
+                pedido = None
 
     # La tarjeta de la ficha no dibuja con quién se comparte el predio ni los conteos del registro: no se leen (2 consultas).
     instituciones = {} if solo_tarjetas else instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
@@ -853,6 +858,7 @@ def infraestructura_del_dispositivo(
             con_ocupacion=ocupadas_por_sector is not None,
             puede_editar=puede_editar,
             agregar_persona_en=agregar_persona_en,
+            con_registro=not solo_tarjetas,
         )
         for edificio in edificios
     ]

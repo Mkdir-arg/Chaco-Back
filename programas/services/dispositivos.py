@@ -10,6 +10,7 @@ from django.utils import timezone
 from core import db as core_db
 from core import rbac
 from programas.services.programa_cache import clave_de, programa_por_codigo
+from programas.urls_seguras import entero_de_parametro  # noqa: F401  (re-export: vive en el módulo neutral)
 
 PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
@@ -47,14 +48,6 @@ TONOS_ESTADO = {
     "INACTIVO": "gray",
     "CERRADO": "gray",
 }
-
-
-def entero_de_parametro(valor):
-    """El id de un parámetro GET, o `None`. Solo dígitos ASCII: un superíndice o un dígito
-    arábigo pasan `isdigit()` y rompen `int()`."""
-
-    texto = str(valor or "").strip()
-    return int(texto) if texto.isascii() and texto.isdecimal() else None
 
 
 def nombre_o(usuario, vacio="—"):

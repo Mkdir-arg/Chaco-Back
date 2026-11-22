@@ -52,6 +52,7 @@ from programas.models import (
     TrazaEntrega,
     TrazaInspeccion,
 )
+from programas.services.dispositivos import nombre_o
 
 #: Trazas del dispositivo que ya cuenta un `MovimientoEstadia`: se omiten para no duplicar.
 ACCIONES_DE_ESTADIA = ("ESTADIA_INGRESO", "ESTADIA_EGRESO", "ESTADIA_CAMBIO_PLAZA", "ESTADIA_ASIGNACION_PLAZA")
@@ -182,12 +183,6 @@ def q_trazas_del_edificio(edificio):
     return Q(edificio=edificio) | de_sector | de_plaza | de_lote
 
 
-def _quien(usuario):
-    if usuario is None:
-        return "Sistema"
-    return usuario.get_full_name() or usuario.get_username()
-
-
 def _cuando(momento):
     return date_format(timezone.localtime(momento), "d/m/Y H:i")
 
@@ -262,7 +257,7 @@ def evento_de_traza(traza):
         detalle = traza.detalle
     return {
         "fecha": traza.creado_en,
-        "quien": _quien(traza.usuario),
+        "quien": nombre_o(traza.usuario, "Sistema"),
         "titulo": TITULOS_TRAZA.get(accion) or _titulo_desconocido(accion),
         "detalle": detalle,
         "tono": _TONOS_TRAZA.get(accion, ""),
@@ -306,7 +301,7 @@ def evento_de_movimiento(movimiento, *, puede_ver_personas=False):
         tono = ""
     return {
         "fecha": movimiento.momento,
-        "quien": _quien(movimiento.responsable),
+        "quien": nombre_o(movimiento.responsable, "Sistema"),
         "titulo": titulo,
         "detalle": detalle,
         "tono": tono,
@@ -322,7 +317,7 @@ def evento_de_correccion(entrada):
         detalle = f"{detalle} · Motivo: {entrada.motivo_correccion}"
     return {
         "fecha": entrada.creado,
-        "quien": _quien(entrada.responsable),
+        "quien": nombre_o(entrada.responsable, "Sistema"),
         "titulo": "Corrección de una novedad de la bitácora",
         "detalle": detalle,
         "tono": "",
@@ -347,7 +342,7 @@ def evento_de_entrega(traza):
         detalle = f"{detalle} · {traza.detalle}"
     return {
         "fecha": traza.creado_en,
-        "quien": _quien(traza.usuario),
+        "quien": nombre_o(traza.usuario, "Sistema"),
         "titulo": _TITULOS_ENTREGA.get(traza.accion) or traza.accion_legible,
         "detalle": detalle,
         "tono": _TONOS_ENTREGA.get(traza.accion, ""),
@@ -377,7 +372,7 @@ def evento_de_inspeccion(traza, ve_asignacion=True):
     if ve_asignacion or inspeccion.estado == inspeccion.Estado.REALIZADA:
         return {
             "fecha": traza.creado_en,
-            "quien": _quien(traza.usuario),
+            "quien": nombre_o(traza.usuario, "Sistema"),
             "titulo": traza.get_accion_display(),
             "detalle": traza.detalle,
             "tono": _tono_de_inspeccion(traza),
