@@ -18,7 +18,7 @@ simultáneas no pueden dejarlo sin responsables.
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import BooleanField, Case, When
+from django.db.models import BooleanField, Case, Value, When
 
 from core import rbac
 from programas.services.dispositivos import (
@@ -203,10 +203,10 @@ MIEMBROS_SIN_EDIFICIOS = (
 def soltar_edificio_del_equipo(dispositivo, edificio):
     """Quita ``edificio`` del alcance del Equipo antes de desvincularlo, o rechaza si alguien quedaría sin ninguno.
 
-    Rechaza (``ValidationError`` con el nombre de las personas) si deja a alguien **activo** y con alcance
+    Rechaza (``ValidationError`` con el nombre de las personas) si deja a alguien con membresía **vigente** y con alcance
     Edificios sin ningún edificio vigente: no vería nada (fail-closed, Cambio 523) y nadie se enteraría. Se mira por
-    **persona**, como `alcance_de_edificios`: quien tiene otra fila activa con toda la institución (o sin alcance
-    cargado), o con otro edificio que sigue vinculado, no pierde nada. Si nadie queda ciego, le saca solo este
+    **persona**, como `alcance_de_edificios`: quien tiene otra fila vigente (`q_membresia_vigente`: activa, con rol
+    activo del programa y todavía asignado) con toda la institución (o sin alcance cargado), o con otro edificio que sigue vinculado, no pierde nada. Si nadie queda ciego, le saca solo este
     edificio a cada fila que lo tenga (también a las de baja) y no toca nada más. Todo o nada: el rechazo ocurre
     antes de escribir.
 
@@ -219,18 +219,21 @@ def soltar_edificio_del_equipo(dispositivo, edificio):
     from programas.models import MiembroEquipoDispositivo
 
     Alcance = MiembroEquipoDispositivo.Alcance
+    vigente = q_membresia_vigente(programa_dispositivos())
     filas = list(
-        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, edificios=edificio).values_list(
-            "pk", "usuario_id", "activo", "alcance"
-        )
+        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, edificios=edificio)
+        .annotate(vigente=Case(When(vigente, then=Value(True)), default=Value(False), output_field=BooleanField()))
+        .values_list("pk", "usuario_id", "vigente", "alcance")
     )
     if not filas:
         return
-    candidatos = {usuario_id for _pk, usuario_id, activo, alcance in filas if activo and alcance == Alcance.EDIFICIOS}
+    candidatos = {
+        usuario_id for _pk, usuario_id, vigente_, alcance in filas if vigente_ and alcance == Alcance.EDIFICIOS
+    }
     if candidatos:
         activas = list(
             MiembroEquipoDispositivo.objects.filter(
-                dispositivo=dispositivo, activo=True, usuario_id__in=candidatos
+                vigente, dispositivo=dispositivo, usuario_id__in=candidatos
             ).values_list("pk", "usuario_id", "alcance")
         )
         con_todo = {usuario_id for _pk, usuario_id, alcance in activas if alcance != Alcance.EDIFICIOS}
@@ -243,7 +246,7 @@ def soltar_edificio_del_equipo(dispositivo, edificio):
         ciegos = candidatos - con_todo - con_otro
         if ciegos:
             personas = get_user_model().objects.filter(pk__in=ciegos).order_by("last_name", "first_name", "username")
-            nombres = [persona.get_full_name() or persona.username for persona in personas]
+            nombres = [nombre_de_persona(persona) for persona in personas]
             plural = len(nombres) > 1
             raise ValidationError(
                 {

@@ -7,15 +7,16 @@ miembro solo ese edificio de su alcance, todo en la misma transacción.
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db import connection
-from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from programas.models import MiembroEquipoDispositivo, TrazaDispositivo
 from programas.services import equipo_dispositivo as equipo
 from programas.services.edificios import desvincular_edificio
 from programas.tests.test_equipo_alcance_edificio import Alcance, BaseAlcance
+from users.models import RolMeta
 
+# Filas con el edificio, filas vigentes de esas personas, edificios que conservan y el DELETE: no dependen de cuántos son.
+CONSULTAS_CON_MIEMBROS = 4
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 
 
@@ -26,6 +27,14 @@ class _Base(BaseAlcance):
         self.edif_c = self._edificio("ED-C")
         self.actor = User.objects.get(pk=self.de_inst.pk)
         self.admin_equipo = User.objects.create_superuser(username="super_equipo", password="x")
+
+    def _miembro(self, nombre, alcance, edificios=(), capacidades=None):
+        """Como el de la base, pero con un nombre propio por persona para saber a quién nombra el mensaje."""
+
+        kwargs = {} if capacidades is None else {"capacidades": capacidades}
+        usuario = super()._miembro(nombre, alcance, edificios, **kwargs)
+        User.objects.filter(pk=usuario.pk).update(first_name=nombre, last_name="Prueba")
+        return User.objects.get(pk=usuario.pk)
 
     def _desvincular(self, edificio=None):
         return desvincular_edificio(edificio=edificio or self.edif_c, dispositivo=self.cis, usuario=self.actor)
@@ -48,13 +57,14 @@ class _Base(BaseAlcance):
         return error.exception.message_dict["__all__"][0]
 
 
-class RegeTests(_Base):
+class ReglaTests(_Base):
     def test_el_unico_edificio_de_un_miembro_bloquea_y_nombra_a_la_persona(self):
         solo_c = self._miembro("Solo en C", Alcance.EDIFICIOS, [self.edif_c])
 
         mensaje = self._rechazada()
 
-        self.assertIn("Lucía Méndez", mensaje)
+        self.assertIn("Solo en C Prueba", mensaje)
+        self.assertNotIn(self.de_a.first_name, mensaje)
         self.assertEqual(self._ids(solo_c), {self.edif_c.pk})
 
     def test_le_quedan_otros_edificios_se_desvincula_y_se_le_quita_solo_ese(self):
@@ -76,7 +86,7 @@ class RegeTests(_Base):
 
         self.assertEqual(self._ids(c_y_huerfano), {self.edif_c.pk, huerfano.pk})
 
-    def test_inactivo_o_de_baja_no_bloquea(self):
+    def test_de_baja_no_bloquea(self):
         baja = self._miembro("De baja", Alcance.EDIFICIOS, [self.edif_c])
         MiembroEquipoDispositivo.objects.filter(usuario=baja).update(activo=False)
 
@@ -84,6 +94,25 @@ class RegeTests(_Base):
 
         self.assertFalse(self._vinculado())
         self.assertEqual(self._ids(baja), set())
+
+    def test_rol_desactivado_no_bloquea(self):
+        # Escenario B: su único alcance es C pero el rol ya no vale: no ve nada desde antes, no se lo nombra.
+        sin_rol = self._miembro("Rol caido", Alcance.EDIFICIOS, [self.edif_c])
+        RolMeta.objects.filter(grupo=self._fila(sin_rol).rol).update(activo=False)
+
+        self._desvincular()
+
+        self.assertFalse(self._vinculado())
+
+    def test_fila_institucion_con_rol_desactivado_no_salva_a_la_persona(self):
+        # Escenario A: la fila Institución ya no vale, así que hoy solo ve C: desvincular la dejaría ciega.
+        usuario = self._miembro("Doble fila", Alcance.EDIFICIOS, [self.edif_c])
+        self._segunda_fila(usuario, "Rol institucion", Alcance.INSTITUCION)
+        RolMeta.objects.filter(grupo__name="Rol institucion").update(activo=False)
+
+        mensaje = self._rechazada()
+
+        self.assertIn("Doble fila Prueba", mensaje)
 
     def test_alcance_institucion_o_sin_alcance_no_le_afecta(self):
         sin_alcance = self._miembro("Sin alcance", Alcance.INSTITUCION)
@@ -94,13 +123,18 @@ class RegeTests(_Base):
         self._desvincular()
 
         self.assertFalse(self._vinculado())
+        # El edificio sale de todas las filas que lo tenían, también de las de Institución.
+        self.assertEqual(self._ids(self.de_inst), set())
+        self.assertEqual(self._ids(sin_alcance), set())
 
     def test_dos_miembros_uno_sin_edificios_y_otro_no_se_rechaza_sin_tocar_nada(self):
         queda_sin = self._miembro("Sin nada", Alcance.EDIFICIOS, [self.edif_c])
         le_queda = self._miembro("Le queda A", Alcance.EDIFICIOS, [self.edif_a, self.edif_c])
 
-        self._rechazada()
+        mensaje = self._rechazada()
 
+        self.assertIn("Sin nada Prueba", mensaje)
+        self.assertNotIn("Le queda A", mensaje)
         self.assertEqual(self._ids(queda_sin), {self.edif_c.pk})
         self.assertEqual(self._ids(le_queda), {self.edif_a.pk, self.edif_c.pk})
 
@@ -110,20 +144,37 @@ class RegeTests(_Base):
 
         mensaje = self._rechazada()
 
-        self.assertIn("Lucía Méndez, Lucía Méndez", mensaje)
+        self.assertIn("Dos Prueba, Uno Prueba", mensaje)
         self.assertIn("tienen alcance", mensaje)
 
     def test_el_edificio_no_estaba_en_el_alcance_de_nadie_sigue_igual(self):
         trazas = TrazaDispositivo.objects.count()
 
-        with CaptureQueriesContext(connection) as consultas:
-            self._desvincular()
+        with self.assertNumQueries(1):
+            equipo.soltar_edificio_del_equipo(self.cis, self.edif_c)
+        self._desvincular()
 
         self.assertFalse(self._vinculado())
         self.assertEqual(TrazaDispositivo.objects.count(), trazas + 1)
         self.assertEqual(self._ids(self.de_a), {self.edif_a.pk})
-        # Solo suma la lectura de «quién lo tiene en el alcance».
-        self.assertEqual(sum('"usuario_id" AS "usuario_id"' in c["sql"] for c in consultas), 1)
+
+    def test_las_consultas_no_crecen_con_la_cantidad_de_miembros(self):
+        for numero in range(6):
+            self._miembro(f"Miembro {numero}", Alcance.EDIFICIOS, [self.edif_a, self.edif_c])
+
+        with self.assertNumQueries(CONSULTAS_CON_MIEMBROS):
+            equipo.soltar_edificio_del_equipo(self.cis, self.edif_c)
+
+    def test_el_predio_compartido_no_toca_al_equipo_de_otro_dispositivo(self):
+        self.edif_c.dispositivos.add(self.parador)
+        del_parador = self._miembro("Solo en C del parador", Alcance.EDIFICIOS, [self.edif_c])
+        MiembroEquipoDispositivo.objects.filter(usuario=del_parador).update(dispositivo=self.parador)
+
+        self._desvincular()
+
+        self.assertFalse(self._vinculado())
+        fila = MiembroEquipoDispositivo.objects.get(usuario=del_parador, dispositivo=self.parador)
+        self.assertEqual(set(fila.edificios.values_list("pk", flat=True)), {self.edif_c.pk})
 
     def test_otra_fila_de_la_misma_persona_con_toda_la_institucion_la_salva(self):
         usuario = self._miembro("Dos filas", Alcance.EDIFICIOS, [self.edif_c])
@@ -197,5 +248,5 @@ class VistaTests(_Base):
         respuesta = self.client.post(url, **AJAX)
 
         self.assertEqual(respuesta.status_code, 400)
-        self.assertIn("Lucía Méndez", respuesta.json()["errors"]["__all__"][0])
+        self.assertIn("Solo en C Prueba", respuesta.json()["errors"]["__all__"][0])
         self.assertTrue(self._vinculado())
