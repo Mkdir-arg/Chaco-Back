@@ -130,7 +130,8 @@
           <i class="fas fa-id-card" aria-hidden="true"></i> Datos
         </button>
         {% if maneja_plazas %}
-        <button @click="tab='sectores'" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
+        {# El mapa se arma solo con la solapa abierta (`sectores_cargados`): si no vino, el botón navega a ella #}
+        <button @click="{% if sectores_cargados %}tab='sectores'{% else %}window.location.href='{{ url_solapa_sectores|escapejs }}'{% endif %}" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
                 :aria-selected="tab==='sectores'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -194,47 +195,12 @@
         {% endfor %}
       </div>
 
-      {# ===== TAB: Sectores y plazas (el mapa completo es la pantalla «Sectores y plazas») ===== #}
+      {# ===== TAB: Sectores y plazas (el mismo cuerpo que la pantalla «Sectores y plazas»; filtro por edificio) ===== #}
       {% if maneja_plazas %}
-      <div x-show="tab==='sectores'" x-cloak role="tabpanel" id="panel-sectores" aria-labelledby="tab-sectores">
-        <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
-          <p class="text-xs text-body-subtle">Cifras por sector, del mismo cálculo que los indicadores y el mapa de plazas.</p>
-          <a href="{{ url_sectores }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-table-cells" aria-hidden="true"></i> Ver mapa de plazas</a>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="nodo-thead-row">
-                <th class="nodo-th">Sector</th>
-                <th class="nodo-th">Tipo</th>
-                <th class="nodo-th text-right">Plazas</th>
-                <th class="nodo-th text-right">Ocupadas</th>
-                <th class="nodo-th text-right">Reservadas</th>
-                <th class="nodo-th text-right">Disponibles</th>
-                <th class="nodo-th text-right">Fuera de servicio</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for sector in sectores %}
-              <tr class="hover:bg-secondary transition">
-                <td class="nodo-td font-medium text-heading">{{ sector.nombre }}</td>
-                <td class="nodo-td">{{ sector.tipo }}</td>
-                <td class="nodo-td text-right">{{ sector.totales }}</td>
-                <td class="nodo-td text-right">{{ sector.ocupadas }}</td>
-                <td class="nodo-td text-right">{{ sector.reservadas }}</td>
-                <td class="nodo-td text-right">{{ sector.disponibles }}</td>
-                <td class="nodo-td text-right">{{ sector.fuera_de_servicio }}</td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="7" class="p-0">
-                  {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con sus cifras." %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div x-show="tab==='sectores'" x-cloak role="tabpanel" id="panel-sectores" aria-labelledby="tab-sectores" class="p-5">
+        {% if sectores_cargados %}
+        {% include "programas/dispositivos/sectores/_cuerpo.html" %}
+        {% endif %}
       </div>
       {% endif %}
 

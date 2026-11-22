@@ -179,8 +179,11 @@ class PresupuestoDetalleFFTests(BaseDetalle):
 
     def test_detalle_sin_estadias_en_cada_solapa_no_paga_el_mapa_de_ingreso(self):
         presupuestos = json.loads((settings.BASE_DIR / "scripts/perf_budgets.json").read_text(encoding="utf-8"))
-        techo = presupuestos["servicios"]["dispositivos_detalle_sin_estadias"]["consultas_fijas"]
+        techo_comun = presupuestos["servicios"]["dispositivos_detalle_sin_estadias"]["consultas_fijas"]
+        # «Sectores y plazas» arma el mapa de la pantalla de sectores, solo con la solapa abierta: techo propio.
+        techo_sectores = presupuestos["servicios"]["dispositivos_detalle_solapa_sectores"]["consultas_fijas"]
         for tab in ("datos", "sectores", "estadias", "infraestructura", "historial", "equipo"):
+            techo = techo_sectores if tab == "sectores" else techo_comun
             with self.subTest(tab=tab):
                 with CaptureQueriesContext(connection) as consultas:
                     respuesta = self.client.get(self.url, {"tab": tab})

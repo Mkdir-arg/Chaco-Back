@@ -45,6 +45,7 @@ from programas.services.sectores_plazas import (
     MOTIVO_PLAZA_OCUPADA,
     MOTIVO_SIN_PLAZAS_LIBRES,
     sectores_con_plazas,
+    url_solapa_sectores,
 )
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 from programas.views.dispositivos_legajo import url_solapa_estadias
@@ -164,7 +165,7 @@ class AccionPorPlazaTests(BaseMapa):
         self.assertEqual(self._celdas(respuesta)["P1"]["estado"], ESTADO_OCUPADA)
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_PLAZA_OCUPADA)
         self.assertNotIn("form_plaza", respuesta.context)
-        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
         self.assertContains(respuesta, "No se puede sacar de servicio")
 
     def test_un_sector_dado_de_baja_no_aporta_plazas_ni_acciones(self):
@@ -207,11 +208,11 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         self.assertEqual(celda["url"], f"?plaza={self.plaza.pk}")
         self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], "")
-        form = respuesta.context["form_cambio"]
+        form = respuesta.context["reubicar"]["form"]
         grupos = form.fields["plaza"].choices[1:]
         self.assertEqual([pk for _sector, libres in grupos for pk, _codigo in libres], [self.otra_plaza.pk])
         url = reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, self.estadia.pk])
-        self.assertEqual(respuesta.context["url_cambiar_plaza"], url)
+        self.assertEqual(respuesta.context["reubicar"]["url"], url)
         self.assertContains(respuesta, f'action="{url}"')
         self.assertContains(respuesta, '<input type="hidden" name="volver" value="sectores">')
         self.assertContains(respuesta, "Confirmar cambio")
@@ -233,7 +234,7 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         respuesta = self._pantalla(self.sin_editar, plaza=self.plaza.pk, opcion="reubicar")
 
         self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
-        self.assertIn("form_cambio", respuesta.context)
+        self.assertIn("form", respuesta.context["reubicar"])
 
     def test_sin_plazas_libres_avisa_y_no_trae_formulario(self):
         ingresar_persona(
@@ -243,7 +244,7 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         respuesta = self._pantalla(plaza=self.plaza.pk, opcion="reubicar")
 
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_SIN_PLAZAS_LIBRES)
-        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
         self.assertContains(respuesta, MOTIVO_SIN_PLAZAS_LIBRES)
         self.assertNotContains(respuesta, "Confirmar cambio")
 
@@ -253,18 +254,18 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         self.assertIn(ACCION_FUERA_SERVICIO, respuesta.context["plaza_accion"]["acciones"])
         self.assertNotIn(ACCION_REUBICAR, respuesta.context["plaza_accion"]["acciones"])
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_PLAZA_OCUPADA)
-        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
 
     def test_sin_admitir_ni_editar_la_plaza_ocupada_no_es_enlace(self):
         respuesta = self._pantalla(self.solo_lectura, plaza=self.plaza.pk)
 
         self.assertEqual(self._celdas(respuesta)["P1"]["url"], "")
         self.assertNotIn("plaza_accion", respuesta.context)
-        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
 
     def test_el_nombre_de_la_persona_solo_lo_ve_quien_puede_ver_ciudadanos(self):
         sin_nombre = self._pantalla(plaza=self.plaza.pk, opcion="reubicar")
-        self.assertEqual(sin_nombre.context["estadia_cambio"].persona_visible, "Persona alojada")
+        self.assertEqual(sin_nombre.context["reubicar"]["estadia"].persona_visible, "Persona alojada")
         self.assertNotContains(sin_nombre, "Gómez")
 
         con_nombre = self._pantalla(self.con_ciudadano, plaza=self.plaza.pk, opcion="reubicar")
@@ -273,7 +274,7 @@ class ReubicarDesdeElMapaTests(BaseMapa):
     def test_confirmar_vuelve_al_mapa_libera_la_plaza_y_registra_el_movimiento(self):
         respuesta = self._post_cambio()
 
-        self.assertRedirects(respuesta, self.url)
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
         self.estadia.refresh_from_db()
         self.assertEqual(self.estadia.plaza, self.otra_plaza)
         celdas = self._celdas(self._pantalla())
@@ -302,8 +303,8 @@ class ReubicarDesdeElMapaTests(BaseMapa):
     def test_el_mapa_cerrado_no_arma_el_formulario(self):
         respuesta = self._pantalla()
 
-        self.assertNotIn("form_cambio", respuesta.context)
-        self.assertNotIn("estadia_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
+        self.assertNotIn("reubicar", respuesta.context)
 
 
 class MenuDePlazaOcupadaTests(BaseMapa):
@@ -422,13 +423,13 @@ class MenuDePlazaOcupadaTests(BaseMapa):
 
         self.assertEqual(respuesta.context["plaza_inicial"], self.plaza.pk)
         self.assertNotIn("plaza_accion", respuesta.context)
-        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
 
     def test_con_opcion_reubicar_en_la_url_abre_el_formulario(self):
         respuesta = self._pantalla(self.con_personas, plaza=self.plaza.pk, opcion="reubicar")
 
         self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
-        self.assertIn("form_cambio", respuesta.context)
+        self.assertIn("form", respuesta.context["reubicar"])
         self.assertNotIn("plaza_inicial", respuesta.context)
 
     def test_si_reubicar_es_lo_unico_la_url_abre_el_formulario_sin_opcion(self):
@@ -436,7 +437,7 @@ class MenuDePlazaOcupadaTests(BaseMapa):
         respuesta = self._pantalla(usuario, plaza=self.plaza.pk)
 
         self.assertEqual(respuesta.context["plaza_accion"]["acciones"], [ACCION_REUBICAR])
-        self.assertIn("form_cambio", respuesta.context)
+        self.assertIn("form", respuesta.context["reubicar"])
 
     def test_con_plaza_en_la_url_sin_admitir_llega_el_menu_con_sus_enlaces(self):
         usuario = self._operador(
@@ -526,7 +527,7 @@ class PostDeLasAccionesTests(BaseMapa):
     def test_sacar_de_servicio_con_motivo(self):
         respuesta = self._post("dispositivos:plaza_fuera_servicio", {"motivo": "Colchón roto"})
 
-        self.assertRedirects(respuesta, self.url)
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
         self.plaza.refresh_from_db()
         self.assertEqual(self.plaza.estado, Plaza.Estado.FUERA_SERVICIO)
         self.assertEqual(self.plaza.motivo_fuera_servicio, "Colchón roto")
@@ -565,7 +566,7 @@ class PostDeLasAccionesTests(BaseMapa):
 
     def test_liberar_una_plaza_sin_reserva_abierta_no_rompe(self):
         respuesta = self._post("dispositivos:plaza_liberar", {})
-        self.assertRedirects(respuesta, self.url)
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
 
     def test_sin_alcance_sobre_el_dispositivo_no_se_puede(self):
         self.client.force_login(self.operador_parador)
@@ -642,7 +643,7 @@ class LaAlertaSeResuelveDesdeLaPantallaTests(BaseMapa):
         self._reserva_vencida()
         regla = "dispositivos.reserva_vencida"
         [alerta] = self._alertas(regla)
-        self.assertEqual(alerta["enlace"], self.url)
+        self.assertEqual(alerta["enlace"], url_solapa_sectores(self.cis.pk))
 
         self.client.force_login(self.operador_cis)
         self.client.post(reverse("dispositivos:plaza_liberar", args=[self.cis.pk, self.plaza.pk]), {})
@@ -653,7 +654,7 @@ class LaAlertaSeResuelveDesdeLaPantallaTests(BaseMapa):
         sacar_plaza_de_servicio(plaza=self.plaza, usuario=self.operador_cis, motivo="Colchón roto")
         regla = "dispositivos.plazas_fuera_de_servicio"
         [alerta] = self._alertas(regla)
-        self.assertEqual(alerta["enlace"], self.url)
+        self.assertEqual(alerta["enlace"], url_solapa_sectores(self.cis.pk))
 
         self.client.force_login(self.operador_cis)
         self.client.post(reverse("dispositivos:plaza_volver_servicio", args=[self.cis.pk, self.plaza.pk]), {})
@@ -752,7 +753,7 @@ class PlazaDisponibleSinRecargaTests(BaseMapa):
         self.assertContains(respuesta, f'<button type="button" @click="abrirReubicar({self.plaza.pk})"')
         # Lo que depende de la estadía no viaja en la página: ni form ni estadía.
         self.assertNotIn(self.plaza.pk, respuesta.context["plazas_modal"])
-        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("form", respuesta.context.get("reubicar", {}))
 
     def test_con_plaza_en_la_url_el_modal_llega_abierto_en_esa_plaza(self):
         respuesta = self._pantalla(self.con_personas, plaza=self.plaza.pk)
@@ -777,7 +778,7 @@ class ReservarYPrestarTests(BaseMapa):
     def test_reservar_crea_la_reserva_y_la_plaza_queda_reservada(self):
         respuesta = self._post("reservar", {"dni": self.otra_persona.dni, "motivo": "Viene del hospital"})
 
-        self.assertRedirects(respuesta, self.url)
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
         [reserva] = ReservaPlaza.objects.filter(plaza=self.plaza)
         self.assertEqual(reserva.tipo, ReservaPlaza.Tipo.RESERVA)
         self.assertEqual(reserva.ciudadano, self.otra_persona)

@@ -7,7 +7,7 @@ La barra de la institución (Agregar edificio, Crear relevamiento) la dibuja `de
 {% endcomment %}
 {% with edificio=infraestructura.viendo %}
 {% with tono=edificio.estado.tono %}
-{% url 'dispositivos:sectores' dispositivo.pk as url_sectores_pagina %}
+{% url 'dispositivos:detalle' dispositivo.pk as url_detalle_ficha %}
 <div class="px-5 py-4 border-b border-light space-y-4">
   {% if infraestructura.chips %}
   {% include "components/_chips_enlace.html" with nombre="Otros edificios de esta institución" chips=infraestructura.chips aria_current="page" %}
@@ -78,7 +78,7 @@ La barra de la institución (Agregar edificio, Crear relevamiento) la dibuja `de
     <section class="border-t border-light" aria-labelledby="sectores-del-edificio-titulo">
       <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
         <h3 id="sectores-del-edificio-titulo" class="text-sm font-bold text-heading">Sectores de {{ dispositivo.nombre }} en este edificio</h3>
-        <a href="{{ url_sectores_pagina }}" class="text-xs text-fg-brand font-medium hover:underline">Ir a Sectores y plazas</a>
+        <a href="{{ url_detalle_ficha }}?tab=sectores" class="text-xs text-fg-brand font-medium hover:underline">Ir a Sectores y plazas</a>
       </div>
       {% if edificio.sectores %}
       <div class="overflow-x-auto">

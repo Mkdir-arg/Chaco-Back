@@ -72,9 +72,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
-from programas.selectors.capacidad_dispositivo import nombre_de_edificio
+from programas.selectors.capacidad_dispositivo import edificios_del_dispositivo, nombre_de_edificio
 from programas.services.dispositivos import (
     CAP_VER,
+    alcance_de_edificios,
     estados_que_cambian_de_plaza,
     estados_que_reservan,
     q_edificios_en_alcance,
@@ -210,6 +211,27 @@ def url_solapa_estadias(dispositivo_pk):
     """El detalle del dispositivo abierto en la solapa Estadías."""
 
     return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
+
+
+#: Parámetro GET del filtro «Edificio» de la solapa. No se llama `edificio`: ese ya abre los modales del edificio.
+PARAM_EDIFICIO_SECTORES = "sectores_edificio"
+
+
+def url_solapa_sectores(dispositivo_pk, edificio_id=None):
+    """El detalle del dispositivo abierto en la solapa «Sectores y plazas» (con el filtro «Edificio», si lo hay)."""
+
+    url = f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=sectores"
+    return f"{url}&{PARAM_EDIFICIO_SECTORES}={edificio_id}" if edificio_id else url
+
+
+def edificios_para_filtrar(usuario, dispositivo):
+    """`[(id, nombre)]` de los edificios del dispositivo que ``usuario`` alcanza leyendo: las opciones del filtro «Edificio».
+
+    El mismo alcance que acota los sectores (`alcance_de_edificios`): con alcance Edificios, solo los suyos.
+    """
+
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_VER)
+    return list(alcance.filtrar(edificios_del_dispositivo(dispositivo), "pk").values_list("pk", "nombre"))
 
 
 def url_modal_egreso(dispositivo_pk, estadia_pk):
@@ -425,8 +447,14 @@ def sectores_con_plazas(
     puede_ver_personas=False,
     puede_egresar=False,
     usuario=None,
+    edificio_id=None,
+    qs_url="",
 ):
     """Todo lo que la pantalla dibuja: sectores activos con su mapa acotado y los totales.
+
+    ``edificio_id`` acota además a un edificio (el filtro «Edificio»; la vista ya lo validó contra el alcance, y
+    el alcance se aplica igual). ``qs_url`` antecede a `plaza=` y `editar_plaza=` en los enlaces de las celdas
+    (`"tab=sectores&"` cuando el mapa vive en la solapa de la ficha).
 
     Las cifras del encabezado y de cada sector salen de `ocupacion.ocupacion_de_plazas` y
     los estados de las celdas de `ocupacion.estado_de_plazas`: las dos son el mismo
@@ -449,11 +477,14 @@ def sectores_con_plazas(
     # Un solo instante para las dos: la vigencia de una reserva es por tiempo, y con dos
     # `now()` distintos el encabezado y una celda podrían discrepar justo en su borde.
     momento = timezone.now()
-    ocupacion = ocupacion_de_plazas(dispositivo, momento, q_sectores=_q_sectores_en_alcance(usuario)).de(dispositivo)
+    q_sectores = _q_sectores_en_alcance(usuario)
+    if edificio_id is not None:
+        q_sectores &= Q(edificio_id=edificio_id)
+    ocupacion = ocupacion_de_plazas(dispositivo, momento, q_sectores=q_sectores).de(dispositivo)
     sectores = {
         sector.pk: sector
         for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True)
-        .filter(_q_sectores_en_alcance(usuario))
+        .filter(q_sectores)
         .select_related("edificio")
     }
     por_sector = _plazas_por_sector(list(sectores))
@@ -480,7 +511,7 @@ def sectores_con_plazas(
                 puede_egresar=puede_egresar,
                 estado_dispositivo=dispositivo.estado,
             )
-            url = f"?plaza={plaza.pk}" if acciones else ""
+            url = f"?{qs_url}plaza={plaza.pk}" if acciones else ""
             click = ""
             if acciones == [ACCION_REUBICAR]:
                 # Nada más que ofrecer: la celda va directo al formulario, sin menú.
@@ -497,7 +528,7 @@ def sectores_con_plazas(
                 )
             if not url and puede_configurar_plazas:
                 # Editar la identidad no libera la reserva ni exige dispositivo.admitir.
-                url = f"?editar_plaza={plaza.pk}"
+                url = f"?{qs_url}editar_plaza={plaza.pk}"
             celdas.append(_plaza_para_el_mapa(plaza, estado, url, click))
         armados.append(
             {
