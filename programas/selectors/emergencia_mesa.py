@@ -151,7 +151,7 @@ def localidades_con_casos():
 # ---------------------------------------------------------------------------
 
 
-def avisos_de_la_mesa(caso, sla=None, ahora=None):
+def avisos_de_la_mesa(caso, sla, ahora):
     """Los avisos que dejan las etapas 3 y 4 sobre el caso: ``[{"texto", "tono", "detalle"}]``.
 
     Los mismos para la fila de E2 (``texto`` y ``tono``) y para la cabecera de E3 (que suma
@@ -164,11 +164,28 @@ def avisos_de_la_mesa(caso, sla=None, ahora=None):
       un dispositivo que dejó de estar activo (02 §9).
     * «Derivación vencida sin marcar» mientras la pendiente pasó su plazo y el cron no la marcó (RN-3.3).
     * «Llegaron 8 sobre 7 declaradas» cuando el dispositivo agregó personas (``GrupoFamiliar.llegaron_mas``, RN-3.8).
+    * «Identidad a revisar» mientras la mesa no la revisó (``CasoEmergencia.identidad_pendiente``, Cambio 486): sale del
+      JSON ``situacion`` del propio caso y del responsable ya traído, sin consultas.
     * «Aceptado sin movimiento hace N h» cuando el ingreso en curso no se movió en el plazo de E7
-      (``selectors.emergencia.horas_sin_movimiento``, Cambio 535). Necesita ``sla`` y ``ahora``.
+      (``selectors.emergencia.horas_sin_movimiento``, Cambio 535).
     """
 
     avisos = []
+    declarada = caso.identidad_pendiente
+    if declarada is not None:
+        responsable = caso.grupo.responsable
+        avisos.append(
+            {
+                "texto": "Identidad a revisar",
+                "tono": "warning",
+                "detalle": (
+                    "Quien cargó el caso sostuvo que el DNI es de otra persona: declaró "
+                    f"«{declarada.get('apellido', '')}, {declarada.get('nombre', '')}» y el legajo dice "
+                    f"«{responsable.apellido}, {responsable.nombre}». Verificá quién es el responsable; "
+                    "si es otra persona, corregí el legajo."
+                ),
+            }
+        )
     if selectores.rechazo_sin_nueva_accion(caso) and caso.rechazada_por:
         motivo = (caso.rechazada_motivo or "sin motivo").lower()
         avisos.append(
@@ -206,7 +223,7 @@ def avisos_de_la_mesa(caso, sla=None, ahora=None):
                 ),
             }
         )
-    horas = selectores.horas_sin_movimiento(caso, sla, ahora) if sla is not None and ahora is not None else None
+    horas = selectores.horas_sin_movimiento(caso, sla, ahora)
     if horas is not None:
         avisos.append(
             {
@@ -230,7 +247,7 @@ def avisos_de_la_mesa(caso, sla=None, ahora=None):
     return avisos
 
 
-def _marcas_de_fila(caso, duplicados, alojado, sla=None, ahora=None):
+def _marcas_de_fila(caso, duplicados, alojado, sla, ahora):
     """Los avisos de la fila, en texto: ``[{"texto", "tono"}]``.
 
     «Ingreso parcial» y «En la puerta de X» salen de lo que dejó la etapa 3 en el propio caso

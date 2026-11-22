@@ -15,7 +15,6 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.archivos import archivos_atomicos
-from core.http_cache import sin_cache
 from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
 from programas.forms_dinamicos import formulario_de_momento_para
@@ -58,6 +57,7 @@ from programas.models import (
     Sector,
     TipoDispositivo,
 )
+from programas.respuestas_personas import responder_personas_sugeridas
 from programas.selectors.capacidad_dispositivo import edificios_vinculables, plazas_dadas_de_baja, sectores_inactivos
 from programas.selectors.emergencia_alojar import pendientes_por_recibir
 from programas.selectors.emergencia_llegadas import aviso_de_pendientes
@@ -68,7 +68,6 @@ from programas.selectors.estadia_detalle import (
 from programas.selectors.estadia_detalle import (
     normalizar_solapa as normalizar_solapa_estadia,
 )
-from programas.selectors.personas_sugeridas import sugerir_personas
 from programas.services.detalle_dispositivo import (
     alertas_del_dispositivo,
     aviso_sin_ingresos,
@@ -1350,10 +1349,7 @@ class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
 
     def get(self, request, pk):
         dispositivo_operable_o_404(request, pk, CAP_ADMITIR)
-        if not puede(request.user, CAP_VER_CIUDADANO):
-            return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
-        # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
-        return sin_cache(JsonResponse(sugerir_personas(request.GET.get("q", ""))))
+        return responder_personas_sugeridas(request)
 
 
 class PlazaLiberarView(_PlazaAccionView):

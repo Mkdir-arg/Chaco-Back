@@ -19,6 +19,7 @@ urlpatterns = [
     path("situacion/", situacion.SituacionView.as_view(), name="situacion"),
     path("casos/", mesa.BandejaCasosView.as_view(), name="bandeja"),
     path("casos/nuevo/", mesa.NuevoCasoView.as_view(), name="caso_nuevo"),
+    path("casos/personas-sugeridas/", mesa.PersonasSugeridasMesaView.as_view(), name="personas_sugeridas"),
     path("casos/<int:pk>/", mesa.CasoDetalleView.as_view(), name="caso_detalle"),
     path("casos/<int:pk>/tomar/", mesa.TomarCasoView.as_view(), name="caso_tomar"),
     path("casos/<int:pk>/soltar/", mesa.SoltarCasoView.as_view(), name="caso_soltar"),
