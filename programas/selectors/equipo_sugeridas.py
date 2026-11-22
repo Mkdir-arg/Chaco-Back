@@ -24,13 +24,16 @@ from users.services.busqueda import (
 )
 
 
-def consulta_de_pares(dispositivo, palabras):
-    """Los enlaces ``usuario × rol`` sumables a ``dispositivo`` cuyo nombre empieza con cada palabra."""
+def consulta_de_pares(dispositivo, palabras, incluir_del_equipo=False):
+    """Los enlaces ``usuario × rol`` sumables a ``dispositivo`` cuyo nombre empieza con cada palabra.
+
+    ``incluir_del_equipo`` ofrece también a quien ya está activo (para sumarle un edificio a su alcance).
+    """
 
     ya_en_el_equipo = MiembroEquipoDispositivo.objects.filter(
         dispositivo=dispositivo, activo=True, usuario_id=OuterRef("user_id"), rol_id=OuterRef("group_id")
     )
-    return (
+    pares = (
         get_user_model()
         .groups.through.objects.filter(
             q_prefijo_por_palabras(palabras, "user__first_name", "user__last_name"),
@@ -39,13 +42,15 @@ def consulta_de_pares(dispositivo, palabras):
             group__meta__programa=programa_dispositivos(),
         )
         .exclude(group__meta__clave=CLAVE_ROL_AGENTE)
-        .exclude(Exists(ya_en_el_equipo))
-        .order_by("user__last_name", "user__first_name", "user_id", "group__name")
-        .values("user_id", "group_id", "user__first_name", "user__last_name", "group__name")
+    )
+    if not incluir_del_equipo:
+        pares = pares.exclude(Exists(ya_en_el_equipo))
+    return pares.order_by("user__last_name", "user__first_name", "user_id", "group__name").values(
+        "user_id", "group_id", "user__first_name", "user__last_name", "group__name"
     )
 
 
-def sugerir_pares_equipo(dispositivo, texto):
+def sugerir_pares_equipo(dispositivo, texto, incluir_del_equipo=False):
     """``{"resultados": [{apellido, nombre, rol, valor, etiqueta}], "hay_mas": bool}`` para lo que se lleva tecleado."""
 
     texto = normalizar_tecleado(texto)
@@ -53,7 +58,7 @@ def sugerir_pares_equipo(dispositivo, texto):
     if len(texto) < MIN_CARACTERES or programa_dispositivos() is None:
         return vacio
     palabras = palabras_del_tecleado(texto)
-    filas = list(consulta_de_pares(dispositivo, palabras)[: TOPE_RESULTADOS + 1])
+    filas = list(consulta_de_pares(dispositivo, palabras, incluir_del_equipo)[: TOPE_RESULTADOS + 1])
     resultados = []
     for fila in filas[:TOPE_RESULTADOS]:
         nombre, apellido, rol = fila["user__first_name"], fila["user__last_name"], fila["group__name"]
