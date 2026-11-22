@@ -2,7 +2,7 @@
 // relojes son falsos: el test decide cuándo pasa el tiempo. El stub de ModernModal
 // imita lo que importa del real (base.html): abre el overlay y enfoca «Sí, …» a los 10 ms.
 // Entrada por stdin (JSON): {script, escenario, pendientes, pedido}.
-const fs = require('fs');
+const fs = require('node:fs');
 const entrada = JSON.parse(fs.readFileSync(0, 'utf8'));
 let ahora = 1000;
 Date.now = () => ahora;

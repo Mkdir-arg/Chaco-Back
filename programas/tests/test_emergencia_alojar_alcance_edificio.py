@@ -224,6 +224,20 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertNotContains(respuesta, self._url("ingreso_directo"))
         self.assertContains(respuesta, self._url("avisar"))
 
+    def test_la_familia_derivada_a_otro_edificio_no_se_invita_a_avisar_a_la_mesa(self):
+        self._derivado_a(self.edif_a, dni="33444555")
+        self.client.force_login(self.guardia_b)
+
+        respuesta = self.client.get(self._url("llegadas"), {"dni": "33444555"})
+
+        self.assertContains(
+            respuesta, f"La familia ya está derivada al edificio {self.edif_a.nombre} de este dispositivo."
+        )
+        self.assertContains(respuesta, "Ya está derivada a ese edificio")
+        self.assertNotContains(respuesta, "avisale a la mesa")
+        self.assertNotContains(respuesta, self._url("avisar"))
+        self.assertNotContains(respuesta, self._url("ingreso_directo"))
+
     def test_con_alcance_institucion_ve_los_dos_botones(self):
         self.client.force_login(self.guardia)
 
