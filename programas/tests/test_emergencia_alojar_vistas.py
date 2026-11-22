@@ -277,6 +277,8 @@ class LlegadasTests(BaseLlegadas):
         self.assertContains(respuesta, "Paso 1 de 3 · ")
         self.assertContains(respuesta, '<h1 class="')
         self.assertNotContains(respuesta, "Emergencia · Llegadas</h1>")
+        # Aceptar con confirmación depende de `_confirm_js.html`: sin él, el botón no pide nada.
+        self.assertContains(respuesta, "window.__becasConfirmJs")
 
     def test_la_fila_de_la_derivacion_acepta_con_confirmacion_sin_abrirla(self):
         _caso, derivacion = self._derivado()
@@ -431,6 +433,12 @@ class IntegrantesTests(BaseLlegadas):
         super().setUp()
         self.caso, self.derivacion = self._aceptado()
         self.reservas = self._reservas(self.derivacion)
+
+    def test_el_paso_2_sale_del_stepper(self):
+        respuesta = self.client.get(self._url("integrantes", self.caso.pk))
+
+        self.assertContains(respuesta, "Paso 2 de 3 · ")
+        self.assertContains(respuesta, '<h1 class="')
 
     def test_la_lista_muestra_las_filas_el_contador_y_las_acciones_del_estado(self):
         respuesta = self.client.get(self._url("integrantes", self.caso.pk))
