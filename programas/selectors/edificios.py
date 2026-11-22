@@ -22,7 +22,7 @@ from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector
+from programas.models import Edificio, InspeccionEdificio, Sector
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.detalle_dispositivo import (
@@ -39,6 +39,7 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     puede_configurar_dispositivos,
 )
+from programas.services.edificios import admite_editar_edificio
 from programas.services.inspecciones import (
     edificios_en_alcance,
     edificios_para_asignar,
@@ -266,7 +267,7 @@ def _url_editar(user, edificio, instituciones):
     candidatas = [
         institucion
         for institucion in instituciones
-        if institucion["url"] and institucion["estado"] != Dispositivo.Estado.CERRADO
+        if institucion["url"] and admite_editar_edificio(institucion["estado"])
     ]
     if not candidatas:
         return ""
@@ -294,8 +295,9 @@ def ficha_de_edificio(user, edificio, pagina=1):
 
     Costo fijo, sin importar instituciones, sectores, relevamientos ni fotos: la última con su alcance
     (1), instituciones y cuáles abre (2), si admite un relevamiento nuevo (1), sectores con plazas (1),
-    COUNT y página del registro (2), fotos de la página (1) y, solo si la página trae uno en curso,
-    quién puede ver su asignación (1).
+    COUNT y página del registro (2), fotos de la página (1), en cuáles de las instituciones candidatas
+    edita el usuario (1, solo si alguna se puede abrir y no está cerrada) y, solo si la página trae uno
+    en curso, quién puede ver su asignación (1).
     """
 
     hoy = timezone.localdate()

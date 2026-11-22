@@ -70,11 +70,17 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
     TrazaDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, accion=accion, detalle=detalle)
 
 
+def admite_editar_edificio(estado):
+    """Un dispositivo cerrado no cambia su edificio: la regla única de `_exigir_alcance` y del botón de la ficha."""
+
+    return estado != Dispositivo.Estado.CERRADO
+
+
 def _exigir_alcance(dispositivo, usuario):
     # Sumar, editar o soltar un edificio de la institución es del legajo (RN5): con alcance Edificios, no.
     if not puede_editar_legajo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar el edificio de este dispositivo.")
-    if dispositivo.estado == Dispositivo.Estado.CERRADO:
+    if not admite_editar_edificio(dispositivo.estado):
         raise ValidationError({"__all__": DISPOSITIVO_CERRADO})
 
 

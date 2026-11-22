@@ -7,7 +7,7 @@ Lo que se fija acá:
 2. Instituciones fuera de alcance no se nombran; los sectores son solo los de las instituciones que
    alcanza (CA6).
 3. Sin alcance de inspección: estado y fecha, sin quién relevó, observaciones ni registro (CA7).
-4. «Crear relevamiento» según CA8; «Editar edificio» solo con alcance institución (Cambio 554), y ninguna
+4. «Crear relevamiento» según CA8; «Editar edificio» solo con alcance institución (Cambio 555), y ninguna
    otra acción de escritura (desvincular, cargar, vincular).
 5. El listado enlaza a la ficha.
 6. El costo de la ficha no crece con relevamientos, fotos ni instituciones (``dispositivos_edificio_ficha``).
@@ -172,7 +172,7 @@ class AccionesTests(BaseFicha):
 
 
 class EditarEdificioTests(BaseFicha):
-    """«Editar edificio» (Cambio 554): lleva al modal de Infraestructura de una institución que el usuario edita."""
+    """«Editar edificio» (Cambio 555): lleva al modal de Infraestructura de una institución que el usuario edita."""
 
     def _destino(self, dispositivo):
         return f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?tab=infraestructura&edificio={self.predio.pk}"
@@ -297,6 +297,20 @@ class PresupuestoTests(BaseFicha):
         self.assertEqual((eventos_antes, eventos_despues), (1, 7))
         self.assertEqual(antes, despues)
         self.assertLessEqual(despues, techo["consultas_fijas"])
+
+    def test_el_peor_caso_con_un_relevamiento_en_curso_entra_en_el_techo(self):
+        Sector.objects.create(dispositivo=self.parador, edificio=self.predio, nombre="Norte")
+        self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",))
+        self._crear()  # asignado y sin resultado: suma la consulta de quién ve la asignación
+        _eventos, antes = self._medir()
+        for numero in range(3):
+            Sector.objects.create(dispositivo=self.geriatrico, edificio=self.predio, nombre=f"Sector {numero}")
+        self.predio.dispositivos.add(self.cis)
+        _eventos, con_en_curso = self._medir()
+
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"]["dispositivos_edificio_ficha"]
+        self.assertEqual(antes, con_en_curso)
+        self.assertEqual(con_en_curso, techo["consultas_fijas"])
 
 
 class VolverDelInformeTests(BaseFicha):
