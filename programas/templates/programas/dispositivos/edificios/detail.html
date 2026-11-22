@@ -17,11 +17,16 @@
       <i class="fas fa-clipboard-list" aria-hidden="true"></i> Crear relevamiento
     </a>
     {% endif %}
+    {% if ficha.url_editar %}
+    <a href="{{ ficha.url_editar }}" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
+    </a>
+    {% endif %}
   {% endpage_header %}
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="datos-titulo">
     <div class="px-5 py-4 border-b border-light">
-      <h2 id="datos-titulo" class="text-sm font-bold text-heading">Datos</h2>
+      <h2 id="datos-titulo" class="text-heading font-bold">Datos</h2>
     </div>
     <div class="p-5 space-y-4">
       <dl class="grid gap-5 sm:grid-cols-2">
@@ -37,7 +42,7 @@
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="instituciones-titulo">
     <div class="px-5 py-4 border-b border-light">
-      <h2 id="instituciones-titulo" class="text-sm font-bold text-heading">Instituciones del predio</h2>
+      <h2 id="instituciones-titulo" class="text-heading font-bold">Instituciones del predio</h2>
       <p class="text-xs text-body-subtle mt-1">{% if ficha.compartido %}Predio compartido por {{ ficha.n_instituciones }} instituciones.{% else %}Una sola institución en el predio.{% endif %}</p>
     </div>
     {% if ficha.instituciones or ficha.otras %}
@@ -57,7 +62,7 @@
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sectores-titulo">
     <div class="px-5 py-4 border-b border-light">
-      <h2 id="sectores-titulo" class="text-sm font-bold text-heading">Sectores</h2>
+      <h2 id="sectores-titulo" class="text-heading font-bold">Sectores</h2>
       <p class="text-xs text-body-subtle mt-1">Los de las instituciones de tu alcance en este edificio.</p>
     </div>
     {% if ficha.sectores %}
@@ -100,7 +105,7 @@
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="ultimo-relevamiento-titulo">
     <div class="px-5 py-4 border-b border-light">
-      <h2 id="ultimo-relevamiento-titulo" class="text-sm font-bold text-heading">Último relevamiento</h2>
+      <h2 id="ultimo-relevamiento-titulo" class="text-heading font-bold">Último relevamiento</h2>
     </div>
     <div class="p-5 space-y-4">
       <dl class="grid gap-5 sm:grid-cols-3">
@@ -126,7 +131,7 @@
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="registro-titulo">
     <div class="px-5 py-4 border-b border-light">
-      <h2 id="registro-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h2>
+      <h2 id="registro-titulo" class="text-heading font-bold">Registro fotográfico</h2>
       <p class="text-xs text-body-subtle mt-1">Histórico: cada relevamiento agrega su tanda, no pisa la anterior.</p>
     </div>
     <div class="p-5">

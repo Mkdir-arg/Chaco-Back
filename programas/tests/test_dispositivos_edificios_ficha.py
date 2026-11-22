@@ -7,7 +7,7 @@ Lo que se fija acá:
 2. Instituciones fuera de alcance no se nombran; los sectores son solo los de las instituciones que
    alcanza (CA6).
 3. Sin alcance de inspección: estado y fecha, sin quién relevó, observaciones ni registro (CA7).
-4. «Crear relevamiento» según CA8, y ninguna acción de escritura del edificio (CA12).
+4. «Crear relevamiento» según CA8, y «Editar edificio» solo con la regla del modal de Infraestructura (CA12, vigente desde el PR-E del diseño).
 5. El listado enlaza a la ficha.
 6. El costo de la ficha no crece con relevamientos, fotos ni instituciones (``dispositivos_edificio_ficha``).
 """
@@ -20,8 +20,9 @@ from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils.html import escape
 
-from programas.models import Edificio, Plaza, Sector
+from programas.models import Dispositivo, Edificio, Plaza, Sector
 from programas.tests.test_dispositivos_edificios_selector import BaseEdificios
 from programas.tests.test_dispositivos_inspecciones import Criticidad
 
@@ -150,11 +151,41 @@ class AccionesTests(BaseFicha):
         self._crear()  # con uno en curso ya no se ofrece
         self.assertNotContains(self._get(coordinador, self.predio), "?asignar=")
 
-    def test_ninguna_accion_de_escritura_del_edificio(self):
+    def test_editar_edificio_solo_con_la_capacidad_de_editar_la_institucion(self):
+        editor = self._usuario("editor_edif", ("edificio.ver", "dispositivo.ver", "dispositivo.editar"), [self.parador])
+        lector = self._usuario("lector_edif", ("edificio.ver", "dispositivo.ver"), [self.parador])
+        destino = (
+            f"{reverse('dispositivos:detalle', args=[self.parador.pk])}?tab=infraestructura&edificio={self.predio.pk}"
+        )
+
+        respuesta = self._get(editor, self.predio)
+        self.assertContains(respuesta, "Editar edificio")
+        self.assertEqual(respuesta.context["ficha"]["url_editar"], destino)
+        self.assertContains(respuesta, escape(destino))
+        # El admin edita desde la primera institución del predio por nombre (Geriátrico), con el mismo modal.
+        respuesta = self._get(self.admin, self.predio)
+        self.assertContains(respuesta, "Editar edificio")
+        self.assertTrue(
+            respuesta.context["ficha"]["url_editar"].endswith(f"/?tab=infraestructura&edificio={self.predio.pk}")
+        )
+        for usuario in (self.del_parador, lector):
+            with self.subTest(usuario=usuario.username):
+                respuesta = self._get(usuario, self.predio)
+                self.assertNotContains(respuesta, "Editar edificio")
+                self.assertEqual(respuesta.context["ficha"]["url_editar"], "")
+
+    def test_editar_edificio_no_se_ofrece_si_la_institucion_esta_cerrada(self):
+        editor = self._usuario(
+            "editor_cerrado", ("edificio.ver", "dispositivo.ver", "dispositivo.editar"), [self.parador]
+        )
+        Dispositivo.objects.filter(pk=self.parador.pk).update(estado=Dispositivo.Estado.CERRADO)
+
+        self.assertNotContains(self._get(editor, self.predio), "Editar edificio")
+
+    def test_desvincular_y_cargar_siguen_fuera_de_la_ficha(self):
         html = self._get(self.admin, self.predio).content.decode()
 
-        self.assertNotIn(reverse("dispositivos:edificio_editar", args=[self.parador.pk, self.predio.pk]), html)
-        for texto in ("Editar edificio", "Desvincular", "Cargar edificio", "Vincular un edificio"):
+        for texto in ("Desvincular", "Cargar edificio", "Vincular un edificio"):
             self.assertNotIn(texto, html)
 
     def test_el_listado_enlaza_a_la_ficha(self):
