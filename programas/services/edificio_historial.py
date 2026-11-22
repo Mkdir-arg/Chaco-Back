@@ -25,16 +25,13 @@ sin consultar por fila.
 """
 
 from django.core.paginator import Paginator
-from django.utils import timezone
-from django.utils.formats import date_format
 
 from core.rbac import puede
 from programas.selectors.auditoria_dispositivo import FUENTE_INSPECCION, auditoria_del_dispositivo
-from programas.services.bitacora import turno_vigente, turnos_activos
+from programas.services.bitacora import rotulo_del_turno, turno_vigente, turnos_activos
+from programas.services.detalle_dispositivo import POR_PAGINA_HISTORIAL, _fecha_legible
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.inspecciones import edificios_de_dispositivo_con_asignacion_visible
-
-POR_PAGINA_HISTORIAL = 20
 
 
 def _feed(user, dispositivo, edificio, *, puede_kits, con_alcance):
@@ -58,7 +55,7 @@ def contar_eventos_del_edificio(user, dispositivo, edificio, *, puede_kits):
 
 def _turno(momento, turnos):
     situado = turno_vigente(None, momento, turnos=turnos)
-    return f"Turno {situado.turno.nombre}" if situado is not None else ""
+    return rotulo_del_turno(situado.turno) if situado is not None else ""
 
 
 def contexto_historial(user, dispositivo, edificio, pagina, *, puede_kits):
@@ -69,7 +66,7 @@ def contexto_historial(user, dispositivo, edificio, pagina, *, puede_kits):
     turnos = turnos_activos(dispositivo) if historial.paginator.count else []
     eventos = []
     for evento in historial:
-        fecha = date_format(timezone.localtime(evento["fecha"]), "d/m/Y H:i")
+        fecha = _fecha_legible(evento["fecha"])
         # El relevamiento lo hace el equipo territorial, que no trabaja en un turno de la institución.
         turno = "" if evento["fuente"] == FUENTE_INSPECCION else _turno(evento["fecha"], turnos)
         eventos.append(

@@ -31,7 +31,7 @@ from django.utils.text import Truncator
 
 from core.rbac import puede
 from programas.models import Edificio, EntregaKit, InspeccionEdificio, Sector
-from programas.services.bitacora import turno_vigente
+from programas.services.bitacora import rotulo_del_turno, turno_vigente
 from programas.services.detalle_dispositivo import (
     contar_alojadas,
     estadias_del_dispositivo,
@@ -199,7 +199,7 @@ def _equipo_en_turno(dispositivo, equipo):
     vigente = turno_vigente(dispositivo)
     return {
         "nombres": texto,
-        "turno": f"Turno {vigente.turno.nombre.lower()}" if vigente else "Sin turno en curso",
+        "turno": rotulo_del_turno(vigente.turno) if vigente else "Sin turno en curso",
     }
 
 

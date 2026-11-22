@@ -46,6 +46,7 @@ from programas.models import (
     EntradaBitacora,
     InspeccionEdificio,
     MovimientoEstadia,
+    Plaza,
     Sector,
     TrazaDispositivo,
     TrazaEntrega,
@@ -147,8 +148,13 @@ def q_trazas_del_edificio(edificio):
     escriben los servicios: un sector lo nombra por **código de edificio** (``… · edificio ED-A``, y ``(antes: ED-B)``
     si se mudó) y una plaza o un lote de plazas por **nombre de sector**. Las de sector se leen por el código, que es
     exacto; las de plaza, por los sectores de este edificio en el mismo dispositivo, dentro de la misma consulta.
-    Es el límite de la derivación: dos sectores del mismo dispositivo con el mismo nombre en edificios distintos
-    (uno dado de baja) comparten sus trazas de plaza.
+    Límites de la derivación (la traza no guarda el edificio; guardarlo requiere una migración):
+
+    * un sector **renombrado** deja de coincidir con sus trazas de plaza viejas, que desaparecen del edificio;
+    * un sector **mudado** a otro edificio se lleva consigo las trazas de plaza que ya tenía (se leen por su nombre
+      contra el edificio actual), no solo las duplica;
+    * dos sectores del mismo dispositivo con el mismo nombre en edificios distintos (uno dado de baja libera el suyo)
+      comparten sus trazas de plaza: las de un nombre reusado se atribuyen al edificio que hoy lo tiene.
     """
 
     codigo = edificio.codigo
@@ -424,9 +430,10 @@ class FeedAuditoria:
         inspecciones = TrazaInspeccion.objects.filter(inspeccion__edificio__dispositivos=dispositivo)
         if limitado:
             trazas = trazas.filter(q_trazas_del_edificio(edificio)) if edificio is not None else trazas.none()
-            movimientos = movimientos.filter(
-                Q(plaza_destino__sector__edificio_id__in=ids) | Q(plaza_origen__sector__edificio_id__in=ids)
-            )
+            # Por ids de plaza y no por el JOIN plaza → sector → edificio en un OR: el OR no usa índice y recorre toda la
+            # tabla de movimientos. `todas` y no `objects`: entran también las plazas dadas de baja, como su historia.
+            plazas = Plaza.todas.filter(sector__edificio_id__in=ids).values("pk")
+            movimientos = movimientos.filter(Q(plaza_destino_id__in=plazas) | Q(plaza_origen_id__in=plazas))
             correcciones = correcciones.filter(edificio_id__in=ids)
             inspecciones = inspecciones.filter(inspeccion__edificio_id__in=ids)
         self.fuentes = (

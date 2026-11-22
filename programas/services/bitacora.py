@@ -122,6 +122,12 @@ def _fecha_operativa_si_contiene(turno: Turno, hora: time, dia: date) -> date | 
     return None
 
 
+def rotulo_del_turno(turno) -> str:
+    """«Turno tarde»: cómo se nombra un turno en las pantallas del edificio."""
+
+    return f"Turno {turno.nombre.lower()}"
+
+
 def turnos_activos(dispositivo):
     """Los turnos activos del dispositivo, en su orden. Una consulta."""
 

@@ -144,7 +144,7 @@ class ContenidoTests(BaseHistorial):
         self.assertIn("Ingreso de Pérez, Juan", textos)
         # Juan ingresó un miércoles a las 15: el turno Tarde, entre la fecha y quien lo hizo.
         cuando = [e["cuando"] for e in respuesta.context["eventos_historial"] if "Juan" in e["titulo"]]
-        self.assertTrue(cuando[0].split(" · ")[1] == "Turno Tarde", cuando)
+        self.assertTrue(cuando[0].split(" · ")[1] == "Turno tarde", cuando)
         self.assertTrue(cuando[0].endswith("Lucía Méndez"), cuando)
 
     def test_cambio_de_plaza_y_reserva_del_edificio(self):
