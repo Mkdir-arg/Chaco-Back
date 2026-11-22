@@ -682,12 +682,12 @@ class PlazaDisponibleSinRecargaTests(BaseMapa):
         url = reverse("dispositivos:ingreso_persona", args=[self.cis.pk])
         self.assertEqual(datos["enlaces"][ACCION_INGRESAR], f"{url}?plaza={self.plaza.pk}")
 
-    def test_con_el_dispositivo_no_activo_no_se_ofrece_ingresar(self):
-        """El asistente rechaza un dispositivo que no está activo: la opción no aparece."""
+    def test_con_el_dispositivo_no_activo_no_se_ofrece_ingresar_ni_reservar_ni_prestar(self):
+        """El asistente rechaza un dispositivo que no está activo y reservar y prestar también (Cambio 536)."""
 
         type(self.cis).objects.filter(pk=self.cis.pk).update(estado=type(self.cis).Estado.OBSERVADO)
 
-        self.assertEqual(self._opciones(self.con_personas), [ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO])
+        self.assertEqual(self._opciones(self.con_personas), [ACCION_FUERA_SERVICIO])
 
     def test_sin_ciudadano_ver_no_se_ofrece_reservar_ni_prestar(self):
         """Buscar a la persona por DNI es mirar el padrón: `admitir` solo no alcanza, como en el ingreso."""

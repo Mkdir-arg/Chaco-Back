@@ -621,8 +621,21 @@ def _exigir_formulario_del_tipo(dispositivo):
 
 
 def _transicionar(
-    dispositivo, usuario, *, origenes, destino, accion, detalle="", exige_datos=False, exige_formulario=False
+    dispositivo,
+    usuario,
+    *,
+    origenes,
+    destino,
+    accion,
+    detalle="",
+    exige_datos=False,
+    exige_formulario=False,
+    antes_de_cambiar=None,
 ):
+    """`antes_de_cambiar(dispositivo)` corre con la fila bloqueada y el origen ya validado.
+
+    Puede rechazar con `ValidationError` o devolver el texto que se suma al detalle de la traza.
+    """
     from programas.models import Dispositivo
 
     with transaction.atomic():
@@ -634,6 +647,11 @@ def _transicionar(
             _exigir_campos_para_validacion(dispositivo)
         if exige_formulario:
             _exigir_formulario_del_tipo(dispositivo)
+
+        if antes_de_cambiar is not None:
+            extra = antes_de_cambiar(dispositivo)
+            if extra:
+                detalle = f"{detalle} · {extra}" if detalle else extra
 
         anterior = dispositivo.estado
         dispositivo.estado = destino
@@ -703,18 +721,6 @@ def rechazar_dispositivo(dispositivo, usuario, motivo):
     )
 
 
-def inactivar_dispositivo(dispositivo, usuario):
-    from programas.models import Dispositivo
-
-    return _transicionar(
-        dispositivo,
-        usuario,
-        origenes=(Dispositivo.Estado.ACTIVO,),
-        destino=Dispositivo.Estado.INACTIVO,
-        accion="INACTIVADO",
-    )
-
-
 def reactivar_dispositivo(dispositivo, usuario):
     """Un dispositivo inactivo vuelve a ACTIVO (decisión del PM, 02/11/2026, Cambio 409).
 
@@ -732,13 +738,29 @@ def reactivar_dispositivo(dispositivo, usuario):
     )
 
 
-def cerrar_dispositivo(dispositivo, usuario):
+def exigir_institucion_en_estado(dispositivo, estados, accion):
+    """Regla única de «qué se puede hacer según el estado de la institución» (Cambio 536).
+
+    Lee el estado **fresco** de la base: el objeto que llega puede ser anterior a que alguien
+    la inactivara. `estados` son los que permiten la acción; `accion` completa «No se puede …».
+    """
     from programas.models import Dispositivo
 
-    return _transicionar(
-        dispositivo,
-        usuario,
-        origenes=(Dispositivo.Estado.ACTIVO, Dispositivo.Estado.INACTIVO, Dispositivo.Estado.RECHAZADO),
-        destino=Dispositivo.Estado.CERRADO,
-        accion="CERRADO",
-    )
+    actual = Dispositivo.objects.filter(pk=dispositivo.pk).values_list("estado", flat=True).first()
+    if actual not in estados:
+        etiqueta = dict(Dispositivo.Estado.choices).get(actual, "inexistente").lower()
+        raise ValidationError({"dispositivo": f"No se puede {accion}: el dispositivo está {etiqueta}."})
+
+
+def estados_que_reservan():
+    """Reservar y prestar una plaza: solo en una institución activa."""
+    from programas.models import Dispositivo
+
+    return (Dispositivo.Estado.ACTIVO,)
+
+
+def estados_que_cambian_de_plaza():
+    """Cambiar de plaza a quien ya está alojado: activa o inactiva, nunca cerrada."""
+    from programas.models import Dispositivo
+
+    return (Dispositivo.Estado.ACTIVO, Dispositivo.Estado.INACTIVO)

@@ -1,5 +1,7 @@
 """Lecturas de configuración de la capacidad instalada y del predio compartido."""
 
+from typing import NamedTuple
+
 from django.db.models import Case, Count, Exists, F, OuterRef, Q, Value, When
 
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector
@@ -68,6 +70,20 @@ def plazas_tomadas_del_sector(sector):
         )
     )
     return len(con_estadia | con_reserva)
+
+
+class CompromisosDelSector(NamedTuple):
+    alojadas: int
+    reservas: int
+
+
+def compromisos_del_sector(sector):
+    """Personas alojadas y reservas abiertas en las plazas del sector, por separado (dos consultas)."""
+
+    return CompromisosDelSector(
+        alojadas=Estadia.objects.activas().filter(plaza__sector=sector).count(),
+        reservas=ReservaPlaza.objects.abiertas().filter(plaza__sector=sector).count(),
+    )
 
 
 def codigos_del_sector(sector):

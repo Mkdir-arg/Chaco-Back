@@ -128,6 +128,7 @@ OTROS_NOMBRES_PUBLICOS = {
     "CARACTERES_SIN_TEXTO",
     "CanalFormulario",
     "Ciudadano",
+    "DerivacionQuerySet",
     "EliminableMixin",
     "EntradaBitacoraManager",
     "EntradaBitacoraQuerySet",
