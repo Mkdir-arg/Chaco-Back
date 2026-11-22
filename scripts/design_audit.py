@@ -183,9 +183,8 @@ RULES: list[tuple[str, str, re.Pattern[str], str]] = [
         # consumidor que nace atado a una clave que se está retirando.
         #
         # WARN y no ERROR a propósito: `data.errors` **por campo** —el que vuelca
-        # los errores sobre el formulario en `_ajax_js.html`,
-        # `_alta_rapida_modal.html` y `tipo_detail.html`— es otro contrato, no el
-        # motivo legible, y migrarlo es una decisión por pantalla.
+        # los errores sobre el formulario en `_ajax_js.html` y `_alta_rapida_modal.html`—
+        # es otro contrato, no el motivo legible, y migrarlo es una decisión por pantalla.
         "SOBREJSON",
         "WARN",
         re.compile(r"\b(?:data|json|cuerpo|payload|respuesta)\.(?:mensaje|detail|errors)\b"),

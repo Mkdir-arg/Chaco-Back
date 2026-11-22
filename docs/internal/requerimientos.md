@@ -670,6 +670,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 545 | Dispositivos · la institución se bloquea primero, en compartido: reservar, ingresar, cambiar de plaza y liberar no se cuelan en un «Cerrar» o «Inactivar» ni se cruzan con él en un deadlock | Dispositivos (estadías, reservas, plazas, bitácora) / Emergencia (reservas de derivación y confirmación) | `#dispositivos` `#emergencia` `#datos` | Pendiente del Cambio 536 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 546 | Emergencia · la ficha de la guardia no pierde lo escrito al elegir cama (borrador en la sesión) | Emergencia · guardia del dispositivo (ficha de la persona) | `#emergencia` `#dispositivos` | Relevamiento de diseño del 22/11 (hallazgo 2), decisión del juez | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 548 | Dispositivos · detalle del tipo: el guardado del modal «Editar tipo» pasa al AJAX estándar y se retiran los 4 WARN SOBREJSON (PR de diseño, hallazgo 16) | Dispositivos · Configuración → Tipos (detalle) | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (hallazgo 16) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -62598,6 +62599,8 @@ Desplegar el código anterior: no hay datos nuevos.
 ## Historial
 - **22/11/2026:** alta del cambio.
 
+---
+
 # Cambio 546 — Emergencia · la ficha de la guardia no pierde lo escrito al elegir cama
 
 🟢 **HECHO — 22/11/2026**
@@ -62644,6 +62647,45 @@ No requiere.
 
 ## Puesta en marcha en el servidor
 No requiere.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 548 — Dispositivos · detalle del tipo: el guardado del modal «Editar tipo» pasa al AJAX estándar
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (detalle, `config/tipo_detail.html`) |
+| **Etiquetas** | `#dispositivos` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (hallazgo 16) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `tipo_detail.html`; `scripts/design_audit.py` (solo un comentario); ficha `arquetipos/modal.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgo 16: `tipo_detail.html` tenía un cargador de modal propio, 4 WARN `SOBREJSON` (líneas 163-179) y «8 desvíos en las solapas».
+
+## Alcance acordado
+Adherir al inventario sin cambiar comportamiento: mismas URL, formularios, permisos y contenido; ninguna acción nueva.
+
+## Decisiones tomadas
+- **Envío del modal.** El `submit` escrito a mano (fetch, lectura de `data.errors`, `aria-invalid`, toast) se borra: el form del modal ya era `data-ajax` y ahora lo atiende `_ajax_js.html` (que incluye `_confirm_js.html`, así que las confirmaciones siguen). El modal se cierra con el evento `becas-saved`. Con eso desaparecen los 4 WARN `SOBREJSON` de la pantalla (0 en el archivo).
+- **Carga del modal por fetch: se conserva.** El modal «Editar tipo» llega armado por el servidor con `GET` AJAX y sin scope de Alpine, así que no puede llevar `x-becas-modal`; la variante «modal sin Alpine» con `becasModal.bind` está documentada en `modal.md` y fue decisión del Cambio 386. Pasarlo a `x-becas-modal` obligaría a cambiar la vista (renderizarlo siempre) y no es «sin cambiar comportamiento».
+- **Solapas: no hay.** `tipo_detail.html` y su parcial no tienen solapas: es una sola surface (Formularios). Los «8 desvíos» salían de correr `--arquetipo detalle` sobre el parcial, que no es un detalle con solapas; no se agregaron solapas (sería contenido y navegación nuevos).
+- Los errores del 400 ahora también cuelgan de `aria-describedby` (lo hace `_ajax_js.html`), y el 404 y la red tienen su aviso estándar.
+- Detalle conocido: el cierre por `becas-saved` cierra el modal que esté abierto al llegar la respuesta; antes se comprobaba además que fuera el mismo form. Con un solo modal y el botón deshabilitado durante el envío no se puede reproducir salvo cerrando y reabriendo mientras se guarda.
+
+## Archivos
+`programas/templates/programas/dispositivos/config/tipo_detail.html`, `programas/tests/test_dispositivos_config.py` (test nuevo), `scripts/design_audit.py` (comentario), `.claude/design/arquetipos/modal.md`.
+
+## Validación
+Tests de configuración y formularios del tipo; mutaciones: sin el listener `becas-saved` y con `_confirm_js.html` en lugar de `_ajax_js.html`, el test nuevo da rojo.
 
 ## Reversión
 Desplegar el código anterior.
