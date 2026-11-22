@@ -99,7 +99,6 @@ from programas.services.dispositivos import (
     rechazar_dispositivo,
     registrar_alta_dispositivo,
     registrar_edicion_dispositivo,
-    se_puede_cambiar_plaza,
     sincronizar_contacto,
     validar_dispositivo,
 )
@@ -160,6 +159,7 @@ from programas.services.sectores_plazas import (
     bloqueo_de_plaza,
     datos_para_el_modal,
     plaza_para_accion,
+    se_puede_cambiar_plaza,
     sectores_con_plazas,
     url_modal_egreso,
     url_solapa_estadias,

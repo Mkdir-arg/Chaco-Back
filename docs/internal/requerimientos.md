@@ -62235,7 +62235,7 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
 - `views/emergencia_dispositivo.py`: el POST con error de la ficha conserva la ayuda «Guardado: …» (`ficha=` al formulario).
 - `forms_emergencia.py`: «Se completan solos…» solo se muestra donde hay buscador de DNI.
 - `estado_institucion.py`: `_antes_de_inactivar` exige y después libera (un solo paso); `_plural` sale a `bitacora_detalle.plural`.
-- `services/dispositivos.py` (`se_puede_cambiar_plaza`): la regla de «Cambiar plaza» / «Asignar plaza» deja de estar escrita tres veces
+- `services/sectores_plazas.py` (`se_puede_cambiar_plaza`): la regla de «Cambiar plaza» / «Asignar plaza» deja de estar escrita tres veces
   en `views/dispositivos_legajo.py`; `acciones_de_plaza` pide `estado_dispositivo` (ya nadie lo omitía).
 - `views/emergencia.py`: sin key de Google la vista deja `panel["distancias"]` en `None` y el template solo lo mira.
 - Docstrings y la ficha `detalle.md`: «trazas del dispositivo (legajo, plazas, sectores, turnos y edificios)»;
@@ -62248,7 +62248,7 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
 ## Archivos
 `programas/services/emergencia_confirmacion.py`, `programas/views/emergencia_dispositivo.py`, `programas/views/emergencia.py`,
 `programas/views/dispositivos_legajo.py`, `programas/forms_emergencia.py`, `programas/services/estado_institucion.py`,
-`programas/services/dispositivos.py`, `programas/services/sectores_plazas.py`, `programas/services/detalle_dispositivo.py`,
+`programas/services/sectores_plazas.py`, `programas/services/detalle_dispositivo.py`,
 `programas/selectors/auditoria_dispositivo.py`, `programas/api/views_emergencia_llegadas.py`,
 `programas/templates/programas/emergencia/casos/detail.html`, `docs/internal/contrato-app-emergencia.md`,
 `.claude/design/arquetipos/detalle.md`, `.github/workflows/release-gate.yml` y los tests
