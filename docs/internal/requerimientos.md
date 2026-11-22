@@ -669,7 +669,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 545 | Dispositivos · la institución se bloquea primero, en compartido: reservar, ingresar, cambiar de plaza y liberar no se cuelan en un «Cerrar» o «Inactivar» ni se cruzan con él en un deadlock | Dispositivos (estadías, reservas, plazas, bitácora) / Emergencia (reservas de derivación y confirmación) | `#dispositivos` `#emergencia` `#datos` | Pendiente del Cambio 536 | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 546 | Emergencia · la ficha de la guardia no pierde lo escrito al elegir cama (borrador en la sesión) | Emergencia · guardia del dispositivo (ficha de la persona) | `#emergencia` `#dispositivos` | Relevamiento de diseño del 22/11 (hallazgo 2), decisión del juez | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 547 | Dispositivos / Emergencia · MINOR de las auditorías de #1317–#1321: carreras de la institución contra el motor real, orden de candados con una sola fuente, filtro «Localidad» exacto y limpieza de tests | Dispositivos (estadías, legajo, reportes) / Emergencia (candados, kits) | `#dispositivos` `#emergencia` `#datos` `#ui` | MINOR de las auditorías de los PR #1317, #1318, #1319 y #1321 | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 548 | Dispositivos · detalle del tipo: el guardado del modal «Editar tipo» pasa al AJAX estándar y se retiran los 4 WARN SOBREJSON (PR de diseño, hallazgo 16) | Dispositivos · Configuración → Tipos (detalle) | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (hallazgo 16) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -62600,6 +62602,61 @@ Desplegar el código anterior: no hay datos nuevos.
 
 ---
 
+# Cambio 546 — Emergencia · la ficha de la guardia no pierde lo escrito al elegir cama
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · guardia del dispositivo (ficha de la persona, `emergencia/dispositivo/ficha.html`) |
+| **Etiquetas** | `#emergencia` `#dispositivos` |
+| **Solicitante** | Relevamiento de diseño del 22/11 (hallazgo 2); decisión del juez |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgo 2: «Elegir cama» era un enlace al mapa de camas y, si el operador ya había escrito en la ficha, lo escrito se perdía (el Cambio 540 lo devolvió al juez porque pedía guardar un borrador).
+
+## Alcance acordado
+«Elegir cama» pasa a ser un botón de envío del mismo formulario (`name="elegir_cama"`). La vista guarda lo escrito como borrador en la sesión, sin validar y sin escribir en la base, y redirige al mapa. Al volver a la ficha el formulario se precarga (`initial`, sin errores marcados).
+
+## Decisiones tomadas
+- **Borrador en la sesión, atado a la persona.** Clave `emergencia_borrador_ficha:<dispositivo>:<caso>:<integrante>`: no pasa a otra ficha ni a otro caso. Guarda los campos de la ficha (no el token, no la cama, que viaja por la URL del mapa), cada valor recortado al largo de su campo. Vive en la sesión (tabla de sesiones en dev/qa, Redis en prd); nunca en las tablas del dominio ni en un log.
+- **Los vacíos también se guardan.** Si el operador borra un dato precargado (la persona 1 arranca con los del responsable), el vacío pisa la precarga al volver; si no, el dato borrado reaparecía y podía confirmarse con el DNI de otro.
+- **«Elegir cama» sobre una persona ya confirmada no escribe.** Si otra guardia la confirmó mientras tanto, vuelve a la ficha sin pasar por «guardar ficha» ni dejar borrador.
+- **Se borra al confirmar** la persona con éxito. Si el operador abandona sin confirmar queda en la sesión hasta que esta termina.
+- **Sin archivos:** la ficha no tiene adjuntos, así que no hay nada que no viaje.
+- **Enter en un campo** confirma, no elige cama: un primer botón de envío oculto hace de botón por defecto del formulario.
+- El POST normal (Confirmar persona) no cambia: sigue validando igual.
+
+## Pendientes / a definir
+- **A confirmar por el PM** (default: se acepta): el borrador incluye las preguntas de salud y dura lo que la sesión.
+- El borrador de una ficha abandonada no se limpia hasta que termina la sesión; si molesta, limpiarlo al «Cancelar».
+
+## Implementación
+- `programas/views/emergencia_dispositivo.py`: `FichaIntegranteView` guarda y lee el borrador (`_guardar_borrador`, `_borrador`, `_clave_borrador_ficha`); con `elegir_cama` redirige al mapa, y sobre una persona confirmada redirige a la ficha sin escribir. Se quitó `url_cama` del contexto y el docstring del módulo menciona el borrador.
+- `ficha.html`: «Elegir cama» pasa de enlace a `<button type="submit" name="elegir_cama">` y un primer botón de envío oculto deja a «Confirmar persona» como el de Enter.
+- Tests: `test_emergencia_alojar_vistas.py` (guardado sin validar, precarga, vacíos, persona confirmada, recorte, aislamiento por persona y caso, borrado al confirmar, botón por defecto, 403 y 404 sin borrador).
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`; `programas.tests.test_emergencia_alojar_vistas` y `programas -k emergencia` en verde; `makemigrations --check --dry-run` sin cambios; ruff; `design_audit --ratchet` en 0 nuevos; `compile_templates --bloques` en 0; `check_design_agent --limites` OK; `requerimientos.py --check` OK. Cada regla verificada por mutación (guardado, precarga, clave por persona, borrado, vacíos, persona confirmada, recorte, botón oculto, acceso).
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+---
+
 # Cambio 547 — Dispositivos y Emergencia · MINOR de las auditorías de #1317–#1321
 
 🟢 **HECHO — 22/11/2026**
@@ -62699,6 +62756,45 @@ No requiere.
 
 ## Reversión
 Desplegar el código anterior. Los tests y los docstrings no tienen efecto en datos.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 548 — Dispositivos · detalle del tipo: el guardado del modal «Editar tipo» pasa al AJAX estándar
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (detalle, `config/tipo_detail.html`) |
+| **Etiquetas** | `#dispositivos` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (hallazgo 16) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `tipo_detail.html`; `scripts/design_audit.py` (solo un comentario); ficha `arquetipos/modal.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgo 16: `tipo_detail.html` tenía un cargador de modal propio, 4 WARN `SOBREJSON` (líneas 163-179) y «8 desvíos en las solapas».
+
+## Alcance acordado
+Adherir al inventario sin cambiar comportamiento: mismas URL, formularios, permisos y contenido; ninguna acción nueva.
+
+## Decisiones tomadas
+- **Envío del modal.** El `submit` escrito a mano (fetch, lectura de `data.errors`, `aria-invalid`, toast) se borra: el form del modal ya era `data-ajax` y ahora lo atiende `_ajax_js.html` (que incluye `_confirm_js.html`, así que las confirmaciones siguen). El modal se cierra con el evento `becas-saved`. Con eso desaparecen los 4 WARN `SOBREJSON` de la pantalla (0 en el archivo).
+- **Carga del modal por fetch: se conserva.** El modal «Editar tipo» llega armado por el servidor con `GET` AJAX y sin scope de Alpine, así que no puede llevar `x-becas-modal`; la variante «modal sin Alpine» con `becasModal.bind` está documentada en `modal.md` y fue decisión del Cambio 386. Pasarlo a `x-becas-modal` obligaría a cambiar la vista (renderizarlo siempre) y no es «sin cambiar comportamiento».
+- **Solapas: no hay.** `tipo_detail.html` y su parcial no tienen solapas: es una sola surface (Formularios). Los «8 desvíos» salían de correr `--arquetipo detalle` sobre el parcial, que no es un detalle con solapas; no se agregaron solapas (sería contenido y navegación nuevos).
+- Los errores del 400 ahora también cuelgan de `aria-describedby` (lo hace `_ajax_js.html`), y el 404 y la red tienen su aviso estándar.
+- Detalle conocido: el cierre por `becas-saved` cierra el modal que esté abierto al llegar la respuesta; antes se comprobaba además que fuera el mismo form. Con un solo modal y el botón deshabilitado durante el envío no se puede reproducir salvo cerrando y reabriendo mientras se guarda.
+
+## Archivos
+`programas/templates/programas/dispositivos/config/tipo_detail.html`, `programas/tests/test_dispositivos_config.py` (test nuevo), `scripts/design_audit.py` (comentario), `.claude/design/arquetipos/modal.md`.
+
+## Validación
+Tests de configuración y formularios del tipo; mutaciones: sin el listener `becas-saved` y con `_confirm_js.html` en lugar de `_ajax_js.html`, el test nuevo da rojo.
+
+## Reversión
+Desplegar el código anterior.
 
 ## Historial
 - **22/11/2026:** alta del cambio.
