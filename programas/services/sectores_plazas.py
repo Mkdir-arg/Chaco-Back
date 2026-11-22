@@ -262,15 +262,15 @@ def filtro_de_edificio(usuario, dispositivo, pedido):
 
 
 def url_vuelta_a_sectores(request, dispositivo):
-    """La solapa «Sectores y plazas» a la que vuelve una acción, con el filtro «Edificio» que traía el POST.
+    """La solapa «Sectores y plazas» a la que vuelve una acción, con el filtro «Edificio» que traía el pedido.
 
-    El formulario lleva el filtro en el oculto `sectores_edificio`; se valida con `filtro_de_edificio`, así
-    que un valor ajeno o inválido vuelve a «Todos». La URL sigue saliendo de `url_solapa_sectores`.
+    El formulario lleva el filtro en el oculto `sectores_edificio`; las confirmaciones por `data-confirm-url`
+    («Reactivar») no tienen campos y lo llevan en la querystring de su URL. Se valida con `filtro_de_edificio`,
+    así que un valor ajeno o inválido vuelve a «Todos». La URL sigue saliendo de `url_solapa_sectores`.
     """
 
-    edificio_id, _pildoras = filtro_de_edificio(
-        request.user, dispositivo, request.POST.get(PARAM_EDIFICIO_SECTORES, "")
-    )
+    pedido = request.POST.get(PARAM_EDIFICIO_SECTORES) or request.GET.get(PARAM_EDIFICIO_SECTORES, "")
+    edificio_id, _pildoras = filtro_de_edificio(request.user, dispositivo, pedido)
     return url_solapa_sectores(dispositivo.pk, edificio_id)
 
 

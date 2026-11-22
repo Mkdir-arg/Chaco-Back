@@ -10,6 +10,7 @@ from programas.views import dispositivos_formularios as frm
 from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
 from programas.views import dispositivos_relevamientos as relevamientos
+from programas.views import dispositivos_sectores as sectores_views
 from programas.views import reportes
 
 app_name = "dispositivos"
@@ -55,7 +56,7 @@ urlpatterns = [
         name="equipo_quitar_responsable",
     ),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
-    path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
+    path("<int:pk>/sectores/", sectores_views.DispositivoSectoresView.as_view(), name="sectores"),
     # Capacidad instalada (carril C5). Mutan: solo POST. Los modales de las dos altas llegan
     # con `sectores` y los abre el botón; el de la edición, `?sector=<id>` sobre esa pantalla.
     path("<int:pk>/sectores/nuevo/", capacidad.SectorCrearView.as_view(), name="sector_crear"),

@@ -74,7 +74,7 @@ class ReglaGlobalDeHiddenTests(SimpleTestCase):
 
 
 HARNESS = r"""
-const fs = require('fs');
+const fs = require('node:fs');
 const fuente = fs.readFileSync(process.argv[1], 'utf8');
 const configurado = process.argv[2] === 'con-key';
 const oyentes = {};
