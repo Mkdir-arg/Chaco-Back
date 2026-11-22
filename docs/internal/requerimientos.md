@@ -663,6 +663,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 543 | Dispositivos · configuración y formularios (PR-D del relevamiento de diseño): «Cancelar» al editar, interruptores del tipo, JS del legajo en archivos, filtro de localidad como select y exportaciones al menú | Dispositivos · legajo, listado y tipos; Emergencia · «Nuevo caso» (marcador) | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-D) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 542 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -62333,6 +62334,57 @@ Desplegar el código anterior. No hay datos que revertir.
 ## Historial
 - **22/11/2026:** alta del cambio.
 
+---
+
+# Cambio 542 — Dispositivos · ficha y modales con piezas canónicas, y MINOR del #1316
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo, estadía y egreso; Emergencia · Kits del dispositivo |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (PR-C) y MINOR de la auditoría del #1316 |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgos 13 y 14 del relevamiento (modales de la ficha del dispositivo a mano y modal de egreso duplicado) más los MINOR de la auditoría del #1316.
+
+## Alcance acordado
+Solo adherencia, sin clases, JS ni variantes nuevas, sin tocar nombres de campos, validación ni URLs de POST. Fuera de alcance: el hallazgo 9 (glosario
+cama/plaza y «Egresar/Registrar egreso»), decisión del PM. Consultado el archivo vivo por `dispositivos` (Cambios 523, 526, 527, 540): ninguna decisión choca.
+
+## Decisiones tomadas
+- **Recibir entrega de kits:** el submit del formulario (botón o Enter en una cantidad) ya no envía: `@submit` abre el modal si el navegador valida
+  (`reportValidity()`), y el botón es `type="submit"`. `nodo-submit-guard.js` ya suelta la marca si el envío termina cancelado (segunda lectura de `defaultPrevented`).
+- **Título de Kits:** el `h1` dice «Kits» (el `<title>` y el menú «Emergencia · Kits» no cambian).
+- **Egreso:** el cuerpo del modal sale a `dispositivos/_form_egreso.html` (los cinco campos con `_field.html`; «Pertenencias devueltas» como `SwitchInput`
+  en su propia fila, con el label arriba como en el modal de Equipo) y lo incluyen el legajo (P4) y la estadía (P7). Cada pantalla conserva su encabezado, `<form>` y pie.
+- **Edificio y «Vincular un edificio»** pasan a `_field.html` con `wrapper_class=""` (los labels salen del form; mismo asterisco).
+
+## Pendiente
+- **Observar y Rechazar (P4)** conservan su `textarea` a mano: no tienen Form de Django y es el canon de «Confirmación con motivo» del arquetipo Modal.
+- **Hallazgo 9** (glosario) queda para el PM.
+
+## Implementación
+Tests de la guardia movidos a `test_emergencia_kits_guardia_vistas.py` (el original pasaba de 1000 líneas). Aserciones reforzadas, verificadas con mutación:
+tipo del botón y `aria-labelledby` del modal de recepción, «Paso 2 de 3», `window.__becasConfirmJs` en Llegadas y el `h1` de Kits.
+
+## Archivos
+- `programas/templates/programas/dispositivos/_form_egreso.html` (nuevo), `legajo/detail.html`, `estadia/detalle.html`.
+- `programas/templates/programas/emergencia/kits/` (`recibir`, `pendientes`).
+- Fichas: `.claude/design/arquetipos/modal.md` y `.claude/design/componentes/ficha_timeline.md`.
+- Tests: `test_emergencia_kits_vistas.py`, `test_emergencia_kits_guardia_vistas.py` y `test_emergencia_alojar_vistas.py`.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
 # Cambio 543 — Dispositivos · configuración y formularios con piezas canónicas (PR-D del relevamiento de diseño)
 
 🟢 **HECHO — 22/11/2026**
@@ -62348,7 +62400,7 @@ Desplegar el código anterior. No hay datos que revertir.
 | **Migración** | No requiere |
 
 ## Pedido original
-Ocho hallazgos del relevamiento de diseño de Dispositivos (8, 15, 17, 18, 19, 20 y 23): «Cancelar» del legajo, booleanos del tipo,
+Siete hallazgos del relevamiento de diseño de Dispositivos (8, 15, 17, 18, 19, 20 y 23): «Cancelar» del legajo, booleanos del tipo,
 JS inline del legajo, botones del encabezado del listado, filtro «Localidad», marcadores de arquetipo e ícono de «Editar tipo».
 
 ## Alcance acordado
@@ -62367,9 +62419,10 @@ de otro PR abierto (`legajo/detail.html`, `estadia/detalle.html`, Kits).
   «Formulario con asistencia lateral» que la ficha ya documentaba (el `<form>` es contenedor y las tarjetas son sus hijas). «Nuevo caso»
   de Emergencia solo necesitaba nombrar `_field.html`, que se incluye desde el parcial de bloques.
 
+- **«Editar tipo» (23):** el texto vive en `config/_tipo_detail_content.html` y no en `tipo_detail.html`; el ícono se puso ahí.
+
 ## Pendientes / a definir
 - **Hallazgo 16** (cargador de modal y solapas de `tipo_detail.html`): PR aparte.
-- **«Editar tipo» (23)** vive en `config/_tipo_detail_content.html` y no en `tipo_detail.html`; el ícono se puso ahí.
 - **Tres botones de encabezado con tamaños mezclados:** el disparador del menú es `btn-sm` junto al `btn-base` de la acción primaria,
   como en cualquier encabezado que usa `menu_fila` con texto; si se quiere uniforme, es decisión de la ficha de botones.
 

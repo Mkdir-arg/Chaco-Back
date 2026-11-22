@@ -96,6 +96,17 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
 - Panel más ancho cuando suma un bloque de identificadores: `max-w-2xl` en vez de `max-w-[560px]`.
 - Form fuera del panel scrolleable: el `<form id="…">` en el cuerpo y el submit del pie
   apuntándole con `form_id` de `_modal_footer.html`.
+- **Form fuera del panel con confirmación previa**: si el pie envía el form de la página (`form_id`) pero el envío
+  tiene que pasar antes por el modal («Confirmar recepción», `emergencia/kits/recibir.html`), el `<form>` lleva
+  `@submit="if (!modalConfirmar) { $event.preventDefault(); if ($el.reportValidity()) modalConfirmar = true }"` y el
+  botón que abre el modal es `type="submit"`: así Enter en un campo abre el modal igual que el clic, y nunca envía
+  sin confirmar. El submit del pie del modal sí envía (con `modalConfirmar` en `true`).
+- **Cuerpo de «Registrar egreso» compartido**: `programas/templates/programas/dispositivos/_form_egreso.html` es el
+  cuerpo del `<form data-ajax>` (`EgresoForm` con `_field.html`, «Pertenencias devueltas» como `SwitchInput`, formulario
+  del tipo `formulario_egreso` si lo pide, nota de consecuencia). Lo incluyen P4 (`legajo/detail.html`, un modal para
+  todas las filas, con `estadia_egreso` para la línea «Ingreso … · N días») y P7 (`estadia/detalle.html`, sin esa
+  línea). Cada pantalla conserva su encabezado, el `<form>` (URL de POST, `volver`) y el pie; el cuerpo no se copia.
+  Observar y Rechazar (P4) no tienen Form de Django: su `textarea` a mano es el canon de «Confirmación con motivo».
 - Título dinámico Nuevo/Editar: `titulo_x_text` (expresión Alpine) en `_modal_header.html`.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
   overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`. Si el panel llega
