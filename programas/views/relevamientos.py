@@ -19,7 +19,6 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -52,7 +51,7 @@ from programas.services.eliminacion import CAP_RELEVAMIENTO_ELIMINAR
 from programas.services.exportacion_reportes import celda_segura
 from programas.services.listados import PaginadorConConteo, hidratar_pagina
 from programas.services.vencimientos import contar_cerrados_automaticamente
-from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
+from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, destino_seguro, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
 CAP_CONVOCATORIA_CREAR = "becas.convocatoria.crear"
@@ -193,12 +192,7 @@ def _destino_seguro(request, defecto="becas:convocatorias"):
     backoffice —con su sesión recién usada para una acción legítima— hacia afuera.
     Mismo criterio que ``RelevamientoCreateView``.
     """
-    destino = request.POST.get("next") or ""
-    if destino and url_has_allowed_host_and_scheme(
-        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return destino
-    return defecto
+    return destino_seguro(request, defecto)
 
 
 def _rechazar_si_pausado(request, relevamiento):
@@ -820,10 +814,7 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
     def get_success_url(self):
         # "next" permite volver a la pantalla de origen (p. ej. el detalle de la
         # convocatoria cuando se crea desde su modal).
-        next_url = self.request.POST.get("next")
-        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={self.request.get_host()}):
-            return next_url
-        return str(self.success_url)
+        return destino_seguro(self.request, str(self.success_url))
 
 
 def _aviso_cierre_automatico(rel, puede_volver_a_campo):

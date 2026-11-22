@@ -3,7 +3,7 @@
 {% load static nodo_ui %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }} · {{ edificio.nombre }}{% endblock %}
 
-{% block page_css %}{% if sectores_cargados %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endif %}{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
+{% block page_css %}{% if sectores_cargados or equipo_cargado %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endif %}{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
 
 {% block main-content %}
 {# La solapa abierta la normaliza el servicio (`normalizar_solapa`): una que este usuario no tiene cae en la de siempre #}
@@ -120,7 +120,8 @@
           <span class="badge" :class="tab==='kits' ? 'badge-info' : 'badge-gray'">{{ contadores.kits }}</span>
         </button>
         {% endif %}
-        <button @click="tab='equipo'" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo"
+        {# El Equipo se arma solo con la solapa abierta (`equipo_cargado`): si no vino, el botón navega a ella #}
+        <button @click="{% if equipo_cargado %}tab='equipo'{% else %}window.location.href='{{ url_solapa_equipo|escapejs }}'{% endif %}" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo" {% if not equipo_cargado %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='equipo'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='equipo' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -162,7 +163,8 @@
       </div>
       {% endif %}
 
-      <div x-show="tab==='equipo'" x-cloak role="tabpanel" id="panel-equipo" aria-labelledby="tab-equipo" class="p-5">
+      {# Sin `p-5`: la barra y la tabla del Equipo van de borde a borde, como en el diseño #}
+      <div x-show="tab==='equipo'" x-cloak role="tabpanel" id="panel-equipo" aria-labelledby="tab-equipo">
         {% include "programas/dispositivos/edificios/operativo/_equipo.html" %}
       </div>
 
@@ -180,8 +182,8 @@
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}
-{# Sectores y Estadías comparten el AJAX de sus modales y `becas-modal.js`; el egreso suma los scripts de su formulario #}
-{% if sectores_cargados or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
+{# Sectores, Equipo y Estadías comparten el AJAX de sus modales y `becas-modal.js`; el egreso suma los scripts de su formulario #}
+{% if sectores_cargados or equipo_cargado or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endif %}
-{% if sectores_cargados %}<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endif %}
+{% if sectores_cargados or equipo_cargado %}<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endif %}
 {% include "programas/dispositivos/legajo/_estadia_modales_js.html" %}{% endblock %}

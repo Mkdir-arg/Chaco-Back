@@ -26,6 +26,7 @@ contador, una.
 from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.utils.text import Truncator
 
 from core.rbac import puede
@@ -49,6 +50,11 @@ from programas.services.dispositivos import (
 )
 from programas.services.edificios import admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
+from programas.services.equipo_dispositivo import (
+    edificios_donde_agregar_persona,
+    equipo_del_edificio,
+    permisos_del_equipo,
+)
 from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, CAP_VER_CIUDADANO, puede_ingresar_persona
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import edificios_para_asignar, inspecciones_visibles
@@ -136,6 +142,34 @@ def _estado_edilicio(user, edificio):
         else:
             detalle = f"Relevado el {fecha}"
     return {"texto": estado["texto"], "tono": estado["tono"], "detalle": detalle}
+
+
+def _contexto_equipo(user, dispositivo, edificio, url_pagina):
+    """Lo propio del panel Equipo (solo con su solapa abierta): filas, quién gestiona, adónde vuelve cada una y qué ofrece.
+
+    Cada fila trae ``url_cambiar_alcance`` (modal por URL, como en la ficha de la institución). Las acciones con
+    confirmación (baja, responsable) vuelven a esta solapa con ``?next=``; los modales, con ``next_url``.
+    """
+
+    permisos = permisos_del_equipo(user, dispositivo)
+    equipo = equipo_del_edificio(dispositivo, edificio.pk, permisos)
+    volver = f"{url_pagina}?tab=equipo"
+    if permisos.gestiona:
+        for miembro in equipo:
+            if miembro.puede_cambiar_alcance:
+                consulta = urlencode({"tab": "equipo", "equipo": "alcance", "miembro": miembro.pk})
+                miembro.url_cambiar_alcance = f"{url_pagina}?{consulta}"
+    donde = edificios_donde_agregar_persona(None, dispositivo, permisos)
+    puede_sumar = donde is None or edificio.pk in donde
+    return {
+        "equipo": equipo,
+        "permisos_equipo": permisos,
+        "puede_gestionar_equipo": permisos.gestiona,
+        "puede_sumar_persona": puede_sumar,
+        "url_equipo_sumar_modal": f"{url_pagina}?tab=equipo&equipo=sumar",
+        "next_url": volver,
+        "query_volver": "?" + urlencode({"next": volver}),
+    }
 
 
 def _nombre(usuario):
@@ -236,7 +270,8 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         conteo = ocupacion_de_plazas(dispositivo, q_sectores=Q(edificio_id=edificio.pk)).de(dispositivo).conteo
         indicadores = indicadores_de_plazas(conteo, tipo=dispositivo.tipo)
 
-    # Una fila sin alcance cargado vale «toda la institución»; los responsables van primero.
+    # Una fila sin alcance cargado vale «toda la institución»; los responsables van primero. Alimenta el contador y la
+    # franja «Equipo en turno», que se ven con cualquier solapa abierta.
     equipo = miembros_del_edificio(dispositivo, edificio.pk)
     estado = _estado_edilicio(user, edificio)
     disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
@@ -250,7 +285,7 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
     url_institucion = reverse("dispositivos:detalle", args=[dispositivo.pk])
     tab = normalizar_solapa(tab_pedida, disponibles)
     url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
-    return {
+    contexto = {
         "dispositivo": dispositivo,
         "edificio": edificio,
         "maneja_plazas": con_plazas,
@@ -258,6 +293,10 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         # El mapa de plazas se arma solo con su solapa abierta: si no vino, el botón de la solapa navega a ella.
         "sectores_cargados": con_plazas and tab == "sectores",
         "url_solapa_sectores": f"{url_pagina}?tab=sectores",
+        # Lo propio del panel Equipo (permisos, edificios de las filas, modales) se arma solo con su solapa abierta:
+        # si no vino, el botón de la solapa navega a ella. El contador y la franja usan la lista corta de arriba.
+        "equipo_cargado": tab == "equipo",
+        "url_solapa_equipo": f"{url_pagina}?tab=equipo",
         "solapas": disponibles,
         "url_institucion": url_institucion,
         "migas": [
@@ -289,6 +328,9 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         },
         **acciones,
     }
+    if tab == "equipo":
+        contexto.update(_contexto_equipo(user, dispositivo, edificio, url_pagina))
+    return contexto
 
 
 def q_estadias_del_edificio(edificio):
