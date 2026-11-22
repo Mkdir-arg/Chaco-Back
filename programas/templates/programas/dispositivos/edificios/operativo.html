@@ -127,7 +127,8 @@
           <i class="fas fa-people-group" aria-hidden="true"></i> Equipo
           <span class="badge" :class="tab==='equipo' ? 'badge-info' : 'badge-gray'">{{ contadores.equipo }}</span>
         </button>
-        <button @click="tab='edilicio'" type="button" role="tab" id="tab-edilicio" aria-controls="panel-edilicio"
+        {# El panel se arma solo con la solapa abierta (`edilicio_cargado`): si no vino, el botón navega a ella #}
+        <button @click="{% if edilicio_cargado %}tab='edilicio'{% else %}window.location.href='{{ url_solapa_edilicio|escapejs }}'{% endif %}" type="button" role="tab" id="tab-edilicio" aria-controls="panel-edilicio" {% if not edilicio_cargado %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='edilicio'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='edilicio' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -166,7 +167,7 @@
         {% include "programas/dispositivos/edificios/operativo/_equipo.html" %}
       </div>
 
-      <div x-show="tab==='edilicio'" x-cloak role="tabpanel" id="panel-edilicio" aria-labelledby="tab-edilicio" class="p-5">
+      <div x-show="tab==='edilicio'" x-cloak role="tabpanel" id="panel-edilicio" aria-labelledby="tab-edilicio">
         {% include "programas/dispositivos/edificios/operativo/_edilicio.html" %}
       </div>
 
