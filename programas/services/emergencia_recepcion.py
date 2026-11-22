@@ -38,6 +38,8 @@ from programas.services.emergencia_ingreso_comun import (
     _reservar_camas,
     _resumen_de_reservas,
     mensaje_vencida,
+    puede_avisar_a_la_mesa,
+    puede_ingresar_igual,
 )
 from programas.services.estadias import verificar_alojamiento_en_red
 from programas.services.ingreso import buscar_ciudadano_por_dni
@@ -82,6 +84,10 @@ class ResultadoBusqueda:
     * ``mensaje`` — el texto para la pantalla (RU-20). Nunca nombra un dispositivo que quien
       busca no opera.
     * ``dni`` — el DNI buscado, normalizado.
+    * ``puede_ingresar_igual`` / ``puede_avisar_a_la_mesa`` — solo con ``SIN_DERIVACION`` (en los
+      otros, ``False``): si quien busca tiene el alcance para cada botón (:func:`puede_ingresar_igual`
+      exige la institución entera; :func:`puede_avisar_a_la_mesa`, admitir con cualquier alcance).
+      «Ingresar igual» además necesita ``plazas_libres ≥ 1``: eso no lo mira la bandera.
     """
 
     resultado: str
@@ -93,6 +99,8 @@ class ResultadoBusqueda:
     alojada_en: str = ""
     alojada_desde: datetime | None = None
     mensaje: str = ""
+    puede_ingresar_igual: bool = False
+    puede_avisar_a_la_mesa: bool = False
 
 
 @dataclass(frozen=True)
@@ -144,7 +152,7 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     libres = len(camas_libres(dispositivo, usuario=usuario))
     ciudadano = buscar_ciudadano_por_dni(dni)
     if ciudadano is None:
-        return ResultadoBusqueda(BUSQUEDA_SIN_DERIVACION, dni, plazas_libres=libres, mensaje=SIN_DERIVACION)
+        return _sin_derivacion(usuario, dispositivo, dni, libres, SIN_DERIVACION)
 
     de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     derivacion = (
@@ -198,7 +206,20 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
         .first()
     )
     mensaje = mensaje_vencida(vencida) if vencida is not None else SIN_DERIVACION
-    return ResultadoBusqueda(BUSQUEDA_SIN_DERIVACION, dni, plazas_libres=libres, mensaje=mensaje)
+    return _sin_derivacion(usuario, dispositivo, dni, libres, mensaje)
+
+
+def _sin_derivacion(usuario, dispositivo, dni, libres, mensaje):
+    """El resultado ``SIN_DERIVACION``, con lo que quien busca puede hacer en la puerta (hallazgo 4)."""
+
+    return ResultadoBusqueda(
+        BUSQUEDA_SIN_DERIVACION,
+        dni,
+        plazas_libres=libres,
+        mensaje=mensaje,
+        puede_ingresar_igual=puede_ingresar_igual(usuario, dispositivo),
+        puede_avisar_a_la_mesa=puede_avisar_a_la_mesa(usuario, dispositivo),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +247,8 @@ def aceptar_derivacion(*, derivacion, usuario):
       ``VENCIDA``** (RN-3.3): la familia está en la puerta. Quien tome primero el candado
       del caso —esta función o ``vencer_derivacion``— gana, y el otro ve el estado nuevo.
     * Elige sola las camas (``selectors.emergencia_alojar.camas_libres``: el sector con más
-      libres primero, por código) y reserva **hasta** ``plazas_pedidas`` con
+      libres primero, por código), **solo del edificio de la derivación** si tiene uno, y
+      reserva **hasta** ``plazas_pedidas`` con
       ``reservas_derivacion.reservar_plazas_de_derivacion``, todo o nada. Menos camas que las pedidas es
       válido y se avisa («Reservé 5 de 7 · faltan 2 camas»); con **0 libres** no se acepta
       (``ValidationError``): se rechaza con motivo o se liberan camas.
@@ -249,7 +271,9 @@ def aceptar_derivacion(*, derivacion, usuario):
     derivacion = _bloquear_derivacion(derivacion.pk, caso, dispositivo)
     _exigir_pendiente(caso, derivacion)
 
-    libres = camas_libres(dispositivo, usuario=usuario)
+    # Solo camas del edificio derivado: la guardia de ese edificio tiene que poder seguir el ingreso.
+    # Si no alcanzan, no se completa con otro edificio: faltan.
+    libres = camas_libres(dispositivo, usuario=usuario, edificio_id=derivacion.edificio_id)
     if not libres:
         raise ValidationError({"plazas": SIN_PLAZAS_PARA_ACEPTAR})
 

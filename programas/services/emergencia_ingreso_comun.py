@@ -80,6 +80,26 @@ def _exigir_alcance(usuario, dispositivo, derivacion=None, *, institucion=False)
         raise PermissionDenied(SIN_ALCANCE)
 
 
+def puede_ingresar_igual(usuario, dispositivo):
+    """¿Puede hacer «Ingresar igual» (el ingreso directo) en ``dispositivo``? Sin mirar camas.
+
+    Exige alcance sobre **toda la institución**: el ingreso directo no cuelga de una derivación a un
+    edificio. La regla que aplican el servicio, la pantalla de Llegadas y la API (``buscar``).
+    """
+
+    return dispositivo is not None and puede_operar_institucion(usuario, dispositivo, CAP_ADMITIR)
+
+
+def puede_avisar_a_la_mesa(usuario, dispositivo):
+    """¿Puede «Avisar a la mesa» desde ``dispositivo``? Alcanza con admitir en él, con cualquier alcance.
+
+    Con alcance Edificios también (relevamiento del 22/11/2026, hallazgo 4): el aviso no reserva
+    nada ni toca un edificio, solo le pasa a la mesa la familia que está en la puerta.
+    """
+
+    return dispositivo is not None and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+
+
 def _dispositivo_de(derivacion, usuario):
     """El dispositivo de la derivación, con su tipo, **si quien pregunta lo opera**.
 
