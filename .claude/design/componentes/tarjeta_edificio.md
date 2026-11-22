@@ -32,7 +32,7 @@ abre a una ficha usa ésta.
 
 ```django
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=url_ver url_editar=url_editar url_desvincular=url_desvincular only %}
+  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=url_ver url_editar=url_editar url_desvincular=url_desvincular url_agregar_persona=url_agregar_persona only %}
 </div>
 ```
 
@@ -42,9 +42,10 @@ abre a una ficha usa ésta.
 | `url_ver` | Obligatorio. La ficha del edificio: título, ítem «Ver» del ⋮ y pie. La arma el servicio (`edificio.url_ver`) |
 | `url_editar` | Opcional (vacía = sin «Editar edificio»). El servicio la manda solo con `dispositivo.editar` |
 | `url_desvincular` | Opcional (vacía = sin «Desvincular»); confirma con `data-confirm-url` (ModernModal) |
+| `url_agregar_persona` | Opcional (vacía = sin «Agregar persona al edificio»). Abre el alta del Equipo con este edificio fijo; el servicio la manda solo donde el servidor acepta el alta (Cambio 556) |
 
 Claves de `edificio`: `pk`, `nombre`, `codigo`, `domicilio`, `estado` (`texto`, `tono`), `aviso` (`texto`, `tono`
-o `None`), `fecha_texto`, `observacion` (vacía = no se dibuja), `predio`, `sectores_texto`, `conteo`, `con_conteo`. El servicio también deja en la fila `url_ver`, `url_editar` y `url_desvincular`: el template del
+o `None`), `fecha_texto`, `observacion` (vacía = no se dibuja), `predio`, `sectores_texto`, `conteo`, `con_conteo`. El servicio también deja en la fila `url_ver`, `url_editar`, `url_desvincular` y `url_agregar_persona`: el template del
 consumidor no concatena URL.
 
 ## Reglas

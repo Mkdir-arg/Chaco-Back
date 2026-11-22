@@ -344,6 +344,11 @@ class AgregarPersonaAlEdificioTests(BaseSelector):
         self.assertFalse(MiembroEquipoDispositivo.objects.filter(usuario=self.ana).exists())
         self.assertEqual(self._agregar(self.resp_ed, edificio=self.ed1).status_code, 200)
 
+    def test_el_responsable_no_le_suma_un_edificio_ajeno_a_quien_ya_esta_en_los_suyos(self):
+        self._agregar(self.resp_ed, edificio=self.ed1)
+        self.assertEqual(self._agregar(self.resp_ed, edificio=self.ed2).status_code, 403)
+        self.assertEqual(self._ids(self._fila_de_ana()), {self.ed1.pk})
+
     def test_un_edificio_de_otra_institucion_se_rechaza(self):
         respuesta = self._agregar(edificio=self.ed_ajeno)
         self.assertEqual(respuesta.status_code, 400)

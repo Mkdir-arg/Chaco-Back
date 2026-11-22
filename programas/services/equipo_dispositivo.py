@@ -18,7 +18,7 @@ simultáneas no pueden dejarlo sin responsables.
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import BooleanField, Case, Value, When
+from django.db.models import BooleanField, Case, Prefetch, Value, When, prefetch_related_objects
 
 from core import rbac
 from programas.services.dispositivos import (
@@ -656,12 +656,12 @@ def equipo_del_dispositivo(dispositivo, actor=None):
     """Los miembros activos del Equipo para la solapa, con ``vigente`` (el rol todavía vale) y su alcance en texto.
 
     «Vigente» es ``q_membresia_vigente``, la misma definición que usan el alcance y la gestión del Equipo, anotada
-    sobre cada fila. Los edificios de todas las filas se leen con **un** ``prefetch``, vengan 3 miembros o 300. Cada
+    sobre cada fila. Los edificios de todas las filas se leen con **un** ``prefetch`` (y ninguno si nadie tiene alcance Edificios), vengan 3 miembros o 300. Cada
     fila trae ``alcance_texto`` (solo los edificios que siguen vinculados) y, si se pasa ``actor``, ``puede_cambiar_alcance``:
     lo que el servidor le va a aceptar (RN6), para no ofrecer lo que rechaza.
     """
 
-    from programas.models import MiembroEquipoDispositivo
+    from programas.models import Edificio, MiembroEquipoDispositivo
 
     Alcance = MiembroEquipoDispositivo.Alcance
     vigente = Case(
@@ -672,20 +672,24 @@ def equipo_del_dispositivo(dispositivo, actor=None):
     miembros = list(
         MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True)
         .select_related("usuario", "rol__meta")
-        .prefetch_related("edificios")
         .annotate(vigente=vigente)
         .order_by("-es_responsable", "usuario__last_name", "usuario__first_name", "usuario__username", "rol__name")
     )
-    vinculados = set(dispositivo.edificios.values_list("pk", flat=True))
+    # Los edificios de todas las filas en una sola consulta (solo los que siguen vinculados), y ninguna si nadie
+    # tiene alcance Edificios: el detalle de siempre cuesta lo mismo.
+    con_edificios = [m for m in miembros if m.alcance == Alcance.EDIFICIOS]
+    if con_edificios:
+        prefetch_related_objects(
+            con_edificios, Prefetch("edificios", queryset=Edificio.objects.filter(dispositivos=dispositivo))
+        )
     propios = _edificios_que_gestiona(actor, dispositivo) if actor is not None else None
     for miembro in miembros:
         miembro.persona = nombre_de_persona(miembro.usuario)
-        vigentes = sorted((e for e in miembro.edificios.all() if e.pk in vinculados), key=lambda e: (e.nombre, e.pk))
         if miembro.alcance == Alcance.EDIFICIOS:
+            vigentes = sorted(miembro.edificios.all(), key=lambda e: (e.nombre, e.pk))
             miembro.alcance_texto = ", ".join(e.nombre for e in vigentes) or "Sin edificios vigentes"
+            miembro.puede_cambiar_alcance = propios is None or {e.pk for e in vigentes} <= propios
         else:
             miembro.alcance_texto = Alcance.INSTITUCION.label
-        miembro.puede_cambiar_alcance = propios is None or (
-            miembro.alcance == Alcance.EDIFICIOS and {e.pk for e in miembro.edificios.all()} <= propios
-        )
+            miembro.puede_cambiar_alcance = propios is None
     return miembros
