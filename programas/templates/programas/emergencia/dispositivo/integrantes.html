@@ -73,6 +73,14 @@ el ingreso piden motivo y son el arquetipo Modal con POST clásico.{% endcomment
                 {% if fila.confirmada or en_curso %}
                 <a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="{{ fila.accion }}: {{ fila.rotulo }}"><i class="fas {% if fila.confirmada %}fa-file-pen{% else %}fa-user-check{% endif %}" aria-hidden="true"></i></a>
                 {% endif %}
+                {% if fila.url_quitar %}
+                <button type="button" class="nodo-icon-btn nodo-icon-btn--danger" aria-label="Quitar a la persona {{ fila.n }}: {{ fila.rotulo }}"
+                        data-confirm-url="{{ fila.url_quitar }}"
+                        data-confirm-title="¿Quitar a la persona {{ fila.n }}?"
+                        data-confirm-text="Se agregó en la puerta y todavía no ingresó. Se quita de la familia y el total baja en uno."
+                        data-confirm-ok="Sí, quitar"
+                        data-confirm-danger="true"><i class="fas fa-user-minus" aria-hidden="true"></i></button>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}

@@ -45,6 +45,7 @@ from programas.api.serializers_emergencia import (
     FichaCompletadaSerializer,
     IntegranteAgregadoSerializer,
     IntegranteDetalleSerializer,
+    IntegranteQuitadoSerializer,
     IntegrantesDelCasoSerializer,
     MapaDePlazasSerializer,
     RechazarDerivacionEnvioSerializer,
@@ -353,6 +354,40 @@ class IntegranteView(_VistaDeLlegadas):
             "secciones_incompletas": servicio_alojar.secciones_incompletas(integrante.ficha),
         }
         return Response(FichaCompletadaSerializer(cuerpo).data)
+
+
+class QuitarIntegranteView(_VistaDeLlegadas):
+    @extend_schema(
+        request=None,
+        responses={
+            200: IntegranteQuitadoSerializer,
+            400: _400(
+                "`orden`: solo se quita a quien se agregó en la puerta y todavía no ingresó (no el responsable, no las "
+                "personas del Formulario 1, no una ya confirmada), o la persona no es de la familia."
+            ),
+            401: _SIN_TOKEN,
+            403: _SIN_ADMITIR,
+            404: _AJENO,
+            409: _CAMBIO,
+        },
+        description=(
+            "Deshace «Agregar persona»: quita la fila agregada por error y `total_declarado` baja en uno. Sin cuerpo. "
+            "Idempotente: repetirlo contesta 200 con `ya_estaba_quitada` en `true`. Solo con el ingreso en curso."
+        ),
+    )
+    def post(self, request, pk, n):
+        caso, _derivacion = self._ingreso(request, pk)
+        quitada, respuesta = self._ejecutar(
+            lambda: servicio_alojar.quitar_integrante(caso=caso.pk, orden=n, usuario=request.user)
+        )
+        if respuesta is not None:
+            return respuesta
+        cuerpo = {
+            "n": quitada.orden,
+            "total_declarado": quitada.total_declarado,
+            "ya_estaba_quitada": quitada.ya_estaba,
+        }
+        return Response(IntegranteQuitadoSerializer(cuerpo).data)
 
 
 class ConfirmarIntegranteView(_VistaDeLlegadas):

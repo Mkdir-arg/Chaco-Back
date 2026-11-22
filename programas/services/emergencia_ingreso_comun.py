@@ -298,11 +298,16 @@ def _filas_de(grupo):
 def _asegurar_filas(grupo):
     """Deja una fila de ``IntegranteGrupo`` por cada persona declarada (1 a N). Devuelve todas.
 
-    Solo crea las que faltan: una familia que vuelve de un ingreso cancelado ya tiene las suyas.
+    Solo crea las que faltan: una familia que vuelve de un ingreso cancelado ya tiene las suyas. Cuenta filas, no
+    números: «Quitar persona» deja un hueco en la numeración y ese hueco no es una persona más.
     """
 
     existentes = set(IntegranteGrupo.objects.filter(grupo_id=grupo.pk).values_list("orden", flat=True))
-    faltan = [orden for orden in range(1, grupo.total_declarado + 1) if orden not in existentes]
+    cuantas, faltan, orden = max(grupo.total_declarado - len(existentes), 0), [], 0
+    while len(faltan) < cuantas:
+        orden += 1
+        if orden not in existentes:
+            faltan.append(orden)
     if faltan:
         IntegranteGrupo.objects.bulk_create([IntegranteGrupo(grupo=grupo, orden=orden) for orden in faltan])
     return _filas_de(grupo)

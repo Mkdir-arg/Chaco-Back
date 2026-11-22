@@ -382,7 +382,8 @@ def integrantes_de(caso):
     """
 
     grupo = caso.grupo
-    integrantes = [_fila_de_integrante(fila) for fila in _filas_de_la_familia(grupo.pk)]
+    en_curso = caso.estado == CasoEmergencia.Estado.INGRESO_EN_CURSO
+    integrantes = [_fila_de_integrante(fila, en_curso) for fila in _filas_de_la_familia(grupo.pk)]
     return {
         "integrantes": integrantes,
         "confirmadas": sum(1 for fila in integrantes if fila["estado"] != INTEGRANTE_SIN_CONFIRMAR),
@@ -420,7 +421,7 @@ def integrante_de(caso, n):
     if fila.orden == 1 and not fila.confirmada and not ficha:
         ficha = ficha_precargada_del_responsable(fila.grupo.responsable, caso)
     return {
-        **_fila_de_integrante(fila),
+        **_fila_de_integrante(fila, caso.estado == CasoEmergencia.Estado.INGRESO_EN_CURSO),
         "ficha": ficha,
         "secciones_incompletas": secciones_incompletas(ficha),
         "identidad_a_revisar": caso.identidad_pendiente if fila.orden == 1 else None,
@@ -469,8 +470,12 @@ def _filas_de_la_familia(grupo_pk):
     )
 
 
-def _fila_de_integrante(fila):
-    """Una fila de la familia como la leen M2-3 y E6-integrantes. Sin consultas."""
+def _fila_de_integrante(fila, ingreso_en_curso=False):
+    """Una fila de la familia como la leen M2-3 y E6-integrantes. Sin consultas.
+
+    ``puede_quitarse``: la sumó la guardia con «Agregar persona», sigue sin confirmar y el ingreso está en curso
+    (la regla de ``services.emergencia_confirmacion.quitar_integrante``; el alcance lo exige la vista o el servicio).
+    """
 
     if not fila.confirmada:
         estado = INTEGRANTE_SIN_CONFIRMAR
@@ -506,6 +511,7 @@ def _fila_de_integrante(fila):
         "confirmada_en": fila.confirmada_en,
         "egresado_en": fila.egresado_en,
         "estadia_id": fila.estadia_id,
+        "puede_quitarse": ingreso_en_curso and not fila.confirmada and fila.agregada_en_la_puerta,
     }
 
 

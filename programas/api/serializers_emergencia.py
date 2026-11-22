@@ -429,7 +429,9 @@ _IDENTIDAD_A_REVISAR_HELP = (
 class IntegranteSerializer(serializers.Serializer):
     """Una fila de M2-3 («Persona 3 · sin confirmar» o «Pérez, Juan · cama B-12 · ficha incompleta»)."""
 
-    n = serializers.IntegerField(help_text="Número de la persona en la familia (1 a `total_declarado`). Va en la URL.")
+    n = serializers.IntegerField(
+        help_text="Número de la persona en la familia (puede haber huecos si se quitó una agregada). Va en la URL."
+    )
     estado = serializers.CharField(help_text="`SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA`.")
     ficha_completa = serializers.BooleanField(help_text="Secciones 4 a 8 con algún dato o «sin datos».")
     persona = PersonaDelIntegranteSerializer(allow_null=True, help_text="`null` hasta que se confirma.")
@@ -444,6 +446,13 @@ class IntegranteSerializer(serializers.Serializer):
     parentesco = serializers.CharField(help_text="Rótulo del parentesco; vacío sin confirmar.")
     confirmada_en = serializers.DateTimeField(allow_null=True)
     egresado_en = serializers.DateTimeField(allow_null=True)
+    puede_quitarse = serializers.BooleanField(
+        help_text=(
+            "`true` si la persona se agregó en la puerta con «Agregar persona», sigue sin confirmar y el ingreso "
+            "está en curso: se puede quitar con `…/integrantes/{n}/quitar/`. Nunca el responsable ni las personas "
+            "del Formulario 1."
+        )
+    )
 
 
 class IntegranteDetalleSerializer(IntegranteSerializer):
@@ -673,6 +682,14 @@ class AgregarIntegranteEnvioSerializer(serializers.Serializer):
 class IntegranteAgregadoSerializer(serializers.Serializer):
     integrante = IntegranteSerializer()
     total_declarado = serializers.IntegerField()
+
+
+class IntegranteQuitadoSerializer(serializers.Serializer):
+    n = serializers.IntegerField(help_text="El número de la persona quitada.")
+    total_declarado = serializers.IntegerField(help_text="Las filas de la familia que quedan.")
+    ya_estaba_quitada = serializers.BooleanField(
+        help_text="`true` si era un reenvío: esa persona ya se había quitado y no se tocó nada."
+    )
 
 
 def _derivacion_vista():
