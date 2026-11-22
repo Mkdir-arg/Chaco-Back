@@ -16,6 +16,7 @@ Va bajo `reubicar` y no en `form_cambio`: en la ficha esa clave abre el modal «
   <form method="post" action="{{ reubicar.url }}" data-ajax class="flex flex-col flex-1 min-h-0">
     {% csrf_token %}
     {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+    {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
     <input type="hidden" name="volver" value="sectores">
     {% include "programas/dispositivos/_form_cambio_plaza.html" with form_cambio=reubicar.form es_asignacion=False %}
     {% include "programas/becas/_modal_footer.html" with cancelar="modalReubicar=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
