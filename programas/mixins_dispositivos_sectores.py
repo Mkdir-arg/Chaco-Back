@@ -306,7 +306,9 @@ class SectoresPlazasMixin:
         # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
         # porque convive con «Editar sector», que es el mismo formulario.
         if context["puede_ampliar_capacidad"]:
-            context["form_sector_nuevo"] = SectorForm(dispositivo=dispositivo, auto_id="id_nuevo_%s")
+            context["form_sector_nuevo"] = SectorForm(
+                dispositivo=dispositivo, auto_id="id_nuevo_%s", initial={"edificio": self._edificio_fijo_id()}
+            )
             context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
         pedido = self.request.GET.get(self.param_editar_sector, "")
         # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese

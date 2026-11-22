@@ -91,7 +91,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
     {# ===== Barra: cifras y acciones. El encabezado lo pone la pantalla que incluye este cuerpo ===== #}
     <div class="flex items-center justify-between gap-3 flex-wrap">
       {# En la pantalla suelta las cifras van en la bajada del encabezado #}
-      {% if en_solapa %}<p class="text-xs text-body-subtle">{% include "programas/dispositivos/sectores/_totales.html" %}</p>{% endif %}
+      {% if en_solapa %}<p class="text-xs text-body-subtle">{% include "programas/dispositivos/sectores/_totales.html" with breve=edificio_fijo %}</p>{% endif %}
       <div class="flex items-center gap-2 flex-wrap ml-auto">
         {% if ver_inactivos %}
         <a href="?{{ qs_sectores }}" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-eye-slash" aria-hidden="true"></i> Ocultar inactivos</a>
@@ -128,7 +128,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
           <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if not edificio_fijo %} · {{ item.edificio_nombre }}{% endif %}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
-          <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.prestadas }} prestada{{ item.resumen.prestadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% if item.resumen.porcentaje is not None %} · {{ item.resumen.porcentaje }} %{% endif %}</p>
+          <p class="text-xs text-body-subtle mt-1">{% if edificio_fijo %}{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% else %}{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.prestadas }} prestada{{ item.resumen.prestadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% if item.resumen.porcentaje is not None %} · {{ item.resumen.porcentaje }} %{% endif %}{% endif %}</p>
         </div>
         {% if puede_configurar_plazas %}
         <a href="?{{ qs_sectores }}{{ param_editar_sector }}={{ item.sector.pk }}" class="btn-nodo btn-secondary btn-sm btn-fit">
@@ -148,9 +148,17 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
     {% empty %}
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
       {% if puede_ampliar_capacidad %}
+      {% if edificio_fijo %}
+      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este edificio no tiene sectores" texto="Un sector es cómo este edificio ordena su capacidad: una habitación, un pabellón, un servicio o un turno. Las plazas se agregan adentro de uno." accion_click="modalSectorNuevo=true" accion_texto="Nuevo sector" accion_icono="fa-plus" %}
+      {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Un sector es cómo la institución ordena su capacidad: una habitación, un pabellón, un servicio o un turno. Las plazas se agregan adentro de uno." accion_click="modalSectorNuevo=true" accion_texto="Nuevo sector" accion_icono="fa-plus" %}
+      {% endif %}
+      {% else %}
+      {% if edificio_fijo %}
+      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este edificio no tiene sectores" texto="Cuando se carguen los sectores de este edificio, cada uno aparece acá con su mapa de plazas." %}
       {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
+      {% endif %}
       {% endif %}
     </div>
     {% endfor %}
@@ -168,7 +176,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
         <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
           <div class="min-w-0">
             <p class="text-sm font-semibold text-heading">{{ inactivo.nombre }}{% if inactivo.perfil %} · {{ inactivo.perfil }}{% endif %}</p>
-            <p class="text-xs text-body-subtle mt-1">{{ inactivo.get_tipo_display }} · {{ inactivo.edificio_nombre }} · {{ inactivo.cantidad_plazas }} plaza{{ inactivo.cantidad_plazas|pluralize }}</p>
+            <p class="text-xs text-body-subtle mt-1">{{ inactivo.get_tipo_display }}{% if not edificio_fijo %} · {{ inactivo.edificio_nombre }}{% endif %} · {{ inactivo.cantidad_plazas }} plaza{{ inactivo.cantidad_plazas|pluralize }}</p>
           </div>
           {% if puede_configurar_plazas %}
           <div class="flex items-center gap-2 flex-wrap">

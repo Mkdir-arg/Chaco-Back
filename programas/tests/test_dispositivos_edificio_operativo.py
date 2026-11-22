@@ -20,8 +20,10 @@ from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from legajos.models import Ciudadano
 from programas.models import Dispositivo, Edificio, Plaza, Sector
 from programas.services.sectores_plazas import url_solapa_sectores
+from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, _local
 from programas.tests.test_equipo_alcance_edificio import Alcance, BaseAlcance
 
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
@@ -313,27 +315,93 @@ class SectoresSolapaTests(BaseOperativo):
                 self.assertNotIn("plaza_inicial", respuesta.context)
                 self.assertNotIn("plaza_accion", respuesta.context)
 
-    def test_el_fragmento_de_reubicar_es_solo_de_este_edificio(self):
-        self.client.force_login(self.de_inst)
-        url = self._url(self.edif_a)
+    def _ocupar_b(self):
+        """Una persona en la plaza de B: ocupada ofrece reubicar, así que el fragmento solo se frena por el edificio."""
 
-        propio = self.client.get(url, {"plaza": self.plaza_a.pk, "fragmento": "reubicar"}, **AJAX)
+        persona = Ciudadano.objects.create(dni="30555666", nombre="Eva", apellido="Soto")
+        self._ingresar(persona, self.plaza_b, _local(MARTES, 11))
+
+    def test_el_fragmento_de_reubicar_es_solo_de_este_edificio(self):
+        self._ocupar_b()
+        self.client.force_login(self.de_inst)
+        pedido = {"fragmento": "reubicar"}
+
+        # La plaza ocupada de B es accionable para `de_inst`: en su edificio abre, en el A es 404.
+        en_b = self.client.get(self._url(self.edif_b), {**pedido, "plaza": self.plaza_b.pk}, **AJAX)
+        self.assertEqual(en_b.status_code, 200)
+        en_a = self.client.get(self._url(self.edif_a), {**pedido, "plaza": self.plaza_b.pk}, **AJAX)
+        self.assertEqual(en_a.status_code, 404)
+
+        propio = self.client.get(self._url(self.edif_a), {**pedido, "plaza": self.plaza_a.pk}, **AJAX)
         self.assertEqual(propio.status_code, 200)
         self.assertTemplateUsed(propio, "programas/dispositivos/sectores/_modal_reubicar.html")
         self.assertContains(propio, 'name="next"')
 
-        for plaza in (self.libre_b, self.plaza_otra):
-            with self.subTest(plaza=plaza.codigo):
-                ajeno = self.client.get(url, {"plaza": plaza.pk, "fragmento": "reubicar"}, **AJAX)
-                self.assertEqual(ajeno.status_code, 404)
+    def test_el_fragmento_de_una_plaza_de_otra_institucion_es_404(self):
+        self.client.force_login(self.de_inst)
+
+        respuesta = self.client.get(
+            self._url(self.edif_a), {"plaza": self.plaza_otra.pk, "fragmento": "reubicar"}, **AJAX
+        )
+
+        self.assertEqual(respuesta.status_code, 404)
 
     def test_el_fragmento_no_salta_el_alcance_del_edificio(self):
-        # `de_a` no alcanza el edificio B: la página es un 404 también para el fragmento.
+        # `de_a` no alcanza el edificio B: la página es un 404 también para el fragmento, aunque la plaza esté ocupada.
+        self._ocupar_b()
         self.client.force_login(self.de_a)
 
         respuesta = self.client.get(self._url(self.edif_b), {"plaza": self.plaza_b.pk, "fragmento": "reubicar"}, **AJAX)
 
         self.assertEqual(respuesta.status_code, 404)
+
+    def test_el_fragmento_de_un_edificio_desvinculado_es_404_aunque_la_plaza_sea_accionable(self):
+        # Solo el chequeo del edificio lo frena: `de_inst` sí opera la plaza ocupada de B (la sirve en su página).
+        self._ocupar_b()
+        self.client.force_login(self.de_inst)
+        pedido = {"plaza": self.plaza_b.pk, "fragmento": "reubicar"}
+        self.assertEqual(self.client.get(self._url(self.edif_b), pedido, **AJAX).status_code, 200)
+
+        self.edif_b.dispositivos.remove(self.cis)
+
+        self.assertEqual(self.client.get(self._url(self.edif_b), pedido, **AJAX).status_code, 404)
+
+    def test_la_barra_de_cifras_es_la_breve_del_diseno(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        # El edificio A tiene A-01, A-02, A-LIBRE (y Ana y Juan alojados en las dos primeras).
+        self.assertContains(respuesta, "3 plazas cargadas · 3 operativas · 2 ocupadas · 1 disponible")
+        self.assertNotContains(respuesta, "operativas de")
+
+    def test_el_resumen_del_sector_es_el_breve_y_conserva_la_capacidad_declarada_si_difiere(self):
+        Sector.objects.filter(pk=self.sector_a.pk).update(capacidad=2)
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        self.assertContains(respuesta, "3 operativas · 0 fuera de servicio · 2 ocupadas")
+        self.assertNotContains(respuesta, "0 reservadas")
+        # La capacidad declarada (2) difiere de las 3 plazas cargadas: el sufijo queda.
+        self.assertContains(respuesta, "capacidad declarada: 2")
+        Sector.objects.filter(pk=self.sector_a.pk).update(capacidad=3)
+        igual = self._get(self.de_inst, self.edif_a)
+        self.assertNotContains(igual, "capacidad declarada")
+
+    def test_nuevo_sector_preselecciona_el_edificio_de_la_pagina(self):
+        en_a = self._get(self.de_inst, self.edif_a)
+        en_b = self._get(self.de_inst, self.edif_b)
+
+        self.assertEqual(en_a.context["form_sector_nuevo"]["edificio"].value(), self.edif_a.pk)
+        self.assertEqual(en_b.context["form_sector_nuevo"]["edificio"].value(), self.edif_b.pk)
+
+    def test_sin_sectores_dice_este_edificio_y_los_inactivos_no_repiten_el_edificio(self):
+        self.edif_c = self._edificio("ED-C")
+        vacio = self._get(self.de_inst, self.edif_c)
+        self.assertContains(vacio, "Este edificio no tiene sectores")
+        self.assertContains(vacio, "Un sector es cómo este edificio ordena su capacidad")
+        self.assertNotContains(vacio, "Este dispositivo no tiene sectores")
+
+        Sector.objects.filter(pk=self.sector_b.pk).update(activo=False)
+        inactivos = self._get(self.de_inst, self.edif_b, inactivos=1)
+        self.assertNotContains(inactivos, f"· {self.edif_b.nombre} ·")
 
     def test_editar_un_sector_de_otro_edificio_no_abre_el_modal(self):
         propio = self._get(self.de_inst, self.edif_a, editar_sector=self.sector_a.pk)
