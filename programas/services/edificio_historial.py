@@ -28,7 +28,7 @@ from django.core.paginator import Paginator
 
 from core.rbac import puede
 from programas.selectors.auditoria_dispositivo import FUENTE_INSPECCION, auditoria_del_dispositivo
-from programas.services.bitacora import rotulo_del_turno, turno_vigente, turnos_activos
+from programas.services.bitacora import turno_vigente, turnos_activos
 from programas.services.detalle_dispositivo import POR_PAGINA_HISTORIAL, _fecha_legible
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.inspecciones import edificios_de_dispositivo_con_asignacion_visible
@@ -51,6 +51,12 @@ def contar_eventos_del_edificio(user, dispositivo, edificio, *, puede_kits):
     """El contador de la solapa: una consulta, la misma cifra que muestra el pie de la lista."""
 
     return _feed(user, dispositivo, edificio, puede_kits=puede_kits, con_alcance=False).total()
+
+
+def rotulo_del_turno(turno):
+    """«Turno tarde»: cómo se nombra un turno en la página del edificio (encabezado e historial)."""
+
+    return f"Turno {turno.nombre.lower()}"
 
 
 def _turno(momento, turnos):

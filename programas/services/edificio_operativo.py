@@ -31,7 +31,7 @@ from django.utils.text import Truncator
 
 from core.rbac import puede
 from programas.models import Edificio, EntregaKit, InspeccionEdificio, Sector
-from programas.services.bitacora import rotulo_del_turno, turno_vigente
+from programas.services.bitacora import turno_vigente
 from programas.services.detalle_dispositivo import (
     contar_alojadas,
     estadias_del_dispositivo,
@@ -48,7 +48,7 @@ from programas.services.dispositivos import (
     puede_editar_legajo,
     puede_operar_edificio,
 )
-from programas.services.edificio_historial import contar_eventos_del_edificio
+from programas.services.edificio_historial import contar_eventos_del_edificio, rotulo_del_turno
 from programas.services.edificios import admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.equipo_dispositivo import (
