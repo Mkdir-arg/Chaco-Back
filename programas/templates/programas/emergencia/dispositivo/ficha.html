@@ -65,7 +65,7 @@ secciones 4 a 8, que se pueden terminar después.{% endcomment %}
         {% else %}
         <p class="text-sm text-body"><i class="fas fa-bed" aria-hidden="true"></i> Sin cama elegida: no queda ninguna reservada para esta familia.</p>
         {% endif %}
-        <button type="submit" name="elegir_cama" value="1" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-table-cells" aria-hidden="true"></i> {% if cama %}Cambiar cama{% else %}Elegir cama{% endif %}</button>
+        <button type="submit" name="elegir_cama" value="1" formnovalidate class="btn-nodo btn-secondary btn-sm"><i class="fas fa-table-cells" aria-hidden="true"></i> {% if cama %}Cambiar cama{% else %}Elegir cama{% endif %}</button>
       </div>
       <p class="mb-4 text-xs text-body-subtle">Al cambiar la cama se abre el mapa; lo que hayas escrito acá se guarda como borrador y está cuando volvés.</p>
     </div>

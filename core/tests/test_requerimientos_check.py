@@ -70,6 +70,15 @@ ENTRADA = """# Cambio {numero} — Prueba {numero}
 """
 
 
+def _correr_check(documento, carpeta=None):
+    """Lee el registro y corre `--check`: devuelve `(codigo, salida, filas)`."""
+    lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
+    salida = io.StringIO()
+    with contextlib.redirect_stdout(salida):
+        codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+    return codigo, salida.getvalue(), filas
+
+
 class ReversionEnElCheckTests(SimpleTestCase):
     def _documento(self, entradas):
         """Arma un `requerimientos.md` sintético y devuelve `(codigo, salida)` de `--check`."""
@@ -81,11 +90,8 @@ class ReversionEnElCheckTests(SimpleTestCase):
         cuerpo = "".join(ENTRADA.format(**e) for e in entradas)
         archivo.write_text(CABECERA.format(filas=filas) + cuerpo, encoding="utf-8")
 
-        lineas, filas_leidas, entradas_leidas, vocabulario = requerimientos.leer_documento(archivo)
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas_leidas, entradas_leidas, vocabulario, lineas)
-        return codigo, salida.getvalue()
+        codigo, salida, _filas = _correr_check(archivo)
+        return codigo, salida
 
     def _entrada(self, **cambios):
         # El nombre va completo, como se escriben de verdad (`programas.0075_enviosiis_vigente`):
@@ -209,34 +215,21 @@ class ReversionEnElCheckTests(SimpleTestCase):
             encoding="utf-8",
         )
 
-        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(archivo)
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+        codigo, salida, _filas = _correr_check(archivo)
 
         self.assertEqual(codigo, 1)
-        self.assertIn("Reversión", salida.getvalue())
-        self.assertIn("Base de datos", salida.getvalue())
+        self.assertIn("Reversión", salida)
+        self.assertIn("Base de datos", salida)
 
 
-ARCHIVO_NUEVO = """# Cambio {numero} — Prueba {numero}
-
-🟢 **HECHO — 22/11/2026**
-
-| | |
-|---|---|
-| **Programa / módulo** | Transversal / método |
-| **Etiquetas** | `#infra` |
-| **Solicitante** | PM — pedido directo |
-| **Fecha del pedido** | 22/11/2026 |
-| **Migración** | {migracion} |
-
-## Base de datos
-{base_de_datos}
-
-## Reversión
-{reversion}
-"""
+# El archivo de la carpeta es la misma entrada que la del historial, con la ficha de un Cambio nuevo.
+ARCHIVO_NUEVO = (
+    ENTRADA.replace("06/10/2026", "22/11/2026")
+    .replace("| Transversal |", "| Transversal / método |")
+    .replace("| PM |", "| PM — pedido directo |")
+    .rstrip("\n")
+    + "\n"
+)
 
 
 class CarpetaDeCambiosTests(SimpleTestCase):
@@ -274,22 +267,16 @@ class CarpetaDeCambiosTests(SimpleTestCase):
 
     def _check(self, archivos=None, historial=None):
         documento, carpeta = self._registro(archivos, historial)
-        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
-        return codigo, salida.getvalue()
+        codigo, salida, _filas = _correr_check(documento, carpeta)
+        return codigo, salida
 
     def test_un_archivo_nuevo_valido_pasa_y_su_fila_sale_de_la_ficha(self):
         numero = str(self.ULTIMO + 1)
         documento, carpeta = self._registro({f"{numero}.md": self._nuevo(numero)})
 
-        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+        codigo, salida, filas = _correr_check(documento, carpeta)
 
-        self.assertEqual(codigo, 0, salida.getvalue())
+        self.assertEqual(codigo, 0, salida)
         fila = next(f for f in filas if f.numero == numero)
         self.assertEqual(fila.titulo, f"Prueba {numero}")
         self.assertEqual(fila.programa, "Transversal / método")
@@ -317,20 +304,10 @@ class CarpetaDeCambiosTests(SimpleTestCase):
         fila = FILA.format(numero="135", migracion="No requiere")
         documento.write_text(documento.read_text(encoding="utf-8").replace(fila, f"{fila}\n{fila}"), encoding="utf-8")
 
-        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+        codigo, salida, _filas = _correr_check(documento, carpeta)
 
         self.assertEqual(codigo, 1)
-        self.assertIn("El Cambio 135 figura más de una vez en el índice", salida.getvalue())
-
-    def test_un_archivo_nuevo_no_repite_un_numero_del_historial(self):
-        codigo, salida = self._check({"135.md": self._nuevo("135")})
-
-        self.assertEqual(codigo, 1)
-        self.assertIn("El Cambio 135 tiene más de una entrada", salida)
-        self.assertIn("pertenece al historial", salida)
+        self.assertIn("El Cambio 135 figura más de una vez en el índice", salida)
 
     def test_un_nombre_con_slug_falla(self):
         numero = str(self.ULTIMO + 1)
@@ -343,6 +320,12 @@ class CarpetaDeCambiosTests(SimpleTestCase):
         codigo, salida = self._check({"100.md": self._nuevo("100")})
         self.assertEqual(codigo, 1)
         self.assertIn("pertenece al historial", salida)
+
+        # Un número que ya existe en el historial falla además por duplicado.
+        codigo, salida = self._check({"135.md": self._nuevo("135")})
+        self.assertEqual(codigo, 1)
+        self.assertIn("pertenece al historial", salida)
+        self.assertIn("El Cambio 135 tiene más de una entrada", salida)
 
         codigo, salida = self._check({"135.1.md": self._nuevo("135.1")})
         self.assertEqual(codigo, 0, salida)
@@ -416,12 +399,9 @@ class CarpetaDeCambiosTests(SimpleTestCase):
         documento, carpeta = self._registro()
         shutil.rmtree(carpeta)
 
-        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+        codigo, salida, _filas = _correr_check(documento, carpeta)
 
-        self.assertEqual(codigo, 0, salida.getvalue())
+        self.assertEqual(codigo, 0, salida)
 
     def test_mayor_en_rutas_ignora_slugs_y_ceros_a_la_izquierda(self):
         rutas = [
@@ -515,12 +495,9 @@ class ArchivoRealTests(SimpleTestCase):
     """El archivo del repo pasa su propio gate (es el que corre en el CI)."""
 
     def test_el_check_del_repo_esta_en_ok(self):
-        lineas, filas, entradas, vocabulario = requerimientos.leer_documento()
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+        codigo, salida, _filas = _correr_check(None)
 
-        self.assertEqual(codigo, 0, salida.getvalue())
+        self.assertEqual(codigo, 0, salida)
 
     def test_el_archivo_no_empieza_con_bom(self):
         """Un BOM al principio rompe el parseo del índice y nadie lo ve hasta el CI."""

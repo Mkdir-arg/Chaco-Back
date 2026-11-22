@@ -115,8 +115,16 @@
   });
 
   // El guardado lo hace _ajax_js.html (form data-ajax): al terminar bien avisa con becas-saved.
+  // Cierra solo si el formulario que se envió sigue montado: si el modal se cerró o se reabrió mientras
+  // el guardado viajaba, el aviso es de otro formulario y no tiene que cerrar el modal actual.
+  let formEnviado = null;
+  modalRoot.addEventListener('submit', function (event) {
+    if (event.target.closest && event.target.closest('form[data-ajax]')) formEnviado = event.target;
+  });
   window.addEventListener('becas-saved', function () {
-    if (modalRoot.querySelector('[data-edit-modal]')) closeModal();
+    const enviado = formEnviado;
+    formEnviado = null;
+    if (enviado && modalRoot.contains(enviado) && modalRoot.querySelector('[data-edit-modal]')) closeModal();
   });
 
   initModal();

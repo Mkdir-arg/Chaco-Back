@@ -34,7 +34,8 @@ const nombre = input('Institución FI');
 const localidad = input('Resistencia');
 const elementos = { id_codigo: codigo, id_nombre: nombre, id_localidad: localidad,
   'duplicate-search': aviso, 'duplicate-empty': vacio, 'duplicate-count': contador };
-const URL_DUPLICADOS = '/dispositivos/duplicados/';
+// URL centinela: no existe en el sitio, así que si el script pide otra cosa el assert lo ve.
+const URL_DUPLICADOS = 'https://centinela.invalid/url-inyectada/';
 global.document = {
   currentScript: { dataset: { url: URL_DUPLICADOS } },
   getElementById: id => elementos[id],

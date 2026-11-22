@@ -42,7 +42,7 @@ Responder en orden, cada punto con su evidencia (`git grep`, archivo:línea, tes
    se rompe (verificar por mutación las guardas críticas). Presupuestos de consultas en
    `scripts/perf_budgets.json`. Si toca el shell o una pieza compartida de UI, los
    snapshots de Becas se rompen (`ACTUALIZAR_SNAPSHOTS_DETALLE=1`).
-6. **Registro.** ¿Qué dice `docs/internal/requerimientos.md` del tema?
+6. **Registro.** ¿Qué dice el registro de requerimientos (`docs/internal/requerimientos.md` y `docs/internal/requerimientos/`) del tema?
    (`scripts/requerimientos.py --tag <tema>`). Si el cambio contradice una decisión
    tomada, se dice antes de implementar. Si toca UI canónica o una golden, su fila en
    `.claude/agents/chaco-design-system.md` o su ficha en `.claude/design/` va en el mismo diff.

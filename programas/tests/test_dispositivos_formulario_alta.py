@@ -8,10 +8,7 @@ MINOR del Cambio 343 (franjas). Los presupuestos van con `@tag("performance")`.
 """
 
 import json
-import shutil
-import subprocess
 from pathlib import Path
-from unittest import skipUnless
 from unittest.mock import patch
 
 from django.conf import settings
@@ -34,6 +31,7 @@ from programas.models import (
 from programas.services import constructor
 from programas.services.formularios_tipo import crear_formulario, puede_eliminar_formulario
 from programas.services.respuestas_dispositivo import formularios_respondidos, respuestas_de_versiones_anteriores
+from programas.tests.js_harness import correr_harness_js, requiere_node
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import LUNES, _post_franjas, catalogo_chaco
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
@@ -670,19 +668,12 @@ class FranjasMinorTests(_Base):
         self.assertIn("Indicá hasta qué hora.", formset.forms[0].errors["hora_hasta"])
         self.assertIn("Se superpone con la franja del lunes de 09:00 a 12:00.", formset.forms[2].errors["hora_desde"])
 
-    @skipUnless(shutil.which("node"), "Requiere Node para ejecutar el JS renderizado")
+    @requiere_node
     def test_una_franja_que_vuelve_marcada_para_quitar_se_oculta_y_no_cuenta(self):
         """Mutación: sin ocultar la fila marcada en `prepararQuitar`, sigue visible y la
         franja nueva del mismo horario se rechaza por superposición."""
         script = (settings.BASE_DIR / "static/custom/js" / "dispositivos-legajo-franjas.js").read_text(encoding="utf-8")
-        resultado = subprocess.run(
-            [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/franjas_quitar_fa.cjs")],
-            input=json.dumps(script),
-            text=True,
-            encoding="utf-8",
-            capture_output=True,
-            timeout=15,
-        )
+        resultado = correr_harness_js("franjas_quitar_fa.cjs", script)
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
 
 

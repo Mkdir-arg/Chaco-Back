@@ -17,7 +17,7 @@ Precedencia, de mayor a menor:
 
 Aplica al backoffice y al portal ciudadano. La documentación no autoriza a cambiar el
 producto para hacerla coincidir. No migres ni rediseñes pantallas fuera del alcance de
-la tarea. La historia de cada decisión vive en `docs/internal/requerimientos.md`.
+la tarea. La historia de cada decisión vive en el registro de requerimientos (`docs/internal/requerimientos.md` y `docs/internal/requerimientos/`).
 
 ## Cómo usar este archivo
 
@@ -319,7 +319,7 @@ pantallas ajenas.
   PR** tiene que actualizar su fila acá **o** su ficha en `.claude/design/`; si no,
   `scripts/check_design_agent.py` falla en el hook y en el CI. No la disparan el
   `tailwind.css` generado, los tests ni las vistas.
-- La historia de los cambios va a `docs/internal/requerimientos.md`, **nunca** acá: este
+- La historia de los cambios va al registro de requerimientos (`docs/internal/requerimientos.md` y `docs/internal/requerimientos/`), **nunca** acá: este
   archivo describe el contrato vigente, no cómo se llegó a él.
 - Límites verificados por el checker (`--limites`): **la prosa** (todo lo que no es fila de
   tabla) ≤ 16.000 bytes, cada celda del inventario ≤ 450 caracteres y cero referencias de

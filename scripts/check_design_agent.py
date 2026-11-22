@@ -106,8 +106,9 @@ FICHA_RE = re.compile(r"Ficha: `(\.claude/design/[^`]+\.md)`")
 # contesta subiendo un numero.
 PROSA_MAX_BYTES = 16_000
 CELDA_MAX_CARACTERES = 450
-# La historia va a `docs/internal/requerimientos.md`, nunca al agente: es lo que
-# convirtió el núcleo en un changelog de filas de 4.000 caracteres.
+# La historia va al registro de requerimientos (`docs/internal/requerimientos.md` y la carpeta
+# `docs/internal/requerimientos/`), nunca al agente: es lo que convirtió el núcleo en un changelog de
+# filas de 4.000 caracteres.
 HISTORIA_RE = re.compile(
     r"Cambio \d+|Ola \d+|\b(?:POP|TIT|CMP|ALR|DE|DP)-[A-Z]?\d+|\bW\d-"
     r"|\d{1,2}-(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)-20\d\d"
@@ -246,7 +247,10 @@ def limites_del_nucleo(agent_text: str, rows: list[tuple[str, str, str]]) -> lis
                 f"(max {CELDA_MAX_CARACTERES}; el detalle va en la ficha)"
             )
     for historia in sorted(set(HISTORIA_RE.findall(agent_text))):
-        errores.append(f"history reference in the core agent: {historia} (va en docs/internal/requerimientos.md)")
+        errores.append(
+            f"history reference in the core agent: {historia} "
+            "(va en el registro de requerimientos: docs/internal/requerimientos.md y docs/internal/requerimientos/)"
+        )
     return errores
 
 

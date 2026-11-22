@@ -66,6 +66,8 @@ El token sale del `[name=csrfmiddlewaretoken]` de la página o de la cookie `csr
 - **404** → avisa `error` con `message` si la vista lo manda, o «No encontramos lo que buscabas
   o ya no tenés acceso.» (Cambio 432: en Dispositivos, un objeto sin alcance responde igual que
   uno inexistente).
+- **401 `{ok:false, message, redirect}`** (sesión vencida) → navega al `redirect` **del mismo origen** con `next` reescrito a la página actual (el que trae la vista es el endpoint del POST y daría un 405) y el botón queda ocupado hasta
+  cambiar de página; lo escrito se pierde. Con otro origen o sin `redirect` cae en el aviso `error` común y libera el form.
 - **403, error de servidor y red** → avisan `error`. CSRF por la cookie `csrftoken`.
 
 Mientras el pedido está en curso el form lleva `aria-busy`, todos sus submit (también los de

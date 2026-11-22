@@ -10,7 +10,8 @@
    Para vaciar los errores de un form desde la pantalla (p. ej. al reabrir un modal):
    window.becasAjax.limpiarErrores(form), que también saca aria-invalid y aria-describedby.
    Contrato JSON: {ok,target,html,message} · {ok,redirect,message} ·
-   400 {ok:false,errors} · 409 {confirm_required,message}.{% endcomment %}
+   400 {ok:false,errors} · 401 {ok:false,message,redirect} (sesión vencida: navega a `redirect` del mismo origen, con `next` = la página actual) ·
+   409 {confirm_required,message}.{% endcomment %}
 <script>
 (function () {
   var TEXTO_OCUPADO = 'Guardando…';
@@ -227,6 +228,18 @@
     });
   }
 
+  // La URL de login que manda la vista, con `next` apuntando a la página actual: el `next` que trae es el
+  // endpoint del POST, que casi siempre solo acepta POST y dejaría un 405 después de loguearse. Un destino
+  // de otro origen no se sigue (devuelve null y se avisa como cualquier otro error).
+  function urlDeLogin(redirect) {
+    if (!redirect) return null;
+    var url;
+    try { url = new URL(redirect, window.location.href); } catch (err) { return null; }
+    if (url.origin !== window.location.origin) return null;
+    url.searchParams.set('next', window.location.pathname + window.location.search);
+    return url.href;
+  }
+
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
@@ -275,6 +288,10 @@
       } else if (r.status === 409 && data.confirm_required) {
         liberar(form);
         confirmarSolapamiento(form, data.message);
+      } else if (r.status === 401 && urlDeLogin(data.redirect)) {
+        // Sesión vencida: se va al login y, al volver, a esta página (no al endpoint del POST).
+        navegando = true;
+        window.location.href = urlDeLogin(data.redirect);
       } else if (r.status === 403) {
         aviso('error', data.message || 'No tiene permisos para realizar esta acción.');
       } else if (r.status === 404) {
