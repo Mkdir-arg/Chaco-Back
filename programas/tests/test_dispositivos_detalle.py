@@ -488,8 +488,12 @@ class IdentidadDeEstadiasTests(BaseDetalle):
                 respuesta = self.client.get(self.url, datos)
                 self.assertContains(respuesta, "Persona alojada")
                 self.assertContains(respuesta, "Ingreso de Persona alojada")
+                # El token CSRF es aleatorio y puede contener «Ana» por azar: se lo saca antes de buscar identidades.
+                html = re.sub(
+                    r'(name="csrfmiddlewaretoken" value="|csrfToken: ")[^"]*', r"\g<1>", respuesta.content.decode()
+                )
                 for identidad in (self.persona.nombre, self.persona.apellido, self.persona.dni, "30.111.222"):
-                    self.assertNotContains(respuesta, identidad)
+                    self.assertNotIn(identidad, html)
                 self.assertContains(respuesta, "Cambiar plaza")
                 self.assertContains(respuesta, "Registrar egreso")
                 self.assertNotContains(respuesta, "Ver estadía")

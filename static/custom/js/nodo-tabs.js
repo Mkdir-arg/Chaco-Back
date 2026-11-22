@@ -83,19 +83,16 @@
     // Las flechas llevan el foco y activan la solapa. Una solapa que **navega** a otra página
     // (`data-solapa-navega`, la de contenido que se arma solo cuando se la abre) solo recibe el
     // foco: recorrer la barra con flechas no puede recargar la página a cada paso; se la abre
-    // con Enter, Espacio o clic, que ya hacen su `click()` nativo. Como no se activa ninguna, las demás
-    // solapas pasan a `tabindex="-1"` antes del foco (activación manual de WAI-ARIA): si no, quedarían dos
-    // tabulables hasta que se abriera otra.
+    // con Enter, Espacio o clic, que ya hacen su `click()` nativo. El `tabindex` se reparte SIEMPRE antes
+    // del foco (el destino "0", las demás "-1"): si no, al volver con ← a la solapa que sigue activa el
+    // click no cambia `aria-selected` y quedarían dos tabulables.
     function activar(destino) {
-        if (destino.hasAttribute('data-solapa-navega')) {
-            var lista = destino.closest(SELECTOR_LISTA);
-            if (lista) {
-                solapasDe(lista).forEach(function (tab) {
-                    if (tab !== destino) tab.setAttribute('tabindex', '-1');
-                });
-            }
+        var lista = destino.closest(SELECTOR_LISTA);
+        if (lista) {
+            solapasDe(lista).forEach(function (tab) {
+                tab.setAttribute('tabindex', tab === destino ? '0' : '-1');
+            });
         }
-        destino.setAttribute('tabindex', '0');
         destino.focus();
         if (!destino.hasAttribute('data-solapa-navega')) destino.click();
     }

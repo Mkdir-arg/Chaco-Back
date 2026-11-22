@@ -7,7 +7,7 @@
 
    Avisos: siempre el sistema único (window.toast de nodo-toast, tipo primero).
    Confirmación de solapamiento (409): ModernModal, nunca la ventana nativa.
-   `data-toast-temporal` en el form: el aviso «Revisá los datos» se cierra solo a los 7 s (el resto de los avisos, igual).
+   `data-toast-temporal` en el form: el aviso «Revisá los datos» se cierra solo a los 7 s, salvo que el 400 traiga errores sin campo (`sueltos`): ahí queda fijo (el resto de los avisos, igual).
    Para vaciar los errores de un form desde la pantalla (p. ej. al reabrir un modal):
    window.becasAjax.limpiarErrores(form), que también saca aria-invalid y aria-describedby.
    Contrato JSON: {ok,target,html,message} · {ok,redirect,message} ·

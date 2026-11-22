@@ -27,16 +27,14 @@ from programas.forms_dispositivos import (
     SacarPlazaDeServicioForm,
     SectorForm,
 )
+from programas.mixins_dispositivos import _entero
 from programas.models import (
     Estadia,
     Plaza,
     Sector,
 )
 from programas.selectors.capacidad_dispositivo import plazas_dadas_de_baja, sectores_inactivos
-from programas.services.dispositivos import (
-    puede_operar_dispositivo,
-    q_edificios_en_alcance,
-)
+from programas.services.dispositivos import q_edificios_en_alcance
 from programas.services.estadias import (
     CAP_ADMITIR,
     CAP_EGRESAR,
@@ -62,14 +60,6 @@ from programas.services.sectores_plazas import (
     sectores_con_plazas,
 )
 from programas.views.ajax_utils import is_ajax
-
-
-def _entero(valor):
-    """El id de un parámetro GET, o `None`. Solo dígitos ASCII: un superíndice o un dígito
-    arábigo pasan `isdigit()` y rompen `int()`."""
-
-    valor = (valor or "").strip()
-    return int(valor) if valor.isascii() and valor.isdecimal() else None
 
 
 def _q_sectores_visibles(usuario):
@@ -148,23 +138,12 @@ class SectoresPlazasMixin:
     configurar las plazas: sin eso, el formulario llegaría armado a quien la acción va a
     rechazar. El mapa sigue en las consultas fijas de su presupuesto, y el selector del lote
     en las del suyo; el alta del sector no consulta.
+
+    Requiere `DispositivoObjectPermissionMixin` en la MRO (de ahí sale `_puede_operar`).
     """
 
     en_solapa = False
     param_editar_sector = "sector"
-
-    def _puede_operar(self, dispositivo, capacidad):
-        """`puede_operar_dispositivo` de quien mira, resuelto una sola vez por capacidad en cada pedido.
-
-        El detalle de la ficha y la solapa «Sectores y plazas» preguntan lo mismo (`CAP_ADMITIR`, `CAP_EGRESAR`):
-        para quien opera por el Equipo cada pregunta es una consulta.
-        """
-
-        memoria = self.__dict__.setdefault("_operar_del_pedido", {})
-        clave = (dispositivo.pk, capacidad)
-        if clave not in memoria:
-            memoria[clave] = puede_operar_dispositivo(self.request.user, dispositivo, capacidad)
-        return memoria[clave]
 
     def get(self, request, *args, **kwargs):
         if request.GET.get("fragmento") == FRAGMENTO_REUBICAR and is_ajax(request):
@@ -361,7 +340,9 @@ class SectoresPlazasMixin:
         # a quien no las puede usar no se le ofrecen, y el campo queda como siempre.
         url_sugerencias = (
             reverse("dispositivos:personas_buscar", args=[dispositivo.pk])
-            if puede_ingresar_persona(self.request.user, dispositivo)
+            if puede_ingresar_persona(
+                self.request.user, dispositivo, puede_admitir=self._puede_operar(dispositivo, CAP_ADMITIR)
+            )
             else None
         )
         context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR, url_sugerencias=url_sugerencias)

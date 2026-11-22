@@ -68,7 +68,7 @@ pantalla la repite en la clase del panel; el cuerpo, en el `{% if %}` del parcia
 ## Detalles de uso
 
 - Clic en una entrada: queda activa al instante y el seguimiento del scroll no la pisa mientras dura el desplazamiento; la
-  persona retoma el control con `wheel`, `touchmove`, `keydown` o `mousedown` en el cuerpo.
+  persona retoma el control con `wheel`, `touchmove`, `keydown` o `mousedown` en el cuerpo, o cuando el foco (`focusin`) va a un control que no es una sección (un error de validación lleva el foco a un campo de otra).
 - Con el cuerpo arriba de todo, o sin alto (modal cerrado al montar), se marca la primera sección.
 - Montar dos veces no duplica las entradas (`data-indice-montado`).
 - Debajo de `lg` cada entrada mide al menos 44 px (`min-h-11`); desde `lg`, `lg:min-h-0`.

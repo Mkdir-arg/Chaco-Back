@@ -16,7 +16,7 @@ from programas.forms_equipo_dispositivo import (
     CrearPersonaEquipoForm,
     SumarMiembroEquipoForm,
 )
-from programas.mixins_dispositivos_sectores import _entero
+from programas.mixins_dispositivos import _entero
 from programas.models import (
     Edificio,
 )
