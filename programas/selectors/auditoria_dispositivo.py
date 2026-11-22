@@ -315,8 +315,8 @@ class FeedAuditoria:
 
     ``edificios_en_alcance`` (Cambio 523) son los ids de los edificios que quien mira alcanza: ``None`` es toda la
     institución. Con un conjunto, el feed trae solo lo que cuelga de esos edificios —movimientos de estadía en sus
-    plazas, correcciones de sus novedades, relevamientos de sus edificios— y **ninguna traza del legajo**: no lleva
-    edificio. Un conjunto vacío no trae nada (fail-closed).
+    plazas, correcciones de sus novedades, relevamientos de sus edificios— y **ninguna traza del dispositivo** (legajo, plazas,
+    sectores, turnos, edificios): no lleva edificio. Un conjunto vacío no trae nada (fail-closed).
     """
 
     def __init__(

@@ -308,8 +308,8 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     Sin usuario no se expone la identidad de las personas; la vista siempre pasa quién mira.
 
     Con alcance Edificios (Cambio 523, decisión del PM del 21-nov-2026) el Historial muestra solo lo de sus edificios:
-    movimientos en sus plazas, correcciones de sus novedades y relevamientos de sus edificios. Las trazas del legajo
-    no llevan edificio y quedan para quien tiene toda la institución. La regla va acá y no en la vista para que
+    movimientos en sus plazas, correcciones de sus novedades y relevamientos de sus edificios. Las trazas del dispositivo
+    (legajo, plazas, sectores, turnos, edificios) no llevan edificio y quedan para quien tiene toda la institución. La regla va acá y no en la vista para que
     ninguna otra pantalla lo muestre entero.
     """
 

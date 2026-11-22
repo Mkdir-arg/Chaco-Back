@@ -375,7 +375,7 @@ class QuitarIntegranteView(_VistaDeLlegadas):
             "Deshace «Agregar persona»: quita la fila agregada por error y `total_declarado` baja en uno. El cuerpo es "
             'opcional: `{"id": <id de integrantes[]>}` identifica la fila. Idempotente: repetirlo, o reenviar el '
             "`id` de una fila que ya no tiene ese número, contesta 200 con `ya_estaba_quitada` en `true` sin tocar "
-            "nada. Si la baja libera una cama reservada de más, se libera sola. Solo con el ingreso en curso."
+            "nada. Un `id` que no es entero (o `null`) da 400 con el error en `id`. Si la baja libera una cama reservada de más, se libera sola. Solo con el ingreso en curso."
         ),
     )
     def post(self, request, pk, n):

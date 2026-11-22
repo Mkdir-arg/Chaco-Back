@@ -333,6 +333,38 @@ class EstadoDeLaInstitucionTests(BaseEstados):
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertEqual(bool(respuesta.context["puede_cambiar_plaza"]), ofrece)
 
+    def test_la_solapa_de_estadias_ofrece_cambiar_plaza_salvo_en_cerrada(self):
+        estadia = self._alojar()
+        url = reverse("dispositivos:detalle", args=[self.cis.pk])
+        enlace = f"cambio={estadia.pk}"
+        for estado, ofrece in (
+            (Dispositivo.Estado.ACTIVO, True),
+            (Dispositivo.Estado.INACTIVO, True),
+            (Dispositivo.Estado.CERRADO, False),
+        ):
+            with self.subTest(estado=estado):
+                self._estado(estado)
+                respuesta = self.client.get(url, {"tab": "estadias"})
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertEqual(enlace in respuesta.content.decode(), ofrece)
+
+    def test_el_modal_de_cambiar_plaza_por_url_no_abre_en_cerrada_y_avisa(self):
+        estadia = self._alojar()
+        url = reverse("dispositivos:detalle", args=[self.cis.pk])
+
+        self._estado(Dispositivo.Estado.ACTIVO)
+        abierto = self.client.get(url, {"tab": "estadias", "cambio": estadia.pk})
+        self.assertIn("form_cambio", abierto.context)
+
+        self._estado(Dispositivo.Estado.CERRADO)
+        cerrado = self.client.get(url, {"tab": "estadias", "cambio": estadia.pk})
+        self.assertEqual(cerrado.status_code, 200)
+        self.assertNotIn("form_cambio", cerrado.context)
+        self.assertIn(
+            "No se puede cambiar de plaza: el dispositivo está cerrado.",
+            [str(mensaje) for mensaje in get_messages(cerrado.wsgi_request)],
+        )
+
     def test_el_mapa_no_ofrece_reservar_ni_prestar_en_inactiva_ni_reubicar_en_cerrada(self):
         from programas.services.ocupacion import estado_de_plazas
         from programas.services.sectores_plazas import (

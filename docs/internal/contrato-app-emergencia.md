@@ -728,7 +728,8 @@ reservada: se elige una libre al confirmarla.
 **Quitar persona** (Cambios 537 y 539): `POST /api/emergencia/casos/{id}/integrantes/{n}/quitar/`, cuerpo **opcional**
 `{"id": 311}` con el `id` de la fila que la pantalla mostró (§13.5). Con `id`, si ese ya no es el de la fila que hoy
 tiene el número `n` (se quitó, se agregó otra y reusó el número), el pedido es un reenvío tardío: **200** con
-`ya_estaba_quitada: true` y no se toca nada. Sin `id` (app vieja) actúa sobre el número, como antes. Deshace
+`ya_estaba_quitada: true` y no se toca nada. Sin `id` (app vieja) actúa sobre el número, como antes. Un `id` que no es entero (o `null`) es **400** con el
+error en `id`. Deshace
 «Agregar persona» cuando la guardia se equivocó. Respuesta **200** `{"n": 8, "total_declarado": 7,
 "ya_estaba_quitada": false}`; repetirla (reintento, doble toque) devuelve **200** con `ya_estaba_quitada: true` y
 no toca nada, pero **solo si la traza del caso dice que esa persona se quitó**: un `n` que nunca existió es **400**
