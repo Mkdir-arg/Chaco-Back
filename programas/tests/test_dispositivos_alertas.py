@@ -30,6 +30,7 @@ from django.utils.formats import date_format
 from core import rbac
 from core.services import vencimientos as registro
 from core.services.vencimientos import Aviso, ReglaAviso, avisos, registrar_aviso
+from legajos.models import Ciudadano
 from programas.models import (
     Dispositivo,
     Edificio,
@@ -63,6 +64,7 @@ CLAVE_PRESUPUESTO = "dispositivos_alertas"
 
 SLUGS = {
     "dispositivos.reserva_vencida",
+    "dispositivos.reserva_abierta",
     "dispositivos.edificio_critico",
     "dispositivos.relevamiento_vencido",
     "dispositivos.sin_turnos",
@@ -119,6 +121,20 @@ class BaseAlertas(BaseEstadias):
             creada_por=self.operador_cis,
         )
 
+    def _reserva_abierta(self, dias, plaza=None, dni="30777888", hasta=None, **extra):
+        """Una reserva común vigente que lleva `dias` días abierta (con otra persona, no la del préstamo)."""
+
+        persona = Ciudadano.objects.create(dni=dni, nombre="Ana", apellido="Gómez")
+        return ReservaPlaza.objects.create(
+            plaza=plaza or self.otra_plaza,
+            ciudadano=persona,
+            tipo=ReservaPlaza.Tipo.RESERVA,
+            desde=timezone.now() - timedelta(days=dias),
+            hasta=hasta,
+            creada_por=self.operador_cis,
+            **extra,
+        )
+
     def _relevamiento(self, edificio=None, coordinador=None):
         return crear_inspeccion(
             coordinador or self.coordinador,
@@ -144,9 +160,10 @@ class BaseAlertas(BaseEstadias):
         return alertas
 
     def _todas_encendidas(self):
-        """Las cinco reglas cumplidas en el CIS, cada una por su origen."""
+        """Las seis reglas cumplidas en el CIS, cada una por su origen."""
 
         self._prestamo_vencido()
+        self._reserva_abierta(dias=10, plaza=Plaza.objects.create(sector=self.sector, codigo="PA"), dni="30555666")
         tercera = Plaza.objects.create(sector=self.sector, codigo="P3")
         sacar_plaza_de_servicio(plaza=tercera, usuario=self.operador_cis, motivo="Filtración en el techo")
         critico = self._relevamiento()
@@ -251,6 +268,49 @@ class ReservaVencidaTests(BaseAlertas):
         prestamo = self._prestamo_vencido()
         ReservaPlaza.objects.filter(pk=prestamo.pk).update(estado=ReservaPlaza.Estado.CONSUMIDA)
         self.assertEqual(self._alertas(regla=self.regla), [])
+
+
+class ReservaAbiertaTests(BaseAlertas):
+    regla = "dispositivos.reserva_abierta"
+
+    def test_una_reserva_sin_vencimiento_abierta_hace_mas_de_siete_dias_avisa(self):
+        reserva = self._reserva_abierta(dias=8)
+
+        [alerta] = self._alertas(regla=self.regla)
+
+        self.assertEqual(alerta["severidad"], "media")
+        self.assertEqual(alerta["titulo"], "Reserva abierta hace más de 7 días")
+        self.assertEqual(alerta["origen"], "Plaza P2 · Varones")
+        self.assertEqual(alerta["fecha"], reserva.desde)
+        self.assertEqual(alerta["enlace"], reverse("dispositivos:sectores", args=[self.cis.pk]))
+
+    def test_con_vencimiento_futuro_tambien_avisa(self):
+        self._reserva_abierta(dias=8, hasta=timezone.now() + timedelta(days=1))
+        self.assertEqual(len(self._alertas(regla=self.regla)), 1)
+
+    def test_el_umbral_son_siete_dias(self):
+        self._reserva_abierta(dias=6)
+        self.assertEqual(self._alertas(regla=self.regla), [])
+
+    def test_no_vence_sola_y_sigue_avisando_mientras_la_plaza_siga_tomada(self):
+        reserva = self._reserva_abierta(dias=60)
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.VIGENTE)
+        self.assertEqual(len(self._alertas(regla=self.regla)), 1)
+
+    def test_el_prestamo_y_la_reserva_ya_vencida_no_la_encienden(self):
+        self._prestamo_vencido(tipo=ReservaPlaza.Tipo.PRESTAMO)
+        self._reserva_abierta(dias=20, plaza=self.plaza, hasta=timezone.now() - timedelta(days=1), dni="30999000")
+        self.assertEqual(self._alertas(regla=self.regla), [])
+
+    def test_desaparece_al_liberarla_en_su_origen(self):
+        reserva = self._reserva_abierta(dias=8)
+        liberar_reserva(reserva=reserva, usuario=self.operador_cis)
+        self.assertEqual(self._alertas(regla=self.regla), [])
+
+    def test_de_otro_dispositivo_no_aparece(self):
+        self._reserva_abierta(dias=8)
+        self.assertEqual(self._alertas(dispositivo=self.parador, regla=self.regla), [])
 
 
 class PlazasFueraDeServicioTests(BaseAlertas):
@@ -512,7 +572,7 @@ class EnlaceDeResolucionTests(BaseAlertas):
 
 
 class NuncaBloqueaTests(BaseAlertas):
-    """Con las cinco alertas encendidas, ninguna acción deja de poder completarse."""
+    """Con todas las alertas encendidas, ninguna acción deja de poder completarse."""
 
     def test_con_todas_las_alertas_las_operaciones_se_completan(self):
         self._todas_encendidas()
@@ -612,6 +672,10 @@ class AlertasPresupuestoTests(BaseAlertas):
         )
         for plaza in Plaza.objects.bulk_create(Plaza(sector=self.sector, codigo=f"R{n}") for n in range(10)):
             self._prestamo_vencido(plaza=plaza)
+        for n, plaza in enumerate(
+            Plaza.objects.bulk_create(Plaza(sector=self.sector, codigo=f"A{n}") for n in range(10))
+        ):
+            self._reserva_abierta(dias=10, plaza=plaza, dni=f"31{n:06d}")
         for n in range(5):
             edificio = Edificio.objects.create(codigo=f"ED-{n}", nombre=f"Edificio {n}")
             edificio.dispositivos.add(self.cis)

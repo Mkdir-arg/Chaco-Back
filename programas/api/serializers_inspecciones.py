@@ -96,6 +96,23 @@ class InspeccionCampoDetailSerializer(InspeccionCampoListSerializer):
         return {"definicion": foto_vigente(diseno), "version": diseno.version}
 
 
+class ResultadoRegistradoSerializer(InspeccionCampoDetailSerializer):
+    """Respuesta de ``POST .../resultado/``: el detalle del relevamiento más lo que falta y no bloquea."""
+
+    avisos = serializers.ListField(
+        child=serializers.CharField(),
+        read_only=True,
+        help_text=(
+            "Avisos que no impiden el cierre: un texto por cada archivo obligatorio del formulario que ni el envío "
+            "ni un adjunto ya recibido traen. Lista vacía si no falta nada. El reenvío idempotente los repite."
+        ),
+    )
+
+    class Meta(InspeccionCampoDetailSerializer.Meta):
+        fields = [*InspeccionCampoDetailSerializer.Meta.fields, "avisos"]
+        read_only_fields = fields
+
+
 class ResultadoInspeccionSerializer(serializers.Serializer):
     """Cuerpo de ``POST /api/dispositivos/inspecciones/{id}/resultado/``."""
 
