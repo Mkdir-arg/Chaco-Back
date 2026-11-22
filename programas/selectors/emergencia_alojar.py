@@ -99,18 +99,21 @@ def _exigir_alcance(usuario, dispositivo):
 # ---------------------------------------------------------------------------
 
 
-def _camas_del_dispositivo(dispositivo, usuario=None):
+def _camas_del_dispositivo(dispositivo, usuario=None, edificio_id=None):
     """Las camas de los sectores activos, con su sector. **1 consulta.**
 
     Solo ``Plaza.Tipo.CAMA`` y solo si el tipo del dispositivo la admite: es lo que la mesa
-    contó como plaza al derivar (``selectors.emergencia.dispositivo_elegible``).
+    contó como plaza al derivar (``selectors.emergencia.dispositivo_elegible``). Con
+    ``edificio_id``, solo las de ese edificio.
     """
 
     if not dispositivo.tipo.admite_tipo_de_plaza(Plaza.Tipo.CAMA):
         return []
+    camas = Plaza.objects.filter(sector__dispositivo=dispositivo, sector__activo=True, tipo=Plaza.Tipo.CAMA)
+    if edificio_id is not None:
+        camas = camas.filter(sector__edificio_id=edificio_id)
     return list(
-        Plaza.objects.filter(sector__dispositivo=dispositivo, sector__activo=True, tipo=Plaza.Tipo.CAMA)
-        .filter(
+        camas.filter(
             # Con ``usuario`` y alcance Edificios, solo las camas de sus edificios (RN4).
             q_edificios_en_alcance(usuario, CAP_ADMITIR, "sector__dispositivo_id", "sector__edificio_id")
             if usuario is not None
@@ -118,12 +121,20 @@ def _camas_del_dispositivo(dispositivo, usuario=None):
         )
         .select_related("sector")
         .only(
-            "id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio", "sector__nombre", "sector__perfil"
+            "id",
+            "sector_id",
+            "codigo",
+            "tipo",
+            "estado",
+            "motivo_fuera_servicio",
+            "sector__nombre",
+            "sector__perfil",
+            "sector__edificio",
         )
     )
 
 
-def camas_libres(dispositivo, momento=None, *, usuario=None):
+def camas_libres(dispositivo, momento=None, *, usuario=None, edificio_id=None):
     """Las camas que se le pueden guardar a una familia **ahora**, en el orden en que se eligen (RN-3.4).
 
     Primero el sector con más camas libres —para que la familia quede junta—, y dentro del
@@ -135,10 +146,13 @@ def camas_libres(dispositivo, momento=None, *, usuario=None):
     cada plaza y vuelve a mirar. No exige capacidad: la llaman los servicios, que ya la
     exigieron.
 
+    Con ``edificio_id``, solo las camas de ese edificio: las de una derivación a un edificio salen
+    de ese edificio y de ningún otro, y si no alcanzan, faltan. Sin él, todo el dispositivo.
+
     **3 consultas**: las camas con su sector y las dos de ``estado_de_plazas``.
     """
 
-    camas = _camas_del_dispositivo(dispositivo, usuario)
+    camas = _camas_del_dispositivo(dispositivo, usuario, edificio_id)
     if not camas:
         return []
     estados = estado_de_plazas(camas, momento)
@@ -153,7 +167,7 @@ def camas_libres(dispositivo, momento=None, *, usuario=None):
     return [cama for libres in sectores for cama in sorted(libres, key=lambda c: clave_natural(c.codigo))]
 
 
-def resumen_de_llegadas(dispositivos, momento=None):
+def resumen_de_llegadas(dispositivos, momento=None, *, usuario=None):
     """``{id: {"plazas_libres", "derivaciones_pendientes"}}`` de varios dispositivos de una vez (M2, mis-dispositivos).
 
     ``dispositivos`` es un queryset de ``Dispositivo`` (va como subconsulta, no se evalúa
@@ -168,15 +182,28 @@ def resumen_de_llegadas(dispositivos, momento=None):
     * ``derivaciones_pendientes`` — derivaciones ``PENDIENTE`` de casos ``DERIVADO``: lo que
       la guardia tiene por aceptar o rechazar (las de ``llegadas_del_dispositivo``).
 
-    No exige capacidad: quien llama ya armó ``dispositivos`` con el alcance.
+    No exige capacidad: quien llama ya armó ``dispositivos`` con el alcance. Con ``usuario``, además,
+    las dos cuentas se acotan a sus edificios cuando su alcance es Edificios (Cambio 523): las camas
+    por el edificio de su sector y las derivaciones por el suyo (relevamiento del 22/11/2026,
+    hallazgo 13). Sin ``usuario``, todo el dispositivo.
 
     **3 consultas fijas**, haya 1 dispositivo o 500: las camas libres agrupadas, los tipos de
     los dispositivos que tienen alguna, y las derivaciones agrupadas.
     """
 
     momento = momento or timezone.now()
+    # Solo en `filter`: con alcance total el `Q` es vacío (#1298).
+    camas_en_alcance = (
+        q_edificios_en_alcance(usuario, CAP_ADMITIR, "sector__dispositivo_id", "sector__edificio_id")
+        if usuario is not None
+        else Q()
+    )
+    derivaciones_en_alcance = (
+        q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id") if usuario is not None else Q()
+    )
     libres = dict(
         Plaza.objects.filter(sector__dispositivo__in=dispositivos, sector__activo=True, tipo=Plaza.Tipo.CAMA)
+        .filter(camas_en_alcance)
         .exclude(estado=Plaza.Estado.FUERA_SERVICIO)
         .exclude(Exists(Estadia.objects.activas().filter(plaza_id=OuterRef("pk"))))
         .exclude(Exists(ReservaPlaza.objects.vigentes(momento).filter(plaza_id=OuterRef("pk"))))
@@ -200,6 +227,7 @@ def resumen_de_llegadas(dispositivos, momento=None):
             estado=Derivacion.Estado.PENDIENTE,
             caso__estado=CasoEmergencia.Estado.DERIVADO,
         )
+        .filter(derivaciones_en_alcance)
         .order_by()
         .values("dispositivo_id")
         .annotate(n=Count("id"))

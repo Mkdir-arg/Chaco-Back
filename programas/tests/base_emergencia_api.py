@@ -124,6 +124,8 @@ CLAVES_BUSQUEDA = [
     "dni",
     "mensaje",
     "plazas_libres",
+    "puede_avisar_a_la_mesa",  # Cambio 532, aditiva
+    "puede_ingresar_igual",  # Cambio 532, aditiva
     "resultado",
 ]
 CLAVES_DERIVACION_LLEGADA = [

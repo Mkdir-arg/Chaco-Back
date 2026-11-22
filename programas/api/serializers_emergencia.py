@@ -586,6 +586,18 @@ class BusquedaPorDniSerializer(serializers.Serializer):
         help_text="Solo con `ALOJADA` y si quien busca lo puede ver: el nombre del dispositivo. Si no, vacío."
     )
     alojada_desde = serializers.DateTimeField(allow_null=True)
+    puede_ingresar_igual = serializers.BooleanField(
+        help_text=(
+            "Solo con `SIN_DERIVACION` (si no, `false`): el usuario puede «Ingresar igual» acá, que exige alcance "
+            "sobre toda la institución. Ofrecer el botón solo si es `true` **y** `plazas_libres ≥ 1` (Cambio 532)."
+        )
+    )
+    puede_avisar_a_la_mesa = serializers.BooleanField(
+        help_text=(
+            "Solo con `SIN_DERIVACION` (si no, `false`): el usuario puede «Avisar a la mesa» desde acá, también con "
+            "alcance por edificios (Cambio 532)."
+        )
+    )
 
 
 class AceptarDerivacionEnvioSerializer(serializers.Serializer):
