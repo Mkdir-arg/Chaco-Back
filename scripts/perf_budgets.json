@@ -295,6 +295,11 @@
       "consultas_fijas": 23,
       "motivo": "Solapa Estado edilicio de la pagina operativa del edificio (Cambio 567, PR 5), medida con la solapa abierta (?tab=edilicio) y la pagina entera: las 20 de dispositivos_edificio_operativo mas las del panel. La lista suma COUNT y pagina de los relevamientos realizados con su conteo de fotos y su alcance de informe en la misma consulta (2, y 1 si el edificio no tiene ninguno): 22 medido con 1 y 8 relevamientos con 1 y 3 fotos cada uno. El detalle (?relevamiento=) suma el relevamiento, sus fotos y su posicion entre los del edificio (3): 23 medido con 1 y 8 fotos, que es el peor caso y el techo. No crece con los relevamientos ni con las fotos: la forma natural -contar fotos o pedir el alcance de informe por fila- seria un N+1 proporcional a la pagina. Con otra solapa abierta el panel no se arma y la pagina cuesta lo de dispositivos_edificio_operativo."
     },
+    "dispositivos_edificio_operativo_kits": {
+      "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
+      "consultas_fijas": 23,
+      "motivo": "Presupuesto nuevo (Cambio 568, PR 3 del lote del edificio operativo): la solapa Kits de la pagina del edificio se arma SOLO con la solapa abierta (?tab=kits, o ?entrega=<id> que la fuerza) y solo con emergencia.recibir_kit. Son las 20 del encabezado (dispositivos_edificio_operativo, que se mide con otra solapa) mas 3 de la solapa, medido con 1 y 9 entregas en la lista y en el detalle: en la lista, el total y las en camino en un solo aggregate, la pagina de entregas con quien recibio y sus lineas con el item; en el detalle, la entrega con sus lineas (2) y su posicion entre las del edificio (1). No crece con las entregas: la lista pagina de a 25 y el resto es un prefetch."
+    },
     "dispositivos_bitacora_turno": {
       "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",
       "consultas_fijas": 17,

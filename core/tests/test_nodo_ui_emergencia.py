@@ -333,6 +333,14 @@ class CeldaDiferenciaTest(SimpleTestCase):
         self.assertInHTML('<span class="badge badge-warning">+1 · de más</span>', self._render(10, 11))
         self.assertInHTML('<span class="badge badge-warning">+5 · de más</span>', self._render(0, 5))
 
+    def test_con_item_lo_nombra_dentro_del_badge(self):
+        faltan = render_to_string(CELDA, {"enviada": 12, "recibida": 10, "item": "Agua 6 l"})
+        sobra = render_to_string(CELDA, {"enviada": 10, "recibida": 11, "item": "Colchón"})
+
+        self.assertInHTML('<span class="badge badge-danger">−2 · faltan (Agua 6 l)</span>', faltan)
+        self.assertInHTML('<span class="badge badge-warning">+1 · de más (Colchón)</span>', sobra)
+        self.assertEqual(_texto(render_to_string(CELDA, {"enviada": 3, "recibida": 3, "item": "X"})), "sin diferencia")
+
     def test_todavia_no_recibida_es_una_raya_con_texto_para_el_lector(self):
         html = self._render(10, None)
 
