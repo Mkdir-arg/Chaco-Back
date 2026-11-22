@@ -24,6 +24,7 @@ import re
 import shutil
 import tempfile
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -764,6 +765,29 @@ class RecepcionEnElDispositivoTests(BaseVistasKits):
         self.assertContains(respuesta, f'href="{self.url_recibir}"')
         self.assertContains(respuesta, "Sin marca de salida")
         self.assertEqual(respuesta.context["url_dispositivo"], "")
+
+    def test_las_pendientes_se_paginan(self):
+        self._entrega(dispositivo=self.club)
+        self.client.force_login(self.guardia)
+
+        with patch("programas.views.emergencia_kits.PENDIENTES_POR_PAGINA", 1):
+            primera = self.client.get(self.url_kits)
+            segunda = self.client.get(self.url_kits, {"page": 2})
+
+        self.assertEqual(len(primera.context["filas"]), 1)
+        self.assertContains(primera, "page=2")
+        self.assertEqual(len(segunda.context["filas"]), 1)
+        self.assertNotEqual(primera.context["filas"][0]["entrega"], segunda.context["filas"][0]["entrega"])
+
+    def test_confirmar_la_recepcion_pide_confirmacion_en_un_modal_que_envia_el_formulario(self):
+        self.client.force_login(self.guardia)
+
+        respuesta = self.client.get(self.url_recibir)
+
+        self.assertContains(respuesta, 'id="form-recibir-entrega"')
+        self.assertContains(respuesta, 'role="dialog"')
+        self.assertContains(respuesta, 'form="form-recibir-entrega"')
+        self.assertContains(respuesta, "La recepción no se corrige")
 
     def test_el_enlace_al_dispositivo_solo_si_lo_puede_ver(self):
         con_ver = self._guardia("guardia_con_ver", [RECIBIR_KIT, "dispositivo.ver"], [self.club])
