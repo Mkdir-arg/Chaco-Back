@@ -89,7 +89,7 @@ Consumidor: «Elegir cama» de E6 (`programas/templates/programas/emergencia/dis
 surface por sector. Las plazas y la leyenda salen del selector de la etapa (`plazas_para_caso` y
 `LEYENDA_PLAZAS_EMERGENCIA`, en los selectores de alojar de Emergencia) y `mapa_para_elegir` las pasa al
 contrato de la pieza. La cama elegible lleva **`url`** —no `click`: no abre ningún diálogo— hacia la ficha de la
-persona con `?cama=<id>`; tocarla no escribe nada, y la cama se toma recién al confirmar la ficha. Solo se
+persona con `?cama=<id>`; tocarla no escribe nada, y la cama se toma recién al confirmar la ficha. El paso de la bajada («Paso N de 3») sale de `paso_actual` y `pasos|length`. Solo se
 ofrecen camas (`Plaza.Tipo.CAMA`). Una cama reservada para la familia de otro caso va sin `detalle`: no se
 nombra a su responsable.
 

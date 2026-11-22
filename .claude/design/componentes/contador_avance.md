@@ -9,6 +9,7 @@
 (`programas/templates/programas/emergencia/dispositivo/integrantes.html`) y la celda «Confirmadas» de los
 ingresos en curso (`dispositivo/llegadas.html`, con `nombre` propio por fila); en la ficha de la mesa, la
 cabecera de «Integrantes» de E3 (`programas/templates/programas/emergencia/casos/detail.html`).
+El «Paso N de 3» de la bajada de esos pasos de E6 sale de `paso_actual` y de `pasos|length`, no de un número escrito a mano.
 En esa surface de E6 la fila agregada en la puerta y sin confirmar lleva además un `nodo-icon-btn--danger` «Quitar»
 con `data-confirm-url` (arquetipo Confirmación, Cambio 537): baja el `total` del contador en uno y no cambia la pieza.
 
