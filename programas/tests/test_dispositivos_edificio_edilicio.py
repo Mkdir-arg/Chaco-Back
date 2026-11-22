@@ -124,11 +124,30 @@ class DetalleTests(BaseEdilicio):
         self.assertEqual(detalle["numero"], f"REL-{inspeccion.pk:04d}")
         self.assertEqual([foto["rotulo"] for foto in detalle["fotos"]], ["baño", "cocina"])
         self.assertIn("el más nuevo de 2", detalle["subtitulo"])
-        self.assertEqual(detalle["url_informe"], reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]))
+        self.assertEqual(
+            detalle["url_informe"],
+            reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]) + f"?dispositivo={self.cis.pk}",
+        )
         self.assertContains(respuesta, "Volver a los relevamientos")
         self.assertContains(respuesta, "Descargar informe")
         self.assertContains(respuesta, "Pérdida en el baño")
         self.assertNotContains(respuesta, "ajena")
+
+    def test_volver_conserva_la_pagina_de_la_lista(self):
+        for dias in range(1, 13):
+            self._relevar(self.edif_a, dias_atras=dias)
+
+        lista = self._edilicio(self.de_inst, relevamientos_page=2).context["edilicio_lista"]["filas"]
+        url = lista[0]["url_detalle"]
+        self.assertIn("relevamientos_page=2", url)
+        pagina_uno = self._edilicio(self.de_inst).context["edilicio_lista"]["filas"][0]["url_detalle"]
+        self.assertNotIn("relevamientos_page", pagina_uno)
+
+        self.client.force_login(self.de_inst)
+        detalle = self.client.get(url).context["edilicio_detalle"]
+        self.assertTrue(detalle["url_volver"].endswith("?tab=edilicio&relevamientos_page=2"))
+        sin_pagina = self.client.get(pagina_uno).context["edilicio_detalle"]
+        self.assertTrue(sin_pagina["url_volver"].endswith("?tab=edilicio"))
 
     def test_de_otro_edificio_da_404(self):
         ajeno = self._relevar(self.edif_b, fotos=("fachada",))
@@ -161,7 +180,10 @@ class AlcanceDelInformeTests(BaseEdilicio):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertFalse(fila["con_detalle"])
-        self.assertEqual((fila["observaciones"], fila["fotos"], fila["relevo"], fila["criticidad"]), ("", "", "", ""))
+        self.assertEqual(
+            (fila["observaciones"], fila["fotos"], fila["relevo"], fila["criticidad"], fila["tono"]),
+            ("", "", "", "", ""),
+        )
         self.assertNotContains(respuesta, "Cables pelados")
         self.assertNotContains(respuesta, "Ver detalle")
         self.assertNotContains(respuesta, "pizarra reservada")

@@ -37,7 +37,7 @@ class EdificioOperativoView(DispositivoProgramaPermissionMixin, TemplateView):
         # Estado edilicio (Cambio 567): la tabla de relevamientos, o el detalle de uno; uno ajeno o que no ve es 404.
         url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
         parametros = self.request.GET if context["tab"] == "edilicio" else {}
-        edilicio = contexto_edilicio(user, edificio, parametros, url_pagina)
+        edilicio = contexto_edilicio(user, dispositivo, edificio, parametros, url_pagina)
         if edilicio is None:
             raise Http404("Ese relevamiento no es de este edificio o no está en tu alcance.")
         context.update(edilicio)

@@ -83,7 +83,7 @@ def _fila(inspeccion, *, marca):
         "con_detalle": abre,
         "relevo": _nombre(inspeccion.realizada_por) if abre else "",
         "criticidad": criticidad if abre else "",
-        "tono": tono,
+        "tono": tono if abre else "",
         "observaciones": (
             Truncator((inspeccion.observaciones or "").strip()).chars(_LARGO_OBSERVACION) or "Sin observaciones"
             if abre
@@ -122,7 +122,8 @@ def lista_de_relevamientos(user, edificio, pagina, url_pagina):
             marca = ""
         fila = _fila(inspeccion, marca=marca)
         if fila["con_detalle"]:
-            fila["url_detalle"] = f"{url_pagina}?tab=edilicio&{PARAM_RELEVAMIENTO}={inspeccion.pk}"
+            volver = f"&{PARAM_PAGINA}={pagina_actual.number}" if pagina_actual.number > 1 else ""
+            fila["url_detalle"] = f"{url_pagina}?tab=edilicio&{PARAM_RELEVAMIENTO}={inspeccion.pk}{volver}"
         filas.append(fila)
     total = pagina_actual.paginator.count
     return {
@@ -148,8 +149,7 @@ def relevamiento_del_edificio(user, edificio, relevamiento_pk):
     return (
         _realizados(edificio)
         .filter(pk=pk, pk__in=inspecciones_visibles(user).values("pk"))
-        .select_related("realizada_por", "edificio")
-        .annotate(n_fotos=Count("fotos"))
+        .select_related("realizada_por")
         .first()
     )
 
@@ -175,9 +175,11 @@ def _posicion(edificio, inspeccion):
     return f"el {mas_nuevos + 1}.º de {total}, del más nuevo al más viejo"
 
 
-def detalle_de_relevamiento(edificio, inspeccion, url_pagina):
+def detalle_de_relevamiento(edificio, inspeccion, url_pagina, *, dispositivo_pk, pagina=None):
     """Lo que dibuja el detalle: encabezado, datos, observaciones y las fotos de **ese** relevamiento."""
 
+    # El relevamiento se leyó ya acotado a este edificio: se reusa, sin otra consulta para el nombre en el alt.
+    inspeccion.edificio = edificio
     fotos = list(
         FotoInspeccion.objects.filter(inspeccion=inspeccion)
         .only("id", "inspeccion_id", "archivo", "descripcion", "creado")
@@ -198,12 +200,13 @@ def detalle_de_relevamiento(edificio, inspeccion, url_pagina):
         "fotos": galeria,
         "total_fotos": len(galeria),
         "texto_fotos": f"{_plural(len(galeria), 'foto', 'fotos')} de este relevamiento",
-        "url_volver": f"{url_pagina}?tab=edilicio",
-        "url_informe": reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]),
+        "url_volver": f"{url_pagina}?tab=edilicio" + (f"&{PARAM_PAGINA}={pagina}" if pagina and pagina > 1 else ""),
+        "url_informe": reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk])
+        + f"?dispositivo={dispositivo_pk}",
     }
 
 
-def contexto_edilicio(user, edificio, parametros, url_pagina):
+def contexto_edilicio(user, dispositivo, edificio, parametros, url_pagina):
     """El contexto de la solapa: la tabla, o el detalle si ``?relevamiento=`` pide uno (``None`` = 404 en la vista)."""
 
     pedido = parametros.get(PARAM_RELEVAMIENTO)
@@ -211,8 +214,15 @@ def contexto_edilicio(user, edificio, parametros, url_pagina):
         inspeccion = relevamiento_del_edificio(user, edificio, pedido)
         if inspeccion is None:
             return None
-        return {"edilicio_detalle": detalle_de_relevamiento(edificio, inspeccion, url_pagina)}
+        return {
+            "edilicio_detalle": detalle_de_relevamiento(
+                edificio,
+                inspeccion,
+                url_pagina,
+                dispositivo_pk=dispositivo.pk,
+                pagina=_id_valido(parametros.get(PARAM_PAGINA)),
+            )
+        }
     return {
         "edilicio_lista": lista_de_relevamientos(user, edificio, parametros.get(PARAM_PAGINA), url_pagina),
-        "url_pagina_edilicio": url_pagina,
     }

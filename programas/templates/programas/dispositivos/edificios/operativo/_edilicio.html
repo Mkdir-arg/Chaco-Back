@@ -24,7 +24,7 @@
         <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevó</dt><dd class="mt-1 text-body">{{ edilicio_detalle.relevo }}</dd></div>
       </dl>
       {% if edilicio_detalle.observaciones %}
-      {% include "components/_alerta.html" with tono="warning" icono="screwdriver-wrench" titulo="Observaciones" texto=edilicio_detalle.observaciones role="status" %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Observaciones" texto=edilicio_detalle.observaciones role="status" %}
       {% else %}
       <p class="text-sm text-body-subtle">Este relevamiento no dejó observaciones.</p>
       {% endif %}
