@@ -10,7 +10,9 @@
 (`ingreso/paso_persona.html`, Cambio 416) y el campo de «Buscar agente» del modal de alta rápida de usuarios
 (`users/templates/user/_alta_rapida_modal.html`, que se monta desde su propio JS al abrirse como agente; lo cargan
 `legajo/detail.html` y `relevamientos/list.html`) y el buscador «Persona y rol» del modal «Sumar persona al Equipo»
-(`legajo/detail.html`, Cambio 420: usa `data-sugerencias-destino`).
+(`legajo/detail.html`, Cambio 420: usa `data-sugerencias-destino`) y el DNI del responsable en «Nuevo caso» de la mesa de
+Emergencia (`emergencia/casos/form.html`, Cambio 538: usa `data-sugerencias-completa`; su endpoint es
+`PersonasSugeridasMesaView`, `emergencia:personas_sugeridas`, que pide la mesa y `ciudadano.ver`).
 
 Mejora progresiva sobre un `<input>` de texto que ya existe: desde 3 caracteres muestra
 la persona que coincide, o la lista, y al elegir una completa el campo con su DNI (o con `valor`, si la fila lo trae: el buscador de agentes deja
@@ -29,6 +31,7 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
 - `data-sugerencias-url` se lee **en cada consulta**: una pantalla puede cambiarlo o quitarlo (sin URL no consulta).
   Un campo que la recibe después se monta con `window.NodoSugerencias.montar(contenedor)`.
 - `data-sugerencias-destino="<id>"` apunta a un `<input type="hidden">`: al elegir, el destino recibe `valor` y el campo visible muestra `etiqueta` (la fila la trae); al volver a teclear, el destino se vacía. Es lo que viaja en el POST y el servidor lo valida (Cambio 420: el par `usuario:rol` del Equipo). Sin el atributo, y sin `etiqueta`, el comportamiento es el de siempre.
+- `data-sugerencias-completa="campo:id,campo:id"`: al elegir, además del valor, escribe `fila.campo` (`apellido`, `nombre` o `dni`) en el input con ese `id` y dispara `input`/`change`. Solo precarga: el servidor valida igual, y el campo que se completa sigue siendo editable. **Si se vuelve a teclear en el campo de la búsqueda (p. ej. se corrige el DNI), los campos precargados que todavía tienen lo que escribió la elección se vacían** (los editados a mano no se tocan): nunca queda el nombre de una persona junto al DNI de otra. Sin el atributo no cambia nada.
 - `attrs_sugerencias(url, vacio=None)` acepta otro aviso de vacío (el paso «Ingresar persona» no manda a «Ingresar persona»).
 - Se carga con `nodo-sugerencias.css` (`{% block page_css %}`) y `nodo-sugerencias.js`
   (`{% block customJS %}`) **solo en la pantalla que la usa**, no en `base.html`.

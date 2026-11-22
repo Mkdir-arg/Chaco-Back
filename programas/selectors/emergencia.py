@@ -275,6 +275,14 @@ _ORDEN_PRIORIDAD = Case(
 FILTROS_DE_BANDEJA = ("solapa", "estado", "prioridad", "localidad", "tomado_por", "origen", "sla", "texto")
 
 
+def _q_de_dni(dni):
+    """El DNI (ya normalizado) del responsable o de cualquier integrante del grupo, en la misma consulta."""
+
+    return Q(grupo__responsable__dni=dni) | Exists(
+        IntegranteGrupo.objects.filter(ciudadano__dni=dni, grupo_id=OuterRef("grupo_id"))
+    )
+
+
 def _q_de_palabra(palabra):
     """Una palabra del buscador: n.° de caso, nombre, apellido o DNI del responsable, o de cualquier integrante."""
 
@@ -285,11 +293,9 @@ def _q_de_palabra(palabra):
     )
     dni = normalizar_dni(palabra)
     if dni:
-        q |= Q(grupo__responsable__dni=dni)
+        q |= _q_de_dni(dni)
     # Exists y no un JOIN: un caso con varios integrantes que coinciden no se repite ni hace falta DISTINCT.
     en_integrantes = Q(ciudadano__apellido__icontains=palabra) | Q(ciudadano__nombre__icontains=palabra)
-    if dni:
-        en_integrantes |= Q(ciudadano__dni=dni)
     return q | Exists(IntegranteGrupo.objects.filter(en_integrantes, grupo_id=OuterRef("grupo_id")))
 
 
@@ -310,10 +316,7 @@ def _q_de_texto(texto):
     for palabra in palabras:
         q &= _q_de_palabra(palabra)
     if len(palabras) > 1 and _es_dni_partido(texto):
-        dni = normalizar_dni(texto)
-        q |= Q(grupo__responsable__dni=dni) | Exists(
-            IntegranteGrupo.objects.filter(ciudadano__dni=dni, grupo_id=OuterRef("grupo_id"))
-        )
+        q |= _q_de_dni(normalizar_dni(texto))
     return q
 
 
@@ -494,7 +497,7 @@ def horas_sin_movimiento(caso, sla, ahora):
     """
 
     limite_h = sla.ingreso_sin_movimiento_h
-    desde = getattr(caso, "ultima_traza_en", None)
+    desde = caso.ultima_traza_en
     if caso.estado != Estado.INGRESO_EN_CURSO or not limite_h or desde is None:
         return None
     horas = int((ahora - desde).total_seconds() // 3600)

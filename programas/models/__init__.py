@@ -6523,7 +6523,7 @@ class EntregaKit(TimeStamped):
     # El identificador que nace al abrir «Armar entrega» y viaja oculto hasta «Crear entrega»:
     # volver atrás y reenviar devuelve la misma entrega en vez de armar otra (Cambio 535). Único
     # sobre columna anulable —MySQL y MariaDB admiten varios NULL en un UNIQUE— y `char(36)` en
-    # MySQL/MariaDB (programas.0135); se busca con `core.db.q_uuid_en_texto`.
+    # MySQL/MariaDB (programas.0136); se busca con `core.db.q_uuid_en_texto`.
     uuid_cliente = models.UUIDField(
         null=True,
         blank=True,

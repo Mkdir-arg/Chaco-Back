@@ -21,6 +21,7 @@ from programas.senales import estadia_egresada
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _nombre_de, _trazar
 from programas.services.emergencia_ingreso_comun import (
+    MENSAJE_OTRA_DERIVACION,
     Accion,
     Estado,
     _abrir_ingreso,
@@ -273,6 +274,29 @@ def cerrar_con_diferencia(*, caso, usuario, motivo, observacion="", derivacion_v
     return caso
 
 
+def _motivo_de_cancelacion(motivo):
+    """El motivo limpio de cancelar un ingreso (obligatorio, hasta 200 caracteres) o ``ValidationError``."""
+
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ValidationError({"motivo": "Indicá por qué se cancela el ingreso."})
+    if len(motivo) > 200:
+        raise ValidationError({"motivo": "El motivo no puede tener más de 200 caracteres."})
+    return motivo
+
+
+def _cerrar_derivacion(derivacion, usuario, estado, motivo):
+    """Deja la derivación en ``estado`` (``RECHAZADA`` o ``CANCELADA``) con el motivo, quién y cuándo. Devuelve la hora."""
+
+    ahora = timezone.now()
+    derivacion.estado = estado
+    derivacion.motivo = motivo
+    derivacion.respondida_por = usuario
+    derivacion.respondida_en = ahora
+    derivacion.save(update_fields=["estado", "motivo", "respondida_por", "respondida_en", "modificado"])
+    return ahora
+
+
 @transaction.atomic
 def cancelar_ingreso(*, caso, usuario, motivo, derivacion_vista=None):
     """Cancela un ingreso aceptado en el que **no se confirmó a nadie** (03 §5).
@@ -294,11 +318,7 @@ def cancelar_ingreso(*, caso, usuario, motivo, derivacion_vista=None):
     Devuelve el ``CasoEmergencia``, con ``caso.reservas_liberadas``.
     """
 
-    motivo = (motivo or "").strip()
-    if not motivo:
-        raise ValidationError({"motivo": "Indicá por qué se cancela el ingreso."})
-    if len(motivo) > 200:
-        raise ValidationError({"motivo": "El motivo no puede tener más de 200 caracteres."})
+    motivo = _motivo_de_cancelacion(motivo)
 
     caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO, derivacion_vista=derivacion_vista)
     dispositivo = derivacion.dispositivo
@@ -311,11 +331,7 @@ def cancelar_ingreso(*, caso, usuario, motivo, derivacion_vista=None):
     liberadas = liberar_reservas_de_derivacion(
         derivacion=derivacion, usuario=usuario, motivo="Emergencia: ingreso cancelado."
     )
-    derivacion.estado = Derivacion.Estado.RECHAZADA
-    derivacion.motivo = motivo
-    derivacion.respondida_por = usuario
-    derivacion.respondida_en = timezone.now()
-    derivacion.save(update_fields=["estado", "motivo", "respondida_por", "respondida_en", "modificado"])
+    _cerrar_derivacion(derivacion, usuario, Derivacion.Estado.RECHAZADA, motivo)
     _devolver_a_la_mesa(caso)
     _trazar(
         caso,
@@ -374,11 +390,7 @@ def cancelar_ingreso_por_la_mesa(*, caso, usuario, motivo, derivacion_vista=None
 
     if not puede_supervisar_la_mesa(usuario):
         raise PermissionDenied(SIN_PERMISO_DE_CANCELAR_INGRESO)
-    motivo = (motivo or "").strip()
-    if not motivo:
-        raise ValidationError({"motivo": "Indicá por qué se cancela el ingreso."})
-    if len(motivo) > 200:
-        raise ValidationError({"motivo": "El motivo no puede tener más de 200 caracteres."})
+    motivo = _motivo_de_cancelacion(motivo)
 
     caso = _bloquear_caso(caso)
     pk_vigente = (
@@ -390,9 +402,7 @@ def cancelar_ingreso_por_la_mesa(*, caso, usuario, motivo, derivacion_vista=None
     if derivacion_vista not in (None, "") and (
         derivacion is None or int(getattr(derivacion_vista, "pk", derivacion_vista)) != derivacion.pk
     ):
-        raise EstadoCambio(
-            f"El ingreso del caso {caso.numero} cambió. Recargá la ficha.", estado_actual=caso.estado, caso=caso
-        )
+        raise EstadoCambio(MENSAJE_OTRA_DERIVACION.format(numero=caso.numero), estado_actual=caso.estado, caso=caso)
     if derivacion is None or derivacion.estado != Derivacion.Estado.ACEPTADA or caso.estado != Estado.INGRESO_EN_CURSO:
         raise EstadoCambio(
             f"El caso {caso.numero} ya no tiene un ingreso en curso. Recargá la ficha.",
@@ -407,12 +417,7 @@ def cancelar_ingreso_por_la_mesa(*, caso, usuario, motivo, derivacion_vista=None
     liberadas = liberar_reservas_de_derivacion(
         derivacion=derivacion, usuario=usuario, motivo=MOTIVO_RESERVAS_CANCELADO_POR_LA_MESA, verificar_alcance=False
     )
-    ahora = timezone.now()
-    derivacion.estado = Derivacion.Estado.CANCELADA
-    derivacion.motivo = motivo
-    derivacion.respondida_por = usuario
-    derivacion.respondida_en = ahora
-    derivacion.save(update_fields=["estado", "motivo", "respondida_por", "respondida_en", "modificado"])
+    ahora = _cerrar_derivacion(derivacion, usuario, Derivacion.Estado.CANCELADA, motivo)
     _devolver_a_la_mesa(caso)
     _trazar(
         caso,
