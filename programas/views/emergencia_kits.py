@@ -564,15 +564,20 @@ class RecepcionKitsMixin(LoginRequiredMixin):
     def _url_pendientes(self):
         return reverse("emergencia:dispositivo_kits", args=[self.dispositivo.pk])
 
-    def _destino(self, request):
-        """Adónde vuelve el POST: el ``next`` del formulario si es de este sitio (la solapa Kits del edificio) y si no, las pendientes."""
+    def _siguiente(self, request):
+        """El ``next`` del formulario si es de este sitio (la solapa Kits del edificio); si no, ``""``. Nunca el valor crudo."""
 
         siguiente = request.POST.get("next", "")
         if siguiente and url_has_allowed_host_and_scheme(
             siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
         ):
             return siguiente
-        return self._url_pendientes()
+        return ""
+
+    def _destino(self, request):
+        """Adónde vuelve el POST: el ``next`` válido y si no, las pendientes del dispositivo."""
+
+        return self._siguiente(request) or self._url_pendientes()
 
 
 class KitsDelDispositivoView(RecepcionKitsMixin, View):
@@ -619,6 +624,9 @@ class RecibirKitView(RecepcionKitsMixin, View):
             "entrega": entrega,
             "form": form,
             "url_pendientes": self._url_pendientes(),
+            # Si la recepción vino de la solapa Kits del edificio y el formulario vuelve con error, conserva el regreso.
+            "siguiente": self._siguiente(request),
+            "url_cancelar": self._destino(request),
             **_estado(entrega),
         }
         return render(request, TEMPLATE_RECIBIR, contexto, status=status)

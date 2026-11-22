@@ -33,7 +33,7 @@ abre el modal si el navegador valida (`@submit` + `modalConfirmar`); con el moda
       {% for field in form.campos_del_remito %}{% include "components/_field.html" %}{% endfor %}
     </div>
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
-      <a href="{{ url_pendientes }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <a href="{{ url_cancelar|default:url_pendientes }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Confirmar recepción</button>
     </div>
   </form>

@@ -1,6 +1,6 @@
 {# arquetipo: detalle #}
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load nodo_ui static %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }} · {{ edificio.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -108,7 +108,8 @@
         </button>
         {# Kits: el botón y el panel van bajo el mismo `{% if %}` (la vista da `puede_kits` con `emergencia.recibir_kit` sobre este edificio) #}
         {% if puede_kits %}
-        <button @click="tab='kits'" type="button" role="tab" id="tab-kits" aria-controls="panel-kits"
+        {# Los kits se arman solo con la solapa abierta (`kits_cargados`): si no vino, el botón navega a ella #}
+        <button @click="{% if kits_cargados %}tab='kits'{% else %}window.location.href='{{ url_solapa_kits|escapejs }}'{% endif %}" type="button" role="tab" id="tab-kits" aria-controls="panel-kits" {% if not kits_cargados %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='kits'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='kits' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -153,7 +154,7 @@
 
       {% if puede_kits %}
       <div x-show="tab==='kits'" x-cloak role="tabpanel" id="panel-kits" aria-labelledby="tab-kits" class="p-5">
-        {% include "programas/dispositivos/edificios/operativo/_kits.html" %}
+        {% if kits_cargados %}{% include "programas/dispositivos/edificios/operativo/_kits.html" %}{% endif %}
       </div>
       {% endif %}
 
@@ -174,4 +175,4 @@
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% if kits_cargados %}<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endif %}{% endblock %}

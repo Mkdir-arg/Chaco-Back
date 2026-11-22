@@ -37,32 +37,30 @@ def entregas_del_edificio(dispositivo, edificio, usuario):
 
 
 def _hace(momento):
-    """«hace 3 horas»: la unidad mayor del tiempo transcurrido."""
+    """«hace 3 horas», «hace 7 días»: desde un día, los días corridos; antes, la unidad mayor (horas o minutos)."""
 
     if momento is None:
         return ""
-    transcurrido = timesince(momento, timezone.now()).split(",")[0].replace("\xa0", " ")
-    if transcurrido.startswith("0 "):
-        return "hace un momento"
-    return f"hace {transcurrido}"
+    ahora = timezone.now()
+    dias = (ahora - momento).days
+    if dias >= 1:
+        return f"hace {dias} día{'s' if dias > 1 else ''}"
+    transcurrido = timesince(momento, ahora, depth=1).replace(" ", " ")
+    return "hace un momento" if transcurrido.startswith("0 ") else f"hace {transcurrido}"
 
 
-def _diferencias(entrega, lineas):
-    """Lo de la columna «Diferencia»: ``[{"texto", "clase"}]``, una por ítem que llegó distinto."""
+def _diferencia(entrega, lineas):
+    """Los datos de la columna «Diferencia»; la celda la dibuja ``_celda_diferencia.html``, que decide el texto y el tono.
 
-    if entrega.estado in EntregaKit.ESTADOS_ABIERTOS:
-        return [{"texto": "Se ve al recibir", "clase": "text-body-subtle"}]
+    ``modo``: ``abierta`` (todavía no se recibió), ``cancelada`` (no hay nada que comparar) o ``recibida``, con las
+    líneas que llegaron distintas en ``items``.
+    """
+
+    if entrega.abierta:
+        return {"modo": "abierta", "items": []}
     if entrega.estado not in EntregaKit.ESTADOS_RECIBIDOS:
-        return [{"texto": "—", "clase": "text-body-subtle"}]
-    diferencias = []
-    for diferencia in selectores.diferencias_de(lineas):
-        delta = diferencia["recibida"] - diferencia["enviada"]
-        if delta < 0:
-            texto = f"−{-delta} · falta{'n' if delta < -1 else ''} ({diferencia['nombre']})"
-            diferencias.append({"texto": texto, "clase": "badge badge-danger"})
-        else:
-            diferencias.append({"texto": f"+{delta} · de más ({diferencia['nombre']})", "clase": "badge badge-warning"})
-    return diferencias or [{"texto": "sin diferencia", "clase": "text-body-subtle"}]
+        return {"modo": "cancelada", "items": []}
+    return {"modo": "recibida", "items": selectores.diferencias_de(lineas)}
 
 
 def _fila(entrega, url_pagina):
@@ -77,7 +75,7 @@ def _fila(entrega, url_pagina):
         "recibida": _hace(entrega.recibida_en)
         or ("—" if entrega.estado == EntregaKit.Estado.CANCELADA else "Sin recibir"),
         "recibio": selectores.nombre_de(entrega.recibida_por),
-        "diferencias": _diferencias(entrega, lineas),
+        "diferencia": _diferencia(entrega, lineas),
         "recibe": entrega.abierta,
         "url": f"{url_pagina}?tab=kits&entrega={entrega.pk}",
     }
@@ -88,16 +86,20 @@ def _resumen(total, en_camino):
     return f"{entregas} · {en_camino} en camino"
 
 
-def contexto_de_la_lista(dispositivo, edificio, usuario, pagina, url_pagina, en_camino):
+def contexto_de_la_lista(dispositivo, edificio, usuario, pagina, url_pagina):
     """La tabla «Entregas a este edificio»: filas de la página pedida, su paginador y el resumen del encabezado."""
 
-    paginador = Paginator(entregas_del_edificio(dispositivo, edificio, usuario), ENTREGAS_POR_PAGINA)
+    entregas = entregas_del_edificio(dispositivo, edificio, usuario)
+    # El total y las «en camino» en una sola consulta; el paginador no vuelve a contar.
+    cuentas = entregas.aggregate(total=Count("pk"), en_camino=Count("pk", filter=Q(estado=EntregaKit.Estado.EN_CAMINO)))
+    paginador = Paginator(entregas, ENTREGAS_POR_PAGINA)
+    paginador.__dict__["count"] = cuentas["total"]
     pagina_actual = paginador.get_page(pagina)
     return {
         "modo": "lista",
         "filas": [_fila(entrega, url_pagina) for entrega in pagina_actual],
         "pagina": pagina_actual,
-        "resumen": _resumen(paginador.count, en_camino),
+        "resumen": _resumen(cuentas["total"], cuentas["en_camino"]),
     }
 
 
@@ -115,13 +117,21 @@ def contexto_del_detalle(dispositivo, edificio, usuario, entrega_pk, url_pagina)
         total=Count("pk"),
         mas_nuevas=Count("pk", filter=Q(creado__gt=entrega.creado) | Q(creado=entrega.creado, pk__gt=entrega.pk)),
     )
-    desde = (
-        f"En camino desde {_hace(entrega.despachada_en)}" if entrega.despachada_en else "Todavía sin marca de salida"
-    )
+    recibida = entrega.estado in EntregaKit.ESTADOS_RECIBIDOS
+    if entrega.abierta:
+        situacion = (
+            f"En camino desde {_hace(entrega.despachada_en)}"
+            if entrega.despachada_en
+            else "Todavía sin marca de salida"
+        )
+    elif recibida:
+        situacion = f"Recibida {_hace(entrega.recibida_en)}"
+    else:
+        situacion = texto
     detalle = " · ".join(
         parte
         for parte in (
-            desde if entrega.abierta else f"Recibida {_hace(entrega.recibida_en)}",
+            situacion,
             f"Transporte: {entrega.transporte}" if entrega.transporte else "",
             f"destino {edificio.nombre} ({edificio.codigo})",
         )
@@ -137,11 +147,12 @@ def contexto_del_detalle(dispositivo, edificio, usuario, entrega_pk, url_pagina)
         "posicion": f"Entrega {posicion['mas_nuevas'] + 1} de {posicion['total']} de este edificio",
         "url_lista": f"{url_pagina}?tab=kits",
         "recibe": entrega.abierta,
+        "recibida_ok": recibida,
     }
     if entrega.abierta:
         contexto["form"] = RecepcionKitForm(lineas=lineas)
         contexto["url_recibir"] = reverse("emergencia:dispositivo_kit_recibir", args=[dispositivo.pk, entrega.pk])
-    else:
+    elif recibida:
         contexto["remito"] = (
             [
                 {

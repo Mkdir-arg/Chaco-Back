@@ -8,6 +8,10 @@
 5. El costo de la solapa no crece con las entregas.
 """
 
+import json
+from datetime import timedelta
+
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import tag
@@ -87,9 +91,12 @@ class AlcanceDeLasEntregasTests(BaseKitsEdificio):
 
     def test_un_id_que_no_es_numero_da_404(self):
         self.client.force_login(self.recibe_inst)
-        respuesta = self.client.get(self._url(self.edif_a), {"tab": "kits", "entrega": "abc"})
+        for pedida in ("abc", "²", "-1", ""):
+            with self.subTest(pedida=pedida):
+                respuesta = self.client.get(self._url(self.edif_a), {"tab": "kits", "entrega": pedida})
 
-        self.assertEqual(respuesta.status_code, 404)
+                # Un vacío no pide ninguna entrega: abre la tabla.
+                self.assertEqual(respuesta.status_code, 200 if pedida == "" else 404)
 
     def test_la_sin_edificio_sigue_visible_en_emergencia_kits_con_alcance_institucion(self):
         self.client.force_login(self.recibe_inst)
@@ -146,6 +153,49 @@ class TablaTests(BaseKitsEdificio):
         self.assertContains(respuesta, "−2 · faltan (Agua 6 l)")
         self.assertContains(respuesta, "+1 · de más (Colchón)")
 
+    def test_en_camino_no_cuenta_las_preparadas_y_el_badge_si(self):
+        self._entrega("2026-K-000304", self.edif_a)
+        self._entrega("2026-K-000305", self.edif_a, estado=Estado.PREPARADA)
+
+        respuesta = self._get(self.recibe_inst, self.edif_a, tab="kits")
+
+        self.assertContains(respuesta, "2 entregas · 1 en camino")
+        self.assertEqual(respuesta.context["contadores"]["kits"], 2)
+
+    def test_las_fechas_van_en_dias_desde_un_dia(self):
+        entrega = self._entrega("2026-K-000306", self.edif_a)
+        for atras, esperado in (
+            (timedelta(hours=3), "hace 3 horas"),
+            (timedelta(days=1, hours=2), "hace 1 día"),
+            (timedelta(days=7), "hace 7 días"),
+            (timedelta(days=28), "hace 28 días"),
+        ):
+            EntregaKit.objects.filter(pk=entrega.pk).update(despachada_en=timezone.now() - atras)
+
+            respuesta = self._get(self.recibe_inst, self.edif_a, tab="kits")
+
+            self.assertEqual(respuesta.context["kits"]["filas"][0]["enviada"], esperado)
+
+    def test_la_paginacion_usa_su_propio_parametro(self):
+        for numero in range(26):
+            self._entrega(f"2026-K-0007{numero:02d}", self.edif_a)
+
+        respuesta = self._get(self.recibe_inst, self.edif_a, tab="kits", kits_page=2)
+
+        self.assertEqual(len(respuesta.context["kits"]["filas"]), 1)
+        self.assertContains(respuesta, "kits_page=1")
+
+    def test_la_cancelada_no_dice_recibida_ni_tiene_remito(self):
+        cancelada = self._entrega("2026-K-000307", self.edif_a, estado=Estado.CANCELADA)
+
+        respuesta = self._detalle(self.recibe_inst, cancelada)
+
+        self.assertContains(respuesta, "Cancelada")
+        self.assertNotContains(respuesta, "Recibida hace")
+        self.assertNotContains(respuesta, "Lo recibido")
+        self.assertNotContains(respuesta, 'id="form-recibir-entrega"')
+        self.assertNotContains(respuesta, "Sin remito")
+
     def test_sin_entregas_dice_que_no_hay(self):
         respuesta = self._get(self.recibe_inst, self.edif_a, tab="kits")
 
@@ -174,6 +224,9 @@ class RecepcionDesdeLaSolapaTests(BaseKitsEdificio):
         self.assertContains(respuesta, f'action="{self.url_recibir}"')
         self.assertContains(respuesta, f'name="next" value="{self.url_pagina}?tab=kits"')
         self.assertContains(respuesta, "Confirmar recepción")
+        self.assertContains(respuesta, "reportValidity")
+        self.assertContains(respuesta, "La recepción no se corrige")
+        self.assertContains(respuesta, 'form="form-recibir-entrega"')
         self.assertContains(respuesta, "Los colchones vienen con funda.")
         self.assertContains(respuesta, "Entrega 1 de 1 de este edificio")
 
@@ -184,6 +237,31 @@ class RecepcionDesdeLaSolapaTests(BaseKitsEdificio):
 
         self.assertRedirects(respuesta, f"{self.url_pagina}?tab=kits", fetch_redirect_response=False)
         self.assertEqual(EntregaKit.objects.get(pk=self.entrega.pk).estado, Estado.RECIBIDA)
+
+    def test_un_error_de_recepcion_conserva_el_regreso_a_la_solapa(self):
+        self.client.force_login(self.recibe_a)
+        cuerpo = self._cuerpo(next=f"{self.url_pagina}?tab=kits")
+        del cuerpo["remito"]
+
+        respuesta = self.client.post(self.url_recibir, cuerpo)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertContains(respuesta, f'name="next" value="{self.url_pagina}?tab=kits"', status_code=400)
+        self.assertContains(
+            respuesta,
+            f'href="{self.url_pagina}?tab=kits" class="btn-nodo btn-tertiary btn-base">Cancelar',
+            status_code=400,
+        )
+
+    def test_un_error_con_next_ajeno_no_lo_devuelve_al_formulario(self):
+        self.client.force_login(self.recibe_a)
+        cuerpo = self._cuerpo(next="https://ejemplo.com/robo")
+        del cuerpo["remito"]
+
+        respuesta = self.client.post(self.url_recibir, cuerpo)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertNotContains(respuesta, "ejemplo.com", status_code=400)
 
     def test_un_next_de_otro_sitio_se_ignora(self):
         self.client.force_login(self.recibe_a)
@@ -232,6 +310,10 @@ class RecepcionDesdeLaSolapaTests(BaseKitsEdificio):
         self.assertEqual(respuesta.status_code, 404)
 
 
+PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
+CLAVE_PRESUPUESTO = "dispositivos_edificio_operativo_kits"
+
+
 @tag("performance")
 class PresupuestoDeKitsTests(BaseKitsEdificio):
     def _medir(self, **params):
@@ -252,3 +334,16 @@ class PresupuestoDeKitsTests(BaseKitsEdificio):
 
         self.assertEqual(self._medir(tab="kits"), lista_antes)
         self.assertEqual(self._medir(tab="kits", entrega=primera.pk), detalle_antes)
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
+        self.assertLessEqual(max(lista_antes, detalle_antes), techo["consultas_fijas"])
+
+    def test_con_otra_solapa_los_kits_no_se_arman_y_el_boton_navega(self):
+        self._entrega("2026-K-000502", self.edif_a)
+        self.client.force_login(self.recibe_inst)
+
+        respuesta = self.client.get(self._url(self.edif_a), {"tab": "estadias"})
+
+        self.assertNotIn("kits", respuesta.context)
+        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertContains(respuesta, f"{self._url(self.edif_a)}?tab=kits")
+        self.assertNotContains(respuesta, "2026-K-000502")

@@ -37,20 +37,27 @@ class EdificioOperativoView(DispositivoProgramaPermissionMixin, TemplateView):
         # Abrir una entrega abre la solapa Kits: el detalle vive ahí.
         tab = "kits" if entrega else self.request.GET.get("tab", "")
         context.update(contexto_del_edificio(user, dispositivo, edificio, tab))
-        if context["puede_kits"]:
-            context["kits"] = self._kits(context, dispositivo, edificio, entrega)
+        # La solapa Kits se arma solo con la solapa abierta (`?tab=kits`, que `?entrega=` fuerza): con otra, su botón navega.
+        context["kits_cargados"] = context["puede_kits"] and context["tab"] == "kits"
+        context["url_solapa_kits"] = (
+            f"{reverse('dispositivos:edificio_operativo', args=[dispositivo.pk, edificio.pk])}?tab=kits"
+        )
+        if context["kits_cargados"]:
+            context["kits"] = self._kits(dispositivo, edificio, entrega)
         return context
 
-    def _kits(self, context, dispositivo, edificio, entrega):
+    def _kits(self, dispositivo, edificio, entrega):
         """Solapa Kits (Cambio 568): la tabla de entregas o el detalle de una; una de otro edificio es un 404."""
 
         user = self.request.user
         url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
         if not entrega:
-            return contexto_de_la_lista(
-                dispositivo, edificio, user, self.request.GET.get("page"), url_pagina, context["contadores"]["kits"]
-            )
-        detalle = contexto_del_detalle(dispositivo, edificio, user, entrega, url_pagina) if entrega.isdigit() else None
+            return contexto_de_la_lista(dispositivo, edificio, user, self.request.GET.get("kits_page"), url_pagina)
+        detalle = (
+            contexto_del_detalle(dispositivo, edificio, user, entrega, url_pagina)
+            if entrega.isascii() and entrega.isdecimal()
+            else None
+        )
         if detalle is None:
             raise Http404("Esa entrega no es de este edificio.")
         return detalle
