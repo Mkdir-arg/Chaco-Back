@@ -7,29 +7,49 @@ un id que no existe.
 
 La vista orquesta; el armado de datos y las capacidades de cada acción están en
 ``programas.services.edificio_operativo``. Las acciones mantienen sus rutas por institución y reciben ``?edificio=``.
+
+La solapa «Sectores y plazas» (Cambio 565) es el cuerpo de la pantalla de sectores con el edificio fijo
+(``SectoresPlazasMixin.edificio_fijo``): se arma solo con la solapa abierta y sus acciones vuelven a ella.
 """
 
 from django.http import Http404
-from django.views.generic import TemplateView
+from django.views.generic import DetailView
 
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, dispositivo_operable_o_404
+from programas.mixins_dispositivos import DispositivoObjectPermissionMixin
+from programas.mixins_dispositivos_sectores import SectoresPlazasMixin
 from programas.models import Dispositivo
 from programas.services.dispositivos import CAP_VER
 from programas.services.edificio_operativo import contexto_del_edificio, edificio_de_la_institucion
 
 
-class EdificioOperativoView(DispositivoProgramaPermissionMixin, TemplateView):
+class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixin, DetailView):
     capacidad_requerida = CAP_VER
+    model = Dispositivo
     template_name = "programas/dispositivos/edificios/operativo.html"
+    context_object_name = "dispositivo"
+    # Las celdas, los enlaces y los modales del mapa conservan la solapa (`?tab=sectores&plaza=…`).
+    en_solapa = True
+    param_editar_sector = "editar_sector"
+
+    def get_queryset(self):
+        return Dispositivo.objects.select_related("tipo")
+
+    def get_object(self, queryset=None):
+        """La institución y, con ella, el edificio: ajeno, desvinculado o fuera de alcance es 404 (también el fragmento)."""
+
+        dispositivo = super().get_object(queryset)
+        edificio = edificio_de_la_institucion(self.request.user, dispositivo, self.kwargs["edificio_pk"])
+        if edificio is None:
+            raise Http404("Ese edificio no es de esta institución o no está en tu alcance.")
+        self.edificio_fijo = edificio
+        return dispositivo
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user = self.request.user
-        dispositivo = dispositivo_operable_o_404(
-            self.request, self.kwargs["pk"], CAP_VER, queryset=Dispositivo.objects.select_related("tipo")
+        dispositivo = self.object
+        context.update(
+            contexto_del_edificio(self.request.user, dispositivo, self.edificio_fijo, self.request.GET.get("tab", ""))
         )
-        edificio = edificio_de_la_institucion(user, dispositivo, self.kwargs["edificio_pk"])
-        if edificio is None:
-            raise Http404("Ese edificio no es de esta institución o no está en tu alcance.")
-        context.update(contexto_del_edificio(user, dispositivo, edificio, self.request.GET.get("tab", "")))
+        if context["sectores_cargados"]:
+            self._preparar_sectores_y_plazas(context, dispositivo)
         return context
