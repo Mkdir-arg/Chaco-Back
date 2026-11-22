@@ -25,8 +25,9 @@ llamados a la vez.{% endcomment %}
 </div>
 {% endblock %}
 
-{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-ubicacion.css' %}">{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-ubicacion.css' %}"><link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
 {% block customJS %}
 {% include "components/_google_maps.html" %}
 <script src="{% static 'custom/js/nodo-ubicacion.js' %}"></script>
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>
 {% endblock %}

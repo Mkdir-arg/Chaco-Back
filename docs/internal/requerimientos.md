@@ -659,6 +659,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 534 | Dispositivos · avisos, adjuntos, sugerencias y doble envío: alerta de reserva abierta hace más de 7 días, aviso del archivo obligatorio faltante, sugerencias de DNI con puntos y alta de edificio sin 500 | Dispositivos (alertas, relevamientos, ingreso, infraestructura) | `#dispositivos` `#ui` `#api` `#mobile` | Auditoría de Dispositivos (hallazgos 14, 22, 24 y 25) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
+| 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61765,8 +61766,9 @@ tiene ese modal (vuelve el toast de antes del 533). El 99 exige `char(36)` y `q_
   → reservas). La ficha manda la derivación que mostró: si cambió, «Recargá la ficha».
 - **A · sin vencimiento automático.** No vence nada solo. La bandeja y la ficha avisan «Aceptado sin movimiento hace N h»
   cuando la **última traza** del caso (cualquier movimiento: aceptar, confirmar, un contacto) tiene más de N horas. N es
-  `SLAEmergencia.ingreso_sin_movimiento_h`, editable en E7, de fábrica **6 h**; **0 lo apaga**. Sale de la subconsulta
-  que la bandeja ya hacía (`ultima_traza_en` junto a `ultima_accion`): ninguna consulta por fila.
+  `SLAEmergencia.ingreso_sin_movimiento_h`, editable en E7, de fábrica **6 h**; **0 lo apaga**. Sale de una segunda
+  subconsulta correlacionada sobre la misma definición (`ultima_traza_del_caso()`, `ultima_traza_en` junto a
+  `ultima_accion`): ninguna consulta por fila.
 - **B · camas ya pedidas.** El modal de confirmar «Derivar a X» suma «Ya hay N camas pedidas en M derivaciones
   pendientes de aceptar acá. No se descuentan de las libres…» (derivaciones `PENDIENTE` a esa institución en ese
   edificio, una consulta, solo cuando el modal está abierto). Las libres no cambian. El texto pasa a «Vas a pedir N
@@ -61822,6 +61824,95 @@ Correr las migraciones (las corre el entrypoint).
 ## Reversión
 Desplegar el código anterior. Las columnas nuevas son nullable o con DEFAULT en la base: el código viejo sigue andando.
 Para sacarlas, desaplicar `0136` y `0135`.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 538 — Emergencia · «Nuevo caso»: buscar el DNI en el legajo, «Perdió el documento» e identidad a revisar a la vista
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · mesa («Nuevo caso», bandeja E2, ficha E3) |
+| **Etiquetas** | `#emergencia` `#rbac` `#ui` |
+| **Solicitante** | Auditoría de Emergencia, hallazgos 15 y 16 (decisión delegada por el PM al juez); MINOR del PR #1312 |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | — |
+| **Partes afectadas** | Servidor (backoffice) |
+| **Migración** | No requiere |
+
+## Pedido original
+(15) «Nuevo caso» cargaba al responsable a ciegas: no buscaba si ya existía un legajo ni ofrecía «Perdió el documento».
+(16) Cuando la identidad del responsable queda «a revisar» (Cambio 486), la mesa no lo veía. Además, cuatro MINOR de la
+auditoría del #1312, sin cambiar comportamiento.
+
+## Alcance acordado
+**Entra:** «Buscar DNI» en el legajo para la mesa, la casilla «Perdió el documento pero sabe el número», el aviso de
+identidad a revisar en la ficha y la marca en la bandeja, y los cuatro MINOR. **Queda afuera:** «Marcar identidad
+revisada» y la solapa «Identidad a revisar» (T6/T7 del Cambio 486, segunda entrega), la app y la API (no cambian de forma).
+
+## Decisiones tomadas
+1. **«Buscar DNI» busca solo en el legajo** (sin RENAPER ni Personas API). No es un buscador nuevo: reusa
+   `sugerir_personas` y `nodo-sugerencias.js` (el mismo de «Reservar», «Prestar» e «Ingresar persona»). Al elegir a la
+   persona se completan el DNI, el nombre y el apellido **del legajo** (`data-sugerencias-completa`, atributo nuevo y
+   opcional del componente); si no está, se cargan a mano como hasta ahora. El servidor valida igual: `crear_caso` sigue
+   decidiendo con `buscar_ciudadano_por_dni`.
+2. **Autorización por capacidad, en el servidor.** `emergencia:personas_sugeridas` pide lo mismo que el alta de la mesa
+   (`emergencia.operar` o `supervisar` en el programa, `MesaPermissionMixin`) **más** `ciudadano.ver`, la que ya exige el
+   buscador de Dispositivos. Solo apellido, nombre y DNI, con `Cache-Control: no-store`. El formulario ofrece el buscador
+   únicamente a quien tiene las dos; sin `ciudadano.ver` el campo es el de siempre.
+3. **«Perdió el documento pero sabe el número»** es la casilla `documento_extraviado` que `crear_caso` ya entendía (la usa la
+   app, el Formulario 1 de la puerta y la ficha del integrante): queda en `situacion` y, solo en la persona que se da de
+   alta, `dni_fisico = NO_TIENE`; a quien ya tenía legajo no se le toca nada. Como `Formulario1DispositivoForm` hereda de
+   `NuevoCasoMesaForm`, la casilla también aparece en la puerta del dispositivo (mismo camino, mismo servicio).
+4. **Identidad a revisar visible.** `avisos_de_la_mesa` suma «Identidad a revisar» (tono `warning`) mientras
+   `CasoEmergencia.identidad_pendiente` no sea `None`: lo muestra la ficha con el detalle (lo declarado y lo que dice el
+   legajo) y la bandeja como marca de la fila. Sale del JSON `situacion` y del responsable ya traído: **sin consultas
+   nuevas**, el presupuesto de `test_emergencia_mesa` no cambia.
+5. **MINOR del #1312:** `cancelar_ingreso_por_la_mesa` y `cancelar_ingreso` comparten `_motivo_de_cancelacion` y
+   `_cerrar_derivacion`, y el 409 usa `MENSAJE_OTRA_DERIVACION` (el texto cambia: ahora es el de la guardia);
+   `avisos_de_la_mesa`, `_marcas_de_fila` y `horas_sin_movimiento` exigen `sla` y `ahora` y leen `caso.ultima_traza_en`
+   directo; `_q_de_dni` sale de `_q_de_texto` y `_q_de_palabra`; el comentario de `EntregaKit.uuid_cliente` dice 0136.
+   Corregida la frase del Cambio 535: el aviso sale de una **segunda subconsulta correlacionada** sobre la misma definición
+   (`ultima_traza_del_caso()`), sin consulta por fila.
+
+## Implementación
+El formulario de «Nuevo caso» recibe `url_sugerencias` (solo presentación) y la vista la pasa si quien carga puede ver
+personas. `nodo-sugerencias.js` guarda las filas de la lista y, al elegir, escribe en los campos nombrados por
+`data-sugerencias-completa`. La ficha del componente y su fila del agente canónico lo registran.
+
+## Archivos
+`programas/forms_emergencia.py`, `programas/views/emergencia.py`, `programas/emergencia_urls.py`,
+`programas/templates/programas/emergencia/casos/form.html`, `static/custom/js/nodo-sugerencias.js`,
+`programas/selectors/emergencia_mesa.py`, `programas/selectors/emergencia.py`, `programas/services/emergencia_cierre.py`,
+`programas/models/__init__.py` (comentario), `.claude/design/componentes/sugerencias.md`,
+`.claude/agents/chaco-design-system.md` y los tests (`test_emergencia_identidad_nuevo_caso.py` nuevo;
+`test_emergencia_mesa_logica.py` pasa `sla` y `ahora`).
+
+## Base de datos
+No requiere: la marca vive en `CasoEmergencia.situacion` (JSON).
+
+## Validación
+15 tests nuevos. **Mutación (cada una en rojo, restaurando sin stash):** sacar `ciudadano.ver` del buscador; abrirlo a
+cualquier usuario con sesión; devolver el `pk` de más; ofrecer el buscador sin `ciudadano.ver`; mostrar el aviso aunque la
+mesa ya lo revisó; mostrarlo siempre. Suites `test_emergencia_*` (1445) y `--tag performance`, `makemigrations --check`,
+ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent` en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- «Marcar identidad revisada» y la solapa «Identidad a revisar» de la bandeja (T6/T7 del Cambio 486): hoy solo se ve el aviso.
+- El buscador de la mesa **no descuenta de la cubeta `personas_campo`** (como el de Dispositivos): lo tecleado devuelve
+  apellido, nombre y DNI de hasta 10 personas con 3 caracteres, a quien ya tiene `ciudadano.ver`. Si el PM prefiere el tope
+  de la app (5 dígitos y cubeta), se endurece sin tocar el formulario.
+- La casilla «Perdió el documento» también quedó en la puerta del dispositivo; si no se quiere ahí, se saca del formulario
+  hijo.
+
+## Reversión
+Desplegar el código anterior. Los casos creados con la casilla quedan con la clave en `situacion`, que el código anterior
+ignora.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

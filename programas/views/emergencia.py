@@ -29,6 +29,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
+from core.http_cache import sin_cache
+from core.rbac import puede
 from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import (
     CancelarDerivacionForm,
@@ -49,6 +51,7 @@ from programas.models import CasoEmergencia
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_mesa as mesa
 from programas.selectors.emergencia_derivar import clave_de_grupo, pedidas_pendientes
+from programas.selectors.personas_sugeridas import sugerir_personas
 from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import CasoDeOtroOperador, EstadoCambio, FaltanPlazas
@@ -58,6 +61,7 @@ from programas.services.emergencia_programa import puede_supervisar_la_mesa
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
 TEMPLATE_FICHA = "programas/emergencia/casos/detail.html"
 TEMPLATE_NUEVO = "programas/emergencia/casos/form.html"
+CAP_VER_CIUDADANO = "ciudadano.ver"
 
 CASOS_POR_PAGINA = 50
 
@@ -148,14 +152,19 @@ class BandejaCasosView(MesaPermissionMixin, View):
 class NuevoCasoView(MesaPermissionMixin, View):
     """HU-1.4: la mesa carga lo que llega por teléfono. Nace en gestión, tomado por quien lo carga."""
 
+    def _form(self, *args):
+        # Con ``ciudadano.ver`` el DNI busca en el legajo (Hallazgo 15); sin él, el campo es el de siempre.
+        url = reverse("emergencia:personas_sugeridas") if puede(self.request.user, CAP_VER_CIUDADANO) else None
+        return NuevoCasoMesaForm(*args, url_sugerencias=url)
+
     def _render(self, request, form, status=200):
         return render(request, TEMPLATE_NUEVO, {"form": form}, status=status)
 
     def get(self, request):
-        return self._render(request, NuevoCasoMesaForm())
+        return self._render(request, self._form())
 
     def post(self, request):
-        form = NuevoCasoMesaForm(request.POST, request.FILES)
+        form = self._form(request.POST, request.FILES)
         if not form.is_valid():
             return self._render(request, form, status=400)
         try:
@@ -171,6 +180,24 @@ class NuevoCasoView(MesaPermissionMixin, View):
             request, f"Caso {caso.numero} cargado. Quedó en gestión, tomado por vos.{aviso_identidad_a_revisar(caso)}"
         )
         return redirect(_url_ficha(caso))
+
+
+class PersonasSugeridasMesaView(MesaPermissionMixin, View):
+    """Sugiere personas **del legajo** mientras la mesa escribe el DNI de «Nuevo caso» (Hallazgo 15).
+
+    Solo lectura y solo JSON, sin RENAPER ni Personas API. Pide **lo mismo que el alta**
+    (``emergencia.operar`` o ``supervisar`` en el programa, por el mixin) y la capacidad que ya exige el
+    buscador de Dispositivos, ``ciudadano.ver``. Cada sugerencia lleva apellido, nombre y DNI, nada más. El
+    servidor sigue validando el DNI al guardar: esto solo completa el campo.
+    """
+
+    http_method_names = ["get"]
+
+    def get(self, request):
+        if not puede(request.user, CAP_VER_CIUDADANO):
+            return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
+        # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
+        return sin_cache(JsonResponse(sugerir_personas(request.GET.get("q", ""))))
 
 
 # ---------------------------------------------------------------------------

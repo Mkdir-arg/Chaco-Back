@@ -14,6 +14,9 @@
  *                              campo que lo recibe después, window.NodoSugerencias.montar(contenedor)
  *   data-sugerencias-vacio     texto cuando nadie coincide
  *   data-sugerencias-hay-mas   texto cuando el servidor avisa que hay más resultados
+ *   data-sugerencias-completa  `campo:id,campo:id`: al elegir, además del valor, escribe `fila.campo` (apellido, nombre,
+ *                              dni) en el <input> con ese id. Sirve para precargar los campos que el servidor valida igual
+ *                              («Nuevo caso» de Emergencia completa nombre y apellido del legajo).
  *   data-sugerencias-destino   id de un <input type="hidden">: al elegir recibe `valor` y el campo visible
  *                              muestra `etiqueta` (si la fila la trae); al volver a teclear, el destino se vacía.
  *                              El que viaja en el POST es el destino (Cambio 420: «Persona — Rol»).
@@ -66,6 +69,7 @@
         input.autocomplete = 'off';
 
         var opciones = [];
+        var filasActuales = [];
         var activa = -1;
         var temporizador = null;
         var pedido = null;
@@ -99,6 +103,20 @@
             if (!abierto) marcar(-1);
         }
 
+        function completar(fila) {
+            var pares = input.getAttribute('data-sugerencias-completa');
+            if (!pares || !fila) return;
+            pares.split(',').forEach(function (par) {
+                var partes = par.split(':');
+                var campo = document.getElementById(partes[1]);
+                var valor = fila[partes[0]];
+                if (!campo || valor === undefined || valor === null) return;
+                campo.value = valor;
+                campo.dispatchEvent(new Event('input', { bubbles: true }));
+                campo.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        }
+
         function elegir(indice) {
             var li = opciones[indice];
             if (!li) return;
@@ -110,6 +128,7 @@
             } else {
                 input.value = li.getAttribute('data-valor');
             }
+            completar(filasActuales[indice]);
             abrir(false);
             ultimaConsulta = input.value.trim();
             // Quien escucha el campo se entera igual que si la persona lo hubiera tecleado.
@@ -124,6 +143,7 @@
             activa = -1;
             input.removeAttribute('aria-activedescendant');
             var filas = (datos && datos.resultados) || [];
+            filasActuales = filas;
             filas.forEach(function (fila, i) {
                 var li = crear('li', 'nodo-sugerencias__opcion');
                 li.id = id + '-' + i;
