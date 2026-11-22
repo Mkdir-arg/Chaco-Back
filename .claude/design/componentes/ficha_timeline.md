@@ -33,6 +33,7 @@ momento sobre los turnos activos cargados una vez; si no hay turno vigente, omit
 El Historial de P4 conserva su metadato sin turno. Un `CAMBIO_PLAZA` sin plaza de origen se
 dibuja como «Asignación de plaza» («Se asignó la plaza sector · código»). El modal «Cambiar de plaza»
 de P7 comparte su cuerpo (`dispositivos/_form_cambio_plaza.html`) con P4 y P5.
+El modal «Registrar egreso» de P7 comparte su cuerpo (`dispositivos/_form_egreso.html`, ver `arquetipos/modal.md`) con P4.
 P7 suma, bajo la ficha, las secciones «Formulario de ingreso» y «Formulario de egreso» con el include
 `dispositivos/_formulario_respondido.html`; sin respuestas no aparecen. El `id` de cada sección se arma
 con prefijo y contador por separado (`|add:` de texto con número da vacío). El modal «Registrar egreso» de P7
