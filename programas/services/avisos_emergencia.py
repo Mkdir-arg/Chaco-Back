@@ -130,6 +130,12 @@ def casos_fuera_de_sla(sla, ahora, usuario=None, foto=None):
 # --- Derivación por vencer -------------------------------------------------------------
 
 
+def por_vencer(vence_en, ahora):
+    """``True`` si faltan menos de :data:`POR_VENCER_MIN` minutos para ``vence_en`` o ya pasó."""
+
+    return (vence_en - ahora).total_seconds() < POR_VENCER_MIN * 60
+
+
 def derivaciones_por_vencer(sla, ahora, usuario=None, foto=None):
     """``PENDIENTE`` con menos de :data:`POR_VENCER_MIN` minutos de vigencia. Sin consultas con foto.
 
@@ -138,8 +144,7 @@ def derivaciones_por_vencer(sla, ahora, usuario=None, foto=None):
     """
 
     foto = tablero.asegurar_foto(sla, ahora, foto)
-    limite = ahora.timestamp() + POR_VENCER_MIN * 60
-    candidatas = [pendiente for pendiente in foto.pendientes if pendiente.vence_en.timestamp() < limite]
+    candidatas = [pendiente for pendiente in foto.pendientes if por_vencer(pendiente.vence_en, ahora)]
     avisos = []
     for pendiente in candidatas[:TOPE_POR_REGLA]:
         segundos = (pendiente.vence_en - ahora).total_seconds()

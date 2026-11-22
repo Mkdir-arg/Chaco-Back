@@ -59,6 +59,8 @@ from programas.models import (
     TipoDispositivo,
 )
 from programas.selectors.capacidad_dispositivo import edificios_vinculables, plazas_dadas_de_baja, sectores_inactivos
+from programas.selectors.emergencia_alojar import pendientes_por_recibir
+from programas.selectors.emergencia_llegadas import aviso_de_pendientes
 from programas.selectors.estadia_detalle import (
     detalle_de_estadia,
     novedades_de_estadia,
@@ -477,6 +479,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                     estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
                     estadia.url_modal_egreso = url_modal_egreso(dispositivo.pk, estadia.pk)
 
+        url_llegadas = reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk])
         context.update(
             {
                 "maneja_plazas": con_plazas,
@@ -525,9 +528,18 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
                 # «Emergencia · Llegadas» (E6): la misma regla que su vista, `dispositivo.admitir` con alcance.
                 "url_llegadas_emergencia": (
-                    reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk])
-                    if puede_cambiar  # `dispositivo.admitir` con alcance: ya resuelto arriba
-                    else ""
+                    url_llegadas if puede_cambiar else ""  # `dispositivo.admitir` con alcance: ya resuelto arriba
+                ),
+                # Derivaciones de Emergencia por recibir (#1302): solo con `admitir` y alcance, como Llegadas.
+                # Una consulta, y ninguna para quien no puede recibirlas.
+                "aviso_llegadas": (
+                    aviso_de_pendientes(
+                        pendientes_por_recibir(dispositivo, user),
+                        url_llegadas,
+                        timezone.now(),
+                    )
+                    if puede_cambiar
+                    else None
                 ),
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
