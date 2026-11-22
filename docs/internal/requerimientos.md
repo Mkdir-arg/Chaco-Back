@@ -60722,6 +60722,7 @@ Desplegar el código anterior. Sin datos ni esquema.
 ## Historial
 
 - **21/11/2026:** alta del cambio.
+- **22/11/2026:** la decisión «con sexo en la consulta se pisa igual que antes» la revierte el Cambio 528 (la consulta devuelve siempre el sexo del legajo).
 - **21/11/2026:** MINOR de la auditoría del #1279, sin cambio de comportamiento: `sexo_opcional` se derivó de `buscar_en_legajos` (era un segundo flag que solo Emergencia pasaba y siempre junto al primero), el 200 del legajo salió a `_respuesta_del_legajo`, los helpers de los tests pasaron a `_ConsultaDePersonaBase` (la clase sin sexo heredaba de la de tests y volvía a correr sus 22 casos) y se documentó en el contrato por qué el 400 de Emergencia sigue nombrando el sexo.
 
 # Cambio 523 — Equipo de Dispositivos: alcance por institución o edificios y tipo de contratación
@@ -61193,7 +61194,8 @@ búsqueda con sexo por Base de Personas, RBAC y los topes.
   igual que antes»). Con sexo en el cuerpo la consulta sigue pasando por Base de Personas (fallecida, 502) como antes.
 - **Sugerencias para la app** (#1299, punto 4): `GET /api/emergencia/personas/sugerir/?q=`, permiso `emergencia.relevar`,
   cubeta `personas_campo` (SEC-25, la de la consulta), reusando `sugerir_personas` del Cambio 415/416 (prefijo de DNI,
-  tope 10, solo apellido/nombre/DNI). Con menos de 3 dígitos no busca ni descuenta. `Cache-Control: no-store`. No entra al
+  tope 10, solo apellido/nombre/DNI). Con menos de 5 dígitos no busca ni descuenta (el backoffice sigue con 3: una unidad de
+  cubeta revela hasta 10 personas). `Cache-Control: no-store`. No entra al
   índice de la raíz, que no cambia.
 - **Riesgo conocido:** la cubeta es de 120 por hora y cada sugerencia que busca descuenta una; la app limita los pedidos
   (mínimo 5 dígitos, espera entre teclas) y trata el 429 como «sin sugerencias». Si en campo se agota, separar una cubeta propia.
@@ -61210,8 +61212,8 @@ Los de arriba, `docs/internal/contrato-app-emergencia.md` (§4 y «Sugerencias d
 No requiere.
 
 ## Validación
-Tests nuevos: legajo F consultado con M devuelve F; legajo «X» devuelve `""`; sugerencias (prefijo, puntos, mínimo, permiso,
-sin token, cubeta compartida, lo que no busca no descuenta, esquema con 429) y el barrido del namespace. El test que fijaba
+Tests nuevos: legajo F consultado con M devuelve F; legajo «X» devuelve `""`; sugerencias (prefijo, puntos, mínimo de 5,
+permiso `emergencia.relevar` incluso con el módulo abierto —la guardia da 403—, sin token (401), cubeta compartida, lo que no busca no descuenta, esquema con 429) y el barrido del namespace. El test que fijaba
 `sexo: "M"` se reemplazó. `manage.py check`, `makemigrations --check` y ruff: OK.
 
 ## Puesta en marcha en el servidor

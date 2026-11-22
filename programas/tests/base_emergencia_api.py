@@ -56,6 +56,8 @@ CLAVES_RAIZ = ["casos", "casos/mios", "localidades", "mis-dispositivos", "perfil
 # `llegadas` y `kits` (Cambio 475) son aditivas: `dispositivo` sigue siendo `llegadas or kits`.
 CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "relevar"]
 CLAVES_LOCALIDAD = ["id", "nombre"]
+CLAVES_SUGERENCIAS = ["hay_mas", "resultados"]
+CLAVES_SUGERENCIA = ["apellido", "dni", "nombre"]
 CLAVES_CASO_CREADO = ["id", "numero", "prioridad", "total_declarado"]
 CLAVES_MI_CASO = ["creado_en", "estado", "numero", "total_declarado"]
 CLAVES_CONSULTA = ["data", "datos_api", "origen", "success"]

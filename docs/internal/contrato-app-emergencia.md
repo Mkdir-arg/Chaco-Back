@@ -23,7 +23,7 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `GET /api/emergencia/` | módulo | Índice del namespace |
 | `GET /api/emergencia/perfil/` | módulo | Qué accesos mostrar en la pantalla inicial: M1 con `relevar`, M2 con `llegadas`, M3 con `kits` |
 | `POST /api/emergencia/personas/consultar/` | módulo | Nombre y edad a partir del DNI |
-| `GET /api/emergencia/personas/sugerir/?q=` | módulo | Sugerencias de personas del legajo mientras se escribe el DNI (#1299) |
+| `GET /api/emergencia/personas/sugerir/?q=` | agente | Sugerencias de personas del legajo mientras se escribe el DNI (#1299) |
 | `GET /api/emergencia/localidades/` | módulo | Lista de localidades para el Formulario 1 |
 | `POST /api/emergencia/casos/` | agente | Enviar una familia (multipart, idempotente) |
 | `GET /api/emergencia/casos/mios/` | agente | «Mis envíos» |
@@ -208,8 +208,9 @@ quien tiene los dos módulos no suma dos cuotas.
 
 `GET /api/emergencia/personas/sugerir/?q=<DNI tecleado>`. Mismo permiso que la consulta (`emergencia.relevar`) y
 **la misma cubeta `personas_campo`** (SEC-25, 120 por hora y por usuario): enumerar nombres por prefijo es una
-consulta de identidad por otra puerta. Cada pedido que busca descuenta una; el 429 trae `Retry-After`. Con menos de 3
-dígitos (`q` se normaliza como un DNI: solo dígitos) responde la lista vacía sin buscar y sin descontar. Es lo mismo
+consulta de identidad por otra puerta. Cada pedido que busca descuenta una; el 429 trae `Retry-After`. Con menos de **5**
+dígitos (`q` se normaliza como un DNI: solo dígitos; el backoffice sigue con 3) responde la lista vacía sin buscar y sin
+descontar: una unidad de cubeta revela hasta 10 personas, y el mínimo de 5 es el que la app ya usa. Es lo mismo
 que el paso 1 de Dispositivos (Cambio 416): `programas.selectors.personas_sugeridas.sugerir_personas`, por prefijo
 de DNI, tope de 10.
 

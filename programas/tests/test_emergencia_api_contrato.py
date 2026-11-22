@@ -69,6 +69,8 @@ from programas.tests.base_emergencia_api import (
     CLAVES_RECEPCION,
     CLAVES_RECHAZO,
     CLAVES_SIN_MODULO,
+    CLAVES_SUGERENCIA,
+    CLAVES_SUGERENCIAS,
     SIN_MODULO,
     SIN_RELEVAR,
     SOLO_DEL_AGENTE,
@@ -681,7 +683,7 @@ class SugerirPersonasTests(_ConsultaDePersonaBase):
         self._legajo()
         self._legajo(dni="30999000", nombre="Otra", apellido="Distinta")
 
-        respuesta = self._sugerir(self.agente, "3011")
+        respuesta = self._sugerir(self.agente, "30111")
 
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
         self.assertEqual(
@@ -694,12 +696,12 @@ class SugerirPersonasTests(_ConsultaDePersonaBase):
     def test_acepta_el_dni_con_puntos(self):
         self._legajo()
 
-        self.assertEqual(len(self._sugerir(self.agente, "30.111").json()["resultados"]), 1)
+        self.assertEqual(len(self._sugerir(self.agente, "30.1112").json()["resultados"]), 1)
 
-    def test_con_menos_de_tres_digitos_no_busca(self):
+    def test_con_menos_de_cinco_digitos_no_busca(self):
         self._legajo()
 
-        for q in ("", "3", "30", "ab"):
+        for q in ("", "3", "30", "3011", "ab"):
             with self.subTest(q=q):
                 respuesta = self._sugerir(self.agente, q)
                 self.assertEqual(respuesta.status_code, 200)
@@ -710,30 +712,39 @@ class SugerirPersonasTests(_ConsultaDePersonaBase):
 
         self.assertEqual(self._sugerir(self.agente, "benitez").json()["resultados"], [])
 
-    def test_exige_emergencia_relevar_y_no_gasta_la_cubeta_sin_permiso(self):
+    def test_exige_emergencia_relevar_incluso_con_el_modulo_abierto(self):
         self._legajo()
 
-        self.assertEqual(self._sugerir(self.operador, "3011").status_code, 403)
-        self.assertEqual(self._sugerir(self.territorial_becas, "3011").status_code, 403)
-        self.assertEqual(self._como(self.agente).get(URL_SUGERIR, {"q": "3011"}).status_code, 200)
+        self.assertEqual(self._sugerir(self.operador, "30111").status_code, 403)
+        self.assertEqual(self._sugerir(self.territorial_becas, "30111").status_code, 403)
+        self.assertEqual(self._sugerir(self.guardia, "30111").status_code, 403, "abre el módulo pero no relevá")
+        self.assertEqual(self._sugerir(self.agente, "30111").status_code, 200)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_sin_permiso_no_gasta_la_cubeta(self, _rate):
+        self._legajo()
+
+        self.assertEqual(self._sugerir(self.guardia, "30111").status_code, 403)
+        self.assertEqual(self._sugerir(self.guardia, "30111").status_code, 403)
+        self.assertEqual(self._sugerir(self.agente, "30111").status_code, 200)
 
     def test_sin_token_no_entra(self):
         from rest_framework.test import APIClient
 
-        self.assertIn(APIClient().get(URL_SUGERIR, {"q": "3011"}).status_code, (401, 403))
+        self.assertEqual(APIClient().get(URL_SUGERIR, {"q": "30111"}).status_code, 401)
 
     @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
     def test_comparte_la_cubeta_de_la_consulta_de_identidad(self, _rate):
         self._legajo()
 
-        self.assertEqual(self._sugerir(self.agente, "3011").status_code, 200)
-        self.assertEqual(self._sugerir(self.agente, "3011").status_code, 429)
+        self.assertEqual(self._sugerir(self.agente, "30111").status_code, 200)
+        self.assertEqual(self._sugerir(self.agente, "30111").status_code, 429)
         self.assertEqual(self._consultar(self.agente).status_code, 429)
 
     @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
     def test_lo_que_no_busca_no_descuenta_de_la_cubeta(self, _rate):
         for _ in range(3):
-            self.assertEqual(self._sugerir(self.agente, "30").status_code, 200)
+            self.assertEqual(self._sugerir(self.agente, "3011").status_code, 200)
         self.assertEqual(self._consultar(self.agente).status_code, 200)
 
     def test_el_esquema_publica_la_ruta_y_el_429(self):
@@ -836,6 +847,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             (URL_PERFIL, "get"),
             (URL_CONSULTAR, "post"),
             (URL_LOCALIDADES, "get"),
+            (URL_SUGERIR, "get"),
             (URL_CASOS, "post"),
             (URL_MIOS, "get"),
             (URL_MIS_DISPOSITIVOS, "get"),
@@ -870,6 +882,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
         casos = (
             (rutas[URL_PERFIL]["get"], "200", CLAVES_PERFIL),
             (rutas[URL_LOCALIDADES]["get"], "200", CLAVES_LOCALIDAD),
+            (rutas[URL_SUGERIR]["get"], "200", CLAVES_SUGERENCIAS),
             (rutas[URL_CASOS]["post"], "201", CLAVES_CASO_CREADO),
             (rutas[URL_CASOS]["post"], "200", CLAVES_CASO_CREADO),
             (rutas[URL_MIOS]["get"], "200", CLAVES_MI_CASO),
@@ -908,6 +921,9 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
         for operacion, codigo, claves in casos:
             with self.subTest(operacion=operacion["operationId"], codigo=codigo):
                 self.assertEqual(sorted(self._componente(operacion, codigo)["properties"]), claves)
+        resultados = self._componente(rutas[URL_SUGERIR]["get"])["properties"]["resultados"]["items"]["$ref"]
+        item = self.esquema["components"]["schemas"][resultados.split("/")[-1]]
+        self.assertEqual(sorted(item["properties"]), CLAVES_SUGERENCIA)
 
     def test_integrantes_publica_la_derivacion_y_los_cierres_la_aceptan_opcional(self):
         """Cambio 477: el `GET` dice qué derivación se mira y los tres cierres la reciben sin exigirla."""
