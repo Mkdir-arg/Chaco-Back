@@ -31,6 +31,7 @@ urlpatterns = [
     path(CASO, llegadas.IntegrantesView.as_view(), name="emergencia_integrantes"),
     path(f"{CASO}integrantes/agregar/", llegadas.AgregarIntegranteView.as_view(), name="emergencia_agregar"),
     path(f"{CASO}integrantes/<int:orden>/", llegadas.FichaIntegranteView.as_view(), name="emergencia_ficha"),
+    path(f"{CASO}integrantes/<int:orden>/quitar/", llegadas.QuitarIntegranteView.as_view(), name="emergencia_quitar"),
     path(f"{CASO}integrantes/<int:orden>/cama/", llegadas.ElegirCamaView.as_view(), name="emergencia_cama"),
     path(f"{CASO}alojar/", llegadas.FamiliaAlojadaView.as_view(), name="emergencia_alojar"),
     path(f"{CASO}diferencia/", llegadas.CerrarConDiferenciaView.as_view(), name="emergencia_diferencia"),

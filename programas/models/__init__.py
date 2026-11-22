@@ -5727,6 +5727,16 @@ class IntegranteGrupo(TimeStamped):
     def confirmada(self):
         return self.confirmada_en is not None
 
+    @property
+    def agregada_en_la_puerta(self):
+        """¿La sumó la guardia con «Agregar persona»? Sin columna: las originales son 1 a lo que dijo el Formulario 1.
+
+        ``agregar_integrante`` numera siempre a continuación de la última fila, así que toda fila con ``orden`` mayor
+        a ``grupo.suma_de_cantidades()`` es de la puerta y ninguna de las originales lo es. Lee ``self.grupo``.
+        """
+
+        return self.orden > self.grupo.suma_de_cantidades()
+
 
 class CasoEmergencia(TimeStamped):
     """Una familia que hay que alojar, desde que se releva hasta que el caso se cierra.
@@ -6300,6 +6310,7 @@ class TrazaCaso(models.Model):
         INTEGRANTE_CONFIRMADO = "INTEGRANTE_CONFIRMADO", "Persona confirmada con cama"
         FICHA_ACTUALIZADA = "FICHA_ACTUALIZADA", "Ficha individual actualizada"
         INTEGRANTE_AGREGADO = "INTEGRANTE_AGREGADO", "Persona agregada por el dispositivo"
+        INTEGRANTE_QUITADO = "INTEGRANTE_QUITADO", "Persona agregada por error, quitada por el dispositivo"
         ALOJADO = "ALOJADO", "Familia alojada"
         ALOJADO_CON_DIFERENCIA = "ALOJADO_CON_DIFERENCIA", "Ingreso cerrado con diferencia"
         INGRESO_CANCELADO = "INGRESO_CANCELADO", "Ingreso cancelado"

@@ -1,6 +1,6 @@
 """Etapa 3 de Emergencia, paso 2: confirmar a cada persona con su ficha y su cama (M2-3, M2-4).
 
-``confirmar_integrante``, ``completar_ficha`` y ``agregar_integrante``. Se importan desde
+``confirmar_integrante``, ``completar_ficha``, ``agregar_integrante`` y ``quitar_integrante``. Se importan desde
 ``programas.services.emergencia_alojar``, que tiene el contrato de la etapa (alcance, orden
 de candados, traza). La ficha (Formulario 2) es de ``emergencia_ficha``.
 """
@@ -699,3 +699,59 @@ def agregar_integrante(*, caso, usuario, uuid_cliente=None):
     )
     integrante.ya_estaba, integrante.total_declarado = False, grupo.total_declarado
     return integrante
+
+
+SOLO_SE_QUITA_LA_DE_LA_PUERTA = (
+    "Solo se puede quitar a quien se agregó en la puerta y todavía no ingresó. "
+    "Las personas del Formulario 1 y las ya confirmadas no se quitan."
+)
+
+
+class PersonaQuitada:
+    """Lo que devuelve :func:`quitar_integrante`: la persona quitada y cuántas quedan declaradas."""
+
+    def __init__(self, orden, total_declarado, ya_estaba):
+        self.orden, self.total_declarado, self.ya_estaba = orden, total_declarado, ya_estaba
+
+
+@transaction.atomic
+def quitar_integrante(*, caso, orden, usuario):
+    """Deshace «Agregar persona»: quita a quien la guardia sumó por error en la puerta (hallazgo 12).
+
+    Solo se quita una fila que cumple **las dos**: la sumó la guardia (``orden`` mayor a lo declarado en el
+    Formulario 1: ``IntegranteGrupo.agregada_en_la_puerta``, sin columna nueva) y sigue sin confirmar (sin
+    persona, sin estadía y sin ``confirmada_en``: no tiene cama, ni reservada ni ocupada, que haya que devolver).
+    Nunca el responsable (``orden`` 1) ni un integrante original. Exige el ingreso en curso y el alcance sobre el
+    edificio de la derivación, como las demás acciones del ingreso (:func:`_abrir_ingreso`).
+
+    ``total_declarado`` baja en uno y queda ``INTEGRANTE_QUITADO`` en la traza. **Idempotente**: si esa fila ya no
+    está y era de la puerta, devuelve el mismo resultado con ``ya_estaba = True`` sin tocar nada. Las que no
+    se pueden quitar dan ``ValidationError`` con el mensaje de :data:`SOLO_SE_QUITA_LA_DE_LA_PUERTA`.
+    """
+
+    caso, _derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO)
+    grupo = caso.grupo
+    declaradas = grupo.suma_de_cantidades()
+    fila = IntegranteGrupo.objects.select_for_update().filter(grupo_id=grupo.pk, orden=orden).first()
+    if fila is None:
+        if orden > declaradas:
+            return PersonaQuitada(orden, grupo.total_declarado, ya_estaba=True)
+        raise ValidationError({"orden": "Esa persona no es de esta familia. Recargá la lista."})
+    fila.grupo = grupo
+    if not fila.agregada_en_la_puerta or fila.confirmada or fila.ciudadano_id or fila.estadia_id:
+        raise ValidationError({"orden": SOLO_SE_QUITA_LA_DE_LA_PUERTA})
+
+    fila.delete()
+    grupo.total_declarado = max(grupo.total_declarado - 1, 1)
+    grupo.save(update_fields=["total_declarado", "modificado"])
+    _trazar(
+        caso,
+        usuario,
+        Accion.INTEGRANTE_QUITADO,
+        estado_anterior=caso.estado,
+        detalle=(
+            f"Quitada la persona {orden}, agregada por error en la puerta · {grupo.total_declarado} sobre "
+            f"{declaradas} declaradas"
+        ),
+    )
+    return PersonaQuitada(orden, grupo.total_declarado, ya_estaba=False)
