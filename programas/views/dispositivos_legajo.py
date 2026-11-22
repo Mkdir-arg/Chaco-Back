@@ -34,13 +34,13 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoAltaPermissionMixin,
     DispositivoObjectPermissionMixin,
     DispositivoProgramaPermissionMixin,
+    _entero,
     dispositivo_operable_o_404,
 )
 from programas.mixins_dispositivos_equipo import EquipoDelLegajoMixin
 from programas.mixins_dispositivos_sectores import (
     AUTO_ID_CAMBIO,
     SectoresPlazasMixin,
-    _entero,
     _form_de_cambio_de_plaza,
     _q_sectores_visibles,
     _sectores_para_cambio,
@@ -530,7 +530,7 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
                 "puede_validar": puede_validar,
                 "validacion_pendiente": puede_validar and dispositivo.estado == Dispositivo.Estado.PENDIENTE_VALIDACION,
                 # Misma función que el gate del asistente: sin `ciudadano.ver` no se ofrece.
-                "puede_admitir": puede_ingresar_persona(user, dispositivo),
+                "puede_admitir": puede_ingresar_persona(user, dispositivo, puede_admitir=puede_cambiar),
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),

@@ -125,6 +125,11 @@
     ['wheel', 'touchmove', 'keydown', 'mousedown'].forEach(function (tipo) {
       cuerpo.addEventListener(tipo, function () { fijada = false; });
     });
+    // Un error de validación (u otro código) lleva el foco a un control de otra sección: la elegida ya no manda.
+    cuerpo.addEventListener('focusin', function (evento) {
+      var destino = evento && evento.target;
+      if (destino && destino.hasAttribute && !destino.hasAttribute('data-indice-seccion')) { fijada = false; }
+    });
     if (global.MutationObserver) {
       var observador = new global.MutationObserver(sincronizar);
       secciones.forEach(function (seccion) {

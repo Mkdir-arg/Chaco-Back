@@ -139,15 +139,20 @@ CAP_EDITAR = "dispositivo.editar"
 CAP_VER_CIUDADANO = "ciudadano.ver"
 
 
-def puede_ingresar_persona(user, dispositivo):
+def puede_ingresar_persona(user, dispositivo, *, puede_admitir=None):
     """Quién puede abrir el asistente de ingreso: `dispositivo.admitir` con alcance Y `ciudadano.ver`.
 
     Es la única fuente de la regla: la vista del asistente la usa de gate y el detalle del
     dispositivo la usa para ofrecer (o no) «Ingresar persona», así que el botón nunca
     aparece donde el asistente respondería 403.
+
+    `puede_admitir` es la respuesta ya resuelta de `puede_operar_dispositivo(..., CAP_ADMITIR)` para
+    este mismo usuario y dispositivo (la ficha la memoriza por pedido); sin ella se calcula acá.
     """
 
-    return puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR) and rbac.puede(user, CAP_VER_CIUDADANO)
+    if puede_admitir is None:
+        puede_admitir = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
+    return puede_admitir and rbac.puede(user, CAP_VER_CIUDADANO)
 
 
 #: A quién se le pide que resuelva una estadía abierta fuera del alcance de quien pregunta.

@@ -107,7 +107,28 @@ class DispositivoAltaPermissionMixin(DispositivoProgramaPermissionMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
+def _entero(valor):
+    """El id de un parámetro GET, o `None`. Solo dígitos ASCII: un superíndice o un dígito
+    arábigo pasan `isdigit()` y rompen `int()`."""
+
+    valor = (valor or "").strip()
+    return int(valor) if valor.isascii() and valor.isdecimal() else None
+
+
 class DispositivoObjectPermissionMixin(DispositivoProgramaPermissionMixin):
+    def _puede_operar(self, dispositivo, capacidad):
+        """`puede_operar_dispositivo` de quien mira, resuelto una sola vez por capacidad en cada pedido.
+
+        El detalle de la ficha y la solapa «Sectores y plazas» preguntan lo mismo (`CAP_ADMITIR`, `CAP_EGRESAR`):
+        para quien opera por el Equipo cada pregunta es una consulta.
+        """
+
+        memoria = self.__dict__.setdefault("_operar_del_pedido", {})
+        clave = (dispositivo.pk, capacidad)
+        if clave not in memoria:
+            memoria[clave] = puede_operar_dispositivo(self.request.user, dispositivo, capacidad)
+        return memoria[clave]
+
     def get_object(self, queryset=None):
         try:
             dispositivo = super().get_object(queryset)
