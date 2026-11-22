@@ -1,2 +1,5 @@
-{# Panel «Historial de este edificio» de la página operativa del edificio. Hoy es un estado vacío con salida a donde se opera hoy; el PR del lote que lo implementa reemplaza SOLO este archivo (Cambio 563). #}
-{% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo="Historial de este edificio" texto="Esta sección llega en breve. Mientras tanto, el historial se ve desde la institución." accion_url=enlaces_de_institucion.historial accion_texto="Ir al Historial de la institución" accion_icono="fa-arrow-right" %}
+{# Panel «Historial» de la página operativa del edificio (Cambio 571): la auditoría de la institución acotada a este edificio, en la línea de tiempo de siempre. Se arma solo con la solapa abierta (`historial_cargado`). #}
+<div class="p-5">
+  {% include "components/_linea_tiempo.html" with eventos=eventos_historial vacio_titulo="Todavía no hay movimientos en este edificio" vacio_texto="Los ingresos, egresos y cambios de plaza, las reservas, las plazas y sectores, las entregas de kits, los relevamientos edilicios y las correcciones de la bitácora de este edificio quedan registrados acá." %}
+</div>
+{% include "components/_paginacion.html" with page_obj=historial entidad="evento" param="historial_page" extra_qs="tab=historial" %}
