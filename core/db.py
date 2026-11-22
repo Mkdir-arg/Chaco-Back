@@ -81,10 +81,11 @@ def leer_con_bloqueo_compartido(modelo, pks, campo):
         return {}
     citar = conexion.ops.quote_name
     tabla = citar(modelo._meta.db_table)
-    columna_pk = citar(modelo._meta.pk.column)
+    pk = citar(modelo._meta.pk.column)
     columna = citar(modelo._meta.get_field(campo).column)
     marcas = ", ".join(["%s"] * len(ids))
-    sql = f"SELECT {columna_pk}, {columna} FROM {tabla} WHERE {columna_pk} IN ({marcas}) ORDER BY {columna_pk}"
+    # Los identificadores salen del modelo (nunca de la entrada) y van citados; los valores, por parámetro.
+    sql = f"SELECT {pk}, {columna} FROM {tabla} WHERE {pk} IN ({marcas}) ORDER BY {pk}"  # nosec B608
     if conexion.vendor == "mysql":
         sql += " LOCK IN SHARE MODE"
     elif conexion.vendor == "postgresql":
