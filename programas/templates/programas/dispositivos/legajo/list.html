@@ -6,17 +6,16 @@
 <div class="space-y-6">
 
   {% page_header eyebrow="Programa Dispositivos" titulo="Instituciones" bajada="Legajo institucional de cada dispositivo: identidad, encuadre, plazas y estado de validación." %}
-    <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if exportar_qs %}?{{ exportar_qs }}{% endif %}" class="btn-nodo btn-tertiary btn-base">
-      <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar CSV
-    </a>
-    <a href="{% url 'dispositivos:exportar' 'padron' 'xlsx' %}{% if exportar_qs %}?{{ exportar_qs }}{% endif %}" class="btn-nodo btn-tertiary btn-base">
-      <i class="fas fa-file-excel" aria-hidden="true"></i> Exportar Excel
-    </a>
     {% if puede_crear %}
       <a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">
         <i class="fas fa-plus" aria-hidden="true"></i> Nueva institución
       </a>
     {% endif %}
+    {# Dos exportaciones: van al menú, no como botones sueltos junto a la acción primaria #}
+    {% menu_fila id="exportar-padron" etiqueta="Exportar el padrón de instituciones" texto="Exportar" %}
+      {% include "components/_menu_fila_item.html" with texto="Exportar CSV" icono="fa-file-csv" url=url_exportar_csv only %}
+      {% include "components/_menu_fila_item.html" with texto="Exportar Excel" icono="fa-file-excel" url=url_exportar_xlsx only %}
+    {% endmenu_fila %}
   {% endpage_header %}
 
   {% comment %}Filtros: el <form> va sin class y cada control con aria-label. Al montar,
@@ -36,7 +35,12 @@
         <option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
-    <input type="search" name="localidad" value="{{ localidad_actual }}" aria-label="Localidad" class="nodo-field max-w-xs">
+    <select name="localidad" aria-label="Localidad" class="nodo-field max-w-xs">
+      <option value="">Todas</option>
+      {% for localidad in localidades %}
+        <option value="{{ localidad }}" {% if localidad == localidad_actual %}selected{% endif %}>{{ localidad }}</option>
+      {% endfor %}
+    </select>
   </form>
 
   <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
