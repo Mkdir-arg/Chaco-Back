@@ -261,22 +261,31 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         envio = self.client.get(self._url("ingreso_directo")).context["form"].initial["uuid_cliente"]
         datos = {**FORMULARIO1, "uuid_cliente": str(envio)}
 
-        primera = self.client.post(self._url("ingreso_directo"), datos)
-        segunda = self.client.post(self._url("ingreso_directo"), datos)
+        primera = self.client.post(self._url("ingreso_directo"), datos, follow=True)
+        segunda = self.client.post(self._url("ingreso_directo"), datos, follow=True)
 
         caso = CasoEmergencia.objects.get()
-        self.assertEqual(primera["Location"], segunda["Location"])
+        self.assertEqual(primera.redirect_chain, segunda.redirect_chain)
         self.assertEqual(ReservaPlaza.objects.filter(derivacion__caso=caso).count(), caso.grupo.total_declarado)
+        self.assertIn(f"Caso {caso.numero} creado", " ".join(_mensajes(primera)))
+        self.assertEqual(_mensajes(segunda), [f"Ese formulario ya se había enviado: es el caso {caso.numero}."])
 
     def test_el_mismo_aviso_enviado_dos_veces_es_un_solo_caso(self):
         self.client.force_login(self.guardia_b)
         envio = self.client.get(self._url("avisar")).context["form"].initial["uuid_cliente"]
         datos = {**FORMULARIO1, "uuid_cliente": str(envio)}
 
-        self.client.post(self._url("avisar"), datos)
-        self.client.post(self._url("avisar"), datos)
+        primera = self.client.post(self._url("avisar"), datos, follow=True)
+        segunda = self.client.post(self._url("avisar"), datos, follow=True)
 
-        self.assertEqual(CasoEmergencia.objects.count(), 1)
+        caso = CasoEmergencia.objects.get()
+        self.assertIn(f"Caso {caso.numero} enviado a la mesa", " ".join(_mensajes(primera)))
+        self.assertEqual(_mensajes(segunda), [f"Ese formulario ya se había enviado: es el caso {caso.numero}."])
+
+
+def _mensajes(respuesta):
+    """Los mensajes que mostró la pantalla a la que llevó el POST (seguido con ``follow=True``)."""
+    return [str(m) for m in respuesta.context["messages"]]
 
 
 class ApiConAlcanceEdificiosTests(BaseApiLlegadas):

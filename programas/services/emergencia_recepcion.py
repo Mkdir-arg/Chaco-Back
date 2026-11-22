@@ -8,7 +8,7 @@ importan desde ``programas.services.emergencia_alojar``, que tiene el contrato d
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -24,6 +24,7 @@ from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _hora, _nombre_de, _trazar
 from programas.services.emergencia_ingreso_comun import (
     CAP_ADMITIR,
+    SIN_ALCANCE,
     Accion,
     Estado,
     _anotar_en_bitacora,
@@ -33,7 +34,6 @@ from programas.services.emergencia_ingreso_comun import (
     _devolver_a_la_mesa,
     _dia_y_mes,
     _dispositivo_de,
-    _exigir_alcance,
     _por_que_ya_no,
     _reservar_camas,
     _resumen_de_reservas,
@@ -144,7 +144,11 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     (``PermissionDenied``); un DNI que no es un DNI es ``ValidationError``.
     """
 
-    _exigir_alcance(usuario, dispositivo)
+    # La guarda de la búsqueda es la misma regla que «Avisar a la mesa» (admitir con cualquier alcance):
+    # se calcula una vez y el resultado ``SIN_DERIVACION`` la reusa.
+    puede_avisar = puede_avisar_a_la_mesa(usuario, dispositivo)
+    if not puede_avisar:
+        raise PermissionDenied(SIN_ALCANCE)
     dni = normalizar_dni(dni)
     if not dni_valido(dni):
         raise ValidationError({"dni": MENSAJE_DNI_INVALIDO})
@@ -152,7 +156,7 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
     libres = len(camas_libres(dispositivo, usuario=usuario))
     ciudadano = buscar_ciudadano_por_dni(dni)
     if ciudadano is None:
-        return _sin_derivacion(usuario, dispositivo, dni, libres, SIN_DERIVACION)
+        return _sin_derivacion(usuario, dispositivo, dni, libres, SIN_DERIVACION, puede_avisar)
 
     de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     derivacion = (
@@ -206,10 +210,10 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
         .first()
     )
     mensaje = mensaje_vencida(vencida) if vencida is not None else SIN_DERIVACION
-    return _sin_derivacion(usuario, dispositivo, dni, libres, mensaje)
+    return _sin_derivacion(usuario, dispositivo, dni, libres, mensaje, puede_avisar)
 
 
-def _sin_derivacion(usuario, dispositivo, dni, libres, mensaje):
+def _sin_derivacion(usuario, dispositivo, dni, libres, mensaje, puede_avisar):
     """El resultado ``SIN_DERIVACION``, con lo que quien busca puede hacer en la puerta (hallazgo 4)."""
 
     return ResultadoBusqueda(
@@ -218,7 +222,7 @@ def _sin_derivacion(usuario, dispositivo, dni, libres, mensaje):
         plazas_libres=libres,
         mensaje=mensaje,
         puede_ingresar_igual=puede_ingresar_igual(usuario, dispositivo),
-        puede_avisar_a_la_mesa=puede_avisar_a_la_mesa(usuario, dispositivo),
+        puede_avisar_a_la_mesa=puede_avisar,
     )
 
 

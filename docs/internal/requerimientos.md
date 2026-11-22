@@ -60864,6 +60864,9 @@ contratación cargada.
   llegan a quien tiene alcance Edificios (sí a Institución), y un cambio de plaza desde una plaza de su edificio sí. Cada filtro de
   `FeedAuditoria` verificado por mutación (rojo al quitarlo). El texto del Pendiente queda como «las trazas del dispositivo no
   llevan edificio».
+- **22/11/2026:** la regla por edificio llega a alojar en Emergencia en el **Cambio 532** (PR L1): «Aceptar» reserva solo
+  camas del edificio derivado, «Avisar a la mesa» vale con alcance Edificios, «Ingresar igual» exige la institución entera
+  y «mis dispositivos» cuenta por edificio.
 
 ---
 
@@ -61540,3 +61543,8 @@ conservan y el código viejo las trata igual.
 
 ## Historial
 - **22/11/2026:** alta del cambio (PR L1 del relevamiento de lógica).
+- **22/11/2026:** MINOR de la auditoría (#1308): el contrato (§13.2 y §13.3) aclara que `plazas_libres` cuenta el
+  dispositivo entero y «Aceptar» reserva solo del edificio derivado; reenviar el mismo Formulario 1 por el backoffice
+  muestra «Ese formulario ya se había enviado: es el caso N» en lugar del mensaje de alta (test con mutación); sale la
+  rama sin uso `institucion=True` de `_exigir_alcance`; la búsqueda calcula `puede_avisar_a_la_mesa` una sola vez.
+  En el Historial del Cambio 523 queda la línea que remite a este.

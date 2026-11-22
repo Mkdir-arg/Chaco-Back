@@ -671,6 +671,18 @@ class CancelarIngresoView(_IngresoView):
 # ---------------------------------------------------------------------------
 
 
+YA_SE_HABIA_ENVIADO = "Ese formulario ya se había enviado: es el caso {numero}."
+
+
+def _ya_se_habia_enviado(request, caso):
+    """El mismo Formulario 1 llegó dos veces (doble clic, volver atrás y reenviar): no se creó nada nuevo,
+    y decirle «Caso N creado» otra vez haría creer que hay dos."""
+    if not getattr(caso, "ya_existia", False):
+        return False
+    messages.info(request, YA_SE_HABIA_ENVIADO.format(numero=caso.numero))
+    return True
+
+
 class _Formulario1View(GuardiaView):
     """El Formulario 1 cargado en la puerta del dispositivo. Las subclases dicen qué se hace con él."""
 
@@ -722,6 +734,8 @@ class AvisarALaMesaView(_Formulario1View):
         )
 
     def despues(self, request, caso):
+        if _ya_se_habia_enviado(request, caso):
+            return redirect(self.url("llegadas"))
         messages.success(
             request,
             f"Caso {caso.numero} enviado a la mesa. Cuando lo deriven acá, buscá a la familia de nuevo."
@@ -753,6 +767,8 @@ class IngresoDirectoView(_Formulario1View):
         )
 
     def despues(self, request, caso):
+        if _ya_se_habia_enviado(request, caso):
+            return redirect(self.url("integrantes", caso.pk))
         if caso.faltantes:
             messages.warning(
                 request,

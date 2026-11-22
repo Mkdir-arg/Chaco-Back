@@ -605,6 +605,10 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
   también **Edificios**. `puede_ingresar_igual` no mira las camas: el botón va si es `true` **y**
   `plazas_libres ≥ 1`. Una app anterior que no las lee sigue andando: con alcance Edificios, `ingreso-directo`
   le contesta 404 como hasta ahora (§13.10).
+- `plazas_libres` cuenta las camas libres de **todo el dispositivo** que el usuario alcanza (con alcance
+  Edificios, las de sus edificios), **no** las del edificio de la derivación. Sirve para decidir el botón de
+  M2-6 y como referencia; no anticipa cuántas reserva «Aceptar», que toma solo del edificio derivado
+  (§13.3, Cambio 532).
 - `responsable.identidad_a_revisar`: `{"nombre", "apellido"}` tal como los cargó quien relevó, cuando el
   DNI ya era de otra persona registrada y se envió con `identidad_en_conflicto` (§6). Viene **solo
   mientras la mesa no lo revisó**; si no, `null`. Es un aviso: la app lo muestra («Identidad a revisar: se
@@ -641,10 +645,13 @@ Respuesta **200**:
  "integrantes": [{"n": 1, "estado": "SIN_CONFIRMAR", …}, …]}
 ```
 
-- Reserva **hasta** `plazas_pedidas` camas, elegidas por el servidor (el sector con más libres primero).
+- Reserva **hasta** `plazas_pedidas` camas, elegidas por el servidor (el sector con más libres primero),
+  **solo del edificio de la derivación** (el que eligió la mesa al derivar; sin edificio, de todo el
+  dispositivo). Por eso `faltantes` puede ser mayor que cero aunque `plazas_libres` de §13.2 —que cuenta el
+  dispositivo entero— alcanzara (Cambio 532).
   Menos de las pedidas es válido: `faltantes > 0` y la app muestra `mensaje`. Se puede seguir.
 - `integrantes`: las N filas de la familia (§13.5), todas sin confirmar.
-- 400 `plazas`: el dispositivo no tiene **ninguna** cama libre («Sin plazas · rechazá con motivo o liberá
+- 400 `plazas`: el edificio de la derivación no tiene **ninguna** cama libre («Sin plazas · rechazá con motivo o liberá
   camas»), o una cama se ocupó mientras se aceptaba (volver a tocar «Aceptar»).
 - 409: otra guardia ya la aceptó (desde su teléfono o desde el backoffice), la mesa la canceló o el cron
   la venció.
