@@ -24,7 +24,8 @@ Quién entra (plan C2, Cambio 432)
   ``self.dispositivo``, así que no existen (RU-9).
 
 El estado del recorrido es el del caso, no la sesión: no hay nada que una segunda pestaña
-pueda pisar, y cada paso se abre por su URL.
+pueda pisar, y cada paso se abre por su URL. Salvo el borrador de la ficha, por persona, que
+vive en la sesión (Cambio 546).
 """
 
 import uuid
@@ -516,8 +517,10 @@ class FichaIntegranteView(_IntegranteView):
         """Lo escrito, sin validar: solo los campos de la ficha (no el token, no la cama, no los archivos)."""
 
         campos = set(form.fields) - {"plaza"}
+        # También lo que llegó vacío: un dato que el operador borró no tiene que volver con la precarga.
         request.session[self._clave_borrador] = {
-            clave: valor for clave, valor in request.POST.items() if clave in campos and valor != ""
+            clave: request.POST.get(clave, "")[: getattr(form.fields[clave], "max_length", None) or 1000]
+            for clave in campos
         }
 
     def _borrador(self, request):
@@ -553,7 +556,6 @@ class FichaIntegranteView(_IntegranteView):
             form=form,
             confirmada=integrante.confirmada,
             cama=cama,
-            url_cama=self.url("cama", self.caso.pk, integrante.orden, cama=cama["id"] if cama else None),
         )
         if integrante.confirmada:
             cama_actual = integrante.estadia.plaza if integrante.estadia_id and integrante.estadia.plaza_id else None
@@ -582,6 +584,9 @@ class FichaIntegranteView(_IntegranteView):
 
     def post(self, request, pk, caso_pk, orden):
         if self.integrante.confirmada:
+            if "elegir_cama" in request.POST:
+                # Otra guardia la confirmó mientras tanto: no hay cama que elegir y no se escribe nada.
+                return redirect(self.url("ficha", caso_pk, orden))
             return self._completar(request)
         form = FichaIntegranteForm(request.POST, adultos=self._adultos())
         cama = self.cama_pedida(request.POST.get("plaza"))

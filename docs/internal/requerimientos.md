@@ -62519,17 +62519,31 @@ Hallazgo 2: «Elegir cama» era un enlace al mapa de camas y, si el operador ya 
 «Elegir cama» pasa a ser un botón de envío del mismo formulario (`name="elegir_cama"`). La vista guarda lo escrito como borrador en la sesión, sin validar y sin escribir en la base, y redirige al mapa. Al volver a la ficha el formulario se precarga (`initial`, sin errores marcados).
 
 ## Decisiones tomadas
-- **Borrador en la sesión, atado a la persona.** Clave `emergencia_borrador_ficha:<dispositivo>:<caso>:<integrante>`: no pasa a otra ficha ni a otro caso. Guarda solo los campos de la ficha con valor (no el token, no la cama, que viaja por la URL del mapa). Nunca va a un log ni a la base.
+- **Borrador en la sesión, atado a la persona.** Clave `emergencia_borrador_ficha:<dispositivo>:<caso>:<integrante>`: no pasa a otra ficha ni a otro caso. Guarda los campos de la ficha (no el token, no la cama, que viaja por la URL del mapa), cada valor recortado al largo de su campo. Vive en la sesión (tabla de sesiones en dev/qa, Redis en prd); nunca en las tablas del dominio ni en un log.
+- **Los vacíos también se guardan.** Si el operador borra un dato precargado (la persona 1 arranca con los del responsable), el vacío pisa la precarga al volver; si no, el dato borrado reaparecía y podía confirmarse con el DNI de otro.
+- **«Elegir cama» sobre una persona ya confirmada no escribe.** Si otra guardia la confirmó mientras tanto, vuelve a la ficha sin pasar por «guardar ficha» ni dejar borrador.
 - **Se borra al confirmar** la persona con éxito. Si el operador abandona sin confirmar queda en la sesión hasta que esta termina.
 - **Sin archivos:** la ficha no tiene adjuntos, así que no hay nada que no viaje.
 - **Enter en un campo** confirma, no elige cama: un primer botón de envío oculto hace de botón por defecto del formulario.
 - El POST normal (Confirmar persona) no cambia: sigue validando igual.
 
-## Pendiente
+## Pendientes / a definir
+- **A confirmar por el PM** (default: se acepta): el borrador incluye las preguntas de salud y dura lo que la sesión.
 - El borrador de una ficha abandonada no se limpia hasta que termina la sesión; si molesta, limpiarlo al «Cancelar».
 
-## Archivos
-`programas/views/emergencia_dispositivo.py`, `programas/templates/programas/emergencia/dispositivo/ficha.html`, `programas/tests/test_emergencia_alojar_vistas.py`.
+## Implementación
+- `programas/views/emergencia_dispositivo.py`: `FichaIntegranteView` guarda y lee el borrador (`_guardar_borrador`, `_borrador`, `_clave_borrador_ficha`); con `elegir_cama` redirige al mapa, y sobre una persona confirmada redirige a la ficha sin escribir. Se quitó `url_cama` del contexto y el docstring del módulo menciona el borrador.
+- `ficha.html`: «Elegir cama» pasa de enlace a `<button type="submit" name="elegir_cama">` y un primer botón de envío oculto deja a «Confirmar persona» como el de Enter.
+- Tests: `test_emergencia_alojar_vistas.py` (guardado sin validar, precarga, vacíos, persona confirmada, recorte, aislamiento por persona y caso, borrado al confirmar, botón por defecto, 403 y 404 sin borrador).
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`; `programas.tests.test_emergencia_alojar_vistas` y `programas -k emergencia` en verde; `makemigrations --check --dry-run` sin cambios; ruff; `design_audit --ratchet` en 0 nuevos; `compile_templates --bloques` en 0; `check_design_agent --limites` OK; `requerimientos.py --check` OK. Cada regla verificada por mutación (guardado, precarga, clave por persona, borrado, vacíos, persona confirmada, recorte, botón oculto, acceso).
+
+## Puesta en marcha en el servidor
+No requiere.
 
 ## Reversión
 Desplegar el código anterior.
