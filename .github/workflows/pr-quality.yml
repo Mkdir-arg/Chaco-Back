@@ -200,6 +200,7 @@ jobs:
           filters: |
             requerimientos:
               - 'docs/internal/requerimientos.md'
+              - 'docs/internal/requerimientos/**'
 
       - name: Recordar el registro del requerimiento
         if: github.event_name == 'pull_request' && steps.filtro.outputs.requerimientos != 'true'
@@ -207,7 +208,7 @@ jobs:
           TITULO: ${{ github.event.pull_request.title }}
         run: |
           case "$TITULO" in
-            feat*|fix*) echo "::warning::«$TITULO» no toca docs/internal/requerimientos.md (CLAUDE.md, regla de oro)" ;;
+            feat*|fix*) echo "::warning::«$TITULO» no registra su Cambio en docs/internal/requerimientos/ (CLAUDE.md, regla de oro)" ;;
           esac
 
   # RED-76: el repo tiene 2,7 % de retornos anotados sobre 2.195 funciones. SIIS-11

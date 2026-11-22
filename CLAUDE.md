@@ -28,7 +28,7 @@ Trabajar code-first.
 4. Inspeccionar el código real afectado.
 5. Diseñar o implementar con cambios mínimos y verificables.
 6. Validar con `manage.py check`, tests o revisión de templates según corresponda.
-7. **Registrar el requerimiento en `docs/internal/requerimientos.md`** (ver más abajo). Sin ese paso el desarrollo no está terminado.
+7. **Registrar el requerimiento en `docs/internal/requerimientos/<N>.md`** (número con `scripts/requerimientos.py --siguiente`; ver más abajo). Sin ese paso el desarrollo no está terminado.
 
 ## Comandos
 
@@ -117,6 +117,7 @@ solo lo que agregó la edición; la deuda previa del archivo no se reporta.
 & $env:PY_VENV scripts\requerimientos.py --buscar "cupo" # dónde se habló de algo
 & $env:PY_VENV scripts\requerimientos.py --ver 24        # una entrada completa
 & $env:PY_VENV scripts\requerimientos.py --check         # coherencia índice <-> entradas
+& $env:PY_VENV scripts\requerimientos.py --siguiente     # número libre para el Cambio nuevo
 ```
 
 ### Publicación de `docs/client/`
@@ -276,12 +277,13 @@ indexa por etiquetas y devuelve solo lo pedido. Se leen las entradas del tema �
 todo **Decisiones tomadas**, **Pendientes** e **Historial**— antes de diseñar. Si lo
 que se va a hacer contradice algo registrado, se dice antes de implementar.
 
-**Al terminar** — se agrega la entrada nueva y su fila en el índice. Es condición de
+**Al terminar** — se crea `docs/internal/requerimientos/<N>.md` con la plantilla (sin fila de índice: la arma el script). Es condición de
 cierre junto con `manage.py check` y la auditoría de diseño, y se verifica con
 `scripts\requerimientos.py --check` (tiene que dar OK).
 
 La regla completa, la plantilla obligatoria, el vocabulario de etiquetas y el índice
-viven **en ese archivo**; no se duplica su contenido acá.
+viven **en ese archivo** (el índice de los Cambios desde el 549 lo arma el script desde la
+ficha de cada `requerimientos/N.md`); no se duplica su contenido acá.
 
 ## Diseño / UI (nuevo sistema de diseño)
 
@@ -328,7 +330,7 @@ no ve). Los comandos están arriba, en *Comandos → Auditorías*.
 Si cambiás una pieza de UI clasificada como **canónica** o una golden, el mismo diff
 tiene que actualizar su fila en `.claude/agents/chaco-design-system.md` o su ficha en
 `.claude/design/`, o `check_design_agent.py` falla (hook y CI). La historia de los
-cambios va a `docs/internal/requerimientos.md`, nunca al agente.
+cambios va al registro de requerimientos (`docs/internal/requerimientos/`), nunca al agente.
 
 ## Gates de CI
 

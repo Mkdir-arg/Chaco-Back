@@ -1,7 +1,7 @@
 # Temas — documentos internos por tema
 
 Un `.md` por tema: integraciones, definiciones técnicas y material de referencia
-que no es un requerimiento (eso vive en [`../requerimientos.md`](../requerimientos.md))
+que no es un requerimiento (eso vive en [`../requerimientos.md`](../requerimientos.md) y en [`../requerimientos/`](../requerimientos/))
 ni documentación pública (eso vive en `docs/client/`).
 
 **Claves y credenciales: nunca acá.** Este directorio está en git (visible para

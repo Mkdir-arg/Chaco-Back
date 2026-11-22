@@ -1,6 +1,6 @@
 # Requerimientos — archivo vivo
 
-**Qué es:** el registro único y permanente de todo lo que se desarrolla en este sistema. Un desarrollo no está terminado hasta que tiene su entrada acá.  
+**Qué es:** el registro único y permanente de todo lo que se desarrolla en este sistema. Un desarrollo no está terminado hasta que tiene su entrada. Desde el Cambio 549 cada entrada vive en su propio archivo, `docs/internal/requerimientos/N.md`; este archivo conserva la regla, el vocabulario, la plantilla y el historial 1–548, que ya no recibe entradas nuevas.  
 **Alcance:** todos los programas y módulos — Becas/Programas, Dispositivos y Merenderos, Legajos, Portal, Conversaciones y transversales.  
 **Inicio del registro:** 7 de agosto de 2026. Nació como registro de los cambios pedidos para DataÑach y se generalizó a todo el sistema; por eso las entradas se titulan «Cambio N».  
 **Documentos relacionados:** [analisis-funcional-cambios-datanach-2026-08.md](analisis-funcional-cambios-datanach-2026-08.md) (análisis del pedido original) · [cambios-datanach-pedidos-y-definiciones-pendientes-2026-08.md](cambios-datanach-pedidos-y-definiciones-pendientes-2026-08.md) (definiciones abiertas).
@@ -9,7 +9,7 @@
 
 ## Cómo leerlo sin leerlo entero
 
-Este archivo crece con cada requerimiento, así que **nunca se lee completo**. Se consulta por índice y etiquetas, y solo después se abre la entrada que interesa. La herramienta es [`scripts/requerimientos.py`](../../scripts/requerimientos.py), que lee este mismo archivo y no necesita Django ni base de datos:
+Este archivo crece con cada requerimiento, así que **nunca se lee completo**. Se consulta por índice y etiquetas, y solo después se abre la entrada que interesa. La herramienta es [`scripts/requerimientos.py`](../../scripts/requerimientos.py), que lee este archivo y la carpeta `requerimientos/` juntos y no necesita Django ni base de datos:
 
 ```powershell
 & .\.venv\Scripts\python.exe scripts\requerimientos.py                    # índice compacto: N, título, programa, estado, etiquetas
@@ -17,9 +17,10 @@ Este archivo crece con cada requerimiento, así que **nunca se lee completo**. S
 & .\.venv\Scripts\python.exe scripts\requerimientos.py --buscar "cupo"    # texto dentro de las entradas, devuelve en qué requerimiento está
 & .\.venv\Scripts\python.exe scripts\requerimientos.py --ver 24           # una sola entrada, completa
 & .\.venv\Scripts\python.exe scripts\requerimientos.py --check            # el índice y las entradas coinciden
+& .\.venv\Scripts\python.exe scripts\requerimientos.py --siguiente        # número libre para el Cambio nuevo
 ```
 
-El equivalente manual, si no se puede correr el script, es leer la **cabecera y el índice** —las primeras ~150 líneas— y después abrir únicamente el rango de líneas de la entrada buscada (`--ver` imprime ese rango). Lo que no se hace nunca es cargar el archivo entero para encontrar un dato.
+El equivalente manual, si no se puede correr el script, es leer la **cabecera y el índice** —las primeras ~150 líneas— y después abrir únicamente el rango de líneas de la entrada buscada (`--ver` imprime ese rango). Lo que no se hace nunca es cargar el archivo entero para encontrar un dato. Los Cambios desde el 549 no están acá: se abren directo en `requerimientos/N.md`.
 
 ### Consulta obligatoria al iniciar un requerimiento
 
@@ -33,7 +34,7 @@ El motivo está en este mismo archivo: el Cambio 24 existe porque el 20 se cerr�
 
 ### Etiquetas
 
-Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si hace falta una nueva, se agrega primero a esta tabla y se explica en una línea. Cada requerimiento lleva entre 2 y 5, y viven en la columna *Etiquetas* del índice, que es su única fuente.
+Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si hace falta una nueva, se agrega primero a esta tabla y se explica en una línea. Cada requerimiento lleva entre 2 y 5, y viven en la columna *Etiquetas* del índice, que es su única fuente, o en la ficha de su archivo, para los Cambios desde el 549.
 
 | Etiqueta | Qué agrupa |
 |---|---|
@@ -65,13 +66,13 @@ Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si ha
 
 **Se lee al iniciar cualquier requerimiento y se escribe al terminarlo.** Las dos mitades son obligatorias: la de lectura está arriba, en *Consulta obligatoria al iniciar un requerimiento*.
 
-**Al terminar cualquier desarrollo, antes de darlo por cerrado, se agrega su entrada a este archivo.** Sin excepciones, y siempre en este mismo documento: no se abren archivos nuevos por mes, por programa ni por pedido.
+**Al terminar cualquier desarrollo, antes de darlo por cerrado, se escribe su entrada.** Sin excepciones: cada Cambio en su propio archivo `docs/internal/requerimientos/N.md`; no se abren archivos por mes, por programa ni por tema.
 
-- **Nada se reescribe.** Si un desarrollo posterior cambia algo ya registrado, la entrada original se conserva y se le suma una sección de historial fechada, que deja visible qué decía antes y por qué cambió. Los Cambios 18 y 20 son los ejemplos a seguir.
+- **Nada se reescribe.** Si un desarrollo posterior cambia algo ya registrado, la entrada original se conserva y se le suma una sección de historial fechada, que deja visible qué decía antes y por qué cambió. Los Cambios 18 y 20 son los ejemplos a seguir. El Historial de un Cambio histórico (1–548) se sigue agregando dentro de su entrada en este archivo; el de un Cambio nuevo, en su archivo.
 - **También se registra lo que se decidió no hacer**, con el motivo (ver Cambios 2 y 9). Un pedido descartado sin registro vuelve a discutirse a los tres meses.
-- **Numeración corrida y sin reutilizar:** el requerimiento nuevo toma el número siguiente al último del índice, aunque sea de otro programa.
-- **Sub-pedidos:** un pedido que amplía un requerimiento ya cerrado se escribe dentro de su entrada como `## 6.1 Título`, **con su propio semáforo debajo del título**, y va al índice como fila propia. Ese semáforo es lo que lo distingue de una subsección interna numerada —como el `## 15.1` del Cambio 15, que es una parte del mismo pedido y no lleva estado propio—; es la marca que usa `scripts/requerimientos.py` para reconocerlo.
-- Toda entrada nueva se suma **también** a la tabla del índice, con sus etiquetas.
+- **Numeración corrida y sin reutilizar:** el requerimiento nuevo toma el número siguiente al último, aunque sea de otro programa. El número lo da `scripts/requerimientos.py --siguiente` (mira development y las ramas remotas). Si al traer development aparece un conflicto *add/add* en `requerimientos/N.md`, se renombra el propio con `git mv` al siguiente libre y se actualiza su H1. Nunca se fusionan los dos archivos.
+- **Sub-pedidos:** un pedido que amplía un requerimiento ya cerrado va en su propio archivo `requerimientos/N.M.md`, con H1 `# Cambio N.M — Título` y su semáforo. (Los sub-pedidos históricos, anteriores al 549, siguen escritos dentro de su entrada madre como `## 6.1 Título`, **con su propio semáforo debajo del título**, y figuran en el índice como fila propia.) Ese semáforo es lo que lo distingue de una subsección interna numerada —como el `## 15.1` del Cambio 15, que es una parte del mismo pedido y no lleva estado propio—; es la marca que usa `scripts/requerimientos.py` para reconocerlo.
+- El índice de los Cambios nuevos no se escribe: el script lo arma desde la ficha. Por eso el título del H1 y los campos de la ficha (programa, etiquetas, solicitante, fecha del pedido, migración) tienen que estar completos.
 - Si falta un dato de contexto —quién lo pidió, cuándo, con qué issue—, se escribe «sin registrar» en vez de omitir el campo. La ausencia tiene que ser visible.
 
 ### Cuándo se aplica
@@ -89,6 +90,8 @@ El 21 y el 23 se pidieron en sesión de trabajo y ya tienen su origen asentado; 
 
 ## Plantilla obligatoria de cada entrada
 
+Se guarda como `docs/internal/requerimientos/N.md`; la primera línea es el H1.
+
 ```markdown
 # Cambio N — Título en las palabras del pedido
 
@@ -97,7 +100,7 @@ El 21 y el 23 se pidieron en sesión de trabajo y ya tienen su origen asentado; 
 | | |
 |---|---|
 | **Programa / módulo** | Becas · Dispositivos · Legajos · Portal · Conversaciones · Transversal |
-| **Etiquetas** | 2 a 5 del vocabulario cerrado, iguales a las de su fila del índice |
+| **Etiquetas** | 2 a 5 del vocabulario cerrado (desde el 549 la ficha es la fuente; antes, iguales a las de su fila del índice) |
 | **Solicitante** | Quién lo pidió y por qué vía: reunión, documento, mail, issue |
 | **Fecha del pedido** | DD/MM/AAAA |
 | **Issue / épica** | #NN, o «sin issue» |
@@ -143,6 +146,8 @@ cambió y cuándo.
 Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no se borran.
 
 ## Índice
+
+Histórico 1–548. Los Cambios desde el 549 no se agregan acá: `scripts/requerimientos.py` los lista desde su ficha.
 
 | N.º | Requerimiento | Programa / módulo | Etiquetas | Solicitante | Pedido | Estado | Migración |
 |---|---|---|---|---|---|---|---|
@@ -678,7 +683,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 - Los requerimientos 1 a 19 son la normalización del documento «Cambios en DataÑach (1).docx», enviado por el cliente el 7 de agosto de 2026, en su orden de aparición. Los puntos 7 y 8 separan dos pedidos que el DOCX trae en un mismo párrafo.
 - Del 20 en adelante son pedidos posteriores a ese documento. Los requerimientos 20 y 22 **no tienen solicitante ni fecha de pedido registrados en su origen**; quedan como «sin registrar» hasta confirmarlos. Ese hueco es exactamente lo que la regla de oro viene a cerrar.
 - El requerimiento 22 se apoya en el 8 (Incorporar programas), que es la integración con el catálogo de ECOM. El 24 completa y corrige el criterio del 20.
-- Las entradas 1 a 24 son anteriores a la plantilla: su programa, solicitante, fecha y etiquetas viven en esta tabla y no repetidos en cada entrada. **Las nuevas llevan la plantilla completa**, con las mismas etiquetas en la entrada y en el índice.
+- Las entradas 1 a 24 son anteriores a la plantilla: su programa, solicitante, fecha y etiquetas viven en esta tabla y no repetidos en cada entrada. **Las nuevas llevan la plantilla completa**, con las mismas etiquetas en la entrada y en el índice (desde el Cambio 549 no hay fila a mano: la fuente es la ficha de la entrada).
 - Las etiquetas se asignaron leyendo cada entrada, no por su título. `scripts/requerimientos.py --check` verifica que ninguna quede fuera del vocabulario y que no falte ni sobre ninguna fila.
 
 ---
@@ -4028,10 +4033,10 @@ No aplica: entrada nueva.
 
 La estructura de cada entrada nueva está definida en **[Plantilla obligatoria de cada entrada](#plantilla-obligatoria-de-cada-entrada)**, al comienzo del archivo. El cierre de un desarrollo son cuatro pasos:
 
-1. Agregar la entrada al final del archivo, con la plantilla completa.
-2. Sumar su fila al **Índice**, con programa, **etiquetas**, solicitante, fecha y estado.
-3. Si modificó algo ya registrado, agregar la sección **Historial** a la entrada afectada, sin borrar lo anterior.
-4. Correr `scripts/requerimientos.py --check`: verifica que la entrada y el índice coincidan y que las etiquetas existan en el vocabulario. Tiene que dar OK.
+1. Crear `docs/internal/requerimientos/N.md` con la plantilla completa, usando el número que da `scripts/requerimientos.py --siguiente`. No se agrega nada a este archivo.
+2. No se escribe fila de índice: el script la arma desde la ficha (programa, **etiquetas**, solicitante, fecha, estado y migración tienen que estar completos).
+3. Si modificó algo ya registrado, agregar la sección **Historial** a la entrada afectada, sin borrar lo anterior (dentro de este archivo si es un Cambio 1–548; en su archivo si es nuevo).
+4. Correr `scripts/requerimientos.py --check`: verifica la estructura de la carpeta, que la ficha esté completa y que las etiquetas existan en el vocabulario. Tiene que dar OK.
 
 La regla, el motivo de cada campo y la mitad de lectura —qué consultar **antes** de escribir código— están en **[Regla de oro](#regla-de-oro)** y en **[Cómo leerlo sin leerlo entero](#cómo-leerlo-sin-leerlo-entero)**.
 
