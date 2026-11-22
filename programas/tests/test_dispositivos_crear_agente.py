@@ -99,16 +99,43 @@ class BotonTests(BaseCrearAgente):
         )
 
     def _pantallas(self, usuario):
-        """Las tres pantallas: P21 con el modal pedido por parámetro y P4 con el suyo ya armado."""
+        """Las dos entradas de P21: el modal de asignar y el de reasignar, pedidos por parámetro."""
         relevamientos = reverse("dispositivos:relevamientos")
         return {
             "asignar P21": self._get(relevamientos, usuario, asignar=self.edificio_cis.pk),
             "reasignar P21": self._get(relevamientos, usuario, reasignar=self.en_curso.pk),
-            "crear P4": self._get(reverse("dispositivos:detalle", args=[self.cis.pk]), usuario, tab="infraestructura"),
         }
 
     def _usuario_total(self, nombre, capacidades):
         return self._usuario(nombre, capacidades, [self.parador, self.cis])
+
+    def test_con_la_capacidad_el_boton_esta_en_las_dos_pantallas(self):
+        usuario = self._usuario_total("creador_total", CAPS_CREADOR)
+        for nombre, respuesta in self._pantallas(usuario).items():
+            with self.subTest(nombre):
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertTrue(respuesta.context["puede_crear_agente"])
+                self.assertContains(respuesta, BOTON)
+                self.assertContains(respuesta, 'id="quick-user-modal"')
+
+    def test_el_selector_de_cada_boton_apunta_a_un_select_unico(self):
+        usuario = self._usuario_total("creador_sel", CAPS_CREADOR)
+        esperados = {
+            "asignar P21": "#form-asignar-relevamiento select[name=asignado_a]",
+            "reasignar P21": "#form-reasignar-relevamiento select[name=asignado_a]",
+        }
+        for nombre, respuesta in self._pantallas(usuario).items():
+            with self.subTest(nombre):
+                self.assertContains(respuesta, f'data-user-select="{esperados[nombre]}"')
+
+    def test_sin_la_capacidad_el_boton_no_se_dibuja(self):
+        usuario = self._usuario_total("sin_cap", ("inspeccion.asignar", "dispositivo.ver"))
+        for nombre, respuesta in self._pantallas(usuario).items():
+            with self.subTest(nombre):
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertFalse(respuesta.context["puede_crear_agente"])
+                self.assertNotContains(respuesta, BOTON)
+                self.assertNotContains(respuesta, 'id="quick-user-modal"')
 
     def test_la_capacidad_de_otro_programa_no_muestra_el_boton(self):
         usuario = self._usuario_total("cap_ajena", ("inspeccion.asignar", "dispositivo.ver"))

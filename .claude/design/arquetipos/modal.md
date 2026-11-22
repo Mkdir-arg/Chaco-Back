@@ -162,8 +162,8 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   con `x-show`, formulario con la página, sin parámetro GET: el GET es solo para lo que depende de un registro). El campo
   que elige el registro es un `<select>`, o va fijo y deshabilitado (usa el inicial e ignora el POST) con un solo candidato,
   y el POST cuelga del padre. Los ids llevan `auto_id` propio (`relev_%s`): la página ya trae otro campo `edificio`.
-  Evidencia: «Crear relevamiento» en la solapa Infraestructura de P4
-  (`programas/templates/programas/dispositivos/legajo/detail.html`).
+  Evidencia: «Nuevo relevamiento» del listado de relevamientos
+  (`programas/templates/programas/dispositivos/relevamientos/list.html`).
 - **Modales del Equipo**: viven en `legajo/_equipo_modales.html`, que `legajo/detail.html` incluye; piden al contenedor `modalEquipo`, `modalCrearPersona` y `modalAlcance`.
 - **Modales de la estadía** (cambiar o asignar plaza, registrar egreso): viven en `legajo/_estadia_modales.html` (scripts del egreso en `_estadia_modales_js.html`), que `legajo/detail.html` y la solapa Estadías del edificio incluyen; piden al contenedor `modalCambio`, `modalEgreso` y `egreso`, y `next_url` opcional para volver a la página que los abrió.
 

@@ -460,6 +460,7 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
         )
         puede_egresar = self._puede_operar(dispositivo, CAP_EGRESAR)
         puede_cambiar = self._puede_operar(dispositivo, CAP_ADMITIR)
+        puede_recibir_kits = puede_operar_dispositivo(user, dispositivo, CAP_RECIBIR_KIT)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         puede_validar = self._puede_operar(dispositivo, "dispositivo.validar")
         # Editar el legajo es de alcance institución (RN5): con alcance Edificios, no.
@@ -544,10 +545,9 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
                 # «Emergencia · Kits» del menú: solo para quien recibe kits en ESTE dispositivo.
+                "puede_recibir_kits": puede_recibir_kits,
                 "url_kits_emergencia": (
-                    reverse("emergencia:dispositivo_kits", args=[dispositivo.pk])
-                    if puede_operar_dispositivo(user, dispositivo, CAP_RECIBIR_KIT)
-                    else ""
+                    reverse("emergencia:dispositivo_kits", args=[dispositivo.pk]) if puede_recibir_kits else ""
                 ),
             }
         )
@@ -571,6 +571,7 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
             dispositivo=dispositivo,
             ocupacion=ocupacion,
             con_plazas=con_plazas,
+            puede_recibir_kits=context["puede_recibir_kits"],
         )
         context["tarjetas_edificios"] = tarjetas
         context["aviso_sin_plazas"] = aviso_sin_plazas(tarjetas, dispositivo) if con_plazas else None

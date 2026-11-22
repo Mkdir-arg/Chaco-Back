@@ -127,9 +127,14 @@ class FotosDetrasDeLoginTests(BaseInfraestructura):
         super().setUp()
         self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada", "cocina"))
 
-    def _urls(self, usuario, dispositivo):
-        infra = self._detalle(usuario, dispositivo).context["infraestructura"]
-        return [foto["url"] for tanda in infra["eventos"] for foto in tanda["fotos"]]
+    def _urls(self, usuario, edificio):
+        """Las URLs de las fotos que la página del edificio muestra a ``usuario`` (nunca vacías)."""
+
+        respuesta = self._cliente(usuario).get(reverse("dispositivos:edificio_detalle", args=[edificio.pk]))
+        self.assertEqual(respuesta.status_code, 200)
+        urls = [foto["url"] for tanda in respuesta.context["ficha"]["eventos"] for foto in tanda["fotos"]]
+        self.assertTrue(urls)
+        return urls
 
     def _estado(self, usuario, url):
         respuesta = self._cliente(usuario).get(url)
@@ -138,15 +143,19 @@ class FotosDetrasDeLoginTests(BaseInfraestructura):
         return respuesta.status_code
 
     def test_el_admin_del_programa_tambien(self):
-        for url in self._urls(self.admin, self.parador):
-            self.assertEqual(self._estado(self.admin, url), 200)
+        admin = self._usuario("admin_con_edificios", (*TODAS_DE_DISPOSITIVOS, "edificio.ver"))
+        for url in self._urls(admin, self.predio):
+            self.assertEqual(self._estado(admin, url), 200)
 
     def test_otra_institucion_recibe_403(self):
         """Ve su propio dispositivo con todas las capacidades, salvo el alcance de admin."""
 
         sin_admin = tuple(c for c in TODAS_DE_DISPOSITIVOS if c not in ("programa.configurar", "inspeccion.asignar"))
         operador_cis = self._usuario("operador_cis", sin_admin, [self.cis])
-        urls = self._urls(self.operador_geriatrico, self.geriatrico)
+        coordina_geriatrico = self._usuario(
+            "coordina_geriatrico", ("edificio.ver", "dispositivo.ver", "inspeccion.asignar"), [self.geriatrico]
+        )
+        urls = self._urls(coordina_geriatrico, self.predio)
 
         self.assertEqual(self._detalle(operador_cis, self.cis).status_code, 200)
         for url in urls:

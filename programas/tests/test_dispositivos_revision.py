@@ -218,7 +218,8 @@ class RevisionTests(BaseRevision):
         respuesta = cliente.get(informe, {"dispositivo": self.parador.pk})
         self.assertEqual(
             respuesta.context["volver_url"],
-            reverse("dispositivos:detalle", args=[self.parador.pk]) + "?tab=infraestructura",
+            reverse("dispositivos:detalle", args=[self.parador.pk])
+            + f"?tab=infraestructura&ver_edificio={inspeccion.edificio_id}",
         )
 
 

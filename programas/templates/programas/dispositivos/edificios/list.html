@@ -87,7 +87,7 @@
       {% url 'dispositivos:edificios' as url_sin_filtros %}
       {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún edificio coincide con los filtros" texto="Probá con otros filtros." accion_url=url_sin_filtros %}
     {% else %}
-      {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todavía no hay edificios" texto="Los edificios se cargan desde la solapa Infraestructura de cada institución." %}
+      {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todavía no hay edificios" texto="Los edificios se cargan desde la ficha de cada institución, con «Agregar edificio»." %}
     {% endif %}
   </div>
 </div>

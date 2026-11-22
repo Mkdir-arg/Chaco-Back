@@ -187,8 +187,11 @@ class PresupuestoDetalleFFTests(BaseDetalle):
                     respuesta = self.client.get(self.url, {"tab": tab})
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertLessEqual(len(consultas), techo, f"{tab}: {len(consultas)} consultas")
-        # Las que se fueron redirigen sin armar la ficha: el edificio o la pantalla de siempre.
-        for tab in ("sectores", "infraestructura"):
-            with self.subTest(tab=tab):
-                respuesta = self.client.get(self.url, {"tab": tab, "sectores_edificio": "abc"})
-                self.assertIn(respuesta.status_code, (200, 302))
+        # `?tab=sectores` redirige sin armar la ficha (a la pantalla de Sectores o a la página del edificio).
+        respuesta = self.client.get(self.url, {"tab": "sectores"})
+        self.assertEqual(respuesta.status_code, 302)
+        # `?tab=infraestructura` solo (sin edificio) se queda en la ficha, con el mismo tope de consultas.
+        with CaptureQueriesContext(connection) as consultas:
+            respuesta = self.client.get(self.url, {"tab": "infraestructura"})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertLessEqual(len(consultas), techo, f"infraestructura: {len(consultas)} consultas")

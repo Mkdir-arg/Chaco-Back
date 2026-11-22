@@ -206,27 +206,27 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).
 
-En P4, `programas/services/detalle_dispositivo.py` prepara Infraestructura e Historial según
+En P4, `programas/services/detalle_dispositivo.py` prepara la sección Edificios, el registro del edificio y el Historial según
 quien mira: la institución no recibe el nombre del agente de un relevamiento sin realizar,
 incluidos los cancelados. La asignación la ven el coordinador del edificio y el propio agente
 (`programas.services.inspecciones.ve_la_asignacion`). El Historial rearma esas trazas sin
-nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura enlaza cada
+nombres; una vez realizado, el resultado muestra quién relevó. el registro fotográfico del edificio enlaza cada
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
 Con alcance por edificios (Cambio 523) el Historial trae solo los movimientos de las plazas de sus edificios, las
 correcciones de sus novedades y los relevamientos de sus edificios; las trazas del dispositivo (legajo, plazas, sectores, turnos y edificios) no llevan edificio y quedan para
 quien tiene toda la institución (`eventos_de_historial`, `edificios_en_alcance`).
 El badge del registro es siempre la criticidad; la revisión agrega «Revisado» en el panel, más revisor y fecha/hora, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
-Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y la ficha de
-Infraestructura solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
+Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y en la ficha del
+edificio solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
 El estado edilicio de cada edificio (clave del filtro, rótulo y tono del semáforo, y el aviso «Vencido» / «Vence en
 N días») sale de `clave_estado_edilicio` y `aviso_de_vencimiento` de `programas/services/detalle_dispositivo.py`, las
 mismas que usa el listado de la sección Edificios (`programas/selectors/edificios.py`): una sola definición para la
 tarjeta, la ficha y la fila.
 El registro fotográfico (página de relevamientos, fotos y quién ve la asignación) sale de
-`registro_de_relevamientos` del mismo servicio: la ficha de Infraestructura y la ficha propia del edificio
+`registro_de_relevamientos` del mismo servicio: la tarjeta del edificio en la ficha de la institución y la ficha propia del edificio
 muestran el mismo registro del mismo edificio.
-El enlace «Ver informe» lleva el origen para volver: `?dispositivo=<pk>` desde Infraestructura y
+El enlace «Ver informe» lleva el origen para volver: `?dispositivo=<pk>` desde la institución y
 `?edificio=<pk>` desde la ficha del edificio; el informe solo arma ese «Volver» si el usuario puede abrir esa pantalla.
 
 ## Prohibido

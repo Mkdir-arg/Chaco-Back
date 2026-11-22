@@ -26,7 +26,6 @@ from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
     alcance_de_edificios,
     contar_miembros_por_edificio,
-    puede_operar_dispositivo,
 )
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.ocupacion import tension_de_ocupacion
@@ -96,12 +95,13 @@ def _texto_de_movimientos(ingresos, egresos):
     return "Hoy: " + " · ".join(partes) if partes else "Hoy: sin movimientos"
 
 
-def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas):
+def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede_recibir_kits):
     """Suma a cada fila de ``infraestructura_del_dispositivo`` lo que la tarjeta del edificio dibuja.
 
     ``ocupacion`` es la ``OcupacionDispositivo`` de la ficha (ya acotada al alcance de ``user``). Sin plazas en el tipo
     de la institución, la fila no lleva ocupación ni disponibles: la tarjeta no dibuja una barra vacía. Los kits solo se
     cuentan donde ``user`` puede recibirlos (``emergencia.recibir_kit`` sobre ese edificio), como en la página del edificio.
+    ``puede_recibir_kits`` es lo que la vista ya resolvió para la institución: no se vuelve a preguntar.
     """
 
     if not filas:
@@ -109,11 +109,7 @@ def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas):
     ids = [fila["pk"] for fila in filas]
     hoy = timezone.localdate()
 
-    alcance_kits = (
-        alcance_de_edificios(user, dispositivo, CAP_RECIBIR_KIT)
-        if puede_operar_dispositivo(user, dispositivo, CAP_RECIBIR_KIT)
-        else None
-    )
+    alcance_kits = alcance_de_edificios(user, dispositivo, CAP_RECIBIR_KIT) if puede_recibir_kits else None
     ids_con_kits = [pk for pk in ids if alcance_kits is not None and alcance_kits.permite(pk)]
     kits = _kits_pendientes(dispositivo, ids_con_kits) if ids_con_kits else {}
     equipo = contar_miembros_por_edificio(dispositivo, ids)
@@ -177,7 +173,9 @@ def aviso_sin_plazas(filas, dispositivo):
         accion_url, accion_texto = lleno["url_abrir"], f"Ver {lleno['nombre']}"
     else:
         nombres_llenos = [fila["nombre"] for fila in llenos]
-        nombres = ", ".join(nombres_llenos)
+        nombres = ", ".join(nombres_llenos[:_EDIFICIOS_CON_LUGAR_EN_EL_AVISO])
+        if len(nombres_llenos) > _EDIFICIOS_CON_LUGAR_EN_EL_AVISO:
+            nombres += f" y {len(nombres_llenos) - _EDIFICIOS_CON_LUGAR_EN_EL_AVISO} más"
         titulo = f"{len(llenos)} edificios no tienen plazas disponibles"
         accion_url, accion_texto = "", ""
         con_lugar = [nombre for nombre in con_lugar if nombre not in nombres_llenos]

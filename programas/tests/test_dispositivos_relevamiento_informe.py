@@ -328,7 +328,8 @@ class EnlacesTests(BaseInforme):
 
         self.assertEqual(
             respuesta.context["volver_url"],
-            reverse("dispositivos:detalle", args=[self.geriatrico.pk]) + "?tab=infraestructura",
+            reverse("dispositivos:detalle", args=[self.geriatrico.pk])
+            + f"?tab=infraestructura&ver_edificio={inspeccion.edificio_id}",
         )
         self.assertEqual(respuesta.context["volver_label"], "Geriátrico")
 

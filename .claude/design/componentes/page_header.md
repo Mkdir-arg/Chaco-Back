@@ -48,7 +48,7 @@ flex-wrap text-xs text-body-subtle`, enlaces `text-fg-brand hover:underline`, se
 Con `estado_texto`, solo el título se envuelve en `flex items-center gap-3 flex-wrap`:
 H1 y badge quedan alineados verticalmente y el badge baja de línea si falta ancho (390 px).
 Sin el parámetro, tampoco se hereda un estado del contexto de la pantalla.
-P4 (incluida Infraestructura/P19), P7 y el detalle de tipo P14 usan este slot.
+P4 (ficha de la institución y página del edificio), P7 y el detalle de tipo P14 usan este slot.
 P14 identifica el contexto con `eyebrow="Tipo de dispositivo"` sobre el título del tipo.
 
 ## Acciones del cuerpo (regla observada en el código)

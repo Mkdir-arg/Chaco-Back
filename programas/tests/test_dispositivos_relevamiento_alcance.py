@@ -28,7 +28,9 @@ class AlcanceDeLecturaNoAbreRelevamientosTests(BaseInforme):
         super().setUp()
         # El usuario de QA: coordina el parador y lee todos los dispositivos.
         self.coord_ver_todos = self._usuario(
-            "coord_ver_todos", ("dispositivo.ver", "dispositivo.ver_todos", "inspeccion.asignar"), [self.parador]
+            "coord_ver_todos",
+            ("dispositivo.ver", "dispositivo.ver_todos", "inspeccion.asignar", "edificio.ver"),
+            [self.parador],
         )
         # Lee todo por ser admin del programa, pero no coordina relevamientos.
         self.admin_sin_asignar = self._usuario("admin_sin_asignar", ("dispositivo.ver", "programa.configurar"))
@@ -98,13 +100,16 @@ class AlcanceDeLecturaNoAbreRelevamientosTests(BaseInforme):
     def test_lo_de_su_alcance_lo_sigue_viendo(self):
         self.assertEqual(self._cliente(self.coord_ver_todos).get(_url(self.propio)).status_code, 200)
 
-    def test_la_solapa_infraestructura_ajena_no_lista_sus_relevamientos(self):
-        """Ve el detalle del CIS por `ver_todos`, pero el registro no enlaza informes que darían 404."""
+    def test_la_pagina_del_edificio_ajeno_no_lista_sus_relevamientos(self):
+        """Ve la página del edificio del CIS por `ver_todos`, pero el registro no enlaza informes que darían 404."""
 
-        respuesta = self._cliente(self.coord_ver_todos).get(reverse("dispositivos:detalle", args=[self.cis.pk]))
+        respuesta = self._cliente(self.coord_ver_todos).get(
+            reverse("dispositivos:edificio_detalle", args=[self.edificio_cis.pk])
+        )
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.context["infraestructura"]["eventos"], [])
+        self.assertTrue(self.ajeno.fotos.exists())
+        self.assertEqual(respuesta.context["ficha"]["eventos"], [])
         self.assertNotContains(respuesta, _url(self.ajeno))
 
     def test_el_admin_del_programa_con_asignar_y_el_superusuario_ven_todo(self):

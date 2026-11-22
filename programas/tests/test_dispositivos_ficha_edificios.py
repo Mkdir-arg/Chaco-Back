@@ -11,17 +11,21 @@
 import json
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from core import rbac
 from programas.models import Edificio, Estadia, MiembroEquipoDispositivo, Plaza, Sector
 from programas.services.detalle_dispositivo import SOLAPAS, normalizar_solapa
 from programas.services.dispositivos import contar_miembros_por_edificio
+from programas.services.ficha_edificios import aviso_sin_plazas
 from programas.tests.test_dispositivos_edificio_operativo import BaseOperativo
+from programas.tests.test_dispositivos_inspecciones import _permiso
 from programas.tests.test_equipo_alcance_edificio import Alcance
+from users.models import RolMeta
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 
@@ -72,6 +76,60 @@ class TarjetasTests(BaseFicha):
         self.assertIsNone(self._tarjetas(sin_kits)[self.edif_a.pk]["kits"])
         con_kits = self._con("Con kits", "dispositivo.ver", "emergencia.recibir_kit")
         self.assertEqual(self._tarjetas(con_kits)[self.edif_a.pk]["kits"]["texto"], "Ninguno pendiente")
+
+    def test_los_kits_se_cortan_por_edificio_cuando_el_alcance_de_recibirlos_es_acotado(self):
+        """Ve toda la institución, pero recibe kits solo en A: la fila Kits sale en la tarjeta de A y no en la de B."""
+
+        usuario = self._con("Kits solo en A", "dispositivo.ver")
+        usuario.groups.add(rol_kits := self._rol_de("Recibe kits", "emergencia.recibir_kit"))
+        fila = MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.cis,
+            usuario=usuario,
+            rol=rol_kits,
+            alcance=Alcance.EDIFICIOS,
+        )
+        fila.edificios.set([self.edif_a])
+
+        tarjetas = self._tarjetas(usuario)
+
+        self.assertEqual(set(tarjetas), {self.edif_a.pk, self.edif_b.pk})
+        self.assertEqual(tarjetas[self.edif_a.pk]["kits"]["texto"], "Ninguno pendiente")
+        self.assertIsNone(tarjetas[self.edif_b.pk]["kits"])
+
+    def test_sin_dispositivo_editar_la_seccion_no_ofrece_editar_desvincular_ni_agregar(self):
+        solo_ver = self._con("Solo ver edificios", "dispositivo.ver")
+
+        respuesta = self._ficha(solo_ver)
+        tarjetas = self._tarjetas(solo_ver)
+
+        for tarjeta in tarjetas.values():
+            self.assertEqual((tarjeta["url_editar"], tarjeta["url_desvincular"]), ("", ""))
+        self.assertNotContains(respuesta, "?edificio=vincular")
+        self.assertNotContains(respuesta, "?edificio=nuevo")
+        self.assertNotContains(respuesta, "Agregar edificio")
+
+    def test_con_dispositivo_editar_la_seccion_ofrece_las_tres_acciones(self):
+        editor = self._con("Editor de edificios", "dispositivo.ver", "dispositivo.editar")
+
+        respuesta = self._ficha(editor)
+        tarjeta = self._tarjetas(editor)[self.edif_a.pk]
+
+        self.assertEqual(
+            tarjeta["url_editar"], f"{reverse('dispositivos:detalle', args=[self.cis.pk])}?edificio={self.edif_a.pk}"
+        )
+        self.assertEqual(
+            tarjeta["url_desvincular"], reverse("dispositivos:edificio_desvincular", args=[self.cis.pk, self.edif_a.pk])
+        )
+        self.assertContains(respuesta, "?edificio=vincular")
+        self.assertContains(respuesta, "?edificio=nuevo")
+
+    def _rol_de(self, nombre, *capacidades):
+        """Un rol de Programa con solo esas capacidades."""
+
+        rol = Group.objects.create(name=nombre)
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
+        rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
+        return rol
 
     def test_un_tipo_sin_plazas_no_dibuja_barra_ni_disponibles(self):
         self.tipo.plaza_obligatoria_al_ingresar = False
@@ -152,6 +210,18 @@ class AvisoSinPlazasTests(BaseFicha):
         self.assertEqual(aviso["titulo"], "2 edificios no tienen plazas disponibles")
         self.assertEqual(aviso["accion_url"], "")
         self.assertIn("Ninguno de los edificios tiene lugar", aviso["texto"])
+
+    def test_con_muchos_llenos_nombra_hasta_tres_y_cuenta_el_resto(self):
+        filas = [
+            {"nombre": f"Edificio {n}", "tiene_plazas": True, "disponibles": 0, "url_abrir": f"/e/{n}/"}
+            for n in range(1, 6)
+        ]
+
+        aviso = aviso_sin_plazas(filas, self.cis)
+
+        self.assertEqual(aviso["titulo"], "5 edificios no tienen plazas disponibles")
+        self.assertTrue(aviso["texto"].startswith("Edificio 1, Edificio 2, Edificio 3 y 2 más."))
+        self.assertNotIn("Edificio 4", aviso["texto"])
 
     def test_sin_edificio_lleno_no_hay_aviso(self):
         Estadia.objects.filter(pk=self.estadia_ana.pk).update(plaza=None)
