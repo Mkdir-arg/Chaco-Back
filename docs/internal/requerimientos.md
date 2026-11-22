@@ -666,9 +666,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 542 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 544 | Dispositivos · ficha propia del edificio: títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
-| 548 | Dispositivos · detalle del tipo: el guardado del modal «Editar tipo» pasa al AJAX estándar y se retiran los 4 WARN SOBREJSON (PR de diseño, hallazgo 16) | Dispositivos · Configuración → Tipos (detalle) | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (hallazgo 16) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 545 | Dispositivos · la institución se bloquea primero, en compartido: reservar, ingresar, cambiar de plaza y liberar no se cuelan en un «Cerrar» o «Inactivar» ni se cruzan con él en un deadlock | Dispositivos (estadías, reservas, plazas, bitácora) / Emergencia (reservas de derivación y confirmación) | `#dispositivos` `#emergencia` `#datos` | Pendiente del Cambio 536 | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 548 | Dispositivos · detalle del tipo: el guardado del modal «Editar tipo» pasa al AJAX estándar y se retiran los 4 WARN SOBREJSON (PR de diseño, hallazgo 16) | Dispositivos · Configuración → Tipos (detalle) | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (hallazgo 16) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61902,12 +61903,13 @@ fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; 
 - **Carrera de reservar/ingresar contra cerrar o inactivar.** El estado de la institución se lee sin bloquear su fila en
   `reservar_plaza` y `cambiar_plaza` (y en el ingreso): una reserva o un ingreso que entre en el mismo instante que otro operador
   cierra o inactiva puede dejar una institución cerrada o inactiva con una reserva o una estadía vivas.
+  → **Resuelto en el Cambio 545.**
 - **Inversión del orden de bloqueos.** «Inactivar» toma institución → plaza → reserva. Reservar, liberar, cambiar de plaza e ingresar
   toman plaza → traza (que tiene una FK al dispositivo) → dispositivo, o sea el orden contrario. Si coinciden, el motor corta una de
-  las dos con `ERROR 1213` (deadlock) y el operador ve un 500, sin pérdida de datos.
+  las dos con `ERROR 1213` (deadlock) y el operador ve un 500, sin pérdida de datos. → **Resuelto en el Cambio 545.**
 - **Arreglo propuesto, en un PR aparte:** leer el estado con un bloqueo compartido por SQL crudo (`LOCK IN SHARE MODE`) de la fila de
   la institución antes de bloquear la plaza; `select_for_update(of=…)` no sirve porque es exclusivo y serializaría los ingresos entre
-  sí. El bloqueo compartido cierra la carrera y fija un solo orden.
+  sí. El bloqueo compartido cierra la carrera y fija un solo orden. → **Hecho en el Cambio 545.**
 - `asignar_plaza` en una institución cerrada o inactiva sigue permitido; no estaba en el relevamiento.
 
 ## Implementación
@@ -61939,6 +61941,9 @@ Desplegar el código anterior: no hay datos nuevos.
 
 ## Historial
 - **22/11/2026:** alta del cambio.
+- **22/11/2026:** la carrera de reservar/ingresar contra cerrar o inactivar y la inversión de candados quedaron resueltas en
+  el Cambio 545 (bloqueo compartido de la institución antes de la plaza). `asignar_plaza` en una institución cerrada o
+  inactiva sigue permitido: el 545 solo le agregó el candado, no la regla.
 
 # Cambio 537 — Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta
 
@@ -62494,6 +62499,101 @@ alcance; `activo` otra vez con `CheckboxInput`; «Editar tipo» sin el ícono. `
 
 ## Reversión
 Desplegar el código anterior. No hay datos que revertir.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 545 — Dispositivos · la institución se bloquea primero, en compartido: ni carrera ni deadlock contra «Cerrar» e «Inactivar»
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (estadías, reservas, plazas, bitácora) y Emergencia (reservas de derivación, confirmación de integrantes) |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#datos` |
+| **Solicitante** | Pendiente del Cambio 536 |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | Sin issue propio |
+| **Partes afectadas** | Backoffice y API de la app (los mismos servicios) |
+| **Migración** | No requiere |
+
+## Pedido original
+Cerrar los dos pendientes del Cambio 536: (1) reservar, cambiar de plaza e ingresar leían el estado de la institución sin
+bloquear su fila, así que una reserva o un ingreso simultáneo con «Cerrar» o «Inactivar» podía dejar una institución cerrada o
+inactiva con una reserva o una estadía vivas; (2) «Inactivar» toma institución → plaza → reserva y los demás caminos tomaban
+plaza → (reserva) → institución (la FK de la traza), el orden inverso: el motor cortaba uno con `ERROR 1213` (un 500).
+
+## Alcance acordado
+Se consultó el archivo por `dispositivos`, `emergencia` y «bloqueo»: nada choca. El orden histórico «plaza → reserva → persona»
+(Cambio 262 y Emergencia) se conserva; se le antepone la institución. No cambia ninguna regla de negocio ni ningún mensaje.
+
+## Decisiones tomadas
+- **Un candado compartido, por SQL crudo.** `core.db.leer_con_bloqueo_compartido(modelo, pks, campo)` lee con
+  `LOCK IN SHARE MODE` en MySQL 8 y MariaDB (la sintaxis común: `FOR SHARE` no existe en MariaDB 10.11), `FOR SHARE` en
+  PostgreSQL y sin candado en SQLite; ordena por pk y **exige estar en `transaction.atomic()`** (si no, el candado se soltaría al
+  terminar la consulta). Compartido y no `select_for_update()`: dos ingresos de la misma institución no se esperan entre sí
+  (medido abajo); solo esperan a quien la cambia de estado.
+- **El envoltorio de dominio** es `dispositivos.bloquear_institucion` / `bloquear_instituciones` (devuelve el estado fresco).
+  `exigir_institucion_en_estado` lee el estado con él, así que reservar, prestar y cambiar de plaza no suman consultas: la
+  lectura fresca que ya hacían ahora además bloquea.
+- **Un solo orden en todos los caminos:** institución → plaza (por pk) → reserva / estadía → persona. Con varias instituciones
+  (el ingreso que cierra reservas comunes de la persona en otros dispositivos) se toman todas de una vez, por pk, antes de
+  cualquier plaza.
+- **Caminos cubiertos:** `reservar_plaza` (reservar y prestar), `cambiar_plaza`, `ingresar_persona` (con o sin plaza; el estado
+  «activo» ahora se lee fresco en vez del objeto en memoria, mismo mensaje), `liberar_reserva`, `egresar_persona`,
+  `asignar_plaza`, `sacar_plaza_de_servicio`, `volver_plaza_a_servicio`, `ingreso.confirmar_ingreso` (y las reservas que cierra en
+  otros dispositivos); en Emergencia, `reservar_plazas_de_derivacion` (aceptar y el ingreso directo; estado fresco, mismo
+  mensaje), `consumir_reserva_de_derivacion`, `liberar_reservas_de_derivacion` (cierre con diferencia, cancelación, vencimiento),
+  `_ingresar_en_cama_libre` y `_liberar_la_sobrante` (quitar integrante).
+- **Egreso, asignar plaza y sacar/reponer plaza** no estaban en el pedido: se sumaron porque sin ellos quedaba la misma inversión
+  contra «Inactivar» (plaza → traza → institución).
+- **`registrar_entrada` (novedad manual de la bitácora) invierte su orden** a dispositivo → estadías. Antes pedía estadías →
+  dispositivo (exclusivo), compatible solo mientras el cambio de plaza pedía la institución al final; con el cambio de plaza
+  tomándola primero, una novedad que nombra a la persona que se está moviendo y ese cambio se esperaban en cruz. Medido: con el
+  orden viejo de la bitácora, `ERROR 1213`; con el nuevo, espera y termina.
+- **Lo que no entra:** `asignar_plaza` en una institución cerrada o inactiva sigue permitido (pendiente propio del 536: acá solo
+  recibió el candado). `edificios.py` (edificio → traza del dispositivo) no toca plazas y no se tocó.
+
+## Pendientes
+- Un test `@tag("mysql")` de carrera sobre `_BaseCarrera` (reservar contra «Cerrar», liberar contra «Inactivar») que deje en la
+  suite del motor real lo que hoy midió la sonda fuera de ella.
+- Sigue el del 536 sobre `asignar_plaza` en una institución cerrada o inactiva.
+
+## Implementación
+`core/db.py` (`leer_con_bloqueo_compartido`), `programas/services/dispositivos.py` (`bloquear_institucion`,
+`bloquear_instituciones`; `exigir_institucion_en_estado` las usa), `programas/services/estadias.py` (los caminos de arriba y el
+docstring «El orden de los candados»), `programas/services/ingreso.py`, `programas/services/reservas_derivacion.py`,
+`programas/services/emergencia_confirmacion.py` y `programas/services/bitacora.py` (`registrar_entrada`).
+
+## Archivos
+Los de arriba, `core/tests/candados.py` (`orden_de_candados(compartido=…)` registra el candado compartido en la misma lista) y
+`programas/tests/test_dispositivos_bloqueo_institucion.py` (nuevo, 21 tests: el helper —transacción obligatoria, estado fresco,
+SQL `LOCK IN SHARE MODE` ordenado por pk— y el orden de cada camino).
+
+## Base de datos
+No requiere. Una consulta más (el `SELECT … LOCK IN SHARE MODE`) en ingresar, liberar, egresar, asignar, sacar/reponer plaza y en
+los caminos de Emergencia; ninguna en reservar, prestar y cambiar de plaza. En los caminos por lote se suma además una lectura por
+reserva liberada: «Inactivar» +N, `confirmar_ingreso` 2+N y el cierre, la cancelación o el vencimiento de una derivación N+1; son
+lecturas por pk de una fila que la transacción ya tiene bloqueada. Ningún presupuesto de `--tag performance` cambió.
+
+## Validación
+- **Mutación:** sacar la llamada de cada uno de los caminos, el control de transacción del helper o volver `registrar_entrada` al
+  orden viejo (15 mutaciones) pone en rojo su test.
+- **Sonda real contra MariaDB 10.11** (Docker, base efímera, fuera de la suite): dos conexiones; A se detiene después de bloquear la
+  plaza y B corre el camino que compite. **Antes** (development en `ab6dc39b`): reservar contra «Cerrar» → institución `CERRADO`
+  con 1 reserva vigente; ingresar contra «Cerrar» → `CERRADO` con 1 estadía activa; reservar contra «Inactivar» → `INACTIVO` con 1
+  reserva vigente; liberar contra «Inactivar» → `ERROR 1213`. **Después:** B queda en `LOCK WAIT` hasta que A termina; «Cerrar» se
+  rechaza con su mensaje de siempre («hay 1 reserva vigente» / «hay 1 persona alojada»), «Inactivar» libera la reserva recién creada
+  y no hay deadlock. Dos ingresos en la misma institución siguen sin esperarse. Cambio de plaza contra una novedad que nombra a la
+  persona: sin deadlock.
+- `--tag mysql` contra MariaDB 10.11, `test_dispositivos_*`, `test_emergencia_*`, `--tag performance`, `manage.py check`,
+  `makemigrations --check` y ruff.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Reversión
+Desplegar el código anterior: no hay datos nuevos.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

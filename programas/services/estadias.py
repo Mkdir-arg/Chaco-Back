@@ -39,10 +39,19 @@ omisión de InnoDB esto **no** sería cierto: la foto se toma en la primera lect
 bloqueante de la transacción —la del control de permisos, antes del `FOR UPDATE`— y el
 segundo operador no vería la estadía del primero.
 
-El orden de los candados: plaza y después reserva
--------------------------------------------------
+El orden de los candados: institución, plaza y después reserva
+--------------------------------------------------------------
 
-`ingresar_persona` y `liberar_reserva` piden las dos filas en ese orden. Invertirlo
+Antes que nada, la **institución**, con un bloqueo compartido
+(`dispositivos.bloquear_institucion`): reservar, prestar, liberar, ingresar, egresar,
+cambiar y asignar plaza, y sacar o reponer una plaza leen ahí su estado y fijan el orden
+contra «Inactivar» y «Cerrar», que la toman en exclusivo y después bloquean plazas y
+reservas. Sin eso, la traza que escribe cada camino (FK a la institución) pedía la fila de la
+institución **después** de la plaza, el orden inverso, y el motor cortaba una de las dos con
+`ERROR 1213`; y una reserva o un ingreso podían colarse en una institución que se estaba
+cerrando. Compartido para que dos ingresos de la misma institución no se esperen entre sí.
+
+Después, `ingresar_persona` y `liberar_reserva` piden la plaza y la reserva en ese orden. Invertirlo
 puede formar un ciclo: InnoDB aborta una transacción con `ERROR 1213`, que el servicio
 no traduce a un error de dominio.
 
@@ -111,6 +120,7 @@ from programas.models import (
 from programas.senales import estadia_egresada
 from programas.services.bitacora import anotar_en_bitacora
 from programas.services.dispositivos import (
+    bloquear_institucion,
     estados_que_cambian_de_plaza,
     estados_que_reservan,
     exigir_institucion_en_estado,
@@ -454,7 +464,9 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
 
     if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para alojar personas en este dispositivo.")
-    if dispositivo.estado != Dispositivo.Estado.ACTIVO:
+    # El estado fresco y con la institución tomada en compartido, antes que la plaza: ver
+    # «El orden de los candados» en el docstring del módulo.
+    if bloquear_institucion(dispositivo) != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": "Solo se puede alojar en un dispositivo activo."})
 
     ahora = timezone.now()
@@ -567,6 +579,8 @@ def egresar_persona(
     # Se relee con la fila bloqueada: el objeto que llega puede venir de una pantalla
     # abierta hace diez minutos, y dos egresos simultáneos de la misma estadía escribirían
     # los dos su motivo y su responsable, sin que nadie se entere de que hubo dos.
+    # Antes, la institución en compartido: el orden de siempre (institución → estadía).
+    bloquear_institucion(estadia.dispositivo_id)
     estadia = Estadia.objects.select_for_update().get(pk=estadia.pk)
     if not estadia.activa:
         raise ValidationError({"estado": "La estadía ya está cerrada."})
@@ -767,7 +781,8 @@ def asignar_plaza(*, estadia, plaza, usuario, motivo="", momento=None):
     if momento > ahora:
         raise ValidationError({"momento": "La asignación no puede ser futura."})
 
-    # Mismo orden que `cambiar_plaza`: primero la plaza y después la estadía.
+    # Mismo orden que `cambiar_plaza`: la institución, la plaza y después la estadía.
+    bloquear_institucion(dispositivo)
     plaza = _bloquear_plaza(plaza, dispositivo)
     estadia = Estadia.objects.select_for_update().get(pk=estadia.pk)
     if not estadia.activa:
@@ -950,7 +965,8 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
     # también la plaza al revalidar la FK por su índice (plaza, estado). Con el orden
     # inverso se forma un deadlock (ERROR 1213) en vez del error de reserva no vigente.
     # plaza_id es estable: ningún servicio mueve una reserva de plaza. Sin JOIN para
-    # no bloquear también el sector.
+    # no bloquear también el sector. Antes que la plaza, la institución en compartido.
+    bloquear_institucion(dispositivo)
     Plaza.objects.select_for_update().filter(pk=reserva.plaza_id).first()
     # Releída con bloqueo, como en el ingreso que la consume: sin esto, liberar con un
     # objeto viejo pisaría con LIBERADA una reserva que un ingreso acaba de consumir.
@@ -999,6 +1015,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
     if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
+    bloquear_institucion(dispositivo)
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
     if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
         return plaza
@@ -1034,6 +1051,7 @@ def volver_plaza_a_servicio(*, plaza, usuario):
     if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
+    bloquear_institucion(dispositivo)
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
     if plaza.estado == Plaza.Estado.OPERATIVA:
         return plaza

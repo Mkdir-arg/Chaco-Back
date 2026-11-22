@@ -28,7 +28,7 @@ from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
 from programas.models import Plaza, ReservaPlaza, Sector
-from programas.services.dispositivos import dispositivos_en_alcance, q_edificios_en_alcance
+from programas.services.dispositivos import bloquear_instituciones, dispositivos_en_alcance, q_edificios_en_alcance
 from programas.services.estadias import (
     CAP_ADMITIR,
     ingresar_persona,
@@ -229,6 +229,9 @@ def confirmar_ingreso(
         a_liberar = [
             reserva for reserva in _reservas_abiertas_de(ciudadano.pk) if propia is None or reserva.pk != propia.pk
         ]
+        # Antes que cualquier plaza, las instituciones en compartido y por pk: la del ingreso y las de
+        # las reservas a cerrar (`dispositivos.bloquear_institucion`).
+        bloquear_instituciones({dispositivo.pk} | {reserva.plaza.sector.dispositivo_id for reserva in a_liberar})
         plazas_a_bloquear = {reserva.plaza_id for reserva in a_liberar}
         if plaza is not None:
             plazas_a_bloquear.add(plaza.pk)
