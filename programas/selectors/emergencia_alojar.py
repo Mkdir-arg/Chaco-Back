@@ -26,7 +26,6 @@ from django.db.models import Count, Exists, Min, OuterRef, Q
 from django.utils import timezone
 
 from core.edad import MAYORIA_DE_EDAD, edad_en_anios
-
 from programas.models import (
     CasoEmergencia,
     Derivacion,

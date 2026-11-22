@@ -122,7 +122,9 @@ class EdificioEnLaApiTests(BaseApiLlegadas):
     def test_cada_sector_del_mapa_trae_su_edificio(self):
         caso, _ = self._aceptado()
 
-        cuerpo = self._como(self.guardia_centro).get(_url("dispositivo-plazas", self.centro.pk), {"caso": caso.pk}).json()
+        cuerpo = (
+            self._como(self.guardia_centro).get(_url("dispositivo-plazas", self.centro.pk), {"caso": caso.pk}).json()
+        )
 
         por_nombre = {s["sector"]["nombre"]: s["sector"]["edificio"] for s in cuerpo["sectores"]}
         self.assertEqual(por_nombre["Anexo"], {"id": self.edif_b.pk, "nombre": "Edificio B"})
@@ -157,11 +159,10 @@ class EdificioEnLaApiTests(BaseApiLlegadas):
         with CaptureQueriesContext(connection) as consultas:
             cliente.get(_url("dispositivo-plazas", self.centro.pk))
 
-        joins = [c["sql"] for c in consultas if "programas_edificio" in c["sql"] and "programas_plaza" in c["sql"]]
-        self.assertEqual(len(joins), 1, "el nombre del edificio viaja en el JOIN de las camas, sin consulta propia")
-        propias = [c for c in consultas.captured_queries if c["sql"].lstrip().upper().startswith("SELECT") and
-                   "FROM `programas_edificio`" in c["sql"].replace('"', "`") and "programas_plaza" not in c["sql"]]
-        self.assertEqual(propias, [])
+        sueltas = [
+            c["sql"] for c in consultas if "programas_edificio" in c["sql"] and "programas_plaza" not in c["sql"]
+        ]
+        self.assertEqual(sueltas, [], "el nombre del edificio viaja en el JOIN de las camas, sin consulta propia")
 
 
 class AvisarALaMesaConDerivacionEnOtroEdificioTests(BaseApiLlegadas):
