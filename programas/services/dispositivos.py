@@ -480,6 +480,27 @@ def _filas_de_institucion(filas):
     return filas.exclude(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS)
 
 
+def miembros_del_edificio(dispositivo, edificio_id):
+    """Las filas vigentes del Equipo de ``dispositivo`` que trabajan en ``edificio_id`` (Cambio 563).
+
+    Vale la fila de alcance Institución (o sin alcance cargado) y la de alcance Edificios que incluye ese edificio.
+    Los responsables van primero. Es la lectura inversa de :func:`alcance_de_edificios`: vive acá, con su dueño.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    en_este_edificio = MiembroEquipoDispositivo.edificios.through.objects.filter(edificio_id=edificio_id).values(
+        "miembroequipodispositivo_id"
+    )
+    return list(
+        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo)
+        .filter(q_membresia_vigente(programa_dispositivos()))
+        .filter(~Q(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS) | Q(pk__in=en_este_edificio))
+        .select_related("usuario")
+        .order_by("-es_responsable", "usuario__last_name", "usuario__first_name", "usuario__username", "pk")
+    )
+
+
 def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
     """La forma ``Q`` de :func:`alcance_de_edificios` para listas que cruzan instituciones.
 
