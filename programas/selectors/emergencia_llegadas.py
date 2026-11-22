@@ -17,7 +17,7 @@ from programas.models import AdjuntoCaso
 from programas.selectors import emergencia_alojar as alojar
 from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, _personas, franjas_del_grupo, nombre_de
 from programas.selectors.emergencia_mesa import filas_de_integrantes as filas_de_integrantes_de_la_mesa
-from programas.services.avisos_emergencia import POR_VENCER_MIN
+from programas.services.avisos_emergencia import por_vencer
 from programas.services.emergencia import NECESIDADES, prioridad_visible
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
 
@@ -53,9 +53,8 @@ def aviso_de_pendientes(pendientes, url_llegadas, ahora):
     cantidad = pendientes["cantidad"]
     vence = pendientes["primera_vence"]
     familias = "1 familia derivada" if cantidad == 1 else f"{cantidad} familias derivadas"
-    por_vencer = (vence - ahora).total_seconds() < POR_VENCER_MIN * 60
     return {
-        "tono": "danger" if por_vencer else "warning",
+        "tono": "danger" if por_vencer(vence, ahora) else "warning",
         "icono": "triangle-exclamation",
         "titulo": f"{familias} por Emergencia esperando respuesta",
         "texto": f"{'La primera venció' if vence < ahora else 'La primera vence'} el {_dia_hora(vence)}.",
