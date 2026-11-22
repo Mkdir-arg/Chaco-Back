@@ -4,7 +4,7 @@
 2. Detalle: el de otro edificio, uno no realizado, uno que el usuario no ve o un id raro dan 404.
 3. Alcance del informe (Cambio 428): sin él no hay observaciones, quién relevó ni fotos, ni en la lista ni en el detalle.
 4. Las fotos del detalle son las de **ese** relevamiento.
-5. El costo no crece con los relevamientos ni con las fotos (``dispositivos_edificio_operativo``).
+5. El costo no crece con los relevamientos ni con las fotos (``dispositivos_edificio_operativo_edilicio``).
 """
 
 import json
@@ -19,7 +19,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import FotoInspeccion, InspeccionEdificio, MiembroEquipoDispositivo
-from programas.tests.test_dispositivos_edificio_operativo import CLAVE_PRESUPUESTO, PRESUPUESTOS, BaseOperativo
+from programas.tests.test_dispositivos_edificio_operativo import PRESUPUESTOS, BaseOperativo
+
+CLAVE_PRESUPUESTO = "dispositivos_edificio_operativo_edilicio"
 
 Estado = InspeccionEdificio.Estado
 Criticidad = InspeccionEdificio.Criticidad
@@ -230,3 +232,20 @@ class PresupuestoEdilicioTests(BaseEdilicio):
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
         self.assertEqual(antes, despues)
         self.assertLessEqual(despues, techo["consultas_fijas"])
+
+
+class SolapaPerezosaTests(BaseEdilicio):
+    def test_con_otra_solapa_no_se_arma_y_el_boton_navega(self):
+        self._relevar(self.edif_a, fotos=("a",))
+
+        respuesta = self._get(self.de_inst, self.edif_a, tab="equipo")
+
+        self.assertNotIn("edilicio_lista", respuesta.context)
+        self.assertNotIn("edilicio_detalle", respuesta.context)
+        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertTrue(respuesta.context["url_solapa_edilicio"].endswith("?tab=edilicio"))
+
+    def test_con_la_solapa_abierta_el_boton_no_navega(self):
+        respuesta = self._edilicio(self.de_inst)
+
+        self.assertNotContains(respuesta, "data-solapa-navega")
