@@ -221,6 +221,21 @@ class CasoTomadoPorOtro(EstadoCambio):
         )
 
 
+class CasoDeOtroOperador(PermissionDenied):
+    """Quiso actuar sobre un caso que ya tiene tomado otro operador (RU-12).
+
+    Es un ``PermissionDenied`` —la API lo sigue contestando como antes y quien atrapa aquel
+    atrapa este—, pero con el caso y un mensaje que dice quién lo tiene, para que la vista
+    de la mesa vuelva a la ficha con el aviso en vez de mostrar un 403 crudo (pantalla vieja:
+    otro operador lo tomó, o lo reasignó un supervisor, después de abrirla).
+    """
+
+    def __init__(self, caso):
+        self.caso = caso
+        quien = _nombre_de(caso.tomado_por) if caso.tomado_por_id else "otro operador"
+        super().__init__(f"El caso {caso.numero} lo tiene tomado {quien}: ya no podés hacer esto. Recargá la ficha.")
+
+
 class FaltanPlazas(ValidationError):
     """El dispositivo tiene menos plazas libres que las pedidas y nadie confirmó seguir (RN-2.5).
 
@@ -272,6 +287,8 @@ def _exigir_duenio_o_supervisor(caso, usuario):
         return False
     if puede_supervisar_la_mesa(usuario):
         return True
+    if caso.tomado_por_id is not None:
+        raise CasoDeOtroOperador(caso)
     raise PermissionDenied(NO_ES_EL_DUENIO)
 
 
