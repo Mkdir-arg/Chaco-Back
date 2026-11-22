@@ -101,6 +101,7 @@ CLAVES_INTEGRANTE = [
     "parentesco",
     "persona",
     "plaza",
+    "puede_quitarse",  # Cambio 537, aditiva
     "responsable",
 ]
 CLAVES_PERSONA_DEL_INTEGRANTE = ["dni", "id", "nombre"]
@@ -162,6 +163,7 @@ CLAVES_RECHAZO = ["caso_estado"]
 CLAVES_CONFIRMACION = ["confirmadas", "integrante", "reserva_liberada", "total_declarado"]
 CLAVES_FICHA_COMPLETADA = ["ficha_completa", "secciones_incompletas"]
 CLAVES_INTEGRANTE_AGREGADO = ["integrante", "total_declarado"]
+CLAVES_INTEGRANTE_QUITADO = ["n", "total_declarado", "ya_estaba_quitada"]  # Cambio 537
 CLAVES_CIERRE_DE_INGRESO = ["estado", "liberadas", "total_alojado"]
 CLAVES_MAPA = ["caso", "sectores"]
 CLAVES_SECTOR_CON_PLAZAS = ["libres", "plazas", "reservadas_familia", "sector", "total"]
@@ -200,6 +202,7 @@ URLS_DE_LLEGADAS_DEL_BARRIDO = [
     "/api/emergencia/casos/1/integrantes/",
     "/api/emergencia/casos/1/integrantes/1/",
     "/api/emergencia/casos/1/integrantes/1/confirmar/",
+    "/api/emergencia/casos/1/integrantes/1/quitar/",
     "/api/emergencia/derivaciones/1/aceptar/",
     "/api/emergencia/derivaciones/1/rechazar/",
     "/api/emergencia/dispositivos/1/avisar-mesa/",

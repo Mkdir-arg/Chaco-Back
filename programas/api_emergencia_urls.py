@@ -33,6 +33,7 @@ from programas.api.views_emergencia_llegadas import (
     IntegrantesView,
     IntegranteView,
     PlazasDelDispositivoView,
+    QuitarIntegranteView,
     RechazarDerivacionView,
 )
 from programas.api.views_emergencia_sin_derivacion import AvisarALaMesaView, IngresoDirectoView
@@ -76,6 +77,7 @@ urlpatterns = [
         ConfirmarIntegranteView.as_view(),
         name="caso-integrante-confirmar",
     ),
+    path("casos/<int:pk>/integrantes/<int:n>/quitar/", QuitarIntegranteView.as_view(), name="caso-integrante-quitar"),
     path("casos/<int:pk>/alojar/", AlojarFamiliaView.as_view(), name="caso-alojar"),
     path("casos/<int:pk>/cerrar-diferencia/", CerrarConDiferenciaView.as_view(), name="caso-cerrar-diferencia"),
     path("casos/<int:pk>/cancelar-ingreso/", CancelarIngresoView.as_view(), name="caso-cancelar-ingreso"),

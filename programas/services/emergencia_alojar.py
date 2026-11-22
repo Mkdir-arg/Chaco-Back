@@ -126,6 +126,7 @@ from programas.services.emergencia_confirmacion import (  # noqa: F401
     agregar_integrante,
     completar_ficha,
     confirmar_integrante,
+    quitar_integrante,
 )
 from programas.services.emergencia_ficha import (  # noqa: F401
     BOOLEANO,
