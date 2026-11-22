@@ -95,7 +95,7 @@ class AdultoResponsableTests(BaseAlojar):
 
     def test_una_persona_sin_confirmar_o_inexistente_no_vale(self):
         self._confirmar_n(1, "30111222")
-        for elegido in ("4", "99", "x"):
+        for elegido in ("4", "99", "x", "²"):
             with self.subTest(elegido=elegido), self.assertRaises(ValidationError) as error:
                 self._confirmar_n(
                     3, "55000111", datos_personales=MENOR, observaciones={"adulto_responsable_orden": elegido}

@@ -123,6 +123,17 @@ MOTIVO_SIN_PLAZAS_LIBRES = "No hay plazas libres en el dispositivo para moverla.
 MOTIVO_PLAZA_OCUPADA = "La plaza está ocupada: primero registrá el egreso o cambiala de plaza."
 
 
+def se_puede_cambiar_plaza(estadia, dispositivo, *, con_plazas):
+    """La regla única de «Cambiar plaza» (con plaza) y «Asignar plaza» (sin plaza), Cambio 536.
+
+    Sin plaza se asigna una solo si el tipo maneja plazas (`con_plazas`); con plaza se cambia salvo que la
+    institución esté cerrada. La solapa de estadías, el modal por URL y la pantalla de la estadía la comparten.
+    """
+    if estadia.plaza_id is None:
+        return con_plazas
+    return dispositivo.estado in estados_que_cambian_de_plaza()
+
+
 def acciones_de_plaza(
     estado,
     con_reserva_abierta,
@@ -131,7 +142,7 @@ def acciones_de_plaza(
     puede_editar=False,
     puede_buscar_personas=False,
     puede_egresar=False,
-    estado_dispositivo=None,
+    estado_dispositivo,
 ):
     """Las acciones que admite una plaza y que quien mira puede ejercer, en el orden del modal.
 
@@ -147,7 +158,7 @@ def acciones_de_plaza(
     piden además `ciudadano.ver` (`puede_buscar_personas`), como el asistente de ingreso. Lista vacía: la plaza no es accionable para este usuario.
     """
 
-    puede_reubicar = estado_dispositivo is None or estado_dispositivo in estados_que_cambian_de_plaza()
+    puede_reubicar = estado_dispositivo in estados_que_cambian_de_plaza()
     if estado.estado == ESTADO_FUERA_SERVICIO:
         return [ACCION_VOLVER] if puede_editar else []
     if con_reserva_abierta:
