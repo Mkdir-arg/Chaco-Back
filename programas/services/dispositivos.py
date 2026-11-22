@@ -324,6 +324,18 @@ class AlcanceEdificios:
             return queryset
         return queryset.filter(**{f"{campo}__in": list(self.edificios)})
 
+    def permite_todos(self, queryset, campo):
+        """Si **cada** fila de ``queryset`` cuelga de un edificio alcanzado; ``campo`` es la ruta al id del edificio.
+
+        Con ``todo`` no consulta. Es la forma de preguntar «¿todas estas plazas están en mi alcance?»: no con
+        ``exclude(q_edificios_en_alcance(...))``, que con alcance total recibe un ``Q()`` vacío y no excluye nada
+        (#1298). Una fila sin edificio no entra, como en :meth:`permite`.
+        """
+
+        if self.todo:
+            return True
+        return all(self.permite(edificio_id) for edificio_id in queryset.values_list(campo, flat=True))
+
 
 ALCANCE_TODO = AlcanceEdificios(True)
 ALCANCE_NADA = AlcanceEdificios(False)
@@ -437,6 +449,11 @@ def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
     ``campo_dispositivo`` y ``campo_edificio`` son las rutas desde el modelo filtrado (p. ej.
     ``"dispositivo_id"`` y ``"sector__edificio_id"``). Es **solo** el acote por edificio: la institución
     la sigue resolviendo :func:`dispositivos_en_alcance`. Un objeto sin edificio no entra con alcance Edificios.
+
+    **Solo para ``filter``.** Con alcance total (admin del programa, superusuario, ``ver_todos``) devuelve ``Q()``
+    vacío, que en ``filter`` es «todo» pero en ``exclude`` o ``~`` no es «nada»: ``exclude(Q())`` no excluye
+    ninguna fila (#1298). Para «¿todo esto está en mi alcance?» dentro de una institución, usar
+    :meth:`AlcanceEdificios.permite_todos`.
     """
 
     from programas.models import MiembroEquipoDispositivo
