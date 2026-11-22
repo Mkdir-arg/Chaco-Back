@@ -370,8 +370,9 @@ class FidelidadFITests(BaseInfraestructura):
 
     @skipUnless(shutil.which("node"), "Requiere Node para ejecutar el JS renderizado")
     def test_el_resumen_de_faltantes_sigue_la_edicion_en_el_navegador(self):
-        html = self.client.get(self.editar).content.decode()
-        script = next(s for s in re.findall(r"<script>(.*?)</script>", html, re.S) if "actualizarFaltantes" in s)
+        script = (settings.BASE_DIR / "static/custom/js" / "dispositivos-legajo-faltantes.js").read_text(
+            encoding="utf-8"
+        )
         resultado = subprocess.run(
             [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/faltantes_fi.cjs")],
             input=json.dumps(script),
@@ -384,8 +385,9 @@ class FidelidadFITests(BaseInfraestructura):
 
     @skipUnless(shutil.which("node"), "Requiere Node para ejecutar el JS renderizado")
     def test_los_dos_catch_ignoran_abortos_y_reenvio_conserva_submitter(self):
-        html = self.client.get(self.crear).content.decode()
-        script = next(s for s in re.findall(r"<script>(.*?)</script>", html, re.S) if "const codigo =" in s)
+        script = (settings.BASE_DIR / "static/custom/js" / "dispositivos-legajo-duplicados.js").read_text(
+            encoding="utf-8"
+        )
         resultado = subprocess.run(
             [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/duplicados_fi.cjs")],
             input=json.dumps(script),

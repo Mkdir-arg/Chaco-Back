@@ -1555,6 +1555,25 @@ VARIANTES_DE_ARQUETIPO: dict[tuple[str, str], list] = {
         (r"<(?:section|article)\b[^>]*aria-labelledby=", False, "sección con nombre accesible (reemplaza a la solapa)"),
         (r"<h2\b", False, "encabezado de la sección apilada"),
     ],
+    # Ficha `formulario.md`, «Formulario con asistencia lateral» (P3): el `<form>` es un
+    # contenedor `space-y-5` y las tarjetas (datos y formulario del tipo) son sus hijas, con el
+    # pie fuera de ellas; la surface no es el `<form>`. Se declara en el template.
+    ("formulario", "asistencia"): [
+        (r"\{%\s*extends\s+\"includes/base\.html\"\s*%\}", False, "extiende el shell del backoffice"),
+        (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+        (r"class=\"space-y-5\"", False, "contenedor de página space-y-5"),
+        (r"\{%\s*page_header\b", False, "{% page_header %}"),
+        (r"volver_url=", False, "page_header con volver_url"),
+        (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+        (r"grid grid-cols-1 lg:grid-cols-3 gap-5", False, "grilla con asistencia lateral"),
+        (r'<form method="post"[^>]*class="space-y-5"', False, "el form como contenedor space-y-5"),
+        (r"\{%\s*csrf_token\s*%\}", False, "{% csrf_token %}"),
+        (r'class="bg-white rounded-xl border border-base shadow-sm p-6"', False, "surface de datos dentro del form"),
+        (r"components/_form_errores\.html", False, "errores no de campo con components/_form_errores.html"),
+        (r"_field\.html", False, "campos con el include _field.html"),
+        (r"btn-nodo btn-tertiary btn-base", False, "acción secundaria del pie"),
+        (r"btn-nodo btn-brand btn-base", False, "acción primaria del pie"),
+    ],
 }
 
 
