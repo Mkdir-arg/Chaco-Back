@@ -652,6 +652,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 530 | Emergencia · Llegadas: el administrador del programa y el superusuario recibían 403 al aceptar una derivación o «Ingresar igual» (`exclude` con el `Q()` vacío del alcance total) | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` | QA en testing del 21/11/2026 (#1298) | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 532 | Emergencia · alojar con alcance por edificio: camas del edificio derivado, «Avisar a la mesa» con alcance Edificios, «mis dispositivos» por edificio, ingreso directo con edificio y sin doble envío | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` `#api` `#mobile` | Relevamiento de lógica del 22/11/2026 (PR L1) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61235,3 +61236,104 @@ Ninguno.
 
 ## Reversión
 Desplegar el código anterior: vuelve el 403 para el admin y el superusuario. No hay datos que revertir.
+
+# Cambio 532 — Emergencia · alojar con alcance por edificio: camas del edificio derivado, «Avisar a la mesa» con alcance Edificios, «mis dispositivos» por edificio, ingreso directo con edificio y sin doble envío
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#rbac` `#api` `#mobile` |
+| **Solicitante** | Relevamiento de lógica de Emergencia y Dispositivos del 22/11/2026 (hallazgos 1, 4, 13, 18 y 11), PR L1 |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+Con el Equipo por edificio (Cambio 523), la guardia de un edificio no podía seguir lo que le tocaba: (1) aceptar una
+derivación a su edificio reservaba camas de otro edificio y después la guardia chocaba con 403 al confirmar a la persona o
+al liberar la reserva sobrante; (4) veía «Ingresar igual» y «Avisar a la mesa» y los dos le daban 403 y le hacían perder el
+Formulario 1; (13) «mis dispositivos» de la app le contaba las camas y las derivaciones de toda la institución; (18) el
+ingreso directo nacía sin edificio, así que ninguna guardia de edificio lo veía; (11) «Ingresar igual» del backoffice y
+«Armar entrega» de kits no eran idempotentes.
+
+## Alcance acordado
+Los cinco hallazgos con los defaults del juez del relevamiento. Sin migraciones; el contrato de la app cambia solo de forma
+aditiva.
+
+## Decisiones tomadas
+- **Camas del edificio derivado (1).** `aceptar_derivacion` elige camas solo del edificio de la derivación
+  (`camas_libres(..., edificio_id=derivacion.edificio_id)`). Si no alcanzan **no se completa con otro edificio**: se
+  reserva lo que hay y el mensaje dice «faltan N» (default del juez). Una derivación sin edificio sigue eligiendo en toda la
+  institución, como antes (la guardia de edificio no la ve).
+- **Reserva sobrante (1).** Al confirmar en una cama libre, la sobrante de la familia se libera con
+  `verificar_alcance=False`, igual que las comunes: es de la derivación cuyo alcance ya se exigió, y puede estar en otro
+  edificio si se aceptó antes de este cambio. «No hay cama» (`_hay_cama_para_elegir`) mira las camas libres que quien
+  confirma puede elegir.
+- **Botones sin derivación (4).** Default del juez: «Avisar a la mesa» vale con cualquier alcance del Equipo, también
+  Edificios (cambia la decisión técnica del Cambio 523, que lo pedía de institución completa: el aviso no reserva nada ni
+  toca un edificio). «Ingresar igual» sigue exigiendo la institución entera. Las dos reglas viven en
+  `emergencia_ingreso_comun.puede_ingresar_igual` / `puede_avisar_a_la_mesa`, que usan el servicio, la pantalla y la API.
+  La pantalla de Llegadas no muestra «Ingresar igual» a quien no puede; abrir su formulario por URL vuelve a Llegadas con el
+  motivo, y si el POST llega igual, el Formulario 1 queda en pantalla con el error (403) en vez de perderse.
+- **API (4).** `buscar` suma dos claves **aditivas**, `puede_ingresar_igual` y `puede_avisar_a_la_mesa` (solo con
+  `SIN_DERIVACION`; en los otros resultados, `false`). La app publicada no las lee y sigue andando: con alcance Edificios
+  `ingreso-directo` le contesta 404 como hasta ahora, y `avisar-mesa` ahora le contesta 201.
+- **«Mis dispositivos» (13).** `resumen_de_llegadas(..., usuario=)` acota camas y derivaciones con
+  `q_edificios_en_alcance`, **solo en `filter`** (con alcance total es `Q()` vacío, #1298). Sin `usuario` cuenta todo,
+  como antes.
+- **Ingreso directo con edificio (18).** Las camas se reservan todas en un mismo edificio —el que tiene más libres; a
+  igualdad, el del primer sector en el orden de siempre— y ese edificio queda en la derivación y en la novedad de la
+  bitácora. Si la familia no entra, faltan, igual que al aceptar (decisión conservadora de este PR, coherente con el
+  hallazgo 1). Las camas sin edificio cuentan como un grupo más (dispositivo sin edificios: igual que antes).
+- **Doble envío (11).** Confirmado con test: el mismo POST de «Ingresar igual» dos veces creaba dos casos y reservaba
+  camas dos veces (el `nodo-submit-guard` frena el doble clic, no volver «atrás» y reenviar). El Formulario 1 del
+  dispositivo lleva un `uuid_cliente` oculto que nace al abrir la pantalla, y el servicio —que ya era idempotente por ese
+  campo para la app— devuelve el caso del primer envío. Vale también para «Avisar a la mesa».
+- **«Armar entrega» de kits (11): pendiente.** Por lectura del código también se repite del lado del servidor (`crear_entrega` crea siempre: dos POST, dos entregas), pero
+  `EntregaKit` no tiene dónde guardar un identificador de envío: arreglarlo bien exige una migración (columna nula
+  `uuid_cliente`), fuera del alcance de este PR. El doble clic lo sigue frenando `nodo-submit-guard`.
+
+## Implementación
+La guardia de un edificio acepta, confirma y sigue el ingreso de las familias derivadas a su edificio aunque las haya
+aceptado otra persona; puede avisar a la mesa y no ve «Ingresar igual»; la app le cuenta solo lo de sus edificios; el
+ingreso directo queda en un edificio, y reenviar el mismo formulario no duplica el caso.
+
+## Archivos
+- `programas/selectors/emergencia_alojar.py` — `camas_libres(edificio_id=)`, `resumen_de_llegadas(usuario=)`.
+- `programas/services/emergencia_recepcion.py` — aceptar por edificio; banderas en `ResultadoBusqueda`.
+- `programas/services/emergencia_confirmacion.py` — sobrante sin alcance; `_hay_cama_para_elegir` con usuario.
+- `programas/services/emergencia_ingreso_comun.py` — `puede_ingresar_igual`, `puede_avisar_a_la_mesa`.
+- `programas/services/emergencia_sin_derivacion.py` — ingreso directo con edificio; aviso con cualquier alcance.
+- `programas/services/emergencia_alojar.py` — reexporta las dos reglas.
+- `programas/views/emergencia_dispositivo.py`, `programas/forms_emergencia_dispositivo.py`,
+  `programas/templates/programas/emergencia/dispositivo/llegadas.html` y `formulario1.html`.
+- `programas/api/serializers_emergencia.py`, `programas/api/views_emergencia_kits.py`.
+- `docs/internal/contrato-app-emergencia.md` (§9, §13.1, §13.2, §13.10).
+- Tests: `programas/tests/test_emergencia_alojar_alcance_edificio.py` (nuevo) y `base_emergencia_api.py` (claves de `buscar`).
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos en `test_emergencia_alojar_alcance_edificio.py` (20: servicio, pantalla de Llegadas y API M2). **Mutación** (11, todas en rojo): aceptar sin `edificio_id`; liberar la sobrante con
+`verificar_alcance=True`; `_hay_cama_para_elegir` sin usuario; «Avisar a la mesa» de institución; «Ingresar igual» con cualquier alcance; la pantalla sin mirar la bandera; `resumen_de_llegadas` sin el filtro
+de camas o sin el de derivaciones; el ingreso directo sin edificio o mezclando edificios; la vista sin `uuid_cliente` (es el comportamiento anterior: dos casos). Suites `test_emergencia_*`,
+`test_equipo_alcance_*` y `test_dispositivos_reservas_derivacion` (1488) y `--tag performance` (93) en verde; `manage.py check`, `makemigrations --check`, ruff, `design_audit --ratchet` (0 nuevos),
+`compile_templates --bloques` y `check_design_agent --base origin/development` OK.
+
+## Puesta en marcha en el servidor
+No requiere. La app móvil publicada sigue funcionando: las claves nuevas son aditivas. Para la app: leer
+`puede_ingresar_igual` / `puede_avisar_a_la_mesa` en `buscar` (PR aparte en Chaco-mobile).
+
+## Pendientes / a definir
+- «Armar entrega» de kits idempotente: necesita la columna `EntregaKit.uuid_cliente` (migración expand). Lo decide el juez.
+
+## Reversión
+Desplegar el código anterior. No hay datos que revertir: las derivaciones de ingreso directo que nacieron con edificio lo
+conservan y el código viejo las trata igual.
+
+## Historial
+- **22/11/2026:** alta del cambio (PR L1 del relevamiento de lógica).
