@@ -3,7 +3,7 @@
 {% load static nodo_ui %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }} · {{ edificio.nombre }}{% endblock %}
 
-{% block page_css %}{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
+{% block page_css %}{% if sectores_cargados %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endif %}{% if formulario_egreso %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
 
 {% block main-content %}
 {# La solapa abierta la normaliza el servicio (`normalizar_solapa`): una que este usuario no tiene cae en la de siempre #}
@@ -93,7 +93,8 @@
       <div class="border-b border-base">
       <div class="flex gap-1 px-2 overflow-x-auto -mb-px" role="tablist" aria-label="Secciones del edificio">
         {% if maneja_plazas %}
-        <button @click="tab='sectores'" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
+        {# El mapa se arma solo con la solapa abierta (`sectores_cargados`): si no vino, el botón navega a ella #}
+        <button @click="{% if sectores_cargados %}tab='sectores'{% else %}window.location.href='{{ url_solapa_sectores|escapejs }}'{% endif %}" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores" {% if not sectores_cargados %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='sectores'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -101,7 +102,8 @@
           <span class="badge" :class="tab==='sectores' ? 'badge-info' : 'badge-gray'">{{ contadores.sectores }}</span>
         </button>
         {% endif %}
-        <button @click="tab='estadias'" type="button" role="tab" id="tab-estadias" aria-controls="panel-estadias"
+        {# La tabla se arma solo con la solapa abierta (`tab == 'estadias'`): si no vino, el botón navega a ella #}
+        <button @click="{% if tab == 'estadias' %}tab='estadias'{% else %}window.location.href='{{ request.path|escapejs }}?tab=estadias'{% endif %}" type="button" role="tab" id="tab-estadias" aria-controls="panel-estadias" {% if tab != 'estadias' %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='estadias'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='estadias' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -176,6 +178,9 @@
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
-<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}
+{# Sectores y Estadías comparten el AJAX de sus modales y `becas-modal.js`; el egreso suma los scripts de su formulario #}
+{% if sectores_cargados or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endif %}
+{% if sectores_cargados %}<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endif %}
 {% include "programas/dispositivos/legajo/_estadia_modales_js.html" %}{% endblock %}

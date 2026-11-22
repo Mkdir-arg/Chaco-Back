@@ -6,7 +6,7 @@ lo de la otra institución del predio no aparece (decisión 2 del PM, 22/11/2026
 
 Este módulo arma el encabezado: la franja de datos, el aviso del predio compartido, los indicadores, los contadores
 de las seis solapas y las acciones que cada quien puede hacer. El contenido de cada solapa lo llenan los PR 1 a 7;
-mientras tanto cada panel es un estado vacío con un enlace a donde se opera hoy.
+el panel de Sectores y plazas lo llena el PR 1 (Cambio 565); los demás son estados vacíos con un enlace a donde se opera hoy.
 
 Autorización
 ------------
@@ -138,15 +138,6 @@ def _estado_edilicio(user, edificio):
     return {"texto": estado["texto"], "tono": estado["tono"], "detalle": detalle}
 
 
-def _equipo_del_edificio(dispositivo, edificio):
-    """Las personas activas del Equipo con alcance a este edificio: toda la institución o este edificio. Una consulta.
-
-    Una fila sin alcance cargado vale «toda la institución». Los responsables van primero.
-    """
-
-    return miembros_del_edificio(dispositivo, edificio.pk)
-
-
 def _nombre(usuario):
     return usuario.get_full_name().strip() or usuario.get_username()
 
@@ -241,12 +232,12 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
     conteo = None
     indicadores = []
     if con_plazas:
-        # Solo los sectores de este edificio: el censo se acota en la misma consulta y, por si acaso, se lee el del edificio.
-        censo = ocupacion_de_plazas(dispositivo, q_sectores=Q(edificio_id=edificio.pk)).de(dispositivo)
-        conteo = censo.conteo_del_edificio(edificio.pk)
+        # Solo los sectores de este edificio: el censo se acota en la misma consulta.
+        conteo = ocupacion_de_plazas(dispositivo, q_sectores=Q(edificio_id=edificio.pk)).de(dispositivo).conteo
         indicadores = indicadores_de_plazas(conteo, tipo=dispositivo.tipo)
 
-    equipo = _equipo_del_edificio(dispositivo, edificio)
+    # Una fila sin alcance cargado vale «toda la institución»; los responsables van primero.
+    equipo = miembros_del_edificio(dispositivo, edificio.pk)
     estado = _estado_edilicio(user, edificio)
     disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
     pendientes_de_kit = (
@@ -257,11 +248,16 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         else 0
     )
     url_institucion = reverse("dispositivos:detalle", args=[dispositivo.pk])
+    tab = normalizar_solapa(tab_pedida, disponibles)
+    url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
     return {
         "dispositivo": dispositivo,
         "edificio": edificio,
         "maneja_plazas": con_plazas,
-        "tab": normalizar_solapa(tab_pedida, disponibles),
+        "tab": tab,
+        # El mapa de plazas se arma solo con su solapa abierta: si no vino, el botón de la solapa navega a ella.
+        "sectores_cargados": con_plazas and tab == "sectores",
+        "url_solapa_sectores": f"{url_pagina}?tab=sectores",
         "solapas": disponibles,
         "url_institucion": url_institucion,
         "migas": [
