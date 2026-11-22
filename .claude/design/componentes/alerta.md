@@ -84,7 +84,7 @@ composición del arquetipo Dashboard: un include por alerta con `role="status"`,
 En la ficha de la institución, antes de las alertas del dispositivo, un aviso de Llegadas (`aviso_llegadas`, armado por
 `aviso_de_pendientes` de `programas/selectors/emergencia_llegadas.py`): las derivaciones de Emergencia por recibir, con el vencimiento
 más próximo y «Ir a Llegadas» como acción. Tono `warning`, y `danger` si vence en menos de `POR_VENCER_MIN` o ya venció; solo lo
-ven `dispositivo.admitir` con alcance, el admin del programa y el superusuario. Un include de `_alerta.html` con `role="status"`.
+ven `dispositivo.admitir` con alcance, el admin del programa y el superusuario. Un include de `_alerta.html` con `role="status"`. Las filas de «Derivaciones por recibir» de Llegadas (`filas_de_llegadas`) suman `url_aceptar` para aceptar desde la fila con `data-confirm-url`.
 Las alertas estratégicas nombran el dato y no enlazan a casos; la única con acción es la que lleva a otra parte de la
 misma pantalla (`ACCIONES_DE_ALERTA` en `pantalla_situacion_emergencia.py`: AE-6 → «Ver el abastecimiento», con los
 filtros), con `accion_url` y `accion_texto` del contrato. La solapa Abastecimiento

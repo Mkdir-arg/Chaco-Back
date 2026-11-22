@@ -282,7 +282,7 @@ def entregas_pendientes_de(dispositivo, usuario):
 
     ``EN_CAMINO`` y también ``PREPARADA`` —por si llegó sin que la mesa la marcara—, con sus
     líneas. Sin ``emergencia.recibir_kit`` sobre **ese** dispositivo devuelve un queryset
-    vacío: nunca las de otro. **2 consultas** (más la del alcance).
+    vacío: nunca las de otro. **2 consultas** (más la del alcance); la vista paginada suma un COUNT: **3**.
     """
 
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_RECIBIR_KIT):

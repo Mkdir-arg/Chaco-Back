@@ -12,8 +12,8 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
   <div class="space-y-5">
-    {% page_header titulo="Emergencia · Llegadas" eyebrow=dispositivo.nombre volver_url=url_dispositivo volver_label=dispositivo.nombre %}
-      {% bajada %}Paso 1 de 3 · Buscá a la familia que llegó con el DNI de cualquiera de sus personas.{% endbajada %}
+    {% page_header titulo="Llegadas" eyebrow=dispositivo.nombre volver_url=url_dispositivo volver_label=dispositivo.nombre %}
+      {% bajada %}Paso {{ paso_actual }} de {{ pasos|length }} · Buscá a la familia que llegó con el DNI de cualquiera de sus personas.{% endbajada %}
     {% endpage_header %}
 
     {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
@@ -193,12 +193,25 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
               <td class="nodo-td"><span class="block text-heading font-medium">{{ fila.familia }}</span><span class="block text-xs text-body-subtle">{{ fila.detalle }}</span></td>
               <td class="nodo-td"><span class="badge badge-{{ fila.prioridad_tono }}">{{ fila.prioridad_texto }}</span></td>
               <td class="nodo-td">{{ fila.cuando }}{% if fila.vencida %} <span class="badge badge-warning">Plazo cumplido</span>{% endif %}</td>
-              <td class="nodo-td nodo-col-acciones"><a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Ver la derivación de la {{ fila.familia }}"><i class="fas fa-eye" aria-hidden="true"></i></a></td>
+              <td class="nodo-td nodo-col-acciones">
+                <div class="inline-flex gap-1">
+                  <a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Ver la derivación de la {{ fila.familia }}"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                  <button type="button" class="nodo-icon-btn" aria-label="Aceptar la derivación de la {{ fila.familia }} y reservar camas"
+                          data-confirm-url="{{ fila.url_aceptar }}"
+                          data-confirm-title="¿Aceptar la derivación?"
+                          data-confirm-text="Se reservan las camas para la {{ fila.familia }} y el ingreso queda en curso."
+                          data-confirm-ok="Sí, aceptar"
+                          data-confirm-danger="false">
+                    <i class="fas fa-check" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% include "components/_paginacion.html" with page_obj=pendientes_pagina entidad="derivación" entidad_plural="derivaciones" param="pendientes_pag" %}
       {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-inbox" titulo="No hay derivaciones por recibir" texto="Cuando la mesa derive una familia a este dispositivo, aparece acá." %}
       {% endif %}
@@ -233,6 +246,7 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
           </tbody>
         </table>
       </div>
+      {% include "components/_paginacion.html" with page_obj=en_curso_pagina entidad="ingreso" entidad_plural="ingresos" param="en_curso_pag" %}
       {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="No hay ingresos en curso" texto="Al aceptar una derivación, la familia queda acá hasta que se cierra su ingreso." %}
       {% endif %}
@@ -260,4 +274,9 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
 </div>
 {% endblock %}
 
-{% block customJS %}<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
+{% block customJS %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>
+{% include "programas/becas/_confirm_js.html" %}
+{% endblock %}

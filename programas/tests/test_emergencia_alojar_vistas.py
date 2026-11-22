@@ -19,6 +19,7 @@ Qué fija este archivo:
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -41,7 +42,7 @@ from programas.models import (
 from programas.selectors import emergencia_mesa
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
-from programas.tests.test_emergencia_alojar_base import DNI_DE_LOS_RESPONSABLES, BaseAlojar
+from programas.tests.test_emergencia_alojar_base import DNI_DE_LOS_RESPONSABLES, GUARDIA, BaseAlojar
 from programas.tests.test_emergencia_casos import JPEG
 
 Estado = CasoEmergencia.Estado
@@ -269,6 +270,45 @@ class LlegadasTests(BaseLlegadas):
         self.assertContains(respuesta, "0 de 7 confirmadas")
         self.assertNotContains(respuesta, "Quiroga")
         self.assertContains(respuesta, self._url("integrantes", en_curso.pk))
+
+    def test_el_paso_sale_del_stepper_y_el_titulo_no_repite_el_modulo(self):
+        respuesta = self.client.get(self._url("llegadas"))
+
+        self.assertContains(respuesta, "Paso 1 de 3 · ")
+        self.assertContains(respuesta, '<h1 class="')
+        self.assertNotContains(respuesta, "Emergencia · Llegadas</h1>")
+
+    def test_la_fila_de_la_derivacion_acepta_con_confirmacion_sin_abrirla(self):
+        _caso, derivacion = self._derivado()
+
+        respuesta = self.client.get(self._url("llegadas"))
+
+        self.assertContains(respuesta, f'data-confirm-url="{self._url("aceptar", derivacion.pk)}"')
+        self.assertContains(respuesta, 'data-confirm-ok="Sí, aceptar"')
+
+    def test_las_listas_de_llegadas_se_paginan_cada_una_con_su_parametro(self):
+        self._derivado()
+        self._derivado(dni="30222333", apellido="Zalazar")
+
+        with patch("programas.views.emergencia_dispositivo.LLEGADAS_POR_PAGINA", 1):
+            primera = self.client.get(self._url("llegadas"))
+            segunda = self.client.get(self._url("llegadas"), {"pendientes_pag": 2})
+
+        self.assertEqual(len(primera.context["pendientes"]), 1)
+        self.assertContains(primera, "pendientes_pag=2")
+        self.assertEqual(len(segunda.context["pendientes"]), 1)
+        self.assertNotEqual(primera.context["pendientes"][0]["url"], segunda.context["pendientes"][0]["url"])
+
+    def test_el_dni_ofrece_sugerencias_solo_a_quien_puede_ver_ciudadanos(self):
+        sin = self.client.get(self._url("llegadas"))
+        self.assertNotContains(sin, "data-sugerencias-url")
+
+        con = self._guardia("guardia_con_legajo", self.club, capacidades=(*GUARDIA, "ciudadano.ver"))
+        self.client.force_login(con)
+        respuesta = self.client.get(self._url("llegadas"))
+        self.assertContains(
+            respuesta, f'data-sugerencias-url="{reverse("dispositivos:personas_buscar", args=[self.club.pk])}"'
+        )
 
     def test_buscar_el_dni_del_responsable_muestra_la_derivacion_con_sus_acciones(self):
         _caso, derivacion = self._derivado(embarazo=True)
