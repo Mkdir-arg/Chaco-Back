@@ -28,7 +28,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.utils import timezone
 
-from core.dni import normalizar_dni
+from core.dni import DIGITOS_ASCII, dni_valido, normalizar_dni
 from programas.models import CasoEmergencia, Derivacion, Dispositivo, Estadia, IntegranteGrupo, Plaza, TrazaCaso
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ocupacion import ocupacion_de_plazas
@@ -298,12 +298,33 @@ def _q_de_texto(texto):
 
     El texto se parte en palabras y **cada una** tiene que aparecer en algún campo: «Juan Pérez»
     encuentra a la familia aunque el nombre y el apellido estén en columnas distintas (Cambio 533).
+
+    Un DNI escrito con espacios («30 123 456») son varias palabras que no aparecen sueltas en ningún
+    campo: si el texto entero es un DNI partido —solo dígitos y separadores— se suma con OR el DNI
+    del responsable o de un integrante, en la misma consulta (Cambio 535).
     """
 
+    texto = texto or ""
+    palabras = texto.split()
     q = Q()
-    for palabra in (texto or "").split():
+    for palabra in palabras:
         q &= _q_de_palabra(palabra)
+    if len(palabras) > 1 and _es_dni_partido(texto):
+        dni = normalizar_dni(texto)
+        q |= Q(grupo__responsable__dni=dni) | Exists(
+            IntegranteGrupo.objects.filter(ciudadano__dni=dni, grupo_id=OuterRef("grupo_id"))
+        )
     return q
+
+
+#: Lo que puede separar los dígitos de un DNI escrito a mano.
+_SEPARADORES_DE_DNI = frozenset(" .-")
+
+
+def _es_dni_partido(texto):
+    """¿``texto`` es un DNI con separadores? Solo dígitos, espacios, puntos y guiones, y un largo válido."""
+
+    return all(ch in DIGITOS_ASCII or ch in _SEPARADORES_DE_DNI for ch in texto.strip()) and dni_valido(texto)
 
 
 def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
@@ -427,6 +448,8 @@ def con_avisos_de_la_mesa(casos, ahora=None):
 
     * ``ultima_accion`` — la ``accion`` de la última ``TrazaCaso``. «Sin acción posterior»
       al rechazo o al vencimiento es que esa siga siendo la última.
+    * ``ultima_traza_en`` — cuándo fue esa última traza: el último movimiento del caso, que
+      lee el aviso «Aceptado sin movimiento» (:func:`horas_sin_movimiento`, Cambio 535).
     * ``rechazada_por``, ``rechazada_motivo`` y ``rechazada_observacion`` — el dispositivo,
       el motivo y la observación de la última derivación ``RECHAZADA`` (RN-3.13).
     * ``derivada_a_inactivo`` — la derivación ``PENDIENTE`` apunta a un dispositivo que dejó
@@ -451,12 +474,31 @@ def con_avisos_de_la_mesa(casos, ahora=None):
     )
     return casos.annotate(
         ultima_accion=Subquery(ultima_traza.values("accion")[:1]),
+        ultima_traza_en=Subquery(ultima_traza.values("creado_en")[:1]),
         rechazada_por=Subquery(ultima_rechazada.values("dispositivo__nombre")[:1]),
         rechazada_motivo=Subquery(ultima_rechazada.values("motivo")[:1]),
         rechazada_observacion=Subquery(ultima_rechazada.values("observacion")[:1]),
         derivada_a_inactivo=Exists(pendiente_a_inactivo),
         derivacion_vencida_sin_marcar=Exists(pendiente_vencida),
     )
+
+
+def horas_sin_movimiento(caso, sla, ahora):
+    """Horas enteras que lleva un ingreso aceptado sin movimiento, o ``None`` si no hay que avisar (Cambio 535).
+
+    **Pura, sin consultas**: ``caso`` viene anotado por :func:`con_avisos_de_la_mesa` (``ultima_traza_en``).
+    «Movimiento» es cualquier traza del caso —la aceptación, cada persona confirmada, un contacto
+    de la mesa—: la misma «última traza» que la bandeja usa para los demás avisos. Solo en
+    «Ingreso en curso», y solo desde ``sla.ingreso_sin_movimiento_h`` horas (0 lo apaga). No vence
+    nada: el ingreso lo destraba quien supervisa la mesa, a mano.
+    """
+
+    limite_h = sla.ingreso_sin_movimiento_h
+    desde = getattr(caso, "ultima_traza_en", None)
+    if caso.estado != Estado.INGRESO_EN_CURSO or not limite_h or desde is None:
+        return None
+    horas = int((ahora - desde).total_seconds() // 3600)
+    return horas if horas >= limite_h else None
 
 
 # ---------------------------------------------------------------------------

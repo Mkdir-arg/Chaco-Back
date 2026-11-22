@@ -179,6 +179,12 @@ DISPOSITIVO_NO_ELEGIBLE = "A ese dispositivo no se le pueden derivar familias: n
 EDIFICIO_AJENO = "Esa institución no tiene camas en ese edificio. Elegí el edificio de nuevo."
 
 
+def _quien_lo_tiene(caso):
+    """El nombre de quien tiene tomado el caso, o «otro operador» si no hay dueño. Sin consultas extra."""
+
+    return _nombre_de(caso.tomado_por) if caso.tomado_por_id else "otro operador"
+
+
 # ---------------------------------------------------------------------------
 # Excepciones de dominio
 # ---------------------------------------------------------------------------
@@ -213,9 +219,8 @@ class CasoTomadoPorOtro(EstadoCambio):
     def __init__(self, caso):
         self.tomado_por = caso.tomado_por
         self.tomado_en = caso.tomado_en
-        quien = _nombre_de(caso.tomado_por) if caso.tomado_por_id else "otro operador"
         super().__init__(
-            f"El caso {caso.numero} ya lo tomó {quien}. Recargá la bandeja.",
+            f"El caso {caso.numero} ya lo tomó {_quien_lo_tiene(caso)}. Recargá la bandeja.",
             estado_actual=caso.estado,
             caso=caso,
         )
@@ -232,8 +237,10 @@ class CasoDeOtroOperador(PermissionDenied):
 
     def __init__(self, caso):
         self.caso = caso
-        quien = _nombre_de(caso.tomado_por) if caso.tomado_por_id else "otro operador"
-        super().__init__(f"El caso {caso.numero} lo tiene tomado {quien}: ya no podés hacer esto. Recargá la ficha.")
+        self.mensaje = (
+            f"El caso {caso.numero} lo tiene tomado {_quien_lo_tiene(caso)}: ya no podés hacer esto. Recargá la ficha."
+        )
+        super().__init__(self.mensaje)
 
 
 class FaltanPlazas(ValidationError):
@@ -241,7 +248,8 @@ class FaltanPlazas(ValidationError):
 
     Es un ``ValidationError`` (400): se resuelve reenviando con
     ``confirmar_faltantes=True``. Trae ``libres``, ``pedidas`` y ``faltan`` para armar la
-    pregunta «Vas a reservar 5 de 7 plazas. ¿Seguís?».
+    pregunta «Vas a pedir 7 plazas y hay 5 libres. ¿Seguís?». La mesa **pide**: las camas las
+    reserva el dispositivo al aceptar (Cambio 535).
     """
 
     def __init__(self, *, libres, pedidas):

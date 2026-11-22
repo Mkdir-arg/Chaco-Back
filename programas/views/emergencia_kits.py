@@ -314,7 +314,9 @@ class NuevaEntregaItemsView(_PasoConDestino):
             iniciales = ItemsEntregaForm.iniciales_de(
                 selectores.faltantes_de(selectores.lineas_de(original)), repone_a=original
             )
-        form = ItemsEntregaForm(initial=iniciales, catalogo=catalogo_kits(solo_activos=True))
+        form = ItemsEntregaForm(
+            initial=ItemsEntregaForm.armado_nuevo(iniciales), catalogo=catalogo_kits(solo_activos=True)
+        )
         return self._paso_items(request, destino, form, original)
 
     def post(self, request, dispositivo):
@@ -373,10 +375,15 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
                 observacion=form.cleaned_data["observacion"],
                 repone_a=form.cleaned_data["repone_a"],
                 edificio=form.cleaned_data.get("edificio"),
+                uuid_cliente=form.cleaned_data.get("uuid_cliente"),
             )
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
             return self._resumen(request, destino, form, original, form.lineas(), status=400)
+        if getattr(entrega, "ya_existia", False):
+            # Cambio 535: el mismo armado otra vez (volver atrás y reenviar). No se creó otra.
+            messages.info(request, f"La entrega {entrega.numero} ya estaba armada: no se creó otra.")
+            return redirect("emergencia:entrega_detalle", entrega.pk)
         messages.success(request, f"Entrega {entrega.numero} armada para {destino.nombre}. Queda preparada.")
         return redirect("emergencia:entrega_detalle", entrega.pk)
 

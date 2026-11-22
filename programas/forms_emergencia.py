@@ -70,6 +70,7 @@ class SLAEmergenciaForm(forms.ModelForm):
             "objetivo_alojar_min": _minutos(1),
             "vigencia_derivacion_min": _minutos(SLAEmergencia.VIGENCIA_MINIMA_MIN),
             "sin_avance_min": _minutos(0),
+            "ingreso_sin_movimiento_h": _minutos(0),
             "umbral_por_vencer_pct": forms.NumberInput(
                 attrs={
                     "class": INPUT_CLASS,
@@ -90,7 +91,12 @@ class SLAEmergenciaForm(forms.ModelForm):
         return [self[campo] for campo in CAMPOS_SLA if campo.startswith("objetivo_")]
 
     def campos_de_derivacion(self):
-        return [self["vigencia_derivacion_min"], self["sin_avance_min"], self["umbral_por_vencer_pct"]]
+        return [
+            self["vigencia_derivacion_min"],
+            self["sin_avance_min"],
+            self["ingreso_sin_movimiento_h"],
+            self["umbral_por_vencer_pct"],
+        ]
 
     def campos_para_guardar(self):
         """Lo que recibe ``guardar_sla``: los campos del SLA ya validados."""
@@ -543,6 +549,22 @@ class CancelarDerivacionForm(forms.Form):
     )
 
 
+class CancelarIngresoMesaForm(forms.Form):
+    """«Cancelar ingreso» de la ficha: solo quien supervisa (Cambio 535). ``derivacion`` es la que vio la pantalla."""
+
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        help_text="Queda en la traza del caso. El dispositivo ve que la mesa canceló el ingreso.",
+        error_messages={
+            "required": "Indicá por qué se cancela el ingreso.",
+            "max_length": "El motivo no puede tener más de 200 caracteres.",
+        },
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "maxlength": 200}),
+    )
+    derivacion = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+
+
 class PrioridadCasoForm(forms.Form):
     prioridad = forms.ChoiceField(
         label="Prioridad",
@@ -593,7 +615,7 @@ class DerivarCasoForm(forms.Form):
         error_messages={"invalid_choice": ELEGI_EL_EDIFICIO},
     )
     plazas = forms.IntegerField(
-        label="Plazas a reservar",
+        label="Plazas a pedir",
         min_value=1,
         max_value=PLAZAS_MAXIMAS,
         error_messages={"required": PEDI_UNA_PLAZA, "invalid": PEDI_UNA_PLAZA, "min_value": PEDI_UNA_PLAZA},
@@ -618,7 +640,7 @@ class PanelDerivarForm(forms.Form):
     """
 
     plazas = forms.IntegerField(
-        label="Plazas a reservar",
+        label="Plazas a pedir",
         required=False,
         min_value=1,
         max_value=PLAZAS_MAXIMAS,

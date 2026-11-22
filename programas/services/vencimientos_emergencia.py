@@ -5,8 +5,10 @@ con las de Becas. El import lo dispara ``ProgramasConfig.ready()``.
 
 1. ``emergencia.derivacion`` — la derivación ``PENDIENTE`` que pasó su ``vence_en`` sin que
    el dispositivo conteste pasa a ``VENCIDA`` y el caso vuelve a ``EN_GESTION`` con el mismo
-   operador. Una ``ACEPTADA`` no vence nunca. ``vence_en`` se fijó al derivar: cambiar la
-   vigencia en E7 no mueve las derivaciones que ya existen (RN-5.5).
+   operador. Una ``ACEPTADA`` no vence nunca: si el ingreso no avanza, la bandeja avisa
+   «Aceptado sin movimiento» (horas de E7) y lo cancela a mano quien supervisa la mesa
+   (``emergencia_cierre.cancelar_ingreso_por_la_mesa``, Cambio 535). ``vence_en`` se fijó al
+   derivar: cambiar la vigencia en E7 no mueve las derivaciones que ya existen (RN-5.5).
 2. ``emergencia.caso_sin_avance`` — el caso ``EN_GESTION`` cuya **última** ``TrazaCaso`` es
    anterior a ahora menos los «minutos sin avance» de E7 vuelve a ``NUEVO``, sin dueño. Con
    ``sin_avance_min = 0`` la regla está apagada.
