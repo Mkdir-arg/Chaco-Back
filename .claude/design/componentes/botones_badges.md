@@ -37,6 +37,10 @@ Siempre **`btn-nodo` + variante + tamaño**.
 - **`.hidden` gana sobre `btn-nodo`:** la hoja declara `.btn-nodo.hidden, .nodo-icon-btn.hidden
   { display: none }` porque se carga después de Tailwind y, con la misma especificidad, `display:
   inline-flex` le ganaba por orden (el «Cancelar» que `ModernModal` esconde se veía igual).
+- **`[hidden]` global:** `static/custom/css/utils.css` (shell del backoffice; el portal no la carga) declara
+  `[hidden] { display: none !important; }`: un elemento con el atributo `hidden` no se ve nunca, tenga la clase
+  que tenga. Una pieza que se muestra con JS usa `el.hidden = false`, no `style.display`. Las reglas `[hidden]` de
+  cada pieza quedan por compatibilidad.
 
 ### Variante `btn-fit` (sin ancho mínimo)
 

@@ -1,3 +1,12 @@
+/* El atributo `hidden` oculta siempre (issue 1297). Sin esto, un `display` de clase (`.btn-nodo` es
+   `inline-flex`) le gana al `[hidden]` del navegador, que tiene la misma especificidad y va antes:
+   el botón «Calcular distancia por calle» se veía sin hacer nada cuando Google no estaba. Las reglas
+   `[hidden]` de cada pieza (buscador, mapa, menú de fila…) quedan por compatibilidad. */
+[hidden]
+{
+    display: none !important;
+}
+
 .hide
 {
     display: none !important;

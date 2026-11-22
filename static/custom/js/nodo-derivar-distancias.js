@@ -137,6 +137,8 @@
   }
 
   boton.addEventListener('click', function () {
+    // Cada cálculo se cobra: un segundo clic mientras corre el primero no paga de nuevo.
+    if (boton.disabled) { return; }
     boton.disabled = true;
     avisar('Calculando la distancia por calle…');
     ubicarDomicilio().then(function (origen) {
