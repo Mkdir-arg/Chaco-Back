@@ -716,7 +716,7 @@ class TipoDispositivoForm(forms.ModelForm):
     maneja_sectores_plazas = forms.BooleanField(
         label="Maneja sectores y plazas",
         required=False,
-        widget=forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS, "x-model": "plazas"}),
+        widget=SwitchInput(attrs={"x-model": "plazas"}),
         help_text="Las instituciones de este tipo cargan sectores y plazas, y el ingreso asigna una plaza.",
     )
     tipos_plaza_admitidos = forms.MultipleChoiceField(
@@ -755,11 +755,11 @@ class TipoDispositivoForm(forms.ModelForm):
             "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "descripcion": _text_widget(rows=3),
-            "plaza_obligatoria_al_ingresar": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "plaza_obligatoria_al_ingresar": SwitchInput(),
             "umbral_ocupacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "umbral_ocupacion_rojo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
-            "ubicacion_reservada": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
-            "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "ubicacion_reservada": SwitchInput(),
+            "activo": SwitchInput(),
         }
 
     def __init__(self, *args, **kwargs):

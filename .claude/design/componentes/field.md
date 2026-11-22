@@ -170,6 +170,8 @@ autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 ```
 
 - **Casilla que muestra otros campos** (`TipoDispositivoForm`, «Maneja sectores y plazas»): el widget lleva `x-model` sobre un `x-data` del template y los campos dependientes `x-show`, sin `x-cloak`: sin JS se ven siempre y el servidor decide en `clean()`.
+  Los cuatro booleanos del tipo (`maneja_sectores_plazas`, `plaza_obligatoria_al_ingresar`, `ubicacion_reservada`, `activo`) son `SwitchInput`
+  —mismo nombre de campo y mismo valor que con la casilla— con el texto al costado (`<label class="inline-flex items-center gap-2 text-sm text-body">`).
 
 - **Accesibilidad de los chips:** el contenedor es `role="group"` con `aria-labelledby` hacia el
   label de `_field.html` (que ahora lleva `id="<auto_id>-etiqueta"` y omite `for` cuando el widget
