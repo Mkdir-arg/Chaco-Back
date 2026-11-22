@@ -5,14 +5,8 @@ el F-00 configurable muere con la admisión vieja, y lo que lo reemplace va sobr
 motor de formularios. Lo que queda acá es el tipo en sí.
 """
 
-import json
-import re
-import shutil
-import subprocess
 from importlib import import_module
-from unittest import skipUnless
 
-from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -24,6 +18,7 @@ from core import rbac
 from programas.forms import DispositivoForm, TipoDispositivoForm
 from programas.models import Dispositivo, Plaza, Programa, Sector, TipoDispositivo
 from programas.services.reportes import filtrar_dispositivos
+from programas.tests.js_harness import correr_harness_js, requiere_node, script_de_plantilla
 from users.models import Capacidad, RolMeta
 
 
@@ -348,30 +343,22 @@ class ConfiguracionDispositivosViewsTests(TestCase):
             self.assertEqual(html.count("fetch(form.action"), 1)
         self.assertIn("data-ajax", modal.split("data-edit-modal-panel", 1)[1].split("</form>", 1)[0] + "</form>")
 
+    @requiere_node
     def test_el_modal_se_cierra_solo_si_el_formulario_enviado_sigue_montado(self):
-        """Un `becas-saved` de un formulario que ya no está (modal cerrado o reabierto) no cierra el actual."""
-        self.client.force_login(self.admin)
-        html = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])).content.decode()
+        """Un `becas-saved` de un formulario que ya no está (modal reabierto) no cierra el modal actual."""
+        script = script_de_plantilla("programas/templates/programas/dispositivos/config/tipo_detail.html")
 
-        self.assertIn("modalRoot.addEventListener('submit'", html)
-        self.assertIn("modalRoot.contains(enviado)", html)
+        resultado = correr_harness_js("tipo_detail_cierre.cjs", script)
 
-    @skipUnless(shutil.which("node"), "Requiere Node para ejecutar el JS renderizado")
-    def test_una_sesion_vencida_en_el_guardado_ajax_navega_al_login(self):
-        """401 con `redirect`: se va a esa URL en vez del error genérico; sin `redirect`, avisa."""
-        plantilla = (settings.BASE_DIR / "programas/templates/programas/becas/_ajax_js.html").read_text(
-            encoding="utf-8"
-        )
-        script = re.search(r"<script>\n(.*?)</script>", plantilla, re.S).group(1)
+        self.assertEqual(resultado.returncode, 0, resultado.stderr)
 
-        resultado = subprocess.run(
-            [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/ajax_401.cjs")],
-            input=json.dumps(script),
-            text=True,
-            encoding="utf-8",
-            capture_output=True,
-            timeout=15,
-        )
+    @requiere_node
+    def test_una_sesion_vencida_en_el_guardado_ajax_navega_al_login_de_la_pagina_actual(self):
+        """401 con `redirect` del mismo origen: va al login con `next` = la página; de otro origen o sin
+        `redirect`, avisa y libera el formulario."""
+        script = script_de_plantilla("programas/templates/programas/becas/_ajax_js.html")
+
+        resultado = correr_harness_js("ajax_401.cjs", script)
 
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
 

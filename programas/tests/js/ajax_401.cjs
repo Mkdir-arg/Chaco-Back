@@ -2,6 +2,8 @@
 const assert = require('node:assert/strict');
 const script = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
 
+const ORIGEN = 'https://ejemplo.invalid';
+
 class FormularioFalso {
   constructor() {
     this.elements = [];
@@ -28,7 +30,7 @@ function correr(respuesta) {
     querySelector: () => null,
   };
   global.window = {
-    location: { href: 'https://ejemplo.invalid/tipo/1/' },
+    location: { href: `${ORIGEN}/tipo/1/?tab=x`, origin: ORIGEN, pathname: '/tipo/1/', search: '?tab=x' },
     toast: (tipo, mensaje) => { avisos.push([tipo, mensaje]); return null; },
     addEventListener: () => {},
     dispatchEvent: () => { avisos.push(['evento', 'becas-saved']); },
@@ -36,23 +38,41 @@ function correr(respuesta) {
   global.fetch = () => Promise.resolve({ status: respuesta.status, json: () => Promise.resolve(respuesta.data) });
   eval(script);
   const form = new FormularioFalso();
-  form.action = 'https://ejemplo.invalid/guardar/';
+  form.action = `${ORIGEN}/guardar/`;
   oyentes.submit({ target: form, preventDefault() {}, submitter: null });
   // fetch -> json -> then -> finally: unos cuantos turnos de microtareas.
   return new Promise(resolve => setTimeout(() => resolve({ avisos, window: global.window, form }), 20));
 }
 
+const URL_INICIAL = `${ORIGEN}/tipo/1/?tab=x`;
+
 (async () => {
+  // El `next` que trae la vista es el endpoint del POST: se reescribe a la página actual.
   const vencida = await correr({
     status: 401,
-    data: { ok: false, message: 'Tu sesión venció.', redirect: 'https://ejemplo.invalid/login/?next=/tipo/1/' },
+    data: { ok: false, message: 'Tu sesión venció.', redirect: `${ORIGEN}/login/?next=/dispositivos/accion/` },
   });
-  assert.equal(vencida.window.location.href, 'https://ejemplo.invalid/login/?next=/tipo/1/', 'Navega al login');
-  assert.deepEqual(vencida.avisos, [], 'Sin error genérico: la página se va');
+  const destino = new URL(vencida.window.location.href);
+  assert.equal(destino.origin + destino.pathname, `${ORIGEN}/login/`, 'Navega al login');
+  assert.equal(destino.searchParams.get('next'), '/tipo/1/?tab=x', 'Vuelve a la página actual, no al POST');
+  assert.deepEqual(vencida.avisos, [], 'Sin error: la página se va');
   assert.equal(vencida.form.getAttribute('aria-busy'), 'true', 'El form queda ocupado hasta cambiar de página');
+
+  // Un redirect relativo del mismo origen también vale.
+  const relativa = await correr({ status: 401, data: { ok: false, redirect: '/login/' } });
+  assert.equal(new URL(relativa.window.location.href).searchParams.get('next'), '/tipo/1/?tab=x');
+
+  // Un redirect de otro origen no se sigue: aviso común y el form se libera.
+  const ajeno = await correr({
+    status: 401,
+    data: { ok: false, message: 'Tu sesión venció.', redirect: 'https://otro.invalid/login/?next=/x/' },
+  });
+  assert.equal(ajeno.window.location.href, URL_INICIAL, 'No navega a otro origen');
+  assert.deepEqual(ajeno.avisos, [['error', 'Tu sesión venció.']]);
+  assert.equal(ajeno.form.getAttribute('aria-busy'), null, 'El form se libera');
 
   // Un 401 sin `redirect` no tiene a dónde ir: avisa como cualquier otro error.
   const sinDestino = await correr({ status: 401, data: { ok: false, message: 'Sin sesión.' } });
-  assert.equal(sinDestino.window.location.href, 'https://ejemplo.invalid/tipo/1/');
+  assert.equal(sinDestino.window.location.href, URL_INICIAL);
   assert.deepEqual(sinDestino.avisos, [['error', 'Sin sesión.']]);
 })().catch(error => { console.error(error); process.exit(1); });

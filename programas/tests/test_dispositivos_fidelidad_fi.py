@@ -2,10 +2,7 @@
 
 import json
 import re
-import shutil
-import subprocess
 from datetime import timedelta
-from unittest import skipUnless
 from unittest.mock import patch
 
 from django.conf import settings
@@ -22,6 +19,7 @@ from programas.services.alertas_dispositivos import relevamientos_vencidos
 from programas.services.detalle_dispositivo import infraestructura_del_dispositivo
 from programas.services.dispositivos import campos_para_validacion, nombre_de_persona
 from programas.services.inspecciones import SEMAFOROS, SIN_RELEVAR, VENCIDO, semaforos_de_dispositivos
+from programas.tests.js_harness import correr_harness_js, requiere_node
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import catalogo_chaco
 from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura
@@ -368,34 +366,20 @@ class FidelidadFITests(BaseInfraestructura):
             self.client.post(self.crear, {**self.datos, "codigo": self.parador.codigo}), "Ya existe un dispositivo"
         )
 
-    @skipUnless(shutil.which("node"), "Requiere Node para ejecutar el JS renderizado")
+    @requiere_node
     def test_el_resumen_de_faltantes_sigue_la_edicion_en_el_navegador(self):
         script = (settings.BASE_DIR / "static/custom/js" / "dispositivos-legajo-faltantes.js").read_text(
             encoding="utf-8"
         )
-        resultado = subprocess.run(
-            [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/faltantes_fi.cjs")],
-            input=json.dumps(script),
-            text=True,
-            encoding="utf-8",
-            capture_output=True,
-            timeout=15,
-        )
+        resultado = correr_harness_js("faltantes_fi.cjs", script)
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
 
-    @skipUnless(shutil.which("node"), "Requiere Node para ejecutar el JS renderizado")
+    @requiere_node
     def test_los_dos_catch_ignoran_abortos_y_reenvio_conserva_submitter(self):
         script = (settings.BASE_DIR / "static/custom/js" / "dispositivos-legajo-duplicados.js").read_text(
             encoding="utf-8"
         )
-        resultado = subprocess.run(
-            [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/duplicados_fi.cjs")],
-            input=json.dumps(script),
-            text=True,
-            encoding="utf-8",
-            capture_output=True,
-            timeout=15,
-        )
+        resultado = correr_harness_js("duplicados_fi.cjs", script)
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
 
     def test_vencido_comparte_regla_con_alerta_y_cambia_p2_p4_y_predio(self):

@@ -138,7 +138,7 @@ def _estado(lineas: list[str], desde: int) -> str:
     return ""
 
 
-def _es_subpedido(lineas: list[str], i: int) -> re.Match[str] | None:
+def _coincidencia_subpedido(lineas: list[str], i: int) -> re.Match[str] | None:
     """El match de `## N.M Título` si `lineas[i]` es un sub-pedido: lleva su semáforo en las 3 líneas siguientes."""
     coincidencia = SUBENTRADA_RE.match(lineas[i])
     if coincidencia and any(s in linea for linea in lineas[i + 1 : i + 4] for s in SEMAFOROS):
@@ -275,7 +275,7 @@ def leer_documento(
             continue
         coincidencia = ENTRADA_RE.match(linea)
         if not coincidencia:
-            coincidencia = _es_subpedido(lineas, numero_linea - 1)
+            coincidencia = _coincidencia_subpedido(lineas, numero_linea - 1)
         if coincidencia:
             if entradas:
                 entradas[-1].linea_hasta = numero_linea - 1
@@ -464,7 +464,7 @@ def _subpedidos_dentro(lineas: list[str], entrada: Entrada) -> list[str]:
         if linea.startswith("```"):
             en_bloque = not en_bloque
             continue
-        coincidencia = _es_subpedido(rango, posicion)
+        coincidencia = _coincidencia_subpedido(rango, posicion)
         if not en_bloque and coincidencia:
             encontrados.append(coincidencia.group(1))
     return encontrados
