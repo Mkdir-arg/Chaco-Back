@@ -99,18 +99,17 @@ class BotonTests(BaseCrearAgente):
         )
 
     def _pantallas(self, usuario):
-        """Las tres pantallas: P21 con el modal pedido por parámetro y P4 con el suyo ya armado."""
+        """Las dos entradas de P21: el modal de asignar y el de reasignar, pedidos por parámetro."""
         relevamientos = reverse("dispositivos:relevamientos")
         return {
             "asignar P21": self._get(relevamientos, usuario, asignar=self.edificio_cis.pk),
             "reasignar P21": self._get(relevamientos, usuario, reasignar=self.en_curso.pk),
-            "crear P4": self._get(reverse("dispositivos:detalle", args=[self.cis.pk]), usuario, tab="infraestructura"),
         }
 
     def _usuario_total(self, nombre, capacidades):
         return self._usuario(nombre, capacidades, [self.parador, self.cis])
 
-    def test_con_la_capacidad_el_boton_esta_en_las_tres_pantallas(self):
+    def test_con_la_capacidad_el_boton_esta_en_las_dos_pantallas(self):
         usuario = self._usuario_total("creador_total", CAPS_CREADOR)
         for nombre, respuesta in self._pantallas(usuario).items():
             with self.subTest(nombre):
@@ -124,7 +123,6 @@ class BotonTests(BaseCrearAgente):
         esperados = {
             "asignar P21": "#form-asignar-relevamiento select[name=asignado_a]",
             "reasignar P21": "#form-reasignar-relevamiento select[name=asignado_a]",
-            "crear P4": "#form-crear-relevamiento select[name=asignado_a]",
         }
         for nombre, respuesta in self._pantallas(usuario).items():
             with self.subTest(nombre):

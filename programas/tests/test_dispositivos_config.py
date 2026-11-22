@@ -202,7 +202,7 @@ class TipoDispositivoSectoresYPlazasTests(TestCase):
         dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="MUN-1", nombre="Municipal 1")
         url = reverse("dispositivos:detalle", args=[dispositivo.pk])
         self.client.force_login(usuario)
-        self.assertNotContains(self.client.get(url), "Sectores y plazas")
+        self.assertNotContains(self.client.get(url), "Indicadores operativos")
 
         form = TipoDispositivoForm(
             {
@@ -218,7 +218,7 @@ class TipoDispositivoSectoresYPlazasTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         form.save()
 
-        self.assertContains(self.client.get(url), "Sectores y plazas")
+        self.assertContains(self.client.get(url), "Indicadores operativos")
 
 
 class ConfiguracionDispositivosViewsTests(TestCase):

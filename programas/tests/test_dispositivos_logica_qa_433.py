@@ -23,6 +23,7 @@ from programas.services.inspecciones import (
     agentes_para_reasignar,
     cancelar_inspeccion,
     crear_inspeccion,
+    reasignar_inspeccion,
 )
 from programas.services.plazas import CAPACIDAD_DECLARADA_MAXIMA, crear_sector, editar_sector
 from programas.tests.test_dispositivos_bitacora import LUNES, PDF, BaseBitacora, _local
@@ -66,12 +67,11 @@ class ReasignarUsaLosMismosCandidatosTests(BaseCrearRelevamiento):
     def test_el_personal_de_otra_institucion_del_edificio_compartido_no_es_candidato(self):
         """Lo que vio QA: «personal» es todo usuario con rol asignado a una institución del edificio.
 
-        P4 ofrece a `personal_geriatrico` (es personal del predio pero no de ED-EXTRA), el POST de P4
-        lo rechaza para el predio y reasignar no lo ofrece ni lo acepta.
+        El alta rechaza a `personal_geriatrico` para el predio (es personal del predio pero no de ED-EXTRA), y
+        reasignar ni lo ofrece ni lo acepta.
         """
 
         self._edificio_extra()
-        self.assertIn(self.personal_geriatrico, self._agentes_del_selector())
 
         respuesta = self._post(self._datos(edificio=self.predio, agente=self.personal_geriatrico))
         self.assertEqual(respuesta.status_code, 400)
@@ -80,6 +80,11 @@ class ReasignarUsaLosMismosCandidatosTests(BaseCrearRelevamiento):
         inspeccion = self._asignar(self.agente)
         self.assertNotIn(self.personal_geriatrico, agentes_para_reasignar(inspeccion))
         self.assertEqual(self._reasignar(inspeccion, self.personal_geriatrico).status_code, 400)
+        inspeccion.refresh_from_db()
+        self.assertEqual(inspeccion.asignado_a, self.agente)
+        # La guarda vive en el servicio, no solo en el formulario: sin ella un llamador directo lo asignaría.
+        with self.assertRaises(ValidationError):
+            reasignar_inspeccion(self._fresco(self.coordinador), inspeccion, self.personal_geriatrico)
         inspeccion.refresh_from_db()
         self.assertEqual(inspeccion.asignado_a, self.agente)
 

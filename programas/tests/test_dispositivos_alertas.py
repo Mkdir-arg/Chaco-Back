@@ -57,7 +57,7 @@ from programas.services.estadias import (
 )
 from programas.services.inspecciones import cancelar_inspeccion, crear_inspeccion, registrar_resultado
 from programas.services.sectores_plazas import url_solapa_sectores
-from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias, _permiso
+from programas.tests.test_dispositivos_estadias import BaseEstadias, _permiso
 from users.models import RolMeta
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
@@ -592,17 +592,6 @@ class NuncaBloqueaTests(BaseAlertas):
         self.assertFalse(estadia.activa)
         # Las alertas siguen ahí: ninguna de esas acciones las resolvía.
         self.assertEqual({alerta["regla"] for alerta in self._alertas()}, SLUGS)
-
-    def test_el_detalle_ofrece_ingresar_aunque_haya_alertas(self):
-        self._todas_encendidas()
-        # El asistente de ingreso pide además `ciudadano.ver` (Cambio 407): sin él no se ofrece.
-        admisor = self._operador("Admisor con padron", self.cis, (*CAPACIDADES_OPERATIVAS, "ciudadano.ver"))
-        self.client.force_login(admisor)
-
-        respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))
-
-        self.assertContains(respuesta, "Préstamo vencido sin liberar")
-        self.assertContains(respuesta, reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
 
 
 class PantallaTests(BaseAlertas):

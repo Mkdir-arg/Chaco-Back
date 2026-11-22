@@ -227,7 +227,7 @@ class EndpointTests(BaseBuscarAgente):
 
 
 class ModalTests(BaseBuscarAgente):
-    def test_el_boton_lleva_el_edificio_en_las_tres_pantallas(self):
+    def test_el_boton_lleva_el_edificio_en_las_dos_pantallas(self):
         en_curso = InspeccionEdificio.objects.create(
             edificio=self.predio, asignado_a=self.agente, creado_por=self.coordinador, fecha_vencimiento=self.vence
         )
@@ -240,12 +240,10 @@ class ModalTests(BaseBuscarAgente):
         cliente = self._cliente(usuario)
         asignar = cliente.get(relevamientos, {"asignar": self.edificio_cis.pk})
         reasignar = cliente.get(relevamientos, {"reasignar": en_curso.pk})
-        crear = cliente.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
 
         self.assertContains(asignar, f'data-edificio-id="{self.edificio_cis.pk}"')
         self.assertContains(reasignar, f'data-edificio-id="{self.predio.pk}"')
-        self.assertContains(crear, 'data-edificio-source="#form-crear-relevamiento [name=edificio]"')
-        for respuesta in (asignar, reasignar, crear):
+        for respuesta in (asignar, reasignar):
             self.assertContains(respuesta, reverse(URL))
             self.assertContains(respuesta, "No encontramos agentes con esos datos")
             self.assertContains(respuesta, "Crear agente nuevo")

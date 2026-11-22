@@ -62,23 +62,25 @@ POR_PAGINA_ESTADIAS = 25
 POR_PAGINA_HISTORIAL = 20
 POR_PAGINA_RELEVAMIENTOS = 10
 
-#: Las solapas de P4, en el orden en que se dibujan. «Sectores y plazas» solo existe si el
-#: tipo del dispositivo maneja plazas: en los demás, `?tab=sectores` no lleva a ninguna parte.
-SOLAPAS = ("datos", "sectores", "estadias", "infraestructura", "equipo", "historial")
+#: Las solapas de la ficha de la institución, en el orden en que se dibujan. «Sectores y plazas», «Kits» y el estado
+#: edilicio viven en la página de cada edificio (Cambio 570): la ficha muestra los edificios y lleva a ellos. «estadias» es
+#: la solapa «Personas alojadas»: la clave no cambió para que los enlaces de siempre (`?tab=estadias`, `?cambio=`,
+#: `?egreso=`) sigan abriendo lo mismo.
+SOLAPAS = ("datos", "estadias", "equipo", "historial")
 #: La que abre la pantalla, y a la que vuelven las acciones del encabezado.
-SOLAPA_POR_DEFECTO = "estadias"
+SOLAPA_POR_DEFECTO = "datos"
+#: Las solapas que la ficha tenía y ya no tiene: la vista las redirige a donde viven ahora (`redireccion_de_solapa_vieja`).
+SOLAPAS_QUE_SE_FUERON = ("sectores", "infraestructura")
 
 
-def normalizar_solapa(pedida, *, con_plazas):
-    """Qué solapa abre la pantalla: la de `?tab=` si existe para **este** dispositivo.
+def normalizar_solapa(pedida):
+    """Qué solapa abre la pantalla: la de `?tab=` si existe.
 
-    Lo ajeno cae en la de siempre. Sin esto, `?tab=sectores` en un tipo que no maneja
-    plazas —o cualquier valor inventado— dejaba la tarjeta entera en blanco: Alpine
-    guardaba el valor de la URL y ningún panel coincidía con él.
+    Lo ajeno —una solapa que la ficha ya no tiene o un valor inventado— cae en la de siempre. Sin esto la tarjeta
+    quedaba en blanco: Alpine guardaba el valor de la URL y ningún panel coincidía con él.
     """
 
-    solapas = SOLAPAS if con_plazas else tuple(solapa for solapa in SOLAPAS if solapa != "sectores")
-    return pedida if pedida in solapas else SOLAPA_POR_DEFECTO
+    return pedida if pedida in SOLAPAS else SOLAPA_POR_DEFECTO
 
 
 #: Valores del filtro «Estado»: vacío = las alojadas (lo que se mira todo el día).
@@ -626,13 +628,18 @@ def _fila_de_edificio(
         ),
         "con_conteo": ve_detalle,
         "url_ver": f"{base}&ver_edificio={edificio.pk}",
-        "url_editar": f"{base}&edificio={edificio.pk}" if puede_editar else "",
+        "url_abrir": reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk]),
+        "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={edificio.pk}"
+        if puede_editar
+        else "",
         "url_desvincular": (
             reverse("dispositivos:edificio_desvincular", args=[dispositivo.pk, edificio.pk]) if puede_editar else ""
         ),
         # «Agregar persona al edificio» (Cambio 523, PR 4): solo donde el servidor va a aceptar el alta.
         "url_agregar_persona": (
-            f"{base}&agregar_persona={edificio.pk}" if agregar_persona_en and agregar_persona_en(edificio.pk) else ""
+            reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk]) + "?tab=equipo&equipo=sumar"
+            if agregar_persona_en and agregar_persona_en(edificio.pk)
+            else ""
         ),
     }
 
@@ -692,6 +699,7 @@ def infraestructura_del_dispositivo(
     ocupadas_por_sector=None,
     puede_editar=False,
     agregar_persona_en=None,
+    solo_tarjetas=False,
 ):
     """Lo que dibuja la solapa Infraestructura: tarjetas por edificio y, al abrir uno, su ficha (Cambio 439).
 
@@ -727,6 +735,10 @@ def infraestructura_del_dispositivo(
     institución— el evento dice «en curso» y nada más (`programas.services.inspecciones.ve_la_asignacion`).
     Cambio 428: la criticidad, las observaciones, quién relevó y las fotos son del informe; sin alcance de
     inspección (`ve_detalle` falso) queda el semáforo y la fecha.
+
+    ``solo_tarjetas`` (la ficha de la institución, Cambio 570) no abre nunca la ficha de un edificio, ni siquiera con uno solo:
+    devuelve siempre las filas de ``edificios`` y ``sin_edificio``, y no paga el registro fotográfico. Cada fila trae
+    ``url_abrir`` (la página operativa del edificio, que es donde se opera) y ``url_agregar_persona`` apunta a su Equipo.
 
     Costo fijo, sin importar cuántos edificios, relevamientos ni fotos: los edificios con su última realizada,
     el próximo vencimiento y la cantidad de instituciones (1), las instituciones visibles (1), las últimas con
@@ -781,7 +793,9 @@ def infraestructura_del_dispositivo(
         return {**_respuesta_base(), "modo": "vacio", "semaforo": SEMAFOROS[SIN_EDIFICIO], "url_listado": base}
 
     pedido = None
-    if len(edificios) == 1:
+    if solo_tarjetas:
+        pedido = None
+    elif len(edificios) == 1:
         pedido = edificios[0].pk
     else:
         try:
@@ -865,7 +879,7 @@ def infraestructura_del_dispositivo(
             + ". Hasta asignarlos no figuran en ningún edificio.",
             # «Asignar edificio» abre la edición del primero; el resto se asigna de a uno, igual.
             "primero_pk": sectores_sin_edificio[0]["pk"],
-            "url_asignar": url_solapa_sectores(dispositivo.pk) + f"&editar_sector={sectores_sin_edificio[0]['pk']}",
+            "url_asignar": url_solapa_sectores(dispositivo.pk) + f"?sector={sectores_sin_edificio[0]['pk']}",
         }
         if sectores_sin_edificio and (pedido is None or len(filas) == 1)
         else None

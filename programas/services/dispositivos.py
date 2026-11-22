@@ -501,6 +501,39 @@ def miembros_del_edificio(dispositivo, edificio_id):
     )
 
 
+def contar_miembros_por_edificio(dispositivo, edificio_ids):
+    """``{edificio_id: cantidad}`` de las filas vigentes del Equipo que trabajan en cada edificio (Cambio 570).
+
+    La misma regla que :func:`miembros_del_edificio` leída de una vez para todos los edificios de una ficha: vale la
+    fila de alcance Institución (o sin alcance cargado) en todos, y la de alcance Edificios en los que lista. Dos
+    consultas fijas, sin importar cuántos edificios ni cuántos miembros.
+    """
+
+    from django.db.models import Count
+
+    from programas.models import MiembroEquipoDispositivo
+
+    ids = list(edificio_ids)
+    if not ids:
+        return {}
+    vigentes = MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo).filter(
+        q_membresia_vigente(programa_dispositivos())
+    )
+    de_toda_la_institucion = vigentes.filter(~Q(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS)).count()
+    por_edificio = {
+        fila["edificio_id"]: fila["n"]
+        for fila in MiembroEquipoDispositivo.edificios.through.objects.filter(
+            edificio_id__in=ids,
+            miembroequipodispositivo_id__in=vigentes.filter(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS).values(
+                "pk"
+            ),
+        )
+        .values("edificio_id")
+        .annotate(n=Count("pk"))
+    }
+    return {pk: de_toda_la_institucion + por_edificio.get(pk, 0) for pk in ids}
+
+
 def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
     """La forma ``Q`` de :func:`alcance_de_edificios` para listas que cruzan instituciones.
 

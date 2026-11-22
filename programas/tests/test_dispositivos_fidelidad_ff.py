@@ -179,13 +179,19 @@ class PresupuestoDetalleFFTests(BaseDetalle):
 
     def test_detalle_sin_estadias_en_cada_solapa_no_paga_el_mapa_de_ingreso(self):
         presupuestos = json.loads((settings.BASE_DIR / "scripts/perf_budgets.json").read_text(encoding="utf-8"))
-        techo_comun = presupuestos["servicios"]["dispositivos_detalle_sin_estadias"]["consultas_fijas"]
-        # «Sectores y plazas» arma el mapa de la pantalla de sectores, solo con la solapa abierta: techo propio.
-        techo_sectores = presupuestos["servicios"]["dispositivos_detalle_solapa_sectores"]["consultas_fijas"]
-        for tab in ("datos", "sectores", "estadias", "infraestructura", "historial", "equipo"):
-            techo = techo_sectores if tab == "sectores" else techo_comun
+        techo = presupuestos["servicios"]["dispositivos_detalle_sin_estadias"]["consultas_fijas"]
+        # Cambio 570: la ficha tiene cuatro solapas y ninguna arma el mapa de plazas (vive en la página del edificio).
+        for tab in ("datos", "estadias", "historial", "equipo"):
             with self.subTest(tab=tab):
                 with CaptureQueriesContext(connection) as consultas:
                     respuesta = self.client.get(self.url, {"tab": tab})
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertLessEqual(len(consultas), techo, f"{tab}: {len(consultas)} consultas")
+        # `?tab=sectores` redirige sin armar la ficha (a la pantalla de Sectores o a la página del edificio).
+        respuesta = self.client.get(self.url, {"tab": "sectores"})
+        self.assertEqual(respuesta.status_code, 302)
+        # `?tab=infraestructura` solo (sin edificio) se queda en la ficha, con el mismo tope de consultas.
+        with CaptureQueriesContext(connection) as consultas:
+            respuesta = self.client.get(self.url, {"tab": "infraestructura"})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertLessEqual(len(consultas), techo, f"infraestructura: {len(consultas)} consultas")
