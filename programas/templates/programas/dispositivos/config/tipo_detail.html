@@ -12,7 +12,8 @@
 {% endblock %}
 
 {% block customJS %}
-{% include "programas/becas/_confirm_js.html" %}
+{# _ajax_js.html: guardado de los forms data-ajax (errores, toast, reemplazo del target) e incluye _confirm_js.html #}
+{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script>
 (function () {
@@ -22,11 +23,6 @@
   let aperturaActiva = 0;
   let presionoAfuera = false;
   let controlModal = null;
-
-  function getCookie(name) {
-    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return match ? match.pop() : '';
-  }
 
   function parseResponse(response) {
     return response.json().catch(function () { return {}; }).then(function (data) {
@@ -118,74 +114,9 @@
     presionoAfuera = !!event.target.closest('[data-edit-modal]') && !event.target.closest('[data-edit-modal-panel]');
   });
 
-  document.addEventListener('submit', function (event) {
-    const form = event.target;
-    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-ajax')) return;
-    event.preventDefault();
-
-    const submittedModal = form.closest('[data-edit-modal]');
-    const isCurrentForm = function () {
-      return submittedModal && modalRoot.contains(submittedModal) && submittedModal.contains(form);
-    };
-    const submitButton = form.querySelector('[type="submit"]');
-    if (submitButton) submitButton.disabled = true;
-    form.querySelectorAll('[aria-invalid="true"]').forEach(function (element) {
-      element.removeAttribute('aria-invalid');
-    });
-    form.querySelectorAll('[data-error]').forEach(function (element) {
-      element.textContent = '';
-      element.classList.add('hidden');
-    });
-
-    fetch(form.action, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      credentials: 'same-origin',
-      body: new FormData(form)
-    }).then(parseResponse).then(function (result) {
-      const data = result.data || {};
-      if (result.status >= 200 && result.status < 300 && data.ok) {
-        if (data.target && typeof data.html === 'string') {
-          const target = document.querySelector(data.target);
-          if (target) {
-            target.innerHTML = data.html;
-            if (window.nodoTablas) window.nodoTablas.barrer();
-          }
-        }
-        if (isCurrentForm()) closeModal();
-        window.toast.success(data.message || 'Guardado.');
-        return;
-      }
-
-      if (result.status === 400 && data.errors) {
-        if (!isCurrentForm()) return;
-        let firstInvalid = null;
-        Object.keys(data.errors).forEach(function (field) {
-          const box = form.querySelector('[data-error="' + field + '"]');
-          if (!box) return;
-          box.textContent = (data.errors[field] || []).join(' ');
-          box.classList.remove('hidden');
-          const control = form.elements.namedItem(field);
-          if (control && typeof control.focus === 'function') {
-            control.setAttribute('aria-invalid', 'true');
-            if (!firstInvalid) firstInvalid = control;
-          }
-        });
-        if (firstInvalid) firstInvalid.focus();
-        window.toast.error(
-          data.errors.__all__ ? data.errors.__all__.join(' ') : 'Revisá los datos del formulario.'
-        );
-        return;
-      }
-      showRequestError(result);
-    }).catch(function () {
-      window.toast.error('Error de red.');
-    }).finally(function () {
-      if (submitButton && submitButton.isConnected) submitButton.disabled = false;
-    });
+  // El guardado lo hace _ajax_js.html (form data-ajax): al terminar bien avisa con becas-saved.
+  window.addEventListener('becas-saved', function () {
+    if (modalRoot.querySelector('[data-edit-modal]')) closeModal();
   });
 
   initModal();

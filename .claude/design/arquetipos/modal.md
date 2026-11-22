@@ -115,7 +115,8 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   `pointerdown` **también** fue afuera del panel: arrastrar desde un campo y soltar sobre el fondo
   no debe perder lo escrito. Evidencia: `programas/templates/programas/dispositivos/config/_edit_modal.html`
   y `tipo_detail.html` (P14): el JS de la pantalla solo conserva el cierre por fondo con `pointerdown`;
-  foco, Tab atrapado y Escape los maneja `becas-modal.js` vía `bind`.
+  foco, Tab atrapado y Escape los maneja `becas-modal.js` vía `bind`, y el envío del form `data-ajax` y sus
+  errores los maneja `_ajax_js.html` (la pantalla cierra el modal con `becas-saved`; no escribe su propio `submit`).
   El cuerpo del modal «asignar relevamiento», compartido por P4 y P21, es el include
   `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html` (campos con `_field.html`, `wrapper_class=""`); suma el selector «Formulario del relevamiento» (`form.tipo`, solo si el edificio aloja a más de un tipo) y una `_alerta` `warning` cuando el tipo no tiene formulario).
 - **Bloques alternativos por un switch**: un `SwitchInput` arriba (`<label class="inline-flex items-center gap-2 text-sm text-body" @change="flag = $event.target.checked">`)
