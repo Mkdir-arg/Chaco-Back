@@ -64,6 +64,8 @@ TEMPLATE_PENDIENTES = "programas/emergencia/kits/pendientes.html"
 TEMPLATE_RECIBIR = "programas/emergencia/kits/recibir.html"
 
 ENTREGAS_POR_PAGINA = 50
+#: Filas por página de «Emergencia · Kits» del dispositivo.
+PENDIENTES_POR_PAGINA = 25
 DESTINOS_POR_PAGINA = 20
 
 #: Parámetros del listado que no son un filtro que el usuario eligió: la página, la solapa
@@ -566,6 +568,9 @@ class KitsDelDispositivoView(RecepcionKitsMixin, View):
     """«Emergencia · Kits» del dispositivo: lo que está por llegar (o llegó sin marca de salida)."""
 
     def get(self, request, dispositivo):
+        pagina = Paginator(
+            selectores.entregas_pendientes_de(self.dispositivo, request.user), PENDIENTES_POR_PAGINA
+        ).get_page(request.GET.get("page"))
         filas = [
             {
                 "entrega": entrega,
@@ -574,11 +579,12 @@ class KitsDelDispositivoView(RecepcionKitsMixin, View):
                 "url": reverse("emergencia:dispositivo_kit_recibir", args=[self.dispositivo.pk, entrega.pk]),
                 **_estado(entrega),
             }
-            for entrega in selectores.entregas_pendientes_de(self.dispositivo, request.user)
+            for entrega in pagina
         ]
         contexto = {
             "dispositivo": self.dispositivo,
             "filas": filas,
+            "pagina": pagina,
             # Un enlace que va a rebotar no se ofrece: el detalle pide `dispositivo.ver`.
             "url_dispositivo": (
                 reverse("dispositivos:detalle", args=[self.dispositivo.pk])

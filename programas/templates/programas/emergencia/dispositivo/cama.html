@@ -10,7 +10,7 @@ lleva `url`. Tocar una cama no escribe nada: vuelve a la ficha de la persona con
 recién al confirmar. La selección es única.{% endcomment %}
 <div class="space-y-5">
   {% page_header titulo="Elegir cama" eyebrow=dispositivo.nombre volver_url=url_ficha volver_label="la ficha" %}
-    {% bajada %}Paso 2 de 3 · Caso {{ caso.numero }} · Persona {{ orden }}. Tocá una cama libre o una reservada para esta familia.{% endbajada %}
+    {% bajada %}Paso {{ paso_actual }} de {{ pasos|length }} · Caso {{ caso.numero }} · Persona {{ orden }}. Tocá una cama libre o una reservada para esta familia.{% endbajada %}
   {% endpage_header %}
 
   {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}

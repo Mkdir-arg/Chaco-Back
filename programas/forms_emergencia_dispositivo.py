@@ -14,6 +14,7 @@ es a propósito, para que el backoffice no quede atrás de la app.
 from django import forms
 from django.core.exceptions import ValidationError
 
+from core.forms_sugerencias import attrs_sugerencias
 from core.widgets import SwitchInput
 from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
@@ -22,6 +23,8 @@ from programas.models import IntegranteGrupo, Sector
 from programas.services import emergencia_alojar as servicio
 
 ELEGI_EL_MOTIVO = "Elegí el motivo de la lista."
+#: Lo que dice el desplegable de «Llegadas» cuando lo tecleado no está en el legajo: el servicio busca igual.
+MENSAJE_SUGERENCIA_SIN_PERSONA_EN_LLEGADAS = "No está en el legajo: buscá el DNI igual, puede tener una derivación."
 
 SI, NO = "si", "no"
 
@@ -285,6 +288,17 @@ class BuscarFamiliaForm(forms.Form):
         error_messages={"required": "Escribí un DNI para buscar."},
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric", "autocomplete": "off"}),
     )
+
+    def __init__(self, *args, url_sugerencias=None, **kwargs):
+        """``url_sugerencias``: el endpoint de personas del Legajo (``nodo-sugerencias.js``); solo presentación.
+
+        Sin la URL, o sin JavaScript, el campo es el de siempre y el servicio decide igual.
+        """
+
+        super().__init__(*args, **kwargs)
+        self.fields["dni"].widget.attrs.update(
+            attrs_sugerencias(url_sugerencias, MENSAJE_SUGERENCIA_SIN_PERSONA_EN_LLEGADAS)
+        )
 
 
 class _MotivoDelCatalogoForm(forms.Form):

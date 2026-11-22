@@ -10,7 +10,7 @@ contesta que la pantalla quedó vieja.{% endcomment %}
 {% block main-content %}
 <div class="space-y-5">
   {% page_header titulo="Familia alojada" eyebrow=dispositivo.nombre volver_url=url_integrantes volver_label="integrantes" %}
-    {% bajada %}Paso {{ paso_actual }} de 3 · Dónde quedó la familia y la tarjeta familiar. Al confirmar, el ingreso queda cerrado.{% endbajada %}
+    {% bajada %}Paso {{ paso_actual }} de {{ pasos|length }} · Dónde quedó la familia y la tarjeta familiar. Al confirmar, el ingreso queda cerrado.{% endbajada %}
   {% endpage_header %}
 
   {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
