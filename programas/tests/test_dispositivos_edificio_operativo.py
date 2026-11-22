@@ -7,6 +7,8 @@
 4. Indicadores: salen del censo de plazas de **este** edificio y de **esta** institución.
 5. Solapas: ``?tab=`` abre la pedida; una que el usuario no tiene cae en la de siempre.
 6. El costo de la página no crece con los datos (``dispositivos_edificio_operativo``).
+7. Solapa «Sectores y plazas» (Cambio 565): solo los sectores de este edificio y de esta institución, sin filtro
+   «Edificio»; las acciones y los modales siguen en las rutas de la institución y vuelven a esta solapa.
 """
 
 import json
@@ -19,10 +21,13 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from programas.models import Dispositivo, Edificio, Plaza, Sector
+from programas.services.sectores_plazas import url_solapa_sectores
 from programas.tests.test_equipo_alcance_edificio import Alcance, BaseAlcance
 
+AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 CLAVE_PRESUPUESTO = "dispositivos_edificio_operativo"
+CLAVE_PRESUPUESTO_SECTORES = "dispositivos_edificio_operativo_solapa_sectores"
 
 
 class BaseOperativo(BaseAlcance):
@@ -232,19 +237,172 @@ class SolapasTests(BaseOperativo):
             self.assertContains(respuesta, f'id="panel-{panel}"')
 
 
-@tag("performance")
-class PresupuestoTests(BaseOperativo):
-    def _medir(self):
+class SectoresSolapaTests(BaseOperativo):
+    """El cuerpo de «Sectores y plazas» con el edificio fijo."""
+
+    def setUp(self):
+        super().setUp()
+        # Otra institución en el mismo predio, con su sector y su plaza.
+        self.otra = Dispositivo.objects.create(
+            tipo=self.tipo, codigo="GER-9", nombre="Geriátrico Reservado", estado=Dispositivo.Estado.ACTIVO
+        )
+        self.edif_a.dispositivos.add(self.otra)
+        self.sector_otra = Sector.objects.create(
+            dispositivo=self.otra, edificio=self.edif_a, nombre="Sector Secreto", capacidad=3
+        )
+        self.plaza_otra = Plaza.objects.create(sector=self.sector_otra, codigo="SEC-01")
+        self.libre_a = Plaza.objects.create(sector=self.sector_a, codigo="A-LIBRE")
+        self.libre_b = Plaza.objects.create(sector=self.sector_b, codigo="B-LIBRE")
+
+    def _sectores(self, respuesta):
+        return [item["sector"] for item in respuesta.context["sectores_mapa"]]
+
+    def test_dibuja_solo_los_sectores_de_este_edificio(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        self.assertEqual(self._sectores(respuesta), [self.sector_a])
+        self.assertTemplateUsed(respuesta, "programas/dispositivos/sectores/_cuerpo.html")
+        self.assertContains(respuesta, self.sector_a.nombre)
+        self.assertNotContains(respuesta, self.sector_b.nombre)
+
+    def test_el_otro_edificio_muestra_el_suyo(self):
+        respuesta = self._get(self.de_inst, self.edif_b)
+
+        self.assertEqual(self._sectores(respuesta), [self.sector_b])
+
+    def test_un_predio_compartido_no_muestra_nada_de_la_otra_institucion(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        self.assertNotIn(self.sector_otra, self._sectores(respuesta))
+        for dato in ("Sector Secreto", "SEC-01", "Geriátrico Reservado"):
+            self.assertNotContains(respuesta, dato)
+
+    def test_no_lleva_el_filtro_edificio_ni_repite_el_nombre_del_edificio(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        self.assertFalse(respuesta.context["pildoras_sectores"])
+        self.assertTrue(respuesta.context["edificio_fijo"])
+        self.assertContains(respuesta, f"{self.sector_a.nombre} · ")
+        self.assertNotContains(respuesta, f"{self.sector_a.nombre} · Edificio ED-A")
+
+    def test_los_totales_son_los_del_edificio(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        self.assertEqual(respuesta.context["totales"]["total"], 3)
+        self.assertEqual(respuesta.context["contadores"]["sectores"], 3)
+
+    def test_con_otra_solapa_no_se_arma_el_mapa_y_el_boton_navega(self):
+        respuesta = self._get(self.de_inst, self.edif_a, tab="estadias")
+
+        self.assertFalse(respuesta.context["sectores_cargados"])
+        self.assertNotIn("sectores_mapa", respuesta.context)
+        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertEqual(respuesta.context["url_solapa_sectores"], f"{self._url(self.edif_a)}?tab=sectores")
+        self.assertContains(respuesta, "window.location.href=")
+
+    def test_una_plaza_de_este_edificio_abre_su_modal(self):
+        respuesta = self._get(self.de_inst, self.edif_a, plaza=self.libre_a.pk)
+
+        self.assertEqual(respuesta.context["plaza_inicial"], self.libre_a.pk)
+
+    def test_una_plaza_de_otro_edificio_o_de_otra_institucion_no_abre_el_modal(self):
+        for plaza in (self.libre_b, self.plaza_otra):
+            with self.subTest(plaza=plaza.codigo):
+                respuesta = self._get(self.de_inst, self.edif_a, plaza=plaza.pk)
+
+                self.assertNotIn("plaza_inicial", respuesta.context)
+                self.assertNotIn("plaza_accion", respuesta.context)
+
+    def test_el_fragmento_de_reubicar_es_solo_de_este_edificio(self):
         self.client.force_login(self.de_inst)
         url = self._url(self.edif_a)
-        self.client.get(url)  # calienta sesión y caché, igual en las dos mediciones
+
+        propio = self.client.get(url, {"plaza": self.plaza_a.pk, "fragmento": "reubicar"}, **AJAX)
+        self.assertEqual(propio.status_code, 200)
+        self.assertTemplateUsed(propio, "programas/dispositivos/sectores/_modal_reubicar.html")
+        self.assertContains(propio, 'name="next"')
+
+        for plaza in (self.libre_b, self.plaza_otra):
+            with self.subTest(plaza=plaza.codigo):
+                ajeno = self.client.get(url, {"plaza": plaza.pk, "fragmento": "reubicar"}, **AJAX)
+                self.assertEqual(ajeno.status_code, 404)
+
+    def test_el_fragmento_no_salta_el_alcance_del_edificio(self):
+        # `de_a` no alcanza el edificio B: la página es un 404 también para el fragmento.
+        self.client.force_login(self.de_a)
+
+        respuesta = self.client.get(self._url(self.edif_b), {"plaza": self.plaza_b.pk, "fragmento": "reubicar"}, **AJAX)
+
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_editar_un_sector_de_otro_edificio_no_abre_el_modal(self):
+        propio = self._get(self.de_inst, self.edif_a, editar_sector=self.sector_a.pk)
+        for sector in (self.sector_b, self.sector_otra):
+            with self.subTest(sector=sector.nombre):
+                ajeno = self._get(self.de_inst, self.edif_a, editar_sector=sector.pk)
+
+                self.assertNotIn("sector_en_edicion", ajeno.context)
+
+        self.assertEqual(propio.context["sector_en_edicion"], self.sector_a)
+
+    def test_agregar_plazas_ofrece_solo_los_sectores_de_este_edificio(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        ofrecidos = set(respuesta.context["form_plazas"].fields["sector"].queryset)
+        self.assertEqual(ofrecidos, {self.sector_a})
+
+    def test_los_formularios_vuelven_a_esta_solapa(self):
+        respuesta = self._get(self.de_inst, self.edif_a)
+
+        esperado = f"{self._url(self.edif_a)}?tab=sectores"
+        self.assertEqual(respuesta.context["vuelta_a"], esperado)
+        self.assertContains(respuesta, f'name="next" value="{esperado}"')
+
+    def test_una_accion_con_next_vuelve_a_la_pagina_del_edificio(self):
+        self.client.force_login(self.de_inst)
+        destino = f"{self._url(self.edif_a)}?tab=sectores"
+
+        respuesta = self.client.post(
+            reverse("dispositivos:plaza_fuera_servicio", args=[self.cis.pk, self.libre_a.pk]),
+            {"motivo": "colchón", "next": destino},
+        )
+
+        self.assertRedirects(respuesta, destino)
+
+    def test_un_next_de_otro_sitio_se_ignora(self):
+        self.client.force_login(self.de_inst)
+
+        for ajeno in ("https://sitio-ajeno.example/robo", "//sitio-ajeno.example/robo"):
+            with self.subTest(next=ajeno):
+                respuesta = self.client.post(
+                    reverse("dispositivos:plaza_fuera_servicio", args=[self.cis.pk, self.libre_a.pk]),
+                    {"motivo": "colchón", "next": ajeno},
+                )
+
+                self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
+
+    def test_las_acciones_siguen_exigiendo_su_capacidad(self):
+        solo_ver = self._con("Solo ver", "dispositivo.ver")
+
+        respuesta = self._get(solo_ver, self.edif_a)
+
+        self.assertNotContains(respuesta, "Nuevo sector")
+        self.assertNotContains(respuesta, "Editar sector")
+        self.assertNotIn("form_sector_nuevo", respuesta.context)
+
+
+@tag("performance")
+class PresupuestoTests(BaseOperativo):
+    def _medir(self, **params):
+        self.client.force_login(self.de_inst)
+        url = self._url(self.edif_a)
+        self.client.get(url, params)  # calienta sesión y caché, igual en las dos mediciones
         with CaptureQueriesContext(connection) as consultas:
-            respuesta = self.client.get(url)
+            respuesta = self.client.get(url, params)
         self.assertEqual(respuesta.status_code, 200)
         return len(consultas)
 
-    def test_la_pagina_cuesta_lo_mismo_con_uno_que_con_muchos(self):
-        antes = self._medir()
+    def _crecer(self):
         for numero in range(6):
             sector = Sector.objects.create(dispositivo=self.cis, edificio=self.edif_a, nombre=f"S{numero}", capacidad=2)
             Plaza.objects.create(sector=sector, codigo=f"X-{numero}")
@@ -252,8 +410,23 @@ class PresupuestoTests(BaseOperativo):
             tipo=self.tipo, codigo="GER-9", nombre="Otra", estado=Dispositivo.Estado.ACTIVO
         )
         self.edif_a.dispositivos.add(otra)
-        despues = self._medir()
 
-        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
+    def _techo(self, clave):
+        return json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][clave]["consultas_fijas"]
+
+    def test_la_pagina_cuesta_lo_mismo_con_uno_que_con_muchos(self):
+        # Con otra solapa abierta el mapa no se arma: el costo es el del encabezado.
+        antes = self._medir(tab="estadias")
+        self._crecer()
+        despues = self._medir(tab="estadias")
+
         self.assertEqual(antes, despues)
-        self.assertLessEqual(despues, techo["consultas_fijas"])
+        self.assertLessEqual(despues, self._techo(CLAVE_PRESUPUESTO))
+
+    def test_la_solapa_sectores_no_crece_con_sectores_ni_plazas(self):
+        antes = self._medir(tab="sectores")
+        self._crecer()
+        despues = self._medir(tab="sectores")
+
+        self.assertEqual(antes, despues)
+        self.assertLessEqual(despues, self._techo(CLAVE_PRESUPUESTO_SECTORES))

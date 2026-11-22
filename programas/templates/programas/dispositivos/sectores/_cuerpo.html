@@ -21,6 +21,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
 - filtro «Edificio»: `pildoras_sectores` (vacío con un solo edificio), `ocultos_sectores`, `edificio_filtrado`
   (id validado contra el alcance, o `None`: va en el oculto `sectores_edificio` de cada formulario y en la URL de cada «Reactivar») y `qs_sectores`
   (lo que los enlaces conservan: la solapa y el filtro).
+- página del edificio (Cambio 565): `edificio_fijo` (el nombre del edificio no se repite en cada sector) y `vuelta_a` (la solapa a la que vuelven las acciones, en el oculto `next`; vacío fuera de ella).
 - pantalla: `en_solapa`, `param_editar_sector`, `ver_inactivos`, `sectores_inactivos`, `plazas_dadas_de_baja`.
 - capacidades: `puede_configurar_plazas`, `puede_ampliar_capacidad`, `puede_reubicar`.
 - formularios (solo con `puede_configurar_plazas` o la acción habilitada): `form_sector_nuevo` / `url_sector_nuevo`,
@@ -126,7 +127,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
       <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
-          <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }} · {{ item.edificio_nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
+          <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if not edificio_fijo %} · {{ item.edificio_nombre }}{% endif %}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
           <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.prestadas }} prestada{{ item.resumen.prestadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% if item.resumen.porcentaje is not None %} · {{ item.resumen.porcentaje }} %{% endif %}</p>
         </div>
         {% if puede_configurar_plazas %}
@@ -176,7 +177,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
             </a>
             <button type="button"
                     class="btn-nodo btn-secondary btn-sm btn-fit"
-                    data-confirm-url="{% url 'dispositivos:sector_reactivar' dispositivo.pk inactivo.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% endif %}"
+                    data-confirm-url="{% url 'dispositivos:sector_reactivar' dispositivo.pk inactivo.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% elif vuelta_a %}?next={{ vuelta_a|urlencode }}{% endif %}"
                     data-confirm-title="Reactivar sector"
                     data-confirm-text="«{{ inactivo.nombre }}» vuelve al mapa con sus {{ inactivo.cantidad_plazas }} plaza{{ inactivo.cantidad_plazas|pluralize }}. Si ya hay un sector activo con ese nombre, no se puede reactivar."
                     data-confirm-ok="Sí, reactivar"
@@ -210,7 +211,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
           {% if puede_configurar_plazas %}
           <button type="button"
                   class="btn-nodo btn-secondary btn-sm btn-fit"
-                  data-confirm-url="{% url 'dispositivos:plaza_reactivar' dispositivo.pk baja.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% endif %}"
+                  data-confirm-url="{% url 'dispositivos:plaza_reactivar' dispositivo.pk baja.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% elif vuelta_a %}?next={{ vuelta_a|urlencode }}{% endif %}"
                   data-confirm-title="Reactivar plaza"
                   data-confirm-text="La plaza {{ baja.codigo }} vuelve al mapa de «{{ baja.sector.nombre }}»."
                   data-confirm-ok="Sí, reactivar"
@@ -280,6 +281,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" :action="urlDe('reservar')" data-ajax x-show="accion === 'reservar'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
@@ -297,6 +299,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" :action="urlDe('prestar')" data-ajax x-show="accion === 'prestar'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -325,6 +328,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" :action="urlDe('fuera_servicio')" data-ajax x-show="accion === 'fuera_servicio' && !plazasModal[plazaSel]?.bloqueo" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -340,6 +344,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" :action="urlDe('liberar')" data-ajax x-show="accion === 'liberar'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <p class="text-sm text-body">Suelta la reserva o el préstamo: la plaza vuelve a estar disponible.</p>
           <div>
@@ -358,6 +363,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" :action="urlDe('volver')" data-ajax x-show="accion === 'volver'" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -378,6 +384,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" :action="urlDe('baja')" data-ajax x-show="accion === 'baja' && !plazasModal[plazaSel]?.bloqueo_baja" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -422,6 +429,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" action="{{ url_editar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
@@ -454,6 +462,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
       <form method="post" action="{{ url_plazas }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% if edificio_filtrado %}<input type="hidden" name="sectores_edificio" value="{{ edificio_filtrado }}">{% endif %}
+        {% if vuelta_a %}<input type="hidden" name="next" value="{{ vuelta_a }}">{% endif %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>

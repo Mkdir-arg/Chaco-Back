@@ -70,6 +70,7 @@ nada más que para dibujarse.
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
 from programas.selectors.capacidad_dispositivo import edificios_del_dispositivo, nombre_de_edificio
@@ -267,8 +268,16 @@ def url_vuelta_a_sectores(request, dispositivo):
     El formulario lleva el filtro en el oculto `sectores_edificio`; las confirmaciones por `data-confirm-url`
     («Reactivar») no tienen campos y lo llevan en la querystring de su URL. Se valida con `filtro_de_edificio`,
     así que un valor ajeno o inválido vuelve a «Todos». La URL sigue saliendo de `url_solapa_sectores`.
+
+    La página operativa del edificio (Cambio 565) manda un ``next``: se vuelve a ella si es una URL de este sitio
+    (mismo host y esquema, como `destino_de_vuelta` del Equipo); una de otro sitio se ignora.
     """
 
+    siguiente = request.POST.get("next") or request.GET.get("next", "")
+    if siguiente and url_has_allowed_host_and_scheme(
+        siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return siguiente
     pedido = request.POST.get(PARAM_EDIFICIO_SECTORES) or request.GET.get(PARAM_EDIFICIO_SECTORES, "")
     edificio_id, _pildoras = filtro_de_edificio(request.user, dispositivo, pedido)
     return url_solapa_sectores(dispositivo.pk, edificio_id)
@@ -329,10 +338,12 @@ def plaza_para_accion(
     puede_ver_personas=False,
     puede_egresar=False,
     usuario=None,
+    edificio_id=None,
 ):
     """La plaza que pide `?plaza=<id>`, con su acción resuelta, o ``None``.
 
-    Con ``usuario``, la plaza de un edificio fuera de su alcance es ``None`` como la ajena (RN4).
+    Con ``usuario``, la plaza de un edificio fuera de su alcance es ``None`` como la ajena (RN4). Con
+    ``edificio_id`` (la página operativa de un edificio), también lo es la plaza de otro edificio.
 
     ``None`` para la plaza inexistente, la de otra institución, la de un sector dado de
     baja —ninguna de las tres se dibuja en el mapa— y la que el usuario no puede
@@ -346,6 +357,7 @@ def plaza_para_accion(
     plaza = (
         Plaza.objects.filter(pk=plaza_pk, sector__dispositivo=dispositivo, sector__activo=True)
         .filter(_q_plazas_en_alcance(usuario))
+        .filter(Q(sector__edificio_id=edificio_id) if edificio_id is not None else Q())
         .select_related("sector")
         .first()
     )
