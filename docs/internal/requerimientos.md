@@ -653,6 +653,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 530 | Emergencia · Llegadas: el administrador del programa y el superusuario recibían 403 al aceptar una derivación o «Ingresar igual» (`exclude` con el `Q()` vacío del alcance total) | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` | QA en testing del 21/11/2026 (#1298) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 531 | Dispositivos · ficha de la institución: aviso de derivaciones de Emergencia por recibir | Dispositivos (legajo) / Emergencia (Llegadas) | `#emergencia` `#dispositivos` `#ui` `#rbac` | PM — pruebas de Emergencia del 21/11/2026 (#1302) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61298,6 +61299,71 @@ La app (Chaco-mobile): buscar solo por DNI, mostrar el sexo devuelto, normalizac
 
 ## Reversión
 Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 531 — Dispositivos · ficha de la institución: aviso de derivaciones de Emergencia por recibir
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (ficha de la institución) y Emergencia (Llegadas) |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#ui` `#rbac` |
+| **Solicitante** | PM — pruebas de Emergencia en testing del 21/11/2026 |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | #1302 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Después de derivar una familia a CIS II, la ficha de la institución no avisaba que había llegado una derivación: había que entrar
+a «Más acciones → Emergencia · Llegadas». La derivación vence (por defecto 12 h) y vuelve sola a la mesa, así que del lado de la
+institución hacía falta un aviso, como el «Derivación por vencer» que ya tiene la mesa.
+
+## Alcance acordado
+Un aviso en la ficha cuando la institución tiene derivaciones `PENDIENTE` de casos `DERIVADO`, con la cantidad, el vencimiento más
+próximo y «Ir a Llegadas». Antes de diseñar se consultó el archivo vivo por `emergencia` y `derivaci`: ninguna decisión registrada
+choca (el Cambio 520 dejó `Derivacion.edificio` y el 523 el alcance por edificio, que el aviso reutiliza).
+
+## Decisiones tomadas
+- **Quién lo ve:** quien opera el dispositivo con `dispositivo.admitir` (la misma variable `puede_cambiar` que ya decide el enlace
+  «Emergencia · Llegadas» del menú), el admin del programa y el superusuario. No lo ven `dispositivo.ver` solo ni `ver_todos`
+  (`_ve_todos` es solo lectura).
+- **Un selector, el de Llegadas:** `emergencia_alojar.pendientes_por_recibir` comparte con `llegadas_del_dispositivo` el queryset base
+  `_derivaciones_en_alcance` (dispositivo + `q_edificios_en_alcance`), así que el alcance por edificio es el mismo. Devuelve
+  `{cantidad, primera_vence}` con un `COUNT` y un `MIN` en **una consulta**; sin pendientes, `None`.
+- **El alcance va con `filter`, nunca con `exclude` (#1298):** el admin y el superusuario reciben `Q()` vacío («todo») y
+  `exclude(Q())` no excluye nada. El aviso no depende de eso y un test con admin y superusuario lo cuida.
+- **Tono:** `warning`; `danger` cuando la más próxima vence en menos de `POR_VENCER_MIN` (60 min, el umbral de la mesa) o ya pasó su
+  vencimiento sin que el cron la marcara (texto «La primera venció el…»). Pieza canónica `components/_alerta.html`, sin piezas nuevas.
+- **Presupuesto:** la ficha pasa de 26 a 27 consultas (`dispositivos_detalle_sin_estadias`), solo para quien puede admitir; el delta
+  es exactamente 1 y no crece con las derivaciones. Justificado en `scripts/perf_budgets.json` (`aviso_llegadas_1302`).
+
+## Pendientes
+Ninguno propio. La corrección de «Aceptar» para el admin del programa es del #1298.
+
+## Implementación
+`programas/selectors/emergencia_alojar.py` (`_derivaciones_en_alcance`, `pendientes_por_recibir`), `programas/selectors/emergencia_llegadas.py`
+(`aviso_de_pendientes`), `programas/views/dispositivos_legajo.py` (`aviso_llegadas`) y `legajo/detail.html`.
+
+## Archivos
+Los de arriba, `scripts/perf_budgets.json` y `programas/tests/test_emergencia_aviso_llegadas.py` (nuevo, 20 tests). Verificado por
+mutación: sacar el acote por edificio, tratar el `Q()` vacío como «nada» y quitar la guarda de `admitir` ponen en rojo su test.
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques`, `check_design_agent --base origin/development`,
+`check_perf_budgets` y los tests de performance, Llegadas, ficha y arquitectura en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Reversión
+Desplegar el código anterior: no hay datos nuevos.
 
 ## Historial
 - **22/11/2026:** alta del cambio.
