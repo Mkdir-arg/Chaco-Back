@@ -17,6 +17,7 @@ from programas.models import AdjuntoCaso
 from programas.selectors import emergencia_alojar as alojar
 from programas.selectors.emergencia_mesa import ROTULO_DE_NECESIDAD, _personas, franjas_del_grupo, nombre_de
 from programas.selectors.emergencia_mesa import filas_de_integrantes as filas_de_integrantes_de_la_mesa
+from programas.services.avisos_emergencia import POR_VENCER_MIN
 from programas.services.emergencia import NECESIDADES, prioridad_visible
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
 
@@ -36,6 +37,30 @@ def pasos(paso_actual, url_llegadas, url_integrantes=None):
     return {
         "pasos": [{"etiqueta": etiqueta, "url": url} for etiqueta, url in zip(PASOS, urls, strict=True)],
         "paso_actual": paso_actual,
+    }
+
+
+def aviso_de_pendientes(pendientes, url_llegadas, ahora):
+    """El aviso de la ficha de la institución (``components/_alerta.html``) o ``None`` si no hay pendientes.
+
+    ``pendientes`` es lo que contesta ``emergencia_alojar.pendientes_por_recibir``. Tono ``warning``;
+    ``danger`` cuando la más próxima vence en menos de ``POR_VENCER_MIN`` minutos (el umbral de
+    «Derivación por vencer» de la mesa) o ya pasó su vencimiento. Sin consultas.
+    """
+
+    if not pendientes:
+        return None
+    cantidad = pendientes["cantidad"]
+    vence = pendientes["primera_vence"]
+    familias = "1 familia derivada" if cantidad == 1 else f"{cantidad} familias derivadas"
+    por_vencer = (vence - ahora).total_seconds() < POR_VENCER_MIN * 60
+    return {
+        "tono": "danger" if por_vencer else "warning",
+        "icono": "triangle-exclamation",
+        "titulo": f"{familias} por Emergencia esperando respuesta",
+        "texto": f"{'La primera venció' if vence < ahora else 'La primera vence'} el {_dia_hora(vence)}.",
+        "accion_url": url_llegadas,
+        "accion_texto": "Ir a Llegadas",
     }
 
 
