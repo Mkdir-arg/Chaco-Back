@@ -1,2 +1,67 @@
-{# Panel «Estadías de este edificio» de la página operativa del edificio. Hoy es un estado vacío con salida a donde se opera hoy; el PR del lote que lo implementa reemplaza SOLO este archivo (Cambio 563). #}
-{% include "components/_estado_vacio.html" with icono="fa-users" titulo="Estadías de este edificio" texto="Esta sección llega en breve. Mientras tanto, las estadías se ven desde la institución." accion_url=enlaces_de_institucion.estadias accion_texto="Ir a Estadías de la institución" accion_icono="fa-arrow-right" %}
+{% load nodo_ui dispositivos %}
+{# Panel «Estadías» de la página operativa del edificio (Cambio 566, PR 2 del lote). Solo las personas alojadas de ESTA institución en ESTE edificio: una estadía sin plaza no tiene edificio y se ve en «Personas alojadas» de la ficha. Las acciones son las de la institución (egreso, cambio de plaza, detalle) y vuelven acá por `next`. Los modales viven en el parcial compartido con la ficha. #}
+<div x-data="{
+       modalEgreso: {% if estadia_egreso %}true{% else %}false{% endif %},
+       modalCambio: {% if form_cambio %}true{% else %}false{% endif %},
+       egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
+     }"
+     @becas-saved.window="modalEgreso=false; modalCambio=false">
+  <div class="px-5 pt-4">
+    {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos_estadias %}
+  </div>
+  <div class="overflow-x-auto mt-3">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr class="nodo-thead-row">
+          <th class="nodo-th">Persona</th>
+          <th class="nodo-th">Ingreso</th>
+          <th class="nodo-th">Sector · plaza</th>
+          <th class="nodo-th">Estado</th>
+          <th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for estadia in estadias %}
+        <tr class="hover:bg-secondary transition">
+          <td class="nodo-td">
+            <div class="min-w-0">
+              <span class="font-medium text-heading">{{ estadia.persona_visible }}</span>
+              {% if puede_ver_ciudadano %}
+              <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="nodo-td whitespace-nowrap"><time datetime="{{ estadia.fecha_ingreso|date:'c' }}" title="{{ estadia.fecha_ingreso|date:'d/m/Y H:i' }}">hace {{ estadia.fecha_ingreso|timesince }}</time>{% if estadia.fecha_egreso %}<span class="text-xs text-body-subtle block mt-px">Egreso {{ estadia.fecha_egreso|date:"d/m/Y H:i" }}</span>{% endif %}</td>
+          <td class="nodo-td">{{ estadia.plaza.sector.nombre }} · {{ estadia.plaza.codigo }}</td>
+          <td class="nodo-td"><span class="badge badge-dot badge-{{ estadia.tono }}">{{ estadia.estado_texto }}</span></td>
+          <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+            {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.persona_del_menu %}
+              {% include "components/_menu_fila_item.html" with texto="Ver estadía" icono="fa-eye" url=estadia.url_ver only %}
+              {% if estadia.url_cambiar %}
+              {% include "components/_menu_fila_item.html" with texto="Cambiar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}
+              {% endif %}
+              {% if estadia.url_egresar %}
+              {% include "components/_menu_fila_item.html" with texto="Registrar egreso" icono="fa-right-from-bracket" url=estadia.url_modal_egreso peligro=True only %}
+              {% endif %}
+            {% endmenu_fila %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="p-0">
+            {% if hay_filtros_estadias %}
+            {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna estadía coincide con los filtros" texto="Probá con otro estado o sector." accion_url=next_url %}
+            {% elif url_ingreso %}
+            {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas en este edificio" texto="Cuando se registre un ingreso, la persona aparece acá." accion_url=url_ingreso accion_texto="Ingresar persona" accion_icono="fa-plus" %}
+            {% else %}
+            {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas en este edificio" texto="Cuando se registre un ingreso, la persona aparece acá." %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_paginacion.html" with page_obj=estadias entidad="estadía" param="estadias_page" extra_qs="tab=estadias" %}
+  {% include "programas/dispositivos/legajo/_estadia_modales.html" %}
+</div>

@@ -294,11 +294,11 @@ class SectoresSolapaTests(BaseOperativo):
         self.assertEqual(respuesta.context["contadores"]["sectores"], 3)
 
     def test_con_otra_solapa_no_se_arma_el_mapa_y_el_boton_navega(self):
-        respuesta = self._get(self.de_inst, self.edif_a, tab="estadias")
+        respuesta = self._get(self.de_inst, self.edif_a, tab="historial")
 
         self.assertFalse(respuesta.context["sectores_cargados"])
         self.assertNotIn("sectores_mapa", respuesta.context)
-        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertContains(respuesta, 'id="tab-sectores" aria-controls="panel-sectores" data-solapa-navega')
         self.assertEqual(respuesta.context["url_solapa_sectores"], f"{self._url(self.edif_a)}?tab=sectores")
         self.assertContains(respuesta, "window.location.href=")
 
@@ -484,9 +484,9 @@ class PresupuestoTests(BaseOperativo):
 
     def test_la_pagina_cuesta_lo_mismo_con_uno_que_con_muchos(self):
         # Con otra solapa abierta el mapa no se arma: el costo es el del encabezado.
-        antes = self._medir(tab="estadias")
+        antes = self._medir(tab="historial")
         self._crecer()
-        despues = self._medir(tab="estadias")
+        despues = self._medir(tab="historial")
 
         self.assertEqual(antes, despues)
         self.assertLessEqual(despues, self._techo(CLAVE_PRESUPUESTO))
