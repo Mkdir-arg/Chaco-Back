@@ -38,7 +38,7 @@ del tipo (`_exigir_formulario_del_tipo`), y sus faltantes entran al mismo resume
 Antes de exigir los datos, «Enviar a validación» y «Validar» ponen al día el contacto del legajo
 con el primer responsable vigente del Equipo (`_sincronizar_contacto`, Cambio 459); por eso un
 teléfono faltante se resuelve en el perfil de esa persona y el resumen de P3 lo pide ahí.
-«Cerrar» e «Inactivar» rechazan con gente adentro y dicen las cifras (`_exigir_cierre_sin_compromisos`, `_liberar_reservas_al_inactivar`: el cierre
+«Cerrar» e «Inactivar» rechazan con gente adentro y dicen las cifras (`_exigir_cierre_sin_compromisos`, `_antes_de_inactivar`: el cierre
 también con reservas; inactivar libera las reservas comunes), y `exigir_institucion_en_estado` decide según el estado qué se puede reservar, prestar o
 reubicar (Cambio 536). El mapa deja de ofrecer «Reservar» y «Prestar» fuera de activa y «Reubicar» en cerrada: es dominio, sin cambio visual.
 «Enviar a validación» se ofrece desde borrador, observado y rechazado (`estados_desde_los_que_se_envia`; Cambio 407), y «Ingresar persona» solo a quien `puede_ingresar_persona` deja entrar (`dispositivo.admitir` con alcance —desde el Cambio 446, solo el Equipo del dispositivo— y `ciudadano.ver`): el servicio es la fuente y el template solo lee la bandera. Un dispositivo inactivo se reactiva (`reactivar_dispositivo`, traza `REACTIVADO`, misma capacidad que inactivar; Cambio 409) y el cerrado no vuelve.

@@ -764,3 +764,14 @@ def estados_que_cambian_de_plaza():
     from programas.models import Dispositivo
 
     return (Dispositivo.Estado.ACTIVO, Dispositivo.Estado.INACTIVO)
+
+
+def se_puede_cambiar_plaza(estadia, dispositivo, *, con_plazas):
+    """La regla única de «Cambiar plaza» (con plaza) y «Asignar plaza» (sin plaza), Cambio 536.
+
+    Sin plaza se asigna una solo si el tipo maneja plazas (`con_plazas`); con plaza se cambia salvo que la
+    institución esté cerrada. La solapa de estadías, el modal por URL y la pantalla de la estadía la comparten.
+    """
+    if estadia.plaza_id is None:
+        return con_plazas
+    return dispositivo.estado in estados_que_cambian_de_plaza()

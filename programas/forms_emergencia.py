@@ -291,6 +291,10 @@ AYUDA_BUSCAR_DNI = (
     "Si no está, cargalos a mano."
 )
 AYUDA_NOMBRE_DEL_RESPONSABLE = (
+    "Solo si la persona todavía no está en el legajo. Si el DNI ya está registrado como otra persona, "
+    "ver la casilla de abajo."
+)
+AYUDA_NOMBRE_CON_BUSCADOR = (
     "Se completan solos al elegir a la persona del legajo; cargalos a mano si no está. "
     "Si el DNI ya está registrado como otra persona, ver la casilla de abajo."
 )
@@ -459,6 +463,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         super().__init__(*args, **kwargs)
         if url_sugerencias:
             self.fields["dni"].help_text = AYUDA_BUSCAR_DNI
+            self.fields["nombre"].help_text = self.fields["apellido"].help_text = AYUDA_NOMBRE_CON_BUSCADOR
             self.fields["dni"].widget.attrs.update(
                 attrs_sugerencias(url_sugerencias, MENSAJE_SUGERENCIA_SIN_PERSONA_EN_NUEVO_CASO)
             )

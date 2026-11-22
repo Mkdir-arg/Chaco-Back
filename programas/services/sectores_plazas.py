@@ -131,7 +131,7 @@ def acciones_de_plaza(
     puede_editar=False,
     puede_buscar_personas=False,
     puede_egresar=False,
-    estado_dispositivo=None,
+    estado_dispositivo,
 ):
     """Las acciones que admite una plaza y que quien mira puede ejercer, en el orden del modal.
 
@@ -147,7 +147,7 @@ def acciones_de_plaza(
     piden además `ciudadano.ver` (`puede_buscar_personas`), como el asistente de ingreso. Lista vacía: la plaza no es accionable para este usuario.
     """
 
-    puede_reubicar = estado_dispositivo is None or estado_dispositivo in estados_que_cambian_de_plaza()
+    puede_reubicar = estado_dispositivo in estados_que_cambian_de_plaza()
     if estado.estado == ESTADO_FUERA_SERVICIO:
         return [ACCION_VOLVER] if puede_editar else []
     if con_reserva_abierta:

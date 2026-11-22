@@ -566,7 +566,9 @@ class FichaIntegranteView(_IntegranteView):
         return redirect(self.url_integrantes())
 
     def _completar(self, request):
-        form = FichaIntegranteForm(request.POST, solo_opcionales=True, adultos=self._adultos())
+        form = FichaIntegranteForm(
+            request.POST, solo_opcionales=True, ficha=self.integrante.ficha, adultos=self._adultos()
+        )
         if not form.is_valid():
             return self._render(request, form, status=400)
         try:
