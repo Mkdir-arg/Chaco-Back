@@ -22,7 +22,7 @@ Tres reglas:
 """
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, Min, OuterRef, Q
 from django.utils import timezone
 
 from programas.models import (
@@ -514,6 +514,38 @@ def _fila_de_integrante(fila):
 # ---------------------------------------------------------------------------
 
 
+def _derivaciones_en_alcance(dispositivo, usuario):
+    """Las derivaciones de ``dispositivo`` que ``usuario`` alcanza con ``dispositivo.admitir`` (edificio incluido).
+
+    **Un ``filter``, nunca un ``exclude``:** para el admin del programa y el superusuario
+    ``q_edificios_en_alcance`` devuelve ``Q()`` vacío («todo»), y ``exclude(Q())`` no excluye nada.
+    """
+
+    return Derivacion.objects.filter(dispositivo=dispositivo).filter(
+        q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id")
+    )
+
+
+def pendientes_por_recibir(dispositivo, usuario):
+    """``{"cantidad", "primera_vence"}`` de las derivaciones pendientes de ``dispositivo`` a la vista de ``usuario``.
+
+    Son las mismas que lista :func:`llegadas_del_dispositivo` como pendientes (``PENDIENTE`` de un caso
+    ``DERIVADO``, dentro del alcance por edificio), contadas en la base. ``primera_vence`` es el
+    vencimiento más próximo (puede ser anterior a ahora: una vencida que el cron todavía no marcó se
+    acepta igual). Sin ninguna pendiente, ``None``.
+
+    No exige la capacidad: es para el aviso de la ficha, que ya la resolvió con ``puede_operar_dispositivo``.
+    **Presupuesto: 1 consulta** (más las del alcance, que son subconsultas).
+    """
+
+    resumen = (
+        _derivaciones_en_alcance(dispositivo, usuario)
+        .filter(estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO)
+        .aggregate(cantidad=Count("id"), primera_vence=Min("vence_en"))
+    )
+    return resumen if resumen["cantidad"] else None
+
+
 def llegadas_del_dispositivo(dispositivo, usuario):
     """Lo que la guardia tiene por recibir: derivaciones pendientes e ingresos en curso de **ese** dispositivo.
 
@@ -532,8 +564,7 @@ def llegadas_del_dispositivo(dispositivo, usuario):
 
     _exigir_alcance(usuario, dispositivo)
     derivaciones = (
-        Derivacion.objects.filter(dispositivo=dispositivo)
-        .filter(q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id"))
+        _derivaciones_en_alcance(dispositivo, usuario)
         .filter(
             Q(estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO)
             | Q(estado=Derivacion.Estado.ACEPTADA, caso__estado=CasoEmergencia.Estado.INGRESO_EN_CURSO)

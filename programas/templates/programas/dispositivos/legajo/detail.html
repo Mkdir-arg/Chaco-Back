@@ -88,6 +88,10 @@
     {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se pueden registrar ingresos" texto=aviso_sin_ingresos %}
     {% endif %}
 
+    {% if aviso_llegadas %}
+    {% include "components/_alerta.html" with tono=aviso_llegadas.tono icono=aviso_llegadas.icono titulo=aviso_llegadas.titulo texto=aviso_llegadas.texto accion_url=aviso_llegadas.accion_url accion_texto=aviso_llegadas.accion_texto role="status" %}
+    {% endif %}
+
     {# ===== Alertas del programa: derivadas del dato, se resuelven en su origen y no bloquean nada ===== #}
     {# role="status" y no el "alert" por defecto: son permanentes mientras el origen siga asi, no #}
     {# novedades que interrumpan la lectura; el lector de pantalla las anuncia cuando termina lo que dice. #}
