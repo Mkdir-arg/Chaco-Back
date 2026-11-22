@@ -653,6 +653,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 530 | Emergencia · Llegadas: el administrador del programa y el superusuario recibían 403 al aceptar una derivación o «Ingresar igual» (`exclude` con el `Q()` vacío del alcance total) | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` | QA en testing del 21/11/2026 (#1298) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61295,6 +61296,102 @@ sin sexo ya existe desde el Cambio 522; las sugerencias dan 404 y la app no las 
 
 ## Pendientes / a definir
 La app (Chaco-mobile): buscar solo por DNI, mostrar el sexo devuelto, normalización del DNI, sugerencias y los interruptores de #1300.
+
+## Reversión
+Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 533 — Emergencia · mesa: lógica de la bandeja, la ficha y el alta
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») |
+| **Etiquetas** | `#emergencia` `#ui` `#datos` |
+| **Solicitante** | Relevamiento de lógica de Emergencia y Dispositivos del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | — |
+| **Partes afectadas** | Servidor (backoffice) |
+| **Migración** | No requiere |
+
+## Pedido original
+Siete hallazgos de la lógica de la mesa: una acción de la ficha sobre una pantalla vieja da 403 crudo (6); los modales de
+la ficha se cierran al fallar la validación (19); «Localidad» del alta ofrece todo el país (8); el buscador de la bandeja
+es corto (17); «Derivar» distingue acentos (21); los alojados llenan «Abiertos» con una marca engañosa (20); y la
+derivación vencida se ve igual que una vigente hasta que corre el proceso diario (5).
+
+## Alcance acordado
+Solo la mesa: `views/emergencia.py`, `selectors/emergencia*.py`, `services/emergencia.py`, `services/emergencia_alta.py`,
+`forms_emergencia.py` y las plantillas de la bandeja y la ficha. Afuera: el cron, la recepción y las derivaciones de la
+guardia (otro cambio), RN-3.3, y cualquier migración.
+
+## Consulta previa de requerimientos
+`requerimientos.py --tag emergencia` y `--buscar "bandeja"`. Nada contradicho: el 509 deja la bandeja como destino de los
+avisos de la situación, que siguen apuntando a «Abiertos».
+
+## Decisiones tomadas
+- **6.** Se agrega `CasoDeOtroOperador`, **subclase de `PermissionDenied`**: la API y todo lo que atrapaba `PermissionDenied`
+  sigue igual, pero la vista de la mesa la atrapa, vuelve a la ficha (que ya sale en solo lectura, con quién lo tiene) y avisa
+  por toast «El caso N lo tiene tomado X: ya no podés hacer esto. Recargá la ficha.»; el POST de «Ubicar domicilio» contesta
+  409 con el mismo texto. Sin dueño y sin ser supervisor sigue siendo un 403 común. El test que exigía 403 en el POST directo
+  de quien no tiene el caso pasa a exigir la vuelta a la ficha con el aviso: desde la vista no se distingue una pantalla
+  vieja de un POST armado, y el efecto sobre el caso es el mismo (nada cambia).
+- **19.** Ante un formulario inválido o un `ValidationError` del servicio, la ficha se vuelve a dibujar (400) con el
+  formulario enlazado y el modal abierto (`modal_abierto`), en lugar de redirigir; el error va dentro del modal (campos y
+  alerta de errores generales). El contacto, que no es modal, conserva lo escrito. «Derivar» sigue con su propia vuelta
+  (`FaltanPlazas`). En estos casos ya no hay toast: el error está a la vista en el propio formulario.
+- **8.** El alta de la mesa ofrece `localidades_operativas()` con la etiqueta «Localidad (Municipio)» y cada opción como
+  «Nombre (Municipio)»; `crear_caso` acota por id a ese universo (también para la API de la app). Una `Localidad` ya
+  resuelta por código del servidor (el ingreso directo toma la del dispositivo por nombre) **no** se vuelve a acotar: ese
+  archivo es de otro cambio y la regla vale para lo que llega del cliente.
+- **17.** El buscador suma nombre del responsable y DNI, nombre y apellido de los integrantes, y parte el texto en palabras
+  (todas deben aparecer). Los integrantes van con `Exists` y no con JOIN + `distinct`: un caso no se repite y el costo no
+  depende de cuántos integrantes coinciden. Sin consultas extra (medido: las mismas con 1 y con 4 palabras).
+- **21.** La búsqueda del panel «Derivar» compara con `texto_comparable` en ambos lados.
+- **20.** Solapa «Alojados» (`alojados`), en la segunda fila de chips (la primera ya está en el tope de seis; la fila se
+  renombra «Otras vistas de la bandeja»). «Abiertos» deja de incluir a los alojados **completos**; los de **ingreso parcial**
+  siguen en «Abiertos» porque piden contacto de la mesa (aviso AE) y los avisos de la situación apuntan ahí. La marca
+  «Responsable alojado en X» (RN-2.15, para antes de derivar) no se muestra en un caso ya alojado, donde esa estadía es la
+  propia.
+- **5.** `aceptar_derivacion` **no cambia**: ya acepta una derivación vencida sin marcar (RN-3.3, `derivacion_vencida`) y vive
+  en un archivo de otro cambio. Lo que se corrige es lo que ven la ficha y la bandeja: la ficha dice «Venció …» y que el
+  dispositivo todavía la puede aceptar hasta que el proceso diario la marque, y la bandeja suma la marca «Derivación vencida
+  sin marcar» (subconsulta en la misma consulta, sin consultas por fila).
+- No se tocó la frecuencia del cron (ver Pendientes).
+
+## Implementación
+Ver Archivos. La ficha pasa a armarse en `CasoDetalleView.contexto`, que usan el GET y la vuelta de una acción fallida.
+
+## Archivos
+- `programas/services/emergencia.py` — `CasoDeOtroOperador`.
+- `programas/views/emergencia.py`, `programas/templates/programas/emergencia/casos/detail.html` y `list.html`.
+- `programas/services/emergencia_alta.py`, `programas/forms_emergencia.py` — localidad.
+- `programas/selectors/emergencia.py`, `programas/selectors/emergencia_mesa.py` — buscador, solapa y vencida sin marcar.
+- Tests: `programas/tests/test_emergencia_mesa_logica.py` (nuevo); ajustes en `test_emergencia_mesa.py`,
+  `test_emergencia_casos.py` (helper `localidad_operativa`) y `test_emergencia_derivar.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+27 tests nuevos. **Mutación (cada una en rojo):** quitar `CasoDeOtroOperador` de `_exigir_duenio_o_supervisor`; fijar
+`modal_abierto` en `None`; dejar el contacto sin `clave_form`; volver `crear_caso` a `Localidad.objects`; buscar por la
+cadena entera; sacar el `Exists` de integrantes; comparar «Derivar» con `casefold`; volver «Abiertos» a `~CERRADO`;
+mostrar la marca de responsable alojado en alojados; anular la subconsulta de vencida y `derivacion["vencida"]`.
+Suites `test_emergencia_*` en verde, `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos) y
+`compile_templates --bloques` (0).
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+- **Frecuencia del cron (hallazgo 5).** `procesar_vencimientos` corre una vez por día (03:10; `docker/cron/procesar_vencimientos.cron`,
+  `docker/k8s/cronjobs.yaml`). Pasarlo a cada 15 minutos le toca también a Becas: el mismo comando revierte reaperturas de
+  relevamientos en revisión. Hay que decidir si se parte el comando (solo Emergencia cada 15 minutos) antes de cambiar el cron.
+- El PM puede querer que los alojados completos vuelvan a «Abiertos»: es una línea (`_Q_DE_SOLAPA`).
 
 ## Reversión
 Desplegar el código anterior. Sin datos ni esquema.

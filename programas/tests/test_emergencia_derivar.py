@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.urls import reverse
 
-from core.models import Municipio, Provincia, UbicacionLocalidad
+from core.models import UbicacionLocalidad
 from programas.models import CasoEmergencia, Derivacion, Edificio
 from programas.selectors import emergencia_alojar, emergencia_llegadas
 from programas.selectors import emergencia_derivar as derivar
@@ -24,10 +24,6 @@ class PuntoDeLaFamiliaTests(BaseMesa):
 
     def setUp(self):
         super().setUp()
-        chaco = Provincia.objects.create(nombre="Chaco")
-        municipio = Municipio.objects.create(nombre="Resistencia", provincia=chaco)
-        self.resistencia.municipio = municipio
-        self.resistencia.save()
         UbicacionLocalidad.objects.create(localidad=self.resistencia, latitud="-27.460000", longitud="-58.980000")
         self.client.force_login(self.operador)
 

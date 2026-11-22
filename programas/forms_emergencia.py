@@ -19,7 +19,7 @@ from django.contrib.auth.models import User
 
 from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
-from core.models import Localidad
+from core.selectors.geografia import localidades_operativas
 from core.validators import validar_foto
 from core.widgets import SwitchInput
 from programas.forms import INPUT_CLASS
@@ -290,6 +290,13 @@ def aviso_identidad_a_revisar(caso):
     return " Quedó con identidad a revisar: la mesa tiene que verificar quién es el responsable."
 
 
+class _LocalidadConMunicipioField(forms.ModelChoiceField):
+    """La localidad con su municipio entre paréntesis: el nombre solo se repite entre municipios."""
+
+    def label_from_instance(self, localidad):
+        return f"{localidad.nombre} ({localidad.municipio.nombre})"
+
+
 class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
     """El Formulario 1 cargado desde la mesa (HU-1.4): lo que llega por teléfono.
 
@@ -367,9 +374,9 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         help_text="Calle y número, o una referencia («frente a la capilla»).",
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
     )
-    localidad = forms.ModelChoiceField(
-        label="Localidad",
-        queryset=Localidad.objects.order_by("nombre"),
+    localidad = _LocalidadConMunicipioField(
+        label="Localidad (Municipio)",
+        queryset=localidades_operativas(),
         empty_label="Elegí una localidad",
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )

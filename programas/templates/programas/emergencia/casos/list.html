@@ -14,14 +14,14 @@
   {# Solapas: recargan con la URL que armó la vista y conservan los filtros. Van en dos filas porque la pieza admite hasta seis chips. #}
   <div class="space-y-3">
     {% include "components/_chips_enlace.html" with nombre="Casos por estado" chips=solapas_por_estado %}
-    {% include "components/_chips_enlace.html" with nombre="Casos que piden atención" chips=solapas_de_atencion %}
+    {% include "components/_chips_enlace.html" with nombre="Otras vistas de la bandeja" chips=solapas_de_atencion %}
   </div>
 
   {% comment %}Filtros: el <form> va sin class y cada control con aria-label (dynamic_list_filters.js vacía
   el form al montar). El oculto `solapa` se conserva: filtrar no cambia de solapa.{% endcomment %}
   <form method="get" data-dynamic-list-filters>
     <input type="hidden" name="solapa" value="{{ solapa }}">
-    <input type="search" name="texto" value="{{ filtro.texto }}" class="nodo-field max-w-xs" aria-label="N.° de caso, DNI o apellido">
+    <input type="search" name="texto" value="{{ filtro.texto }}" class="nodo-field max-w-xs" aria-label="N.° de caso, DNI o nombre de la familia" placeholder="Caso, DNI o nombre">
     <select name="estado" class="nodo-field max-w-xs" aria-label="Estado">
       <option value="">Todos</option>
       {% for value, label in estados %}<option value="{{ value }}" {% if value == filtro.estado %}selected{% endif %}>{{ label }}</option>{% endfor %}

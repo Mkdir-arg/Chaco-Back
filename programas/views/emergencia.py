@@ -4,8 +4,10 @@ Las vistas **no tienen reglas del caso**. Cada acción llama a la función de
 ``programas/services/emergencia.py`` —la misma que usa la API de la app (RU-2)— y traduce
 lo que esa función contesta:
 
-* ``PermissionDenied`` → 403. No se atrapa: quien no tiene tomado el caso ni supervisa
-  recibe el 403 del servicio y nada cambia (RU-12).
+* ``PermissionDenied`` → 403. No se atrapa: quien no opera la mesa recibe el 403 del
+  servicio y nada cambia (RU-12). La excepción es :class:`CasoDeOtroOperador` (un
+  ``PermissionDenied`` con el caso): otro operador tomó el caso después de abrir la
+  pantalla, así que se vuelve a la ficha con el mensaje, igual que un ``EstadoCambio``.
 * :class:`EstadoCambio` (y ``CasoTomadoPorOtro``) → la pantalla quedó vieja: otra pestaña,
   otro operador, el dispositivo o el cron se adelantaron. Es el 409 de la API; acá se
   vuelve a la ficha —que es recargarla— con el mensaje del servicio, que dice qué pasó
@@ -48,7 +50,7 @@ from programas.selectors import emergencia_mesa as mesa
 from programas.selectors.emergencia_derivar import clave_de_grupo
 from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
-from programas.services.emergencia import EstadoCambio, FaltanPlazas
+from programas.services.emergencia import CasoDeOtroOperador, EstadoCambio, FaltanPlazas
 from programas.services.emergencia_programa import puede_supervisar_la_mesa
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
@@ -228,8 +230,14 @@ class CasoDetalleView(MesaPermissionMixin, View):
             }
         return panel, confirmacion
 
-    def get(self, request, pk):
-        caso = get_object_or_404(mesa.casos_para_ficha(), pk=pk)
+    def contexto(self, request, caso, *, atados=None, modal=None):
+        """El contexto de la ficha.
+
+        ``atados`` pone formularios ya enlazados (con lo que se mandó y sus errores) en lugar de los
+        vacíos y ``modal`` dice cuál modal abre la página, para no perder lo escrito cuando una acción
+        falla (Cambio 533).
+        """
+
         contexto = mesa.ficha_de_caso(caso, request.user, sla_vigente(), timezone.now())
         contexto["url_ficha"] = _url_ficha(caso)
         if contexto["duplicado"]:
@@ -247,7 +255,15 @@ class CasoDetalleView(MesaPermissionMixin, View):
             contexto["form_cancelar"] = CancelarDerivacionForm(auto_id="cancelar_%s")
         if contexto["puede_reasignar"]:
             contexto["form_reasignar"] = ReasignarCasoForm(auto_id="reasignar_%s")
-        return render(request, TEMPLATE_FICHA, contexto)
+        for clave, form in (atados or {}).items():
+            if clave in contexto:
+                contexto[clave] = form
+        contexto["modal_abierto"] = modal
+        return contexto
+
+    def get(self, request, pk):
+        caso = get_object_or_404(mesa.casos_para_ficha(), pk=pk)
+        return render(request, TEMPLATE_FICHA, self.contexto(request, caso))
 
 
 # ---------------------------------------------------------------------------
@@ -265,27 +281,45 @@ class _AccionDeCasoView(MesaPermissionMixin, View):
 
     http_method_names = ["post"]
     form_class = None
+    #: Dónde vive el formulario en la ficha: su clave en el contexto, su ``auto_id`` y el modal que lo
+    #: contiene. Con ellos, un error vuelve a abrir el modal con lo enviado (Cambio 533).
+    clave_form = None
+    auto_id = None
+    modal = None
 
     def destino(self, caso):
         return _url_ficha(caso)
+
+    def volver_a_mostrar(self, request, caso, form):
+        """La ficha otra vez, con el formulario enlazado (lo enviado y el error) y su modal abierto."""
+
+        caso = get_object_or_404(mesa.casos_para_ficha(), pk=caso.pk)
+        contexto = CasoDetalleView().contexto(request, caso, atados={self.clave_form: form}, modal=self.modal)
+        return render(request, TEMPLATE_FICHA, contexto, status=400)
 
     def post(self, request, pk):
         caso = get_object_or_404(CasoEmergencia, pk=pk)
         form = None
         if self.form_class is not None:
-            form = self.form_class(request.POST)
+            form = self.form_class(request.POST, **({"auto_id": self.auto_id} if self.auto_id else {}))
             if not form.is_valid():
+                if self.clave_form:
+                    return self.volver_a_mostrar(request, caso, form)
                 messages.error(request, _errores_de(form))
                 return redirect(_url_ficha(caso))
         try:
             aviso = self.ejecutar(request, caso, form)
-        except EstadoCambio as cambio:
-            messages.warning(request, cambio.mensaje)
+        except (EstadoCambio, CasoDeOtroOperador) as cambio:
+            messages.warning(request, getattr(cambio, "mensaje", None) or str(cambio))
             return redirect(_url_ficha(caso))
         except FaltanPlazas as faltan:
             return self.faltan_plazas(request, caso, form, faltan)
         except ValidationError as error:
-            messages.error(request, " ".join(error.messages))
+            mensaje = " ".join(error.messages)
+            if self.clave_form and form is not None:
+                form.add_error(None, mensaje)
+                return self.volver_a_mostrar(request, caso, form)
+            messages.error(request, mensaje)
             return redirect(_url_ficha(caso))
         messages.success(request, aviso)
         return redirect(self.destino(caso))
@@ -314,6 +348,9 @@ class ReasignarCasoView(_AccionDeCasoView):
     """Solo quien supervisa (HU-2.6, RU §6 n.° 1). El servicio lo vuelve a exigir."""
 
     form_class = ReasignarCasoForm
+    clave_form = "form_reasignar"
+    auto_id = "reasignar_%s"
+    modal = "reasignar"
 
     def tiene_permiso(self, user):
         return puede_supervisar_la_mesa(user)
@@ -326,6 +363,9 @@ class ReasignarCasoView(_AccionDeCasoView):
 
 class CambiarPrioridadView(_AccionDeCasoView):
     form_class = PrioridadCasoForm
+    clave_form = "form_prioridad"
+    auto_id = "prioridad_%s"
+    modal = "prioridad"
 
     def ejecutar(self, request, caso, form):
         actualizado = servicio.cambiar_prioridad(caso, request.user, form.cleaned_data["prioridad"])
@@ -334,6 +374,8 @@ class CambiarPrioridadView(_AccionDeCasoView):
 
 class ContactoCasoView(_AccionDeCasoView):
     form_class = ContactoCasoForm
+    clave_form = "form_contacto"
+    auto_id = "contacto_%s"
 
     def ejecutar(self, request, caso, form):
         servicio.registrar_contacto(caso, request.user, **form.cleaned_data)
@@ -390,11 +432,16 @@ class UbicarDomicilioView(MesaPermissionMixin, View):
             )
         except ValidationError as error:
             return JsonResponse({"guardado": False, "error": " ".join(error.messages)}, status=400)
+        except CasoDeOtroOperador as otro:
+            return JsonResponse({"guardado": False, "error": str(otro)}, status=409)
         return JsonResponse({"guardado": guardado})
 
 
 class CancelarDerivacionView(_AccionDeCasoView):
     form_class = CancelarDerivacionForm
+    clave_form = "form_cancelar"
+    auto_id = "cancelar_%s"
+    modal = "cancelar"
 
     def ejecutar(self, request, caso, form):
         derivacion = mesa.derivacion_pendiente_de(caso)
@@ -410,6 +457,9 @@ class CancelarDerivacionView(_AccionDeCasoView):
 
 class CerrarCasoView(_AccionDeCasoView):
     form_class = CierreCasoForm
+    clave_form = "form_cierre"
+    auto_id = "cierre_%s"
+    modal = "cerrar"
 
     def ejecutar(self, request, caso, form):
         servicio.cerrar_sin_alojamiento(
