@@ -146,6 +146,23 @@ class TecladoDeSolapasTests(SimpleTestCase):
             log["clicks"], ["t2"], "solo la solapa común se activa; la que navega se abre con Enter o clic"
         )
 
+    def test_al_llegar_a_una_solapa_que_navega_las_demas_dejan_de_ser_tabulables(self):
+        """Activación manual de WAI-ARIA: con el foco en la que navega, solo ella tiene `tabindex="0"`."""
+        log = _correr(
+            "var l = __barra(3, 0, {1: {'data-solapa-navega': ''}});\n"
+            "__log.antes = __tabindex(l);\n"
+            "__tecla(l.hijos[0], 'ArrowRight');\n"
+            "__log.despues = __tabindex(l);\n"
+        )
+
+        self.assertEqual(log["despues"], ["-1", "0", "-1"])
+
+    def test_sin_el_atributo_el_tabindex_lo_reparte_el_click_como_siempre(self):
+        """Las solapas comunes no tocan el resto: lo recalcula `repartirTabindex` al cambiar `aria-selected`."""
+        log = _correr("var l = __barra(3, 0);\n__tecla(l.hijos[0], 'ArrowRight');\n__log.despues = __tabindex(l);\n")
+
+        self.assertEqual(log["despues"], [None, "0", None], "solo la enfocada se marca: el resto lo reparte el click")
+
     def test_home_y_end_tampoco_activan_una_solapa_que_navega(self):
         log = _correr(
             "var l = __barra(3, 1, {2: {'data-solapa-navega': ''}});\n"
