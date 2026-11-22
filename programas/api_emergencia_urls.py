@@ -15,6 +15,7 @@ from programas.api.views_emergencia import (
     MisCasosEmergenciaView,
     PerfilEmergenciaView,
     RaizApiEmergencia,
+    SugerirPersonasEmergenciaView,
 )
 from programas.api.views_emergencia_kits import (
     EntregaKitDetalleView,
@@ -52,6 +53,7 @@ urlpatterns = [
     path("", RaizApiEmergencia.as_view(api_root_dict=INDICE), name="api-root"),
     path("perfil/", PerfilEmergenciaView.as_view(), name="perfil"),
     path("personas/consultar/", ConsultarPersonaEmergenciaView.as_view(), name="personas-consultar"),
+    path("personas/sugerir/", SugerirPersonasEmergenciaView.as_view(), name="personas-sugerir"),
     path("localidades/", LocalidadesEmergenciaView.as_view(), name="localidades"),
     path("casos/", CasosEmergenciaView.as_view(), name="caso-list"),
     path("casos/mios/", MisCasosEmergenciaView.as_view(), name="caso-mios"),

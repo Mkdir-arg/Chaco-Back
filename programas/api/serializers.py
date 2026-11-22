@@ -429,6 +429,19 @@ class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
     datos_api = serializers.DictField()
 
 
+class SugerenciaPersonaSerializer(serializers.Serializer):
+    apellido = serializers.CharField()
+    nombre = serializers.CharField()
+    dni = serializers.CharField()
+
+
+class SugerenciasPersonasSerializer(serializers.Serializer):
+    """La respuesta de ``GET /api/emergencia/personas/sugerir/`` (#1299)."""
+
+    resultados = SugerenciaPersonaSerializer(many=True)
+    hay_mas = serializers.BooleanField()
+
+
 # Adjuntos de la app de campo. El portal publico tiene su propia lista, mas
 # corta (`portal/forms/inscripcion.py`): alla el upload es anonimo y ahi el
 # criterio es el mas duro posible. Aca sube un territorial autenticado desde un
