@@ -81,7 +81,7 @@ for k in sorted(mes_h):
     print(f"  {k}: {hm(mes_h[k])} en filas")
 
 print("\n=== 2. Totales mensuales publicados vs filas ===")
-DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 799.5}
+DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 799.5, "11": 757.5}
 for k in sorted(DECL):
     ok(abs(mes_h.get(k, 0) - DECL[k]) < 0.02, f"{k}: publicado {hm(DECL[k])} vs filas {hm(mes_h.get(k, 0))}")
 
@@ -106,6 +106,7 @@ TABLAS = [
     ("08", "Esfuerzo real de agosto por programa"),
     ("09", "Consumo de septiembre por programa"),
     ("10", "Consumo de octubre por programa"),
+    ("11", "Consumo de noviembre por programa"),
 ]
 for mes, titulo in TABLAS:
     i = next((k for k, ln in enumerate(lineas) if titulo in ln), None)
@@ -131,7 +132,7 @@ for mes, titulo in TABLAS:
         abs(suma - esperado) < 0.02,
         f"{titulo}: total {hm(suma)} vs registro{' + traslado' if mes in TRAS else ''} {hm(esperado)}",
     )
-    if mes in ("09", "10"):
+    if mes in ("09", "10", "11"):
         reg = dict(mes_prog.get(mes, {}))
         reg["Becas"] = reg.get("Becas", 0) + TRAS[mes]
         for p in sorted(set(tabla) | set(reg)):
@@ -145,7 +146,7 @@ i = next(k for k, ln in enumerate(lineas) if "Consumo por persona — acumulado 
 cab = [x.strip() for x in lineas[i + 2].split("|")]
 cols = {}
 for j, x in enumerate(cab):
-    for nombre, mes in (("Junio", "06"), ("Julio", "07"), ("Agosto", "08"), ("Septiembre", "09"), ("Octubre", "10")):
+    for nombre, mes in (("Junio", "06"), ("Julio", "07"), ("Agosto", "08"), ("Septiembre", "09"), ("Octubre", "10"), ("Noviembre", "11")):
         if x.startswith(nombre):
             cols[j] = mes
 suma_col, suma_tot, total_fila = {}, 0.0, None
@@ -185,14 +186,14 @@ ok(
     f"contador {hm(mins / 60)} vs suma de todas las filas {hm(sum(mes_h.values()))}",
 )
 desg = re.findall(
-    r"(Junio|julio|agosto|septiembre|octubre) ([0-9]+) h ([0-9]{2}) min",
+    r"(Junio|julio|agosto|septiembre|octubre|noviembre) ([0-9]+) h ([0-9]{2}) min",
     next(ln for ln in det.split(chr(10)) if ln.strip().startswith("Junio 499")),
 )
 if desg:
     sd = sum(int(a) * 60 + int(b) for _, a, b in desg)
     ok(sd == mins, f"desglose del contador {sd} min vs contador {mins} min")
     for nombre, a, b in desg:
-        mes = {"junio": "06", "julio": "07", "agosto": "08", "septiembre": "09", "octubre": "10"}[nombre.lower()]
+        mes = {"junio": "06", "julio": "07", "agosto": "08", "septiembre": "09", "octubre": "10", "noviembre": "11"}[nombre.lower()]
         ok(
             abs(int(a) + int(b) / 60 - mes_h[mes]) < 0.02,
             f"desglose — {nombre}: {a} h {b} min vs registro {hm(mes_h[mes])}",
