@@ -1,4 +1,4 @@
-{# arquetipo: detalle + apilado #}{# Ficha propia del edificio, solo lectura. Secciones apiladas: molde golden becas/cupo/segmento_detail.html. #}
+{# arquetipo: detalle + apilado #}{# Ficha propia del edificio. «Editar edificio» lleva al modal de la solapa Infraestructura. Secciones apiladas: molde golden becas/cupo/segmento_detail.html. #}
 {% extends "includes/base.html" %}
 {% load nodo_ui %}
 {% block title %}Dispositivos · Edificios · {{ ficha.nombre }}{% endblock %}
@@ -15,6 +15,11 @@
     {% if ficha.url_asignar %}
     <a href="{{ ficha.url_asignar }}" class="btn-nodo btn-secondary btn-sm">
       <i class="fas fa-clipboard-list" aria-hidden="true"></i> Crear relevamiento
+    </a>
+    {% endif %}
+    {% if ficha.url_editar %}
+    <a href="{{ ficha.url_editar }}" class="btn-nodo btn-secondary btn-sm">
+      <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
     </a>
     {% endif %}
   {% endpage_header %}

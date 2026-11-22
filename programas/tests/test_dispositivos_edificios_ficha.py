@@ -7,7 +7,8 @@ Lo que se fija acá:
 2. Instituciones fuera de alcance no se nombran; los sectores son solo los de las instituciones que
    alcanza (CA6).
 3. Sin alcance de inspección: estado y fecha, sin quién relevó, observaciones ni registro (CA7).
-4. «Crear relevamiento» según CA8, y ninguna acción de escritura del edificio (CA12).
+4. «Crear relevamiento» según CA8; «Editar edificio» solo con alcance institución (Cambio 555), y ninguna
+   otra acción de escritura (desvincular, cargar, vincular).
 5. El listado enlaza a la ficha.
 6. El costo de la ficha no crece con relevamientos, fotos ni instituciones (``dispositivos_edificio_ficha``).
 """
@@ -21,7 +22,7 @@ from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from programas.models import Edificio, Plaza, Sector
+from programas.models import Dispositivo, Edificio, MiembroEquipoDispositivo, Plaza, Sector
 from programas.tests.test_dispositivos_edificios_selector import BaseEdificios
 from programas.tests.test_dispositivos_inspecciones import Criticidad
 
@@ -150,17 +151,124 @@ class AccionesTests(BaseFicha):
         self._crear()  # con uno en curso ya no se ofrece
         self.assertNotContains(self._get(coordinador, self.predio), "?asignar=")
 
-    def test_ninguna_accion_de_escritura_del_edificio(self):
-        html = self._get(self.admin, self.predio).content.decode()
+    def test_sin_editar_no_hay_acciones_de_escritura_del_edificio(self):
+        html = self._get(self.del_parador, self.predio).content.decode()
 
         self.assertNotIn(reverse("dispositivos:edificio_editar", args=[self.parador.pk, self.predio.pk]), html)
         for texto in ("Editar edificio", "Desvincular", "Cargar edificio", "Vincular un edificio"):
+            self.assertNotIn(texto, html)
+
+    def test_el_admin_edita_pero_la_ficha_no_desvincula_ni_carga(self):
+        html = self._get(self.admin, self.predio).content.decode()
+
+        self.assertIn("Editar edificio", html)
+        for texto in ("Desvincular", "Cargar edificio", "Vincular un edificio"):
             self.assertNotIn(texto, html)
 
     def test_el_listado_enlaza_a_la_ficha(self):
         respuesta = self._cliente(self.del_parador).get(reverse("dispositivos:edificios"))
 
         self.assertContains(respuesta, _url(self.predio))
+
+
+class EditarEdificioTests(BaseFicha):
+    """«Editar edificio» (Cambio 555): lleva al modal de Infraestructura de una institución que el usuario edita."""
+
+    def _destino(self, dispositivo):
+        return f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?tab=infraestructura&edificio={self.predio.pk}"
+
+    def _miembro_que_edita(self, nombre, dispositivo, alcance=None, edificios=()):
+        usuario = self._usuario(nombre, ("edificio.ver", "dispositivo.ver", "dispositivo.editar"), [dispositivo])
+        if alcance:
+            fila = MiembroEquipoDispositivo.objects.get(usuario=usuario, dispositivo=dispositivo)
+            fila.alcance = alcance
+            fila.save(update_fields=["alcance"])
+            fila.edificios.set(edificios)
+        return usuario
+
+    def test_quien_edita_su_institucion_ve_el_boton_hacia_esa_institucion(self):
+        editor = self._miembro_que_edita("editor_geriatrico", self.geriatrico)
+
+        respuesta = self._get(editor, self.predio)
+
+        self.assertContains(respuesta, "Editar edificio")
+        self.assertEqual(respuesta.context["ficha"]["url_editar"], self._destino(self.geriatrico))
+
+    def test_el_enlace_abre_el_modal_de_edicion_del_edificio(self):
+        editor = self._miembro_que_edita("editor_parador", self.parador)
+
+        respuesta = self._cliente(editor).get(self._get(editor, self.predio).context["ficha"]["url_editar"])
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["edificio_en_edicion"], self.predio)
+
+    def test_sin_dispositivo_editar_no_hay_boton(self):
+        lector = self._usuario("lector", ("edificio.ver", "dispositivo.ver"), [self.parador])
+
+        self.assertEqual(self._get(lector, self.predio).context["ficha"]["url_editar"], "")
+
+    def test_con_alcance_edificios_no_hay_boton_aunque_el_edificio_este_en_su_alcance(self):
+        limitado = self._miembro_que_edita(
+            "limitado", self.parador, MiembroEquipoDispositivo.Alcance.EDIFICIOS, [self.predio]
+        )
+
+        respuesta = self._get(limitado, self.predio)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["ficha"]["url_editar"], "")
+        self.assertNotContains(respuesta, "Editar edificio")
+
+    def test_en_un_dispositivo_cerrado_no_hay_boton(self):
+        editor = self._miembro_que_edita("editor_cerrado", self.parador)
+        Dispositivo.objects.filter(pk=self.parador.pk).update(estado=Dispositivo.Estado.CERRADO)
+
+        self.assertEqual(self._get(editor, self.predio).context["ficha"]["url_editar"], "")
+
+    def test_el_servidor_rechaza_editar_sin_capacidad_o_desde_otra_institucion(self):
+        lector = self._usuario("lector_post", ("edificio.ver", "dispositivo.ver"), [self.parador])
+        ajeno = self._miembro_que_edita("editor_cis", self.cis)
+        limitado = self._miembro_que_edita(
+            "limitado_post", self.parador, MiembroEquipoDispositivo.Alcance.EDIFICIOS, [self.predio]
+        )
+        datos = {"codigo": "ED-PREDIO", "nombre": "Cambiado"}
+
+        casos = (
+            (lector, self.parador, {403}),
+            (ajeno, self.parador, {403, 404}),
+            (ajeno, self.cis, {404}),  # el predio no es de su institución
+            (limitado, self.parador, {403, 404}),
+        )
+        for usuario, desde, esperados in casos:
+            with self.subTest(usuario=usuario.username, desde=desde.codigo):
+                url = reverse("dispositivos:edificio_editar", args=[desde.pk, self.predio.pk])
+                respuesta = self._cliente(usuario).post(url, datos, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+                self.assertIn(respuesta.status_code, esperados)
+                self.predio.refresh_from_db()
+                self.assertEqual(self.predio.nombre, "Predio Resistencia")
+
+    def test_quien_edita_su_institucion_guarda_el_cambio(self):
+        editor = self._miembro_que_edita("editor_guarda", self.parador)
+        url = reverse("dispositivos:edificio_editar", args=[self.parador.pk, self.predio.pk])
+
+        respuesta = self._cliente(editor).post(
+            url, {"codigo": "ED-PREDIO", "nombre": "Predio Norte", "calle": "Av. Sarmiento", "numero": "1234"}
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.predio.refresh_from_db()
+        self.assertEqual(self.predio.nombre, "Predio Norte")
+
+    def test_el_nombre_vacio_se_rechaza_con_error_de_campo(self):
+        editor = self._miembro_que_edita("editor_vacio", self.parador)
+        url = reverse("dispositivos:edificio_editar", args=[self.parador.pk, self.predio.pk])
+
+        respuesta = self._cliente(editor).post(
+            url, {"codigo": "ED-PREDIO", "nombre": ""}, HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.predio.refresh_from_db()
+        self.assertEqual(self.predio.nombre, "Predio Resistencia")
 
 
 @tag("performance")
@@ -189,6 +297,20 @@ class PresupuestoTests(BaseFicha):
         self.assertEqual((eventos_antes, eventos_despues), (1, 7))
         self.assertEqual(antes, despues)
         self.assertLessEqual(despues, techo["consultas_fijas"])
+
+    def test_el_peor_caso_con_un_relevamiento_en_curso_entra_en_el_techo(self):
+        Sector.objects.create(dispositivo=self.parador, edificio=self.predio, nombre="Norte")
+        self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",))
+        self._crear()  # asignado y sin resultado: suma la consulta de quién ve la asignación
+        _eventos, antes = self._medir()
+        for numero in range(3):
+            Sector.objects.create(dispositivo=self.geriatrico, edificio=self.predio, nombre=f"Sector {numero}")
+        self.predio.dispositivos.add(self.cis)
+        _eventos, con_en_curso = self._medir()
+
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"]["dispositivos_edificio_ficha"]
+        self.assertEqual(antes, con_en_curso)
+        self.assertEqual(con_en_curso, techo["consultas_fijas"])
 
 
 class VolverDelInformeTests(BaseFicha):
