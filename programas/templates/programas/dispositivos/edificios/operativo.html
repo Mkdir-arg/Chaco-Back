@@ -1,0 +1,177 @@
+{# arquetipo: detalle #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · {{ dispositivo.nombre }} · {{ edificio.nombre }}{% endblock %}
+
+{% block main-content %}
+{# La solapa abierta la normaliza el servicio (`normalizar_solapa`): una que este usuario no tiene cae en la de siempre #}
+<div x-data="{ tab: '{{ tab }}' }">
+  <div class="space-y-5">
+
+    {# ===== PageHeader: el edificio, siempre en el contexto de su institución ===== #}
+    {% page_header titulo=edificio.nombre bajada=edificio.codigo volver_url=url_institucion volver_label=dispositivo.nombre migas=migas %}
+      {% if url_ingreso %}
+      <a href="{{ url_ingreso }}" class="btn-nodo btn-brand btn-sm btn-fit">
+        <i class="fas fa-plus" aria-hidden="true"></i> Ingresar persona
+      </a>
+      {% endif %}
+      <a href="{{ url_bitacora }}" class="btn-nodo btn-secondary btn-sm btn-fit">
+        <i class="fas fa-clock" aria-hidden="true"></i> Bitácora
+      </a>
+      {# Cada ítem solo con su capacidad y su alcance sobre este edificio; si ninguno corresponde, el menú no se dibuja #}
+      {% if hay_mas_acciones %}
+      {% menu_fila id="acciones-edificio" etiqueta="Acciones de "|add:edificio.nombre texto="Más acciones" %}
+        {% if url_editar %}
+        {% include "components/_menu_fila_item.html" with texto="Editar edificio" icono="fa-pen" url=url_editar only %}
+        {% endif %}
+        {% if url_llegadas %}
+        {% include "components/_menu_fila_item.html" with texto="Emergencia · Llegadas" icono="fa-people-roof" url=url_llegadas only %}
+        {% endif %}
+        {% if url_kits %}
+        {% include "components/_menu_fila_item.html" with texto="Emergencia · Kits" icono="fa-box-open" url=url_kits only %}
+        {% endif %}
+        {% if url_recibir_kit %}
+        {% include "components/_menu_fila_item.html" with texto="Recibir kit" icono="fa-truck-ramp-box" url=url_recibir_kit only %}
+        {% endif %}
+        {% if url_relevamiento %}
+        {% include "components/_menu_fila_item.html" with texto="Crear relevamiento" icono="fa-clipboard-check" url=url_relevamiento only %}
+        {% endif %}
+        {% if url_desvincular %}
+        {% include "components/_menu_fila_item.html" with texto="Desvincular de "|add:dispositivo.nombre icono="fa-link-slash" peligro=True confirm_url=url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+        {% endif %}
+      {% endmenu_fila %}
+      {% endif %}
+    {% endpage_header %}
+
+    {# ===== Franja de datos: sección aparte, 4 columnas, no se comprime en el encabezado ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-label="Datos del edificio">
+      <dl class="p-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Institución</dt>
+          <dd class="mt-2 text-sm font-semibold text-heading"><a href="{{ url_institucion }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a></dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt>
+          <dd class="mt-2 text-sm text-body">{% for linea in domicilio %}{{ linea }}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="text-body-subtle">Sin domicilio cargado</span>{% endfor %}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Estado edilicio</dt>
+          <dd class="mt-2"><span class="badge badge-dot badge-{{ estado_edilicio.tono }}">{{ estado_edilicio.texto }}</span><p class="text-xs text-body-subtle mt-1">{{ estado_edilicio.detalle }}</p></dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase text-body-subtle">Equipo en turno</dt>
+          <dd class="mt-2 text-sm text-body">{% if equipo_en_turno.nombres %}{{ equipo_en_turno.nombres }}{% else %}<span class="text-body-subtle">Sin personas en el Equipo</span>{% endif %}<p class="text-xs text-body-subtle mt-1">{{ equipo_en_turno.turno }}</p></dd>
+        </div>
+      </dl>
+    </section>
+
+    {# El aviso dice que el predio es compartido y nada más: ningún dato de la otra institución #}
+    {% if predio_compartido %}
+    {% include "components/_alerta.html" with tono="info" titulo="Predio compartido." texto="En este edificio también funciona otra institución. Acá ves solo los sectores, las personas y los kits de "|add:dispositivo.nombre|add:"." role="status" %}
+    {% endif %}
+
+    {# ===== Indicadores del edificio: salen del censo de plazas de este edificio y de esta institución ===== #}
+    {% if maneja_plazas %}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicadores-edificio">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="indicadores-edificio" class="text-heading font-bold">Indicadores del edificio</h2>
+        <p class="text-xs text-body-subtle mt-1">Derivados de plazas y estadías de este edificio; no admiten carga manual.</p>
+      </div>
+      <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for indicador in indicadores %}
+        {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono|default:"brand" nota=indicador.nota variante="tablero" %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {# ===== Solapas ===== #}
+    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+
+      <div class="border-b border-base">
+      <div class="flex gap-1 px-2 overflow-x-auto -mb-px" role="tablist" aria-label="Secciones del edificio">
+        {% if maneja_plazas %}
+        <button @click="tab='sectores'" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
+                :aria-selected="tab==='sectores'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-bed" aria-hidden="true"></i> Sectores y plazas
+          <span class="badge" :class="tab==='sectores' ? 'badge-info' : 'badge-gray'">{{ contadores.sectores }}</span>
+        </button>
+        {% endif %}
+        <button @click="tab='estadias'" type="button" role="tab" id="tab-estadias" aria-controls="panel-estadias"
+                :aria-selected="tab==='estadias'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='estadias' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-users" aria-hidden="true"></i> Estadías
+          <span class="badge" :class="tab==='estadias' ? 'badge-info' : 'badge-gray'">{{ contadores.estadias }}</span>
+        </button>
+        {# Kits: el botón y el panel van bajo el mismo `{% if %}` (la vista da `puede_kits` con `emergencia.recibir_kit` sobre este edificio) #}
+        {% if puede_kits %}
+        <button @click="tab='kits'" type="button" role="tab" id="tab-kits" aria-controls="panel-kits"
+                :aria-selected="tab==='kits'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='kits' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-box-open" aria-hidden="true"></i> Kits
+          <span class="badge" :class="tab==='kits' ? 'badge-info' : 'badge-gray'">{{ contadores.kits }}</span>
+        </button>
+        {% endif %}
+        <button @click="tab='equipo'" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo"
+                :aria-selected="tab==='equipo'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='equipo' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-people-group" aria-hidden="true"></i> Equipo
+          <span class="badge" :class="tab==='equipo' ? 'badge-info' : 'badge-gray'">{{ contadores.equipo }}</span>
+        </button>
+        <button @click="tab='edilicio'" type="button" role="tab" id="tab-edilicio" aria-controls="panel-edilicio"
+                :aria-selected="tab==='edilicio'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='edilicio' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-building" aria-hidden="true"></i> Estado edilicio
+          <span class="badge badge-dot badge-{{ estado_edilicio.tono }}">{{ estado_edilicio.texto }}</span>
+        </button>
+        {# Historial: sin contador hasta el PR 7, que define qué eventos entran #}
+        <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
+                :aria-selected="tab==='historial'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial
+        </button>
+      </div>
+      </div>
+
+      {# Cada panel es UN include: los PR 1 a 7 reemplazan el contenido de su archivo y no tocan este template #}
+      {% if maneja_plazas %}
+      <div x-show="tab==='sectores'" x-cloak role="tabpanel" id="panel-sectores" aria-labelledby="tab-sectores" class="p-5">
+        {% include "programas/dispositivos/edificios/operativo/_sectores.html" %}
+      </div>
+      {% endif %}
+
+      <div x-show="tab==='estadias'" x-cloak role="tabpanel" id="panel-estadias" aria-labelledby="tab-estadias" class="p-5">
+        {% include "programas/dispositivos/edificios/operativo/_estadias.html" %}
+      </div>
+
+      {% if puede_kits %}
+      <div x-show="tab==='kits'" x-cloak role="tabpanel" id="panel-kits" aria-labelledby="tab-kits" class="p-5">
+        {% include "programas/dispositivos/edificios/operativo/_kits.html" %}
+      </div>
+      {% endif %}
+
+      <div x-show="tab==='equipo'" x-cloak role="tabpanel" id="panel-equipo" aria-labelledby="tab-equipo" class="p-5">
+        {% include "programas/dispositivos/edificios/operativo/_equipo.html" %}
+      </div>
+
+      <div x-show="tab==='edilicio'" x-cloak role="tabpanel" id="panel-edilicio" aria-labelledby="tab-edilicio" class="p-5">
+        {% include "programas/dispositivos/edificios/operativo/_edilicio.html" %}
+      </div>
+
+      <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial" class="p-5">
+        {% include "programas/dispositivos/edificios/operativo/_historial.html" %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

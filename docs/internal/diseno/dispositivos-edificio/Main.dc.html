@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Institución con sus edificios</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/a362da3a4619200534fada4ce0ed269d">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:var(--fondo-principal)}
+a{color:var(--text-fg-brand)}a:hover{color:var(--text-fg-brand-strong)}
+</style>
+</helmet>
+<div class="font-sans" style="display:flex;min-height:1640px;background:var(--fondo-principal)">
+
+  <aside style="width:288px;flex:none;background:var(--bg-white);border-right:1px solid var(--border-base);display:flex;flex-direction:column">
+    <div style="padding:16px;border-bottom:1px solid var(--border-base)">
+      <div class="flex items-center gap-3">
+        <img src="/_blob/32c48d2e31c0093738c6401741fbea8d" alt="" style="width:32px;height:32px;object-fit:contain">
+        <div class="min-w-0">
+          <p style="font-size:15px;font-weight:800;color:var(--text-heading);line-height:1.15;margin:0">DATAÑACH</p>
+          <p style="font-size:11.5px;color:var(--text-body-subtle);line-height:1.3;margin:0">Gobierno del Chaco</p>
+        </div>
+      </div>
+    </div>
+    <nav aria-label="Menú principal" style="padding:12px;display:flex;flex-direction:column;gap:2px">
+      <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none"><i class="fas fa-house" style="width:20px;color:var(--text-body-subtle)" aria-hidden="true"></i>Dashboard</a>
+      <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none"><i class="fas fa-graduation-cap" style="width:20px;color:var(--text-body-subtle)" aria-hidden="true"></i>Programas</a>
+      <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none"><i class="fas fa-truck-medical" style="width:20px;color:var(--text-body-subtle)" aria-hidden="true"></i>Emergencia</a>
+      <div>
+        <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20" aria-hidden="true" style="color:var(--text-body-subtle);flex:none"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"></path></svg>
+          <span class="flex-1">Dispositivos</span><i class="fas fa-chevron-up" style="font-size:11px;color:var(--text-body-subtle)" aria-hidden="true"></i>
+        </a>
+        <div style="margin:2px 0 0 20px;display:flex;flex-direction:column;gap:2px">
+          <a href="#" aria-current="page" class="flex items-center gap-2" style="padding:8px 12px;border-radius:9999px;text-decoration:none;font-size:13px;background:var(--bg-brand);color:#fff;font-weight:700"><i class="fas fa-building" style="width:16px" aria-hidden="true"></i>Instituciones</a>
+          <a href="#" class="flex items-center gap-2" style="padding:8px 12px;border-radius:9999px;text-decoration:none;font-size:13px;color:var(--text-body-subtle);font-weight:500"><i class="fas fa-city" style="width:16px" aria-hidden="true"></i>Edificios</a>
+          <a href="#" class="flex items-center gap-2" style="padding:8px 12px;border-radius:9999px;text-decoration:none;font-size:13px;color:var(--text-body-subtle);font-weight:500"><i class="fas fa-clipboard-list" style="width:16px" aria-hidden="true"></i>Relevamientos</a>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <div style="flex:1;min-width:0">
+    <div class="flex h-16 items-center gap-x-6 border-b px-6 shadow-sm" style="background:var(--bg-primary);border-color:var(--border-base)">
+      <div class="flex flex-1 items-center">
+        <div class="relative" style="width:320px">
+          <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3" style="color:var(--text-body-subtle)"><i class="fas fa-magnifying-glass" aria-hidden="true"></i></span>
+          <label class="sr-only" for="buscar-1">Buscar ciudadanos</label>
+          <input id="buscar-1" type="search" placeholder="Buscar ciudadanos..." style="height:40px;border-radius:9999px;background:var(--bg-secondary);border:1px solid var(--border-base);padding:0 14px 0 40px;font-size:13.5px;font-family:var(--font-sans);color:var(--text-heading);width:100%;box-sizing:border-box">
+        </div>
+      </div>
+      <div class="flex items-center gap-x-6">
+        <i class="fas fa-bell" style="font-size:22px;color:var(--text-body-subtle)" aria-hidden="true"></i>
+        <div class="flex items-center">
+          <span class="rounded-full flex items-center justify-center" style="width:36px;height:36px;background:var(--gradient-brand);font-size:14px;font-weight:700;color:#fff">OP</span>
+          <span class="ml-4 text-sm font-semibold" style="color:var(--text-heading)">[Operador]</span>
+        </div>
+      </div>
+    </div>
+
+    <main style="padding:40px 32px">
+      <div class="space-y-5">
+
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div class="flex items-start gap-3 min-w-0">
+              <a href="#" class="btn-tertiary btn-back-circle" aria-label="Volver a Instituciones"><i class="fas fa-arrow-left" aria-hidden="true"></i></a>
+              <div class="min-w-0">
+                <div class="flex items-center gap-3 flex-wrap">
+                  <h1 class="text-3xl font-extrabold text-heading tracking-tight">Parador Resistencia</h1>
+                  <span class="badge badge-dot badge-success">Activo</span>
+                </div>
+                <p class="text-sm text-body-subtle mt-1">DIS-0022 · Parador · 3 edificios · Resistencia</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="#" class="btn-nodo btn-secondary btn-sm btn-fit"><i class="fas fa-pen" aria-hidden="true"></i> Editar</a>
+              <button type="button" class="btn-nodo btn-secondary btn-sm btn-fit">Más acciones <i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="status">
+          <i class="fas fa-triangle-exclamation text-lg flex-shrink-0 text-fg-warning" aria-hidden="true"></i>
+          <div class="flex-1 min-w-0">
+            <strong class="text-heading">Anexo Sur no tiene plazas disponibles</strong>
+            <p class="text-body mt-1">Para ingresar a alguien hoy, abrí el Edificio Norte o el Predio Villa Río Negro.</p>
+          </div>
+          <a href="Edificio.dc.html" class="flex-shrink-0 font-medium underline text-fg-warning">Ver Anexo Sur</a>
+        </div>
+
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicadores-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="indicadores-titulo" class="text-heading font-bold">Indicadores operativos</h2>
+            <p class="text-xs text-body-subtle mt-1">Suma de los 3 edificios. El detalle de cada uno está en su tarjeta.</p>
+          </div>
+          <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <sc-for list="{{ indicadores }}" as="k" hint-placeholder-count="4">
+              <div class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm">
+                <div class="flex items-center justify-between gap-2 nodo-stat-tablero-cab">
+                  <p class="text-xs font-semibold text-body-subtle">{{ k.etiqueta }}</p>
+                  <div class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 {{ k.ico }}"><i class="fas {{ k.icono }}" aria-hidden="true"></i></div>
+                </div>
+                <p class="text-2xl font-bold text-heading mt-2 nodo-stat-tablero-valor">{{ k.valor }}</p>
+                <p class="text-xs text-body-subtle mt-1">{{ k.nota }}</p>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="edificios-titulo">
+          <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
+            <div class="min-w-0">
+              <h2 id="edificios-titulo" class="text-heading font-bold">Edificios · 3</h2>
+              <p class="text-xs text-body-subtle mt-1">Cada edificio maneja sus plazas, sus ingresos y egresos, y sus kits.</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="#" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-link" aria-hidden="true"></i> Vincular edificio</a>
+              <a href="#" class="btn-nodo btn-secondary btn-sm btn-fit"><i class="fas fa-plus" aria-hidden="true"></i> Agregar edificio</a>
+            </div>
+          </div>
+          <div class="p-5 grid gap-4 lg:grid-cols-3">
+            <sc-for list="{{ edificios }}" as="e" hint-placeholder-count="3">
+              <article class="rounded-xl border border-base bg-white shadow-sm flex flex-col overflow-hidden">
+                <header class="px-5 py-4 border-b border-light flex items-start gap-3">
+                  <div class="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 {{ e.icoCls }}"><i class="fas fa-building text-lg" aria-hidden="true"></i></div>
+                  <div class="min-w-0 flex-1">
+                    <h3 class="text-sm font-bold text-heading"><a href="Edificio.dc.html" class="hover:underline">{{ e.nombre }}</a></h3>
+                    <p class="text-xs text-body-subtle">{{ e.codigo }} · {{ e.domicilio }}</p>
+                  </div>
+                  <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit" aria-label="Acciones del edificio {{ e.nombre }}"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></button>
+                </header>
+                <div class="px-5 py-4 space-y-3.5 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="badge badge-dot badge-{{ e.tonoEdilicio }}">{{ e.edilicio }}</span>
+                    <sc-if value="{{ e.compartido }}" hint-placeholder-val="{{ false }}"><span class="badge badge-info">Predio compartido</span></sc-if>
+                  </div>
+                  <div>
+                    <p class="text-xs font-semibold uppercase text-body-subtle">Ocupación</p>
+                    <div class="flex items-center gap-3 mt-1">
+                      <span class="nodo-barra-umbral flex-1 min-w-0"><span class="nodo-barra-umbral-pista block h-2 rounded-full overflow-hidden bg-tertiary"><span class="nodo-barra-umbral-relleno nodo-ficha-medidor block h-full max-w-full rounded-full {{ e.barra }}" style="--avance:{{ e.pct }}%"></span></span></span>
+                      <span class="text-sm font-semibold text-heading tabular-nums whitespace-nowrap">{{ e.cifra }}</span>
+                      <span class="badge badge-{{ e.tono }} whitespace-nowrap"><i class="fas {{ e.tonoIco }}" aria-hidden="true"></i> {{ e.nivel }}</span>
+                    </div>
+                  </div>
+                  <dl class="divide-y divide-light text-sm">
+                    <div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Disponibles</dt><dd class="font-semibold text-heading">{{ e.disponibles }}</dd></div>
+                    <div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Kits</dt><dd class="font-semibold {{ e.kitsCls }}">{{ e.kits }}</dd></div>
+                    <div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Equipo</dt><dd class="font-semibold {{ e.equipoCls }}">{{ e.equipo }}</dd></div>
+                  </dl>
+                </div>
+                <footer class="px-5 py-3 border-t border-light bg-secondary flex items-center justify-between gap-3 text-sm">
+                  <span class="text-body-subtle">{{ e.movimientos }}</span>
+                  <a href="Edificio.dc.html" class="text-fg-brand font-medium hover:underline whitespace-nowrap">Abrir edificio <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                </footer>
+              </article>
+            </sc-for>
+          </div>
+        </section>
+
+        <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+          <div class="border-b border-base">
+            <div class="flex gap-1 px-2 overflow-x-auto -mb-px" role="tablist" aria-label="Secciones de la institución">
+              <button type="button" role="tab" aria-selected="true" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-fg-brand border-brand font-bold"><i class="fas fa-id-card" aria-hidden="true"></i> Datos</button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-users" aria-hidden="true"></i> Personas alojadas <span class="badge badge-gray">40</span></button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-people-group" aria-hidden="true"></i> Equipo <span class="badge badge-gray">6</span></button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial <span class="badge badge-gray">128</span></button>
+            </div>
+          </div>
+          <div class="p-6">
+            <dl class="grid gap-5 sm:grid-cols-2 break-words">
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">Parador</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Categoría</dt><dd class="mt-1 text-body">[categoría]</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Área del Ministerio</dt><dd class="mt-1 text-body">[área]</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Dependencia de la gestión</dt><dd class="mt-1 text-body">[dependencia]</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">[responsable]</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">[teléfono]</dd></div>
+            </dl>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1640}}'>
+class Component extends DCLogic {
+renderVals() {
+  const tonos = {
+    success: { barra: 'bg-success', ico: 'fa-circle-check', icoCls: 'bg-success-soft text-fg-success' },
+    warning: { barra: 'bg-warning', ico: 'fa-triangle-exclamation', icoCls: 'bg-warning-soft text-fg-warning' },
+    danger: { barra: 'bg-danger', ico: 'fa-circle-xmark', icoCls: 'bg-danger-soft text-fg-danger' },
+    gray: { barra: 'bg-tertiary', ico: 'fa-circle', icoCls: 'bg-secondary text-body-subtle' }
+  };
+  const base = [
+    { nombre: 'Edificio Norte', codigo: 'EDI-055', domicilio: 'Av. Sarmiento 1400 · Resistencia', edilicio: 'Relevado · sin observaciones', tonoEdilicio: 'success', compartido: true, pct: 83, cifra: '19 / 23', tono: 'warning', nivel: 'Exigida', disponibles: '2', kits: 'Ninguno pendiente', kitsCls: 'text-heading', equipo: '3 personas', equipoCls: 'text-heading', movimientos: 'Hoy: 3 ingresos · 1 egreso', edi: 'success' },
+    { nombre: 'Anexo Sur', codigo: 'EDI-056', domicilio: 'Calle 12 n.º 350 · Resistencia', edilicio: 'Relevamiento vencido', tonoEdilicio: 'warning', compartido: false, pct: 100, cifra: '16 / 16', tono: 'danger', nivel: 'Crítica', disponibles: '0', kits: '1 en camino', kitsCls: 'text-fg-warning', equipo: '2 personas', equipoCls: 'text-heading', movimientos: 'Hoy: 2 egresos previstos', edi: 'warning' },
+    { nombre: 'Predio Villa Río Negro', codigo: 'EDI-061', domicilio: 'Ruta 11 km 1002 · Resistencia', edilicio: 'Sin relevar', tonoEdilicio: 'gray', compartido: false, pct: 42, cifra: '5 / 12', tono: 'success', nivel: 'Holgada', disponibles: '7', kits: 'Ninguno pendiente', kitsCls: 'text-heading', equipo: 'Sin nadie asignado', equipoCls: 'text-fg-danger', movimientos: 'Hoy: sin movimientos', edi: 'gray' }
+  ];
+  const edificios = base.map((e) => ({ ...e, barra: tonos[e.tono].barra, tonoIco: tonos[e.tono].ico, icoCls: tonos[e.edi].icoCls }));
+  const indicadores = [
+    { etiqueta: 'Ocupación', valor: '78 %', icono: 'fa-chart-simple', ico: 'bg-warning-soft text-fg-warning', nota: 'Exigida · 40 de 51 operativas' },
+    { etiqueta: 'Plazas operativas', valor: '51', icono: 'fa-bed', ico: 'bg-brand-soft text-fg-brand', nota: '52 cargadas · 1 fuera de servicio' },
+    { etiqueta: 'Reservadas o prestadas', valor: '2', icono: 'fa-bookmark', ico: 'bg-brand-soft text-fg-brand', nota: 'reservas y préstamos vigentes' },
+    { etiqueta: 'Disponibles', valor: '9', icono: 'fa-door-open', ico: 'bg-brand-soft text-fg-brand', nota: 'operativas sin ocupar ni reservar' }
+  ];
+  return { edificios, indicadores };
+}
+}
+</script>
+</body>
+</html>

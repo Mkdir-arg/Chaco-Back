@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Edificio · Equipo</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/a362da3a4619200534fada4ce0ed269d">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:var(--fondo-principal)}
+a{color:var(--text-fg-brand)}a:hover{color:var(--text-fg-brand-strong)}
+</style>
+</helmet>
+<div class="font-sans" style="display:flex;min-height:1640px;background:var(--fondo-principal)">
+
+  <aside style="width:288px;flex:none;background:var(--bg-white);border-right:1px solid var(--border-base);display:flex;flex-direction:column">
+    <div style="padding:16px;border-bottom:1px solid var(--border-base)">
+      <div class="flex items-center gap-3">
+        <img src="/_blob/32c48d2e31c0093738c6401741fbea8d" alt="" style="width:32px;height:32px;object-fit:contain">
+        <div class="min-w-0">
+          <p style="font-size:15px;font-weight:800;color:var(--text-heading);line-height:1.15;margin:0">DATAÑACH</p>
+          <p style="font-size:11.5px;color:var(--text-body-subtle);line-height:1.3;margin:0">Gobierno del Chaco</p>
+        </div>
+      </div>
+    </div>
+    <nav aria-label="Menú principal" style="padding:12px;display:flex;flex-direction:column;gap:2px">
+      <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none"><i class="fas fa-house" style="width:20px;color:var(--text-body-subtle)" aria-hidden="true"></i>Dashboard</a>
+      <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none"><i class="fas fa-graduation-cap" style="width:20px;color:var(--text-body-subtle)" aria-hidden="true"></i>Programas</a>
+      <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none"><i class="fas fa-truck-medical" style="width:20px;color:var(--text-body-subtle)" aria-hidden="true"></i>Emergencia</a>
+      <div>
+        <a href="#" class="flex items-center gap-x-3" style="padding:10px 14px;border-radius:9999px;color:var(--text-body);font-weight:500;font-size:13.5px;text-decoration:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20" aria-hidden="true" style="color:var(--text-body-subtle);flex:none"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"></path></svg>
+          <span class="flex-1">Dispositivos</span><i class="fas fa-chevron-up" style="font-size:11px;color:var(--text-body-subtle)" aria-hidden="true"></i>
+        </a>
+        <div style="margin:2px 0 0 20px;display:flex;flex-direction:column;gap:2px">
+          <a href="#" aria-current="page" class="flex items-center gap-2" style="padding:8px 12px;border-radius:9999px;text-decoration:none;font-size:13px;background:var(--bg-brand);color:#fff;font-weight:700"><i class="fas fa-building" style="width:16px" aria-hidden="true"></i>Instituciones</a>
+          <a href="#" class="flex items-center gap-2" style="padding:8px 12px;border-radius:9999px;text-decoration:none;font-size:13px;color:var(--text-body-subtle);font-weight:500"><i class="fas fa-city" style="width:16px" aria-hidden="true"></i>Edificios</a>
+          <a href="#" class="flex items-center gap-2" style="padding:8px 12px;border-radius:9999px;text-decoration:none;font-size:13px;color:var(--text-body-subtle);font-weight:500"><i class="fas fa-clipboard-list" style="width:16px" aria-hidden="true"></i>Relevamientos</a>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <div style="flex:1;min-width:0">
+    <div class="flex h-16 items-center gap-x-6 border-b px-6 shadow-sm" style="background:var(--bg-primary);border-color:var(--border-base)">
+      <div class="flex flex-1 items-center">
+        <div class="relative" style="width:320px">
+          <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3" style="color:var(--text-body-subtle)"><i class="fas fa-magnifying-glass" aria-hidden="true"></i></span>
+          <label class="sr-only" for="buscar-2">Buscar ciudadanos</label>
+          <input id="buscar-2" type="search" placeholder="Buscar ciudadanos..." style="height:40px;border-radius:9999px;background:var(--bg-secondary);border:1px solid var(--border-base);padding:0 14px 0 40px;font-size:13.5px;font-family:var(--font-sans);color:var(--text-heading);width:100%;box-sizing:border-box">
+        </div>
+      </div>
+      <div class="flex items-center gap-x-6">
+        <i class="fas fa-bell" style="font-size:22px;color:var(--text-body-subtle)" aria-hidden="true"></i>
+        <div class="flex items-center">
+          <span class="rounded-full flex items-center justify-center" style="width:36px;height:36px;background:var(--gradient-brand);font-size:14px;font-weight:700;color:#fff">OP</span>
+          <span class="ml-4 text-sm font-semibold" style="color:var(--text-heading)">[Operador]</span>
+        </div>
+      </div>
+    </div>
+
+    <main style="padding:40px 32px">
+      <div class="space-y-5">
+
+        <div class="space-y-3">
+          <nav aria-label="Migas">
+            <ol class="flex items-center gap-1.5 flex-wrap text-xs text-body-subtle">
+              <li>Dispositivos</li><li aria-hidden="true">/</li>
+              <li><a href="#" class="text-fg-brand hover:underline">Instituciones</a></li><li aria-hidden="true">/</li>
+              <li><a href="Main.dc.html" class="text-fg-brand hover:underline">Parador Resistencia</a></li><li aria-hidden="true">/</li>
+              <li aria-current="page" class="font-semibold text-body">Edificio Norte</li>
+            </ol>
+          </nav>
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div class="flex items-start gap-3 min-w-0">
+              <a href="Main.dc.html" class="btn-tertiary btn-back-circle" aria-label="Volver a Parador Resistencia"><i class="fas fa-arrow-left" aria-hidden="true"></i></a>
+              <div class="min-w-0">
+                <h1 class="text-3xl font-extrabold text-heading tracking-tight">Edificio Norte</h1>
+                <p class="text-sm text-body-subtle mt-1">EDI-055</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="#" class="btn-nodo btn-brand btn-sm btn-fit"><i class="fas fa-plus" aria-hidden="true"></i> Ingresar persona</a>
+              <a href="#" class="btn-nodo btn-secondary btn-sm btn-fit"><i class="fas fa-clock" aria-hidden="true"></i> Bitácora</a>
+              <button type="button" class="btn-nodo btn-secondary btn-sm btn-fit">Más acciones <i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-label="Datos del edificio" style="margin-top:28px">
+          <dl class="p-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt class="text-xs font-semibold uppercase text-body-subtle">Institución</dt>
+              <dd class="mt-2 text-sm font-semibold text-heading"><a href="Main.dc.html" class="text-fg-brand hover:underline">Parador Resistencia</a></dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt>
+              <dd class="mt-2 text-sm text-body">Av. Sarmiento 1400<br>Resistencia, Chaco</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-body-subtle">Estado edilicio</dt>
+              <dd class="mt-2"><span class="badge badge-dot badge-success">Relevado</span><p class="text-xs text-body-subtle mt-1">Sin observaciones · [fecha]</p></dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-body-subtle">Equipo en turno</dt>
+              <dd class="mt-2 text-sm text-body">[Operador 1] · [Operador 2]<p class="text-xs text-body-subtle mt-1">Turno mañana</p></dd>
+            </div>
+          </dl>
+        </section>
+
+        <div class="flex items-center gap-2" style="margin-top:28px;padding:12px 14px;border-radius:10px;background:var(--bg-info-soft);border:1px solid var(--color-brand-200)" role="status">
+          <i class="fas fa-circle-info flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
+          <div class="flex-1 min-w-0">
+            <span style="font-size:12.5px;color:var(--text-body)"><strong class="text-heading">Predio compartido.</strong> En este edificio también funciona otra institución. Acá ves solo los sectores, las personas y los kits del Parador.</span>
+          </div>
+        </div>
+
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicadores-edificio" style="margin-top:28px">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="indicadores-edificio" class="text-heading font-bold">Indicadores del edificio</h2>
+            <p class="text-xs text-body-subtle mt-1">Derivados de plazas y estadías de este edificio; no admiten carga manual.</p>
+          </div>
+          <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <sc-for list="{{ indicadores }}" as="k" hint-placeholder-count="4">
+              <div class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm">
+                <div class="flex items-center justify-between gap-2 nodo-stat-tablero-cab">
+                  <p class="text-xs font-semibold text-body-subtle">{{ k.etiqueta }}</p>
+                  <div class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 {{ k.ico }}"><i class="fas {{ k.icono }}" aria-hidden="true"></i></div>
+                </div>
+                <p class="text-2xl font-bold text-heading mt-2 nodo-stat-tablero-valor">{{ k.valor }}</p>
+                <p class="text-xs text-body-subtle mt-1">{{ k.nota }}</p>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+          <div class="border-b border-base">
+            <div class="flex gap-1 px-2 overflow-x-auto -mb-px" role="tablist" aria-label="Secciones del edificio">
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-bed" aria-hidden="true"></i> Sectores y plazas <span class="badge badge-gray">24</span></button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-users" aria-hidden="true"></i> Estadías <span class="badge badge-gray">19</span></button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-box-open" aria-hidden="true"></i> Kits <span class="badge badge-gray">2</span></button>
+              <button type="button" role="tab" aria-selected="true" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-fg-brand border-brand font-bold"><i class="fas fa-people-group" aria-hidden="true"></i> Equipo <span class="badge badge-info">3</span></button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-building" aria-hidden="true"></i> Estado edilicio <span class="badge badge-dot badge-success">Relevado</span></button>
+              <button type="button" role="tab" aria-selected="false" class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap text-body-subtle border-transparent font-medium"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial <span class="badge badge-gray">54</span></button>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
+              <p class="text-xs text-body-subtle">Quienes trabajan en este edificio, con el rol con el que lo hacen. Los responsables arman el Equipo.</p>
+              <a href="#" class="btn-nodo btn-brand btn-sm btn-fit">
+                <i class="fas fa-plus" aria-hidden="true"></i> Sumar persona
+              </a>
+            </div>
+            <div class="overflow-x-auto" style="overflow:visible">
+              <table class="w-full border-collapse">
+                <caption class="sr-only">Equipo del edificio</caption>
+                <thead>
+                  <tr class="nodo-thead-row">
+                    <th class="nodo-th">Persona</th>
+                    <th class="nodo-th hidden lg:table-cell">Rol</th>
+                    <th class="nodo-th hidden lg:table-cell">Contratación</th>
+                    <th class="nodo-th hidden lg:table-cell">Alcance</th>
+                    <th class="nodo-th hidden lg:table-cell">Responsable</th>
+                    <th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ equipo }}" as="m" hint-placeholder-count="3">
+                    <tr class="hover:bg-secondary transition">
+                      <td class="nodo-td">
+                        <span class="font-medium text-heading">{{ m.persona }}</span>
+                      </td>
+                      <td class="nodo-td hidden lg:table-cell">{{ m.rol }}</td>
+                      <td class="nodo-td hidden lg:table-cell">{{ m.contratacion }}</td>
+                      <td class="nodo-td hidden lg:table-cell">{{ m.alcance }}</td>
+                      <td class="nodo-td hidden lg:table-cell">
+                        <sc-if value="{{ m.responsable }}" hint-placeholder-val="{{ false }}"><span class="badge badge-dot badge-success">Responsable</span></sc-if>
+                        <sc-if value="{{ m.noResponsable }}" hint-placeholder-val="{{ true }}"><span class="text-body-subtle">—</span></sc-if>
+                      </td>
+                      <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+                        <sc-if value="{{ m.cerrado }}" hint-placeholder-val="{{ true }}">
+                          <div class="nodo-menu-fila" data-menu-fila><button type="button" class="nodo-icon-btn nodo-menu-fila__trigger" data-menu-fila-trigger aria-label="{{ m.etiqueta }}" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></button></div>
+                        </sc-if>
+                        <sc-if value="{{ m.abierto }}" hint-placeholder-val="{{ false }}">
+                          <div class="nodo-menu-fila" data-menu-fila style="position:relative"><button type="button" class="nodo-icon-btn nodo-menu-fila__trigger" data-menu-fila-trigger aria-label="Acciones de [Operador 1]" aria-haspopup="menu" aria-expanded="true"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></button><div class="nodo-menu-fila__menu" role="menu" aria-label="Acciones de [Operador 1]" style="position:absolute;top:100%;right:0;margin-top:4px;text-align:left"><a href="#" role="menuitem" class="nodo-menu-fila__item"><i class="fas fa-building nodo-menu-fila__icono" aria-hidden="true"></i><span class="nodo-menu-fila__texto">Cambiar alcance</span></a><a href="#" role="menuitem" class="nodo-menu-fila__item"><i class="fas fa-user-check nodo-menu-fila__icono" aria-hidden="true"></i><span class="nodo-menu-fila__texto">Marcar como responsable</span></a><button type="button" role="menuitem" class="nodo-menu-fila__item nodo-menu-fila__item--danger"><i class="fas fa-user-slash nodo-menu-fila__icono" aria-hidden="true"></i><span class="nodo-menu-fila__texto">Dar de baja</span></button></div></div>
+                        </sc-if>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1800}}'>
+class Component extends DCLogic {
+renderVals() {
+  const datos = [
+    ['[Operador 1]', 'Operador', 'Contrato de locación', 'Este edificio', false],
+    ['[Operador 2]', 'Operador', 'Contrato de locación', 'Este edificio', false],
+    ['[Coordinador]', 'Coordinador', 'Planta permanente', 'Toda la institución', true]
+  ];
+  const equipo = datos.map((x, i) => ({
+    persona: x[0], rol: x[1], contratacion: x[2], alcance: x[3],
+    responsable: x[4], noResponsable: !x[4],
+    etiqueta: 'Acciones de ' + x[0],
+    abierto: i === 0, cerrado: i !== 0
+  }));
+  const indicadores = [
+    { etiqueta: 'Ocupación', valor: '83 %', icono: 'fa-chart-simple', ico: 'bg-warning-soft text-fg-warning', nota: 'Exigida · 19 de 23 operativas' },
+    { etiqueta: 'Plazas operativas', valor: '23', icono: 'fa-bed', ico: 'bg-brand-soft text-fg-brand', nota: '24 cargadas · 1 fuera de servicio' },
+    { etiqueta: 'Reservadas o prestadas', valor: '2', icono: 'fa-bookmark', ico: 'bg-brand-soft text-fg-brand', nota: 'reservas y préstamos vigentes' },
+    { etiqueta: 'Disponibles', valor: '2', icono: 'fa-door-open', ico: 'bg-brand-soft text-fg-brand', nota: 'operativas sin ocupar ni reservar' }
+  ];
+  return { equipo, indicadores };
+}
+}
+</script>
+</body>
+</html>
