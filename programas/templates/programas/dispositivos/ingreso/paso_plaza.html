@@ -22,7 +22,7 @@
   {% include "components/_alerta.html" with tono="warning" icono="bed" titulo="No hay plazas disponibles" texto="Todas las plazas de este dispositivo están ocupadas, reservadas, prestadas o fuera de servicio." %}
   {% endif %}
 
-  {% comment %}La leyenda va sobre la grilla y a todo el ancho: dentro de la columna del mapa empujaba las cards de sector y Persona arrancaba más arriba que la primera.{% endcomment %}
+  {% comment %}La leyenda va sobre la grilla, a todo el ancho, para que la primera card de sector y Persona arranquen a la misma altura.{% endcomment %}
   {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">

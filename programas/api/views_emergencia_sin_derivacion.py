@@ -109,7 +109,12 @@ class AvisarALaMesaView(_VistaDeLlegadas):
                 response=AvisoALaMesaSerializer,
                 description="Reenvío: ese `uuid_cliente` ya había creado el caso y se devuelve el mismo.",
             ),
-            400: _400("Lo mismo que el envío de M1 (§6) salvo la dirección, que es opcional. " + _DNI_REGISTRADO),
+            400: _400(
+                "Lo mismo que el envío de M1 (§6) salvo la dirección, que es opcional. "
+                + _DNI_REGISTRADO
+                + " También si la familia ya tiene una derivación `PENDIENTE` o `ACEPTADA` hacia este mismo "
+                "dispositivo (de cualquier edificio): `detail` dice a cuál y no se crea el caso (Cambio 553)."
+            ),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
             404: _AJENO,
