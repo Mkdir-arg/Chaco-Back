@@ -651,6 +651,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 525 | Dispositivos · Edificios: la dirección se parte en líneas en el celular; Becas · eliminar: el bloqueo avisa que se libera con el cierre automático de la madrugada | Dispositivos · Edificios / Becas · eliminación | `#dispositivos` `#relevamientos` `#ui` `#textos` | QA en testing del 19/11/2026 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 530 | Emergencia · Llegadas: el administrador del programa y el superusuario recibían 403 al aceptar una derivación o «Ingresar igual» (`exclude` con el `Q()` vacío del alcance total) | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` | QA en testing del 21/11/2026 (#1298) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -61164,6 +61165,78 @@ ignora; las fechas aproximadas que no entraron al legajo siguen en la ficha.
 - **21/11/2026:** alta del cambio.
 - **21/11/2026:** auditoría del #1294: el adulto responsable ya no bloquea al menor (se valida solo si llega la sección, se conserva lo
   guardado, texto libre si no hay adultos) y la hora del kit se compara al minuto.
+
+# Cambio 530 — Emergencia · Llegadas: el administrador del programa recibe 403 al aceptar una derivación o «Ingresar igual»
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#rbac` |
+| **Solicitante** | QA en testing del 21/11/2026 (issue #1298) |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | #1298 |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+Con un usuario Administrador, en CIS II → Emergencia · Llegadas, «Aceptar y reservar camas» de una derivación pendiente
+responde 403 «Tu usuario no tiene las capacidades necesarias…» y la derivación queda pendiente. Lo mismo con «Ingresar
+igual» y por la API M2.
+
+## Alcance acordado
+Corregir el control de las camas en `reservar_plazas_de_derivacion` sin cambiar la regla del Equipo con alcance
+Edificios, y barrer el repo buscando el mismo error (un `Q` de alcance total usado en negación).
+
+## Decisiones tomadas
+- **Causa.** El Cambio 523 (PR 2, #1292) exigía cada cama en el alcance con
+  `exclude(q_edificios_en_alcance(...))`. Para el administrador del programa y el superusuario ese `Q` es vacío —«todo»
+  en un `filter`—, pero `exclude(Q())` no excluye nada: la consulta devolvía todas las camas y se negaba justo a quien
+  tiene alcance total. Al miembro del Equipo no le pasaba porque su `Q` no es vacío.
+- **Arreglo.** El alcance se resuelve una vez con `alcance_de_edificios` (el mismo dueño del Cambio 523) y sirve para la
+  derivación y para las camas. Las camas se comprueban con un método nuevo,
+  `AlcanceEdificios.permite_todos(queryset, campo)`: con alcance total no consulta; con alcance Edificios cada cama tiene
+  que ser de un edificio alcanzado, y una cama sin edificio no entra (fail-closed, igual que `permite`).
+- **Regla para no repetirlo.** El docstring de `q_edificios_en_alcance` dice ahora que es **solo para `filter`** y remite
+  a `permite_todos` para «¿todo esto está en mi alcance?».
+- **Barrido.** Era el único `exclude`/`~` sobre un `Q` de alcance en el repo. Los demás consumidores de
+  `q_edificios_en_alcance` y de sus envoltorios (`_q_sectores*`, `_q_plazas*`, `q_entradas`, `q_alcance`, `q_estadias`,
+  `q_movimientos`) lo usan en `filter` o lo combinan con `&` (`(q or Q()) & otro`), que con `Q()` vacío da lo correcto.
+  No hay `When(...)` ni `Count(filter=...)` con esos `Q`. En lo demás del Cambio 523 (#1292, #1293, #1295) el admin y el
+  superusuario pasan por `alcance_de_edificios` / `puede_configurar_dispositivos` y quedan con alcance total
+  (`_edificios_que_gestiona` del Equipo devuelve `None` para el admin): no se encontró otro lugar donde queden peor que un
+  miembro del Equipo.
+
+## Implementación
+El administrador del programa Dispositivos y el superusuario vuelven a aceptar derivaciones y a hacer «Ingresar igual»,
+por la web y por la API M2, y se les reservan las camas. La guardia del Equipo con alcance Edificios sigue sin poder
+reservar camas de un edificio fuera de su alcance.
+
+## Archivos
+- `programas/services/reservas_derivacion.py` — `reservar_plazas_de_derivacion`.
+- `programas/services/dispositivos.py` — `AlcanceEdificios.permite_todos` y docstring de `q_edificios_en_alcance`.
+- `programas/tests/test_emergencia_admin_reserva.py` (nuevo).
+- `programas/tests/test_dispositivos_relevamiento_alcance.py` — de paso: la fecha del relevamiento se compara en hora local (el CI corrió entre las 21 y las 24 h de Argentina, cuando en UTC ya es el día siguiente, y el test fallaba sin relación con este cambio).
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos (servicio, vista de Llegadas y API M2): admin y superusuario aceptan y hacen ingreso directo; la guardia
+Edificios no reserva camas de otro edificio (sola o mezclada con una propia) y sí del suyo; el admin reserva de cualquier
+edificio. **Mutación:** volver al `exclude` pone en rojo los 12 de admin/superusuario; sacar el control de las camas pone
+en rojo el de la guardia Edificios. Suites de Emergencia, `test_equipo_alcance_*` y
+`test_dispositivos_reservas_derivacion` en verde; `manage.py check` y ruff OK.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior: vuelve el 403 para el admin y el superusuario. No hay datos que revertir.
 
 # Cambio 528 — Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app
 

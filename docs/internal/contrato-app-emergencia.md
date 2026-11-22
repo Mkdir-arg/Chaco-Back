@@ -206,7 +206,8 @@ quien tiene los dos módulos no suma dos cuotas.
 
 ### Sugerencias de personas (#1299)
 
-`GET /api/emergencia/personas/sugerir/?q=<DNI tecleado>`. Mismo permiso que la consulta (`emergencia.relevar`) y
+`GET /api/emergencia/personas/sugerir/?q=<DNI tecleado>`. Pide `emergencia.relevar`, a diferencia de la consulta de
+persona, que alcanza con el módulo (la guardia la usa en la puerta); y comparte
 **la misma cubeta `personas_campo`** (SEC-25, 120 por hora y por usuario): enumerar nombres por prefijo es una
 consulta de identidad por otra puerta. Cada pedido que busca descuenta una; el 429 trae `Retry-After`. Con menos de **5**
 dígitos (`q` se normaliza como un DNI: solo dígitos; el backoffice sigue con 3) responde la lista vacía sin buscar y sin

@@ -72,7 +72,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
-from programas.services.dispositivos import puede_operar_edificio, puede_operar_plaza, q_edificios_en_alcance
+from programas.services.dispositivos import (
+    alcance_de_edificios,
+    puede_operar_dispositivo,
+    puede_operar_edificio,
+    puede_operar_plaza,
+)
 from programas.services.estadias import (
     CAP_ADMITIR,
     PLAZA_FUERA_DEL_DISPOSITIVO,
@@ -130,8 +135,10 @@ def reservar_plazas_de_derivacion(*, derivacion, plazas, usuario, momento=None):
     """
 
     dispositivo = derivacion.dispositivo
-    # Con alcance Edificios: la derivación tiene que ser de uno de sus edificios (RN4).
-    if not puede_operar_edificio(usuario, dispositivo, derivacion.edificio_id, CAP_ADMITIR):
+    # Con alcance Edificios: la derivación tiene que ser de uno de sus edificios (RN4). Es
+    # `puede_operar_edificio` con el alcance resuelto una vez: lo usan también las plazas.
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_ADMITIR)
+    if not (puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR) and alcance.permite(derivacion.edificio_id)):
         raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
     if dispositivo.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": "Solo se reservan plazas en un dispositivo activo."})
@@ -147,12 +154,11 @@ def reservar_plazas_de_derivacion(*, derivacion, plazas, usuario, momento=None):
         raise ValidationError({"plaza": "Elegí al menos una plaza para reservar."})
     if None in ids or len(set(ids)) != len(ids):
         raise ValidationError({"plaza": "La lista de plazas a reservar tiene una plaza repetida o inválida."})
-    # Y cada plaza, de un edificio alcanzado (una consulta; sin alcance Edificios no excluye nada).
-    if (
-        Plaza.objects.filter(pk__in=ids, sector__dispositivo_id=dispositivo.pk)
-        .exclude(q_edificios_en_alcance(usuario, CAP_ADMITIR, "sector__dispositivo_id", "sector__edificio_id"))
-        .exists()
-    ):
+    # Y cada plaza, de un edificio alcanzado; con alcance total no consulta. No con
+    # `exclude(q_edificios_en_alcance(...))`: al admin y al superusuario les da `Q()` vacío, que en
+    # `exclude` no excluye nada, y les negaba justo a ellos todas las camas (#1298).
+    de_la_institucion = Plaza.objects.filter(pk__in=ids, sector__dispositivo_id=dispositivo.pk)
+    if not alcance.permite_todos(de_la_institucion, "sector__edificio_id"):
         raise PermissionDenied(SIN_ALCANCE_PARA_RESERVAR)
 
     # Resueltas dentro del dispositivo **antes** de bloquear, como `_bloquear_plaza`: ni se

@@ -345,8 +345,9 @@ class SugerirPersonasEmergenciaView(_VistaDeCampo):
     """Sugerencias de personas del legajo mientras se escribe el DNI (#1299, punto 4).
 
     Es lo mismo que el paso 1 de Dispositivos (Cambio 416): ``sugerir_personas`` por prefijo,
-    con apellido, nombre y DNI y nada más. Pide ``emergencia.relevar`` (el de la consulta) y
-    descuenta de la misma cubeta ``personas_campo`` (SEC-25): enumerar nombres por prefijo de DNI
+    con apellido, nombre y DNI y nada más. Pide ``emergencia.relevar``, a diferencia de la consulta
+    de persona, que alcanza con abrir el módulo (la guardia la usa en la puerta), y descuenta de
+    la misma cubeta ``personas_campo`` (SEC-25): enumerar nombres por prefijo de DNI
     es una consulta de identidad por otra puerta, y una unidad de cubeta revela hasta 10 personas,
     así que acá se exigen 5 dígitos (el backoffice sigue con 3). Con menos no busca ni descuenta.
     """
@@ -369,7 +370,7 @@ class SugerirPersonasEmergenciaView(_VistaDeCampo):
         responses={
             200: SugerenciasPersonasSerializer,
             401: _SIN_TOKEN,
-            403: _SIN_MODULO,
+            403: _SIN_RELEVAR,
             429: OpenApiResponse(
                 description="Se superó el tope de consultas de identidad del usuario (compartido con la consulta)."
             ),
