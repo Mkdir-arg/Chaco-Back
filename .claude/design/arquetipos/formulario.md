@@ -60,7 +60,10 @@ visibles bloquean el ingreso. La lectura (solapa Datos de P4 y detalle de la est
 `dispositivos/_formulario_respondido.html`: `section` con `border-t border-light mt-6 pt-5`, `h2` +
 `badge badge-gray` con la versión, `h3` por grupo y `dl` en grilla.
 La misma tarjeta va dentro del modal de egreso (P4 solapa Estadías y P7), debajo de los campos fijos y
-envuelta en `data-formulario-tipo-egreso`; el modal manda `FormData`, así que los archivos suben. Las
+envuelta en `data-formulario-tipo-egreso`; el modal manda `FormData`, así que los archivos suben. Con 1 o más grupos
+no va la tarjeta (con 0 grupos sí): `legajo/_formulario_tipo_secciones.html` dibuja cada grupo como una sección del cuerpo del modal,
+con índice si son 2 o más (`componentes/indice_secciones.md`); los campos son los mismos, vía `legajo/_formulario_tipo_filas.html`,
+que también usa la tarjeta. Las
 condiciones de las tres pantallas las monta `static/custom/js/nodo-formulario-tipo.js`
 (`NodoFormularioTipo.montar`), que reemplazó los scripts inline de `legajo/form.html` y
 `ingreso/paso_confirmar.html`.

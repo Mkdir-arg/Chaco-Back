@@ -336,6 +336,11 @@ class RespuestasDisenoForm(forms.Form):
     def grupos(self):
         return self._grupos
 
+    @property
+    def varios_grupos(self):
+        """2 o más grupos: el modal de egreso los dibuja como secciones con índice (regla única; la leen los templates)."""
+        return len(self._grupos) > 1
+
     def planos(self):
         """Los ítems con sus condiciones para el motor del navegador."""
         return planos_de(self.foto)

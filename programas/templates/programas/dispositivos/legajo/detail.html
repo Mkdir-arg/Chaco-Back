@@ -449,10 +449,10 @@
   {# Modal: Registrar egreso — confirmación con motivo (arquetipo Modal); uno solo para todas las filas #}
   <div x-show="modalEgreso" x-cloak x-becas-modal="modalEgreso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEgreso=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+    <div class="relative bg-white rounded-2xl shadow-xl w-full {% if formulario_egreso.varios_grupos %}max-w-4xl{% else %}max-w-[560px]{% endif %} max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Registrar egreso" titulo_x_text="'Registrar egreso de ' + egreso.persona" titulo_id="modal-egreso-titulo" icono="fa-users" cerrar="modalEgreso=false" %}
-      <form method="post" x-ref="form" :action="egreso.url" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form method="post" x-ref="form" :action="egreso.url" data-ajax{% if formulario_egreso.varios_grupos %} data-toast-temporal{% endif %} class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {% include "programas/dispositivos/_form_egreso.html" %}
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEgreso=false" accion_texto="Confirmar egreso" accion_tono="danger" %}
@@ -641,6 +641,7 @@
 <script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 <script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
 <script src="{% static 'custom/js/nodo-formulario-tipo.js' %}"></script>
+<script src="{% static 'custom/js/nodo-indice-secciones.js' %}"></script>
 <script src="{% static 'custom/js/nodo-firma.js' %}"></script>
 <script>
   // Formulario de egreso del tipo, dentro del modal: mismas condiciones que evalúa el servidor al egresar.

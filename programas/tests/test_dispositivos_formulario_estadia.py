@@ -7,6 +7,7 @@ respuestas y la lectura en el detalle de la estadía (P7). El presupuesto va con
 """
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -639,3 +640,196 @@ class EgresoConFormularioTests(_Base):
         lecturas = [c["sql"] for c in con.captured_queries if "programas_disenoformulario" in c["sql"]]
         # El vigente (1) y la comprobación de baja que ya hacía el servicio de guardado no se suman: una sola.
         self.assertEqual(len(lecturas), 1, lecturas)
+
+
+# ── El modal de egreso con formulario largo: índice de secciones ─────────────
+
+
+class EgresoConIndiceDeSeccionesTests(_Base):
+    """«Registrar egreso» de P4 y P7 con el formulario del tipo de 2 o más grupos: los grupos son secciones del cuerpo,
+    con un índice y el panel ancho, y no la tarjeta anidada. Con 0 o 1 grupo el modal queda como antes."""
+
+    DIALOGO_ANCHO = re.compile(
+        r'max-w-4xl max-h-\[90vh\][^>]*\s+role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo"'
+    )
+    DIALOGO_ANGOSTO = re.compile(
+        r'max-w-\[560px\] max-h-\[90vh\][^>]*\s+role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo"'
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )
+        self.egreso = self._formulario(MomentoFormulario.EGRESO)
+        self.motivo = MotivoEgreso.objects.create(codigo="alta-i", nombre="Alta de prueba", activo=True)
+        self.url = reverse("dispositivos:egresar", args=[self.cis.pk, self.estadia.pk])
+        self.url_p7 = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia.pk])
+        self.url_p4 = f"{reverse('dispositivos:detalle', args=[self.cis.pk])}?tab=estadias&egreso={self.estadia.pk}"
+        self.client.force_login(
+            self._operador("Ve ciudadano", self.cis, ("dispositivo.ver", "dispositivo.egresar", "ciudadano.ver"))
+        )
+
+    def _agregar_grupo(self, titulo="Referentes", campo="Referente"):
+        self._mutar(
+            self.egreso,
+            lambda: constructor.crear_grupo(self.egreso, {"etiqueta": titulo, "subtitulo": "", "canal": "ambos"}),
+        )
+        grupo = self.egreso.items.filter(tipo=ItemDiseno.Tipo.GRUPO, etiqueta=titulo).get()
+        propio = {"texto": campo, "tipo": "STRING", "opciones": [], "presentacion": "LISTA", "obligatorio": True}
+        self._mutar(
+            self.egreso, lambda: constructor.crear_propio(self.egreso, grupo, {"propio": propio, "canal": "ambos"})
+        )
+
+    def _paginas(self):
+        return [self.client.get(url) for url in (self.url_p7, self.url_p4)]
+
+    def _el_modal_trae_el_segundo_grupo(self):
+        """Ata el POST a lo que el PR dibuja: el índice y el campo del segundo grupo están en las dos pantallas."""
+        clave = self._item("Referente", self.egreso).clave
+        for pagina in self._paginas():
+            self.assertContains(pagina, "data-indice-secciones")
+            self.assertContains(pagina, f'name="formulario-{clave}"')
+
+    def _datos(self, **extra):
+        datos = {
+            "fecha_egreso": timezone.localtime().replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M"),
+            "motivo": self.motivo.pk,
+            "destino": "Domicilio de familiar",
+            "formulario_tipo_diseno": self.egreso.pk,
+            "formulario_tipo_version": self.egreso.version,
+            self._nombre("Cantidad de pertenencias", self.egreso): "2",
+            self._nombre("Referente", self.egreso): "Marta",
+        }
+        datos.update(extra)
+        return datos
+
+    def test_con_dos_grupos_hay_indice_secciones_y_panel_ancho_y_no_la_tarjeta_anidada(self):
+        self._agregar_grupo()
+
+        for pagina in self._paginas():
+            html = pagina.content.decode()
+            self.assertContains(pagina, "data-indice-secciones")
+            self.assertContains(pagina, 'aria-label="Secciones del egreso"')
+            self.assertContains(pagina, "custom/js/nodo-indice-secciones.js")
+            self.assertIn(" data-ajax data-toast-temporal", html)
+            self.assertRegex(html, self.DIALOGO_ANCHO)
+            self.assertNotRegex(html, self.DIALOGO_ANGOSTO)
+            # Tres secciones: los campos fijos primero y después un grupo del tipo cada una, en ese orden.
+            titulos = re.findall(r'data-indice-titulo="([^"]*)"', html)
+            self.assertEqual(titulos, ["Datos del egreso", "Datos del ingreso", "Referentes"])
+            posiciones = [html.index(f'id="egreso-seccion-{n}"') for n in range(3)]
+            self.assertEqual(posiciones, sorted(posiciones))
+            # La tarjeta anidada (con su <h2> «Formulario de egreso») ya no está.
+            self.assertNotContains(pagina, 'id="titulo-formulario-tipo"')
+            # El diálogo sigue nombrado, y el pie y la alerta final se mantienen.
+            self.assertContains(pagina, 'aria-labelledby="modal-egreso-titulo"')
+            self.assertContains(pagina, "Confirmar egreso")
+            self.assertContains(pagina, "Libera la plaza")
+
+    def test_los_campos_conservan_su_name_y_su_data_error_en_las_dos_pantallas(self):
+        self._agregar_grupo()
+        claves = [self._item(texto, self.egreso).clave for texto in ("Cantidad de pertenencias", "Referente")]
+
+        for pagina in self._paginas():
+            for campo in ("fecha_egreso", "motivo", "destino", "observaciones", "pertenencias_devueltas"):
+                self.assertContains(pagina, f'name="{campo}"')
+            self.assertContains(pagina, 'name="formulario_tipo_diseno"')
+            self.assertContains(pagina, 'name="formulario_tipo_version"')
+            self.assertContains(pagina, 'data-error="__all__"')
+            for clave in claves:
+                self.assertContains(pagina, f'name="formulario-{clave}"')
+                self.assertContains(pagina, f'data-error="{clave}"')
+            self.assertContains(pagina, "data-formulario-tipo-egreso")
+
+    def test_las_dos_pantallas_usan_las_mismas_piezas(self):
+        self._agregar_grupo()
+
+        for pagina in self._paginas():
+            self.assertTemplateUsed(pagina, "programas/dispositivos/_form_egreso.html")
+            self.assertTemplateUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo_secciones.html")
+            self.assertTemplateUsed(pagina, "components/_indice_secciones.html")
+
+    def test_con_un_solo_grupo_va_plano_sin_tarjeta_sin_indice_y_con_el_panel_de_siempre(self):
+        for pagina in self._paginas():
+            html = pagina.content.decode()
+            self.assertNotContains(pagina, "data-indice-secciones")
+            self.assertRegex(html, self.DIALOGO_ANGOSTO)
+            self.assertNotRegex(html, self.DIALOGO_ANCHO)
+            self.assertNotContains(pagina, 'id="titulo-formulario-tipo"')
+            self.assertContains(pagina, 'id="egreso-seccion-1"')
+            self.assertNotIn(" data-ajax data-toast-temporal", html)
+            self.assertContains(pagina, "Formulario de egreso")
+            self.assertTemplateUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo_secciones.html")
+            self.assertTemplateNotUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo.html")
+
+    def test_sin_formulario_del_tipo_no_hay_indice_ni_tarjeta(self):
+        self._agregar_grupo()
+        self.egreso.dado_de_baja_en = timezone.now()
+        self.egreso.save(update_fields=["dado_de_baja_en"])
+
+        for pagina in self._paginas():
+            self.assertNotContains(pagina, "data-indice-secciones")
+            self.assertNotContains(pagina, "data-formulario-tipo-egreso")
+            self.assertRegex(pagina.content.decode(), self.DIALOGO_ANGOSTO)
+
+    def test_el_parcial_de_la_tarjeta_sigue_igual_para_el_alta_y_el_ingreso(self):
+        """`_formulario_tipo.html` sigue dibujando la tarjeta: el modo «secciones» es otro parcial."""
+        from django.template.loader import render_to_string
+
+        from programas.forms_dinamicos import RespuestasDisenoForm
+
+        self._agregar_grupo()
+        formulario = RespuestasDisenoForm(foto=foto_vigente(self.egreso))
+        tipo = type("Tipo", (), {"diseno": self.egreso, "grupos": formulario.grupos(), "planos": formulario.planos()})()
+
+        html = render_to_string(
+            "programas/dispositivos/legajo/_formulario_tipo.html",
+            {"formulario_tipo": tipo, "formulario_titulo": "Formulario de ingreso"},
+        )
+
+        self.assertIn('id="titulo-formulario-tipo"', html)
+        self.assertNotIn("data-indice-seccion", html)
+        self.assertEqual(html.count("<h3"), 2, "un h3 por grupo, como siempre")
+
+    def test_el_egreso_con_dos_grupos_se_registra(self):
+        self._agregar_grupo()
+        self._el_modal_trae_el_segundo_grupo()
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(self.url, self._datos(), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
+        fila = RespuestasEgresoEstadia.objects.get()
+        self.assertEqual(fila.respuestas[self._item("Referente", self.egreso).clave], "Marta")
+
+    def test_el_egreso_desde_p7_vuelve_a_la_estadia(self):
+        self._agregar_grupo()
+        self._el_modal_trae_el_segundo_grupo()
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(self.url, self._datos(volver="estadia"))
+
+        self.assertRedirects(respuesta, self.url_p7, fetch_redirect_response=False)
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
+
+    def test_un_error_del_segundo_grupo_vuelve_en_su_campo(self):
+        """El 400 trae la clave del campo de la sección que no se ve: el JS del modal lo marca y le da el foco."""
+        self._agregar_grupo()
+        self._el_modal_trae_el_segundo_grupo()
+        self.client.force_login(self.operador_cis)
+        referente = self._item("Referente", self.egreso).clave
+
+        respuesta = self.client.post(
+            self.url,
+            self._datos(**{self._nombre("Referente", self.egreso): ""}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(respuesta.json()["errors"][referente], ["Este dato es obligatorio."])
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.ACTIVA)
