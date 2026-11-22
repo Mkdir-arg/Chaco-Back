@@ -269,7 +269,7 @@ def verificar_alojamiento_en_red(ciudadano, usuario=None):
     )
 
 
-def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo="", detalle=""):
+def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo="", detalle="", edificio_id=None):
     """Traza sobre el patrón de `TrazaDispositivo`: aditiva, inmutable, sin nombres propios.
 
     El detalle va con identificadores y no con el nombre de la persona: el historial del
@@ -284,6 +284,7 @@ def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo=""
         estado_anterior=estado_anterior,
         estado_nuevo=estado_nuevo,
         detalle=detalle,
+        edificio_id=edificio_id,
     )
 
 
@@ -888,6 +889,7 @@ def _crear_reserva(dispositivo, usuario, *, de_quien, **campos):
         "PLAZA_RESERVADA",
         estado_nuevo=ReservaPlaza.Estado.VIGENTE,
         detalle=f"Plaza {plaza_con_sector(reserva.plaza)} · {reserva.get_tipo_display()} · {de_quien}",
+        edificio_id=reserva.plaza.sector.edificio_id,
     )
     return reserva
 
@@ -959,6 +961,7 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
 
     dispositivo = reserva.plaza.sector.dispositivo
     sector_nombre = reserva.plaza.sector.nombre
+    edificio_id = reserva.plaza.sector.edificio_id
     if verificar_alcance and not puede_operar_plaza(usuario, dispositivo, reserva.plaza, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
@@ -988,6 +991,7 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
         estado_anterior=ReservaPlaza.Estado.VIGENTE,
         estado_nuevo=ReservaPlaza.Estado.LIBERADA,
         detalle=f"Plaza {plaza_con_sector(reserva.plaza, sector_nombre)} · {reserva.get_tipo_display()}",
+        edificio_id=edificio_id,
     )
     return reserva
 
@@ -1013,6 +1017,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
+    edificio_id = plaza.sector.edificio_id
     if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
@@ -1035,6 +1040,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
         estado_anterior=Plaza.Estado.OPERATIVA,
         estado_nuevo=Plaza.Estado.FUERA_SERVICIO,
         detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)} · motivo: {motivo}",
+        edificio_id=edificio_id,
     )
     return plaza
 
@@ -1049,6 +1055,7 @@ def volver_plaza_a_servicio(*, plaza, usuario):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
+    edificio_id = plaza.sector.edificio_id
     if not puede_operar_plaza(usuario, dispositivo, plaza, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
@@ -1068,5 +1075,6 @@ def volver_plaza_a_servicio(*, plaza, usuario):
         estado_anterior=Plaza.Estado.FUERA_SERVICIO,
         estado_nuevo=Plaza.Estado.OPERATIVA,
         detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}",
+        edificio_id=edificio_id,
     )
     return plaza

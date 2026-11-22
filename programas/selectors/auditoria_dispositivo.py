@@ -18,7 +18,7 @@ más viejo, las cuatro trazas que hay en el programa:
 
 La solapa Historial de la página operativa del edificio (Cambio 571) lee **esta misma fuente** acotada a un edificio
 (``edificio=`` de :class:`FeedAuditoria`) y suma una quinta, ``TrazaEntrega``: las entregas de kits a ese edificio.
-Las trazas del dispositivo que no llevan edificio entran por lo que dicen, ver :func:`q_trazas_del_edificio`.
+Las trazas del dispositivo anteriores al Cambio 573 y sin edificio entran por lo que dicen, ver :func:`q_trazas_del_edificio`.
 
 Los textos son de operador: ningún código de acción, nombre de campo crudo ni id de una
 persona llega a la pantalla.
@@ -144,17 +144,19 @@ ACCION_DE_LOTE_DE_PLAZAS = "PLAZAS_AGREGADAS"
 def q_trazas_del_edificio(edificio):
     """Las trazas del dispositivo que son de ``edificio``: alta, cambio y baja de sectores y plazas, y las reservas.
 
-    ``TrazaDispositivo`` no guarda el edificio (y no hay migración que lo agregue), pero lo dice el detalle que
-    escriben los servicios: un sector lo nombra por **código de edificio** (``… · edificio ED-A``, y ``(antes: ED-B)``
-    si se mudó) y una plaza o un lote de plazas por **nombre de sector**. Las de sector se leen por el código, que es
-    exacto; las de plaza, por los sectores de este edificio en el mismo dispositivo, dentro de la misma consulta.
-    Límites de la derivación (la traza no guarda el edificio; guardarlo requiere una migración):
+    Desde el Cambio 573 la traza guarda el edificio del sector en el momento del evento (``TrazaDispositivo.edificio``):
+    ``Q(edificio=edificio)`` es exacto y sobrevive a que el sector se renombre, se mude o su nombre lo reuse otro.
+    Las anteriores (``edificio`` NULL, sin backfill) se siguen derivando del detalle que escriben los servicios: un
+    sector lo nombra por **código de edificio** (``… · edificio ED-A``, y ``(antes: ED-B)`` si se mudó), que es exacto
+    y se lee siempre; una plaza o un lote de plazas por **nombre de sector**, contra los sectores de este edificio en el
+    mismo dispositivo, dentro de la misma consulta. Esa derivación por nombre, solo para las trazas de plaza o de lote
+    **anteriores al Cambio 573**, tiene estos límites:
 
     * un sector **renombrado** deja de coincidir con sus trazas de plaza viejas, que desaparecen del edificio;
-    * un sector **mudado** a otro edificio se lleva consigo las trazas de plaza que ya tenía (se leen por su nombre
-      contra el edificio actual), no solo las duplica;
+    * un sector **mudado** a otro edificio se lleva consigo las trazas de plaza viejas que ya tenía (se leen por su
+      nombre contra el edificio actual), no solo las duplica;
     * dos sectores del mismo dispositivo con el mismo nombre en edificios distintos (uno dado de baja libera el suyo)
-      comparten sus trazas de plaza: las de un nombre reusado se atribuyen al edificio que hoy lo tiene.
+      comparten sus trazas de plaza viejas: las de un nombre reusado se atribuyen al edificio que hoy lo tiene.
     """
 
     codigo = edificio.codigo
@@ -166,13 +168,18 @@ def q_trazas_del_edificio(edificio):
     sectores = Sector.objects.filter(dispositivo_id=OuterRef("dispositivo_id"), edificio_id=edificio.pk).alias(
         texto=ExpressionWrapper(OuterRef("detalle"), output_field=TextField())
     )
-    de_plaza = Q(accion__in=ACCIONES_DE_PLAZA) & Q(
-        Exists(sectores.filter(texto__contains=Concat(Value("("), "nombre", Value(")"))))
+    sin_edificio = Q(edificio__isnull=True)
+    de_plaza = (
+        sin_edificio
+        & Q(accion__in=ACCIONES_DE_PLAZA)
+        & Q(Exists(sectores.filter(texto__contains=Concat(Value("("), "nombre", Value(")")))))
     )
-    de_lote = Q(accion=ACCION_DE_LOTE_DE_PLAZAS) & Q(
-        Exists(sectores.filter(texto__startswith=Concat(Value("Sector "), "nombre", Value(" · "))))
+    de_lote = (
+        sin_edificio
+        & Q(accion=ACCION_DE_LOTE_DE_PLAZAS)
+        & Q(Exists(sectores.filter(texto__startswith=Concat(Value("Sector "), "nombre", Value(" · ")))))
     )
-    return de_sector | de_plaza | de_lote
+    return Q(edificio=edificio) | de_sector | de_plaza | de_lote
 
 
 def _quien(usuario):

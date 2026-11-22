@@ -844,12 +844,26 @@ class TrazaDispositivo(models.Model):
     estado_anterior = models.CharField(max_length=30, blank=True, verbose_name="Estado anterior")
     estado_nuevo = models.CharField(max_length=30, blank=True, verbose_name="Estado nuevo")
     detalle = models.TextField(blank=True, verbose_name="Detalle")
+    # El edificio del sector de la plaza o del sector en el momento del evento (Cambio 573): atribuye la traza sin
+    # depender del nombre del sector. NULL en las anteriores (se atribuyen por el texto) y en las que no son de edificio.
+    edificio = models.ForeignKey(
+        "Edificio",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="trazas_dispositivo",
+        verbose_name="Edificio",
+    )
     objects = TrazaDispositivoManager()
 
     class Meta:
         verbose_name = "Traza de dispositivo"
         verbose_name_plural = "Trazas de dispositivos"
         ordering = ["creado_en", "id"]
+        indexes = [
+            # El feed del historial cuenta y filtra por dispositivo y acción (Cambio 573): sin esto, full scan.
+            models.Index(fields=["dispositivo", "accion"], name="traza_disp_dispositivo_accion"),
+        ]
         base_manager_name = "objects"
         default_manager_name = "objects"
 

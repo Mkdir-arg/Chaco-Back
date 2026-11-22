@@ -98,11 +98,13 @@ def motivo_sin_ampliar_capacidad(dispositivo):
     return ""
 
 
-def _trazar(dispositivo, usuario, accion, *, detalle=""):
+def _trazar(dispositivo, usuario, accion, *, detalle="", edificio_id=None):
     """Traza sobre el patrón de `TrazaDispositivo`: aditiva, inmutable, sin nombres propios.
 
     Igual que la de `programas.services.estadias`: el historial del legajo institucional lo
     lee todo el que opera el dispositivo, así que el detalle va con códigos y cantidades.
+    ``edificio_id`` es el del sector en el momento del evento (Cambio 573): atribuye la traza al edificio sin
+    depender de que el sector conserve su nombre.
     """
 
     TrazaDispositivo.objects.create(
@@ -110,6 +112,7 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
         usuario=usuario,
         accion=accion,
         detalle=detalle,
+        edificio_id=edificio_id,
     )
 
 
@@ -293,6 +296,7 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil=""
         usuario,
         "SECTOR_CREADO",
         detalle=_detalle_sector(sector),
+        edificio_id=sector.edificio_id,
     )
     return sector
 
@@ -399,6 +403,7 @@ def editar_sector(
         usuario,
         "SECTOR_BAJA" if daba_de_baja else ("SECTOR_REACTIVADO" if reactiva else "SECTOR_EDITADO"),
         detalle=_detalle_sector(sector, edificio_anterior=edificio_anterior if cambio_edificio else False),
+        edificio_id=sector.edificio_id,
     )
     return sector
 
@@ -441,6 +446,7 @@ def reactivar_sector(*, sector, usuario):
         usuario,
         "SECTOR_REACTIVADO",
         detalle=_detalle_sector(sector),
+        edificio_id=sector.edificio_id,
     )
     return sector
 
@@ -504,6 +510,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
             f"Sector {sector.nombre} · {cantidad} plaza{'s' if cantidad > 1 else ''} "
             f"{Plaza.Tipo(tipo).label.lower()} · {codigos[0]} a {codigos[-1]}"
         ),
+        edificio_id=sector.edificio_id,
     )
     return plazas
 
@@ -524,6 +531,7 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
+    edificio_id = plaza.sector.edificio_id
     _exigir_alcance(dispositivo, usuario, plaza.sector.edificio_id)
 
     codigo = _normalizar(codigo)
@@ -550,6 +558,7 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
         usuario,
         "PLAZA_EDITADA",
         detalle=f"Plaza {anterior} → {plaza_con_sector(plaza, sector_nombre)} · {Plaza.Tipo(plaza.tipo).label}",
+        edificio_id=edificio_id,
     )
     return plaza
 
@@ -585,6 +594,7 @@ def dar_de_baja_plaza(*, plaza, usuario):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
+    edificio_id = plaza.sector.edificio_id
     _exigir_alcance(dispositivo, usuario, plaza.sector.edificio_id)
 
     _bloquear_dispositivo(dispositivo)
@@ -599,7 +609,13 @@ def dar_de_baja_plaza(*, plaza, usuario):
 
     plaza.activa = False
     plaza.save(update_fields=["activa", "modificado"])
-    _trazar(dispositivo, usuario, "PLAZA_BAJA", detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}")
+    _trazar(
+        dispositivo,
+        usuario,
+        "PLAZA_BAJA",
+        detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}",
+        edificio_id=edificio_id,
+    )
     return plaza
 
 
@@ -613,6 +629,7 @@ def reactivar_plaza(*, plaza, usuario):
 
     dispositivo = plaza.sector.dispositivo
     sector_nombre = plaza.sector.nombre
+    edificio_id = plaza.sector.edificio_id
     _exigir_alcance(dispositivo, usuario, plaza.sector.edificio_id)
 
     _bloquear_dispositivo(dispositivo)
@@ -624,5 +641,11 @@ def reactivar_plaza(*, plaza, usuario):
 
     plaza.activa = True
     plaza.save(update_fields=["activa", "modificado"])
-    _trazar(dispositivo, usuario, "PLAZA_REACTIVADA", detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}")
+    _trazar(
+        dispositivo,
+        usuario,
+        "PLAZA_REACTIVADA",
+        detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}",
+        edificio_id=edificio_id,
+    )
     return plaza
