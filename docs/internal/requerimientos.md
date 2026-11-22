@@ -662,7 +662,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 543 | Dispositivos · configuración y formularios (PR-D del relevamiento de diseño): «Cancelar» al editar, interruptores del tipo, JS del legajo en archivos, filtro de localidad como select y exportaciones al menú | Dispositivos · legajo, listado y tipos; Emergencia · «Nuevo caso» (marcador) | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-D) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 542 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 544 | Dispositivos · ficha propia del edificio: títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 545 | Dispositivos · la institución se bloquea primero, en compartido: reservar, ingresar, cambiar de plaza y liberar no se cuelan en un «Cerrar» o «Inactivar» ni se cruzan con él en un deadlock | Dispositivos (estadías, reservas, plazas, bitácora) / Emergencia (reservas de derivación y confirmación) | `#dispositivos` `#emergencia` `#datos` | Pendiente del Cambio 536 | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -62337,6 +62340,168 @@ Desplegar el código anterior. No hay datos que revertir.
 ## Historial
 - **22/11/2026:** alta del cambio.
 
+---
+
+# Cambio 542 — Dispositivos · ficha y modales con piezas canónicas, y MINOR del #1316
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo, estadía y egreso; Emergencia · Kits del dispositivo |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (PR-C) y MINOR de la auditoría del #1316 |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgos 13 y 14 del relevamiento (modales de la ficha del dispositivo a mano y modal de egreso duplicado) más los MINOR de la auditoría del #1316.
+
+## Alcance acordado
+Solo adherencia, sin clases, JS ni variantes nuevas, sin tocar nombres de campos, validación ni URLs de POST. Fuera de alcance: el hallazgo 9 (glosario
+cama/plaza y «Egresar/Registrar egreso»), decisión del PM. Consultado el archivo vivo por `dispositivos` (Cambios 523, 526, 527, 540): ninguna decisión choca.
+
+## Decisiones tomadas
+- **Recibir entrega de kits:** el submit del formulario (botón o Enter en una cantidad) ya no envía: `@submit` abre el modal si el navegador valida
+  (`reportValidity()`), y el botón es `type="submit"`. `nodo-submit-guard.js` ya suelta la marca si el envío termina cancelado (segunda lectura de `defaultPrevented`).
+- **Título de Kits:** el `h1` dice «Kits» (el `<title>` y el menú «Emergencia · Kits» no cambian).
+- **Egreso:** el cuerpo del modal sale a `dispositivos/_form_egreso.html` (los cinco campos con `_field.html`; «Pertenencias devueltas» como `SwitchInput`
+  en su propia fila, con el label arriba como en el modal de Equipo) y lo incluyen el legajo (P4) y la estadía (P7). Cada pantalla conserva su encabezado, `<form>` y pie.
+- **Edificio y «Vincular un edificio»** pasan a `_field.html` con `wrapper_class=""` (los labels salen del form; mismo asterisco).
+
+## Pendiente
+- **Observar y Rechazar (P4)** conservan su `textarea` a mano: no tienen Form de Django y es el canon de «Confirmación con motivo» del arquetipo Modal.
+- **Hallazgo 9** (glosario) queda para el PM.
+
+## Implementación
+Tests de la guardia movidos a `test_emergencia_kits_guardia_vistas.py` (el original pasaba de 1000 líneas). Aserciones reforzadas, verificadas con mutación:
+tipo del botón y `aria-labelledby` del modal de recepción, «Paso 2 de 3», `window.__becasConfirmJs` en Llegadas y el `h1` de Kits.
+
+## Archivos
+- `programas/templates/programas/dispositivos/_form_egreso.html` (nuevo), `legajo/detail.html`, `estadia/detalle.html`.
+- `programas/templates/programas/emergencia/kits/` (`recibir`, `pendientes`).
+- Fichas: `.claude/design/arquetipos/modal.md` y `.claude/design/componentes/ficha_timeline.md`.
+- Tests: `test_emergencia_kits_vistas.py`, `test_emergencia_kits_guardia_vistas.py` y `test_emergencia_alojar_vistas.py`.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 544 — Dispositivos · ficha propia del edificio: títulos de sección canónicos
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Edificios (ficha propia, `edificios/detail.html`) |
+| **Etiquetas** | `#dispositivos` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (PR-E) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgos 11 (la ficha del edificio no tiene «Editar», la de Infraestructura sí) y 22 (clases de `h3`/`dt` inconsistentes entre `_infra_ficha.html` y `casos/detail.html`).
+
+## Alcance acordado
+Solo adherencia con clases existentes. Fuera: el campo «Orden» de los turnos (10), vocabulario cama/plaza y cualquier cambio de lógica.
+
+## Decisiones tomadas
+- **11 · «Editar» NO se implementa.** El hallazgo 11 (Editar desde la ficha del edificio) NO se implementa: contradice R9/CA12 del #1164 y el Cambio 487 (decisión del PM del 18/11/2026, solo lectura + Crear relevamiento).
+- **22 · Títulos.** Los 5 `h2` de sección de la ficha del edificio pasan de `text-sm font-bold text-heading` a `h2 text-heading font-bold` (título de surface del inventario). Los `h3` de `_infra_ficha.html` y de `casos/detail.html` ya eran iguales.
+- **Relevamiento de `edificios/*` y `_infra_*`:** sin más desvíos (íconos con `aria-hidden`, `page_header`, `btn-fit` donde corresponde).
+
+## Pendiente
+- **Decisión del PM:** ¿levantar R9/CA12 para ofrecer un acceso a la edición existente del legajo? Si se levanta: una sola consulta para resolver la institución editable, test con alcance Edificios (Cambio 523) y actualizar TC-1168-24.
+- **22 · `dt`.** `casos/detail.html` usa `font-bold text-heading` por decisión del PM (Cambio 519, «afuera: el resto de las fichas»); el resto del sistema (68 usos, incluidas la ficha de Infraestructura y la del edificio) usa `font-semibold text-body-subtle`. Unificar en cualquier sentido es decisión del PM.
+
+## Archivos
+`programas/templates/programas/dispositivos/edificios/detail.html` y `.claude/design/arquetipos/detalle.md`.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 543 — Dispositivos · configuración y formularios con piezas canónicas (PR-D del relevamiento de diseño)
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo, listado de instituciones, tipos) / Emergencia («Nuevo caso», solo el marcador) |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#ui` |
+| **Solicitante** | Relevamiento de diseño del 22/11/2026 (PR-D) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor (backoffice) · estáticos |
+| **Migración** | No requiere |
+
+## Pedido original
+Siete hallazgos del relevamiento de diseño de Dispositivos (8, 15, 17, 18, 19, 20 y 23): «Cancelar» del legajo, booleanos del tipo,
+JS inline del legajo, botones del encabezado del listado, filtro «Localidad», marcadores de arquetipo e ícono de «Editar tipo».
+
+## Alcance acordado
+**Entra:** esos siete hallazgos, sin cambiar vocabulario (cama/plaza, institución/dispositivo) ni lo que se guarda.
+**Queda afuera:** el hallazgo 16 (reescritura del cargador de modal y solapas de `tipo_detail.html`), que es otro PR; y los archivos
+de otro PR abierto (`legajo/detail.html`, `estadia/detalle.html`, Kits).
+
+## Decisiones tomadas
+- **Cancelar (8):** editando vuelve a la ficha de la institución; creando, a la lista. Reusa `url_volver` que ya calculaba el encabezado.
+- **Localidad (19):** select con las localidades que existen **dentro del alcance** de quien mira (`dispositivos_visibles`), sin tocar
+  el filtro (`localidad__icontains`): el parámetro GET sigue siendo `localidad` y un valor viejo de la URL se ofrece igual para no
+  esconder el filtro aplicado. Suma una consulta fija al listado (presupuesto 14 a 15, justificado en `_meta.adjustments`).
+- **Exportaciones (18):** el encabezado deja de tener tres botones sueltos: queda «Nueva institución» y un menú «Exportar» con CSV y
+  Excel (`menu_fila`, misma forma que el detalle). Las URL conservan los filtros.
+- **Marcadores (20):** el legajo (P3) declara `{# arquetipo: formulario + asistencia #}`; el auditor ganó esa variante, que es la
+  «Formulario con asistencia lateral» que la ficha ya documentaba (el `<form>` es contenedor y las tarjetas son sus hijas). «Nuevo caso»
+  de Emergencia solo necesitaba nombrar `_field.html`, que se incluye desde el parcial de bloques.
+
+- **«Editar tipo» (23):** el texto vive en `config/_tipo_detail_content.html` y no en `tipo_detail.html`; el ícono se puso ahí.
+
+## Pendientes / a definir
+- **Hallazgo 16** (cargador de modal y solapas de `tipo_detail.html`): PR aparte.
+- **Tres botones de encabezado con tamaños mezclados:** el disparador del menú es `btn-sm` junto al `btn-base` de la acción primaria,
+  como en cualquier encabezado que usa `menu_fila` con texto; si se quiere uniforme, es decisión de la ficha de botones.
+
+## Implementación
+- `legajo/form.html`: «Cancelar» a `url_volver`; los cinco `<script>` inline pasan a `static/custom/js/dispositivos-legajo-faltantes.js`,
+  `-tipo.js`, `-franjas.js`, `-responsables.js` y `-duplicados.js` (misma lógica; el id de responsables es el del form y la URL de
+  duplicados viaja en `data-url` del `<script>`); se carga cada uno donde antes estaba el inline y, en el alta, los dos que solo
+  corresponden al alta.
+- `legajo/list.html` y `views/dispositivos_legajo.py`: select de localidades (`localidades`), `url_exportar_csv` y `url_exportar_xlsx`.
+- `forms.py` y `config/_tipo_form_fields.html`: los cuatro booleanos de `TipoDispositivoForm` con `SwitchInput`.
+- `config/_tipo_detail_content.html`: ícono `fa-pen` en «Editar tipo».
+- `emergencia/casos/form.html`: marcador de campos.
+- `scripts/design_audit.py`: variante `formulario + asistencia`. `scripts/perf_budgets.json`: techo 15 con su justificación.
+- Fichas `.claude/design/arquetipos/formulario.md` y `.claude/design/componentes/field.md`.
+- Tests: `test_dispositivos_diseno_d.py` (nuevo) y los que leían el JS de la página (`fidelidad_fi`, `fidelidad_fg`, `cambio_407`,
+  `formulario_alta`, `duplicados_fi.cjs`), que ahora leen los archivos.
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos de «Cancelar», del select (alcance, filtro, valor viejo), del menú de exportación, de los interruptores y del ícono.
+**Mutación (cada una en rojo, restaurando sin stash):** «Cancelar» fijo a la lista; el select con `Dispositivo.objects.all()` en vez del
+alcance; `activo` otra vez con `CheckboxInput`; «Editar tipo» sin el ícono. `manage.py check`, ruff, `design_audit --ratchet`,
+`--arquetipo formulario`, `compile_templates --bloques`, `check_design_agent` y `requerimientos.py --check` en verde.
+
+## Puesta en marcha en el servidor
+`collectstatic` toma los cinco archivos nuevos (el entrypoint ya lo corre). Sin cambios de configuración.
+
+## Reversión
+Desplegar el código anterior. No hay datos que revertir.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
 # Cambio 545 — Dispositivos · la institución se bloquea primero, en compartido: ni carrera ni deadlock contra «Cerrar» e «Inactivar»
 
 🟢 **HECHO — 22/11/2026**
@@ -62389,7 +62554,9 @@ Se consultó el archivo por `dispositivos`, `emergencia` y «bloqueo»: nada cho
   recibió el candado). `edificios.py` (edificio → traza del dispositivo) no toca plazas y no se tocó.
 
 ## Pendientes
-- Ninguno propio. Sigue el del 536 sobre `asignar_plaza` en una institución cerrada o inactiva.
+- Un test `@tag("mysql")` de carrera sobre `_BaseCarrera` (reservar contra «Cerrar», liberar contra «Inactivar») que deje en la
+  suite del motor real lo que hoy midió la sonda fuera de ella.
+- Sigue el del 536 sobre `asignar_plaza` en una institución cerrada o inactiva.
 
 ## Implementación
 `core/db.py` (`leer_con_bloqueo_compartido`), `programas/services/dispositivos.py` (`bloquear_institucion`,
@@ -62404,7 +62571,9 @@ SQL `LOCK IN SHARE MODE` ordenado por pk— y el orden de cada camino).
 
 ## Base de datos
 No requiere. Una consulta más (el `SELECT … LOCK IN SHARE MODE`) en ingresar, liberar, egresar, asignar, sacar/reponer plaza y en
-los caminos de Emergencia; ninguna en reservar, prestar y cambiar de plaza. Ningún presupuesto de `--tag performance` cambió.
+los caminos de Emergencia; ninguna en reservar, prestar y cambiar de plaza. En los caminos por lote se suma además una lectura por
+reserva liberada: «Inactivar» +N, `confirmar_ingreso` 2+N y el cierre, la cancelación o el vencimiento de una derivación N+1; son
+lecturas por pk de una fila que la transacción ya tiene bloqueada. Ningún presupuesto de `--tag performance` cambió.
 
 ## Validación
 - **Mutación:** sacar la llamada de cada uno de los caminos, el control de transacción del helper o volver `registrar_entrada` al

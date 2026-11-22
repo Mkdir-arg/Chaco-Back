@@ -92,6 +92,12 @@ solo pone etiqueta y error.
   sin envío, Guardar conserva `btn-brand`. Campos en `sm:grid-cols-2`, nombre y textarea
   de ancho completo mediante `wrapper_class="sm:col-span-2"` del campo canónico.
   Evidencia: `programas/templates/programas/dispositivos/legajo/form.html` (P3).
+  Se declara con `{# arquetipo: formulario + asistencia #}` en la primera línea: `design_audit.py --arquetipo formulario`
+  le pide entonces el `<form>` como contenedor `space-y-5` (en vez de la surface en el `<form>`) y la grilla `lg:col-span-2`.
+  «Cancelar» vuelve a donde se estaba: editando, a la ficha de la institución; creando, a la lista.
+  Su JS no es inline: los archivos dispositivos-legajo-faltantes, -tipo, -franjas, -responsables y -duplicados de static/custom/js, uno por
+  bloque (responsables y duplicados solo en el alta); lo que necesitan de Django viaja en `data-*` (la URL de duplicados,
+  en `data-url` de su `<script>`) y los ids son los del form. Los tests de Node leen esos archivos.
   Los asteriscos marcan requisitos para validar (`marca_requerido`, sin cambiar `required`); la bajada lo explica y el borrador admite incompletos.
   «Responsables del dispositivo» (solo el alta, Cambio 411; `DispositivoForm(con_responsables=True)`): buscador múltiple con píldoras (`select data-buscador` de `nodo-buscador.js/css`, Cambio 450) de pares «Persona — Rol», con el `<label for>` dentro del `h2` de la sección, dentro de la tarjeta de datos y separado con `border-t border-light mt-5 pt-4`; mínimo uno, el error va en su `data-error="responsables"`. En el alta reemplaza a «Responsable y contacto»: debajo, «Datos de contacto: <nombre> · <teléfono>» de la primera píldora (`data-contacto-responsable`, texto `text-xs text-body-subtle`), y «Qué falta para validar» suma `data-faltante-responsable` (sin responsables / sin nombre o sin teléfono válidos en el perfil, nombrando a la persona por `data-persona`). En la edición (Cambio 459), si el Equipo tiene responsable, «Responsable y contacto» es de solo lectura: `h2` + bajada `text-xs text-body-subtle` («Se toman del primer responsable del Equipo…») + «<nombre> · <teléfono>» en `text-sm text-body`, y «Qué falta para validar» suma los mismos `data-faltante-responsable` de nombre y teléfono (sin el de «ninguno»). Un legajo sin responsables conserva los cuatro campos a mano.
   «Ubicación» (Cambio 493, fase 2): la localidad con el campo canónico y, debajo, a fila completa, la pieza
