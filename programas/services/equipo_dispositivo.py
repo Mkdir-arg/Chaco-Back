@@ -193,6 +193,134 @@ def _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro):
     _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, ids)
 
 
+#: El valor de «Edificios» para quien no puede nombrar el modelo (formularios y vistas: ver `UnSoloDuenoTests`).
+ALCANCE_EDIFICIOS = "EDIFICIOS"
+
+
+def opciones_de_alcance(actor, dispositivo):
+    """Lo que el modal del Equipo ofrece a ``actor``: ``{"alcances": [(valor, etiqueta)], "edificios": [(pk, nombre)]}``.
+
+    Es solo presentación de lo que el servidor va a aceptar (RN6): el admin ofrece toda la institución y los edificios
+    vinculados; el responsable con alcance Edificios, solo «Edificios» y los suyos. Sin edificios vinculados no se ofrece
+    «Edificios» (no habría qué elegir). La autorización la sigue haciendo cada escritura.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    Alcance = MiembroEquipoDispositivo.Alcance
+    propios = _edificios_que_gestiona(actor, dispositivo)
+    vinculados = dispositivo.edificios.order_by("nombre")
+    if propios is not None:
+        vinculados = vinculados.filter(pk__in=propios)
+    edificios = list(vinculados.values_list("pk", "nombre"))
+    if propios is not None:
+        alcances = [(Alcance.EDIFICIOS.value, Alcance.EDIFICIOS.label)] if edificios else []
+    elif edificios:
+        alcances = list(Alcance.choices)
+    else:
+        alcances = [(Alcance.INSTITUCION.value, Alcance.INSTITUCION.label)]
+    return {"alcances": alcances, "edificios": edificios}
+
+
+def edificios_donde_agregar_persona(actor, dispositivo):
+    """Dónde ofrece «Agregar persona al edificio»: ``None`` = en todos, o el conjunto de ids (vacío = en ninguno).
+
+    La misma regla que valida ``_exigir_alta_en_edificio``: gestiona el Equipo, el dispositivo no está cerrado y,
+    con alcance Edificios, solo en los propios (RN6).
+    """
+
+    from programas.models import Dispositivo
+
+    if dispositivo.estado == Dispositivo.Estado.CERRADO or not puede_gestionar_equipo(actor, dispositivo):
+        return set()
+    return _edificios_que_gestiona(actor, dispositivo)
+
+
+def _exigir_alta_en_edificio(actor, dispositivo, edificio_id):
+    from programas.models import Dispositivo
+
+    if dispositivo.estado == Dispositivo.Estado.CERRADO:
+        raise ValidationError("El dispositivo está cerrado: no se suman personas a su Equipo.")
+    _exigir_alcance_valido(dispositivo, "EDIFICIOS", [edificio_id])
+    _exigir_dentro_de_mis_edificios(actor, dispositivo, "EDIFICIOS", [edificio_id])
+
+
+def exigir_alta_en_edificio(actor, dispositivo, edificio_id):
+    """Falla si ``actor`` no puede sumar gente en ``edificio_id`` de este dispositivo (cerrado, ajeno o fuera de sus edificios)."""
+
+    _exigir_gestion(actor, dispositivo)
+    _exigir_alta_en_edificio(actor, dispositivo, edificio_id)
+
+
+RESULTADO_SUMADA = "sumada"
+RESULTADO_AGREGADA = "agregada"
+RESULTADO_YA_ALCANZA = "ya_alcanza"
+
+
+def sumar_miembro_en_edificio(
+    *, actor, dispositivo, usuario, rol, edificio_id, es_responsable=False, tipo_contratacion=None
+):
+    """«Agregar persona al edificio»: suma a ``usuario`` con alcance Edificios en ``edificio_id``.
+
+    Devuelve ``(miembro, resultado)``. Si no estaba (o estaba de baja) entra con alcance Edificios y ese edificio. Si ya
+    está activa con alcance Edificios, se le suma el edificio a su fila. Si ya tiene toda la institución (o el edificio
+    ya estaba) no se cambia nada: ``RESULTADO_YA_ALCANZA``. Un responsable con alcance Edificios solo opera sus edificios.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    with transaction.atomic():
+        dispositivo = _bloquear(dispositivo)
+        _exigir_gestion(actor, dispositivo)
+        _exigir_alta_en_edificio(actor, dispositivo, edificio_id)
+        _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
+        miembro = (
+            MiembroEquipoDispositivo.objects.select_for_update()
+            .filter(dispositivo=dispositivo, usuario=usuario, rol=rol, activo=True)
+            .first()
+        )
+        if miembro is None:
+            miembro = _sumar_miembro_bloqueado(
+                actor=actor,
+                dispositivo=dispositivo,
+                usuario=usuario,
+                rol=rol,
+                es_responsable=es_responsable,
+                tipo_contratacion=tipo_contratacion,
+                alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS,
+                edificios=[edificio_id],
+            )
+            return miembro, RESULTADO_SUMADA
+        if miembro.alcance != MiembroEquipoDispositivo.Alcance.EDIFICIOS:
+            return miembro, RESULTADO_YA_ALCANZA
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
+        if miembro.edificios.filter(pk=edificio_id).exists():
+            return miembro, RESULTADO_YA_ALCANZA
+        miembro.edificios.add(edificio_id)
+        return miembro, RESULTADO_AGREGADA
+
+
+def cambiar_alcance(*, actor, miembro, alcance, edificios=()):
+    """Cambia el alcance de una persona activa del Equipo: toda la institución o los ``edificios`` elegidos (RN2, RN6)."""
+
+    from programas.models import MiembroEquipoDispositivo
+
+    with transaction.atomic():
+        dispositivo = _bloquear(miembro.dispositivo)
+        _exigir_gestion(actor, dispositivo)
+        miembro = MiembroEquipoDispositivo.objects.select_for_update().get(pk=miembro.pk)
+        if not miembro.activo:
+            raise ValidationError("La persona está de baja en el Equipo.")
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
+        alcance = alcance or MiembroEquipoDispositivo.Alcance.INSTITUCION
+        edificio_ids = _exigir_alcance_valido(dispositivo, alcance, edificios)
+        _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, edificio_ids)
+        miembro.alcance = alcance
+        miembro.save(update_fields=["alcance", "modificado"])
+        miembro.edificios.set(edificio_ids)
+        return miembro
+
+
 MIEMBROS_SIN_EDIFICIOS = (
     "No se puede desvincular el edificio: dejaría sin ningún edificio a {personas}, que en el Equipo tiene{plural} "
     "alcance por edificio y no vería nada. Dalo{plural_lo} de baja del Equipo o cambiá su alcance antes de "
@@ -278,37 +406,53 @@ def sumar_miembro(
     miembros Edificios dentro de los suyos.
     """
 
-    from programas.models import MiembroEquipoDispositivo
-
     with transaction.atomic():
-        dispositivo = _bloquear(dispositivo)
-        _exigir_gestion(actor, dispositivo)
-        _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
-        edificio_ids = _exigir_alcance_valido(dispositivo, alcance, edificios)
-        _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, edificio_ids)
-        miembro, creado = MiembroEquipoDispositivo.objects.get_or_create(
-            dispositivo=dispositivo,
+        return _sumar_miembro_bloqueado(
+            actor=actor,
+            dispositivo=_bloquear(dispositivo),
             usuario=usuario,
             rol=rol,
-            defaults={"es_responsable": es_responsable, "tipo_contratacion": tipo_contratacion, "alcance": alcance},
+            es_responsable=es_responsable,
+            tipo_contratacion=tipo_contratacion,
+            alcance=alcance,
+            edificios=edificios,
         )
-        if not creado and miembro.activo:
-            # Volver a sumar a alguien activo no le toca el puesto: si es de otro edificio, no es del responsable (RN6).
-            _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
-        if creado or not miembro.activo:
-            # Alta nueva o reactivación: el alcance que se elige ahora reemplaza al anterior.
-            miembro.alcance = alcance
-            miembro.edificios.set(edificio_ids)
-        if not creado:
-            estaba_de_baja = not miembro.activo
-            miembro.activo = True
-            # De baja vuelve como se pide; si ya estaba activa (dos altas a la vez) no se le saca la marca.
-            miembro.es_responsable = es_responsable if estaba_de_baja else miembro.es_responsable or es_responsable
-            if estaba_de_baja and tipo_contratacion:
-                # Reactivar es un alta nueva del puesto: manda la contratación que se elige ahora.
-                miembro.tipo_contratacion = tipo_contratacion
-            miembro.save(update_fields=["activo", "es_responsable", "tipo_contratacion", "alcance", "modificado"])
-        return miembro
+
+
+def _sumar_miembro_bloqueado(
+    *, actor, dispositivo, usuario, rol, es_responsable, tipo_contratacion, alcance, edificios
+):
+    """El cuerpo de ``sumar_miembro``, con la transacción abierta y el dispositivo ya bloqueado por quien llama."""
+
+    from programas.models import MiembroEquipoDispositivo
+
+    _exigir_gestion(actor, dispositivo)
+    _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
+    edificio_ids = _exigir_alcance_valido(dispositivo, alcance, edificios)
+    _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, edificio_ids)
+    miembro, creado = MiembroEquipoDispositivo.objects.get_or_create(
+        dispositivo=dispositivo,
+        usuario=usuario,
+        rol=rol,
+        defaults={"es_responsable": es_responsable, "tipo_contratacion": tipo_contratacion, "alcance": alcance},
+    )
+    if not creado and miembro.activo:
+        # Volver a sumar a alguien activo no le toca el puesto: si es de otro edificio, no es del responsable (RN6).
+        _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro)
+    if creado or not miembro.activo:
+        # Alta nueva o reactivación: el alcance que se elige ahora reemplaza al anterior.
+        miembro.alcance = alcance
+        miembro.edificios.set(edificio_ids)
+    if not creado:
+        estaba_de_baja = not miembro.activo
+        miembro.activo = True
+        # De baja vuelve como se pide; si ya estaba activa (dos altas a la vez) no se le saca la marca.
+        miembro.es_responsable = es_responsable if estaba_de_baja else miembro.es_responsable or es_responsable
+        if estaba_de_baja and tipo_contratacion:
+            # Reactivar es un alta nueva del puesto: manda la contratación que se elige ahora.
+            miembro.tipo_contratacion = tipo_contratacion
+        miembro.save(update_fields=["activo", "es_responsable", "tipo_contratacion", "alcance", "modificado"])
+    return miembro
 
 
 def datos_de_alta_de_persona(*, actor, dni, nombre, apellido, correo, rol):
@@ -508,15 +652,18 @@ def pares_persona_rol(dispositivo=None):
     return pares
 
 
-def equipo_del_dispositivo(dispositivo):
-    """Los miembros activos del Equipo para la solapa, con ``vigente`` (el rol todavía vale).
+def equipo_del_dispositivo(dispositivo, actor=None):
+    """Los miembros activos del Equipo para la solapa, con ``vigente`` (el rol todavía vale) y su alcance en texto.
 
-    Una sola consulta: «vigente» es ``q_membresia_vigente``, la misma definición que usan el
-    alcance y la gestión del Equipo, anotada sobre cada fila.
+    «Vigente» es ``q_membresia_vigente``, la misma definición que usan el alcance y la gestión del Equipo, anotada
+    sobre cada fila. Los edificios de todas las filas se leen con **un** ``prefetch``, vengan 3 miembros o 300. Cada
+    fila trae ``alcance_texto`` (solo los edificios que siguen vinculados) y, si se pasa ``actor``, ``puede_cambiar_alcance``:
+    lo que el servidor le va a aceptar (RN6), para no ofrecer lo que rechaza.
     """
 
     from programas.models import MiembroEquipoDispositivo
 
+    Alcance = MiembroEquipoDispositivo.Alcance
     vigente = Case(
         When(q_membresia_vigente(programa_dispositivos()), then=True),
         default=False,
@@ -525,9 +672,20 @@ def equipo_del_dispositivo(dispositivo):
     miembros = list(
         MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True)
         .select_related("usuario", "rol__meta")
+        .prefetch_related("edificios")
         .annotate(vigente=vigente)
         .order_by("-es_responsable", "usuario__last_name", "usuario__first_name", "usuario__username", "rol__name")
     )
+    vinculados = set(dispositivo.edificios.values_list("pk", flat=True))
+    propios = _edificios_que_gestiona(actor, dispositivo) if actor is not None else None
     for miembro in miembros:
         miembro.persona = nombre_de_persona(miembro.usuario)
+        vigentes = sorted((e for e in miembro.edificios.all() if e.pk in vinculados), key=lambda e: (e.nombre, e.pk))
+        if miembro.alcance == Alcance.EDIFICIOS:
+            miembro.alcance_texto = ", ".join(e.nombre for e in vigentes) or "Sin edificios vigentes"
+        else:
+            miembro.alcance_texto = Alcance.INSTITUCION.label
+        miembro.puede_cambiar_alcance = propios is None or (
+            miembro.alcance == Alcance.EDIFICIOS and {e.pk for e in miembro.edificios.all()} <= propios
+        )
     return miembros

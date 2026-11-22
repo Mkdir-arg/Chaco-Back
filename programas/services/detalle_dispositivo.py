@@ -562,7 +562,18 @@ def _respuesta_base():
 
 
 def _fila_de_edificio(
-    edificio, *, ultima, sectores, del_predio, total, dispositivo, base, hoy, con_ocupacion, puede_editar
+    edificio,
+    *,
+    ultima,
+    sectores,
+    del_predio,
+    total,
+    dispositivo,
+    base,
+    hoy,
+    con_ocupacion,
+    puede_editar,
+    agregar_persona_en,
 ):
     """Una fila de `infraestructura_del_dispositivo`: lo que la tarjeta y la ficha dibujan de un edificio.
 
@@ -618,6 +629,10 @@ def _fila_de_edificio(
         "url_desvincular": (
             reverse("dispositivos:edificio_desvincular", args=[dispositivo.pk, edificio.pk]) if puede_editar else ""
         ),
+        # «Agregar persona al edificio» (Cambio 523, PR 4): solo donde el servidor va a aceptar el alta.
+        "url_agregar_persona": (
+            f"{base}&agregar_persona={edificio.pk}" if agregar_persona_en and agregar_persona_en(edificio.pk) else ""
+        ),
     }
 
 
@@ -668,7 +683,14 @@ def registro_de_relevamientos(usuario, inspecciones, pagina, *, sufijo_enlace=""
 
 
 def infraestructura_del_dispositivo(
-    dispositivo, pagina=1, usuario=None, edificio_id=None, estado=None, ocupadas_por_sector=None, puede_editar=False
+    dispositivo,
+    pagina=1,
+    usuario=None,
+    edificio_id=None,
+    estado=None,
+    ocupadas_por_sector=None,
+    puede_editar=False,
+    agregar_persona_en=None,
 ):
     """Lo que dibuja la solapa Infraestructura: tarjetas por edificio y, al abrir uno, su ficha (Cambio 439).
 
@@ -697,6 +719,8 @@ def infraestructura_del_dispositivo(
     ``puede_editar`` (``dispositivo.editar`` con alcance, lo resuelve la vista) es lo que agrega a cada fila
     ``url_editar`` y ``url_desvincular``; sin él van vacías y la tarjeta no ofrece esas acciones. Todas las URL de
     la solapa (``url_ver``, ``url_listado``, ``qs_paginacion``) las arma este servicio: el template no concatena.
+    ``agregar_persona_en(edificio_pk) -> bool`` decide en qué edificios va ``url_agregar_persona`` (la regla del Equipo,
+    ``equipo_dispositivo.edificios_donde_agregar_persona``); sin él, ninguno.
 
     ``usuario`` decide **de quién** se muestra el relevamiento en curso: sin él —o con quien solo opera la
     institución— el evento dice «en curso» y nada más (`programas.services.inspecciones.ve_la_asignacion`).
@@ -807,6 +831,7 @@ def infraestructura_del_dispositivo(
             hoy=hoy,
             con_ocupacion=ocupadas_por_sector is not None,
             puede_editar=puede_editar,
+            agregar_persona_en=agregar_persona_en,
         )
         for edificio in edificios
     ]

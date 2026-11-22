@@ -20,7 +20,7 @@ from django.views import View
 
 from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
-from programas.forms_dispositivos import CrearPersonaEquipoForm, SumarMiembroEquipoForm
+from programas.forms_dispositivos import AlcanceMiembroEquipoForm, CrearPersonaEquipoForm, SumarMiembroEquipoForm
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, MiembroEquipoDispositivo
 from programas.selectors.equipo_sugeridas import sugerir_pares_equipo
@@ -84,12 +84,24 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
 class EquipoSumarView(_EquipoAccionView):
     mensaje_exito = "Persona sumada al Equipo."
 
+    #: «Agregar persona al edificio» (viaja ``edificio_fijo``): qué le pasó a la fila de una persona que ya estaba.
+    MENSAJES_EN_EDIFICIO = {
+        equipo.RESULTADO_SUMADA: "Persona sumada al Equipo en ese edificio.",
+        equipo.RESULTADO_AGREGADA: "Edificio sumado al alcance de la persona.",
+        equipo.RESULTADO_YA_ALCANZA: "La persona ya tiene alcance sobre ese edificio: no se cambió nada.",
+    }
+
     def ejecutar(self, request, dispositivo, kwargs):
-        form = self.form = SumarMiembroEquipoForm(request.POST, dispositivo=dispositivo)
+        form = self.form = SumarMiembroEquipoForm(
+            request.POST,
+            dispositivo=dispositivo,
+            opciones=equipo.opciones_de_alcance(request.user, dispositivo),
+            edificio_fijo=bool(request.POST.get("edificio_fijo")),
+        )
         if not form.is_valid():
             raise ValidationError({campo: list(mensajes) for campo, mensajes in form.errors.items()})
         usuario, rol = form.cleaned_data["persona_rol"]
-        equipo.sumar_miembro(
+        datos = dict(
             actor=request.user,
             dispositivo=dispositivo,
             usuario=usuario,
@@ -97,6 +109,11 @@ class EquipoSumarView(_EquipoAccionView):
             es_responsable=form.cleaned_data["es_responsable"],
             tipo_contratacion=form.cleaned_data["tipo_contratacion"],
         )
+        if form.edificio_fijo:
+            _, resultado = equipo.sumar_miembro_en_edificio(edificio_id=form.cleaned_data["edificio_fijo"], **datos)
+            self.mensaje_exito = self.MENSAJES_EN_EDIFICIO[resultado]
+        else:
+            equipo.sumar_miembro(**datos, **form.datos_de_alcance())
 
 
 class EquipoCrearPersonaView(_EquipoAccionView):
@@ -122,10 +139,17 @@ class EquipoCrearPersonaView(_EquipoAccionView):
             incluir_ip=False,
         ):
             raise ValidationError("Hiciste muchas altas seguidas. Esperá un minuto y probá de nuevo.")
-        form = self.form = CrearPersonaEquipoForm(request.POST, roles=equipo.roles_para_crear_persona(request.user))
+        form = self.form = CrearPersonaEquipoForm(
+            request.POST,
+            roles=equipo.roles_para_crear_persona(request.user),
+            opciones=equipo.opciones_de_alcance(request.user, dispositivo),
+            edificio_fijo=bool(request.POST.get("edificio_fijo")),
+        )
         if not form.is_valid():
             raise ValidationError({campo: list(mensajes) for campo, mensajes in form.errors.items()})
         datos = form.cleaned_data
+        if form.edificio_fijo:
+            equipo.exigir_alta_en_edificio(request.user, dispositivo, datos["edificio_fijo"])
         alta = equipo.datos_de_alta_de_persona(
             actor=request.user,
             dni=datos["dni"],
@@ -144,6 +168,7 @@ class EquipoCrearPersonaView(_EquipoAccionView):
                 rol=datos["rol"],
                 es_responsable=datos["es_responsable"],
                 tipo_contratacion=datos["tipo_contratacion"],
+                **form.datos_de_alcance(),
             )
         except IntegrityError as error:
             # La carrera: dos altas con el mismo valor pasan la validación y la segunda choca con el índice único.
@@ -200,7 +225,11 @@ class EquipoPersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
             return sin_cache(
                 JsonResponse({"ok": False, "message": "No tenés alcance para armar el Equipo."}, status=403)
             )
-        return sin_cache(JsonResponse(sugerir_pares_equipo(dispositivo, request.GET.get("q", ""))))
+        # «Agregar persona al edificio» también ofrece a quien ya está en el Equipo: se le suma el edificio.
+        incluir = request.GET.get("incluir") == "1"
+        return sin_cache(
+            JsonResponse(sugerir_pares_equipo(dispositivo, request.GET.get("q", ""), incluir_del_equipo=incluir))
+        )
 
 
 class _EquipoMiembroView(_EquipoAccionView):
@@ -212,6 +241,21 @@ class _EquipoMiembroView(_EquipoAccionView):
     def ejecutar(self, request, dispositivo, kwargs):
         miembro = get_object_or_404(MiembroEquipoDispositivo, pk=kwargs["miembro_pk"], dispositivo=dispositivo)
         self.servicio(actor=request.user, miembro=miembro)
+
+
+class EquipoAlcanceView(_EquipoMiembroView):
+    """«Cambiar alcance» de una persona del Equipo: toda la institución o edificios puntuales (Cambio 523, PR 4)."""
+
+    mensaje_exito = "Alcance actualizado."
+
+    def ejecutar(self, request, dispositivo, kwargs):
+        miembro = get_object_or_404(MiembroEquipoDispositivo, pk=kwargs["miembro_pk"], dispositivo=dispositivo)
+        form = self.form = AlcanceMiembroEquipoForm(
+            request.POST, opciones=equipo.opciones_de_alcance(request.user, dispositivo), miembro=miembro
+        )
+        if not form.is_valid():
+            raise ValidationError({campo: list(mensajes) for campo, mensajes in form.errors.items()})
+        equipo.cambiar_alcance(actor=request.user, miembro=miembro, **form.datos_de_alcance())
 
 
 class EquipoBajaView(_EquipoMiembroView):

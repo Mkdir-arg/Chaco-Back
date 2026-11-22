@@ -17,9 +17,10 @@
        modalRelevamiento: false,
        modalEquipo: {% if form_equipo %}true{% else %}false{% endif %},
        modalCrearPersona: false,
+       modalAlcance: {% if form_alcance %}true{% else %}false{% endif %},
        egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
-     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false; modalEquipo=false; modalCrearPersona=false">
+     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false; modalEquipo=false; modalCrearPersona=false; modalAlcance=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
@@ -338,6 +339,7 @@
                 <th class="nodo-th">Persona</th>
                 <th class="nodo-th hidden lg:table-cell">Rol</th>
                 <th class="nodo-th hidden lg:table-cell">Contratación</th>
+                <th class="nodo-th hidden lg:table-cell">Alcance</th>
                 <th class="nodo-th hidden lg:table-cell">Responsable</th>
                 {% if puede_gestionar_equipo %}<th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
               </tr>
@@ -351,32 +353,40 @@
                   <div class="lg:hidden mt-1 flex flex-col items-start gap-1 text-xs text-body-subtle">
                     <span>{{ miembro.rol.name }}</span>
                     <span>{{ miembro.get_tipo_contratacion_display|default:"Sin dato" }}</span>
+                    <span>{{ miembro.alcance_texto }}</span>
                     {% if not miembro.vigente %}<span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}
                     {% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% endif %}
                   </div>
                 </td>
                 <td class="nodo-td hidden lg:table-cell">{{ miembro.rol.name }}{% if not miembro.vigente %} <span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}</td>
                 <td class="nodo-td hidden lg:table-cell">{% if miembro.tipo_contratacion %}{{ miembro.get_tipo_contratacion_display }}{% else %}<span class="text-body-subtle">Sin dato</span>{% endif %}</td>
+                <td class="nodo-td hidden lg:table-cell">{{ miembro.alcance_texto }}</td>
                 <td class="nodo-td hidden lg:table-cell">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
                 {% if puede_gestionar_equipo %}
                 <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                   {% url 'dispositivos:equipo_baja' dispositivo.pk miembro.pk as url_baja %}
                   {% url 'dispositivos:equipo_responsable' dispositivo.pk miembro.pk as url_responsable %}
                   {% url 'dispositivos:equipo_quitar_responsable' dispositivo.pk miembro.pk as url_quitar_responsable %}
+                  {% url 'dispositivos:detalle' dispositivo.pk as url_detalle_equipo %}{% with pk_texto=miembro.pk|stringformat:"s" %}
                   {% menu_fila id=miembro.pk etiqueta="Acciones de "|add:miembro.persona %}
+                    {% if miembro.puede_cambiar_alcance %}
+                    {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" url=url_detalle_equipo|add:"?tab=equipo&equipo=alcance&miembro="|add:pk_texto only %}
+                    {% else %}
+                    {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" motivo="Solo en tus propios edificios" only %}
+                    {% endif %}
                     {% if miembro.es_responsable %}
                     {% include "components/_menu_fila_item.html" with texto="Quitar como responsable" icono="fa-user-minus" confirm_url=url_quitar_responsable confirm_title="¿Quitar como responsable?" confirm_text="La persona sigue en el Equipo pero deja de armarlo. El dispositivo no puede quedar sin responsables." confirm_ok="Sí, quitar" peligro=True only %}
                     {% else %}
                     {% include "components/_menu_fila_item.html" with texto="Marcar como responsable" icono="fa-user-check" confirm_url=url_responsable confirm_title="¿Marcar como responsable?" confirm_text="La persona podrá sumar y dar de baja a otras del Equipo." confirm_ok="Sí, marcar" only %}
                     {% endif %}
                     {% include "components/_menu_fila_item.html" with texto="Dar de baja" icono="fa-user-slash" confirm_url=url_baja confirm_title="¿Dar de baja del Equipo?" confirm_text="La persona deja de operar este dispositivo. Volver a sumarla la repone." confirm_ok="Sí, dar de baja" peligro=True only %}
-                  {% endmenu_fila %}
+                  {% endmenu_fila %}{% endwith %}
                 </td>
                 {% endif %}
               </tr>
               {% empty %}
               <tr>
-                <td colspan="{% if puede_gestionar_equipo %}5{% else %}4{% endif %}" class="p-0">
+                <td colspan="{% if puede_gestionar_equipo %}6{% else %}5{% endif %}" class="p-0">
                   {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Este dispositivo no tiene Equipo" texto="Cuando se sume a alguien, aparece acá con su rol." %}
                 </td>
               </tr>
@@ -577,8 +587,12 @@
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEquipo=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-equipo-titulo">
+      {% if edificio_fijo %}
+      {% include "programas/becas/_modal_header.html" with titulo="Agregar persona al edificio" titulo_id="modal-equipo-titulo" subtitulo="La persona opera solo este edificio, con el rol que elijas." icono="fa-user-plus" cerrar="modalEquipo=false" %}
+      {% else %}
       {% include "programas/becas/_modal_header.html" with titulo="Sumar persona al Equipo" titulo_id="modal-equipo-titulo" subtitulo="La persona opera el dispositivo con el rol que elijas." icono="fa-user-plus" cerrar="modalEquipo=false" %}
-      <form method="post" action="{{ url_equipo_sumar }}" data-ajax class="flex flex-col flex-1 min-h-0">
+      {% endif %}
+      <form method="post" action="{{ url_equipo_sumar }}" data-ajax x-data="{ alcance: '{{ form_equipo.alcance.value|default_if_none:''|escapejs }}' }" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
@@ -596,9 +610,28 @@
             {% endif %}
           </div>
           <div>{% with field=form_equipo.tipo_contratacion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          {% include "programas/dispositivos/legajo/_equipo_alcance.html" with form=form_equipo edificio_fijo=edificio_fijo only %}
           <div>{% with field=form_equipo.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEquipo=false" accion_texto="Sumar al Equipo" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if form_alcance %}
+  {# Modal: Cambiar el alcance de una persona del Equipo (arquetipo Modal) #}
+  <div x-show="modalAlcance" x-cloak x-becas-modal="modalAlcance" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalAlcance=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-alcance-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cambiar alcance" titulo_id="modal-alcance-titulo" subtitulo=miembro_alcance.persona icono="fa-building" cerrar="modalAlcance=false" %}
+      <form method="post" action="{{ url_equipo_alcance }}" data-ajax x-data="{ alcance: '{{ form_alcance.alcance.value|default_if_none:''|escapejs }}' }" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <p class="text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+          {% include "programas/dispositivos/legajo/_equipo_alcance.html" with form=form_alcance only %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalAlcance=false" accion_texto="Guardar alcance" %}
       </form>
     </div>
   </div>
@@ -610,7 +643,7 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-crear-persona-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Crear persona" titulo_id="modal-crear-persona-titulo" subtitulo="Se crea el usuario y se suma al Equipo con el rol que elijas." icono="fa-user-plus" cerrar="modalCrearPersona=false" %}
-      <form method="post" action="{{ url_equipo_crear_persona }}" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{{ url_equipo_crear_persona }}" data-ajax x-data="{ alcance: '{{ form_crear_persona.alcance.value|default_if_none:''|escapejs }}' }" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
@@ -622,6 +655,7 @@
           <div>{% with field=form_crear_persona.email %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
           <div>{% with field=form_crear_persona.rol %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
           <div>{% with field=form_crear_persona.tipo_contratacion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          {% include "programas/dispositivos/legajo/_equipo_alcance.html" with form=form_crear_persona edificio_fijo=edificio_fijo only %}
           <div>{% with field=form_crear_persona.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCrearPersona=false" accion_texto="Crear y sumar al Equipo" %}

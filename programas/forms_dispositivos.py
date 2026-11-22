@@ -12,7 +12,7 @@ from django.utils.html import format_html
 from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.forms_sugerencias import attrs_sugerencias
-from core.widgets import SwitchInput
+from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.forms import INPUT_CLASS, _opciones_de_localidad
 from programas.models import Edificio, MiembroEquipoDispositivo, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
@@ -787,7 +787,77 @@ MENSAJE_EQUIPO_SIN_PERSONA = "No encontramos a nadie: tocá «Crear persona» pa
 MENSAJE_EQUIPO_PEDIR_ALTA = "¿No está? Pedile al administrador del programa que la dé de alta."
 
 
-class SumarMiembroEquipoForm(forms.Form):
+class _EdificiosField(forms.MultipleChoiceField):
+    """Los ids de edificio elegidos. Qué edificios valen (vinculados, propios del responsable) lo decide el servicio."""
+
+    def to_python(self, value):
+        ids = []
+        for crudo in super().to_python(value):
+            if not (crudo.isascii() and crudo.isdecimal()):
+                raise forms.ValidationError("Elegí edificios de la lista.", code="invalid_choice")
+            ids.append(int(crudo))
+        return ids
+
+    def valid_value(self, value):
+        return True
+
+
+class _CamposAlcanceEquipo(forms.Form):
+    """«Alcance» y «Edificios» del puesto (Cambio 523, PR 4), compartidos por sumar, crear y editar.
+
+    El form solo **ofrece** lo que el servidor acepta (``opciones`` sale de ``equipo.opciones_de_alcance``) y no valida
+    reglas: ``alcance`` acepta los valores del modelo aunque no se hayan ofrecido, y ``edificios`` cualquier id, para que
+    el servicio (RN2, RN6) sea quien rechace y el error llegue al campo. Sin ``alcance`` en el POST, toda la institución.
+    Con ``edificio_fijo`` (entrada «Agregar persona al edificio») no hay selector: viaja el edificio, oculto.
+    """
+
+    alcance = forms.ChoiceField(
+        label="Alcance",
+        required=False,
+        choices=MiembroEquipoDispositivo._meta.get_field("alcance").choices,
+        widget=forms.Select(attrs={"class": INPUT_CLASS, "x-model": "alcance"}),
+        help_text="Qué parte de la institución opera la persona.",
+    )
+    edificios = _EdificiosField(
+        label="Edificios",
+        required=False,
+        choices=(),
+        widget=ChipsSelectMultiple,
+        help_text="Elegí al menos un edificio.",
+    )
+    edificio_fijo = forms.IntegerField(required=False, widget=forms.HiddenInput())
+
+    def _armar_alcance(self, opciones, edificio_fijo=False, miembro=None):
+        self.edificio_fijo = edificio_fijo
+        if edificio_fijo:
+            del self.fields["alcance"], self.fields["edificios"]
+            self.fields["edificio_fijo"].required = True
+            return
+        del self.fields["edificio_fijo"]
+        opciones = opciones or {"alcances": [], "edificios": []}
+        self.fields["alcance"].widget.choices = opciones["alcances"]
+        self.fields["edificios"].choices = [(str(pk), nombre) for pk, nombre in opciones["edificios"]]
+        if miembro is not None:
+            primero = opciones["alcances"][0][0] if opciones["alcances"] else ""
+            self.initial.setdefault("alcance", miembro.alcance or primero)
+            self.initial.setdefault("edificios", [str(pk) for pk in miembro.edificios.values_list("pk", flat=True)])
+        elif opciones["alcances"]:
+            self.initial.setdefault("alcance", opciones["alcances"][0][0])
+
+    def datos_de_alcance(self):
+        """``{"alcance", "edificios"}`` para el servicio; con edificio fijo, es ese edificio."""
+
+        if self.edificio_fijo:
+            from programas.services import equipo_dispositivo as equipo
+
+            return {"alcance": equipo.ALCANCE_EDIFICIOS, "edificios": [self.cleaned_data["edificio_fijo"]]}
+        return {
+            "alcance": self.cleaned_data.get("alcance") or None,
+            "edificios": self.cleaned_data.get("edificios") or [],
+        }
+
+
+class SumarMiembroEquipoForm(_CamposAlcanceEquipo):
     """«Sumar persona» al Equipo (Cambio 411): un buscador «Persona — Rol» y la marca de responsable.
 
     Desde el Cambio 420 la persona se busca con sugerencias (``nodo-sugerencias.js``): el campo visible
@@ -819,10 +889,30 @@ class SumarMiembroEquipoForm(forms.Form):
         help_text="Los responsables arman el Equipo del dispositivo.",
     )
 
-    def __init__(self, *args, dispositivo=None, url_sugerencias=None, sin_resultados=None, **kwargs):
+    field_order = [
+        "persona",
+        "persona_rol",
+        "tipo_contratacion",
+        "alcance",
+        "edificios",
+        "edificio_fijo",
+        "es_responsable",
+    ]
+
+    def __init__(
+        self,
+        *args,
+        dispositivo=None,
+        url_sugerencias=None,
+        sin_resultados=None,
+        opciones=None,
+        edificio_fijo=False,
+        **kwargs,
+    ):
         """``url_sugerencias`` y ``sin_resultados`` (el aviso cuando nadie coincide) son solo presentación."""
 
         super().__init__(*args, **kwargs)
+        self._armar_alcance(opciones, edificio_fijo)
         self.dispositivo = dispositivo
         campo = self.fields["persona"]
         campo.widget.attrs.update(attrs_sugerencias(url_sugerencias, sin_resultados))
@@ -850,6 +940,7 @@ class SumarMiembroEquipoForm(forms.Form):
             raise invalido from None
         if (
             self.dispositivo is not None
+            and not self.edificio_fijo  # «Agregar persona al edificio» suma el edificio a quien ya está
             and MiembroEquipoDispositivo.objects.filter(
                 dispositivo=self.dispositivo, usuario=usuario, rol=rol, activo=True
             ).exists()
@@ -858,7 +949,7 @@ class SumarMiembroEquipoForm(forms.Form):
         return usuario, rol
 
 
-class CrearPersonaEquipoForm(forms.Form):
+class CrearPersonaEquipoForm(_CamposAlcanceEquipo):
     """«Crear persona» desde el Equipo (Cambio 420): los cuatro datos y el rol con el que entra.
 
     ``roles`` es ``roles_para_crear_persona(actor)``: lo que el actor puede dar según la regla del ABM de
@@ -900,12 +991,34 @@ class CrearPersonaEquipoForm(forms.Form):
         help_text="Los responsables arman el Equipo del dispositivo.",
     )
 
-    def __init__(self, *args, roles, **kwargs):
+    field_order = [
+        "dni",
+        "first_name",
+        "last_name",
+        "email",
+        "rol",
+        "tipo_contratacion",
+        "alcance",
+        "edificios",
+        "edificio_fijo",
+        "es_responsable",
+    ]
+
+    def __init__(self, *args, roles, opciones=None, edificio_fijo=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["rol"].queryset = roles
+        self._armar_alcance(opciones, edificio_fijo)
 
     def clean_dni(self):
         dni = normalizar_dni(self.cleaned_data["dni"])
         if not dni_valido(dni):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
+
+
+class AlcanceMiembroEquipoForm(_CamposAlcanceEquipo):
+    """«Cambiar alcance» de una persona del Equipo (Cambio 523, PR 4): el selector, con lo que tiene hoy."""
+
+    def __init__(self, *args, opciones, miembro, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._armar_alcance(opciones, False, miembro)
