@@ -10,6 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.archivos import archivos_atomicos
+from core.dni import normalizar_dni
 from core.models import Localidad
 from programas.models import (
     CasoEmergencia,
@@ -35,6 +36,8 @@ from programas.services.emergencia_ingreso_comun import (
     _asegurar_filas,
     _reservar_camas,
     _resumen_de_reservas,
+    derivacion_vigente_a_otro_edificio,
+    mensaje_otro_edificio,
     puede_avisar_a_la_mesa,
     puede_ingresar_igual,
 )
@@ -197,6 +200,26 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
     return caso
 
 
+def _exigir_sin_derivacion_vigente(dispositivo, datos_formulario1):
+    """La familia que ya tiene una derivación vigente a este dispositivo no se avisa a la mesa: duplicaría el caso.
+
+    Es la misma regla que la búsqueda por DNI (``derivacion_vigente_a_otro_edificio``): la derivación
+    ``PENDIENTE`` o ``ACEPTADA`` hacia **este** dispositivo, de cualquier edificio. Corre dentro de la
+    transacción de «Avisar a la mesa»: el ``ValidationError`` deshace el caso recién creado. Un reintento con
+    el mismo ``uuid_cliente`` de un caso ya creado no pasa por acá.
+    """
+
+    from programas.services.ingreso import buscar_ciudadano_por_dni
+
+    dni = normalizar_dni((datos_formulario1 or {}).get("dni") or "")
+    ciudadano = buscar_ciudadano_por_dni(dni) if dni else None
+    if ciudadano is None:
+        return
+    derivacion = derivacion_vigente_a_otro_edificio(ciudadano, dispositivo)
+    if derivacion is not None:
+        raise ValidationError(mensaje_otro_edificio(derivacion))
+
+
 @archivos_atomicos
 @transaction.atomic
 def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=None):
@@ -223,6 +246,8 @@ def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=No
         datos_formulario1=_formulario1_en_el_dispositivo(datos_formulario1, dispositivo),
         uuid_cliente=uuid_cliente,
     )
+    if not caso.ya_existia:
+        _exigir_sin_derivacion_vigente(dispositivo, datos_formulario1)
     if caso.ya_existia:
         puerta = (caso.situacion or {}).get(CasoEmergencia.SITUACION_EN_LA_PUERTA) or {}
         if caso.origen != Origen.DISPOSITIVO or puerta.get("dispositivo_id") != dispositivo.pk:

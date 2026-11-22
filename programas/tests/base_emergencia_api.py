@@ -95,6 +95,7 @@ CLAVES_CASO_RESUMEN = ["estado", "id", "numero", "prioridad", "total_declarado"]
 CLAVES_INTEGRANTE = [
     "confirmada_en",
     "egresado_en",
+    "es_adulto",  # aditiva (adulto responsable)
     "estado",
     "ficha_completa",
     "id",  # Cambio 539, aditiva
@@ -123,7 +124,9 @@ CLAVES_BUSQUEDA = [
     "alojada_desde",
     "alojada_en",
     "derivacion",
+    "derivada_a_otro_edificio",  # aditiva (A4)
     "dni",
+    "edificio_derivado",  # aditiva (A4)
     "mensaje",
     "plazas_libres",
     "puede_avisar_a_la_mesa",  # Cambio 532, aditiva
@@ -134,6 +137,7 @@ CLAVES_DERIVACION_LLEGADA = [
     "caso",
     "derivada_en",
     "derivada_por",
+    "edificio",  # aditiva (M4)
     "estado",
     "grupo",
     "id",
@@ -168,7 +172,7 @@ CLAVES_INTEGRANTE_QUITADO = ["n", "total_declarado", "ya_estaba_quitada"]  # Cam
 CLAVES_CIERRE_DE_INGRESO = ["estado", "liberadas", "total_alojado"]
 CLAVES_MAPA = ["caso", "sectores"]
 CLAVES_SECTOR_CON_PLAZAS = ["libres", "plazas", "reservadas_familia", "sector", "total"]
-CLAVES_SECTOR_DEL_MAPA = ["id", "nombre", "perfil"]
+CLAVES_SECTOR_DEL_MAPA = ["edificio", "id", "nombre", "perfil"]  # edificio: aditiva
 CLAVES_PLAZA_DEL_MAPA = ["codigo", "detalle", "elegible", "estado", "id", "nombre", "texto", "tono"]
 CLAVES_INGRESO_DIRECTO = ["caso", "faltantes", "integrantes", "reservadas"]
 CLAVES_AVISO_A_LA_MESA = ["caso"]

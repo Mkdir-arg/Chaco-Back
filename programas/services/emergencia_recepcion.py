@@ -17,6 +17,7 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from programas.models import (
     CasoEmergencia,
     Derivacion,
+    Edificio,
 )
 from programas.selectors.emergencia_alojar import camas_libres
 from programas.services.dispositivos import q_edificios_en_alcance
@@ -37,6 +38,8 @@ from programas.services.emergencia_ingreso_comun import (
     _por_que_ya_no,
     _reservar_camas,
     _resumen_de_reservas,
+    derivacion_vigente_a_otro_edificio,
+    mensaje_otro_edificio,
     mensaje_vencida,
     puede_avisar_a_la_mesa,
     puede_ingresar_igual,
@@ -101,6 +104,8 @@ class ResultadoBusqueda:
     mensaje: str = ""
     puede_ingresar_igual: bool = False
     puede_avisar_a_la_mesa: bool = False
+    derivada_a_otro_edificio: bool = False
+    edificio_derivado: Edificio | None = None
 
 
 @dataclass(frozen=True)
@@ -169,7 +174,7 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
         )
         # Con alcance Edificios, solo lo derivado a uno de sus edificios: la de otro es «sin derivación».
         .filter(q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id"))
-        .select_related("caso__grupo__responsable", "caso__localidad", "derivada_por", "respondida_por")
+        .select_related("caso__grupo__responsable", "caso__localidad", "derivada_por", "respondida_por", "edificio")
         .distinct()
         .order_by("-id")
         .first()
@@ -194,6 +199,21 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
             alojada_en=verificacion.dispositivo if verificacion.dentro_del_alcance else "",
             alojada_desde=verificacion.desde if verificacion.dentro_del_alcance else None,
             mensaje=mensaje,
+        )
+
+    # Una derivación vigente a **este** dispositivo que el alcance de edificios dejó afuera: la familia ya tiene
+    # su cama en otro edificio. «Avisar a la mesa» crearía un caso duplicado: no se ofrece, y se dice dónde está.
+    # Solo se nombra el edificio destino (la guardia del dispositivo lo ve en su institución).
+    del_otro_edificio = derivacion_vigente_a_otro_edificio(ciudadano, dispositivo)
+    if del_otro_edificio is not None:
+        edificio = del_otro_edificio.edificio
+        return ResultadoBusqueda(
+            BUSQUEDA_SIN_DERIVACION,
+            dni,
+            plazas_libres=libres,
+            mensaje=mensaje_otro_edificio(del_otro_edificio),
+            derivada_a_otro_edificio=True,
+            edificio_derivado=edificio,
         )
 
     # RN-3.3: una derivación a este dispositivo que ya venció no se acepta, pero se cuenta por qué.
