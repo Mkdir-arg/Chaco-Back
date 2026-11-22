@@ -37,10 +37,13 @@ RAIZ = DOC.parents[2]
 
 # Un archivo por Cambio nuevo: `549.md`, o `96.37.md` para un sub-pedido. Sin slug: dos PR con
 # el mismo número crean la misma ruta y git los frena con un conflicto add/add.
-NOMBRE_RE = re.compile(r"^(\d+(?:\.\d+)?)\.md$")
+NOMBRE_RE = re.compile(r"^([1-9]\d*(?:\.[1-9]\d*)?)\.md$")
 CAMPO_FICHA_RE = re.compile(r"^\|\s*\*\*(?P<campo>[^*]+)\*\*\s*\|(?P<valor>.*)\|\s*$")
 # El historial de `requerimientos.md` está congelado en este Cambio: lo que sigue va a la carpeta.
 ULTIMO_CAMBIO_HISTORICO = 548
+# Y también hacia adentro: cuántas entradas (con sus sub-pedidos) tiene hoy el archivo congelado. Una
+# entrada más, aunque lleve un número viejo, es una entrada nueva en el lugar equivocado.
+ENTRADAS_CONGELADAS = 526
 
 ENTRADA_RE = re.compile(r"^# Cambio ([\d.]+) — (.+)$")
 # Los sub-pedidos de un requerimiento se escriben como "## 6.1 Título" dentro de su
@@ -93,6 +96,7 @@ class Fila:
     pedido: str = ""
     estado: str = ""
     migracion: str = ""
+    en_ficha: bool = False  # la fila sale de la ficha de un archivo de la carpeta, no del índice
 
 
 def _sin_tildes(texto: str) -> str:
@@ -186,6 +190,7 @@ def _leer_carpeta(carpeta: Path, lineas: list[str], filas: list[Fila], entradas:
                 pedido=_limpiar(ficha.get("Fecha del pedido", "")),
                 estado=entrada.estado,
                 migracion=_limpiar(ficha.get("Migración", "")),
+                en_ficha=True,
             )
         )
 
@@ -438,6 +443,10 @@ def problemas_de_reversion(lineas: list[str], entradas: list[Entrada]) -> list[s
     return problemas
 
 
+def _donde(fila: Fila) -> str:
+    return "en la ficha" if fila.en_ficha else "en el índice"
+
+
 def _duplicados(numeros: list[str]) -> list[str]:
     vistos: set[str] = set()
     repetidos: set[str] = set()
@@ -463,11 +472,24 @@ def _subpedidos_dentro(lineas: list[str], entrada: Entrada) -> list[str]:
     return encontrados
 
 
+def _otros_cambios_dentro(lineas: list[str], entrada: Entrada) -> list[str]:
+    """Los `# Cambio` después del primero, fuera de bloques de código."""
+    encontrados: list[str] = []
+    en_bloque = False
+    for linea in lineas[entrada.linea_desde : entrada.linea_hasta]:
+        if linea.startswith("```"):
+            en_bloque = not en_bloque
+        elif not en_bloque and ENTRADA_RE.match(linea):
+            encontrados.append(linea)
+    return encontrados
+
+
 def problemas_de_estructura(
     filas: list[Fila],
     entradas: list[Entrada],
     lineas: list[str],
     ultimo: int = ULTIMO_CAMBIO_HISTORICO,
+    congeladas: int = ENTRADAS_CONGELADAS,
 ) -> list[str]:
     """Reglas del registro partido: historial congelado + un archivo por Cambio nuevo."""
     problemas: list[str] = []
@@ -479,6 +501,11 @@ def problemas_de_estructura(
         problemas.append(f"El Cambio {numero} figura más de una vez en el índice.")
 
     numeros_existentes = {e.numero for e in validas}
+
+    if sum(1 for e in entradas if not e.archivo) > congeladas:
+        problemas.append(
+            f"{DOC.name} está congelado: la entrada nueva va en docs/internal/requerimientos/N.md (o N.M.md)."
+        )
 
     for entrada in entradas:
         if not entrada.archivo:
@@ -511,6 +538,9 @@ def problemas_de_estructura(
                 )
         elif str(mayor) not in numeros_existentes:
             problemas.append(f"{nombre}: el sub-pedido {entrada.numero} cuelga del Cambio {mayor}, que no existe.")
+        # Un archivo por Cambio: un segundo `# Cambio` (fuera de los bloques de código) no cabe.
+        if _otros_cambios_dentro(lineas, entrada):
+            problemas.append(f"{nombre} contiene otro `# Cambio`: un archivo por Cambio.")
         # Un sub-pedido va en su propio archivo.
         for sub in _subpedidos_dentro(lineas, entrada):
             problemas.append(f"{nombre} contiene el sub-pedido {sub}: va en su propio archivo `{sub}.md`.")
@@ -533,7 +563,7 @@ def comando_check(
 
     for fila in filas:
         if not fila.etiquetas:
-            problemas.append(f"El Cambio {fila.numero} no tiene etiquetas en el índice.")
+            problemas.append(f"El Cambio {fila.numero} no tiene etiquetas {_donde(fila)}.")
         for etiqueta in fila.etiquetas:
             if etiqueta not in vocabulario:
                 problemas.append(
@@ -544,9 +574,10 @@ def comando_check(
             ("programa", fila.programa),
             ("solicitante", fila.solicitante),
             ("fecha de pedido", fila.pedido),
+            ("estado", fila.estado),
         ):
             if not valor:
-                problemas.append(f"El Cambio {fila.numero} tiene el {campo} vacío.")
+                problemas.append(f"El Cambio {fila.numero} tiene el {campo} vacío {_donde(fila)}.")
 
     if lineas is not None:
         problemas.extend(problemas_de_estructura(filas, entradas, lineas))
@@ -577,18 +608,44 @@ def _git(*argumentos: str) -> list[str]:
     return resultado.stdout.splitlines() if resultado.returncode == 0 else []
 
 
+def mayor_en_rutas(rutas: list[str]) -> int:
+    """El mayor número entre las rutas con nombre válido (`N.md`); 0 si ninguna. Ignora slugs y ceros."""
+    mayores = [0]
+    for ruta in rutas:
+        coincidencia = NOMBRE_RE.match(ruta.strip().rsplit("/", 1)[-1])
+        if coincidencia:
+            mayores.append(_clave_orden(coincidencia.group(1))[0])
+    return max(mayores)
+
+
 def siguiente_numero(entradas: list[Entrada], con_remotas: bool = True) -> int:
-    """Máximo + 1 entre el historial, la carpeta local y la carpeta de cada rama remota."""
+    """Máximo + 1 entre el historial, la carpeta local y todo archivo que alguna rama remota haya creado.
+
+    Una sola llamada a `git log` sobre `origin`: cuenta también los archivos que después se renombraron,
+    coherente con «numeración sin reutilizar»."""
     mayores = [ULTIMO_CAMBIO_HISTORICO]
     mayores.extend(_clave_orden(e.numero)[0] for e in entradas if e.numero)
     if con_remotas:
         carpeta = CARPETA.relative_to(RAIZ).as_posix() + "/"
-        for ref in _git("for-each-ref", "--format=%(refname)", "refs/remotes/origin"):
-            for ruta in _git("ls-tree", "--name-only", "-r", ref, carpeta):
-                coincidencia = NOMBRE_RE.match(ruta.rsplit("/", 1)[-1])
-                if coincidencia:
-                    mayores.append(_clave_orden(coincidencia.group(1))[0])
+        mayores.append(
+            mayor_en_rutas(
+                _git("log", "--remotes=origin", "--diff-filter=A", "--name-only", "--format=", "--", carpeta)
+            )
+        )
     return max(mayores) + 1
+
+
+def _fetch_origin() -> None:
+    """`git fetch origin`; si falla avisa por stderr y sigue con lo que haya."""
+    try:
+        resultado = subprocess.run(
+            ["git", "fetch", "origin"], cwd=RAIZ, capture_output=True, text=True, timeout=120, check=False
+        )
+        fallo = resultado.returncode != 0
+    except (OSError, subprocess.SubprocessError):
+        fallo = True
+    if fallo:
+        print("Aviso: `git fetch origin` falló; el número sale de lo que ya estaba traído.", file=sys.stderr)
 
 
 def main() -> int:
@@ -613,7 +670,7 @@ def main() -> int:
 
     if args.siguiente:
         if args.fetch:
-            _git("fetch", "origin")
+            _fetch_origin()
         print(siguiente_numero(entradas))
         return 0
 

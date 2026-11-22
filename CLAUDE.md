@@ -282,7 +282,8 @@ cierre junto con `manage.py check` y la auditoría de diseño, y se verifica con
 `scripts\requerimientos.py --check` (tiene que dar OK).
 
 La regla completa, la plantilla obligatoria, el vocabulario de etiquetas y el índice
-viven **en ese archivo**; no se duplica su contenido acá.
+viven **en ese archivo** (el índice de los Cambios desde el 549 lo arma el script desde la
+ficha de cada `requerimientos/N.md`); no se duplica su contenido acá.
 
 ## Diseño / UI (nuevo sistema de diseño)
 

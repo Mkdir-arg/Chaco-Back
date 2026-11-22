@@ -423,6 +423,84 @@ class CarpetaDeCambiosTests(SimpleTestCase):
 
         self.assertEqual(codigo, 0, salida.getvalue())
 
+    def test_mayor_en_rutas_ignora_slugs_y_ceros_a_la_izquierda(self):
+        rutas = [
+            "docs/internal/requerimientos/549.md",
+            "docs/internal/requerimientos/900-con-slug.md",
+            "docs/internal/requerimientos/0950.md",
+            "docs/internal/requerimientos/96.37.md",
+            "docs/internal/requerimientos/notas.md",
+        ]
+
+        self.assertEqual(requerimientos.mayor_en_rutas(rutas), 549)
+        self.assertEqual(requerimientos.mayor_en_rutas([]), 0)
+
+    def test_un_nombre_con_ceros_a_la_izquierda_falla(self):
+        numero = self.ULTIMO + 1
+        codigo, salida = self._check({f"0{numero}.md": self._nuevo(str(numero))})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("el nombre no es `N.md`", salida)
+
+    def test_un_segundo_cambio_dentro_del_archivo_falla_pero_en_un_bloque_de_codigo_no(self):
+        numero = str(self.ULTIMO + 1)
+        codigo, salida = self._check({f"{numero}.md": self._nuevo(numero) + "\n# Cambio 999 — Otro\n"})
+        self.assertEqual(codigo, 1)
+        self.assertIn("contiene otro `# Cambio`", salida)
+
+        ejemplo = "\n```markdown\n# Cambio 9 — Título de ejemplo\n```\n"
+        codigo, salida = self._check({f"{numero}.md": self._nuevo(numero) + ejemplo})
+        self.assertEqual(codigo, 0, salida)
+
+    def test_un_archivo_sin_semaforo_falla(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(numero).replace("🟢 **HECHO — 22/11/2026**\n", "")
+        codigo, salida = self._check({f"{numero}.md": contenido})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn(f"El Cambio {numero} tiene el estado vacío en la ficha", salida)
+
+    def test_un_programa_vacio_falla(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(numero).replace("Transversal / método", "")
+        codigo, salida = self._check({f"{numero}.md": contenido})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn(f"El Cambio {numero} tiene el programa vacío en la ficha", salida)
+
+    def test_sin_etiquetas_el_mensaje_dice_en_la_ficha(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(numero).replace("`#infra`", "")
+        codigo, salida = self._check({f"{numero}.md": contenido})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn(f"El Cambio {numero} no tiene etiquetas en la ficha", salida)
+
+    def test_el_historial_no_admite_entradas_nuevas_aunque_lleven_un_numero_viejo(self):
+        """Un `## N.M` con semáforo agregado al archivo congelado es una entrada nueva en el lugar equivocado."""
+        documento, carpeta = self._registro()
+        lineas, filas, entradas, _vocabulario = requerimientos.leer_documento(documento, carpeta)
+        self.assertEqual(requerimientos.problemas_de_estructura(filas, entradas, lineas, congeladas=1), [])
+
+        documento.write_text(
+            documento.read_text(encoding="utf-8") + "\n## 135.37 Sub-pedido escrito donde no va\n\n🟢 **HECHO**\n",
+            encoding="utf-8",
+        )
+        lineas, filas, entradas, _vocabulario = requerimientos.leer_documento(documento, carpeta)
+        problemas = requerimientos.problemas_de_estructura(filas, entradas, lineas, congeladas=1)
+
+        self.assertTrue(any("está congelado" in p and "N.md" in p for p in problemas), problemas)
+
+    def test_un_historial_dentro_de_una_entrada_existente_sigue_pasando(self):
+        documento, carpeta = self._registro()
+        documento.write_text(
+            documento.read_text(encoding="utf-8") + "\n## Historial\n\nSe corrigió algo el 22/11/2026.\n",
+            encoding="utf-8",
+        )
+        lineas, filas, entradas, _vocabulario = requerimientos.leer_documento(documento, carpeta)
+
+        self.assertEqual(requerimientos.problemas_de_estructura(filas, entradas, lineas, congeladas=1), [])
+
     def test_siguiente_sin_git_es_el_maximo_mas_uno(self):
         numero = self.ULTIMO + 3
         documento, carpeta = self._registro({f"{numero}.md": self._nuevo(str(numero))})

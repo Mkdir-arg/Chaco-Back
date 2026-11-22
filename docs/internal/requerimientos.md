@@ -20,7 +20,7 @@ Este archivo crece con cada requerimiento, así que **nunca se lee completo**. S
 & .\.venv\Scripts\python.exe scripts\requerimientos.py --siguiente        # número libre para el Cambio nuevo
 ```
 
-El equivalente manual, si no se puede correr el script, es leer la **cabecera y el índice** —las primeras ~150 líneas— y después abrir únicamente el rango de líneas de la entrada buscada (`--ver` imprime ese rango). Lo que no se hace nunca es cargar el archivo entero para encontrar un dato.
+El equivalente manual, si no se puede correr el script, es leer la **cabecera y el índice** —las primeras ~150 líneas— y después abrir únicamente el rango de líneas de la entrada buscada (`--ver` imprime ese rango). Lo que no se hace nunca es cargar el archivo entero para encontrar un dato. Los Cambios desde el 549 no están acá: se abren directo en `requerimientos/N.md`.
 
 ### Consulta obligatoria al iniciar un requerimiento
 
@@ -34,7 +34,7 @@ El motivo está en este mismo archivo: el Cambio 24 existe porque el 20 se cerr�
 
 ### Etiquetas
 
-Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si hace falta una nueva, se agrega primero a esta tabla y se explica en una línea. Cada requerimiento lleva entre 2 y 5, y viven en la columna *Etiquetas* del índice, que es su única fuente.
+Vocabulario **cerrado**: no se inventan etiquetas al escribir una entrada. Si hace falta una nueva, se agrega primero a esta tabla y se explica en una línea. Cada requerimiento lleva entre 2 y 5, y viven en la columna *Etiquetas* del índice, que es su única fuente, o en la ficha de su archivo, para los Cambios desde el 549.
 
 | Etiqueta | Qué agrupa |
 |---|---|
@@ -100,7 +100,7 @@ Se guarda como `docs/internal/requerimientos/N.md`; la primera línea es el H1.
 | | |
 |---|---|
 | **Programa / módulo** | Becas · Dispositivos · Legajos · Portal · Conversaciones · Transversal |
-| **Etiquetas** | 2 a 5 del vocabulario cerrado, iguales a las de su fila del índice |
+| **Etiquetas** | 2 a 5 del vocabulario cerrado (desde el 549 la ficha es la fuente; antes, iguales a las de su fila del índice) |
 | **Solicitante** | Quién lo pidió y por qué vía: reunión, documento, mail, issue |
 | **Fecha del pedido** | DD/MM/AAAA |
 | **Issue / épica** | #NN, o «sin issue» |
@@ -683,7 +683,7 @@ Histórico 1–548. Los Cambios desde el 549 no se agregan acá: `scripts/requer
 - Los requerimientos 1 a 19 son la normalización del documento «Cambios en DataÑach (1).docx», enviado por el cliente el 7 de agosto de 2026, en su orden de aparición. Los puntos 7 y 8 separan dos pedidos que el DOCX trae en un mismo párrafo.
 - Del 20 en adelante son pedidos posteriores a ese documento. Los requerimientos 20 y 22 **no tienen solicitante ni fecha de pedido registrados en su origen**; quedan como «sin registrar» hasta confirmarlos. Ese hueco es exactamente lo que la regla de oro viene a cerrar.
 - El requerimiento 22 se apoya en el 8 (Incorporar programas), que es la integración con el catálogo de ECOM. El 24 completa y corrige el criterio del 20.
-- Las entradas 1 a 24 son anteriores a la plantilla: su programa, solicitante, fecha y etiquetas viven en esta tabla y no repetidos en cada entrada. **Las nuevas llevan la plantilla completa**, con las mismas etiquetas en la entrada y en el índice.
+- Las entradas 1 a 24 son anteriores a la plantilla: su programa, solicitante, fecha y etiquetas viven en esta tabla y no repetidos en cada entrada. **Las nuevas llevan la plantilla completa**, con las mismas etiquetas en la entrada y en el índice (desde el Cambio 549 no hay fila a mano: la fuente es la ficha de la entrada).
 - Las etiquetas se asignaron leyendo cada entrada, no por su título. `scripts/requerimientos.py --check` verifica que ninguna quede fuera del vocabulario y que no falte ni sobre ninguna fila.
 
 ---
@@ -4033,10 +4033,10 @@ No aplica: entrada nueva.
 
 La estructura de cada entrada nueva está definida en **[Plantilla obligatoria de cada entrada](#plantilla-obligatoria-de-cada-entrada)**, al comienzo del archivo. El cierre de un desarrollo son cuatro pasos:
 
-1. Agregar la entrada al final del archivo, con la plantilla completa.
-2. Sumar su fila al **Índice**, con programa, **etiquetas**, solicitante, fecha y estado.
-3. Si modificó algo ya registrado, agregar la sección **Historial** a la entrada afectada, sin borrar lo anterior.
-4. Correr `scripts/requerimientos.py --check`: verifica que la entrada y el índice coincidan y que las etiquetas existan en el vocabulario. Tiene que dar OK.
+1. Crear `docs/internal/requerimientos/N.md` con la plantilla completa, usando el número que da `scripts/requerimientos.py --siguiente`. No se agrega nada a este archivo.
+2. No se escribe fila de índice: el script la arma desde la ficha (programa, **etiquetas**, solicitante, fecha, estado y migración tienen que estar completos).
+3. Si modificó algo ya registrado, agregar la sección **Historial** a la entrada afectada, sin borrar lo anterior (dentro de este archivo si es un Cambio 1–548; en su archivo si es nuevo).
+4. Correr `scripts/requerimientos.py --check`: verifica la estructura de la carpeta, que la ficha esté completa y que las etiquetas existan en el vocabulario. Tiene que dar OK.
 
 La regla, el motivo de cada campo y la mitad de lectura —qué consultar **antes** de escribir código— están en **[Regla de oro](#regla-de-oro)** y en **[Cómo leerlo sin leerlo entero](#cómo-leerlo-sin-leerlo-entero)**.
 
