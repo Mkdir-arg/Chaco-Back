@@ -22,7 +22,7 @@ from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Edificio, InspeccionEdificio, Sector
+from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.detalle_dispositivo import (
@@ -32,7 +32,9 @@ from programas.services.detalle_dispositivo import (
     registro_de_relevamientos,
 )
 from programas.services.dispositivos import (
+    CAP_EDITAR,
     CAP_VER_EDIFICIOS,
+    dispositivos_de_institucion,
     dispositivos_en_alcance,
     dispositivos_visibles,
     puede_configurar_dispositivos,
@@ -251,6 +253,34 @@ def filas_del_listado(user, edificios):
     ]
 
 
+def _url_editar(user, edificio, instituciones):
+    """El enlace al modal «Editar edificio» de la solapa Infraestructura de una institución del predio, o ``""``.
+
+    La edición es del legajo (`dispositivo.editar` con alcance **institución**, RN5) y siempre se hace *desde* una
+    institución que ocupa el edificio: es la regla de `services.edificios.editar_edificio`, que vuelve a exigirla
+    al guardar. Acá solo se decide si se ofrece el botón: la primera institución del predio que el usuario puede
+    abrir, que no está cerrada y sobre la que alcanza toda la institución (una consulta, sin importar cuántas).
+    Si el predio es compartido, lo que se edita lo ven todas las instituciones: la solapa ya lo avisa.
+    """
+
+    candidatas = [
+        institucion
+        for institucion in instituciones
+        if institucion["url"] and institucion["estado"] != Dispositivo.Estado.CERRADO
+    ]
+    if not candidatas:
+        return ""
+    editables = set(
+        dispositivos_de_institucion(user, CAP_EDITAR)
+        .filter(pk__in=[institucion["pk"] for institucion in candidatas])
+        .values_list("pk", flat=True)
+    )
+    for institucion in candidatas:
+        if institucion["pk"] in editables:
+            return f"{reverse('dispositivos:detalle', args=[institucion['pk']])}?tab=infraestructura&edificio={edificio.pk}"
+    return ""
+
+
 def ficha_de_edificio(user, edificio, pagina=1):
     """Lo que dibuja la ficha propia del edificio (#1168): la de Infraestructura, a nivel edificio.
 
@@ -281,6 +311,7 @@ def ficha_de_edificio(user, edificio, pagina=1):
     ve_detalle = ultima is not None and ultima.con_detalle
     instituciones = _instituciones_por_edificio(user, [edificio.pk]).get(edificio.pk, [])
     asignable = edificios_para_asignar(user).filter(pk=edificio.pk).exists()
+    url_editar = _url_editar(user, edificio, instituciones)
 
     nombres = {institucion["pk"]: institucion["nombre"] for institucion in instituciones}
     sectores_por_institucion = {}
@@ -326,4 +357,5 @@ def ficha_de_edificio(user, edificio, pagina=1):
         "eventos": eventos,
         "relevamientos": relevamientos,
         "url_listado": reverse("dispositivos:edificios"),
+        "url_editar": url_editar,
     }
