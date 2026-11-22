@@ -9,6 +9,7 @@
 from django.urls import reverse
 
 from legajos.models import Ciudadano
+from programas.forms_emergencia import NuevoCasoMesaForm
 from programas.models import CasoEmergencia
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_mesa as mesa
@@ -35,6 +36,14 @@ class BuscarDniDeLaMesaTests(BaseIdentidad):
     def _buscar(self, usuario, q):
         self.client.force_login(usuario)
         return self.client.get(URL_SUGERIR, {"q": q})
+
+    def test_la_ayuda_de_nombre_y_apellido_solo_habla_del_buscador_cuando_hay_buscador(self):
+        con_buscador = NuevoCasoMesaForm(url_sugerencias=URL_SUGERIR)
+        sin_buscador = NuevoCasoMesaForm()
+
+        for campo in ("nombre", "apellido"):
+            self.assertIn("Se completan solos", con_buscador.fields[campo].help_text)
+            self.assertNotIn("Se completan solos", sin_buscador.fields[campo].help_text)
 
     def test_url_del_buscador(self):
         self.assertEqual(reverse("emergencia:personas_sugeridas"), URL_SUGERIR)

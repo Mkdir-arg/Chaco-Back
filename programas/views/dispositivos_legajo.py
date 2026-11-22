@@ -88,7 +88,6 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
-    estados_que_cambian_de_plaza,
     observar_dispositivo,
     puede_configurar_dispositivos,
     puede_editar_legajo,
@@ -160,6 +159,7 @@ from programas.services.sectores_plazas import (
     bloqueo_de_plaza,
     datos_para_el_modal,
     plaza_para_accion,
+    se_puede_cambiar_plaza,
     sectores_con_plazas,
     url_modal_egreso,
     url_solapa_estadias,
@@ -485,12 +485,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             # Con plaza se ofrece «Cambiar plaza»; sin plaza, «Asignar plaza» (solo si el tipo
             # maneja plazas: si no, no hay a dónde asignar). El mapa se calcula una vez.
             estadia.asigna_plaza = estadia.plaza_id is None
-            if (
-                puede_cambiar
-                and estadia.activa
-                and (not estadia.asigna_plaza or con_plazas)
-                and (estadia.asigna_plaza or dispositivo.estado in estados_que_cambian_de_plaza())
-            ):
+            if puede_cambiar and estadia.activa and se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=con_plazas):
                 _, plazas_elegibles = self._mapa_de_ingreso()
                 estadia.url_cambiar = f"{self.request.path}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
                 estadia.motivo_cambiar = "No hay plazas libres en el dispositivo." if not plazas_elegibles else ""
@@ -636,10 +631,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 continue
             if parametro == "cambio":
                 # Sin plaza es «Asignar plaza»: el mismo modal, con el motivo opcional.
-                if estadia.plaza_id is None and not maneja_plazas(dispositivo):
-                    continue
-                if estadia.plaza_id is not None and dispositivo.estado not in estados_que_cambian_de_plaza():
-                    messages.info(self.request, "No se puede cambiar de plaza: el dispositivo está cerrado.")
+                if not se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=maneja_plazas(dispositivo)):
+                    if estadia.plaza_id is not None:
+                        messages.info(self.request, "No se puede cambiar de plaza: el dispositivo está cerrado.")
                     continue
                 sectores_ingreso, _ = self._mapa_de_ingreso()
                 form, url = _form_de_cambio_de_plaza(dispositivo, estadia, sectores_ingreso)
@@ -1702,8 +1696,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         context["es_asignacion"] = estadia.plaza_id is None
         context["puede_cambiar_plaza"] = (
             abierta
-            and (estadia.plaza_id is not None or maneja_plazas(dispositivo))
-            and (estadia.plaza_id is None or dispositivo.estado in estados_que_cambian_de_plaza())
+            and se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=maneja_plazas(dispositivo))
             and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
         )
         context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)
