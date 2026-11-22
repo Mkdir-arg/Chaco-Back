@@ -301,9 +301,7 @@ class ApiConAlcanceEdificiosTests(BaseApiLlegadas):
 
         def fila(usuario):
             filas = self._como(usuario).get(URL_MIS_DISPOSITIVOS).json()
-            return next(
-                (f["plazas_libres"], f["derivaciones_pendientes"]) for f in filas if f["id"] == self.centro.pk
-            )
+            return next((f["plazas_libres"], f["derivaciones_pendientes"]) for f in filas if f["id"] == self.centro.pk)
 
         self.assertEqual(fila(self.guardia_b), (3, 1))
         self.assertEqual(fila(self.guardia_centro), (12, 2))
@@ -321,7 +319,9 @@ class ApiConAlcanceEdificiosTests(BaseApiLlegadas):
         cuerpo = self._como(self.guardia_centro).get(_url("dispositivo-buscar", self.centro.pk), {"dni": "30111222"})
 
         self.assertEqual(cuerpo.json()["resultado"], "DERIVACION")
-        self.assertEqual((cuerpo.json()["puede_ingresar_igual"], cuerpo.json()["puede_avisar_a_la_mesa"]), (False, False))
+        self.assertEqual(
+            (cuerpo.json()["puede_ingresar_igual"], cuerpo.json()["puede_avisar_a_la_mesa"]), (False, False)
+        )
 
     def test_con_alcance_edificios_avisa_a_la_mesa_por_la_api(self):
         respuesta = self._como(self.guardia_b).post(
