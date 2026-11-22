@@ -52,7 +52,7 @@ from programas.services.eliminacion import CAP_RELEVAMIENTO_ELIMINAR
 from programas.services.exportacion_reportes import celda_segura
 from programas.services.listados import PaginadorConConteo, hidratar_pagina
 from programas.services.vencimientos import contar_cerrados_automaticamente
-from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
+from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, destino_seguro, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
 CAP_CONVOCATORIA_CREAR = "becas.convocatoria.crear"
@@ -193,12 +193,7 @@ def _destino_seguro(request, defecto="becas:convocatorias"):
     backoffice —con su sesión recién usada para una acción legítima— hacia afuera.
     Mismo criterio que ``RelevamientoCreateView``.
     """
-    destino = request.POST.get("next") or ""
-    if destino and url_has_allowed_host_and_scheme(
-        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return destino
-    return defecto
+    return destino_seguro(request, defecto)
 
 
 def _rechazar_si_pausado(request, relevamiento):

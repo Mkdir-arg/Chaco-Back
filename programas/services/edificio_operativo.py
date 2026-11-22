@@ -26,6 +26,7 @@ contador, una.
 from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.utils.text import Truncator
 
 from programas.models import Edificio, EntregaKit, InspeccionEdificio
@@ -35,12 +36,16 @@ from programas.services.dispositivos import (
     CAP_EDITAR,
     CAP_VER,
     alcance_de_edificios,
-    miembros_del_edificio,
     puede_editar_legajo,
     puede_operar_edificio,
 )
 from programas.services.edificios import admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
+from programas.services.equipo_dispositivo import (
+    edificios_donde_agregar_persona,
+    equipo_del_edificio,
+    permisos_del_equipo,
+)
 from programas.services.estadias import CAP_ADMITIR, puede_ingresar_persona
 from programas.services.ingreso import maneja_plazas
 from programas.services.inspecciones import edificios_para_asignar, inspecciones_visibles
@@ -130,13 +135,39 @@ def _estado_edilicio(user, edificio):
     return {"texto": estado["texto"], "tono": estado["tono"], "detalle": detalle}
 
 
-def _equipo_del_edificio(dispositivo, edificio):
-    """Las personas activas del Equipo con alcance a este edificio: toda la institución o este edificio. Una consulta.
+def _equipo_del_edificio(dispositivo, edificio, permisos):
+    """Las personas activas del Equipo con alcance a este edificio: toda la institución o este edificio.
 
-    Una fila sin alcance cargado vale «toda la institución». Los responsables van primero.
+    Una fila sin alcance cargado vale «toda la institución». Los responsables van primero. Dos consultas, vengan 3
+    o 300 miembros (las filas y el ``prefetch`` único de sus edificios).
     """
 
-    return miembros_del_edificio(dispositivo, edificio.pk)
+    return equipo_del_edificio(dispositivo, edificio.pk, permisos)
+
+
+def _contexto_equipo(dispositivo, edificio, permisos, equipo, url_pagina):
+    """Lo que la solapa Equipo necesita de las acciones: quién gestiona, adónde vuelve cada una y qué ofrece.
+
+    Cada fila trae ``url_cambiar_alcance`` (modal por URL, como en la ficha de la institución). Las acciones con
+    confirmación (baja, responsable) vuelven a esta solapa con ``?next=``; los modales, con ``next_url``.
+    """
+
+    volver = f"{url_pagina}?tab=equipo"
+    if permisos.gestiona:
+        for miembro in equipo:
+            if miembro.puede_cambiar_alcance:
+                consulta = urlencode({"tab": "equipo", "equipo": "alcance", "miembro": miembro.pk})
+                miembro.url_cambiar_alcance = f"{url_pagina}?{consulta}"
+    donde = edificios_donde_agregar_persona(None, dispositivo, permisos)
+    puede_sumar = donde is None or edificio.pk in donde
+    return {
+        "permisos_equipo": permisos,
+        "puede_gestionar_equipo": permisos.gestiona,
+        "puede_sumar_persona": puede_sumar,
+        "url_equipo_sumar_modal": f"{url_pagina}?tab=equipo&equipo=sumar",
+        "next_url": volver,
+        "query_volver": "?" + urlencode({"next": volver}),
+    }
 
 
 def _nombre(usuario):
@@ -238,7 +269,9 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         conteo = censo.conteo_del_edificio(edificio.pk)
         indicadores = indicadores_de_plazas(conteo, tipo=dispositivo.tipo)
 
-    equipo = _equipo_del_edificio(dispositivo, edificio)
+    url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
+    permisos = permisos_del_equipo(user, dispositivo)
+    equipo = _equipo_del_edificio(dispositivo, edificio, permisos)
     estado = _estado_edilicio(user, edificio)
     disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
     pendientes_de_kit = (
@@ -274,6 +307,8 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "kits": pendientes_de_kit,
             "equipo": len(equipo),
         },
+        "equipo": equipo,
+        **_contexto_equipo(dispositivo, edificio, permisos, equipo, url_pagina),
         # Dónde se opera hoy cada solapa, hasta que los PR siguientes la llenen: el vacío no es un callejón sin salida.
         "enlaces_de_institucion": {
             "sectores": f"{url_institucion}?tab=sectores",

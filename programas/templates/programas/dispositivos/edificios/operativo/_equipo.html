@@ -1,2 +1,84 @@
-{# Panel «Equipo de este edificio» de la página operativa del edificio. Hoy es un estado vacío con salida a donde se opera hoy; el PR del lote que lo implementa reemplaza SOLO este archivo (Cambio 563). #}
-{% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Equipo de este edificio" texto="Esta sección llega en breve. Mientras tanto, el equipo se gestiona desde la institución." accion_url=enlaces_de_institucion.equipo accion_texto="Ir al Equipo de la institución" accion_icono="fa-arrow-right" %}
+{% load nodo_ui %}{% comment %}
+Panel «Equipo» de la página operativa del edificio (Cambio 569, PR 4 del lote «el edificio como unidad operativa»).
+Diseño: Edificio-Equipo.dc.html y Equipo-Sumar-1..4.dc.html. Las filas son las de `equipo_del_edificio`: quienes tienen toda la
+institución o este edificio. Las acciones son las de la institución (`dispositivos:equipo_*`) y vuelven a esta solapa (`next`).
+Contexto: `equipo`, `puede_gestionar_equipo`, `puede_sumar_persona`, `url_equipo_sumar_modal`, `query_volver`, `dispositivo`, `edificio`,
+y los de `legajo/_equipo_modales.html` cuando la URL abre un modal. Los scripts van en `customJS` de la página.
+{% endcomment %}
+<div x-data="{
+       modalEquipo: {% if form_equipo %}true{% else %}false{% endif %},
+       modalCrearPersona: false,
+       modalAlcance: {% if form_alcance %}true{% else %}false{% endif %}
+     }"
+     @becas-saved.window="modalEquipo=false; modalCrearPersona=false; modalAlcance=false">
+  <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
+    <p class="text-xs text-body-subtle">Quienes trabajan en este edificio, con el rol con el que lo hacen. Los responsables arman el Equipo.</p>
+    {% if puede_gestionar_equipo and puede_sumar_persona %}
+    <a href="{{ url_equipo_sumar_modal }}" class="btn-nodo btn-brand btn-sm btn-fit">
+      <i class="fas fa-plus" aria-hidden="true"></i> Sumar persona
+    </a>
+    {% endif %}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full border-collapse">
+      <caption class="sr-only">Equipo del edificio</caption>
+      <thead>
+        <tr class="nodo-thead-row">
+          <th class="nodo-th">Persona</th>
+          <th class="nodo-th hidden lg:table-cell">Rol</th>
+          <th class="nodo-th hidden lg:table-cell">Contratación</th>
+          <th class="nodo-th hidden lg:table-cell">Alcance</th>
+          <th class="nodo-th hidden lg:table-cell">Responsable</th>
+          {% if puede_gestionar_equipo %}<th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for miembro in equipo %}
+        <tr class="hover:bg-secondary transition">
+          <td class="nodo-td">
+            <span class="font-medium text-heading">{{ miembro.persona }}</span>
+            {# En celular el resto de la fila va bajo el nombre: la columna fija de acciones tapa lo demás #}
+            <div class="lg:hidden mt-1 flex flex-col items-start gap-1 text-xs text-body-subtle">
+              <span>{{ miembro.rol.name }}</span>
+              <span>{{ miembro.get_tipo_contratacion_display|default:"Sin dato" }}</span>
+              <span>{{ miembro.alcance_texto }}</span>
+              {% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% endif %}
+            </div>
+          </td>
+          <td class="nodo-td hidden lg:table-cell">{{ miembro.rol.name }}</td>
+          <td class="nodo-td hidden lg:table-cell">{% if miembro.tipo_contratacion %}{{ miembro.get_tipo_contratacion_display }}{% else %}<span class="text-body-subtle">Sin dato</span>{% endif %}</td>
+          <td class="nodo-td hidden lg:table-cell">{{ miembro.alcance_texto }}</td>
+          <td class="nodo-td hidden lg:table-cell">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
+          {% if puede_gestionar_equipo %}
+          <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+            {% url 'dispositivos:equipo_baja' dispositivo.pk miembro.pk as url_baja %}
+            {% url 'dispositivos:equipo_responsable' dispositivo.pk miembro.pk as url_responsable %}
+            {% url 'dispositivos:equipo_quitar_responsable' dispositivo.pk miembro.pk as url_quitar_responsable %}
+            {% menu_fila id=miembro.pk etiqueta="Acciones de "|add:miembro.persona %}
+              {% if miembro.puede_cambiar_alcance %}
+              {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" url=miembro.url_cambiar_alcance only %}
+              {% else %}
+              {% include "components/_menu_fila_item.html" with texto="Cambiar alcance" icono="fa-building" motivo="Solo en tus propios edificios" only %}
+              {% endif %}
+              {% if miembro.es_responsable %}
+              {% include "components/_menu_fila_item.html" with texto="Quitar como responsable" icono="fa-user-minus" confirm_url=url_quitar_responsable|add:query_volver confirm_title="¿Quitar como responsable?" confirm_text="La persona sigue en el Equipo pero deja de armarlo. El dispositivo no puede quedar sin responsables." confirm_ok="Sí, quitar" peligro=True only %}
+              {% else %}
+              {% include "components/_menu_fila_item.html" with texto="Marcar como responsable" icono="fa-user-check" confirm_url=url_responsable|add:query_volver confirm_title="¿Marcar como responsable?" confirm_text="La persona podrá sumar y dar de baja a otras del Equipo." confirm_ok="Sí, marcar" only %}
+              {% endif %}
+              {% include "components/_menu_fila_item.html" with texto="Dar de baja" icono="fa-user-slash" confirm_url=url_baja|add:query_volver confirm_title="¿Dar de baja del Equipo?" confirm_text="La persona deja de operar este dispositivo. Volver a sumarla la repone." confirm_ok="Sí, dar de baja" peligro=True only %}
+            {% endmenu_fila %}
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="{% if puede_gestionar_equipo %}6{% else %}5{% endif %}" class="p-0">
+            {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Este edificio no tiene Equipo" texto="Cuando se sume a alguien, aparece acá con su rol." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "programas/dispositivos/legajo/_equipo_modales.html" %}
+</div>

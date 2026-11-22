@@ -1,7 +1,8 @@
 {# arquetipo: detalle #}
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load static nodo_ui %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }} · {{ edificio.nombre }}{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
 
 {% block main-content %}
 {# La solapa abierta la normaliza el servicio (`normalizar_solapa`): una que este usuario no tiene cae en la de siempre #}
@@ -157,7 +158,8 @@
       </div>
       {% endif %}
 
-      <div x-show="tab==='equipo'" x-cloak role="tabpanel" id="panel-equipo" aria-labelledby="tab-equipo" class="p-5">
+      {# Sin `p-5`: la barra y la tabla del Equipo van de borde a borde, como en el diseño #}
+      <div x-show="tab==='equipo'" x-cloak role="tabpanel" id="panel-equipo" aria-labelledby="tab-equipo">
         {% include "programas/dispositivos/edificios/operativo/_equipo.html" %}
       </div>
 
@@ -174,4 +176,6 @@
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}
