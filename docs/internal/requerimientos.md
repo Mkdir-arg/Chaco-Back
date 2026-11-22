@@ -61215,6 +61215,7 @@ reservar camas de un edificio fuera de su alcance.
 - `programas/services/reservas_derivacion.py` — `reservar_plazas_de_derivacion`.
 - `programas/services/dispositivos.py` — `AlcanceEdificios.permite_todos` y docstring de `q_edificios_en_alcance`.
 - `programas/tests/test_emergencia_admin_reserva.py` (nuevo).
+- `programas/tests/test_dispositivos_relevamiento_alcance.py` — de paso: la fecha del relevamiento se compara en hora local (el CI corrió entre las 21 y las 24 h de Argentina, cuando en UTC ya es el día siguiente, y el test fallaba sin relación con este cambio).
 
 ## Base de datos
 No requiere.
