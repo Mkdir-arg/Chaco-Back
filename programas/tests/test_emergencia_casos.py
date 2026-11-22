@@ -33,7 +33,7 @@ from django.db import IntegrityError, models, transaction
 from django.test import SimpleTestCase, override_settings, tag
 from django.utils import timezone
 
-from core.models import Localidad
+from core.models import Localidad, Municipio, Provincia
 from core.tests.candados import orden_de_candados
 from legajos.models import Ciudadano
 from programas.models import (
@@ -83,6 +83,14 @@ Accion = TrazaCaso.Accion
 T0 = timezone.make_aware(datetime(2026, 11, 12, 10, 0, 0))
 
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
+
+
+def localidad_operativa(nombre, provincia="Chaco"):
+    """Una ``Localidad`` de la provincia que opera el sistema: las únicas que acepta el alta de un caso."""
+
+    provincia, _ = Provincia.objects.get_or_create(nombre=provincia)
+    municipio, _ = Municipio.objects.get_or_create(nombre=nombre, provincia=provincia)
+    return Localidad.objects.create(nombre=nombre, municipio=municipio)
 
 
 class Reloj:
@@ -665,7 +673,7 @@ class CrearCasoTests(BaseCasos):
 
     def test_la_localidad_es_una_fk_y_una_que_no_existe_se_rechaza(self):
         """RN-1.6."""
-        localidad = Localidad.objects.create(nombre="Resistencia")
+        localidad = localidad_operativa("Resistencia")
         self.assertEqual(self._caso(localidad=localidad.pk).localidad_id, localidad.pk)
         self.assertEqual(self._caso(localidad=localidad).localidad_id, localidad.pk)
         with self.assertRaises(ValidationError) as error:
@@ -1924,7 +1932,7 @@ class BandejaTests(BaseCasos):
     def setUp(self):
         super().setUp()
         self.sla = SLAEmergencia.objects.get(programa=self.programa)
-        self.resistencia = Localidad.objects.create(nombre="Resistencia")
+        self.resistencia = localidad_operativa("Resistencia")
         self.club = self._dispositivo("Club", camas=20)
         # Un caso por situación, creados con cinco minutos de diferencia.
         self.viejo = self._caso(dni="30500001", apellido="Acosta", localidad=self.resistencia.pk)
@@ -1960,7 +1968,7 @@ class BandejaTests(BaseCasos):
                 "cerrados": 1,
             },
         )
-        self.assertEqual(set(conteo) - {"total", "alojados"}, set(selectores.SOLAPAS) - {"fuera_sla"})
+        self.assertEqual(set(conteo) - {"total"}, set(selectores.SOLAPAS) - {"fuera_sla"})
 
     def test_cada_solapa_trae_lo_suyo(self):
         esperado = {
@@ -2176,7 +2184,7 @@ class DispositivosParaDerivarTests(BaseCasos):
 
     def test_un_caso_sin_gps_no_tiene_distancia_y_se_ordena_solo_por_plazas(self):
         """Hallazgo H4: no hay centroide de localidad. La distancia es desconocida."""
-        localidad = Localidad.objects.create(nombre="Resistencia")
+        localidad = localidad_operativa("Resistencia")
         caso = self._caso_tomado(localidad=localidad.pk)  # sin GPS, 2 personas
         self._dispositivo("Zeta alcanza", camas=5, latitud=A_2_KM[0], longitud=A_2_KM[1])
         self._dispositivo("Alfa alcanza", camas=5, latitud=A_30_KM[0], longitud=A_30_KM[1])

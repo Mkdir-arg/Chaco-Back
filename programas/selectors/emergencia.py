@@ -25,7 +25,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.utils import timezone
 
 from core.dni import normalizar_dni
 from programas.models import CasoEmergencia, Derivacion, Dispositivo, Estadia, IntegranteGrupo, Plaza, TrazaCaso
@@ -230,6 +231,7 @@ SOLAPA_DERIVADOS = "derivados"
 SOLAPA_INGRESO_EN_CURSO = "ingreso_en_curso"
 SOLAPA_FUERA_SLA = "fuera_sla"
 SOLAPA_INGRESO_DIRECTO = "ingreso_directo"
+SOLAPA_ALOJADOS = "alojados"
 SOLAPA_CERRADOS = "cerrados"
 
 #: Las solapas de E2, en el orden de la pantalla.
@@ -241,19 +243,24 @@ SOLAPAS = (
     SOLAPA_INGRESO_EN_CURSO,
     SOLAPA_FUERA_SLA,
     SOLAPA_INGRESO_DIRECTO,
+    SOLAPA_ALOJADOS,
     SOLAPA_CERRADOS,
 )
 
 #: Qué filtra cada solapa que sale del estado o del origen. «Fuera de SLA» no está: no es
 #: una condición de la base, se calcula.
 _Q_DE_SOLAPA = {
-    SOLAPA_ABIERTOS: ~Q(estado=Estado.CERRADO),
+    # Solo los que siguen pidiendo algo: un alojado completo no está en gestión y va en «Alojados»; el de
+    # ingreso parcial sigue acá porque la mesa tiene que contactar a la familia (aviso AE de ingreso parcial).
+    SOLAPA_ABIERTOS: ~Q(estado=Estado.CERRADO)
+    & (~Q(estado=Estado.ALOJADO) | Q(total_alojado__lt=F("grupo__total_declarado"))),
     SOLAPA_NUEVOS: Q(estado=Estado.NUEVO),
     SOLAPA_EN_GESTION: Q(estado=Estado.EN_GESTION),
     SOLAPA_DERIVADOS: Q(estado=Estado.DERIVADO),
     SOLAPA_INGRESO_EN_CURSO: Q(estado=Estado.INGRESO_EN_CURSO),
     # Los que entraron sin pasar por la mesa y siguen abiertos.
     SOLAPA_INGRESO_DIRECTO: Q(origen=CasoEmergencia.Origen.DISPOSITIVO) & ~Q(estado=Estado.CERRADO),
+    SOLAPA_ALOJADOS: Q(estado=Estado.ALOJADO),
     SOLAPA_CERRADOS: Q(estado=Estado.CERRADO),
 }
 
@@ -268,16 +275,34 @@ _ORDEN_PRIORIDAD = Case(
 FILTROS_DE_BANDEJA = ("solapa", "estado", "prioridad", "localidad", "tomado_por", "origen", "sla", "texto")
 
 
-def _q_de_texto(texto):
-    """N.° de caso, DNI o apellido del responsable (02 §3)."""
+def _q_de_palabra(palabra):
+    """Una palabra del buscador: n.° de caso, nombre, apellido o DNI del responsable, o de cualquier integrante."""
 
-    texto = (texto or "").strip()
-    if not texto:
-        return Q()
-    q = Q(numero__icontains=texto) | Q(grupo__responsable__apellido__icontains=texto)
-    dni = normalizar_dni(texto)
+    q = (
+        Q(numero__icontains=palabra)
+        | Q(grupo__responsable__apellido__icontains=palabra)
+        | Q(grupo__responsable__nombre__icontains=palabra)
+    )
+    dni = normalizar_dni(palabra)
     if dni:
         q |= Q(grupo__responsable__dni=dni)
+    # Exists y no un JOIN: un caso con varios integrantes que coinciden no se repite ni hace falta DISTINCT.
+    en_integrantes = Q(ciudadano__apellido__icontains=palabra) | Q(ciudadano__nombre__icontains=palabra)
+    if dni:
+        en_integrantes |= Q(ciudadano__dni=dni)
+    return q | Exists(IntegranteGrupo.objects.filter(en_integrantes, grupo_id=OuterRef("grupo_id")))
+
+
+def _q_de_texto(texto):
+    """N.° de caso, DNI, nombre o apellido del responsable o de un integrante (02 §3).
+
+    El texto se parte en palabras y **cada una** tiene que aparecer en algún campo: «Juan Pérez»
+    encuentra a la familia aunque el nombre y el apellido estén en columnas distintas (Cambio 533).
+    """
+
+    q = Q()
+    for palabra in (texto or "").split():
+        q &= _q_de_palabra(palabra)
     return q
 
 
@@ -291,7 +316,7 @@ def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
     * ``localidad`` — id de ``core.Localidad``.
     * ``tomado_por`` — id de usuario («Míos» es el del que mira).
     * ``sla`` — ``EN_TERMINO``, ``POR_VENCER`` o ``FUERA``.
-    * ``texto`` — N.° de caso, DNI o apellido del responsable.
+    * ``texto`` — N.° de caso, DNI, nombre o apellido del responsable o de un integrante, por palabras.
 
     Con ``sla`` y ``ahora`` (el ``SLAEmergencia`` vigente y el instante) el orden es el de
     la pantalla: **fuera de SLA primero**, después por prioridad, después el más viejo.
@@ -315,7 +340,7 @@ def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
         raise ValueError(f"Filtros que la bandeja no conoce: {', '.join(sorted(desconocidos))}.")
 
     casos = con_avisos_de_la_mesa(
-        CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por")
+        CasoEmergencia.objects.select_related("grupo__responsable", "localidad", "tomado_por"), ahora
     )
     solapa = filtros.get("solapa") or ""
     filtro_sla = filtros.get("sla") or ""
@@ -357,7 +382,7 @@ def conteo_por_solapa():
 
     **Una consulta**, agregada (sin ``GROUP BY`` que después haya que sumar en Python y
     sin una consulta por solapa). Devuelve un dict con las claves de :data:`SOLAPAS`
-    **menos** ``fuera_sla``, más ``alojados`` y ``total``.
+    **menos** ``fuera_sla``, más ``total``.
 
     «Fuera de SLA» no sale de acá porque no es una condición de la base: es
     ``len(ids_fuera_de_sla(sla, ahora))``, una consulta más.
@@ -365,7 +390,6 @@ def conteo_por_solapa():
 
     return CasoEmergencia.objects.aggregate(
         total=Count("id"),
-        alojados=Count("id", filter=Q(estado=Estado.ALOJADO)),
         **{solapa: Count("id", filter=condicion) for solapa, condicion in _Q_DE_SOLAPA.items()},
     )
 
@@ -395,7 +419,7 @@ def rechazo_sin_nueva_accion(caso):
     return caso.ultima_accion == TrazaCaso.Accion.DERIVACION_RECHAZADA
 
 
-def con_avisos_de_la_mesa(casos):
+def con_avisos_de_la_mesa(casos, ahora=None):
     """``casos`` (un queryset de ``CasoEmergencia``) con lo que necesitan los avisos de la mesa.
 
     Suma a cada caso, como subconsultas correlacionadas **de la misma consulta** —no cuesta
@@ -407,6 +431,9 @@ def con_avisos_de_la_mesa(casos):
       el motivo y la observación de la última derivación ``RECHAZADA`` (RN-3.13).
     * ``derivada_a_inactivo`` — la derivación ``PENDIENTE`` apunta a un dispositivo que dejó
       de estar ``ACTIVO`` (02 §9). Solo la pendiente: con la aceptada la familia ya llegó.
+    * ``derivacion_vencida_sin_marcar`` — la derivación ``PENDIENTE`` ya pasó su ``vence_en`` (a ``ahora``,
+      por defecto el reloj) y el cron todavía no la marcó: se puede aceptar igual (RN-3.3), pero la
+      mesa tiene que ver que el plazo se cumplió (Cambio 533).
 
     Las subconsultas se evalúan sobre las filas de la página (50), y la cuenta del
     paginador no las arrastra porque nada las referencia.
@@ -419,12 +446,16 @@ def con_avisos_de_la_mesa(casos):
     pendiente_a_inactivo = Derivacion.objects.filter(
         clave_vigente=OuterRef("pk"), estado=Derivacion.Estado.PENDIENTE
     ).exclude(dispositivo__estado=Dispositivo.Estado.ACTIVO)
+    pendiente_vencida = Derivacion.objects.filter(
+        clave_vigente=OuterRef("pk"), estado=Derivacion.Estado.PENDIENTE, vence_en__lt=ahora or timezone.now()
+    )
     return casos.annotate(
         ultima_accion=Subquery(ultima_traza.values("accion")[:1]),
         rechazada_por=Subquery(ultima_rechazada.values("dispositivo__nombre")[:1]),
         rechazada_motivo=Subquery(ultima_rechazada.values("motivo")[:1]),
         rechazada_observacion=Subquery(ultima_rechazada.values("observacion")[:1]),
         derivada_a_inactivo=Exists(pendiente_a_inactivo),
+        derivacion_vencida_sin_marcar=Exists(pendiente_vencida),
     )
 
 
