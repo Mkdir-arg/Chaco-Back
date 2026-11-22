@@ -137,6 +137,9 @@
   }
 
   boton.addEventListener('click', function () {
+    // Cada cálculo se cobra. La protección real es el `disabled` de abajo: un botón deshabilitado no recibe
+    // clics del usuario. Este guard es defensa ante un clic sintético (`boton.click()` de otro script).
+    if (boton.disabled) { return; }
     boton.disabled = true;
     avisar('Calculando la distancia por calle…');
     ubicarDomicilio().then(function (origen) {

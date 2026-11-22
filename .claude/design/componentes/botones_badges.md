@@ -37,6 +37,12 @@ Siempre **`btn-nodo` + variante + tamaño**.
 - **`.hidden` gana sobre `btn-nodo`:** la hoja declara `.btn-nodo.hidden, .nodo-icon-btn.hidden
   { display: none }` porque se carga después de Tailwind y, con la misma especificidad, `display:
   inline-flex` le ganaba por orden (el «Cancelar» que `ModernModal` esconde se veía igual).
+- **`[hidden]` global:** `static/custom/css/utils.css` (shell del backoffice; el portal no la carga) declara
+  `[hidden] { display: none !important; }`: un elemento con el atributo `hidden` no se ve nunca, tenga la clase
+  que tenga. Una pieza que se muestra con JS usa `el.hidden = false`, no `style.display`. La regla del navegador es de
+  origen agente de usuario y pierde contra cualquier regla de autor (como `.btn-nodo`). `nodo-buscador.css` conserva su
+  propia regla `[hidden]` porque la carga la inscripción pública (el portal no carga `utils.css`); las demás son
+  redundantes en el backoffice.
 
 ### Variante `btn-fit` (sin ancho mínimo)
 

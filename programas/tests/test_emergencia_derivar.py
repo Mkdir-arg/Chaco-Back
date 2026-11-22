@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.test import override_settings
 from django.urls import reverse
 
 from core.models import UbicacionLocalidad
@@ -257,6 +258,7 @@ class DistanciaPorCalleTests(BaseMesa):
         )
         self.assertNotIn("Oculta", str(config))
 
+    @override_settings(GOOGLE_MAPS_API_KEY="clave-de-prueba")
     def test_el_boton_y_el_script_van_solo_en_la_lista_de_edificios(self):
         caso = self._caso_tomado()
         predio = self._edificio("Predio Norte", self.club, latitud="-27.45", longitud="-58.98")
@@ -268,6 +270,28 @@ class DistanciaPorCalleTests(BaseMesa):
         adentro = self._ficha(caso, grupo=f"e{predio.pk}")
         self.assertIsNone(adentro.context["panel"]["distancias"])
         self.assertNotContains(adentro, "nodo-derivar-distancias.js")
+
+    @override_settings(GOOGLE_MAPS_API_KEY="clave-de-prueba")
+    def test_con_key_el_boton_nace_oculto_y_lo_muestra_el_script(self):
+        """El botón está en el HTML con `hidden`; `nodo-derivar-distancias.js` lo muestra si Google está."""
+
+        caso = self._caso_tomado()
+        self._edificio("Predio Norte", self.club, latitud="-27.45", longitud="-58.98")
+        html = self._ficha(caso).content.decode()
+        self.assertRegex(html, r"<button[^>]*data-derivar-por-calle hidden>")
+        self.assertRegex(html, r"<p[^>]*data-derivar-por-calle-estado[^>]* hidden>")
+
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    def test_sin_key_la_ficha_no_ofrece_el_boton_ni_su_texto_de_estado(self):
+        """Sin Google Maps (testing, 21/11/2026) no hay un «Calcular distancia por calle» que no haga nada (#1297)."""
+
+        caso = self._caso_tomado()
+        self._edificio("Predio Norte", self.club, latitud="-27.45", longitud="-58.98")
+        lista = self._ficha(caso)
+        self.assertNotContains(lista, "Calcular distancia por calle")
+        self.assertNotContains(lista, "data-derivar-por-calle")
+        # La lista de edificios sigue, con la distancia en línea recta de siempre.
+        self.assertContains(lista, "Predio Norte")
 
     def test_un_edificio_ubicado_solo_por_su_localidad_no_va_a_google(self):
         caso = self._caso_tomado()
