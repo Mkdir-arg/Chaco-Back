@@ -67,7 +67,8 @@ class MisDispositivosEmergenciaView(_VistaDeCampo):
     def get(self, request):
         filas = selectores_kits.mis_dispositivos(request.user)
         donde_admite = [fila["id"] for fila in filas if fila["admite"]]
-        resumen = selectores_alojar.resumen_de_llegadas(donde_admite) if donde_admite else {}
+        # Con alcance Edificios, solo lo de sus edificios (hallazgo 13).
+        resumen = selectores_alojar.resumen_de_llegadas(donde_admite, usuario=request.user) if donde_admite else {}
         for fila in filas:
             fila.update(resumen.get(fila["id"], {"plazas_libres": 0, "derivaciones_pendientes": 0}))
         return Response(MiDispositivoEmergenciaSerializer(filas, many=True).data)

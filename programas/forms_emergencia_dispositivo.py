@@ -368,7 +368,14 @@ class Formulario1DispositivoForm(NuevoCasoMesaForm):
 
     Es el de la mesa (PR 3) con **localidad y dirección opcionales**: la familia está acá, y
     sin esos datos el servicio pone los del dispositivo (RN-3.10).
+
+    ``uuid_cliente`` es el identificador del envío: la vista lo genera al mostrar el formulario y
+    viaja oculto, así que mandar dos veces el mismo formulario —doble envío, o volver «atrás» y
+    reenviar— devuelve el caso del primero en vez de crear otro (hallazgo 11; el servicio ya era
+    idempotente por ese campo para la app, RU-16).
     """
+
+    uuid_cliente = forms.UUIDField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -379,3 +386,8 @@ class Formulario1DispositivoForm(NuevoCasoMesaForm):
             self.fields[campo].required = False
             self.fields[campo].help_text = ayuda
         self.fields["localidad"].empty_label = "La del dispositivo"
+
+    def datos_formulario1(self):
+        datos = super().datos_formulario1()
+        datos.pop("uuid_cliente", None)
+        return datos

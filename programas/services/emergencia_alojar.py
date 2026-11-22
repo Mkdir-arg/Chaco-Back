@@ -168,6 +168,8 @@ from programas.services.emergencia_ingreso_comun import (  # noqa: F401
     ingreso_sin_candado,
     mensaje_faltan_confirmar,
     mensaje_vencida,
+    puede_avisar_a_la_mesa,
+    puede_ingresar_igual,
 )
 from programas.services.emergencia_recepcion import (  # noqa: F401
     BUSQUEDA_ALOJADA,

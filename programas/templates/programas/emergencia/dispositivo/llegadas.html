@@ -137,12 +137,18 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
         <h2 id="llegadas-sin-derivacion-titulo" class="text-heading font-bold">Sin derivación para el DNI {{ resultado.dni|dni }}</h2>
       </div>
       <div class="p-5 space-y-4">
+        {% if alcance_para_ingresar %}
         {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Si la familia está en la puerta, la podés ingresar igual mientras haya camas libres, o avisarle a la mesa para que la derive." %}
         {% if not puede_ingresar_igual %}
         {% include "components/_alerta.html" with tono="warning" titulo="No hay camas libres" texto="Para ingresarla igual primero hay que liberar una cama. Mientras tanto, avisale a la mesa." %}
         {% endif %}
+        {% else %}
+        {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Si la familia está en la puerta, avisale a la mesa para que la derive. Ingresarla sin derivación lo puede hacer quien tiene a cargo toda la institución." %}
+        {% endif %}
         <div class="flex flex-wrap justify-end gap-3">
+          {% if puede_avisar %}
           <a href="{{ url_avisar }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-bullhorn" aria-hidden="true"></i> Avisar a la mesa</a>
+          {% endif %}
           {% if puede_ingresar_igual %}
           <a href="{{ url_ingreso_directo }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Ingresar igual</a>
           {% endif %}

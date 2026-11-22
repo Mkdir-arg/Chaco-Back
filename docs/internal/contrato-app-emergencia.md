@@ -422,6 +422,9 @@ dispositivo primero (RU-5).
 - `plazas_libres` (PR 8): camas libres ahora —la misma cuenta que `buscar` (§13.2)—. `0` donde el
   usuario solo recibe kits (`admite: false`).
 - `derivaciones_pendientes` (PR 8): derivaciones por aceptar o rechazar. `0` donde solo recibe kits.
+- Con alcance **Edificios** en el Equipo (Cambio 532), `plazas_libres` y `derivaciones_pendientes` cuentan
+  solo lo de **sus** edificios —las camas de sus sectores y las derivaciones a ellos—, no toda la
+  institución. Las claves no cambian.
 
 ## 10. Entregas de un dispositivo
 
@@ -552,8 +555,8 @@ es el **ingreso directo** (§13.10).
 mis-dispositivos ─► buscar?dni= ─┬─ DERIVACION (PENDIENTE) ─► aceptar ─► integrantes ─► confirmar × N ─► alojar
                                  │                          └► rechazar                └► cerrar-diferencia
                                  │   DERIVACION (ACEPTADA) ─────────────► integrantes        └► cancelar-ingreso
-                                 ├─ SIN_DERIVACION ─┬─ plazas_libres ≥ 1 ─► ingreso-directo ─► integrantes …
-                                 │                  └─ avisar-mesa
+                                 ├─ SIN_DERIVACION ─┬─ puede_ingresar_igual y plazas_libres ≥ 1 ─► ingreso-directo ─► integrantes …
+                                 │                  └─ puede_avisar_a_la_mesa ─► avisar-mesa
                                  └─ ALOJADA (fin)
 ```
 
@@ -572,7 +575,7 @@ app recarga la pantalla que corresponde a `estado_actual`.
 `GET /api/emergencia/dispositivos/{id}/buscar/?dni=30111222` — el DNI del responsable **o de cualquier
 persona ya confirmada** de la familia. `{id}` es un dispositivo de «mis dispositivos».
 
-Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (o `""`).
+Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (o `""`, o `false`).
 
 ```json
 {"resultado": "DERIVACION", "dni": "30111222", "plazas_libres": 9,
@@ -586,15 +589,26 @@ Las ocho claves vienen **siempre**; las que no aplican al resultado, en `null` (
    "grupo": {"menores_f": 2, "menores_m": 3, "adultos_f": 1, "adultos_m": 1, "mayores_f": 0, "mayores_m": 0,
              "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1, "responsable_aparte": false},
    "necesidades": ["embarazo"], "telefono": "3624000000", "observaciones": "Vienen con un perro."},
- "alojada_aca": null, "alojada_en": "", "alojada_desde": null}
+ "alojada_aca": null, "alojada_en": "", "alojada_desde": null,
+ "puede_ingresar_igual": false, "puede_avisar_a_la_mesa": false}
 ```
 
 | `resultado` | Qué significa | Qué hace la app |
 |---|---|---|
 | `DERIVACION` | Hay una derivación `PENDIENTE` o `ACEPTADA` **hacia este dispositivo** | `PENDIENTE` → M2-2 (aceptar o rechazar). `ACEPTADA` → M2-3 con `derivacion.caso.id` |
-| `SIN_DERIVACION` | No hay nada para este dispositivo. **Incluye** una derivación a otro: no se dice cuál ni que existe (RU-9) | M2-6: «Ingresar igual» si `plazas_libres ≥ 1`, y «Avisar a la mesa». Mostrar `mensaje` (si la derivación de acá venció, lo dice) |
+| `SIN_DERIVACION` | No hay nada para este dispositivo. **Incluye** una derivación a otro: no se dice cuál ni que existe (RU-9) | M2-6: «Ingresar igual» si `puede_ingresar_igual` y `plazas_libres ≥ 1`; «Avisar a la mesa» si `puede_avisar_a_la_mesa`. Mostrar `mensaje` (si la derivación de acá venció, lo dice) |
 | `ALOJADA` | La persona tiene una estadía abierta en la red | Mostrar `mensaje` y nada más. `alojada_aca`: si es en este dispositivo. `alojada_en` y `alojada_desde`, solo si el usuario puede ver ese dispositivo; si no, vacíos |
 
+- `puede_ingresar_igual` y `puede_avisar_a_la_mesa` (Cambio 532, **aditivas**): solo con `SIN_DERIVACION`
+  (en los otros resultados, `false`). Dicen si el usuario tiene el alcance para cada botón de M2-6:
+  «Ingresar igual» exige alcance sobre **toda la institución**; «Avisar a la mesa» vale con cualquier alcance,
+  también **Edificios**. `puede_ingresar_igual` no mira las camas: el botón va si es `true` **y**
+  `plazas_libres ≥ 1`. Una app anterior que no las lee sigue andando: con alcance Edificios, `ingreso-directo`
+  le contesta 404 como hasta ahora (§13.10).
+- `plazas_libres` cuenta las camas libres de **todo el dispositivo** que el usuario alcanza (con alcance
+  Edificios, las de sus edificios), **no** las del edificio de la derivación. Sirve para decidir el botón de
+  M2-6 y como referencia; no anticipa cuántas reserva «Aceptar», que toma solo del edificio derivado
+  (§13.3, Cambio 532).
 - `responsable.identidad_a_revisar`: `{"nombre", "apellido"}` tal como los cargó quien relevó, cuando el
   DNI ya era de otra persona registrada y se envió con `identidad_en_conflicto` (§6). Viene **solo
   mientras la mesa no lo revisó**; si no, `null`. Es un aviso: la app lo muestra («Identidad a revisar: se
@@ -631,10 +645,13 @@ Respuesta **200**:
  "integrantes": [{"n": 1, "estado": "SIN_CONFIRMAR", …}, …]}
 ```
 
-- Reserva **hasta** `plazas_pedidas` camas, elegidas por el servidor (el sector con más libres primero).
+- Reserva **hasta** `plazas_pedidas` camas, elegidas por el servidor (el sector con más libres primero),
+  **solo del edificio de la derivación** (el que eligió la mesa al derivar; sin edificio, de todo el
+  dispositivo). Por eso `faltantes` puede ser mayor que cero aunque `plazas_libres` de §13.2 —que cuenta el
+  dispositivo entero— alcanzara (Cambio 532).
   Menos de las pedidas es válido: `faltantes > 0` y la app muestra `mensaje`. Se puede seguir.
 - `integrantes`: las N filas de la familia (§13.5), todas sin confirmar.
-- 400 `plazas`: el dispositivo no tiene **ninguna** cama libre («Sin plazas · rechazá con motivo o liberá
+- 400 `plazas`: el edificio de la derivación no tiene **ninguna** cama libre («Sin plazas · rechazá con motivo o liberá
   camas»), o una cama se ocupó mientras se aceptaba (volver a tocar «Aceptar»).
 - 409: otra guardia ya la aceptó (desde su teléfono o desde el backoffice), la mesa la canceló o el cron
   la venció.
@@ -894,12 +911,15 @@ cola reintenta con el **mismo** `uuid_cliente` hasta recibir 200 o 201; el reenv
 el mismo caso y lo que reservó la primera vez, sin volver a mirar las camas. 409 `UUID_EN_USO` si ese
 identificador ya creó un caso de otro usuario. 400 como §6 —incluido el de «DNI ya registrado» con
 `persona_registrada`, y `identidad_en_conflicto` para enviar con identidad a revisar—, más `plazas` (no hay camas libres; mostrar
-«Avisar a la mesa») y `dispositivo` (no recibe familias).
+«Avisar a la mesa») y `dispositivo` (no recibe familias). Exige alcance sobre **toda la institución**: con
+alcance Edificios contesta 404, como un dispositivo ajeno; la app no ofrece el botón si
+`puede_ingresar_igual` es `false` (§13.2, Cambio 532). Las camas se reservan **todas en un mismo edificio**
+—el que tiene más libres—, que queda como el edificio del ingreso; si no alcanzan, faltan.
 
 **Avisar a la mesa**: `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` — el mismo cuerpo. Crea el
 caso `NUEVO` con la marca «En la puerta de …»; la mesa lo deriva y la guardia busca de nuevo. No exige
 camas. Respuesta **201** (o **200** en el reenvío) `{"caso": {…}}`. Idempotente igual que el ingreso
-directo.
+directo. Vale con cualquier alcance del Equipo, también Edificios (Cambio 532; antes contestaba 404).
 
 ### 13.11 La ficha individual (Formulario 2)
 
