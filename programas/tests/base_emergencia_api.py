@@ -97,6 +97,7 @@ CLAVES_INTEGRANTE = [
     "egresado_en",
     "estado",
     "ficha_completa",
+    "id",  # Cambio 539, aditiva
     "n",
     "parentesco",
     "persona",

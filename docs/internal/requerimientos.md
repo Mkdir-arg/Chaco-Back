@@ -661,6 +661,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61992,3 +61993,85 @@ Desplegar el código anterior. No hay datos que revertir: las filas quitadas est
 
 ## Historial
 - **22/11/2026:** alta del cambio (PR L1b del relevamiento de lógica).
+
+
+# Cambio 539 — Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · Llegadas (E6 integrantes y API M2-3) |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#api` `#mobile` |
+| **Solicitante** | Auditoría del PR #1313 (Cambio 537), hallazgos MINOR; PR L1c |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+La auditoría del #1313 aprobó «Quitar persona» con cinco MINOR: un reenvío tardío de «Quitar» podía borrar a otra persona, quitar dejaba una
+reserva de cama de más, la regla estaba escrita en dos lugares y había detalles de `_asegurar_filas` y de `PersonaQuitada`.
+
+## Alcance acordado
+Cerrar los cinco, sin migración. Consultado el archivo vivo por `emergencia` (Cambios 474, 532 y 537): ninguna decisión choca; lo que se corrige
+es una afirmación del 537.
+
+## Decisiones tomadas
+- **El pedido identifica a la fila, no solo su número.** La numeración se reusa (se quita la 4, se agrega otra y es la 4), así que un reenvío
+  con el número solo podía borrar a la nueva. `quitar_integrante` recibe `fila_id` (opcional): si no es el de la fila que hoy tiene ese
+  `orden`, contesta `ya_estaba = True` sin tocar nada. Sin `fila_id` (app o pestaña vieja) actúa sobre el número, como antes.
+- **`ya_estaba` solo con la traza.** Si la fila no está, devuelve el resultado idempotente únicamente cuando hay una traza `INTEGRANTE_QUITADO`
+  de ese número en el caso; si no, error 400 «Esa persona no es de esta familia». Antes bastaba con que el número fuera mayor a lo declarado,
+  y `quitar/99/` contestaba 200.
+- **API (aditiva).** `integrantes[].id` en la lista y en el detalle; cuerpo opcional `{"id": …}` en `POST …/integrantes/{n}/quitar/` (un `id`
+  que no es entero es 400). Contrato §13.5 y resumen actualizados.
+- **Web: el `id` va en la URL, no en un campo oculto.** El modal de confirmación del sistema (`data-confirm-url`) postea un formulario que solo
+  lleva el token, así que no hay dónde poner un campo sin tocar la pieza canónica. La URL de «Quitar» lleva `?id=<pk>` y la vista lo lee de
+  `request.GET`; un `id` que no es número se ignora y actúa sobre el número.
+- **La reserva sobrante se libera al quitar.** La derivación nunca retiene más camas reservadas que personas sin confirmar. El 537 decía «no
+  hay reserva que devolver»: vale para la **fila** (no tiene cama), no para la **derivación**: con una familia de 3, una 4.ª agregada y una
+  confirmación en cama libre, las 3 reservas siguen y al quitar la 4.ª sobra una. `quitar_integrante` aplica la regla de
+  `_ingresar_en_cama_libre`, ahora en un helper compartido (`_reserva_sobrante`): se libera la de la plaza con id más alto, con
+  `MOTIVO_RESERVA_SOBRANTE` y `verificar_alcance=False`, con el mismo orden de candados (caso → derivación → plaza por pk → reserva).
+- **Una sola regla.** `IntegranteGrupo.se_puede_quitar` (`agregada_en_la_puerta` y sin `confirmada`, `ciudadano_id` ni `estadia_id`) la usan el
+  servicio y el selector (`puede_quitarse`).
+- **`_asegurar_filas`.** Docstring correcto («tantas filas como `total_declarado`», no «1 a N») y los números faltantes salen de
+  `islice(count(1) …)` en vez de un `while`.
+- **`PersonaQuitada`** pasa a `@dataclass(frozen=True)` y `total_declarado` baja con `-= 1` sin el `max(…, 1)`: una fila de la puerta solo existe
+  con la familia por encima de lo declarado, así que el total nunca baja de 1.
+
+## Implementación
+Quitar es seguro frente a un reenvío tardío y deja la reserva de la derivación en su lugar.
+
+## Archivos
+- `programas/models/__init__.py` — `IntegranteGrupo.se_puede_quitar`.
+- `programas/services/emergencia_confirmacion.py` — `quitar_integrante` (`fila_id`, traza, reserva sobrante), `_reserva_sobrante`, `_liberar_la_sobrante`, `PersonaQuitada`.
+- `programas/services/emergencia_ingreso_comun.py` — `_asegurar_filas`.
+- `programas/selectors/emergencia_alojar.py` — `id` y `se_puede_quitar` en la fila.
+- `programas/api/views_emergencia_llegadas.py` y `serializers_emergencia.py` — `id` y el cuerpo opcional; `programas/views/emergencia_dispositivo.py` — `?id=`.
+- `docs/internal/contrato-app-emergencia.md` (resumen y §13.5).
+- Tests: `programas/tests/test_emergencia_quitar_persona.py` y `base_emergencia_api.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`test_emergencia_quitar_persona.py` pasó de 22 a 36 tests (reenvío con el `id` viejo por servicio, pantalla y API; `quitar/99/` 400; la reserva sobrante; la
+propiedad; el hueco de la numeración con el grupo al día). **Mutación** (10, todas en rojo): `se_puede_quitar` sin «de la puerta»; sin
+«confirmada»; sin comparar `fila_id`; `ya_estaba` sin mirar la traza; sin `_liberar_la_sobrante`; sin el decremento; la API que ignora el `id`; la web que
+lo ignora; `_asegurar_filas` contando números (dos tests del 537 pasaban por el motivo equivocado: usaban un `grupo` viejo, y se corrigió el segundo).
+Suites `test_emergencia_*` y `--tag performance`, `manage.py check`, `makemigrations --check`, ruff, `design_audit --ratchet`, `compile_templates --bloques` y
+`check_design_agent --base origin/development`: ver el PR.
+
+## Puesta en marcha en el servidor
+No requiere. La app puede mandar `{"id": n}` en «Quitar» con el `id` de `integrantes[]` (PR aparte en Chaco-mobile); sin él sigue andando.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior. No hay datos que revertir: las reservas liberadas se pueden volver a pedir desde el mapa.
+
+## Historial
+- **22/11/2026:** alta del cambio (PR L1c, MINOR de la auditoría del #1313).
