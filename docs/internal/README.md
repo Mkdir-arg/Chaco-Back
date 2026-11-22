@@ -7,7 +7,7 @@ Esta carpeta **no se publica** en GitHub Pages.
 
 | Archivo | Descripción |
 |---|---|
-| [requerimientos.md](requerimientos.md) | **Archivo vivo de requerimientos.** Todo desarrollo se registra acá al cerrarse: pedido, solicitante, decisiones, historial y reversión |
+| [requerimientos.md](requerimientos.md) y [requerimientos/](requerimientos/) | **Registro vivo de requerimientos.** Todo desarrollo se registra al cerrarse: pedido, solicitante, decisiones, historial y reversión. El archivo guarda la regla y el historial 1–548; cada Cambio desde el 549 es un archivo `requerimientos/N.md` |
 | [architecture.md](architecture.md) | Diagrama de componentes y decisiones de diseño |
 | [setup.md](setup.md) | Cómo levantar el proyecto localmente |
 | [onboarding.md](onboarding.md) | Guía para desarrolladores nuevos |

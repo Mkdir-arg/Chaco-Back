@@ -139,10 +139,10 @@ En `.gitattributes`, debajo de la línea de `auditoria-2026-10`, agregá
 resolvedor por unión duplicó el README entero de octubre (07-oct).
 
 Antes del commit, `git -C "$W" status --porcelain` tiene que mostrar solo
-`docs/internal/auditoria-AAAA-MM/`, `.gitattributes` y `docs/internal/requerimientos.md`. Si
+`docs/internal/auditoria-AAAA-MM/`, `.gitattributes` y `docs/internal/requerimientos/<N>.md`. Si
 aparece una copia de PoC en `<app>/tests/`, borrala: no se commitea.
 
 Entrega: un PR solo de documentación contra `development` (`--repo Mkdir-arg/Chaco-Back`), con su
-entrada en `docs/internal/requerimientos.md`. Pasa por `/auditoria pr <N>` como cualquier PR.
+entrada en `docs/internal/requerimientos/<N>.md`. Pasa por `/auditoria pr <N>` como cualquier PR.
 **Nada se implementa sin aprobación.** Después del merge, con el prólogo:
 `git worktree remove --force "$W"; git worktree prune`.

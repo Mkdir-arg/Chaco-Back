@@ -52,20 +52,20 @@ Prólogo, más `OLD=<sha del último APPROVE>`:
 ```bash
 git cat-file -e "$OLD^{commit}" 2>/dev/null || git fetch origin "$OLD"
 MB_OLD=$(git merge-base origin/development "$OLD")
-EXCL=':(exclude)docs/internal/requerimientos.md'
+EXCL=':(exclude)docs/internal/requerimientos*'
 P_OLD=$(git diff "$MB_OLD" "$OLD" -- . "$EXCL" | git patch-id --verbatim | cut -d' ' -f1)
 P_NEW=$(git diff "$MB" "$HEAD_SHA" -- . "$EXCL" | git patch-id --verbatim | cut -d' ' -f1)
-R_OLD=$(git diff "$MB_OLD" "$OLD" -- docs/internal/requerimientos.md | git patch-id --verbatim | cut -d' ' -f1)
-R_NEW=$(git diff "$MB" "$HEAD_SHA" -- docs/internal/requerimientos.md | git patch-id --verbatim | cut -d' ' -f1)
+R_OLD=$(git diff "$MB_OLD" "$OLD" -- docs/internal/requerimientos.md docs/internal/requerimientos/ | git patch-id --verbatim | cut -d' ' -f1)
+R_NEW=$(git diff "$MB" "$HEAD_SHA" -- docs/internal/requerimientos.md docs/internal/requerimientos/ | git patch-id --verbatim | cut -d' ' -f1)
 echo "P_OLD=$P_OLD P_NEW=$P_NEW R_OLD=$R_OLD R_NEW=$R_NEW"
 ```
 
 - `P_OLD` y `P_NEW` **no vacíos e iguales**, y `R_OLD` = `R_NEW`: el cambio vino solo de la base.
   Publicá la variante «Re-sello» de `plantillas/comentario-pr.md` (paso 7) y terminá.
 - Iguales, pero `R_OLD` ≠ `R_NEW`: mirá los dos
-  `git diff … -- docs/internal/requerimientos.md`. Si la diferencia es solo la renumeración del
-  Cambio, re-sellá con la línea «salvo `docs/internal/requerimientos.md`». Si trae contenido
-  nuevo, auditar.
+  `git diff … -- docs/internal/requerimientos.md docs/internal/requerimientos/`. Si la diferencia es
+  solo la renumeración del Cambio (el renombre `N.md`→`M.md` y su H1), re-sellá con la línea
+  «salvo el número del Cambio». Si trae contenido nuevo, auditar.
 - Distintos, alguno vacío, u `OLD` imposible de traer: auditar (paso 4).
 
 ## 4. Preparar el material

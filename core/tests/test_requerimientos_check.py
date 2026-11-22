@@ -219,6 +219,220 @@ class ReversionEnElCheckTests(SimpleTestCase):
         self.assertIn("Base de datos", salida.getvalue())
 
 
+ARCHIVO_NUEVO = """# Cambio {numero} — Prueba {numero}
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / método |
+| **Etiquetas** | `#infra` |
+| **Solicitante** | PM — pedido directo |
+| **Fecha del pedido** | 22/11/2026 |
+| **Migración** | {migracion} |
+
+## Base de datos
+{base_de_datos}
+
+## Reversión
+{reversion}
+"""
+
+
+class CarpetaDeCambiosTests(SimpleTestCase):
+    """Desde el Cambio 549 cada entrada es un archivo `requerimientos/N.md`; el historial está congelado."""
+
+    ULTIMO = requerimientos.ULTIMO_CAMBIO_HISTORICO
+
+    def _registro(self, archivos=None, historial=None):
+        """Arma historial + carpeta sintéticos. `archivos` es `{nombre: contenido}`."""
+        raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, raiz, True)
+        carpeta = raiz / "requerimientos"
+        carpeta.mkdir()
+        for nombre, contenido in (archivos or {}).items():
+            (carpeta / nombre).write_text(contenido, encoding="utf-8")
+
+        historial = historial if historial is not None else [{"numero": "135", "migracion": "No requiere"}]
+        filas = "\n".join(FILA.format(**e) for e in historial)
+        cuerpo = "".join(
+            ENTRADA.format(**{**e, "base_de_datos": "Nada.", "reversion": "No aplica."}) for e in historial
+        )
+        documento = raiz / "requerimientos.md"
+        documento.write_text(CABECERA.format(filas=filas) + cuerpo, encoding="utf-8")
+        return documento, carpeta
+
+    def _nuevo(self, numero, **cambios):
+        datos = {
+            "numero": numero,
+            "migracion": "No requiere",
+            "base_de_datos": "Ningún cambio de esquema.",
+            "reversion": "No aplica.",
+        }
+        datos.update(cambios)
+        return ARCHIVO_NUEVO.format(**datos)
+
+    def _check(self, archivos=None, historial=None):
+        documento, carpeta = self._registro(archivos, historial)
+        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+        return codigo, salida.getvalue()
+
+    def test_un_archivo_nuevo_valido_pasa_y_su_fila_sale_de_la_ficha(self):
+        numero = str(self.ULTIMO + 1)
+        documento, carpeta = self._registro({f"{numero}.md": self._nuevo(numero)})
+
+        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+
+        self.assertEqual(codigo, 0, salida.getvalue())
+        fila = next(f for f in filas if f.numero == numero)
+        self.assertEqual(fila.titulo, f"Prueba {numero}")
+        self.assertEqual(fila.programa, "Transversal / método")
+        self.assertEqual(fila.etiquetas, ["#infra"])
+        self.assertEqual(fila.solicitante, "PM — pedido directo")
+        self.assertEqual(fila.pedido, "22/11/2026")
+        self.assertIn("HECHO", fila.estado)
+        self.assertEqual(fila.migracion, "No requiere")
+
+    def test_el_numero_del_archivo_tiene_que_ser_el_del_titulo(self):
+        numero = self.ULTIMO + 1
+        codigo, salida = self._check({f"{numero}.md": self._nuevo(str(numero + 1))})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn(f"{numero}.md dice `# Cambio {numero + 1}`", salida)
+
+    def test_dos_entradas_con_el_mismo_numero_fallan(self):
+        codigo, salida = self._check(historial=[{"numero": "135", "migracion": "No requiere"}] * 2)
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("El Cambio 135 tiene más de una entrada", salida)
+
+    def test_una_fila_repetida_en_el_indice_falla(self):
+        documento, carpeta = self._registro()
+        fila = FILA.format(numero="135", migracion="No requiere")
+        documento.write_text(documento.read_text(encoding="utf-8").replace(fila, f"{fila}\n{fila}"), encoding="utf-8")
+
+        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("El Cambio 135 figura más de una vez en el índice", salida.getvalue())
+
+    def test_un_archivo_nuevo_no_repite_un_numero_del_historial(self):
+        codigo, salida = self._check({"135.md": self._nuevo("135")})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("El Cambio 135 tiene más de una entrada", salida)
+        self.assertIn("pertenece al historial", salida)
+
+    def test_un_nombre_con_slug_falla(self):
+        numero = str(self.ULTIMO + 1)
+        codigo, salida = self._check({f"{numero}-con-slug.md": self._nuevo(numero)})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("el nombre no es `N.md`", salida)
+
+    def test_un_numero_del_rango_del_historial_falla_pero_un_subpedido_pasa(self):
+        codigo, salida = self._check({"100.md": self._nuevo("100")})
+        self.assertEqual(codigo, 1)
+        self.assertIn("pertenece al historial", salida)
+
+        codigo, salida = self._check({"135.1.md": self._nuevo("135.1")})
+        self.assertEqual(codigo, 0, salida)
+
+    def test_un_subpedido_sin_su_cambio_madre_falla(self):
+        codigo, salida = self._check({"900.1.md": self._nuevo("900.1")})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("cuelga del Cambio 900, que no existe", salida)
+
+    def test_un_cambio_nuevo_escrito_en_el_historial_falla_con_la_pista_de_la_carpeta(self):
+        nuevo = str(self.ULTIMO + 1)
+        codigo, salida = self._check(historial=[{"numero": nuevo, "migracion": "No requiere"}])
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("congelado", salida)
+        self.assertIn(f"docs/internal/requerimientos/{nuevo}.md", salida)
+
+    def test_un_subpedido_dentro_de_un_archivo_falla(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(numero) + f"\n## {numero}.1 Otro pedido\n\n🟢 **HECHO — 22/11/2026**\n"
+        codigo, salida = self._check({f"{numero}.md": contenido})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn(f"{numero}.1", salida)
+        self.assertIn("su propio archivo", salida)
+
+    def test_la_migracion_sin_reversion_falla_tambien_en_un_archivo_nuevo(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(
+            numero,
+            migracion="`programas.0999_columna_nueva`",
+            base_de_datos="Migración `programas.0999_columna_nueva`.",
+            reversion="",
+        )
+        codigo, salida = self._check({f"{numero}.md": contenido})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("Reversión", salida)
+
+    def test_una_etiqueta_fuera_del_vocabulario_falla(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(numero).replace("`#infra`", "`#inventada`")
+        codigo, salida = self._check({f"{numero}.md": contenido})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("#inventada", salida)
+
+    def test_un_archivo_sin_encabezado_falla(self):
+        numero = str(self.ULTIMO + 1)
+        codigo, salida = self._check({f"{numero}.md": "Sin título\n"})
+
+        self.assertEqual(codigo, 1)
+        self.assertIn("la primera línea no es `# Cambio N — Título`", salida)
+
+    def test_buscar_informa_la_linea_relativa_al_archivo(self):
+        numero = str(self.ULTIMO + 1)
+        contenido = self._nuevo(numero) + "\nAguja única en la última línea\n"
+        documento, carpeta = self._registro({f"{numero}.md": contenido})
+        lineas, _filas, entradas, _vocabulario = requerimientos.leer_documento(documento, carpeta)
+        esperada = contenido.splitlines().index("Aguja única en la última línea") + 1
+
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            codigo = requerimientos.comando_buscar("aguja única", lineas, entradas)
+
+        self.assertEqual(codigo, 0)
+        self.assertIn(f"{numero}.md L{esperada}:", salida.getvalue())
+
+    def test_una_carpeta_inexistente_no_rompe(self):
+        documento, carpeta = self._registro()
+        shutil.rmtree(carpeta)
+
+        lineas, filas, entradas, vocabulario = requerimientos.leer_documento(documento, carpeta)
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            codigo = requerimientos.comando_check(filas, entradas, vocabulario, lineas)
+
+        self.assertEqual(codigo, 0, salida.getvalue())
+
+    def test_siguiente_sin_git_es_el_maximo_mas_uno(self):
+        numero = self.ULTIMO + 3
+        documento, carpeta = self._registro({f"{numero}.md": self._nuevo(str(numero))})
+        _lineas, _filas, entradas, _vocabulario = requerimientos.leer_documento(documento, carpeta)
+
+        self.assertEqual(requerimientos.siguiente_numero(entradas, con_remotas=False), numero + 1)
+        _lineas, _filas, entradas, _vocabulario = requerimientos.leer_documento(*self._registro())
+        self.assertEqual(requerimientos.siguiente_numero(entradas, con_remotas=False), self.ULTIMO + 1)
+
+
 class ArchivoRealTests(SimpleTestCase):
     """El archivo del repo pasa su propio gate (es el que corre en el CI)."""
 
@@ -232,6 +446,9 @@ class ArchivoRealTests(SimpleTestCase):
 
     def test_el_archivo_no_empieza_con_bom(self):
         """Un BOM al principio rompe el parseo del índice y nadie lo ve hasta el CI."""
-        crudo = (RAIZ / "docs" / "internal" / "requerimientos.md").read_bytes()
+        archivos = [RAIZ / "docs" / "internal" / "requerimientos.md"]
+        archivos += sorted((RAIZ / "docs" / "internal" / "requerimientos").glob("*.md"))
 
-        self.assertFalse(crudo.startswith(b"\xef\xbb\xbf"))
+        for archivo in archivos:
+            with self.subTest(archivo=archivo.name):
+                self.assertFalse(archivo.read_bytes().startswith(b"\xef\xbb\xbf"))

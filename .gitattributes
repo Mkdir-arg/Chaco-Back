@@ -21,6 +21,8 @@
 docs/internal/auditoria-2026-10/**/*.md text eol=lf
 # Mismo criterio para la serie de noviembre (performance y código de Becas, Emergencia y Dispositivos).
 docs/internal/auditoria-2026-11-perf/**/*.md text eol=lf
+# Un archivo por Cambio nuevo del registro de requerimientos: LF, para que dos ramas no diverjan por el fin de línea.
+docs/internal/requerimientos/*.md text eol=lf
 
 # Exclusiones del snapshot de release para main.
 /.claude export-ignore

@@ -498,8 +498,8 @@ ningún dato. Nunca `--fake`.
 6. Registrar qué datos se perdieron entre el dump y el rollback.
 
 **D.5 · Después, siempre.** Issue en GitHub con label `incident`, y una línea en la
-sección `## Reversión` de la entrada de [`requerimientos.md`](requerimientos.md)
-correspondiente con lo que pasó de verdad al revertir.
+sección `## Reversión` de la entrada de [`requerimientos.md`](requerimientos.md) (o de
+`requerimientos/N.md`, desde el Cambio 549) correspondiente con lo que pasó de verdad al revertir.
 
 ## Gestión de incidentes
 

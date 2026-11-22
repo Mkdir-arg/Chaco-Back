@@ -48,6 +48,6 @@ Aprobado @ <sha completo nuevo>
 <!-- auditoria-chaco veredicto=APPROVE sha=<sha completo nuevo> -->
 ```
 
-Si lo único que cambió del diff propio es `docs/internal/requerimientos.md` (renumeración del
-Cambio), la segunda línea dice: «…idéntico al auditado en `<sha corto viejo>` salvo
-`docs/internal/requerimientos.md`: cambió la base y la numeración del Cambio.»
+Si lo único que cambió del diff propio es `docs/internal/requerimientos/` (renombre `N.md`→`M.md`
+y su H1, por la renumeración del Cambio), la segunda línea dice: «…idéntico al auditado en
+`<sha corto viejo>` salvo el número del Cambio: cambió la base y la numeración.»

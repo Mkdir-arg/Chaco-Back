@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 """Consulta el archivo vivo de requerimientos sin leerlo entero.
 
-`docs/internal/requerimientos.md` crece con cada desarrollo, así que cargarlo
-completo para buscar un dato es caro y en algún momento deja de entrar en
-contexto. Este script lo indexa y devuelve solo lo pedido.
+El registro de requerimientos crece con cada desarrollo, así que cargarlo completo
+para buscar un dato es caro y en algún momento deja de entrar en contexto. Este script
+lo indexa y devuelve solo lo pedido.
+
+Vive en dos lugares y el script lee los dos juntos: `docs/internal/requerimientos.md`
+(la regla, el vocabulario, la plantilla y el historial hasta `ULTIMO_CAMBIO_HISTORICO`,
+congelado) y la carpeta `docs/internal/requerimientos/`, con un archivo `N.md` por cada
+Cambio nuevo. El índice de esos archivos no se escribe: se arma desde su ficha.
 
     python scripts/requerimientos.py                  # índice compacto
     python scripts/requerimientos.py --tag rbac       # filtrar por etiqueta
@@ -11,6 +16,7 @@ contexto. Este script lo indexa y devuelve solo lo pedido.
     python scripts/requerimientos.py --buscar "cupo"  # texto dentro de las entradas
     python scripts/requerimientos.py --ver 24         # una entrada completa
     python scripts/requerimientos.py --check          # coherencia índice <-> entradas
+    python scripts/requerimientos.py --siguiente      # número libre para el Cambio nuevo
 
 No importa Django ni toca la base: lee el markdown y nada más.
 """
@@ -19,12 +25,22 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
 DOC = Path(__file__).resolve().parent.parent / "docs" / "internal" / "requerimientos.md"
+CARPETA = DOC.parent / "requerimientos"
+RAIZ = DOC.parents[2]
+
+# Un archivo por Cambio nuevo: `549.md`, o `96.37.md` para un sub-pedido. Sin slug: dos PR con
+# el mismo número crean la misma ruta y git los frena con un conflicto add/add.
+NOMBRE_RE = re.compile(r"^(\d+(?:\.\d+)?)\.md$")
+CAMPO_FICHA_RE = re.compile(r"^\|\s*\*\*(?P<campo>[^*]+)\*\*\s*\|(?P<valor>.*)\|\s*$")
+# El historial de `requerimientos.md` está congelado en este Cambio: lo que sigue va a la carpeta.
+ULTIMO_CAMBIO_HISTORICO = 548
 
 ENTRADA_RE = re.compile(r"^# Cambio ([\d.]+) — (.+)$")
 # Los sub-pedidos de un requerimiento se escriben como "## 6.1 Título" dentro de su
@@ -59,6 +75,10 @@ class Entrada:
     linea_desde: int
     linea_hasta: int = 0
     estado: str = ""
+    # Solo para las entradas de la carpeta: el archivo y la línea 0 del archivo dentro de la
+    # lista concatenada de líneas (para informar la línea relativa al archivo).
+    archivo: Path | None = None
+    offset: int = 0
 
 
 @dataclass
@@ -90,8 +110,97 @@ def _clave_orden(numero: str) -> tuple[int, int]:
     return int(mayor), int(menor or 0)
 
 
-def leer_documento(ruta: Path | None = None) -> tuple[list[str], list[Fila], list[Entrada], set[str]]:
-    ruta = ruta or DOC
+def _nombre_archivo(entrada: Entrada) -> str:
+    """`requerimientos/549.md`: el archivo de una entrada de la carpeta."""
+    return f"{entrada.archivo.parent.name}/{entrada.archivo.name}"
+
+
+def _ficha(lineas: list[str]) -> dict[str, str]:
+    """Los campos `| **Campo** | valor |` de la ficha, que va antes de la primera sección."""
+    campos: dict[str, str] = {}
+    for linea in lineas[1:]:
+        if linea.startswith("## "):
+            break
+        coincidencia = CAMPO_FICHA_RE.match(linea)
+        if coincidencia:
+            campos.setdefault(coincidencia.group("campo").strip(), coincidencia.group("valor").strip())
+    return campos
+
+
+def _archivos_de_la_carpeta(carpeta: Path) -> list[Path]:
+    """Los `.md` de la carpeta: primero los de nombre válido por número, después los inválidos."""
+
+    def clave(ruta: Path) -> tuple[int, tuple[int, int], str]:
+        coincidencia = NOMBRE_RE.match(ruta.name)
+        if coincidencia:
+            return 0, _clave_orden(coincidencia.group(1)), ruta.name
+        return 1, (0, 0), ruta.name
+
+    return sorted(carpeta.glob("*.md"), key=clave)
+
+
+def _leer_carpeta(carpeta: Path, lineas: list[str], filas: list[Fila], entradas: list[Entrada]) -> None:
+    """Suma a las listas las entradas y las filas de los archivos de la carpeta."""
+    for archivo in _archivos_de_la_carpeta(carpeta):
+        propias = archivo.read_text(encoding="utf-8").splitlines()
+        desde = len(lineas) + 1
+        lineas.extend(propias)
+        hasta = len(lineas)
+        coincidencia_nombre = NOMBRE_RE.match(archivo.name)
+        coincidencia = ENTRADA_RE.match(propias[0]) if propias else None
+        if not coincidencia_nombre or not coincidencia:
+            motivo = (
+                "el nombre no es `N.md` (sin slug)"
+                if not coincidencia_nombre
+                else "la primera línea no es `# Cambio N — Título`"
+            )
+            entradas.append(
+                Entrada(
+                    numero="", titulo=motivo, linea_desde=desde, linea_hasta=hasta, archivo=archivo, offset=desde - 1
+                )
+            )
+            continue
+
+        entrada = Entrada(
+            numero=coincidencia.group(1),
+            titulo=coincidencia.group(2).strip(),
+            linea_desde=desde,
+            linea_hasta=hasta,
+            archivo=archivo,
+            offset=desde - 1,
+        )
+        for linea in propias[1:5]:
+            if any(s in linea for s in SEMAFOROS):
+                entrada.estado = _limpiar(linea)
+                break
+        entradas.append(entrada)
+
+        ficha = _ficha(propias)
+        filas.append(
+            Fila(
+                numero=entrada.numero,
+                titulo=_limpiar(entrada.titulo),
+                programa=_limpiar(ficha.get("Programa / módulo", "")),
+                etiquetas=ETIQUETA_RE.findall(ficha.get("Etiquetas", "")),
+                solicitante=_limpiar(ficha.get("Solicitante", "")),
+                pedido=_limpiar(ficha.get("Fecha del pedido", "")),
+                estado=entrada.estado,
+                migracion=_limpiar(ficha.get("Migración", "")),
+            )
+        )
+
+
+def leer_documento(
+    ruta: Path | None = None, carpeta: Path | None = None
+) -> tuple[list[str], list[Fila], list[Entrada], set[str]]:
+    """Lee el historial y, si hay carpeta, los archivos por Cambio.
+
+    Sin `ruta` se usa el registro real (`DOC` y `CARPETA`). Con una `ruta` explícita solo se
+    lee la carpeta si también se la pasa.
+    """
+    if ruta is None:
+        ruta = DOC
+        carpeta = CARPETA
     if not ruta.exists():
         sys.exit(f"No se encontró {ruta}")
 
@@ -179,6 +288,9 @@ def leer_documento(ruta: Path | None = None) -> tuple[list[str], list[Fila], lis
                 entrada.estado = _limpiar(linea)
                 break
 
+    if carpeta is not None and carpeta.is_dir():
+        _leer_carpeta(carpeta, lineas, filas, entradas)
+
     return lineas, filas, entradas, vocabulario
 
 
@@ -188,7 +300,12 @@ def imprimir_indice(filas: list[Fila], entradas: list[Entrada], titulo: str) -> 
     print()
     for fila in sorted(filas, key=lambda f: _clave_orden(f.numero)):
         entrada = por_numero.get(fila.numero)
-        ubicacion = f"L{entrada.linea_desde}" if entrada else "SIN ENTRADA"
+        if not entrada:
+            ubicacion = "SIN ENTRADA"
+        elif entrada.archivo:
+            ubicacion = _nombre_archivo(entrada)
+        else:
+            ubicacion = f"L{entrada.linea_desde}"
         print(f"  {fila.numero:>4}  {fila.titulo}")
         print(f"        {fila.programa} · {' '.join(fila.etiquetas)} · {fila.estado}  [{ubicacion}]")
     print()
@@ -198,11 +315,14 @@ def imprimir_indice(filas: list[Fila], entradas: list[Entrada], titulo: str) -> 
 def comando_ver(numero: str, lineas: list[str], entradas: list[Entrada]) -> int:
     for entrada in entradas:
         if entrada.numero == numero:
-            print(f"[{DOC.name} líneas {entrada.linea_desde}-{entrada.linea_hasta}]")
+            if entrada.archivo:
+                print(f"[{_nombre_archivo(entrada)}]")
+            else:
+                print(f"[{DOC.name} líneas {entrada.linea_desde}-{entrada.linea_hasta}]")
             print()
             print("\n".join(lineas[entrada.linea_desde - 1 : entrada.linea_hasta]).rstrip())
             return 0
-    disponibles = ", ".join(e.numero for e in entradas)
+    disponibles = ", ".join(e.numero for e in entradas if e.numero)
     print(f"No existe el requerimiento {numero}. Hay: {disponibles}", file=sys.stderr)
     return 1
 
@@ -211,10 +331,12 @@ def comando_buscar(texto: str, lineas: list[str], entradas: list[Entrada]) -> in
     aguja = _sin_tildes(texto)
     encontrados = 0
     for entrada in entradas:
+        if not entrada.numero:
+            continue
         golpes = [
             (numero, linea.strip())
             for numero, linea in enumerate(
-                lineas[entrada.linea_desde - 1 : entrada.linea_hasta], start=entrada.linea_desde
+                lineas[entrada.linea_desde - 1 : entrada.linea_hasta], start=entrada.linea_desde - entrada.offset
             )
             if aguja in _sin_tildes(linea)
         ]
@@ -222,9 +344,10 @@ def comando_buscar(texto: str, lineas: list[str], entradas: list[Entrada]) -> in
             continue
         encontrados += 1
         print(f"  Cambio {entrada.numero} — {entrada.titulo}  [--ver {entrada.numero}]")
+        prefijo = f"{entrada.archivo.name} " if entrada.archivo else ""
         for numero, linea in golpes[:3]:
             recorte = linea if len(linea) <= 150 else linea[:147] + "..."
-            print(f"        L{numero}: {recorte}")
+            print(f"        {prefijo}L{numero}: {recorte}")
         if len(golpes) > 3:
             print(f"        … y {len(golpes) - 3} coincidencias más en esta entrada")
         print()
@@ -271,7 +394,7 @@ def problemas_de_reversion(lineas: list[str], entradas: list[Entrada]) -> list[s
     problemas: list[str] = []
 
     for entrada in entradas:
-        if _clave_orden(entrada.numero)[0] < PRIMER_CAMBIO_CON_REVERSION:
+        if not entrada.numero or _clave_orden(entrada.numero)[0] < PRIMER_CAMBIO_CON_REVERSION:
             continue
 
         declarada = _migracion_declarada(lineas, entrada)
@@ -315,13 +438,93 @@ def problemas_de_reversion(lineas: list[str], entradas: list[Entrada]) -> list[s
     return problemas
 
 
+def _duplicados(numeros: list[str]) -> list[str]:
+    vistos: set[str] = set()
+    repetidos: set[str] = set()
+    for numero in numeros:
+        (repetidos if numero in vistos else vistos).add(numero)
+    return sorted(repetidos, key=_clave_orden)
+
+
+def _subpedidos_dentro(lineas: list[str], entrada: Entrada) -> list[str]:
+    """Los `## N.M` con semáforo dentro de una entrada: un sub-pedido tiene su propio archivo."""
+    encontrados: list[str] = []
+    en_bloque = False
+    rango = lineas[entrada.linea_desde - 1 : entrada.linea_hasta]
+    for posicion, linea in enumerate(rango):
+        if linea.startswith("```"):
+            en_bloque = not en_bloque
+            continue
+        coincidencia = SUBENTRADA_RE.match(linea)
+        if en_bloque or not coincidencia:
+            continue
+        if any(s in siguiente for siguiente in rango[posicion + 1 : posicion + 4] for s in SEMAFOROS):
+            encontrados.append(coincidencia.group(1))
+    return encontrados
+
+
+def problemas_de_estructura(
+    filas: list[Fila],
+    entradas: list[Entrada],
+    lineas: list[str],
+    ultimo: int = ULTIMO_CAMBIO_HISTORICO,
+) -> list[str]:
+    """Reglas del registro partido: historial congelado + un archivo por Cambio nuevo."""
+    problemas: list[str] = []
+
+    validas = [e for e in entradas if e.numero]
+    for numero in _duplicados([e.numero for e in validas]):
+        problemas.append(f"El Cambio {numero} tiene más de una entrada.")
+    for numero in _duplicados([f.numero for f in filas]):
+        problemas.append(f"El Cambio {numero} figura más de una vez en el índice.")
+
+    numeros_existentes = {e.numero for e in validas}
+
+    for entrada in entradas:
+        if not entrada.archivo:
+            # El historial está congelado: un Cambio nuevo no se escribe ahí.
+            if entrada.numero and _clave_orden(entrada.numero)[0] > ultimo:
+                problemas.append(
+                    f"El Cambio {entrada.numero} está en {DOC.name}, que está congelado en el {ultimo}: "
+                    f"el Cambio {entrada.numero} va en docs/internal/requerimientos/{entrada.numero}.md."
+                )
+            continue
+
+        nombre = _nombre_archivo(entrada)
+        if not entrada.numero:
+            # Nombre inválido o archivo sin encabezado `# Cambio N — Título`.
+            problemas.append(f"{nombre}: {entrada.titulo}.")
+            continue
+
+        # El número del archivo es el del H1.
+        if entrada.archivo.stem != entrada.numero:
+            problemas.append(
+                f"{nombre} dice `# Cambio {entrada.numero}`: el número del archivo y el del título tienen que coincidir."
+            )
+        # Un número entero es posterior al historial; un N.M cuelga de un N que existe.
+        mayor = _clave_orden(entrada.numero)[0]
+        if "." not in entrada.numero:
+            if mayor <= ultimo:
+                problemas.append(
+                    f"{nombre}: el Cambio {mayor} pertenece al historial (hasta el {ultimo}); "
+                    "un Cambio nuevo lleva el número siguiente (`--siguiente`)."
+                )
+        elif str(mayor) not in numeros_existentes:
+            problemas.append(f"{nombre}: el sub-pedido {entrada.numero} cuelga del Cambio {mayor}, que no existe.")
+        # Un sub-pedido va en su propio archivo.
+        for sub in _subpedidos_dentro(lineas, entrada):
+            problemas.append(f"{nombre} contiene el sub-pedido {sub}: va en su propio archivo `{sub}.md`.")
+
+    return problemas
+
+
 def comando_check(
     filas: list[Fila], entradas: list[Entrada], vocabulario: set[str], lineas: list[str] | None = None
 ) -> int:
     problemas: list[str] = []
 
     numeros_indice = {f.numero for f in filas}
-    numeros_entrada = {e.numero for e in entradas}
+    numeros_entrada = {e.numero for e in entradas if e.numero}
 
     for numero in sorted(numeros_entrada - numeros_indice, key=_clave_orden):
         problemas.append(f"El Cambio {numero} tiene entrada pero no figura en el índice.")
@@ -337,11 +540,16 @@ def comando_check(
                     f"El Cambio {fila.numero} usa la etiqueta {etiqueta}, "
                     "que no está en el vocabulario de la sección Etiquetas."
                 )
-        for campo, valor in (("solicitante", fila.solicitante), ("fecha de pedido", fila.pedido)):
+        for campo, valor in (
+            ("programa", fila.programa),
+            ("solicitante", fila.solicitante),
+            ("fecha de pedido", fila.pedido),
+        ):
             if not valor:
                 problemas.append(f"El Cambio {fila.numero} tiene el {campo} vacío.")
 
     if lineas is not None:
+        problemas.extend(problemas_de_estructura(filas, entradas, lineas))
         problemas.extend(problemas_de_reversion(lineas, entradas))
 
     if problemas:
@@ -358,18 +566,56 @@ def comando_check(
     return 0
 
 
+def _git(*argumentos: str) -> list[str]:
+    """Salida de `git`, por líneas; vacía si git no está o falla (el número local alcanza)."""
+    try:
+        resultado = subprocess.run(
+            ["git", *argumentos], cwd=RAIZ, capture_output=True, text=True, encoding="utf-8", timeout=60, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return resultado.stdout.splitlines() if resultado.returncode == 0 else []
+
+
+def siguiente_numero(entradas: list[Entrada], con_remotas: bool = True) -> int:
+    """Máximo + 1 entre el historial, la carpeta local y la carpeta de cada rama remota."""
+    mayores = [ULTIMO_CAMBIO_HISTORICO]
+    mayores.extend(_clave_orden(e.numero)[0] for e in entradas if e.numero)
+    if con_remotas:
+        carpeta = CARPETA.relative_to(RAIZ).as_posix() + "/"
+        for ref in _git("for-each-ref", "--format=%(refname)", "refs/remotes/origin"):
+            for ruta in _git("ls-tree", "--name-only", "-r", ref, carpeta):
+                coincidencia = NOMBRE_RE.match(ruta.rsplit("/", 1)[-1])
+                if coincidencia:
+                    mayores.append(_clave_orden(coincidencia.group(1))[0])
+    return max(mayores) + 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Consulta docs/internal/requerimientos.md por índice y etiquetas.",
+        description="Consulta el registro de requerimientos (docs/internal/requerimientos.md y la carpeta "
+        "docs/internal/requerimientos/) por índice y etiquetas.",
     )
     parser.add_argument("--tag", "--etiqueta", dest="tag", help="filtrar por etiqueta (con o sin #)")
     parser.add_argument("--programa", help="filtrar por programa o módulo")
     parser.add_argument("--buscar", help="buscar texto dentro de las entradas")
     parser.add_argument("--ver", help="imprimir una entrada completa por su número")
     parser.add_argument("--check", action="store_true", help="verificar coherencia del archivo")
+    parser.add_argument(
+        "--siguiente",
+        action="store_true",
+        help="imprimir el número libre para el Cambio nuevo (mira el historial, la carpeta y las ramas remotas)",
+    )
+    parser.add_argument("--fetch", action="store_true", help="con --siguiente: `git fetch origin` antes de mirar")
     args = parser.parse_args()
 
     lineas, filas, entradas, vocabulario = leer_documento()
+
+    if args.siguiente:
+        if args.fetch:
+            _git("fetch", "origin")
+        print(siguiente_numero(entradas))
+        return 0
 
     if args.check:
         return comando_check(filas, entradas, vocabulario, lineas)

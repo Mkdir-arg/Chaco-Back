@@ -55,7 +55,7 @@ git log origin/main --since="AAAA-MM-DD" --format='%ad %s' --date=format:'%d/%m 
 git ls-remote ecom main test
 
 # Cambios definidos e implementados en el período (lo que no deja rastro en el diff)
-grep -n "^# Cambio \|^🟢 \*\*HECHO\|^🟡" docs/internal/requerimientos.md | tail -30
+grep -h "^# Cambio \|^🟢 \*\*HECHO\|^🟡" docs/internal/requerimientos.md docs/internal/requerimientos/*.md | tail -30
 
 # Análisis y QA no dejan commits: los issues sí
 gh issue list --repo Mkdir-arg/Chaco-Back --search "created:>=AAAA-MM-DD" --limit 50
