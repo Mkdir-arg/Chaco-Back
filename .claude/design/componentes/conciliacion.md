@@ -46,6 +46,7 @@ de la celda**: el `<td class="nodo-td">` lo escribe el consumidor.
 |---|---|
 | `enviada` | Entero: la cantidad que salió |
 | `recibida` | Entero: la cantidad que se recibió. `None` = todavía no se recibió |
+| `item` | Opcional, el nombre del ítem: se suma entre paréntesis al texto del badge («−2 · faltan (Agua 6 l)»). Para una tabla donde una fila junta varios ítems (la solapa Kits del edificio) |
 
 ## Qué dibuja
 

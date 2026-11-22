@@ -1,2 +1,155 @@
-{# Panel «Kits de este edificio» de la página operativa del edificio. Hoy es un estado vacío con salida a donde se opera hoy; el PR del lote que lo implementa reemplaza SOLO este archivo (Cambio 563). #}
-{% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="Kits de este edificio" texto="Esta sección llega en breve. Mientras tanto, los kits se gestionan desde Emergencia · Kits." accion_url=enlaces_de_institucion.kits accion_texto="Ir a Kits" accion_icono="fa-arrow-right" %}
+{# Solapa «Kits» de la página operativa del edificio (Cambio 568, PR 3): la tabla «Entregas a este edificio» o, con ?entrega=<id>, el detalle de una con su recepción. Diseño: Edificio-Kits y Edificio-Kits-Detalle. Contexto: `kits` (lo arma programas.services.edificio_kits). #}
+{% if kits.modo == "lista" %}
+<div class="space-y-5">
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entregas-titulo">
+    <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <h2 id="entregas-titulo" class="text-heading font-bold">Entregas a este edificio</h2>
+        <p class="text-xs text-body-subtle mt-1">{{ kits.resumen }} · de la más nueva a la más vieja. La recepción se confirma desde el detalle.</p>
+      </div>
+    </div>
+    {% if kits.filas %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Entrega</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th">Enviada</th>
+            <th class="nodo-th">Recibida</th>
+            <th class="nodo-th">Diferencia</th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in kits.filas %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">{{ fila.entrega.numero }}<span class="block text-xs text-body-subtle font-normal">{{ fila.items }}</span></td>
+            <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span></td>
+            <td class="nodo-td text-body">{{ fila.enviada }}</td>
+            <td class="nodo-td text-body">{{ fila.recibida }}{% if fila.recibio %}<span class="block text-xs text-body-subtle">{{ fila.recibio }}</span>{% endif %}</td>
+            <td class="nodo-td">{% if fila.diferencia.modo == "abierta" %}<span class="text-body-subtle">Se ve al recibir</span>{% elif fila.diferencia.modo == "cancelada" %}<span class="text-body-subtle">—</span>{% else %}{% for diferencia in fila.diferencia.items %}{% include "components/_celda_diferencia.html" with enviada=diferencia.enviada recibida=diferencia.recibida item=diferencia.nombre only %}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="text-body-subtle">sin diferencia</span>{% endfor %}{% endif %}</td>
+            <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+              {% if fila.recibe %}
+              <a href="{{ fila.url }}" class="btn-nodo btn-brand btn-sm btn-fit" aria-label="Recibir {{ fila.entrega.numero }}"><i class="fas fa-box-open" aria-hidden="true"></i> Recibir</a>
+              {% else %}
+              <a href="{{ fila.url }}" class="btn-nodo btn-secondary btn-sm btn-fit" aria-label="Ver detalle {{ fila.entrega.numero }}"><i class="fas fa-eye" aria-hidden="true"></i> Ver detalle</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_paginacion.html" with page_obj=kits.pagina entidad="entrega" param="kits_page" extra_qs="tab=kits" %}
+    {% else %}
+    {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="Todavía no hay entregas a este edificio" texto="Las entregas que la mesa arme con destino a este edificio aparecen acá." %}
+    {% endif %}
+  </section>
+</div>
+{% elif kits.modo == "detalle" %}
+<div class="space-y-5">
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <a href="{{ kits.url_lista }}" class="text-sm text-fg-brand hover:underline font-medium"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a las entregas</a>
+    <span class="text-xs text-body-subtle">{{ kits.posicion }}</span>
+  </div>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-titulo">
+    <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold uppercase text-body-subtle">{% if kits.recibe %}Entrega en camino a este edificio{% else %}Entrega a este edificio{% endif %}</p>
+        <h2 id="entrega-titulo" class="text-heading font-bold mt-1">{{ kits.entrega.numero }}</h2>
+        <p class="text-xs text-body-subtle mt-1">{{ kits.detalle }}</p>
+      </div>
+      <span class="badge badge-dot badge-{{ kits.estado_tono }}">{{ kits.estado_texto }}</span>
+    </div>
+    <div class="p-5 space-y-5">
+      {% if kits.entrega.observacion_mesa %}
+      {% include "components/_alerta.html" with tono="info" titulo="Nota de la mesa" texto=kits.entrega.observacion_mesa %}
+      {% endif %}
+
+      {% if kits.recibe %}
+      {# La recepción es la de siempre: publica a RecibirKitView (servicio recibir_entrega) y vuelve a esta solapa con `next`. No se corrige después: enviar el formulario (botón o Enter) abre el modal si el navegador valida, y el pie del modal es el que envía (patrón de emergencia/kits/recibir.html) #}
+      <div x-data="{ modalConfirmar: false }">
+      <form id="form-recibir-entrega" method="post" action="{{ kits.url_recibir }}" enctype="multipart/form-data" class="space-y-5"
+            @submit="if (!modalConfirmar) { $event.preventDefault(); if ($el.reportValidity()) modalConfirmar = true }">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ kits.url_lista }}">
+        {% include "components/_form_errores.html" with form=kits.form %}
+        <div>
+          <h3 class="text-sm font-bold text-heading mb-4">Lo que llegó</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for field in kits.form.campos_de_cantidad %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          </div>
+        </div>
+        <div class="border-t border-light pt-4">
+          <h3 class="text-sm font-bold text-heading mb-4">Remito</h3>
+          {% for field in kits.form.campos_del_remito %}{% include "components/_field.html" %}{% endfor %}
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-light">
+          <a href="{{ kits.url_lista }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+          <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> Confirmar recepción</button>
+        </div>
+      </form>
+
+      {# Modal: confirmar la recepción, que no se corrige (arquetipo Modal; el pie envía el formulario de arriba) #}
+      <div x-show="modalConfirmar" x-cloak x-becas-modal="modalConfirmar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalConfirmar=false"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+             role="dialog" aria-modal="true" aria-labelledby="modal-confirmar-recepcion-titulo">
+          {% include "programas/becas/_modal_header.html" with titulo="Confirmar la recepción" titulo_id="modal-confirmar-recepcion-titulo" subtitulo="Entrega "|add:kits.entrega.numero icono="fa-clipboard-check" cerrar="modalConfirmar=false" %}
+          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+            {% include "components/_alerta.html" with tono="warning" titulo="La recepción no se corrige" texto="Revisá que las cantidades coincidan con lo que llegó y con el remito. Una vez confirmada, la entrega queda cerrada." %}
+          </div>
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalConfirmar=false" cancelar_texto="Volver" accion_texto="Sí, confirmar recepción" form_id="form-recibir-entrega" %}
+        </div>
+      </div>
+      </div>
+      {% else %}
+      <div>
+        <h3 class="text-sm font-bold text-heading mb-4">{% if kits.recibida_ok %}Lo recibido{% else %}Ítems{% endif %}</h3>
+        {% if kits.recibida %}<p class="text-xs text-body-subtle mb-3">Confirmada por {{ kits.recibio|default:"—" }} · {{ kits.recibida }}</p>{% endif %}
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Ítem</th>
+                <th class="nodo-th text-right">Enviado</th>
+                <th class="nodo-th text-right">Recibido</th>
+                <th class="nodo-th">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for linea in kits.lineas %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td text-heading font-medium">{{ linea.item.nombre }}<span class="block text-xs text-body-subtle font-normal">{{ linea.unidad }}</span></td>
+                <td class="nodo-td text-right">{{ linea.cantidad_enviada }}</td>
+                <td class="nodo-td text-right">{{ linea.cantidad_recibida|default_if_none:"—" }}</td>
+                <td class="nodo-td">{% include "components/_celda_diferencia.html" with enviada=linea.cantidad_enviada recibida=linea.cantidad_recibida only %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if kits.entrega.observacion_dispositivo %}
+      <div class="border-t border-light pt-4">
+        <h3 class="text-sm font-bold text-heading">Observación</h3>
+        <p class="mt-1 text-sm text-body">{{ kits.entrega.observacion_dispositivo }}</p>
+      </div>
+      {% endif %}
+      {% if kits.recibida_ok %}
+      <div class="border-t border-light pt-4">
+        <h3 class="text-sm font-bold text-heading mb-4">Remito</h3>
+        {% if kits.remito %}
+        {% include "components/_galeria_fotos.html" with fotos=kits.remito %}
+        {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-file-image" titulo="Sin remito" texto="Esta entrega no tiene foto de remito." %}
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endif %}

@@ -34,6 +34,7 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from programas.forms_emergencia_kits import (
@@ -563,6 +564,21 @@ class RecepcionKitsMixin(LoginRequiredMixin):
     def _url_pendientes(self):
         return reverse("emergencia:dispositivo_kits", args=[self.dispositivo.pk])
 
+    def _siguiente(self, request):
+        """El ``next`` del formulario si es de este sitio (la solapa Kits del edificio); si no, ``""``. Nunca el valor crudo."""
+
+        siguiente = request.POST.get("next", "")
+        if siguiente and url_has_allowed_host_and_scheme(
+            siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return siguiente
+        return ""
+
+    def _destino(self, request):
+        """Adónde vuelve el POST: el ``next`` válido y si no, las pendientes del dispositivo."""
+
+        return self._siguiente(request) or self._url_pendientes()
+
 
 class KitsDelDispositivoView(RecepcionKitsMixin, View):
     """«Emergencia · Kits» del dispositivo: lo que está por llegar (o llegó sin marca de salida)."""
@@ -608,13 +624,16 @@ class RecibirKitView(RecepcionKitsMixin, View):
             "entrega": entrega,
             "form": form,
             "url_pendientes": self._url_pendientes(),
+            # Si la recepción vino de la solapa Kits del edificio y el formulario vuelve con error, conserva el regreso.
+            "siguiente": self._siguiente(request),
+            "url_cancelar": self._destino(request),
             **_estado(entrega),
         }
         return render(request, TEMPLATE_RECIBIR, contexto, status=status)
 
     def _ya_no_esta_abierta(self, request, entrega):
         messages.warning(request, servicio.mensaje_de_estado(entrega))
-        return redirect(self._url_pendientes())
+        return redirect(self._destino(request))
 
     def get(self, request, dispositivo, pk):
         entrega = self._entrega(pk)
@@ -637,10 +656,10 @@ class RecibirKitView(RecepcionKitsMixin, View):
             )
         except EstadoCambio as cambio:
             messages.warning(request, cambio.mensaje)
-            return redirect(self._url_pendientes())
+            return redirect(self._destino(request))
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
             return self._render(request, entrega, form, status=400)
         diferencias = selectores.diferencias_de(selectores.lineas_de(recibida))
         messages.success(request, f"Entrega {recibida.numero}: {selectores.texto_de_recepcion(diferencias).lower()}.")
-        return redirect(self._url_pendientes())
+        return redirect(self._destino(request))
