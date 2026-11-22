@@ -469,6 +469,46 @@ class EdificioTests(BaseCapacidad):
 
         self.assertIn("codigo", fallo.exception.message_dict)
 
+    def test_el_doble_envio_del_alta_no_es_500_ni_duplica(self):
+        """Dos POST iguales seguidos: el segundo vuelve a la solapa con el error, no con un 500."""
+
+        self.client.force_login(self.operador_cis)
+        url = reverse("dispositivos:edificio_crear", args=[self.cis.pk])
+
+        primera = self.client.post(url, self._datos())
+        segunda = self.client.post(url, self._datos())
+
+        self.assertEqual(primera.status_code, 302)
+        self.assertLess(segunda.status_code, 500)
+        self.assertEqual(Edificio.objects.filter(codigo="EDI-001").count(), 1)
+
+    def test_si_otro_envio_gana_la_carrera_del_codigo_es_error_de_campo_y_la_transaccion_sigue_viva(self):
+        """El chequeo previo pasa en los dos envíos y el segundo choca con el `UNIQUE`: error de
+        validación del código, no `IntegrityError`, y la transacción abierta sigue sirviendo."""
+
+        crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos())
+
+        with patch("programas.services.edificios._exigir_codigo_libre"):
+            with self.assertRaises(ValidationError) as fallo:
+                crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos())
+
+        self.assertEqual(fallo.exception.message_dict, {"codigo": ["Ya hay un edificio con ese código."]})
+        self.assertEqual(Edificio.objects.filter(codigo="EDI-001").count(), 1)
+
+    def test_la_carrera_tambien_se_cubre_al_editar(self):
+        edificio = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos())
+        otro = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos(codigo="EDI-002"))
+
+        with patch("programas.services.edificios._exigir_codigo_libre"):
+            with self.assertRaises(ValidationError) as fallo:
+                editar_edificio(
+                    edificio=otro, dispositivo=self.cis, usuario=self.operador_cis, **self._datos(codigo="EDI-001")
+                )
+
+        self.assertIn("codigo", fallo.exception.message_dict)
+        edificio.refresh_from_db()
+        self.assertEqual(edificio.codigo, "EDI-001")
+
     def test_el_predio_compartido_se_ve_en_las_dos_instituciones(self):
         edificio = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos())
 

@@ -27,8 +27,10 @@ edificios de instituciones ajenas probando ids; declarar un predio compartido en
 instituciones que no comparte lo hace quien tiene alcance sobre las dos.
 """
 
+from contextlib import contextmanager
+
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
@@ -79,6 +81,9 @@ def _normalizar(texto):
     return " ".join((texto or "").split())
 
 
+MENSAJE_CODIGO_REPETIDO = "Ya hay un edificio con ese código."
+
+
 def _exigir_codigo_libre(codigo, *, excepto=None):
     """El `unique` del código dicho como error de campo: un `IntegrityError` aborta la transacción."""
 
@@ -86,7 +91,23 @@ def _exigir_codigo_libre(codigo, *, excepto=None):
     if excepto is not None:
         repetidos = repetidos.exclude(pk=excepto.pk)
     if repetidos.exists():
-        raise ValidationError({"codigo": "Ya hay un edificio con ese código."})
+        raise ValidationError({"codigo": MENSAJE_CODIGO_REPETIDO})
+
+
+@contextmanager
+def _codigo_unico():
+    """Un `UNIQUE` del código que gana otra petición entre el chequeo y el guardado, como error de campo.
+
+    `_exigir_codigo_libre` mira antes, pero dos envíos casi simultáneos (el doble clic) pasan
+    los dos ese chequeo y el segundo choca contra el `UNIQUE`: sin esto es un `IntegrityError`
+    que sale como 500. Se lo traduce al mismo error que da el chequeo; el `atomic` de la función
+    que lo usa deshace el alta entera al salir con la excepción.
+    """
+
+    try:
+        yield
+    except IntegrityError:
+        raise ValidationError({"codigo": MENSAJE_CODIGO_REPETIDO}) from None
 
 
 @transaction.atomic
@@ -107,11 +128,12 @@ def crear_edificio(*, dispositivo, usuario, codigo, **datos):
         raise ValidationError({"nombre": "El edificio necesita un nombre."})
     _exigir_codigo_libre(codigo)
 
-    edificio = Edificio.objects.create(
-        codigo=codigo,
-        **{campo: _normalizar(datos.get(campo)) for campo in CAMPOS},
-        **{campo: datos.get(campo) for campo in COORDENADAS},
-    )
+    with _codigo_unico():
+        edificio = Edificio.objects.create(
+            codigo=codigo,
+            **{campo: _normalizar(datos.get(campo)) for campo in CAMPOS},
+            **{campo: datos.get(campo) for campo in COORDENADAS},
+        )
     edificio.dispositivos.add(dispositivo)
     _trazar(dispositivo, usuario, "EDIFICIO_CREADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
     return edificio
@@ -150,7 +172,8 @@ def editar_edificio(*, edificio, dispositivo, usuario, codigo, **datos):
     for campo in COORDENADAS:
         if campo in datos:
             setattr(edificio, campo, datos[campo])
-    edificio.save(update_fields=["codigo", *CAMPOS, *COORDENADAS, "modificado"])
+    with _codigo_unico():
+        edificio.save(update_fields=["codigo", *CAMPOS, *COORDENADAS, "modificado"])
 
     _trazar(dispositivo, usuario, "EDIFICIO_EDITADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
     return edificio

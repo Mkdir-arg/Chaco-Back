@@ -46,10 +46,43 @@ def _valor_de_campo(campo, valor):
     return (limpio.isoformat() if campo.get("tipo") == "DATE" else valor), None
 
 
+def _avisos_de_archivos(archivos_faltantes, adjuntadas):
+    return [
+        f"Falta adjuntar «{campo.get('texto') or campo['clave']}», que es obligatorio."
+        for campo in archivos_faltantes
+        if campo["clave"] not in adjuntadas
+    ]
+
+
+def avisos_de_archivos_obligatorios(foto, respuestas, adjuntadas=(), hoy=None):
+    """Un texto por cada campo ARCHIVO obligatorio y visible que ni el envío ni un adjunto ya recibido traen.
+
+    Es un **aviso, no un error**: el archivo llega después por el endpoint de adjuntos, así que
+    la validación no lo exige y el resultado se cierra igual. Pero quien lo manda tiene que
+    enterarse de lo que falta (lo ve la app en la respuesta del resultado; el informe del
+    relevamiento lo marca después). Mira el mismo marcador que las condiciones ``adjuntado`` /
+    ``no_adjuntado`` (un valor no vacío en la clave) y descuenta las claves de ``adjuntadas``,
+    las que ya tienen un archivo recibido. Es la misma lectura que usa el reenvío idempotente,
+    sobre las respuestas guardadas.
+    """
+
+    archivos = [campo for campo in faltantes_de(foto, respuestas, hoy) if campo.get("tipo") == "ARCHIVO"]
+    return _avisos_de_archivos(archivos, set(adjuntadas))
+
+
 def validar_respuestas_de_campo(foto, respuestas, hoy=None):
+    """``(efectivas, errores)``: ver :func:`validar_respuestas_con_avisos`, que además trae los avisos."""
+
+    efectivas, errores, _ = validar_respuestas_con_avisos(foto, respuestas, hoy)
+    return efectivas, errores
+
+
+def validar_respuestas_con_avisos(foto, respuestas, hoy=None, adjuntadas=()):
     """Valida lo que mandó la app contra la foto vigente, con el mismo motor que el alta.
 
-    Devuelve ``(efectivas, errores)``: ``efectivas`` son las respuestas visibles según las
+    Devuelve ``(efectivas, errores, avisos)``: ``avisos`` son los ARCHIVO obligatorios sin enviar
+    (:func:`avisos_de_archivos_obligatorios`, del mismo recorrido de los obligatorios, sin las
+    claves de ``adjuntadas``). ``efectivas`` son las respuestas visibles según las
     condiciones (RN-6: lo oculto se descarta y no se exige) y ``errores``, ``{clave: texto}``
     de los valores de tipo inválido y de los **obligatorios** que quedaron sin responder.
 
@@ -78,8 +111,11 @@ def validar_respuestas_de_campo(foto, respuestas, hoy=None):
             errores[clave] = problema
         else:
             valores[clave] = guardado
+    archivos_faltantes = []
     for campo in faltantes_de(foto, respuestas, hoy):
-        if campo.get("tipo") != "ARCHIVO" and campo["clave"] not in errores:
+        if campo.get("tipo") == "ARCHIVO":
+            archivos_faltantes.append(campo)
+        elif campo["clave"] not in errores:
             errores[campo["clave"]] = f"«{campo.get('texto') or campo['clave']}» es obligatorio."
     efectivas = {
         clave: valor
@@ -87,4 +123,8 @@ def validar_respuestas_de_campo(foto, respuestas, hoy=None):
         if clave not in ocultos and not esta_vacio(valor) and clave not in errores
     }
     efectivas.update(valores)
-    return {clave: efectivas[clave] for clave in respuestas if clave in efectivas}, errores
+    return (
+        {clave: efectivas[clave] for clave in respuestas if clave in efectivas},
+        errores,
+        _avisos_de_archivos(archivos_faltantes, set(adjuntadas)),
+    )

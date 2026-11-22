@@ -21,6 +21,8 @@ Las reglas, con los datos que existen hoy
 Regla                          Severidad  Se resuelve
 =============================  =========  ==============================================
 Préstamo o reserva vencidos    alta       liberando la reserva o el préstamo
+Reserva abierta hace más de    media      liberándola, o alojando a la persona
+7 días
 Edificio que requiere          alta       con un relevamiento nuevo que no sea crítico
 intervención
 Relevamiento vencido sin       media      registrando el resultado, o cancelándolo
@@ -56,6 +58,8 @@ Sin la capacidad, la alerta sigue apareciendo **sin enlace**: avisar es de todos
 resolver no. Y ninguna bloquea nada, con enlace o sin él.
 """
 
+from datetime import timedelta
+
 from django.urls import reverse
 from django.utils import timezone
 
@@ -73,6 +77,9 @@ CAP_EDITAR = "dispositivo.editar"
 #: Cómo se dibuja cada severidad con la pieza `_alerta.html`: tono e ícono.
 TONOS = {"alta": "danger", "media": "warning", "baja": "info"}
 ICONOS = {"alta": "triangle-exclamation", "media": "circle-exclamation", "baja": "circle-info"}
+
+#: Días que una reserva común puede seguir abierta antes de avisar. No vence sola: avisa.
+DIAS_RESERVA_ABIERTA = 7
 
 #: Cuántas plazas fuera de servicio se nombran en el texto antes de resumir el resto.
 MAX_PLAZAS_NOMBRADAS = 5
@@ -135,6 +142,42 @@ def reservas_vencidas(dispositivo, momento=None, usuario=None):
             texto=f"La plaza ya cuenta como disponible, pero {que} sigue {abierto}: falta {liberar}.",
             origen=f"Plaza {reserva.plaza.codigo} · {reserva.plaza.sector.nombre}",
             fecha=reserva.hasta,
+            enlace=_url_mapa(dispositivo),
+            accion="Liberar la plaza",
+        )
+
+
+# --- Reserva común abierta hace demasiado -------------------------------------------
+
+
+def reservas_abiertas_hace_mucho(dispositivo, momento=None, usuario=None):
+    """Reservas comunes que siguen abiertas pasados `DIAS_RESERVA_ABIERTA` días.
+
+    La reserva común puede no tener vencimiento (`hasta` vacío) y entonces nunca deja la plaza
+    sola: sin esta alerta una persona que no llegó la retiene para siempre. Avisa y no la
+    libera. No incluye las ya vencidas (las cubre `reservas_vencidas`), ni los préstamos, que
+    siempre vencen, ni las reservas de derivación, que tienen su propio circuito.
+    """
+
+    momento = momento or timezone.now()
+    reservas = (
+        ReservaPlaza.objects.que_toman(momento)
+        .filter(
+            plaza__sector__dispositivo=dispositivo,
+            tipo=ReservaPlaza.Tipo.RESERVA,
+            derivacion__isnull=True,
+            desde__lt=momento - timedelta(days=DIAS_RESERVA_ABIERTA),
+        )
+        .select_related("plaza__sector")
+        .order_by("desde", "id")
+    )
+    for reserva in reservas:
+        dias = (momento - reserva.desde).days
+        yield Aviso(
+            titulo=f"Reserva abierta hace más de {DIAS_RESERVA_ABIERTA} días",
+            texto=f"Lleva {dias} días sin alojarse ni liberarse: falta confirmar si la persona sigue por venir.",
+            origen=f"Plaza {reserva.plaza.codigo} · {reserva.plaza.sector.nombre}",
+            fecha=reserva.desde,
             enlace=_url_mapa(dispositivo),
             accion="Liberar la plaza",
         )
@@ -288,6 +331,12 @@ def registrar_reglas():
             "Reserva o préstamo de plaza vencido que nadie liberó.",
             "alta",
             reservas_vencidas,
+        ),
+        (
+            "dispositivos.reserva_abierta",
+            "Reserva común abierta hace más de 7 días sin alojar ni liberar.",
+            "media",
+            reservas_abiertas_hace_mucho,
         ),
         (
             "dispositivos.edificio_critico",
