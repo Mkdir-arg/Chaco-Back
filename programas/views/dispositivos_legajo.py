@@ -5,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Q
 from django.db.utils import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -145,7 +146,6 @@ from programas.services.respuestas_dispositivo import (
 )
 from programas.services.sectores_plazas import (
     se_puede_cambiar_plaza,
-    url_modal_egreso,
     url_solapa_estadias,
     url_solapa_sectores,
     url_vuelta_a_sectores,
@@ -448,11 +448,11 @@ def preparar_filas_de_estadias(
         for estadia in estadias:
             if estadia.estado == Estadia.Estado.ACTIVA:
                 estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
-                estadia.url_modal_egreso = url_modal_egreso(dispositivo.pk, estadia.pk)
+                estadia.url_modal_egreso = f"{url_base}?{urlencode({'tab': 'estadias', 'egreso': estadia.pk})}"
 
 
 def contexto_modales_de_estadia(
-    request, dispositivo, *, puede_cambiar, puede_egresar, puede_ver_ciudadano, mapa_de_ingreso
+    request, dispositivo, *, puede_cambiar, puede_egresar, puede_ver_ciudadano, mapa_de_ingreso, q_alcance=None
 ):
     """El modal de cambio o de egreso que pide la URL (``?cambio=<id>`` o ``?egreso=<id>``): un solo modal, o ``{}``.
 
@@ -468,7 +468,7 @@ def contexto_modales_de_estadia(
             raise PermissionDenied
         # Un id ajeno, inexistente o no ASCII tiene la misma respuesta.
         estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
-        estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, request.user)
+        estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, request.user, q_extra=q_alcance)
         estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
         if not estadia.activa:
             messages.info(request, "La estadía ya está cerrada.")
@@ -1325,13 +1325,15 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
 MOVIMIENTOS_POR_PAGINA = 25
 
 
-def _estadia_del_dispositivo(dispositivo, estadia_pk, usuario, capacidad="dispositivo.ver"):
+def _estadia_del_dispositivo(dispositivo, estadia_pk, usuario, capacidad="dispositivo.ver", q_extra=None):
     """La estadía, solo si es de ese dispositivo y de un edificio alcanzado: un id ajeno da 404 (RN4)."""
 
     return get_object_or_404(
         Estadia.objects.select_related(
             "ciudadano", "dispositivo", "plaza__sector", "motivo", "ingresada_por", "egresada_por"
-        ).filter(q_edificios_en_alcance(usuario, capacidad, "dispositivo_id", "plaza__sector__edificio_id")),
+        )
+        .filter(q_edificios_en_alcance(usuario, capacidad, "dispositivo_id", "plaza__sector__edificio_id"))
+        .filter(q_extra if q_extra is not None else Q()),
         pk=estadia_pk,
         dispositivo=dispositivo,
     )
@@ -1434,8 +1436,9 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         dispositivo = dispositivo_operable_o_404(request, pk, CAP_ADMITIR)
         estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, request.user, CAP_ADMITIR)
         destino = request.POST.get("volver")
-        if siguiente_de_este_sitio(request):
-            volver = siguiente_de_este_sitio(request)
+        siguiente = siguiente_de_este_sitio(request)
+        if siguiente:
+            volver = siguiente
         elif destino == "dispositivo":
             volver = url_solapa_estadias(dispositivo.pk)
         elif destino == "sectores":

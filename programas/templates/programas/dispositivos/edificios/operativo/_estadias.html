@@ -31,7 +31,7 @@
               {% endif %}
             </div>
           </td>
-          <td class="nodo-td whitespace-nowrap">{{ estadia.fecha_ingreso|date:"d/m/Y H:i" }}{% if estadia.fecha_egreso %}<span class="text-xs text-body-subtle block mt-px">Egreso {{ estadia.fecha_egreso|date:"d/m/Y H:i" }}</span>{% endif %}</td>
+          <td class="nodo-td whitespace-nowrap"><time datetime="{{ estadia.fecha_ingreso|date:'c' }}" title="{{ estadia.fecha_ingreso|date:'d/m/Y H:i' }}">hace {{ estadia.fecha_ingreso|timesince }}</time>{% if estadia.fecha_egreso %}<span class="text-xs text-body-subtle block mt-px">Egreso {{ estadia.fecha_egreso|date:"d/m/Y H:i" }}</span>{% endif %}</td>
           <td class="nodo-td">{{ estadia.plaza.sector.nombre }} · {{ estadia.plaza.codigo }}</td>
           <td class="nodo-td"><span class="badge badge-dot badge-{{ estadia.tono }}">{{ estadia.estado_texto }}</span></td>
           <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">

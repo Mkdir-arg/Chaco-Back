@@ -28,9 +28,17 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import Truncator
 
-from programas.models import Edificio, EntregaKit, InspeccionEdificio
+from core.rbac import puede
+from programas.models import Edificio, EntregaKit, InspeccionEdificio, Sector
 from programas.services.bitacora import turno_vigente
-from programas.services.detalle_dispositivo import contar_alojadas, estado_edilicio, indicadores_de_plazas
+from programas.services.detalle_dispositivo import (
+    contar_alojadas,
+    estadias_del_dispositivo,
+    estado_edilicio,
+    indicadores_de_plazas,
+    normalizar_filtros,
+    pildoras_de_estadias,
+)
 from programas.services.dispositivos import (
     CAP_EDITAR,
     CAP_VER,
@@ -41,8 +49,8 @@ from programas.services.dispositivos import (
 )
 from programas.services.edificios import admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
-from programas.services.estadias import CAP_ADMITIR, puede_ingresar_persona
-from programas.services.ingreso import maneja_plazas
+from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, CAP_VER_CIUDADANO, puede_ingresar_persona
+from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import edificios_para_asignar, inspecciones_visibles
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -270,7 +278,7 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         "indicadores": indicadores,
         "contadores": {
             "sectores": conteo.totales if conteo is not None else 0,
-            "estadias": contar_alojadas(dispositivo, q_alcance=Q(plaza__sector__edificio_id=edificio.pk)),
+            "estadias": contar_alojadas(dispositivo, q_alcance=q_estadias_del_edificio(edificio)),
             "kits": pendientes_de_kit,
             "equipo": len(equipo),
         },
@@ -284,4 +292,46 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "historial": f"{url_institucion}?tab=historial",
         },
         **acciones,
+    }
+
+
+def q_estadias_del_edificio(edificio):
+    """Las estadías de este edificio: se derivan de la plaza, así que una sin plaza no tiene edificio (Cambio 566)."""
+
+    return Q(plaza__sector__edificio_id=edificio.pk)
+
+
+def estadias_del_edificio(user, dispositivo, edificio, estado, sector, pagina):
+    """La solapa Estadías (Cambio 566): las personas alojadas **de esta institución en este edificio**.
+
+    La estadía no guarda el edificio: se deriva de su plaza (``q_estadias_del_edificio``), el mismo criterio del
+    contador de la solapa, así que una estadía sin plaza no aparece acá (queda en «Personas alojadas» de la
+    institución). Devuelve la página, las píldoras de filtro, si hay filtros activos y lo que el usuario puede hacer
+    sobre **este** edificio (cambiar plaza, egresar, ver a la persona). ``mapa_de_ingreso`` es una función que arma, una
+    sola vez y solo si hace falta, el mapa de plazas libres. Constante en consultas: sectores (1), COUNT y página (2).
+    """
+
+    sectores = list(
+        Sector.objects.filter(dispositivo=dispositivo, edificio_id=edificio.pk, activo=True)
+        .order_by("nombre")
+        .values("pk", "nombre")
+    )
+    estado, sector = normalizar_filtros(estado, sector, {s["pk"] for s in sectores})
+    memo = []
+
+    def mapa_de_ingreso():
+        if not memo:
+            memo.append(plazas_para_ingresar(dispositivo, usuario=user))
+        return memo[0]
+
+    return {
+        "estadias": estadias_del_dispositivo(
+            dispositivo, estado=estado, sector=sector, pagina=pagina, q_alcance=q_estadias_del_edificio(edificio)
+        ),
+        "pildoras": pildoras_de_estadias(estado, sector, sectores),
+        "hay_filtros": bool(estado or sector),
+        "puede_cambiar": puede_operar_edificio(user, dispositivo, edificio.pk, CAP_ADMITIR),
+        "puede_egresar": puede_operar_edificio(user, dispositivo, edificio.pk, CAP_EGRESAR),
+        "puede_ver_ciudadano": puede(user, CAP_VER_CIUDADANO),
+        "mapa_de_ingreso": mapa_de_ingreso,
     }

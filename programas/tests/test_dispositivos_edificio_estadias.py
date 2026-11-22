@@ -138,6 +138,7 @@ class AccionesDeLaFilaTests(BaseEstadias):
         self.assertIn(f"cambio={fila.pk}", fila.url_cambiar)
         self.assertTrue(fila.url_cambiar.startswith(self._url(self.edif_a)))
         self.assertIn(f"egreso={fila.pk}", fila.url_modal_egreso)
+        self.assertTrue(fila.url_modal_egreso.startswith(self._url(self.edif_a)))
 
     def test_cada_accion_exige_su_capacidad(self):
         sin_egresar = self._con("Sin egresar", "dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
@@ -174,6 +175,22 @@ class AccionesDeLaFilaTests(BaseEstadias):
                 with self.subTest(estadia=pedida.pk, parametro=parametro):
                     respuesta = self._get(self.de_inst, self.edif_a, **{parametro: pedida.pk})
                     self.assertEqual(respuesta.status_code, 404)
+
+    def test_el_modal_de_una_estadia_cerrada_de_otro_edificio_da_404(self):
+        self.estadia_beto.estado = Estadia.Estado.EGRESADA
+        self.estadia_beto.fecha_egreso = timezone.now()
+        self.estadia_beto.clave_alojamiento = None
+        self.estadia_beto.save(update_fields=["estado", "fecha_egreso", "clave_alojamiento"])
+
+        respuesta = self._get(self.de_inst, self.edif_a, egreso=self.estadia_beto.pk)
+
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_la_columna_ingreso_dice_hace_cuanto_con_la_fecha_exacta(self):
+        respuesta = self._get(self.de_inst, self.edif_a, tab="estadias")
+
+        self.assertContains(respuesta, "hace ")
+        self.assertContains(respuesta, 'title="08/09/2026 10:00"')
 
     def test_el_modal_sin_capacidad_da_403(self):
         sin_egresar = self._con("Sin egresar", "dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
