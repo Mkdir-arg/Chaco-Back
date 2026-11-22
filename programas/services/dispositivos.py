@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 
+from core import db as core_db
 from core import rbac
 from programas.services.programa_cache import clave_de, programa_por_codigo
 
@@ -738,15 +739,51 @@ def reactivar_dispositivo(dispositivo, usuario):
     )
 
 
-def exigir_institucion_en_estado(dispositivo, estados, accion):
-    """Regla única de «qué se puede hacer según el estado de la institución» (Cambio 536).
+def bloquear_instituciones(ids):
+    """Bloqueo **compartido** de las filas de estas instituciones, por pk. Devuelve ``{pk: estado}``.
 
-    Lee el estado **fresco** de la base: el objeto que llega puede ser anterior a que alguien
-    la inactivara. `estados` son los que permiten la acción; `accion` completa «No se puede …».
+    Es el primer candado de todo camino que toca plazas, reservas o estadías de una institución
+    (Cambio 536, pendiente cerrado por el cambio siguiente). El orden de siempre es::
+
+        institución → plaza (por pk) → reserva / estadía → persona
+
+    Por qué primero la institución: «Inactivar» y «Cerrar» la toman en exclusivo
+    (`_transicionar`) y después bloquean plazas y reservas; reservar, liberar, ingresar o cambiar
+    de plaza bloquean la plaza y, al escribir la traza (`TrazaDispositivo` tiene una FK a la
+    institución), InnoDB les pide un compartido sobre la misma fila. En el orden inverso las dos
+    transacciones se esperaban en cruz y el motor cortaba una con `ERROR 1213`. Y el estado que
+    se lee acá no puede cambiar hasta el commit: una reserva o un ingreso no se cuela en una
+    institución que otro operador está cerrando.
+
+    Compartido y no `select_for_update()`: dos ingresos en la misma institución no se esperan
+    entre sí; solo esperan a quien la cambia de estado. Exige estar en una transacción (ver
+    `core.db.leer_con_bloqueo_compartido`). Con varias instituciones —el ingreso que cierra las
+    reservas de la persona en otros dispositivos— se toman todas de una vez, por pk.
     """
     from programas.models import Dispositivo
 
-    actual = Dispositivo.objects.filter(pk=dispositivo.pk).values_list("estado", flat=True).first()
+    return core_db.leer_con_bloqueo_compartido(Dispositivo, ids, "estado")
+
+
+def bloquear_institucion(dispositivo):
+    """`bloquear_instituciones` de una sola: devuelve su estado fresco, o ``None`` si no existe."""
+
+    pk = getattr(dispositivo, "pk", dispositivo)
+    return bloquear_instituciones([pk]).get(pk)
+
+
+def exigir_institucion_en_estado(dispositivo, estados, accion):
+    """Regla única de «qué se puede hacer según el estado de la institución» (Cambio 536).
+
+    Lee el estado **fresco** de la base y con la fila tomada en compartido
+    (`bloquear_institucion`): el objeto que llega puede ser anterior a que alguien la
+    inactivara, y nadie la puede cerrar ni inactivar hasta que la acción termine. Va
+    **antes** de bloquear la plaza. `estados` son los que permiten la acción; `accion`
+    completa «No se puede …».
+    """
+    from programas.models import Dispositivo
+
+    actual = bloquear_institucion(dispositivo)
     if actual not in estados:
         etiqueta = dict(Dispositivo.Estado.choices).get(actual, "inexistente").lower()
         raise ValidationError({"dispositivo": f"No se puede {accion}: el dispositivo está {etiqueta}."})

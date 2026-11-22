@@ -1,6 +1,6 @@
 """Lo que comparten las consultas de todas las apps (RED-09, segunda parte).
 
-Hoy vive acá una sola pieza, :func:`q_uuid_en_texto`, y vive acá por el mismo
+La primera pieza es :func:`q_uuid_en_texto`, y vive acá por el mismo
 motivo que ``core.dni``: la regla es del sistema, no de Becas. Siete de los nueve
 ``UUIDField`` del repo están fuera de ``programas`` (``legajos``, ``users``,
 ``core``) y el helper nació en ``programas/services/becas.py``: cualquiera de
@@ -10,6 +10,9 @@ ciclo—. ``programas.services.becas`` lo reexporta: todo el código que ya lo
 importaba de ahí sigue andando.
 
 El ratchet que exige usarlo es ``core/tests/test_uuid_mariadb.py``.
+
+La segunda es :func:`leer_con_bloqueo_compartido`: el candado compartido que el ORM no
+tiene, con la sintaxis que entienden MySQL 8 y MariaDB.
 """
 
 from __future__ import annotations
@@ -44,3 +47,48 @@ def q_uuid_en_texto(campo, valor):
     return Q(Exact(columna, Value(normalizado.hex, output_field=CharField()))) | Q(
         Exact(columna, Value(str(normalizado), output_field=CharField()))
     )
+
+
+def leer_con_bloqueo_compartido(modelo, pks, campo):
+    """Lee ``campo`` de las filas ``pks`` con un candado **compartido**. Devuelve ``{pk: valor}``.
+
+    ``select_for_update()`` es el único candado del ORM y es exclusivo: dos transacciones que
+    solo necesitan que la fila no cambie mientras trabajan se esperarían entre sí. El
+    compartido las deja pasar juntas y frena a quien quiera escribir la fila (un
+    ``select_for_update()`` o un ``UPDATE``) hasta que todas terminen. Es lo que usan los
+    caminos de Dispositivos que leen el estado de la institución antes de bloquear una plaza
+    (ver ``programas.services.dispositivos.bloquear_institucion``).
+
+    * MySQL 8 y MariaDB (los dos con ``vendor == "mysql"``): ``LOCK IN SHARE MODE``, la sintaxis
+      que entienden los dos (``FOR SHARE`` no existe en MariaDB 10.11).
+    * PostgreSQL: ``FOR SHARE``.
+    * SQLite (la suite): sin candado, que no los tiene; la lectura igual se hace.
+
+    Las filas se piden ordenadas por pk, así que varias se toman siempre en el mismo orden.
+    Exige estar dentro de ``transaction.atomic()``, como ``select_for_update()``: fuera de una
+    transacción el candado se soltaría al terminar la consulta. Los identificadores salen de
+    ``_meta`` y los valores van como parámetros.
+    """
+
+    from django.db import connections, router
+    from django.db.transaction import TransactionManagementError
+
+    conexion = connections[router.db_for_write(modelo)]
+    if not conexion.in_atomic_block:
+        raise TransactionManagementError("leer_con_bloqueo_compartido exige estar dentro de transaction.atomic().")
+    ids = sorted({pk for pk in pks if pk is not None})
+    if not ids:
+        return {}
+    citar = conexion.ops.quote_name
+    tabla = citar(modelo._meta.db_table)
+    columna_pk = citar(modelo._meta.pk.column)
+    columna = citar(modelo._meta.get_field(campo).column)
+    marcas = ", ".join(["%s"] * len(ids))
+    sql = f"SELECT {columna_pk}, {columna} FROM {tabla} WHERE {columna_pk} IN ({marcas}) ORDER BY {columna_pk}"
+    if conexion.vendor == "mysql":
+        sql += " LOCK IN SHARE MODE"
+    elif conexion.vendor == "postgresql":
+        sql += " FOR SHARE"
+    with conexion.cursor() as cursor:
+        cursor.execute(sql, ids)
+        return dict(cursor.fetchall())
