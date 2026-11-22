@@ -70,6 +70,7 @@
 
         var opciones = [];
         var filasActuales = [];
+        var completados = [];
         var activa = -1;
         var temporizador = null;
         var pedido = null;
@@ -103,8 +104,27 @@
             if (!abierto) marcar(-1);
         }
 
+        function avisar(campo) {
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+            campo.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Teclear de nuevo en el campo invalida lo que se precargó: se vacían los campos que todavía tienen
+        // exactamente lo escrito por la elección; lo que la persona editó a mano no se toca.
+        function deshacerCompletado() {
+            var hechos = completados;
+            completados = [];
+            hechos.forEach(function (h) {
+                if (h.campo.value === h.valor) {
+                    h.campo.value = '';
+                    avisar(h.campo);
+                }
+            });
+        }
+
         function completar(fila) {
             var pares = input.getAttribute('data-sugerencias-completa');
+            completados = [];
             if (!pares || !fila) return;
             pares.split(',').forEach(function (par) {
                 var partes = par.split(':');
@@ -112,8 +132,8 @@
                 var valor = fila[partes[0]];
                 if (!campo || valor === undefined || valor === null) return;
                 campo.value = valor;
-                campo.dispatchEvent(new Event('input', { bubbles: true }));
-                campo.dispatchEvent(new Event('change', { bubbles: true }));
+                completados.push({ campo: campo, valor: String(campo.value) });
+                avisar(campo);
             });
         }
 
@@ -203,6 +223,7 @@
             // Teclear de nuevo invalida la elección anterior: lo que viaja es solo lo que se eligió de la lista.
             var oculto = destino();
             if (oculto && !eligiendo) oculto.value = '';
+            if (!eligiendo) deshacerCompletado();
             clearTimeout(temporizador);
             temporizador = setTimeout(consultar, DEMORA_MS);
         });

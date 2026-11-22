@@ -291,8 +291,8 @@ AYUDA_BUSCAR_DNI = (
     "Si no está, cargalos a mano."
 )
 AYUDA_NOMBRE_DEL_RESPONSABLE = (
-    "Solo si la persona todavía no está en el legajo. Si el DNI ya está registrado como otra persona, "
-    "ver la casilla de abajo."
+    "Se completan solos al elegir a la persona del legajo; cargalos a mano si no está. "
+    "Si el DNI ya está registrado como otra persona, ver la casilla de abajo."
 )
 
 

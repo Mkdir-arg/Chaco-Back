@@ -109,10 +109,14 @@ class PerdioElDocumentoTests(BaseIdentidad):
         legajo = self._legajo()
         antes = legajo.dni_fisico
 
-        self.client.post(
+        respuesta = self.client.post(
             URL_NUEVO, self._formulario1(dni="40732122", nombre="", apellido="", documento_extraviado="on")
         )
 
+        self.assertEqual(respuesta.status_code, 302)
+        caso = CasoEmergencia.objects.get()
+        self.assertEqual(caso.grupo.responsable_id, legajo.pk)
+        self.assertTrue(caso.situacion["documento_extraviado"])
         legajo.refresh_from_db()
         self.assertEqual(legajo.dni_fisico, antes)
 

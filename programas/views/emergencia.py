@@ -29,7 +29,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
-from core.http_cache import sin_cache
 from core.rbac import puede
 from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import (
@@ -48,20 +47,20 @@ from programas.forms_emergencia import (
 )
 from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
+from programas.respuestas_personas import responder_personas_sugeridas
 from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_mesa as mesa
 from programas.selectors.emergencia_derivar import clave_de_grupo, pedidas_pendientes
-from programas.selectors.personas_sugeridas import sugerir_personas
 from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import CasoDeOtroOperador, EstadoCambio, FaltanPlazas
 from programas.services.emergencia_cierre import cancelar_ingreso_por_la_mesa
 from programas.services.emergencia_programa import puede_supervisar_la_mesa
+from programas.services.estadias import CAP_VER_CIUDADANO
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
 TEMPLATE_FICHA = "programas/emergencia/casos/detail.html"
 TEMPLATE_NUEVO = "programas/emergencia/casos/form.html"
-CAP_VER_CIUDADANO = "ciudadano.ver"
 
 CASOS_POR_PAGINA = 50
 
@@ -194,10 +193,7 @@ class PersonasSugeridasMesaView(MesaPermissionMixin, View):
     http_method_names = ["get"]
 
     def get(self, request):
-        if not puede(request.user, CAP_VER_CIUDADANO):
-            return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
-        # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
-        return sin_cache(JsonResponse(sugerir_personas(request.GET.get("q", ""))))
+        return responder_personas_sugeridas(request)
 
 
 # ---------------------------------------------------------------------------

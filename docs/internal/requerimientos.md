@@ -61936,14 +61936,14 @@ revisada» y la solapa «Identidad a revisar» (T6/T7 del Cambio 486, segunda en
 1. **«Buscar DNI» busca solo en el legajo** (sin RENAPER ni Personas API). No es un buscador nuevo: reusa
    `sugerir_personas` y `nodo-sugerencias.js` (el mismo de «Reservar», «Prestar» e «Ingresar persona»). Al elegir a la
    persona se completan el DNI, el nombre y el apellido **del legajo** (`data-sugerencias-completa`, atributo nuevo y
-   opcional del componente); si no está, se cargan a mano como hasta ahora. El servidor valida igual: `crear_caso` sigue
+   opcional del componente); si no está, se cargan a mano como hasta ahora. Si después se corrige el DNI, lo precargado que no se tocó se vacía (nunca queda el nombre de una persona con el DNI de otra); lo editado a mano se respeta. El servidor valida igual: `crear_caso` sigue
    decidiendo con `buscar_ciudadano_por_dni`.
 2. **Autorización por capacidad, en el servidor.** `emergencia:personas_sugeridas` pide lo mismo que el alta de la mesa
    (`emergencia.operar` o `supervisar` en el programa, `MesaPermissionMixin`) **más** `ciudadano.ver`, la que ya exige el
    buscador de Dispositivos. Solo apellido, nombre y DNI, con `Cache-Control: no-store`. El formulario ofrece el buscador
    únicamente a quien tiene las dos; sin `ciudadano.ver` el campo es el de siempre.
 3. **«Perdió el documento pero sabe el número»** es la casilla `documento_extraviado` que `crear_caso` ya entendía (la usa la
-   app, el Formulario 1 de la puerta y la ficha del integrante): queda en `situacion` y, solo en la persona que se da de
+   app y la ficha del integrante): queda en `situacion` y, solo en la persona que se da de
    alta, `dni_fisico = NO_TIENE`; a quien ya tenía legajo no se le toca nada. Como `Formulario1DispositivoForm` hereda de
    `NuevoCasoMesaForm`, la casilla también aparece en la puerta del dispositivo (mismo camino, mismo servicio).
 4. **Identidad a revisar visible.** `avisos_de_la_mesa` suma «Identidad a revisar» (tono `warning`) mientras
@@ -61967,7 +61967,7 @@ personas. `nodo-sugerencias.js` guarda las filas de la lista y, al elegir, escri
 `programas/templates/programas/emergencia/casos/form.html`, `static/custom/js/nodo-sugerencias.js`,
 `programas/selectors/emergencia_mesa.py`, `programas/selectors/emergencia.py`, `programas/services/emergencia_cierre.py`,
 `programas/models/__init__.py` (comentario), `.claude/design/componentes/sugerencias.md`,
-`.claude/agents/chaco-design-system.md` y los tests (`test_emergencia_identidad_nuevo_caso.py` nuevo;
+`.claude/design/componentes/alerta.md`, `programas/respuestas_personas.py` (la respuesta compartida del buscador, también de Dispositivos) y los tests (`test_emergencia_identidad_nuevo_caso.py` nuevo;
 `test_emergencia_mesa_logica.py` pasa `sla` y `ahora`).
 
 ## Base de datos
@@ -61976,7 +61976,7 @@ No requiere: la marca vive en `CasoEmergencia.situacion` (JSON).
 ## Validación
 15 tests nuevos. **Mutación (cada una en rojo, restaurando sin stash):** sacar `ciudadano.ver` del buscador; abrirlo a
 cualquier usuario con sesión; devolver el `pk` de más; ofrecer el buscador sin `ciudadano.ver`; mostrar el aviso aunque la
-mesa ya lo revisó; mostrarlo siempre. Suites `test_emergencia_*` (1445) y `--tag performance`, `makemigrations --check`,
+mesa ya lo revisó; mostrarlo siempre. El JS no tiene harness en el repo: la limpieza al corregir el DNI se verificó con una sonda de Node sobre un DOM mínimo (precarga, vaciado, respeto de lo editado y, sin la línea del vaciado, rojo). Suites `test_emergencia_*` (1445) y `--tag performance`, `makemigrations --check`,
 ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent` en verde.
 
 ## Puesta en marcha en el servidor
