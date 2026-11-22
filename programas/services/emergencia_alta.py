@@ -30,6 +30,7 @@ from core.archivos import anotar_archivo_escrito, archivos_atomicos
 from core.db import q_uuid_en_texto
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.models import Localidad
+from core.selectors.geografia import localidades_operativas
 from core.validators import validar_foto
 from legajos.models import Ciudadano
 from programas.models import (
@@ -288,15 +289,18 @@ def _validar_formulario1(datos):
     localidad = datos.get("localidad")
     limpio["localidad"] = None
     if localidad not in (None, ""):
+        # Cambio 533: lo que llega como id (formulario de la mesa, API de la app) se acota a las localidades
+        # de la provincia que opera el sistema, igual que el selector. Una ``Localidad`` ya resuelta es de
+        # código del servidor (el ingreso directo toma la del dispositivo): no se vuelve a acotar.
         if isinstance(localidad, Localidad):
             limpio["localidad"] = localidad
         else:
             try:
-                limpio["localidad"] = Localidad.objects.filter(pk=int(localidad)).first()
+                limpio["localidad"] = localidades_operativas().filter(pk=int(localidad)).first()
             except (TypeError, ValueError):
                 limpio["localidad"] = None
-            if limpio["localidad"] is None:
-                errores["localidad"] = "Elegí una localidad de la lista."
+        if limpio["localidad"] is None:
+            errores["localidad"] = "Elegí una localidad de la lista."
 
     fotos = datos.get("fotos") or {}
     desconocidas = set(fotos) - set(AdjuntoCaso.Tipo.values)

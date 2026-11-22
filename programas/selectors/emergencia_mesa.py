@@ -34,12 +34,14 @@ from programas.services.emergencia import (
     estado_visible_de_caso,
     prioridad_visible,
 )
+from programas.services.emergencia_ingreso_comun import derivacion_vencida
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_OPERAR,
     CAP_SUPERVISAR,
     programa_emergencia,
     puede_supervisar_la_mesa,
 )
+from programas.services.identidad import texto_comparable
 
 Estado = CasoEmergencia.Estado
 
@@ -159,6 +161,7 @@ def avisos_de_la_mesa(caso):
       la última traza del caso: la próxima acción, cualquiera, los saca (RN-3.13, HU-2.5).
     * «Dispositivo inactivo · volver a derivar» mientras la derivación pendiente apunte a
       un dispositivo que dejó de estar activo (02 §9).
+    * «Derivación vencida sin marcar» mientras la pendiente pasó su plazo y el cron no la marcó (RN-3.3).
     * «Llegaron 8 sobre 7 declaradas» cuando el dispositivo agregó personas (``GrupoFamiliar.llegaron_mas``, RN-3.8).
     """
 
@@ -187,6 +190,17 @@ def avisos_de_la_mesa(caso):
                 "texto": "Dispositivo inactivo · volver a derivar",
                 "tono": "danger",
                 "detalle": "El dispositivo al que se derivó dejó de estar activo. Cancelá la derivación y derivalo a otro.",
+            }
+        )
+    if caso.derivacion_vencida_sin_marcar:
+        avisos.append(
+            {
+                "texto": "Derivación vencida sin marcar",
+                "tono": "warning",
+                "detalle": (
+                    "Pasó el plazo y el dispositivo todavía puede aceptarla: se marca como vencida en el próximo "
+                    "proceso diario. Si la familia no llegó, cancelá la derivación y derivala de nuevo."
+                ),
             }
         )
     if caso.grupo.llegaron_mas:
@@ -223,7 +237,9 @@ def _marcas_de_fila(caso, duplicados, alojado):
     if duplicados:
         numeros = ", ".join(numero for _pk, numero in duplicados)
         marcas.append({"texto": f"Posible duplicado: caso {numeros}", "tono": "warning"})
-    if alojado is not None:
+    # RN-2.15 avisa que el responsable sigue alojado en otra institución antes de derivar; en un caso
+    # ya alojado esa estadía es la del propio caso y la marca engaña (Cambio 533).
+    if alojado is not None and caso.estado != Estado.ALOJADO:
         marcas.append({"texto": f"Responsable alojado en {alojado.dispositivo}", "tono": "warning"})
     if caso.ubicacion_aproximada:
         marcas.append({"texto": "Ubicación aproximada", "tono": "gray"})
@@ -270,7 +286,8 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
 
 
 #: Las solapas de E2, partidas en dos filas de chips: por estado del caso (de a seis, el
-#: tope de la pieza) y las dos vistas que cruzan los estados.
+#: tope de la pieza) y las otras vistas: las que cruzan los estados y los alojados, que ya no
+#: están en gestión.
 SOLAPAS_POR_ESTADO = (
     (selectores.SOLAPA_ABIERTOS, "Abiertos"),
     (selectores.SOLAPA_NUEVOS, "Nuevos"),
@@ -282,11 +299,12 @@ SOLAPAS_POR_ESTADO = (
 SOLAPAS_DE_ATENCION = (
     (selectores.SOLAPA_FUERA_SLA, "Fuera de SLA"),
     (selectores.SOLAPA_INGRESO_DIRECTO, "Ingreso directo"),
+    (selectores.SOLAPA_ALOJADOS, "Alojados"),
 )
 
 
 def conteos_de_solapas(sla, ahora, *, semaforos=None):
-    """``{solapa: cantidad}`` de las ocho solapas.
+    """``{solapa: cantidad}`` de las nueve solapas.
 
     ``semaforos`` es lo que contestó ``selectors.emergencia.ids_por_estado_sla(sla, ahora)``:
     E2 ya lo calculó para ordenar la bandeja y los «Fuera de SLA» se cuentan de ahí. **1
@@ -530,7 +548,7 @@ def derivacion_pendiente_de(caso):
     )
 
 
-def _derivacion_vigente(caso):
+def _derivacion_vigente(caso, ahora):
     """La derivación vigente tal como la muestra la ficha, o ``None``. **1 consulta.**"""
 
     derivacion = (
@@ -551,6 +569,8 @@ def _derivacion_vigente(caso):
         "vence": _fecha_hora(derivacion.vence_en),
         "estado": "Esperando aceptación" if pendiente else derivacion.get_estado_display(),
         "pendiente": pendiente,
+        # Cambio 533: pasó el plazo y el proceso diario todavía no la marcó (RN-3.3: se acepta igual).
+        "vencida": derivacion_vencida(derivacion, ahora),
     }
 
 
@@ -580,7 +600,7 @@ def panel_de_derivar(
     pedidas = caso.grupo.total_declarado if plazas is None else max(int(plazas), 1)
     todos = selectores_derivar.edificios_para_derivar(caso, usuario, plazas=pedidas)
     localidades = sorted({fila["localidad"] for fila in todos if fila["localidad"]})
-    texto = (texto or "").strip().casefold()
+    texto = texto_comparable(texto)
     visibles = [fila for fila in todos if _coincide(fila, texto) and (not localidad or fila["localidad"] == localidad)]
     tarjetas = []
     for fila in visibles[:TOPE_DISPOSITIVOS]:
@@ -654,7 +674,8 @@ def _coincide(fila, texto):
     if not texto:
         return True
     nombres = [fila["nombre"], fila["ubicacion"], *(institucion["nombre"] for institucion in fila["instituciones"])]
-    return any(texto in nombre.casefold() for nombre in nombres)
+    # Sin acentos ni mayúsculas, como el resto de las búsquedas por nombre (Cambio 533).
+    return any(texto in texto_comparable(nombre) for nombre in nombres)
 
 
 def ficha_de_caso(caso, usuario, sla, ahora):
@@ -677,7 +698,7 @@ def ficha_de_caso(caso, usuario, sla, ahora):
 
     derivacion = None
     if caso.estado in (Estado.DERIVADO, Estado.INGRESO_EN_CURSO, Estado.ALOJADO):
-        derivacion = _derivacion_vigente(caso)
+        derivacion = _derivacion_vigente(caso, ahora)
     acciones = acciones_posibles(
         caso, usuario, es_supervisor=es_supervisor, derivacion_pendiente=bool(derivacion and derivacion["pendiente"])
     )

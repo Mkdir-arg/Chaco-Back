@@ -31,7 +31,6 @@ from django.template.loader import get_template
 from django.test import override_settings, tag
 from django.urls import reverse
 
-from core.models import Localidad
 from legajos.models import Ciudadano
 from programas.models import (
     AdjuntoCaso,
@@ -48,7 +47,7 @@ from programas.models import (
 from programas.selectors import emergencia_mesa as mesa
 from programas.services import emergencia as servicio
 from programas.tests.test_emergencia_base import OPERAR, SUPERVISAR, urls_de_emergencia
-from programas.tests.test_emergencia_casos import JPEG, T0, BaseCasos
+from programas.tests.test_emergencia_casos import JPEG, T0, BaseCasos, localidad_operativa
 from programas.views.emergencia import CASOS_POR_PAGINA
 
 Estado = CasoEmergencia.Estado
@@ -83,7 +82,7 @@ class BaseMesa(BaseCasos):
 
     def setUp(self):
         super().setUp()
-        self.resistencia = Localidad.objects.create(nombre="Resistencia")
+        self.resistencia = localidad_operativa("Resistencia")
         self.club = self._dispositivo("Club Sarmiento", camas=10, localidad="Resistencia")
 
     def _url(self, nombre, caso):
@@ -452,6 +451,7 @@ class BandejaTests(BaseMesa):
                 "Cerrados": 1,
                 "Fuera de SLA": 1,
                 "Ingreso directo": 0,
+                "Alojados": 0,
             },
         )
         self.assertEqual([texto for texto, chip in chips.items() if chip["activo"]], ["Abiertos"])
@@ -926,7 +926,8 @@ class QuienNoLoTieneTomadoTests(BaseMesa):
         self.assertNotIn("Más acciones", html)
         self.assertNotIn("Derivar a Club Sarmiento", html)
 
-    def test_un_post_directo_recibe_403_y_nada_cambia(self):
+    def test_un_post_sobre_un_caso_de_otro_vuelve_a_la_ficha_con_el_aviso_y_nada_cambia(self):
+        """Cambio 533: la pantalla vieja de quien perdió el caso ya no termina en un 403 crudo."""
         antes = self._fila(self.caso)
         cuerpos = {
             **ACCIONES,
@@ -934,10 +935,10 @@ class QuienNoLoTieneTomadoTests(BaseMesa):
         }
         for accion in ("caso_derivar", "caso_cerrar", "caso_contacto", "caso_prioridad", "caso_soltar"):
             with self.subTest(accion=accion):
-                self.assertEqual(self._post(accion, self.caso, cuerpos[accion]).status_code, 403)
+                self._rechazado_con_aviso(self._post(accion, self.caso, cuerpos[accion]))
         servicio.derivar_caso(self.caso, self.operador, self.club, 2)
-        self.assertEqual(
-            self._post("caso_cancelar_derivacion", self.caso, cuerpos["caso_cancelar_derivacion"]).status_code, 403
+        self._rechazado_con_aviso(
+            self._post("caso_cancelar_derivacion", self.caso, cuerpos["caso_cancelar_derivacion"])
         )
 
         self.assertEqual(Derivacion.objects.get().estado, Derivacion.Estado.PENDIENTE)
@@ -947,6 +948,13 @@ class QuienNoLoTieneTomadoTests(BaseMesa):
         for campo in ("prioridad", "tomado_por_id", "cerrado_en", "motivo_cierre"):
             self.assertEqual(despues[campo], antes[campo], campo)
         self.assertEqual([t.accion for t in self._trazas(self.caso)], [Accion.CREADO, Accion.TOMADO, Accion.DERIVADO])
+
+    def _rechazado_con_aviso(self, respuesta):
+        self.assertRedirects(respuesta, self._url("caso_detalle", self.caso), fetch_redirect_response=False)
+        self.assertEqual(
+            self._avisos(respuesta),
+            [f"El caso {self.caso.numero} lo tiene tomado Ana López: ya no podés hacer esto. Recargá la ficha."],
+        )
 
     def test_tomar_un_caso_que_tomo_otro_avisa_quien_lo_tiene(self):
         """HU-2.1: «Tomado por Ana López» y nada cambia."""
@@ -1026,8 +1034,10 @@ class SupervisorTests(BaseMesa):
         for operador in (self.agente.pk, 999_999, ""):
             with self.subTest(operador=operador):
                 respuesta = self._post("caso_reasignar", self.caso, {"operador": operador})
-                self.assertRedirects(respuesta, self._url("caso_detalle", self.caso), fetch_redirect_response=False)
-                self.assertTrue(self._avisos(respuesta))
+                # Cambio 533: el modal vuelve a abrirse con el error, no se redirige.
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertEqual(respuesta.context["modal_abierto"], "reasignar")
+                self.assertTrue(respuesta.context["form_reasignar"].errors)
         self.assertEqual(self._fila(self.caso)["tomado_por_id"], self.operador.pk)
 
     def test_la_lista_para_reasignar_son_los_de_la_mesa(self):
@@ -1092,7 +1102,10 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
 
         # Cancelar: sin motivo no; con motivo, vuelve a gestión con el mismo dueño (HU-2.3).
         respuesta = self._post("caso_cancelar_derivacion", caso, {"motivo": " "})
-        self.assertEqual(self._avisos(respuesta), ["Indicá por qué se cancela la derivación."])
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            respuesta.context["form_cancelar"].errors["motivo"], ["Indicá por qué se cancela la derivación."]
+        )
         self.assertEqual(Derivacion.objects.get().estado, Derivacion.Estado.PENDIENTE)
         respuesta = self._post("caso_cancelar_derivacion", caso, {"motivo": "La familia se fue a otro lado"})
         self.assertIn("cancelada", self._avisos(respuesta)[0])
@@ -1111,7 +1124,11 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
         )
         for cuerpo, aviso in rechazos:
             respuesta = self._post("caso_cerrar", caso, cuerpo)
-            self.assertEqual(self._avisos(respuesta), [aviso])
+            self.assertEqual((respuesta.status_code, respuesta.context["modal_abierto"]), (400, "cerrar"))
+            self.assertIn(
+                aviso,
+                " ".join(error for errores in respuesta.context["form_cierre"].errors.values() for error in errores),
+            )
             self.assertEqual(self._fila(caso)["estado"], Estado.EN_GESTION, cuerpo)
         respuesta = self._post("caso_cerrar", caso, {"motivo": "POR_SU_CUENTA", "observacion": ""})
         self.assertEqual(self._avisos(respuesta), [f"Caso {caso.numero} cerrado sin alojamiento."])
@@ -1185,7 +1202,9 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
         respuesta = self._post("caso_prioridad", caso, {"prioridad": "ALTA"})
         self.assertEqual(self._avisos(respuesta), [f"Prioridad del caso {caso.numero}: alta."])
         self.assertEqual(self._trazas(caso)[-1].detalle, "Prioridad: Baja → Alta")
-        self.assertTrue(self._avisos(self._post("caso_prioridad", caso, {"prioridad": "URGENTE"})))
+        invalida = self._post("caso_prioridad", caso, {"prioridad": "URGENTE"})
+        self.assertEqual((invalida.status_code, invalida.context["modal_abierto"]), (400, "prioridad"))
+        self.assertTrue(invalida.context["form_prioridad"].errors)
         self.assertEqual(self._fila(caso)["prioridad"], "ALTA")
 
 
