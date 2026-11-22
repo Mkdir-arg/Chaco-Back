@@ -79,6 +79,7 @@ from programas.tests.base_emergencia_api import (
     URL_MIS_DISPOSITIVOS,
     URL_PERFIL,
     URL_RAIZ,
+    URL_SUGERIR,
     URLS_DE_KITS_DEL_BARRIDO,
     URLS_DE_LLEGADAS_DEL_BARRIDO,
     BaseApiEmergencia,
@@ -255,7 +256,16 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
         self.assertEqual(
             sorted(urls_de_la_api_de_emergencia()),
             sorted(
-                [URL_RAIZ, URL_PERFIL, URL_CONSULTAR, URL_LOCALIDADES, URL_CASOS, URL_MIOS, URL_MIS_DISPOSITIVOS]
+                [
+                    URL_RAIZ,
+                    URL_PERFIL,
+                    URL_CONSULTAR,
+                    URL_SUGERIR,
+                    URL_LOCALIDADES,
+                    URL_CASOS,
+                    URL_MIOS,
+                    URL_MIS_DISPOSITIVOS,
+                ]
                 + URLS_DE_KITS_DEL_BARRIDO
                 + URLS_DE_LLEGADAS_DEL_BARRIDO
             ),
@@ -661,6 +671,80 @@ class ConsultaDePersonaTests(_ConsultaDePersonaBase):
         self.gran_base.assert_not_called()
 
 
+class SugerirPersonasTests(_ConsultaDePersonaBase):
+    """#1299 · sugerencias del legajo mientras se escribe el DNI: lo mismo que el paso 1 de Dispositivos."""
+
+    def _sugerir(self, usuario, q):
+        return self._como(usuario).get(URL_SUGERIR, {"q": q})
+
+    def test_sugiere_por_prefijo_de_dni_solo_con_apellido_nombre_y_dni(self):
+        self._legajo()
+        self._legajo(dni="30999000", nombre="Otra", apellido="Distinta")
+
+        respuesta = self._sugerir(self.agente, "3011")
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(
+            respuesta.json(),
+            {"resultados": [{"apellido": "Benitez", "nombre": "Rosa", "dni": "30111222"}], "hay_mas": False},
+        )
+        self.assertEqual(respuesta["Cache-Control"], "no-store")
+        self.gran_base.assert_not_called()
+
+    def test_acepta_el_dni_con_puntos(self):
+        self._legajo()
+
+        self.assertEqual(len(self._sugerir(self.agente, "30.111").json()["resultados"]), 1)
+
+    def test_con_menos_de_tres_digitos_no_busca(self):
+        self._legajo()
+
+        for q in ("", "3", "30", "ab"):
+            with self.subTest(q=q):
+                respuesta = self._sugerir(self.agente, q)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertEqual(respuesta.json(), {"resultados": [], "hay_mas": False})
+
+    def test_letras_no_son_un_dni(self):
+        self._legajo()
+
+        self.assertEqual(self._sugerir(self.agente, "benitez").json()["resultados"], [])
+
+    def test_exige_emergencia_relevar_y_no_gasta_la_cubeta_sin_permiso(self):
+        self._legajo()
+
+        self.assertEqual(self._sugerir(self.operador, "3011").status_code, 403)
+        self.assertEqual(self._sugerir(self.territorial_becas, "3011").status_code, 403)
+        self.assertEqual(self._como(self.agente).get(URL_SUGERIR, {"q": "3011"}).status_code, 200)
+
+    def test_sin_token_no_entra(self):
+        from rest_framework.test import APIClient
+
+        self.assertIn(APIClient().get(URL_SUGERIR, {"q": "3011"}).status_code, (401, 403))
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_comparte_la_cubeta_de_la_consulta_de_identidad(self, _rate):
+        self._legajo()
+
+        self.assertEqual(self._sugerir(self.agente, "3011").status_code, 200)
+        self.assertEqual(self._sugerir(self.agente, "3011").status_code, 429)
+        self.assertEqual(self._consultar(self.agente).status_code, 429)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_lo_que_no_busca_no_descuenta_de_la_cubeta(self, _rate):
+        for _ in range(3):
+            self.assertEqual(self._sugerir(self.agente, "30").status_code, 200)
+        self.assertEqual(self._consultar(self.agente).status_code, 200)
+
+    def test_el_esquema_publica_la_ruta_y_el_429(self):
+        from drf_spectacular.generators import SchemaGenerator
+
+        rutas = SchemaGenerator().get_schema(request=None, public=True)["paths"]
+
+        self.assertIn("429", rutas[URL_SUGERIR]["get"]["responses"])
+        self.assertEqual(rutas[URL_SUGERIR]["get"]["parameters"][0]["name"], "q")
+
+
 # ---------------------------------------------------------------------------
 # Localidades (RN-1.6, H4)
 # ---------------------------------------------------------------------------
@@ -964,5 +1048,23 @@ class ConsultaDePersonaSinSexoTests(_ConsultaDePersonaBase):
         respuesta = self._consultar(self.agente, sexo="M")
 
         self.assertEqual(respuesta.json()["origen"], "legajo")
-        self.assertEqual(respuesta.json()["data"]["sexo"], "M")
         self.gran_base.assert_called_once()
+
+    def test_con_otro_sexo_la_respuesta_trae_el_del_legajo(self):
+        """#1301: el sexo de la consulta nunca pisa el del legajo."""
+        self._legajo(genero="F")
+
+        for pedido in ("M", "F", "m"):
+            with self.subTest(pedido=pedido):
+                respuesta = self._consultar(self.agente, sexo=pedido)
+
+                self.assertEqual(respuesta.json()["origen"], "legajo")
+                self.assertEqual(respuesta.json()["data"]["sexo"], "F")
+
+    def test_con_sexo_y_legajo_sin_sexo_la_respuesta_trae_vacio(self):
+        self._legajo(genero="X")
+
+        respuesta = self._consultar(self.agente, sexo="M")
+
+        self.assertEqual(respuesta.json()["origen"], "legajo")
+        self.assertEqual(respuesta.json()["data"]["sexo"], "")

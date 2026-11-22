@@ -23,6 +23,7 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `GET /api/emergencia/` | módulo | Índice del namespace |
 | `GET /api/emergencia/perfil/` | módulo | Qué accesos mostrar en la pantalla inicial: M1 con `relevar`, M2 con `llegadas`, M3 con `kits` |
 | `POST /api/emergencia/personas/consultar/` | módulo | Nombre y edad a partir del DNI |
+| `GET /api/emergencia/personas/sugerir/?q=` | módulo | Sugerencias de personas del legajo mientras se escribe el DNI (#1299) |
 | `GET /api/emergencia/localidades/` | módulo | Lista de localidades para el Formulario 1 |
 | `POST /api/emergencia/casos/` | agente | Enviar una familia (multipart, idempotente) |
 | `GET /api/emergencia/casos/mios/` | agente | «Mis envíos» |
@@ -176,7 +177,11 @@ Personas). Es lo que usa la puerta del dispositivo, que sabe el DNI y no el sexo
  "datos_api": {}}
 ```
 
-`data.sexo` es el género del legajo si es `F` o `M`; si el legajo no lo tiene o es «X», va `""`. Sin legajo:
+`data.sexo` es el género del legajo si es `F` o `M`; si el legajo no lo tiene o es «X», va `""`. **Cuando responde
+el legajo, `data.sexo` es siempre el del legajo, venga o no `sexo` en el cuerpo** (#1301): un `sexo` distinto del
+legajo no lo pisa (con `{"dni": "30503030", "sexo": "M"}` sobre un legajo F, `data.sexo` es `"F"`). La app busca
+solo por DNI y pide el sexo únicamente ante el 404 `no_en_legajo`, para volver a consultar con él (Base de Personas
+lo exige). Sin legajo:
 404 `{"success": false, "no_en_legajo": true, "error": "No figura en los legajos de DATAÑACH."}`. Un `sexo`
 presente que no sea F ni M sigue siendo 400.
 
@@ -198,6 +203,23 @@ presente que no sea F ni M sigue siendo 400.
 
 El tope es **por usuario** (120 por hora) y la cubeta es **la misma** que la de la consulta de Becas:
 quien tiene los dos módulos no suma dos cuotas.
+
+### Sugerencias de personas (#1299)
+
+`GET /api/emergencia/personas/sugerir/?q=<DNI tecleado>`. Mismo permiso que la consulta (`emergencia.relevar`) y
+**la misma cubeta `personas_campo`** (SEC-25, 120 por hora y por usuario): enumerar nombres por prefijo es una
+consulta de identidad por otra puerta. Cada pedido que busca descuenta una; el 429 trae `Retry-After`. Con menos de 3
+dígitos (`q` se normaliza como un DNI: solo dígitos) responde la lista vacía sin buscar y sin descontar. Es lo mismo
+que el paso 1 de Dispositivos (Cambio 416): `programas.selectors.personas_sugeridas.sugerir_personas`, por prefijo
+de DNI, tope de 10.
+
+```json
+{"resultados": [{"apellido": "Acevedo", "nombre": "Adriana", "dni": "49103788"}], "hay_mas": false}
+```
+
+Solo lectura, `Cache-Control: no-store`, sin otro dato de la persona. No está en el índice de la raíz (§8): la app
+vieja no lo necesita y la raíz no cambia. Una app que no lo conozca sigue funcionando; un back sin la ruta responde
+404 y la app lo trata como «sin sugerencias».
 
 ## 5. Localidades
 

@@ -175,6 +175,7 @@ SIN_RECIBIR_KIT = {"detail": MENSAJE_SIN_RECIBIR_KIT, "code": "SIN_MODULO"}
 URL_RAIZ = "/api/emergencia/"
 URL_PERFIL = "/api/emergencia/perfil/"
 URL_CONSULTAR = "/api/emergencia/personas/consultar/"
+URL_SUGERIR = "/api/emergencia/personas/sugerir/"
 URL_LOCALIDADES = "/api/emergencia/localidades/"
 URL_CASOS = "/api/emergencia/casos/"
 URL_MIOS = "/api/emergencia/casos/mios/"

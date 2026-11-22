@@ -39,7 +39,7 @@ Lo común vive acá:
 """
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.exceptions import NotFound, Throttled
@@ -49,7 +49,12 @@ from rest_framework.response import Response
 from rest_framework.routers import APIRootView
 from rest_framework.views import APIView
 
-from programas.api.serializers import ConsultaPersonaEmergenciaSerializer, ConsultaPersonaRespuestaSerializer
+from core.dni import normalizar_dni
+from programas.api.serializers import (
+    ConsultaPersonaEmergenciaSerializer,
+    ConsultaPersonaRespuestaSerializer,
+    SugerenciasPersonasSerializer,
+)
 from programas.api.serializers_emergencia import (
     CasoEmergenciaCreadoSerializer,
     CasoEmergenciaEnvioSerializer,
@@ -62,6 +67,7 @@ from programas.api.views import responder_consulta_de_persona
 from programas.api.views_inspecciones import _respuesta_400
 from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
+from programas.selectors.personas_sugeridas import MINIMO_CARACTERES, sugerir_personas
 from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
 from programas.services.emergencia_alta import DniRegistrado
 from programas.services.emergencia_programa import (
@@ -333,6 +339,46 @@ class ConsultarPersonaEmergenciaView(_VistaDeCampo):
     )
     def post(self, request):
         return responder_consulta_de_persona(request.data, buscar_en_legajos=True)
+
+
+class SugerirPersonasEmergenciaView(_VistaDeCampo):
+    """Sugerencias de personas del legajo mientras se escribe el DNI (#1299, punto 4).
+
+    Es lo mismo que el paso 1 de Dispositivos (Cambio 416): ``sugerir_personas`` por prefijo,
+    con apellido, nombre y DNI y nada más. Pide ``emergencia.relevar`` (el de la consulta) y
+    descuenta de la misma cubeta ``personas_campo`` (SEC-25): enumerar nombres por prefijo de DNI
+    es una consulta de identidad por otra puerta. Con menos de 3 dígitos no busca ni descuenta.
+    """
+
+    throttle_classes = [ConsultaPersonasThrottle]
+
+    def get_throttles(self):
+        # Sin texto suficiente no se recorre el padrón: tampoco se gasta la cubeta del usuario.
+        if len(normalizar_dni(self.request.query_params.get("q", ""))) < MINIMO_CARACTERES:
+            return []
+        return super().get_throttles()
+
+    @extend_schema(
+        parameters=[OpenApiParameter("q", str, description="Lo tecleado del DNI (3 dígitos o más).")],
+        responses={
+            200: SugerenciasPersonasSerializer,
+            401: _SIN_TOKEN,
+            403: _SIN_MODULO,
+            429: OpenApiResponse(
+                description="Se superó el tope de consultas de identidad del usuario (compartido con la consulta)."
+            ),
+        },
+        description=(
+            "Personas del legajo cuyo DNI empieza con lo tecleado, para sugerir mientras se escribe. Cada una "
+            "lleva `apellido`, `nombre` y `dni`; `hay_mas` avisa que hay más de las que se devuelven (10). Con "
+            "menos de 3 dígitos responde la lista vacía. Solo lectura; no registra lo tecleado."
+        ),
+    )
+    def get(self, request):
+        digitos = normalizar_dni(request.query_params.get("q", ""))
+        respuesta = Response(sugerir_personas(digitos))
+        respuesta["Cache-Control"] = "no-store"
+        return respuesta
 
 
 class LocalidadesEmergenciaView(_VistaDeCampo):
