@@ -8,7 +8,7 @@ página operativa (`dispositivos:edificio_operativo`).
 **Consumidor de referencia:** `programas/templates/programas/dispositivos/legajo/detail.html` (sección «Edificios · N»,
 en el cuerpo, fuera de las solapas). Solo usa clases y tokens que ya existen. Los botones «Vincular edificio» y
 «Agregar edificio» los dibuja la sección, no la tarjeta. Los datos extra de la tarjeta (ocupación, disponibles, kits,
-equipo, movimientos de hoy) los suma `programas/services/ficha_edificios.completar_tarjetas` con costo constante en la
+equipo, movimientos de hoy) los suma `programas/services/ficha_edificios.py` (`completar_tarjetas`) con costo constante en la
 cantidad de edificios.
 
 ## Por qué no es `_lista_tarjetas`
