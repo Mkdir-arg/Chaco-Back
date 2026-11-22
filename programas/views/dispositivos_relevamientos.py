@@ -44,7 +44,7 @@ from programas.forms_dispositivos import (
     ElegirEdificioForm,
     ReasignarRelevamientoForm,
 )
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, _entero, alcance_o_404
 from programas.models import Dispositivo, InspeccionEdificio
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.edificios import SITUACION_TODOS, edificios_visibles
@@ -106,14 +106,6 @@ SOLAPAS = (
 #: La última solapa lista **edificios**: lo nunca relevado no tiene fila de resultado.
 SOLAPA_SIN_RELEVAR = "sin_relevar"
 SOLAPA_POR_DEFECTO = "en_curso"
-
-
-def _entero(valor):
-    """El id de un parámetro GET, o ``None``. Solo dígitos ASCII: un superíndice o un dígito
-    arábigo pasan `isdigit()` y rompen `int()`."""
-
-    valor = (valor or "").strip()
-    return int(valor) if valor.isascii() and valor.isdecimal() else None
 
 
 def _sin(parametros, claves):

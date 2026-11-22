@@ -5,6 +5,7 @@ filtro «Edificio» acota el mapa y se valida contra los edificios que quien mir
 exigiendo su capacidad y vuelven a la solapa.
 """
 
+from contextlib import ExitStack
 from unittest.mock import patch
 
 from django.db import connection
@@ -15,6 +16,7 @@ from django.utils import timezone
 from django.utils.html import escapejs
 
 from programas.models import Edificio, Plaza, Sector
+from programas.services.estadias import CAP_ADMITIR
 from programas.services.sectores_plazas import PARAM_EDIFICIO_SECTORES, filtro_de_edificio, url_solapa_sectores
 from programas.tests.test_equipo_alcance_edificio import Alcance, BaseAlcance
 
@@ -124,16 +126,22 @@ class SolapaSectoresTests(BaseAlcance):
     def test_la_solapa_pregunta_una_sola_vez_por_capacidad_si_opera_el_dispositivo(self):
         """El detalle y la solapa piden `CAP_ADMITIR` y `CAP_EGRESAR`: cada una se resuelve una vez por pedido."""
 
-        from programas.mixins_dispositivos_sectores import puede_operar_dispositivo as original
+        from programas.services.dispositivos import puede_operar_dispositivo as original
 
+        # La memoria vive en `mixins_dispositivos`, y `puede_ingresar_persona` (estadias) pregunta por su cuenta
+        # si no se le pasa la respuesta: se espían los lugares desde donde se llega a la regla.
+        sitios = ("programas.mixins_dispositivos", "programas.services.estadias", "programas.views.dispositivos_legajo")
         for params in ({"tab": "sectores"}, {"tab": "sectores", "plaza": self.plaza_a.pk}):
             with self.subTest(params=params):
-                with patch(
-                    "programas.mixins_dispositivos_sectores.puede_operar_dispositivo", wraps=original
-                ) as llamada:
+                with ExitStack() as pila:
+                    llamadas = [
+                        pila.enter_context(patch(f"{sitio}.puede_operar_dispositivo", wraps=original))
+                        for sitio in sitios
+                    ]
                     self._solapa(**params)
 
-                capacidades = [c.args[2] for c in llamada.call_args_list]
+                capacidades = [c.args[2] for llamada in llamadas for c in llamada.call_args_list]
+                self.assertIn(CAP_ADMITIR, capacidades)
                 self.assertEqual(len(capacidades), len(set(capacidades)), capacidades)
 
     def test_sin_abrir_la_solapa_no_se_arma_el_mapa(self):

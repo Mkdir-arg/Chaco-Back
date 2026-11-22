@@ -56,7 +56,7 @@ Element.prototype.removeAttribute = function (n) { delete this._attrs[n]; };
 Element.prototype.hasAttribute = function (n) { return n === 'hidden' ? this.hidden : n in this._attrs; };
 Element.prototype.appendChild = function (hijo) { hijo.padre = this; this.hijos.push(hijo); return hijo; };
 Element.prototype.addEventListener = function (tipo, fn) { (this._oyentes[tipo] = this._oyentes[tipo] || []).push(fn); };
-Element.prototype.disparar = function (tipo) { (this._oyentes[tipo] || []).forEach(function (fn) { fn({}); }); };
+Element.prototype.disparar = function (tipo, evento) { (this._oyentes[tipo] || []).forEach(function (fn) { fn(evento || {}); }); };
 Element.prototype.getBoundingClientRect = function () { return {top: this.top}; };
 Element.prototype.scrollIntoView = function (opciones) { __log.scrolls.push({id: this._attrs.id, opciones: opciones}); };
 Element.prototype.focus = function (opciones) { __log.focos.push({id: this._attrs.id, opciones: opciones || null}); };
@@ -204,6 +204,28 @@ class IndiceDeSeccionesTests(SimpleTestCase):
         )
         self.assertEqual(
             log["despues"], [False, False, True], "al scrollear la persona, vuelve a mandar el seguimiento"
+        )
+
+    def test_si_el_foco_va_a_un_control_de_otra_seccion_la_elegida_deja_de_mandar(self):
+        """Un error de validación mueve el foco a un campo: el índice no queda pegado a la entrada del clic."""
+        log = _correr(
+            "var m = __modal(['A', 'B', 'C']);\n"
+            "m.secciones[0].top = -50; m.secciones[1].top = 400; m.secciones[2].top = 800;\n"
+            "var campo = m.secciones[0].appendChild(new Element('INPUT', {}));\n"
+            "m.cuerpo.scrollTop = 10; m.cuerpo.clientHeight = 100; m.cuerpo.scrollHeight = 1000;\n"
+            "NodoIndiceSecciones.montar(m.nav);\n"
+            "__botones(m)[1].disparar('click');\n"
+            "m.cuerpo.disparar('focusin', {target: m.secciones[1]});\n"
+            "m.cuerpo.disparar('scroll');\n"
+            "__log.propio = __actual(m);\n"
+            "m.cuerpo.disparar('focusin', {target: campo});\n"
+            "m.cuerpo.disparar('scroll');\n"
+            "__log.ajeno = __actual(m);\n"
+        )
+
+        self.assertEqual(log["propio"], [False, True, False], "el foco a la propia sección no suelta la elegida")
+        self.assertEqual(
+            log["ajeno"], [True, False, False], "el foco a un campo de la sección 0 devuelve el mando al scroll"
         )
 
     def test_las_entradas_miden_al_menos_44_px_en_movil(self):

@@ -157,11 +157,22 @@ class TecladoDeSolapasTests(SimpleTestCase):
 
         self.assertEqual(log["despues"], ["-1", "0", "-1"])
 
-    def test_sin_el_atributo_el_tabindex_lo_reparte_el_click_como_siempre(self):
-        """Las solapas comunes no tocan el resto: lo recalcula `repartirTabindex` al cambiar `aria-selected`."""
+    def test_sin_el_atributo_tambien_se_reparte_el_tabindex_antes_del_foco(self):
+        """Solo la enfocada queda en "0" aunque el click no cambie `aria-selected` (como en este DOM falso)."""
         log = _correr("var l = __barra(3, 0);\n__tecla(l.hijos[0], 'ArrowRight');\n__log.despues = __tabindex(l);\n")
 
-        self.assertEqual(log["despues"], [None, "0", None], "solo la enfocada se marca: el resto lo reparte el click")
+        self.assertEqual(log["despues"], ["-1", "0", "-1"])
+
+    def test_ir_con_la_flecha_derecha_y_volver_con_la_izquierda_deja_una_sola_tabulable(self):
+        log = _correr(
+            "var l = __barra(3, 0);\n"
+            "__tecla(l.hijos[0], 'ArrowRight');\n"
+            "__tecla(l.hijos[1], 'ArrowLeft');\n"
+            "__log.despues = __tabindex(l);\n"
+        )
+
+        self.assertEqual(log["focos"], ["t1", "t0"])
+        self.assertEqual(log["despues"], ["0", "-1", "-1"], "al volver a la activa no quedan dos con tabindex=0")
 
     def test_home_y_end_tampoco_activan_una_solapa_que_navega(self):
         log = _correr(

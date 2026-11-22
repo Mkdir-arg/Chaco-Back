@@ -484,7 +484,7 @@ class AltaDesdeElRegistroDePersonasTests(BaseIngreso):
         self.assertContains(respuesta, "No está en el Registro de Personas.")
         self.assertNotContains(respuesta, "sin resultados")
 
-    def test_si_no_se_pudo_consultar_el_motivo_es_fijo_y_el_detalle_va_al_log(self):
+    def test_si_no_se_pudo_consultar_el_motivo_es_fijo_y_el_log_no_lleva_el_detalle(self):
         with (
             mock.patch(
                 "programas.services.ingreso.CiudadanosService.consultar_renaper",
@@ -496,7 +496,11 @@ class AltaDesdeElRegistroDePersonasTests(BaseIngreso):
         self.assertContains(respuesta, "No se pudo consultar el Registro de Personas.")
         self.assertNotContains(respuesta, "RENAPER")
         self.assertNotContains(respuesta, "Configuracion")
-        self.assertIn("consulta fallida", "\n".join(registro.output))
+        salida = "\n".join(registro.output)
+        self.assertIn("consulta fallida", salida)
+        self.assertIn("sin respuesta HTTP", salida)
+        self.assertNotIn("Configuracion", salida)
+        self.assertNotIn("incompleta", salida)
 
     def test_el_log_no_lleva_el_error_crudo_del_proveedor_ni_el_dni(self):
         """El proveedor puede devolver el eco de lo que se le mandó: el log solo lleva el código HTTP."""
@@ -1144,9 +1148,17 @@ class AltaMinimaTests(BaseIngreso):
 
         self.assertRedirects(respuesta, self.url_plaza)
         self.assertIsNone(self._sesion()["manual"]["fecha_nacimiento"])
-        for url in (self.url_plaza, self.url_confirmar):
-            with self.subTest(url=url):
-                self.assertNotContains(self.client.get(url, follow=True), "Seleccionar...")
+        with self.subTest(paso="plaza"):
+            pagina = self.client.get(self.url_plaza)
+            self.assertTemplateUsed(pagina, "programas/dispositivos/ingreso/paso_plaza.html")
+            self.assertNotContains(pagina, "Seleccionar...")
+        # Sin plaza decidida «confirmar» redirige a «plaza»: se la decide antes para medir la pantalla de verdad.
+        self._elegir_plaza(self.plaza)
+        with self.subTest(paso="confirmar"):
+            pagina = self.client.get(self.url_confirmar)
+            self.assertEqual(pagina.status_code, 200)
+            self.assertTemplateUsed(pagina, "programas/dispositivos/ingreso/paso_confirmar.html")
+            self.assertNotContains(pagina, "Seleccionar...")
 
     def test_el_formulario_de_otra_pestana_no_guarda_nada(self):
         self._consultar()
