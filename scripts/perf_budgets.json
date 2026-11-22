@@ -280,6 +280,11 @@
       "consultas_fijas": 34,
       "motivo": "Presupuesto nuevo (Cambio 565, PR 1 del lote del edificio operativo): la solapa «Sectores y plazas» de la pagina del edificio dibuja el cuerpo de la pantalla de sectores con el edificio fijo y lo arma SOLO con la solapa abierta (la de siempre, ?tab=sectores, o el parametro de uno de sus modales). Son las 20 del encabezado (dispositivos_edificio_operativo, que se mide con otra solapa abierta) mas 14 fijas del mapa: los sectores del edificio con su edificio, las plazas, los estados por estadia y reserva, las reservas abiertas, el alcance y los selectores de los formularios de alta (Agregar plazas, Nuevo sector). Medido con 1 y con 7 sectores, con mas plazas y con otra institucion en el predio: 34 en todos los casos (test_la_solapa_sectores_no_crece_con_sectores_ni_plazas). Sin la solapa abierta la pagina sigue en 20."
     },
+    "dispositivos_edificio_operativo_equipo": {
+      "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
+      "consultas_fijas": 14,
+      "motivo": "Presupuesto nuevo (Cambio 569, PR 4 del lote del edificio operativo): la pagina del edificio con la solapa Equipo abierta (?tab=equipo). El panel se arma SOLO con su solapa: los permisos del Equipo, las filas con el prefetch unico de los edificios de todas las filas y las URL de cada accion; con otra solapa la pagina no paga nada de eso y el boton Equipo navega a ?tab=equipo, asi que dispositivos_edificio_operativo queda en 20. El contador y la franja Equipo en turno usan la lista corta del encabezado (una consulta) en todas las solapas. Medido con admin del programa, con la base del test y con 8 miembros mas con alcance a edificios: 14 en los dos casos, asi que no crece por miembro (la forma natural, pedir los edificios o el alcance de cada fila, seria un N+1 que este techo impide). Los modales se arman solo con ?equipo=sumar|alcance y no entran en este techo."
+    },
     "dispositivos_edificio_operativo_edilicio": {
       "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
       "consultas_fijas": 23,

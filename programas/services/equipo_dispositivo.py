@@ -742,3 +742,28 @@ def equipo_del_dispositivo(dispositivo, permisos=None):
             miembro.alcance_texto = Alcance.INSTITUCION.label
             miembro.puede_cambiar_alcance = gestiona and propios is None
     return miembros
+
+
+def equipo_del_edificio(dispositivo, edificio_id, permisos=None):
+    """El Equipo vigente que trabaja en ``edificio_id`` (página del edificio, Cambio 569), con las mismas filas enriquecidas.
+
+    Entra quien tiene alcance a toda la institución (o sin alcance cargado) y quien tiene **este** edificio entre los
+    suyos; quien opera solo otro edificio de la institución no. Es ``equipo_del_dispositivo`` acotado en Python sobre
+    sus filas y el ``prefetch`` único de edificios: el costo no depende de cuántos miembros haya. Una fila con rol no
+    vigente no entra, igual que en el contador de la solapa. ``alcance_texto`` dice «Este edificio» cuando es el único.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    filas = []
+    for miembro in equipo_del_dispositivo(dispositivo, permisos):
+        if not miembro.vigente:
+            continue
+        if miembro.alcance == MiembroEquipoDispositivo.Alcance.EDIFICIOS:
+            ids = [e.pk for e in miembro.edificios.all()]
+            if edificio_id not in ids:
+                continue
+            if ids == [edificio_id]:
+                miembro.alcance_texto = "Este edificio"
+        filas.append(miembro)
+    return filas

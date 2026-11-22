@@ -6,7 +6,7 @@ Las opciones llegan ya acotadas por el servicio (`opciones_de_alcance`); el serv
 {% endcomment %}
 {% if edificio_fijo %}
 <div>
-  <p class="text-sm text-body"><span class="font-medium text-heading">Edificio:</span> {{ edificio_fijo.nombre }}</p>
+  <p class="text-sm text-body"><span class="font-medium text-heading">Edificio:</span> {{ edificio_fijo.nombre }}{% if edificio_fijo.codigo %} ({{ edificio_fijo.codigo }}){% endif %}</p>
   {{ form.edificio_fijo }}
   <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio_fijo"></p>
 </div>
