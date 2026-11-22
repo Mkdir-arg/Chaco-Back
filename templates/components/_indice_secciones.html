@@ -1,0 +1,13 @@
+{% comment %}
+Índice de secciones de un modal largo: una lista de botones que lleva a cada sección del cuerpo y marca la que se lee.
+Lo arma `static/custom/js/nodo-indice-secciones.js` (cargarlo en `customJS`) desde las secciones del cuerpo; sin JS queda oculto.
+  {% include "components/_indice_secciones.html" with nombre="Secciones del egreso" %}
+Contexto:
+  nombre   obligatorio: `aria-label` del <nav>.
+Va dentro de un contenedor con `data-indice-cuerpo` (el que scrollea), junto a las secciones:
+  <section id="…" tabindex="-1" data-indice-seccion data-indice-titulo="Título" class="focus:outline-none">
+En lg a la izquierda y fijo (sticky); debajo de lg apilado arriba, con las entradas en renglones que se parten (sin scroll horizontal).
+{% endcomment %}
+<nav class="lg:w-56 lg:flex-shrink-0 lg:sticky lg:top-0 lg:self-start" aria-label="{{ nombre }}" data-indice-secciones hidden>
+  <ol class="flex flex-wrap gap-2 lg:flex-col lg:flex-nowrap lg:gap-1" data-indice-lista></ol>
+</nav>

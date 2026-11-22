@@ -2473,3 +2473,36 @@ class MapaCapasTest(SimpleTestCase):
     def test_alto_de_pagina(self):
         self.assertIn("nodo-mapa-capas--pagina", self.render(alto="pagina"))
         self.assertNotIn("nodo-mapa-capas--pagina", self.render())
+
+
+class IndiceSeccionesTest(SimpleTestCase):
+    """Índice de secciones de un modal (``components/_indice_secciones.html``): contrato de la pieza."""
+
+    def render(self, **datos):
+        return render_to_string("components/_indice_secciones.html", datos)
+
+    def test_es_un_nav_nombrado_oculto_hasta_que_el_js_lo_arma(self):
+        html = self.render(nombre="Secciones del egreso")
+
+        self.assertIn("<nav ", html)
+        self.assertIn('aria-label="Secciones del egreso"', html)
+        self.assertIn("data-indice-secciones hidden", html)
+        self.assertIn("data-indice-lista", html)
+        self.assertIn("<ol ", html)
+
+    def test_el_nombre_se_escapa(self):
+        self.assertIn('aria-label="&lt;b&gt;x&lt;/b&gt;"', self.render(nombre="<b>x</b>"))
+
+    def test_en_movil_se_apila_arriba_sin_scroll_horizontal_y_en_lg_queda_a_la_izquierda(self):
+        html = self.render(nombre="Secciones")
+
+        self.assertIn("flex flex-wrap", html, "debajo de lg las entradas se parten en renglones")
+        self.assertNotIn("overflow-x", html)
+        self.assertIn("lg:flex-col", html)
+        self.assertIn("lg:sticky", html)
+
+    def test_no_trae_estilos_propios_ni_colores_crudos(self):
+        html = self.render(nombre="Secciones")
+
+        self.assertNotIn("style=", html)
+        self.assertNotIn("<style", html)

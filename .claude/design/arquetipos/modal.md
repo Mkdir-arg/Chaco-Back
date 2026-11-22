@@ -94,6 +94,9 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
 
 - Campos en dos columnas: `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">`.
 - Panel más ancho cuando suma un bloque de identificadores: `max-w-2xl` en vez de `max-w-[560px]`.
+- **Panel ancho con índice de secciones**: `max-w-4xl` cuando el cuerpo trae 2 o más secciones largas (el formulario
+  del tipo en «Registrar egreso»): el cuerpo es `data-indice-cuerpo` y suma `components/_indice_secciones.html` +
+  `nodo-indice-secciones.js` (ficha `componentes/indice_secciones.md`). Con menos secciones, `max-w-[560px]` sin índice.
 - Form fuera del panel scrolleable: el `<form id="…">` en el cuerpo y el submit del pie
   apuntándole con `form_id` de `_modal_footer.html`.
 - **Form fuera del panel con confirmación previa**: si el pie envía el form de la página (`form_id`) pero el envío
@@ -106,6 +109,9 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   del tipo `formulario_egreso` si lo pide, nota de consecuencia). Lo incluyen P4 (`legajo/detail.html`, un modal para
   todas las filas, con `estadia_egreso` para la línea «Ingreso … · N días») y P7 (`estadia/detalle.html`, sin esa
   línea). Cada pantalla conserva su encabezado, el `<form>` (URL de POST, `volver`) y el pie; el cuerpo no se copia.
+  Con el formulario del tipo de 2 o más grupos el cuerpo cambia de forma (los campos fijos son la sección «Datos del
+  egreso», cada grupo otra, con índice y `max-w-4xl`; `legajo/_formulario_tipo_secciones.html` en vez de la tarjeta); con
+  0 o 1 grupo queda como siempre. Los campos fijos viven en `_form_egreso_campos.html`.
   Observar y Rechazar (P4) no tienen Form de Django: su `textarea` a mano es el canon de «Confirmación con motivo».
 - Título dinámico Nuevo/Editar: `titulo_x_text` (expresión Alpine) en `_modal_header.html`.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
