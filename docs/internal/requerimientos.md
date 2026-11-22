@@ -659,6 +659,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 534 | Dispositivos · avisos, adjuntos, sugerencias y doble envío: alerta de reserva abierta hace más de 7 días, aviso del archivo obligatorio faltante, sugerencias de DNI con puntos y alta de edificio sin 500 | Dispositivos (alertas, relevamientos, ingreso, infraestructura) | `#dispositivos` `#ui` `#api` `#mobile` | Auditoría de Dispositivos (hallazgos 14, 22, 24 y 25) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
+| 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -61830,6 +61831,95 @@ Para sacarlas, desaplicar `0136` y `0135`.
 ## Historial
 - **22/11/2026:** alta del cambio.
 
+
+# Cambio 536 — Dispositivos · estados de la institución y de las plazas con gente adentro
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo de la institución, mapa de plazas y sectores) |
+| **Etiquetas** | `#dispositivos` `#datos` |
+| **Solicitante** | Relevamiento de lógica de Dispositivos del 22/11/2026 (hallazgos 3, 7 y 9) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | Sin issue propio |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Tres huecos de lógica: se podía inactivar o cerrar una institución con alojados, reservas o ingresos de Emergencia a medias; una
+institución inactiva o cerrada seguía permitiendo reservar, prestar y cambiar de plaza; y editar un sector lo cambiaba de edificio
+con gente adentro.
+
+## Alcance acordado
+Antes de diseñar se consultó el archivo vivo por `dispositivos`, `inactiv` y `cerrar`: ninguna decisión registrada choca (el Cambio 409
+fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; eso no cambia).
+
+## Decisiones tomadas
+- **Cerrar** (el botón y el modal «Cerrar») se rechaza siempre que haya estadías abiertas, reservas abiertas (comunes o de derivación)
+  o derivaciones de Emergencia en curso. «En curso» no es el estado de la derivación: una `ACEPTADA` queda aceptada para siempre,
+  también después de alojar o egresar. Lo que lo dice es el caso: `DERIVADO` (espera a la familia) o `INGRESO_EN_CURSO` (ingreso a
+  medias). Se cuenta con `Derivacion.objects.en_curso()` (`PENDIENTE`/`ACEPTADA` con el caso en esos dos estados), la misma regla que
+  ya usaban la bandeja de recepción y el ingreso. El mensaje dice las cifras: «No se puede cerrar: hay 3 personas alojadas y 2
+  reservas vigentes…». Una reserva vencida que nadie liberó sigue contando.
+- **Inactivar** se rechaza con estadías abiertas, derivaciones en curso o reservas de derivación; las reservas comunes (y los
+  préstamos) se liberan con el motivo «Se inactivó la institución», quedan en la traza («N reservas liberadas») y el aviso de la
+  vista dice cuántas se soltaron. Las reservas de derivación se tratan como la derivación: no se liberan por detrás de Emergencia.
+- **Reservar y prestar** exigen institución `ACTIVA`; **cambiar de plaza** se permite en `INACTIVA` y se rechaza en `CERRADA`. Una
+  sola regla, `dispositivos.exigir_institucion_en_estado`, que lee el estado fresco de la base («No se puede reservar una plaza: el dispositivo
+  está inactivo.»); la comparten `reservar_plaza` y `cambiar_plaza`, y la misma lista de estados (`estados_que_reservan`,
+  `estados_que_cambian_de_plaza`) decide qué ofrecen el mapa de plazas («Reservar», «Prestar», «Reubicar») y la pantalla de la
+  estadía («Cambiar plaza»).
+- **Mudar un sector de edificio** se rechaza si tiene estadías abiertas o reservas abiertas (con las plazas bloqueadas, el mismo
+  candado que el ingreso; la baja y la mudanza comparten un solo bloqueo y una sola cuenta); pasar de «sin edificio» a un edificio se
+  permite siempre.
+- **Lo que no cambia:** el ingreso por derivación de Emergencia (`reservar_plazas_de_derivacion`) no pasa por `reservar_plaza` y
+  sigue andando contra una institución activa; `asignar_plaza` (la persona alojada «sin plaza») no se tocó.
+- **Conteo en un selector**: `selectors/compromisos_institucion.py` (tres consultas para la institución) y
+  `selectors/capacidad_dispositivo.py` (`compromisos_del_sector`, dos consultas, junto a `plazas_tomadas_del_sector`), sin importar
+  cuántas plazas haya.
+
+## Pendientes
+- **Carrera de reservar/ingresar contra cerrar o inactivar.** El estado de la institución se lee sin bloquear su fila en
+  `reservar_plaza` y `cambiar_plaza` (y en el ingreso): una reserva o un ingreso que entre en el mismo instante que otro operador
+  cierra o inactiva puede dejar una institución cerrada o inactiva con una reserva o una estadía vivas.
+- **Inversión del orden de bloqueos.** «Inactivar» toma institución → plaza → reserva. Reservar, liberar, cambiar de plaza e ingresar
+  toman plaza → traza (que tiene una FK al dispositivo) → dispositivo, o sea el orden contrario. Si coinciden, el motor corta una de
+  las dos con `ERROR 1213` (deadlock) y el operador ve un 500, sin pérdida de datos.
+- **Arreglo propuesto, en un PR aparte:** leer el estado con un bloqueo compartido por SQL crudo (`LOCK IN SHARE MODE`) de la fila de
+  la institución antes de bloquear la plaza; `select_for_update(of=…)` no sirve porque es exclusivo y serializaría los ingresos entre
+  sí. El bloqueo compartido cierra la carrera y fija un solo orden.
+- `asignar_plaza` en una institución cerrada o inactiva sigue permitido; no estaba en el relevamiento.
+
+## Implementación
+`programas/models/__init__.py` (`Derivacion.objects.en_curso()`, reusado por `views/emergencia_dispositivo.py` y
+`services/emergencia_recepcion.py` sin cambiar su comportamiento), `programas/selectors/compromisos_institucion.py` (nuevo),
+`programas/selectors/capacidad_dispositivo.py` (`compromisos_del_sector`), `programas/services/dispositivos.py` (`_transicionar` con
+`antes_de_cambiar`, `exigir_institucion_en_estado`), `programas/services/estado_institucion.py` (nuevo: cerrar e inactivar, aparte para no cerrar un ciclo de imports con `estadias`), `programas/services/estadias.py` (`reservar_plaza`,
+`cambiar_plaza`), `programas/services/plazas.py` (`editar_sector`), `programas/services/sectores_plazas.py` (acciones del mapa),
+`programas/views/dispositivos_legajo.py` (aviso de reservas liberadas; no ofrece «Cambiar plaza» en una institución cerrada) y el
+texto de los modales de «Inactivar» y «Cerrar» (`legajo/detail.html`).
+
+## Archivos
+Los de arriba y `programas/tests/test_dispositivos_estados_536.py` (nuevo, 30 tests). Verificado por mutación: sacar el control de
+cierre, de inactivar (estadías, derivaciones, reservas de derivación), la liberación de reservas, la regla de estados de reservar y
+de cambiar de plaza, el bloqueo del sector y su excepción «sin edificio», y sacar el filtro del caso de `en_curso()` ponen en rojo
+su test.
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`, ruff, `makemigrations --check`, los `test_dispositivos_*` y los tests de performance en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Reversión
+Desplegar el código anterior: no hay datos nuevos.
+
+## Historial
+- **22/11/2026:** alta del cambio.
 
 # Cambio 537 — Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta
 

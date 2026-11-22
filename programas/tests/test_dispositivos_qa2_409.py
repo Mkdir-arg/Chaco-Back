@@ -29,12 +29,11 @@ from programas.forms import ItemCampoPropioForm
 from programas.models import Dispositivo, ReservaPlaza, TrazaDispositivo
 from programas.services import ingreso as servicio_ingreso
 from programas.services.dispositivos import (
-    cerrar_dispositivo,
-    inactivar_dispositivo,
     reactivar_dispositivo,
     validar_dispositivo,
 )
 from programas.services.estadias import reservar_plaza
+from programas.services.estado_institucion import cerrar_dispositivo, inactivar_dispositivo
 from programas.services.ingreso import confirmar_ingreso
 from programas.services.sectores_plazas import datos_para_el_modal
 from programas.tests.test_dispositivos_crear_agente import BaseCrearAgente

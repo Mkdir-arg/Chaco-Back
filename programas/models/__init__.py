@@ -6064,6 +6064,20 @@ class CasoEmergencia(TimeStamped):
         return True
 
 
+class DerivacionQuerySet(models.QuerySet):
+    def en_curso(self):
+        """Las que todavía esperan o están recibiendo a la familia: vigentes **y** con el caso derivado o con el ingreso abierto.
+
+        Una derivación aceptada no vuelve a cambiar de estado después de alojar: queda `ACEPTADA` aunque
+        el caso ya esté alojado o cerrado. Lo que dice si sigue en curso es el caso.
+        """
+
+        return self.filter(
+            estado__in=Derivacion.ESTADOS_VIGENTES,
+            caso__estado__in=(CasoEmergencia.Estado.DERIVADO, CasoEmergencia.Estado.INGRESO_EN_CURSO),
+        )
+
+
 class Derivacion(TimeStamped):
     """El pedido de la mesa a un dispositivo para que aloje a la familia de un caso.
 
@@ -6093,6 +6107,8 @@ class Derivacion(TimeStamped):
 
     #: Los estados en los que la derivación ocupa el lugar de «la vigente» del caso.
     ESTADOS_VIGENTES = (Estado.PENDIENTE, Estado.ACEPTADA)
+
+    objects = DerivacionQuerySet.as_manager()
 
     caso = models.ForeignKey(
         CasoEmergencia,
