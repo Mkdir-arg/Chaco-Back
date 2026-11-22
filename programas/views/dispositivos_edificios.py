@@ -1,6 +1,6 @@
 """Sección «Edificios» de Dispositivos (análisis #1164): el listado (#1167) y la ficha del edificio (#1168).
 
-Solo lectura. La vista orquesta: qué edificios ve cada uno, los filtros y lo que dibuja cada fila
+Solo lectura, salvo el enlace «Editar edificio» de la ficha (Cambio 555). La vista orquesta: qué edificios ve cada uno, los filtros y lo que dibuja cada fila
 salen de `programas.selectors.edificios`. La acción de la fila, «Crear relevamiento», abre el modal
 de asignar de Relevamientos (P21) y no tiene ruta propia.
 """
@@ -81,7 +81,7 @@ class EdificioListView(DispositivoProgramaPermissionMixin, ListView):
 
 
 class EdificioDetailView(DispositivoProgramaPermissionMixin, TemplateView):
-    """Ficha propia del edificio (RF3 del análisis #1164), en solo lectura.
+    """Ficha propia del edificio (RF3 del análisis #1164), en solo lectura; «Editar edificio» es un enlace al modal de Infraestructura.
 
     Se busca entre **todos** los que el usuario ve: para quien no es admin, `edificios_visibles` ignora la
     situación y deja solo los vigentes, así que un edificio fuera de alcance, huérfano o inactivo da 404
