@@ -9,10 +9,13 @@ contenido de ``target`` con ese HTML. Si el form es inválido, devuelve
 Las vistas siguen funcionando sin AJAX (fallback a redirect tradicional).
 """
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 def is_ajax(request):
@@ -73,3 +76,36 @@ def rechazar(request, errores, volver):
         for mensaje in mensajes:
             messages.error(request, mensaje)
     return redirect(volver)
+
+
+def destino_seguro(request, defecto, *, desde=("POST",), prefijo=""):
+    """El ``next`` de la request, solo si vuelve a este sitio; si no, ``defecto``.
+
+    Un link preparado con ``next=https://malo.tld`` no puede sacar al operador del backoffice: se descarta lo que
+    apunte a otro host o esquema (``//malo.tld/x``, ``javascript:...``). ``desde`` dice dónde se busca (``POST``,
+    ``GET`` o las dos, en ese orden: la primera que lo traiga) y ``prefijo``, si se pide, acota además la ruta a una
+    parte del sistema (``"/becas/"``). Es la única copia: la usan Equipo, convocatorias y la revisión de Becas.
+    """
+
+    for origen in desde:
+        candidato = getattr(request, origen).get("next") or ""
+        if candidato:
+            break
+    else:
+        return defecto
+    if not url_has_allowed_host_and_scheme(
+        candidato, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return defecto
+    if prefijo and not candidato.startswith(prefijo):
+        return defecto
+    return candidato
+
+
+def con_parametro(url, nombre, valor):
+    """``url`` con ``nombre=valor`` en su query (reemplaza el que hubiera); el resto de la URL queda igual."""
+
+    partes = urlsplit(url)
+    consulta = [(k, v) for k, v in parse_qsl(partes.query, keep_blank_values=True) if k != nombre]
+    consulta.append((nombre, str(valor)))
+    return urlunsplit(partes._replace(query=urlencode(consulta)))

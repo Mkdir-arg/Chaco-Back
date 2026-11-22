@@ -344,6 +344,6 @@ class PresupuestoDeKitsTests(BaseKitsEdificio):
         respuesta = self.client.get(self._url(self.edif_a), {"tab": "estadias"})
 
         self.assertNotIn("kits", respuesta.context)
-        self.assertContains(respuesta, "data-solapa-navega")
+        self.assertContains(respuesta, 'id="tab-kits" aria-controls="panel-kits" data-solapa-navega')
         self.assertContains(respuesta, f"{self._url(self.edif_a)}?tab=kits")
         self.assertNotContains(respuesta, "2026-K-000502")

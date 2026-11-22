@@ -6,7 +6,7 @@ lo de la otra institución del predio no aparece (decisión 2 del PM, 22/11/2026
 
 Este módulo arma el encabezado: la franja de datos, el aviso del predio compartido, los indicadores, los contadores
 de las seis solapas y las acciones que cada quien puede hacer. El contenido de cada solapa lo llenan los PR 1 a 7;
-mientras tanto cada panel es un estado vacío con un enlace a donde se opera hoy.
+el panel de Sectores y plazas lo llena el PR 1 (Cambio 565); los demás son estados vacíos con un enlace a donde se opera hoy.
 
 Autorización
 ------------
@@ -26,11 +26,20 @@ contador, una.
 from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.utils.text import Truncator
 
-from programas.models import Edificio, EntregaKit, InspeccionEdificio
+from core.rbac import puede
+from programas.models import Edificio, EntregaKit, InspeccionEdificio, Sector
 from programas.services.bitacora import turno_vigente
-from programas.services.detalle_dispositivo import contar_alojadas, estado_edilicio, indicadores_de_plazas
+from programas.services.detalle_dispositivo import (
+    contar_alojadas,
+    estadias_del_dispositivo,
+    estado_edilicio,
+    indicadores_de_plazas,
+    normalizar_filtros,
+    pildoras_de_estadias,
+)
 from programas.services.dispositivos import (
     CAP_EDITAR,
     CAP_VER,
@@ -41,8 +50,13 @@ from programas.services.dispositivos import (
 )
 from programas.services.edificios import admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
-from programas.services.estadias import CAP_ADMITIR, puede_ingresar_persona
-from programas.services.ingreso import maneja_plazas
+from programas.services.equipo_dispositivo import (
+    edificios_donde_agregar_persona,
+    equipo_del_edificio,
+    permisos_del_equipo,
+)
+from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, CAP_VER_CIUDADANO, puede_ingresar_persona
+from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import edificios_para_asignar, inspecciones_visibles
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -130,13 +144,32 @@ def _estado_edilicio(user, edificio):
     return {"texto": estado["texto"], "tono": estado["tono"], "detalle": detalle}
 
 
-def _equipo_del_edificio(dispositivo, edificio):
-    """Las personas activas del Equipo con alcance a este edificio: toda la institución o este edificio. Una consulta.
+def _contexto_equipo(user, dispositivo, edificio, url_pagina):
+    """Lo propio del panel Equipo (solo con su solapa abierta): filas, quién gestiona, adónde vuelve cada una y qué ofrece.
 
-    Una fila sin alcance cargado vale «toda la institución». Los responsables van primero.
+    Cada fila trae ``url_cambiar_alcance`` (modal por URL, como en la ficha de la institución). Las acciones con
+    confirmación (baja, responsable) vuelven a esta solapa con ``?next=``; los modales, con ``next_url``.
     """
 
-    return miembros_del_edificio(dispositivo, edificio.pk)
+    permisos = permisos_del_equipo(user, dispositivo)
+    equipo = equipo_del_edificio(dispositivo, edificio.pk, permisos)
+    volver = f"{url_pagina}?tab=equipo"
+    if permisos.gestiona:
+        for miembro in equipo:
+            if miembro.puede_cambiar_alcance:
+                consulta = urlencode({"tab": "equipo", "equipo": "alcance", "miembro": miembro.pk})
+                miembro.url_cambiar_alcance = f"{url_pagina}?{consulta}"
+    donde = edificios_donde_agregar_persona(None, dispositivo, permisos)
+    puede_sumar = donde is None or edificio.pk in donde
+    return {
+        "equipo": equipo,
+        "permisos_equipo": permisos,
+        "puede_gestionar_equipo": permisos.gestiona,
+        "puede_sumar_persona": puede_sumar,
+        "url_equipo_sumar_modal": f"{url_pagina}?tab=equipo&equipo=sumar",
+        "next_url": volver,
+        "query_volver": "?" + urlencode({"next": volver}),
+    }
 
 
 def _nombre(usuario):
@@ -233,12 +266,13 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
     conteo = None
     indicadores = []
     if con_plazas:
-        # Solo los sectores de este edificio: el censo se acota en la misma consulta y, por si acaso, se lee el del edificio.
-        censo = ocupacion_de_plazas(dispositivo, q_sectores=Q(edificio_id=edificio.pk)).de(dispositivo)
-        conteo = censo.conteo_del_edificio(edificio.pk)
+        # Solo los sectores de este edificio: el censo se acota en la misma consulta.
+        conteo = ocupacion_de_plazas(dispositivo, q_sectores=Q(edificio_id=edificio.pk)).de(dispositivo).conteo
         indicadores = indicadores_de_plazas(conteo, tipo=dispositivo.tipo)
 
-    equipo = _equipo_del_edificio(dispositivo, edificio)
+    # Una fila sin alcance cargado vale «toda la institución»; los responsables van primero. Alimenta el contador y la
+    # franja «Equipo en turno», que se ven con cualquier solapa abierta.
+    equipo = miembros_del_edificio(dispositivo, edificio.pk)
     estado = _estado_edilicio(user, edificio)
     disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
     pendientes_de_kit = (
@@ -249,11 +283,20 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         else 0
     )
     url_institucion = reverse("dispositivos:detalle", args=[dispositivo.pk])
-    return {
+    tab = normalizar_solapa(tab_pedida, disponibles)
+    url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
+    contexto = {
         "dispositivo": dispositivo,
         "edificio": edificio,
         "maneja_plazas": con_plazas,
-        "tab": normalizar_solapa(tab_pedida, disponibles),
+        "tab": tab,
+        # El mapa de plazas se arma solo con su solapa abierta: si no vino, el botón de la solapa navega a ella.
+        "sectores_cargados": con_plazas and tab == "sectores",
+        "url_solapa_sectores": f"{url_pagina}?tab=sectores",
+        # Lo propio del panel Equipo (permisos, edificios de las filas, modales) se arma solo con su solapa abierta:
+        # si no vino, el botón de la solapa navega a ella. El contador y la franja usan la lista corta de arriba.
+        "equipo_cargado": tab == "equipo",
+        "url_solapa_equipo": f"{url_pagina}?tab=equipo",
         "solapas": disponibles,
         "url_institucion": url_institucion,
         "migas": [
@@ -270,7 +313,7 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         "indicadores": indicadores,
         "contadores": {
             "sectores": conteo.totales if conteo is not None else 0,
-            "estadias": contar_alojadas(dispositivo, q_alcance=Q(plaza__sector__edificio_id=edificio.pk)),
+            "estadias": contar_alojadas(dispositivo, q_alcance=q_estadias_del_edificio(edificio)),
             "kits": pendientes_de_kit,
             "equipo": len(equipo),
         },
@@ -284,4 +327,49 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "historial": f"{url_institucion}?tab=historial",
         },
         **acciones,
+    }
+    if tab == "equipo":
+        contexto.update(_contexto_equipo(user, dispositivo, edificio, url_pagina))
+    return contexto
+
+
+def q_estadias_del_edificio(edificio):
+    """Las estadías de este edificio: se derivan de la plaza, así que una sin plaza no tiene edificio (Cambio 566)."""
+
+    return Q(plaza__sector__edificio_id=edificio.pk)
+
+
+def estadias_del_edificio(user, dispositivo, edificio, estado, sector, pagina):
+    """La solapa Estadías (Cambio 566): las personas alojadas **de esta institución en este edificio**.
+
+    La estadía no guarda el edificio: se deriva de su plaza (``q_estadias_del_edificio``), el mismo criterio del
+    contador de la solapa, así que una estadía sin plaza no aparece acá (queda en «Personas alojadas» de la
+    institución). Devuelve la página, las píldoras de filtro, si hay filtros activos y lo que el usuario puede hacer
+    sobre **este** edificio (cambiar plaza, egresar, ver a la persona). ``mapa_de_ingreso`` es una función que arma, una
+    sola vez y solo si hace falta, el mapa de plazas libres. Constante en consultas: sectores (1), COUNT y página (2).
+    """
+
+    sectores = list(
+        Sector.objects.filter(dispositivo=dispositivo, edificio_id=edificio.pk, activo=True)
+        .order_by("nombre")
+        .values("pk", "nombre")
+    )
+    estado, sector = normalizar_filtros(estado, sector, {s["pk"] for s in sectores})
+    memo = []
+
+    def mapa_de_ingreso():
+        if not memo:
+            memo.append(plazas_para_ingresar(dispositivo, usuario=user))
+        return memo[0]
+
+    return {
+        "estadias": estadias_del_dispositivo(
+            dispositivo, estado=estado, sector=sector, pagina=pagina, q_alcance=q_estadias_del_edificio(edificio)
+        ),
+        "pildoras": pildoras_de_estadias(estado, sector, sectores),
+        "hay_filtros": bool(estado or sector),
+        "puede_cambiar": puede_operar_edificio(user, dispositivo, edificio.pk, CAP_ADMITIR),
+        "puede_egresar": puede_operar_edificio(user, dispositivo, edificio.pk, CAP_EGRESAR),
+        "puede_ver_ciudadano": puede(user, CAP_VER_CIUDADANO),
+        "mapa_de_ingreso": mapa_de_ingreso,
     }

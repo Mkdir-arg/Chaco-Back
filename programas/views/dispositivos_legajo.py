@@ -10,14 +10,13 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import urlencode
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.archivos import archivos_atomicos
 from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
-from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_dispositivos import (
     AUTO_ID_RELEVAMIENTO,
     AsignarRelevamientoDispositivoForm,
@@ -38,6 +37,12 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     dispositivo_operable_o_404,
 )
 from programas.mixins_dispositivos_equipo import EquipoDelLegajoMixin
+from programas.mixins_dispositivos_estadias import (
+    _estadia_del_dispositivo,
+    contexto_modales_de_estadia,
+    formulario_de_egreso,
+    preparar_filas_de_estadias,
+)
 from programas.mixins_dispositivos_sectores import (
     AUTO_ID_CAMBIO,
     SectoresPlazasMixin,
@@ -49,7 +54,6 @@ from programas.models import (
     Dispositivo,
     Edificio,
     Estadia,
-    MomentoFormulario,
     Plaza,
     ReservaPlaza,
     TipoDispositivo,
@@ -145,7 +149,6 @@ from programas.services.respuestas_dispositivo import (
 )
 from programas.services.sectores_plazas import (
     se_puede_cambiar_plaza,
-    url_modal_egreso,
     url_solapa_estadias,
     url_solapa_sectores,
     url_vuelta_a_sectores,
@@ -461,30 +464,16 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
             None if donde_agregar == set() else (lambda pk: donde_agregar is None or pk in donde_agregar)
         )
         con_plazas = maneja_plazas(dispositivo)
-        for estadia in estadias:
-            estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
-            estadia.persona_del_menu = estadia.persona_visible
-            if not puede_ver_ciudadano:
-                if estadia.plaza_id:
-                    ubicacion = f"{estadia.plaza.sector.nombre} · {estadia.plaza.codigo}"
-                    estadia.persona_del_menu += f" en {ubicacion}"
-                else:
-                    ingreso = timezone.localtime(estadia.fecha_ingreso).strftime("%d/%m/%Y %H:%M")
-                    estadia.persona_del_menu += f" con ingreso {ingreso} · estadía N.º {estadia.pk}"
-            if puede_ver_ciudadano:
-                estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
-            # Con plaza se ofrece «Cambiar plaza»; sin plaza, «Asignar plaza» (solo si el tipo
-            # maneja plazas: si no, no hay a dónde asignar). El mapa se calcula una vez.
-            estadia.asigna_plaza = estadia.plaza_id is None
-            if puede_cambiar and estadia.activa and se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=con_plazas):
-                _, plazas_elegibles = self._mapa_de_ingreso()
-                estadia.url_cambiar = f"{self.request.path}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
-                estadia.motivo_cambiar = "No hay plazas libres en el dispositivo." if not plazas_elegibles else ""
-        if puede_egresar:
-            for estadia in estadias:
-                if estadia.estado == Estadia.Estado.ACTIVA:
-                    estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
-                    estadia.url_modal_egreso = url_modal_egreso(dispositivo.pk, estadia.pk)
+        preparar_filas_de_estadias(
+            estadias,
+            dispositivo=dispositivo,
+            url_base=self.request.path,
+            puede_ver_ciudadano=puede_ver_ciudadano,
+            puede_cambiar=puede_cambiar,
+            puede_egresar=puede_egresar,
+            con_plazas=con_plazas,
+            plazas_elegibles=lambda: self._mapa_de_ingreso()[1],
+        )
 
         url_llegadas = reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk])
         context.update(
@@ -588,43 +577,16 @@ class DispositivoDetailView(EquipoDelLegajoMixin, SectoresPlazasMixin, Dispositi
     def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
         """Un solo modal abierto por URL, sin formularios ni consultas por fila (contrato P21)."""
 
-        for parametro, autorizado in (("cambio", puede_cambiar), ("egreso", puede_egresar)):
-            pedido = self.request.GET.get(parametro, "")
-            if not pedido:
-                continue
-            if not autorizado:
-                raise PermissionDenied
-            # Un id ajeno, inexistente o no ASCII tiene la misma respuesta.
-            estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
-            estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, self.request.user)
-            estadia.persona_visible = (
-                estadia.ciudadano.apellido_nombre if context["puede_ver_ciudadano"] else "Persona alojada"
+        context.update(
+            contexto_modales_de_estadia(
+                self.request,
+                dispositivo,
+                puede_cambiar=puede_cambiar,
+                puede_egresar=puede_egresar,
+                puede_ver_ciudadano=context["puede_ver_ciudadano"],
+                mapa_de_ingreso=lambda: self._mapa_de_ingreso()[0],
             )
-            if not estadia.activa:
-                messages.info(self.request, "La estadía ya está cerrada.")
-                continue
-            if parametro == "cambio":
-                # Sin plaza es «Asignar plaza»: el mismo modal, con el motivo opcional.
-                if not se_puede_cambiar_plaza(estadia, dispositivo, con_plazas=maneja_plazas(dispositivo)):
-                    if estadia.plaza_id is not None:
-                        messages.info(self.request, "No se puede cambiar de plaza: el dispositivo está cerrado.")
-                    continue
-                sectores_ingreso, _ = self._mapa_de_ingreso()
-                form, url = _form_de_cambio_de_plaza(dispositivo, estadia, sectores_ingreso)
-                if not form.hay_plazas_libres:
-                    messages.info(self.request, "No hay plazas libres en el dispositivo.")
-                    continue
-                context["form_cambio"] = form
-                context["url_cambiar_plaza"] = url
-                context["estadia_cambio"] = estadia
-                context["es_asignacion"] = form.asigna
-            else:
-                context["estadia_egreso"] = estadia
-                context["form_egreso"] = EgresoForm(estadia=estadia)
-                context["formulario_egreso"] = formulario_de_egreso(dispositivo)
-                context["url_egresar"] = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
-            context["tab"] = "estadias"
-            break
+        )
 
     def _preparar_modales_de_edificio(self, context, dispositivo, puede_editar):
         """El alta, la edición y la vinculación del edificio de la solapa Infraestructura (P19).
@@ -1092,6 +1054,21 @@ class PlazaVolverAServicioView(_PlazaAccionView):
 VOLVER_A_LA_ESTADIA = "estadia"
 
 
+def siguiente_de_este_sitio(request):
+    """El ``next`` del POST si es de este sitio, o ``""``: el mismo criterio que ``destino_de_vuelta`` del Equipo.
+
+    Lo usan el egreso y el cambio de plaza para volver a la página que abrió el modal (la solapa Estadías de un
+    edificio, Cambio 566). Una URL ajena o armada a mano se descarta y la vista vuelve a donde siempre.
+    """
+
+    siguiente = request.POST.get("next", "")
+    if siguiente and url_has_allowed_host_and_scheme(
+        siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return siguiente
+    return ""
+
+
 def url_volver_a_la_estadia(user, dispositivo, estadia):
     """El detalle de la estadía si quien vuelve puede verlo (`ciudadano.ver`); si no, la solapa Estadías.
 
@@ -1112,14 +1089,6 @@ class DispositivoEstadiasView(LoginRequiredMixin, View):
 
     def get(self, request, pk):
         return redirect(url_solapa_estadias(pk))
-
-
-def formulario_de_egreso(dispositivo, data=None, files=None):
-    """El formulario de «Egreso» que hoy pide el tipo del dispositivo, o ``None`` (sin formulario o dado de
-    baja). Se arma **en el servidor** para la estadía del modal: P7 lo dibuja con la pantalla y P4 con el
-    `?egreso=<id>` que abre ese modal, así que el tipo correcto llega sin un fetch por fila."""
-
-    return formulario_de_momento_para(dispositivo.tipo_id, MomentoFormulario.EGRESO, data, files)
 
 
 #: El 400 de un egreso cuyo formulario del tipo cambió con el modal abierto.
@@ -1223,9 +1192,12 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
 
         El destino lo arma el servidor con `reverse`: el campo es una **clave**, no una URL,
         así que ningún valor que llegue en el POST puede mandar al usuario afuera. Cualquier
-        cosa que no sea `estadia` cae al destino de siempre.
+        cosa que no sea `estadia` cae al destino de siempre. Un `next` de este sitio (la página del edificio) gana a los dos.
         """
 
+        siguiente = siguiente_de_este_sitio(request)
+        if siguiente:
+            return siguiente
         if request.POST.get("volver") == VOLVER_A_LA_ESTADIA:
             return url_volver_a_la_estadia(request.user, dispositivo, estadia)
         return url_solapa_estadias(dispositivo.pk)
@@ -1254,18 +1226,6 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
 # línea de tiempo y las dos acciones que la mueven: cambiar de plaza y egresar.
 #: Movimientos por página en la solapa Movimientos.
 MOVIMIENTOS_POR_PAGINA = 25
-
-
-def _estadia_del_dispositivo(dispositivo, estadia_pk, usuario, capacidad="dispositivo.ver"):
-    """La estadía, solo si es de ese dispositivo y de un edificio alcanzado: un id ajeno da 404 (RN4)."""
-
-    return get_object_or_404(
-        Estadia.objects.select_related(
-            "ciudadano", "dispositivo", "plaza__sector", "motivo", "ingresada_por", "egresada_por"
-        ).filter(q_edificios_en_alcance(usuario, capacidad, "dispositivo_id", "plaza__sector__edificio_id")),
-        pk=estadia_pk,
-        dispositivo=dispositivo,
-    )
 
 
 class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
@@ -1365,7 +1325,10 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         dispositivo = dispositivo_operable_o_404(request, pk, CAP_ADMITIR)
         estadia = _estadia_del_dispositivo(dispositivo, estadia_pk, request.user, CAP_ADMITIR)
         destino = request.POST.get("volver")
-        if destino == "dispositivo":
+        siguiente = siguiente_de_este_sitio(request)
+        if siguiente:
+            volver = siguiente
+        elif destino == "dispositivo":
             volver = url_solapa_estadias(dispositivo.pk)
         elif destino == "sectores":
             volver = url_vuelta_a_sectores(request, dispositivo)

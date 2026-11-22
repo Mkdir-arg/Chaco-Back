@@ -25,7 +25,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
@@ -78,6 +77,7 @@ from programas.services.respuestas import respuestas_legibles, sincronizar_desde
 from programas.services.siis import SiisCatalogError, catalogo_geografico, funciones_programa
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
+from programas.views.ajax_utils import destino_seguro
 from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
 
 logger = logging.getLogger(__name__)
@@ -279,22 +279,12 @@ def _marcar_en_espera_activa(formularios):
 def _next_valido(request):
     """El ``next`` de la request, solo si es una ruta interna de ``/becas/``.
 
-    TIT-9 / DE-3. Se pide lo mismo dos veces a propósito: ``url_has_allowed_host_and_scheme``
-    descarta lo que apunte a otro host o a otro esquema (``//malo.tld/x``,
-    ``javascript:…``) y el prefijo descarta el resto del sistema, así que el volver
-    del caso nunca puede llevar afuera. Cualquier otra cosa devuelve ``""`` y el
+    TIT-9 / DE-3. ``destino_seguro`` descarta lo que apunte a otro host o a otro esquema
+    (``//malo.tld/x``, ``javascript:…``) y el prefijo descarta el resto del sistema, así que el
+    volver del caso nunca puede llevar afuera. Cualquier otra cosa devuelve ``""`` y el
     llamador cae en el destino de siempre.
     """
-    candidato = request.GET.get("next") or ""
-    if not candidato:
-        return ""
-    if not url_has_allowed_host_and_scheme(
-        candidato, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return ""
-    if not candidato.startswith("/becas/"):
-        return ""
-    return candidato
+    return destino_seguro(request, "", desde=("GET",), prefijo="/becas/")
 
 
 def _query_next(request):

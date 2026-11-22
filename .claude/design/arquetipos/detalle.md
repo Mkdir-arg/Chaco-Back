@@ -150,7 +150,8 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   ← → recibe el foco pero no se activa (recorrer la barra no recarga la página); se abre con Enter, Espacio o clic. Lo
   lee `static/custom/js/nodo-tabs.js` (`componentes/tabs.md`). Molde: la solapa «Sectores y plazas» de
   `programas/templates/programas/dispositivos/legajo/detail.html`, cuyo cuerpo es `dispositivos/sectores/_cuerpo.html`,
-  el mismo que dibuja la pantalla suelta de siempre.
+  el mismo que dibuja la pantalla suelta de siempre y la solapa «Sectores y plazas» de la página del edificio
+  (`dispositivos/edificios/operativo.html`, con el edificio fijo y sin el filtro «Edificio»; Cambio 565).
 - Solapa condicionada por permiso: el `{% if %}` envuelve **el botón y el panel**.
 - Solapa inicial validada por el servidor: en P4
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
