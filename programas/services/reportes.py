@@ -32,13 +32,16 @@ class ReportePerezoso:
         return Reporte(self.encabezados, tuple(self.filas))
 
 
-def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None, q=None, localidades_ofrecidas=()):
+def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None, q=None, localidades_ofrecidas):
     """Filtros del padrón institucional.
 
     **Localidad.** Si el valor es una de las que el select ofrece (`localidades_ofrecidas`, las de
     `dispositivos.localidades_visibles`), filtra exacto (sin distinguir mayúsculas): «Corzuela» no trae
     «Corzuela Norte». Si es otra cosa —un enlace viejo con texto libre— sigue como siempre, con
     `icontains`. La regla es esta y la usan el listado y la exportación.
+
+    `localidades_ofrecidas` es obligatorio (sin default): un llamador que lo olvidara filtraría todo con
+    `icontains` sin enterarse.
 
     El filtro por **período** —dispositivos con un ingreso o un egreso dentro del
     rango— se fue con la estadía de la versión 1. Vuelve en el MVP v2 contra `Estadia`,

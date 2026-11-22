@@ -384,7 +384,8 @@ def cancelar_ingreso_por_la_mesa(*, caso, usuario, motivo, derivacion_vista=None
     No hay vencimiento automático: lo decide una persona. ``derivacion_vista`` es la derivación que
     mostró la ficha; si ya no es la vigente, :class:`EstadoCambio` (Cambio 477).
 
-    Candados: caso → derivación → plazas → reservas, el orden global de Emergencia.
+    Candados: caso → derivación y después el de Dispositivos (institución → plaza → reserva / estadía →
+    persona, cuya fuente única es `dispositivos.bloquear_instituciones`): el orden global de Emergencia.
     Devuelve el caso, con ``caso.reservas_liberadas``.
     """
 

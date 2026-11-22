@@ -10,7 +10,8 @@
    Para vaciar los errores de un form desde la pantalla (p. ej. al reabrir un modal):
    window.becasAjax.limpiarErrores(form), que también saca aria-invalid y aria-describedby.
    Contrato JSON: {ok,target,html,message} · {ok,redirect,message} ·
-   400 {ok:false,errors} · 409 {confirm_required,message}.{% endcomment %}
+   400 {ok:false,errors} · 401 {ok:false,message,redirect} (sesión vencida: navega a `redirect`) ·
+   409 {confirm_required,message}.{% endcomment %}
 <script>
 (function () {
   var TEXTO_OCUPADO = 'Guardando…';
@@ -275,6 +276,10 @@
       } else if (r.status === 409 && data.confirm_required) {
         liberar(form);
         confirmarSolapamiento(form, data.message);
+      } else if (r.status === 401 && data.redirect) {
+        // Sesión vencida: se va al login (la vista manda la URL) en vez de un error genérico.
+        navegando = true;
+        window.location.href = data.redirect;
       } else if (r.status === 403) {
         aviso('error', data.message || 'No tiene permisos para realizar esta acción.');
       } else if (r.status === 404) {

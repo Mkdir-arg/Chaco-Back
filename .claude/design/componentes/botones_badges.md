@@ -44,6 +44,18 @@ Siempre **`btn-nodo` + variante + tamaño**.
   propia regla `[hidden]` porque la carga la inscripción pública (el portal no carga `utils.css`); las demás son
   redundantes en el backoffice.
 
+### Patrón: botón por defecto oculto (form con varios submit)
+
+Un formulario con un submit secundario con `name` (por ejemplo «Elegir cama», que guarda un borrador y
+sigue a otra pantalla) necesita que **Enter** dispare el envío principal, no el primero del DOM. Se lo
+resuelve con un `<button type="submit" class="hidden"></button>` sin `name` como **primer submit del
+form** (`programas/templates/programas/emergencia/dispositivo/ficha.html`): el navegador lo usa como envío por defecto.
+
+- Va solo cuando hay un submit secundario con `name`; un form con un único submit no lo lleva.
+- El secundario lleva `formnovalidate` si tiene que guardar aunque falten obligatorios (el servidor
+  decide qué se valida: acá solo se guarda el borrador).
+- Es invisible para el sistema de diseño: no cuenta como botón nuevo, no recibe `btn-nodo` ni variante.
+
 ### Variante `btn-fit` (sin ancho mínimo)
 
 `btn-nodo btn-secondary btn-sm btn-fit`: anula **solo** el `min-width` del tamaño (`btn-xs` 128 px …

@@ -66,7 +66,6 @@ SIN_MIGRACION_RE = re.compile(r"no\s+(requiere|aplica)|^no$|sin\s+migraci", re.I
 # final no sirve: después de los cuatro dígitos viene un `_`, que es carácter de palabra,
 # así que `programas.0075_enviosiis_vigente` no coincidía y la regla no corría nunca.
 MIGRACION_RE = re.compile(r"\b([a-z][a-z_]*)\.(\d{4})(?:_\w+)?")
-CAMPO_MIGRACION_RE = re.compile(r"^\|\s*\*\*Migración\*\*\s*\|(?P<valor>.*)\|\s*$")
 
 
 @dataclass
@@ -131,6 +130,22 @@ def _ficha(lineas: list[str]) -> dict[str, str]:
     return campos
 
 
+def _estado(lineas: list[str], desde: int) -> str:
+    """El estado de una entrada: la primera línea con semáforo entre las 4 que siguen a `desde` (índice 0)."""
+    for linea in lineas[desde : desde + 4]:
+        if any(s in linea for s in SEMAFOROS):
+            return _limpiar(linea)
+    return ""
+
+
+def _es_subpedido(lineas: list[str], i: int) -> re.Match[str] | None:
+    """El match de `## N.M Título` si `lineas[i]` es un sub-pedido: lleva su semáforo en las 3 líneas siguientes."""
+    coincidencia = SUBENTRADA_RE.match(lineas[i])
+    if coincidencia and any(s in linea for linea in lineas[i + 1 : i + 4] for s in SEMAFOROS):
+        return coincidencia
+    return None
+
+
 def _archivos_de_la_carpeta(carpeta: Path) -> list[Path]:
     """Los `.md` de la carpeta: primero los de nombre válido por número, después los inválidos."""
 
@@ -173,10 +188,7 @@ def _leer_carpeta(carpeta: Path, lineas: list[str], filas: list[Fila], entradas:
             archivo=archivo,
             offset=desde - 1,
         )
-        for linea in propias[1:5]:
-            if any(s in linea for s in SEMAFOROS):
-                entrada.estado = _limpiar(linea)
-                break
+        entrada.estado = _estado(propias, 1)
         entradas.append(entrada)
 
         ficha = _ficha(propias)
@@ -263,12 +275,7 @@ def leer_documento(
             continue
         coincidencia = ENTRADA_RE.match(linea)
         if not coincidencia:
-            subentrada = SUBENTRADA_RE.match(linea)
-            siguientes = lineas[numero_linea : numero_linea + 3]
-            if subentrada and any(
-                semaforo in linea_siguiente for linea_siguiente in siguientes for semaforo in SEMAFOROS
-            ):
-                coincidencia = subentrada
+            coincidencia = _es_subpedido(lineas, numero_linea - 1)
         if coincidencia:
             if entradas:
                 entradas[-1].linea_hasta = numero_linea - 1
@@ -288,10 +295,7 @@ def leer_documento(
 
     # El estado de cada entrada es su primera línea con semáforo.
     for entrada in entradas:
-        for linea in lineas[entrada.linea_desde : min(entrada.linea_desde + 4, len(lineas))]:
-            if any(s in linea for s in ("🟢", "🟡", "🔴", "⚪")):
-                entrada.estado = _limpiar(linea)
-                break
+        entrada.estado = _estado(lineas, entrada.linea_desde)
 
     if carpeta is not None and carpeta.is_dir():
         _leer_carpeta(carpeta, lineas, filas, entradas)
@@ -382,11 +386,7 @@ def _secciones(lineas: list[str], entrada: Entrada) -> dict[str, list[str]]:
 
 def _migracion_declarada(lineas: list[str], entrada: Entrada) -> str | None:
     """El valor de la fila `| **Migración** | … |` de la ficha de la entrada."""
-    for linea in lineas[entrada.linea_desde - 1 : entrada.linea_hasta]:
-        coincidencia = CAMPO_MIGRACION_RE.match(linea)
-        if coincidencia:
-            return coincidencia.group("valor").strip()
-    return None
+    return _ficha(lineas[entrada.linea_desde - 1 : entrada.linea_hasta]).get("Migración")
 
 
 def problemas_de_reversion(lineas: list[str], entradas: list[Entrada]) -> list[str]:
@@ -464,10 +464,8 @@ def _subpedidos_dentro(lineas: list[str], entrada: Entrada) -> list[str]:
         if linea.startswith("```"):
             en_bloque = not en_bloque
             continue
-        coincidencia = SUBENTRADA_RE.match(linea)
-        if en_bloque or not coincidencia:
-            continue
-        if any(s in siguiente for siguiente in rango[posicion + 1 : posicion + 4] for s in SEMAFOROS):
+        coincidencia = _es_subpedido(rango, posicion)
+        if not en_bloque and coincidencia:
             encontrados.append(coincidencia.group(1))
     return encontrados
 

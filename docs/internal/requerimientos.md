@@ -62792,14 +62792,30 @@ Adherir al inventario sin cambiar comportamiento: mismas URL, formularios, permi
 - Los errores del 400 ahora también cuelgan de `aria-describedby` (lo hace `_ajax_js.html`), y el 404 y la red tienen su aviso estándar.
 - Detalle conocido: el cierre por `becas-saved` cierra el modal que esté abierto al llegar la respuesta; antes se comprobaba además que fuera el mismo form. Con un solo modal y el botón deshabilitado durante el envío no se puede reproducir salvo cerrando y reabriendo mientras se guarda.
 
+## Implementación
+- El modal «Editar tipo» de `tipo_detail.html` se arma igual que antes (llega del servidor por `GET` AJAX y se monta en `#dispositivos-modal-root`), pero su formulario `data-ajax` lo guarda ahora el script estándar `_ajax_js.html`: errores bajo cada campo, aviso único, confirmaciones y reemplazo del bloque actualizado, sin un `submit` propio.
+- Al guardar bien, el evento `becas-saved` cierra el modal y la pantalla vuelve a mostrar el detalle del tipo con lo guardado; si el modal ya no está, no hace nada.
+- Ninguna URL, permiso, campo ni texto de la pantalla cambia.
+
 ## Archivos
 `programas/templates/programas/dispositivos/config/tipo_detail.html`, `programas/tests/test_dispositivos_config.py` (test nuevo), `scripts/design_audit.py` (comentario), `.claude/design/arquetipos/modal.md`.
 
+## Base de datos
+Ninguna: no hay modelos ni migraciones.
+
 ## Validación
 Tests de configuración y formularios del tipo; mutaciones: sin el listener `becas-saved` y con `_confirm_js.html` en lugar de `_ajax_js.html`, el test nuevo da rojo.
+
+## Puesta en marcha en el servidor
+No requiere: es plantilla y JS del backoffice, sin variables ni comandos manuales. El CSS de Tailwind no cambia.
+
+## Pendientes / a definir
+- El detalle conocido de «Decisiones tomadas» (el cierre por `becas-saved` ya no comprueba que sea el mismo formulario) se corrige en el Cambio 550.
+- Nada más abierto.
 
 ## Reversión
 Desplegar el código anterior.
 
 ## Historial
 - **22/11/2026:** alta del cambio.
+- **22/11/2026 (Cambio 550):** se completaron las secciones de la plantilla que faltaban (Implementación, Base de datos, Puesta en marcha en el servidor y Pendientes). El «detalle conocido» sobre el cierre por `becas-saved` quedó resuelto: el modal se cierra solo si el formulario enviado sigue montado.

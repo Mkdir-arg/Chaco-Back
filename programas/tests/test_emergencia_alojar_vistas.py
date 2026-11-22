@@ -525,6 +525,21 @@ class IntegrantesTests(BaseLlegadas):
         persona = IntegranteGrupo.objects.get(grupo=caso.grupo, orden=orden)
         return _clave_borrador_ficha(self.club.pk, caso.pk, persona.pk)
 
+    def test_elegir_cama_no_valida_en_el_navegador_y_no_es_el_envio_por_defecto(self):
+        """«Elegir cama» guarda el borrador aunque falten obligatorios: lleva `formnovalidate`.
+
+        Y el primer submit del formulario es el oculto y sin nombre, así que Enter confirma la persona
+        y nunca abre el mapa por accidente.
+        """
+        respuesta = self.client.get(self._url("ficha", self.caso.pk, 2))
+
+        formulario = re.search(r"<form method=\"post\" class=\"bg-white.*?</form>", respuesta.content.decode(), re.S)
+        botones = re.findall(r"<button[^>]*type=\"submit\"[^>]*>", formulario.group(0))
+        self.assertIn('class="hidden"', botones[0])
+        self.assertNotIn("elegir_cama", botones[0])
+        elegir = next(boton for boton in botones if 'name="elegir_cama"' in boton)
+        self.assertIn("formnovalidate", elegir)
+
     def test_elegir_cama_guarda_lo_escrito_como_borrador_sin_validar_ni_tocar_la_base(self):
         url = self._url("ficha", self.caso.pk, 2)
         libre = self._cama_libre()

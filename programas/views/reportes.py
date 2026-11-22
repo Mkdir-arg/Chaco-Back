@@ -28,6 +28,8 @@ class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
     capacidad_requerida = "dispositivo.ver"
 
     def get(self, request, reporte, formato):
+        # `localidades_visibles` suma 1 consulta a la exportación (las localidades que el select ofrece):
+        # es el precio de que listado y exportación apliquen la misma regla de localidad.
         dispositivos = filtrar_dispositivos(
             dispositivos_visibles(request.user),
             tipo=request.GET.get("tipo"),
