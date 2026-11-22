@@ -206,6 +206,20 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         context["tipos"] = TipoDispositivo.objects.filter(activo=True).order_by("nombre")
         context["tipo_actual"] = filtros["tipo"]
         context["localidad_actual"] = filtros["localidad"]
+        # El select ofrece las localidades que existen **dentro del alcance** de quien mira, no las de
+        # todo el padrón. El filtro sigue siendo el de siempre (`localidad__icontains`): lo que cambia es
+        # solo el control. Un valor que viene en la URL y ya no figura (una búsqueda vieja) se ofrece
+        # igual, así el select no esconde el filtro que está aplicado.
+        localidades = list(
+            dispositivos_visibles(self.request.user)
+            .exclude(localidad="")
+            .order_by("localidad")
+            .values_list("localidad", flat=True)
+            .distinct()
+        )
+        if filtros["localidad"] and filtros["localidad"] not in localidades:
+            localidades.insert(0, filtros["localidad"])
+        context["localidades"] = localidades
         context["q_actual"] = filtros["q"]
         # El alta exige la capacidad **y** el alcance de admin del programa, igual que la
         # vista de alta (`DispositivoAltaPermissionMixin`): una institución nueva no tiene
@@ -222,6 +236,9 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         # La exportación lleva los filtros y **no** la página: exporta el padrón filtrado
         # entero, no los 25 que se están mirando.
         context["exportar_qs"] = urlencode({clave: valor for clave, valor in filtros.items() if valor})
+        sufijo_qs = f"?{context['exportar_qs']}" if context["exportar_qs"] else ""
+        context["url_exportar_csv"] = reverse("dispositivos:exportar", args=["padron", "csv"]) + sufijo_qs
+        context["url_exportar_xlsx"] = reverse("dispositivos:exportar", args=["padron", "xlsx"]) + sufijo_qs
         # Semáforo edilicio y plazas de **la página**, cada uno en tres consultas fijas y
         # no una por fila. Texto, tono y nivel los deciden los servicios; el template solo
         # dibuja el badge.

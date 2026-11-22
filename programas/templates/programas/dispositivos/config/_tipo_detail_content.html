@@ -12,7 +12,7 @@
       {% endif %}
       <a href="{% url 'dispositivos:tipo_editar' tipo.pk %}"
          class="btn-nodo btn-secondary btn-sm btn-fit"
-         data-edit-url="{% url 'dispositivos:tipo_editar' tipo.pk %}">Editar tipo</a>
+         data-edit-url="{% url 'dispositivos:tipo_editar' tipo.pk %}"><i class="fas fa-pen" aria-hidden="true"></i> Editar tipo</a>
       <button type="button"
               class="btn-nodo {% if tipo.activo %}btn-tertiary{% else %}btn-secondary{% endif %} btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:tipo_toggle' tipo.pk %}"
