@@ -1,8 +1,8 @@
 """Lo que una institución o un sector tiene con gente adentro o por llegar (Cambio 536).
 
-Lee y cuenta, no decide: quien decide qué se rechaza es `services/dispositivos.py` (cerrar e
-inactivar) y `services/plazas.py` (mover un sector de edificio). Cada función hace un número
-fijo de consultas, sin importar cuántas plazas haya.
+Lee y cuenta, no decide: quien decide qué se rechaza es `services/estado_institucion.py` (cerrar e
+inactivar). El conteo de un sector (mudarlo de edificio) está junto al de la baja, en
+`capacidad_dispositivo.py`. Cada función hace un número fijo de consultas, sin importar cuántas plazas haya.
 
 «Reservas» son las `ReservaPlaza` **abiertas** —vencidas o no, mientras nadie las libere—:
 una reserva vencida sin liberar sigue colgada de la plaza, y por eso cuenta.
@@ -26,16 +26,13 @@ class CompromisosDeLaInstitucion(NamedTuple):
         return self.reservas_comunes + self.reservas_de_derivacion
 
 
-class CompromisosDelSector(NamedTuple):
-    alojadas: int
-    reservas: int
-
-
 def compromisos_de_la_institucion(dispositivo):
-    """Estadías abiertas, reservas abiertas (comunes y de derivación) y derivaciones de Emergencia vigentes.
+    """Estadías abiertas, reservas abiertas (comunes y de derivación) y derivaciones de Emergencia en curso.
 
-    Tres consultas. Las derivaciones vigentes son las pendientes y las aceptadas: una aceptada
-    es la que está esperando a la familia o la que tiene el ingreso a medias.
+    Tres consultas. «En curso» es `Derivacion.objects.en_curso()`: pendiente o aceptada **con el caso
+    todavía derivado o con el ingreso abierto**. La derivación aceptada no cambia de estado al alojar
+    ni al egresar, así que sola no dice nada: una familia que ya pasó (caso alojado o cerrado) no frena
+    nada, y la que está alojada la cuentan las estadías.
     """
 
     alojadas = Estadia.objects.activas().filter(dispositivo=dispositivo).count()
@@ -47,7 +44,7 @@ def compromisos_de_la_institucion(dispositivo):
             de_derivacion=Count("pk", filter=Q(derivacion__isnull=False)),
         )
     )
-    derivaciones = Derivacion.objects.filter(dispositivo=dispositivo, estado__in=Derivacion.ESTADOS_VIGENTES).count()
+    derivaciones = Derivacion.objects.en_curso().filter(dispositivo=dispositivo).count()
     return CompromisosDeLaInstitucion(
         alojadas=alojadas,
         reservas_comunes=reservas["comunes"],
@@ -64,13 +61,4 @@ def reservas_comunes_abiertas(dispositivo):
         .filter(plaza__sector__dispositivo=dispositivo, derivacion__isnull=True)
         .select_related("plaza__sector")
         .order_by("plaza_id", "pk")
-    )
-
-
-def compromisos_del_sector(sector):
-    """Personas alojadas y reservas abiertas en las plazas del sector (dos consultas)."""
-
-    return CompromisosDelSector(
-        alojadas=Estadia.objects.activas().filter(plaza__sector=sector).count(),
-        reservas=ReservaPlaza.objects.abiertas().filter(plaza__sector=sector).count(),
     )

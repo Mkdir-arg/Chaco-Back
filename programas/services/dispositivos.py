@@ -749,7 +749,7 @@ def exigir_institucion_en_estado(dispositivo, estados, accion):
     actual = Dispositivo.objects.filter(pk=dispositivo.pk).values_list("estado", flat=True).first()
     if actual not in estados:
         etiqueta = dict(Dispositivo.Estado.choices).get(actual, "inexistente").lower()
-        raise ValidationError({"dispositivo": f"No se puede {accion}: la institución está {etiqueta}."})
+        raise ValidationError({"dispositivo": f"No se puede {accion}: el dispositivo está {etiqueta}."})
 
 
 def estados_que_reservan():

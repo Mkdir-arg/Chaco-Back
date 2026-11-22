@@ -33,7 +33,8 @@ Disponible                             reservar, prestar    ``dispositivo.admiti
 
 De la plaza disponible se ofrece cada opción a quien puede ejercerla: reservar y prestar
 (revierten lo que dejaron fuera los Cambios 287, 291 y 325) piden `admitir`, y sacar de
-servicio pide `editar`. Reservar y prestar buscan a la persona por DNI en el padrón, así que
+servicio pide `editar`. Reservar y prestar exigen además `estados_que_reservan()` y reubicar `estados_que_cambian_de_plaza()`
+    (Cambio 536); `estado_dispositivo` es el `Dispositivo.estado` de la institución. Reservar y prestar buscan a la persona por DNI en el padrón, así que
 piden además `ciudadano.ver`, como el asistente de ingreso. La plaza ocupada se reubica con el
 formulario del cambio de plaza, que necesita la estadía y el mapa de plazas libres: cargarlos
 por plaza pasaría el presupuesto del mapa, así que ese modal se pide **al tocar la celda**
@@ -72,7 +73,12 @@ from django.utils import timezone
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
 from programas.selectors.capacidad_dispositivo import nombre_de_edificio
-from programas.services.dispositivos import CAP_VER, q_edificios_en_alcance
+from programas.services.dispositivos import (
+    CAP_VER,
+    estados_que_cambian_de_plaza,
+    estados_que_reservan,
+    q_edificios_en_alcance,
+)
 from programas.services.estadias import reserva_abierta_de
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import (
@@ -125,8 +131,7 @@ def acciones_de_plaza(
     puede_editar=False,
     puede_buscar_personas=False,
     puede_egresar=False,
-    dispositivo_activo=False,
-    dispositivo_cerrado=False,
+    estado_dispositivo=None,
 ):
     """Las acciones que admite una plaza y que quien mira puede ejercer, en el orden del modal.
 
@@ -138,16 +143,17 @@ def acciones_de_plaza(
     (`egresar`) y «sacar de servicio» (`editar`), esta última siempre bloqueada con su motivo. La disponible ofrece reservar y prestar (`admitir`) y sacar de
     servicio (`editar`), y además ingresar a una persona en ella, que abre el asistente de ingreso con la
     plaza marcada: pide lo mismo que el asistente (`admitir` + `ciudadano.ver`) y un dispositivo activo
-    (`dispositivo_activo`), porque el asistente rechaza los demás. Reservar y prestar buscan a la persona por DNI en el padrón, así que
+    (`estado_dispositivo`), porque el asistente rechaza los demás. Reservar y prestar buscan a la persona por DNI en el padrón, así que
     piden además `ciudadano.ver` (`puede_buscar_personas`), como el asistente de ingreso. Lista vacía: la plaza no es accionable para este usuario.
     """
 
+    puede_reubicar = estado_dispositivo is None or estado_dispositivo in estados_que_cambian_de_plaza()
     if estado.estado == ESTADO_FUERA_SERVICIO:
         return [ACCION_VOLVER] if puede_editar else []
     if con_reserva_abierta:
         return [ACCION_LIBERAR] if puede_admitir else []
     if estado.estado == ESTADO_OCUPADA:
-        acciones = [ACCION_REUBICAR] if puede_admitir and not dispositivo_cerrado else []
+        acciones = [ACCION_REUBICAR] if puede_admitir and puede_reubicar else []
         if puede_buscar_personas:
             acciones += [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO]
         if puede_egresar:
@@ -157,8 +163,9 @@ def acciones_de_plaza(
         return acciones
     acciones = []
     if puede_admitir and puede_buscar_personas:
-        if dispositivo_activo:
+        if estado_dispositivo == Dispositivo.Estado.ACTIVO:
             acciones.append(ACCION_INGRESAR)
+        if estado_dispositivo in estados_que_reservan():
             acciones += [ACCION_RESERVAR, ACCION_PRESTAR]
     if puede_editar:
         acciones.append(ACCION_FUERA_SERVICIO)
@@ -281,8 +288,7 @@ def plaza_para_accion(
         puede_editar=puede_configurar_plazas,
         puede_buscar_personas=puede_ver_personas,
         puede_egresar=puede_egresar,
-        dispositivo_activo=dispositivo.estado == Dispositivo.Estado.ACTIVO,
-        dispositivo_cerrado=dispositivo.estado == Dispositivo.Estado.CERRADO,
+        estado_dispositivo=dispositivo.estado,
     )
     if not acciones:
         return None
@@ -448,8 +454,6 @@ def sectores_con_plazas(
 
     armados = []
     plazas_modal = {}
-    activo = dispositivo.estado == Dispositivo.Estado.ACTIVO
-    cerrado = dispositivo.estado == Dispositivo.Estado.CERRADO
     for item in ocupacion.sectores:
         sector = sectores[item.sector_id]
         plazas = por_sector.get(item.sector_id, [])
@@ -463,8 +467,7 @@ def sectores_con_plazas(
                 puede_editar=puede_configurar_plazas,
                 puede_buscar_personas=puede_ver_personas,
                 puede_egresar=puede_egresar,
-                dispositivo_activo=activo,
-                dispositivo_cerrado=cerrado,
+                estado_dispositivo=dispositivo.estado,
             )
             url = f"?plaza={plaza.pk}" if acciones else ""
             click = ""

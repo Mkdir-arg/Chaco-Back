@@ -37,7 +37,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
-from programas.selectors.capacidad_dispositivo import codigos_del_sector, plazas_tomadas_del_sector
+from programas.selectors.capacidad_dispositivo import (
+    codigos_del_sector,
+    compromisos_del_sector,
+    plazas_tomadas_del_sector,
+)
+from programas.services.bitacora_detalle import plural
 from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_edificio
 from programas.services.estadias import _plaza_tomada_por, reserva_abierta_de
 from programas.services.nombre_plaza import plaza_con_sector
@@ -295,24 +300,16 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil=""
 def _exigir_sector_sin_gente_para_mudarlo(sector):
     """Un sector con gente adentro o plazas reservadas no se muda de edificio (Cambio 536).
 
-    Pasar de «sin edificio» a uno sí se permite: no saca a nadie de ningún lado. Se llama con
-    el sector y sus plazas ya bloqueados por quien edita.
+    Se llama con las plazas del sector ya bloqueadas por `editar_sector`, que es quien las bloquea.
     """
-    from programas.selectors.compromisos_institucion import compromisos_del_sector
 
-    # El mismo bloqueo que el ingreso y la reserva toman: nadie ocupa una plaza entre la cuenta y el guardado.
-    list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
     c = compromisos_del_sector(sector)
     if c.alojadas or c.reservas:
         partes = []
         if c.alojadas:
-            partes.append(
-                f"{c.alojadas} persona{'s' if c.alojadas != 1 else ''} alojada{'s' if c.alojadas != 1 else ''}"
-            )
+            partes.append(plural(c.alojadas, "persona alojada", "personas alojadas"))
         if c.reservas:
-            partes.append(
-                f"{c.reservas} reserva{'s' if c.reservas != 1 else ''} vigente{'s' if c.reservas != 1 else ''}"
-            )
+            partes.append(plural(c.reservas, "reserva vigente", "reservas vigentes"))
         raise ValidationError(
             {
                 "edificio": "No se puede cambiar el sector de edificio: tiene "
@@ -373,17 +370,19 @@ def editar_sector(
         _exigir_edificio_del_dispositivo(dispositivo, edificio)
 
     daba_de_baja = sector.activo and not activo
-    if daba_de_baja:
-        list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
-        tomadas = plazas_tomadas_del_sector(sector)
-        if tomadas:
-            raise ValidationError(
-                {"activo": SECTOR_CON_PLAZAS_TOMADAS.format(cuantas=tomadas, plural="s" if tomadas > 1 else "")}
-            )
-
     cambio_edificio = (edificio.pk if edificio else None) != sector.edificio_id
-    if cambio_edificio and sector.edificio_id is not None:
-        _exigir_sector_sin_gente_para_mudarlo(sector)
+    muda_de_edificio = cambio_edificio and sector.edificio_id is not None
+    if daba_de_baja or muda_de_edificio:
+        # Un solo bloqueo para las dos reglas. Si da de baja y la cuenta sale en cero, la mudanza tampoco choca.
+        list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
+        if daba_de_baja:
+            tomadas = plazas_tomadas_del_sector(sector)
+            if tomadas:
+                raise ValidationError(
+                    {"activo": SECTOR_CON_PLAZAS_TOMADAS.format(cuantas=tomadas, plural="s" if tomadas > 1 else "")}
+                )
+        else:
+            _exigir_sector_sin_gente_para_mudarlo(sector)
     sector.edificio = edificio
     sector.nombre = nombre
     sector.tipo = tipo

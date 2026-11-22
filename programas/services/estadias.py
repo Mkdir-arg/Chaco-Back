@@ -934,9 +934,11 @@ def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
 def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
     """Suelta una reserva o un préstamo antes de su vencimiento.
 
-    `verificar_alcance=False` es solo para el ingreso, que cierra las reservas de la persona
-    en **otros** dispositivos donde quien ingresa puede no tener alcance: no es una decisión
-    del operador sobre esa plaza sino la consecuencia de que la persona ya está adentro.
+    `verificar_alcance=False` es para los dos casos en que la liberación no es una decisión del
+    operador sobre esa plaza sino la consecuencia de otro hecho: el ingreso, que cierra las
+    reservas de la persona en **otros** dispositivos donde quien ingresa puede no tener alcance,
+    e inactivar la institución (`estado_institucion`), que suelta las reservas comunes de su
+    propio dispositivo y ya autorizó con `dispositivo.editar`.
     """
 
     dispositivo = reserva.plaza.sector.dispositivo

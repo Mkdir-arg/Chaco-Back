@@ -160,13 +160,12 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
 
     de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     derivacion = (
-        Derivacion.objects.filter(
+        Derivacion.objects.en_curso()
+        .filter(
             de_la_persona,
             # La guarda de RU-9: solo lo derivado a **este** dispositivo. Es la única línea
             # que separa a la guardia de A de la familia que va a B.
             dispositivo=dispositivo,
-            estado__in=Derivacion.ESTADOS_VIGENTES,
-            caso__estado__in=(Estado.DERIVADO, Estado.INGRESO_EN_CURSO),
         )
         # Con alcance Edificios, solo lo derivado a uno de sus edificios: la de otro es «sin derivación».
         .filter(q_edificios_en_alcance(usuario, CAP_ADMITIR, "dispositivo_id", "edificio_id"))

@@ -89,6 +89,7 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
+    estados_que_cambian_de_plaza,
     observar_dispositivo,
     puede_configurar_dispositivos,
     puede_editar_legajo,
@@ -468,7 +469,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             # Con plaza se ofrece «Cambiar plaza»; sin plaza, «Asignar plaza» (solo si el tipo
             # maneja plazas: si no, no hay a dónde asignar). El mapa se calcula una vez.
             estadia.asigna_plaza = estadia.plaza_id is None
-            if puede_cambiar and estadia.activa and (not estadia.asigna_plaza or con_plazas):
+            if (
+                puede_cambiar
+                and estadia.activa
+                and (not estadia.asigna_plaza or con_plazas)
+                and (estadia.asigna_plaza or dispositivo.estado in estados_que_cambian_de_plaza())
+            ):
                 _, plazas_elegibles = self._mapa_de_ingreso()
                 estadia.url_cambiar = f"{self.request.path}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
                 estadia.motivo_cambiar = "No hay plazas libres en el dispositivo." if not plazas_elegibles else ""
@@ -615,6 +621,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             if parametro == "cambio":
                 # Sin plaza es «Asignar plaza»: el mismo modal, con el motivo opcional.
                 if estadia.plaza_id is None and not maneja_plazas(dispositivo):
+                    continue
+                if estadia.plaza_id is not None and dispositivo.estado not in estados_que_cambian_de_plaza():
+                    messages.info(self.request, "No se puede cambiar de plaza: el dispositivo está cerrado.")
                     continue
                 sectores_ingreso, _ = self._mapa_de_ingreso()
                 form, url = _form_de_cambio_de_plaza(dispositivo, estadia, sectores_ingreso)
@@ -1681,6 +1690,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         context["puede_cambiar_plaza"] = (
             abierta
             and (estadia.plaza_id is not None or maneja_plazas(dispositivo))
+            and (estadia.plaza_id is None or dispositivo.estado in estados_que_cambian_de_plaza())
             and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
         )
         context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)

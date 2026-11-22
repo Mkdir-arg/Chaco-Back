@@ -61852,38 +61852,52 @@ Antes de diseñar se consultó el archivo vivo por `dispositivos`, `inactiv` y `
 fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; eso no cambia).
 
 ## Decisiones tomadas
-- **Cerrar** se rechaza siempre que haya estadías abiertas, reservas abiertas (comunes o de derivación) o derivaciones de Emergencia
-  vigentes (`PENDIENTE` o `ACEPTADA`, que es la que espera a la familia o tiene el ingreso a medias). El mensaje dice las cifras:
-  «No se puede cerrar: hay 3 personas alojadas y 2 reservas vigentes…». Una reserva vencida que nadie liberó sigue contando.
-- **Inactivar** se rechaza con estadías abiertas, derivaciones vigentes o reservas de derivación; las reservas comunes (y los
+- **Cerrar** (el botón y el modal «Cerrar») se rechaza siempre que haya estadías abiertas, reservas abiertas (comunes o de derivación)
+  o derivaciones de Emergencia en curso. «En curso» no es el estado de la derivación: una `ACEPTADA` queda aceptada para siempre,
+  también después de alojar o egresar. Lo que lo dice es el caso: `DERIVADO` (espera a la familia) o `INGRESO_EN_CURSO` (ingreso a
+  medias). Se cuenta con `Derivacion.objects.en_curso()` (`PENDIENTE`/`ACEPTADA` con el caso en esos dos estados), la misma regla que
+  ya usaban la bandeja de recepción y el ingreso. El mensaje dice las cifras: «No se puede cerrar: hay 3 personas alojadas y 2
+  reservas vigentes…». Una reserva vencida que nadie liberó sigue contando.
+- **Inactivar** se rechaza con estadías abiertas, derivaciones en curso o reservas de derivación; las reservas comunes (y los
   préstamos) se liberan con el motivo «Se inactivó la institución», quedan en la traza («N reservas liberadas») y el aviso de la
   vista dice cuántas se soltaron. Las reservas de derivación se tratan como la derivación: no se liberan por detrás de Emergencia.
 - **Reservar y prestar** exigen institución `ACTIVA`; **cambiar de plaza** se permite en `INACTIVA` y se rechaza en `CERRADA`. Una
-  sola regla, `dispositivos.exigir_institucion_en_estado`, que lee el estado fresco de la base; la comparten `reservar_plaza` y
-  `cambiar_plaza`. El mapa de plazas deja de ofrecer «Reservar» y «Prestar» fuera de activa y «Reubicar» en cerrada.
+  sola regla, `dispositivos.exigir_institucion_en_estado`, que lee el estado fresco de la base («No se puede reservar: el dispositivo
+  está inactivo.»); la comparten `reservar_plaza` y `cambiar_plaza`, y la misma lista de estados (`estados_que_reservan`,
+  `estados_que_cambian_de_plaza`) decide qué ofrecen el mapa de plazas («Reservar», «Prestar», «Reubicar») y la pantalla de la
+  estadía («Cambiar plaza»).
 - **Mudar un sector de edificio** se rechaza si tiene estadías abiertas o reservas abiertas (con las plazas bloqueadas, el mismo
-  candado que el ingreso); pasar de «sin edificio» a un edificio se permite siempre.
+  candado que el ingreso; la baja y la mudanza comparten un solo bloqueo y una sola cuenta); pasar de «sin edificio» a un edificio se
+  permite siempre.
 - **Lo que no cambia:** el ingreso por derivación de Emergencia (`reservar_plazas_de_derivacion`) no pasa por `reservar_plaza` y
   sigue andando contra una institución activa; `asignar_plaza` (la persona alojada «sin plaza») no se tocó.
-- **Conteo en un selector** (`selectors/compromisos_institucion.py`): tres consultas para la institución y dos para el sector, sin
-  importar cuántas plazas haya.
+- **Conteo en un selector**: `selectors/compromisos_institucion.py` (tres consultas para la institución) y
+  `selectors/capacidad_dispositivo.py` (`compromisos_del_sector`, dos consultas, junto a `plazas_tomadas_del_sector`), sin importar
+  cuántas plazas haya.
 
 ## Pendientes
-- El estado de la institución se lee sin bloquear su fila en `reservar_plaza` y `cambiar_plaza`: una reserva que entre en el mismo
-  instante que otro operador inactiva puede escaparse a la cuenta. Bloquear la institución en cada ingreso serializaría toda su
-  operación; no se hizo.
+- **Carrera de reservar/ingresar contra cerrar.** El estado de la institución se lee sin bloquear su fila en `reservar_plaza` y
+  `cambiar_plaza` (y en el ingreso): una reserva o un ingreso que entre en el mismo instante que otro operador cierra puede dejar una
+  institución cerrada con una reserva o una estadía vivas.
+- **Inversión del orden de bloqueos.** Inactivar toma institución → plaza → reserva; el ingreso que consume una reserva toma plaza →
+  reserva → institución (por la FK). Si coinciden, el motor puede cortar una de las dos con `ERROR 1213` (deadlock).
+- **Arreglo propuesto, en un PR aparte:** leer el estado con un bloqueo compartido (`select_for_update(of=…)`/`LOCK IN SHARE MODE`) de
+  la fila de la institución antes de bloquear la plaza. Cierra la carrera y fija un solo orden, sin serializar los ingresos entre sí.
 - `asignar_plaza` en una institución cerrada o inactiva sigue permitido; no estaba en el relevamiento.
 
 ## Implementación
-`programas/selectors/compromisos_institucion.py` (nuevo), `programas/services/dispositivos.py` (`_transicionar` con
+`programas/models/__init__.py` (`Derivacion.objects.en_curso()`, reusado por `views/emergencia_dispositivo.py` y
+`services/emergencia_recepcion.py` sin cambiar su comportamiento), `programas/selectors/compromisos_institucion.py` (nuevo),
+`programas/selectors/capacidad_dispositivo.py` (`compromisos_del_sector`), `programas/services/dispositivos.py` (`_transicionar` con
 `antes_de_cambiar`, `exigir_institucion_en_estado`), `programas/services/estado_institucion.py` (nuevo: cerrar e inactivar, aparte para no cerrar un ciclo de imports con `estadias`), `programas/services/estadias.py` (`reservar_plaza`,
 `cambiar_plaza`), `programas/services/plazas.py` (`editar_sector`), `programas/services/sectores_plazas.py` (acciones del mapa),
 `programas/views/dispositivos_legajo.py` (aviso de reservas liberadas) y el texto del modal de «Inactivar».
 
 ## Archivos
-Los de arriba y `programas/tests/test_dispositivos_estados_536.py` (nuevo, 25 tests). Verificado por mutación: sacar el control de
-cierre, de inactivar (estadías, derivaciones), la liberación de reservas, la regla de estados de reservar y de cambiar de plaza, el
-bloqueo del sector y su excepción «sin edificio», y acotar las derivaciones a las aceptadas ponen en rojo su test.
+Los de arriba y `programas/tests/test_dispositivos_estados_536.py` (nuevo, 30 tests). Verificado por mutación: sacar el control de
+cierre, de inactivar (estadías, derivaciones, reservas de derivación), la liberación de reservas, la regla de estados de reservar y
+de cambiar de plaza, el bloqueo del sector y su excepción «sin edificio», y sacar el filtro del caso de `en_curso()` ponen en rojo
+su test.
 
 ## Base de datos
 No requiere.

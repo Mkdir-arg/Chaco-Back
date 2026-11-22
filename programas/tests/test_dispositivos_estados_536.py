@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import (
+    CasoEmergencia,
     Derivacion,
     Dispositivo,
     Edificio,
@@ -145,6 +146,51 @@ class CerrarTests(BaseEstados):
         self.assertEqual(c.reservas, 4)
 
 
+class DerivacionEnCursoTests(BaseEstados):
+    """La derivación aceptada no cambia de estado al alojar ni al egresar: lo que dice si sigue en curso es el caso."""
+
+    def _con_caso(self, estado_caso):
+        derivacion = self._derivacion_vigente(Derivacion.Estado.ACEPTADA)
+        marcas = {"cerrado_en": timezone.now()} if estado_caso == CasoEmergencia.Estado.CERRADO else {}
+        CasoEmergencia.objects.filter(pk=derivacion.caso_id).update(estado=estado_caso, **marcas)
+        return derivacion
+
+    def test_aceptada_con_el_caso_cerrado_o_alojado_y_sin_estadias_cierra_e_inactiva(self):
+        for estado_caso in (CasoEmergencia.Estado.CERRADO, CasoEmergencia.Estado.ALOJADO):
+            with self.subTest(caso=estado_caso):
+                Derivacion.objects.all().delete()
+                self._con_caso(estado_caso)
+                self.assertEqual(compromisos_de_la_institucion(self.cis).derivaciones, 0)
+                inactivar_dispositivo(self.cis, self.editor)
+                self.assertEqual(self._refrescado(), Dispositivo.Estado.INACTIVO)
+                cerrar_dispositivo(self.cis, self.editor)
+                self.assertEqual(self._refrescado(), Dispositivo.Estado.CERRADO)
+                self._estado(Dispositivo.Estado.ACTIVO)
+
+    def test_aceptada_con_el_ingreso_en_curso_o_derivado_rechaza(self):
+        for estado_caso in (CasoEmergencia.Estado.INGRESO_EN_CURSO, CasoEmergencia.Estado.DERIVADO):
+            with self.subTest(caso=estado_caso):
+                Derivacion.objects.all().delete()
+                self._con_caso(estado_caso)
+                with self.assertRaises(ValidationError):
+                    inactivar_dispositivo(self.cis, self.editor)
+                with self.assertRaises(ValidationError):
+                    cerrar_dispositivo(self.cis, self.editor)
+
+    def test_una_reserva_de_derivacion_abierta_impide_inactivar_aunque_la_derivacion_ya_no_este_en_curso(self):
+        from programas.services.reservas_derivacion import reservar_plazas_de_derivacion
+
+        derivacion = self._con_caso(CasoEmergencia.Estado.CERRADO)
+        reservar_plazas_de_derivacion(derivacion=derivacion, plazas=self.plazas[:2], usuario=self.editor)
+
+        with self.assertRaises(ValidationError) as fallo:
+            inactivar_dispositivo(self.cis, self.editor)
+
+        self.assertIn("2 reservas de derivación", fallo.exception.messages[0])
+        self.assertNotIn("derivación de Emergencia en curso", fallo.exception.messages[0])
+        self.assertEqual(self._refrescado(), Dispositivo.Estado.ACTIVO)
+
+
 class InactivarTests(BaseEstados):
     def test_con_alojados_no_inactiva(self):
         self._alojar()
@@ -228,7 +274,7 @@ class EstadoDeLaInstitucionTests(BaseEstados):
                             tipo=tipo,
                             hasta=hasta,
                         )
-                    self.assertIn("la institución está", fallo.exception.message_dict["dispositivo"][0])
+                    self.assertIn("el dispositivo está", fallo.exception.message_dict["dispositivo"][0])
         self.assertFalse(ReservaPlaza.objects.exists())
 
     def test_reservar_en_una_activa_sigue_andando(self):
@@ -240,7 +286,7 @@ class EstadoDeLaInstitucionTests(BaseEstados):
         respuesta = self._post_reservar()
 
         self.assertEqual(respuesta.status_code, 400)
-        self.assertIn("la institución está inactivo", str(respuesta.json()))
+        self.assertIn("el dispositivo está inactivo", str(respuesta.json()))
         self.assertFalse(ReservaPlaza.objects.exists())
 
     def test_cambiar_de_plaza_se_permite_en_inactiva_y_se_rechaza_en_cerrada(self):
@@ -255,7 +301,7 @@ class EstadoDeLaInstitucionTests(BaseEstados):
         self._estado(Dispositivo.Estado.CERRADO)
         with self.assertRaises(ValidationError) as fallo:
             cambiar_plaza(estadia=estadia, plaza=self.plaza, usuario=self.editor, motivo="Otra vez")
-        self.assertIn("la institución está cerrado", fallo.exception.message_dict["dispositivo"][0])
+        self.assertIn("el dispositivo está cerrado", fallo.exception.message_dict["dispositivo"][0])
         estadia.refresh_from_db()
         self.assertEqual(estadia.plaza_id, self.otra_plaza.pk)
 
@@ -272,6 +318,45 @@ class EstadoDeLaInstitucionTests(BaseEstados):
         self.assertEqual(respuesta.status_code, 400)
         estadia.refresh_from_db()
         self.assertEqual(estadia.plaza_id, self.plaza.pk)
+
+    def test_la_pantalla_de_la_estadia_ofrece_cambiar_plaza_salvo_en_cerrada(self):
+        estadia = self._alojar()
+        url = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, estadia.pk])
+        for estado, ofrece in (
+            (Dispositivo.Estado.ACTIVO, True),
+            (Dispositivo.Estado.INACTIVO, True),
+            (Dispositivo.Estado.CERRADO, False),
+        ):
+            with self.subTest(estado=estado):
+                self._estado(estado)
+                respuesta = self.client.get(url)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertEqual(bool(respuesta.context["puede_cambiar_plaza"]), ofrece)
+
+    def test_el_mapa_no_ofrece_reservar_ni_prestar_en_inactiva_ni_reubicar_en_cerrada(self):
+        from programas.services.ocupacion import estado_de_plazas
+        from programas.services.sectores_plazas import (
+            ACCION_PRESTAR,
+            ACCION_RESERVAR,
+            ACCION_REUBICAR,
+            acciones_de_plaza,
+        )
+
+        libre = estado_de_plazas([self.plaza])[self.plaza.pk]
+        kw = {"puede_admitir": True, "puede_buscar_personas": True}
+        self.assertIn(ACCION_RESERVAR, acciones_de_plaza(libre, False, estado_dispositivo="ACTIVO", **kw))
+        for estado in ("INACTIVO", "CERRADO"):
+            acciones = acciones_de_plaza(libre, False, estado_dispositivo=estado, **kw)
+            self.assertNotIn(ACCION_RESERVAR, acciones)
+            self.assertNotIn(ACCION_PRESTAR, acciones)
+        self._alojar()
+        ocupada = estado_de_plazas([self.plaza])[self.plaza.pk]
+        self.assertIn(
+            ACCION_REUBICAR, acciones_de_plaza(ocupada, False, estado_dispositivo="INACTIVO", puede_admitir=True)
+        )
+        self.assertNotIn(
+            ACCION_REUBICAR, acciones_de_plaza(ocupada, False, estado_dispositivo="CERRADO", puede_admitir=True)
+        )
 
     def test_el_ingreso_por_derivacion_a_una_activa_sigue_andando(self):
         from programas.services.reservas_derivacion import reservar_plazas_de_derivacion

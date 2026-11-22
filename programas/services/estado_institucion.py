@@ -53,13 +53,11 @@ def _exigir_cierre_sin_compromisos(dispositivo):
         raise ValidationError(f"No se puede cerrar: hay {detalle}. Resolvelo antes de cerrar la institución.")
 
 
-def _liberar_reservas_al_inactivar(dispositivo, usuario):
-    """Inactivar rechaza con gente adentro o derivaciones en curso; las reservas comunes se liberan (Cambio 536).
+def _exigir_inactivar_sin_compromisos(c):
+    """Inactivar rechaza con gente adentro, derivaciones en curso o reservas de derivación (Cambio 536).
 
-    Devuelve el texto de la traza y deja la cuenta en `dispositivo.reservas_liberadas`,
-    para el aviso de la vista.
+    Las reservas de derivación no se sueltan por detrás de Emergencia, aunque su derivación ya no esté en curso.
     """
-    c = compromisos_de_la_institucion(dispositivo)
     if c.alojadas or c.derivaciones or c.reservas_de_derivacion:
         detalle = _frases_de_compromisos(
             [
@@ -72,6 +70,15 @@ def _liberar_reservas_al_inactivar(dispositivo, usuario):
             ]
         )
         raise ValidationError(f"No se puede inactivar: hay {detalle}. Resolvelo antes de inactivar la institución.")
+
+
+def _liberar_reservas_al_inactivar(dispositivo, usuario):
+    """Libera las reservas comunes de una institución que se inactiva y devuelve el texto de la traza.
+
+    Deja la cuenta en `dispositivo.reservas_liberadas`, para el aviso de la vista. Antes exige que no
+    haya nada que impida inactivar (`_exigir_inactivar_sin_compromisos`).
+    """
+    _exigir_inactivar_sin_compromisos(compromisos_de_la_institucion(dispositivo))
     reservas = reservas_comunes_abiertas(dispositivo)
     for reserva in reservas:
         liberar_reserva(reserva=reserva, usuario=usuario, motivo="Se inactivó la institución", verificar_alcance=False)

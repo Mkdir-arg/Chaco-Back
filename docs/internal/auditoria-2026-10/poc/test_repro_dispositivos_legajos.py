@@ -72,7 +72,7 @@ from programas.services.admisiones import (
     trasladar_admision,
 )
 from programas.services.camas import resumen_ocupacion
-from programas.services.dispositivos import cerrar_dispositivo, inactivar_dispositivo
+from programas.services.estado_institucion import cerrar_dispositivo, inactivar_dispositivo
 from programas.services.registro_diario import calcular_cantidades
 from programas.services.reportes import filtrar_dispositivos
 

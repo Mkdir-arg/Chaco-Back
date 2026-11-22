@@ -144,12 +144,11 @@ class LlegadasView(GuardiaView):
         if not str(pk).isdecimal():
             return None
         return (
-            Derivacion.objects.filter(
+            Derivacion.objects.en_curso()
+            .filter(
                 q_edificios_en_alcance(self.request.user, "dispositivo.admitir", "dispositivo_id", "edificio_id"),
                 pk=pk,
                 dispositivo=self.dispositivo,
-                estado__in=Derivacion.ESTADOS_VIGENTES,
-                caso__estado__in=(Estado.DERIVADO, Estado.INGRESO_EN_CURSO),
             )
             .select_related("caso__grupo__responsable", "derivada_por")
             .first()
