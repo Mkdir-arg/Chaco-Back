@@ -40,7 +40,7 @@ abre a una ficha usa ésta.
 |---|---|
 | `edificio` | Obligatorio. Dict armado **en la vista o el servicio**, nunca un modelo ni un queryset |
 | `url_ver` | Obligatorio. La página del edificio: título, ítem «Abrir edificio» del ⋮ y pie. La arma el servicio (`edificio.url_abrir`) |
-| `url_editar` | Opcional (vacía = sin «Editar edificio»). El servicio la manda solo con `dispositivo.editar` |
+| `url_editar` | Opcional (vacía = sin «Editar edificio»). El servicio la manda solo con `dispositivo.editar`; con alcance Edificios no se ofrecen editar ni desvincular (`puede_editar_legajo`) |
 | `url_desvincular` | Opcional (vacía = sin «Desvincular»); confirma con `data-confirm-url` (ModernModal) |
 | `url_agregar_persona` | Opcional (vacía = sin «Agregar persona al edificio»). Abre el alta del Equipo con este edificio fijo; el servicio la manda solo donde el servidor acepta el alta (Cambio 556) |
 
