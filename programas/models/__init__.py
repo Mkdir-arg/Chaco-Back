@@ -5744,6 +5744,12 @@ class IntegranteGrupo(TimeStamped):
 
         return self.orden > self.grupo.suma_de_cantidades()
 
+    @property
+    def se_puede_quitar(self):
+        """La regla de «Quitar persona»: de la puerta y sin confirmar (sin persona, sin estadía, sin ``confirmada_en``)."""
+
+        return self.agregada_en_la_puerta and not (self.confirmada or self.ciudadano_id or self.estadia_id)
+
 
 class CasoEmergencia(TimeStamped):
     """Una familia que hay que alojar, desde que se releva hasta que el caso se cierra.

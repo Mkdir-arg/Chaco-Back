@@ -677,13 +677,13 @@ u `observacion`; 409 si ya no estaba pendiente.
 {"caso": {"id": 184, "numero": "2026-C-000184", "estado": "INGRESO_EN_CURSO", "prioridad": "ALTA", "total_declarado": 7},
  "derivacion": {"id": 55},
  "integrantes": [
-   {"n": 1, "estado": "CONFIRMADA", "ficha_completa": false,
+   {"id": 311, "n": 1, "estado": "CONFIRMADA", "ficha_completa": false,
     "persona": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
     "responsable": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
     "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)"},
     "parentesco": "Jefe/a de hogar",
     "confirmada_en": "2026-11-12T10:20:00-03:00", "egresado_en": null, "puede_quitarse": false},
-   {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": false, "persona": null, "responsable": null,
+   {"id": 312, "n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": false, "persona": null, "responsable": null,
     "plaza": null, "parentesco": "", "confirmada_en": null, "egresado_en": null, "puede_quitarse": false}],
  "confirmadas": 1, "total_declarado": 7, "declaradas_al_relevar": 7, "con_ficha_incompleta": 1}
 ```
@@ -697,6 +697,7 @@ u `observacion`; 409 si ya no estaba pendiente.
 | `integrantes[].persona` | La persona confirmada (legajo); `null` hasta confirmar |
 | `integrantes[].responsable` | Solo en `n` 1: el responsable que cargó el caso, `{id, nombre, dni}`, **también sin confirmar** (Cambio 521). La app rotula con él la persona 1 en vez de «Persona 1». En las demás, `null` |
 | `integrantes[].plaza` | La cama **de hoy** (si la cambiaron desde el mapa, la nueva) |
+| `integrantes[].id` | (Cambio 539, **aditiva**) La clave de la **fila**, no de la persona: `n` se reusa cuando se quita una agregada y se suma otra, `id` no. «Quitar persona» lo reenvía en el cuerpo. Una app que no lo lee sigue andando |
 | `integrantes[].puede_quitarse` | (Cambio 537, **aditiva**) `true` si la persona se agregó en la puerta con «Agregar persona», sigue `SIN_CONFIRMAR` y el ingreso está en curso: la app ofrece «Quitar persona». Nunca es `true` para el responsable ni para las del Formulario 1 (`n` de 1 a `declaradas_al_relevar`). Una app que no la lee sigue andando |
 | `confirmadas` / `total_declarado` | El contador «1 de 7 confirmadas» |
 | `declaradas_al_relevar` | Lo que dijo el Formulario 1. Si `total_declarado` es mayor, «llegaron 8 sobre 7» |
@@ -724,10 +725,15 @@ La app no compara `detail`: lo muestra, y recarga con `estado_actual` (§13.1).
 `uuid_cliente` devuelve **200** con la misma fila, sin sumar otra. La persona nueva no tiene cama
 reservada: se elige una libre al confirmarla.
 
-**Quitar persona** (Cambio 537): `POST /api/emergencia/casos/{id}/integrantes/{n}/quitar/`, **sin cuerpo**. Deshace
+**Quitar persona** (Cambios 537 y 539): `POST /api/emergencia/casos/{id}/integrantes/{n}/quitar/`, cuerpo **opcional**
+`{"id": 311}` con el `id` de la fila que la pantalla mostró (§13.5). Con `id`, si ese ya no es el de la fila que hoy
+tiene el número `n` (se quitó, se agregó otra y reusó el número), el pedido es un reenvío tardío: **200** con
+`ya_estaba_quitada: true` y no se toca nada. Sin `id` (app vieja) actúa sobre el número, como antes. Deshace
 «Agregar persona» cuando la guardia se equivocó. Respuesta **200** `{"n": 8, "total_declarado": 7,
 "ya_estaba_quitada": false}`; repetirla (reintento, doble toque) devuelve **200** con `ya_estaba_quitada: true` y
-no toca nada. Solo se quita a quien se agregó en la puerta y todavía no se confirmó (`puede_quitarse` de la fila):
+no toca nada, pero **solo si la traza del caso dice que esa persona se quitó**: un `n` que nunca existió es **400**
+(`orden`: «Esa persona no es de esta familia»). Si la baja deja a la derivación con más camas reservadas que personas
+sin confirmar, se libera la sobrante (la de la plaza con id más alto) sin que la app haga nada. Solo se quita a quien se agregó en la puerta y todavía no se confirmó (`puede_quitarse` de la fila):
 si no, **400** `{"orden": ["Solo se puede quitar a quien se agregó en la puerta y todavía no ingresó. …"]}` (el
 responsable, una persona del Formulario 1 o una ya confirmada). Con el ingreso que ya no está en curso, **409** con
 `estado_actual` (§13.1); sin alcance sobre el edificio de la derivación, **404**. `total_declarado` baja en uno y

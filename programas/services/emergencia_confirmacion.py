@@ -5,6 +5,8 @@
 de candados, traza). La ficha (Formulario 2) es de ``emergencia_ficha``.
 """
 
+from dataclasses import dataclass
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -18,6 +20,7 @@ from programas.models import (
     IntegranteGrupo,
     Plaza,
     ReservaPlaza,
+    TrazaCaso,
 )
 from programas.selectors.emergencia_alojar import camas_libres
 from programas.services.emergencia import EstadoCambio
@@ -375,6 +378,34 @@ def _error_de_cama(error, cama):
     return ValidationError({"plaza": f"Cama {nombre}: {mensajes} Recargá el mapa y elegí otra."})
 
 
+def _reserva_sobrante(derivacion, por_confirmar_despues):
+    """La reserva que la derivación retiene de más, o ``None``: la regla que comparten confirmar y quitar.
+
+    La derivación nunca retiene más camas que personas faltan confirmar: si las reservas abiertas superan
+    ``por_confirmar_despues``, sobra la de la plaza con id más alto. **1 consulta.**
+    """
+
+    vigentes = list(ReservaPlaza.objects.abiertas().filter(derivacion_id=derivacion.pk).order_by("plaza_id"))
+    return vigentes[-1] if len(vigentes) > por_confirmar_despues else None
+
+
+def _liberar_la_sobrante(*, derivacion, por_confirmar_despues, usuario):
+    """Libera la reserva sobrante tras quitar a una persona. Mismo orden de candados: plaza por pk, después la reserva.
+
+    Sin el alcance de quien opera, como en :func:`_ingresar_en_cama_libre`: es de la derivación cuyo alcance ya se
+    exigió y puede estar en otro edificio si se reservó antes del Cambio 532.
+    """
+
+    sobrante = _reserva_sobrante(derivacion, por_confirmar_despues)
+    if sobrante is None:
+        return
+    list(Plaza.objects.select_for_update().filter(pk=sobrante.plaza_id).order_by("pk").values_list("pk", flat=True))
+    try:
+        liberar_reserva(reserva=sobrante, usuario=usuario, motivo=MOTIVO_RESERVA_SOBRANTE, verificar_alcance=False)
+    except ValidationError:
+        pass  # ya la resolvió otro (la liberaron desde el mapa): no retiene nada
+
+
 def _ingresar_en_cama_libre(*, ciudadano, cama, propia, derivacion, por_confirmar_despues, usuario):
     """El ingreso en una cama que no es de la familia. Devuelve ``(estadia, reserva_liberada)``.
 
@@ -391,8 +422,7 @@ def _ingresar_en_cama_libre(*, ciudadano, cama, propia, derivacion, por_confirma
     """
 
     comunes = [comun for comun in _reservas_abiertas_de(ciudadano.pk) if propia is None or comun.pk != propia.pk]
-    vigentes = list(ReservaPlaza.objects.abiertas().filter(derivacion_id=derivacion.pk).order_by("plaza_id"))
-    sobrante = vigentes[-1] if len(vigentes) > por_confirmar_despues else None
+    sobrante = _reserva_sobrante(derivacion, por_confirmar_despues)
     # Ninguna de las dos se libera con el alcance de quien confirma: la sobrante es de la familia
     # cuya derivación ya se le exigió (puede estar en otro edificio si se reservó antes del Cambio
     # 532), y las comunes pueden ser de otro dispositivo donde no opera. No es una decisión suya: es
@@ -707,43 +737,59 @@ SOLO_SE_QUITA_LA_DE_LA_PUERTA = (
 )
 
 
+@dataclass(frozen=True)
 class PersonaQuitada:
     """Lo que devuelve :func:`quitar_integrante`: la persona quitada y cuántas quedan declaradas."""
 
-    def __init__(self, orden, total_declarado, ya_estaba):
-        self.orden, self.total_declarado, self.ya_estaba = orden, total_declarado, ya_estaba
+    orden: int
+    total_declarado: int
+    ya_estaba: bool
 
 
 @transaction.atomic
-def quitar_integrante(*, caso, orden, usuario):
+def quitar_integrante(*, caso, orden, usuario, fila_id=None):
     """Deshace «Agregar persona»: quita a quien la guardia sumó por error en la puerta (hallazgo 12).
 
-    Solo se quita una fila que cumple **las dos**: la sumó la guardia (``orden`` mayor a lo declarado en el
-    Formulario 1: ``IntegranteGrupo.agregada_en_la_puerta``, sin columna nueva) y sigue sin confirmar (sin
-    persona, sin estadía y sin ``confirmada_en``: no tiene cama, ni reservada ni ocupada, que haya que devolver).
-    Nunca el responsable (``orden`` 1) ni un integrante original. Exige el ingreso en curso y el alcance sobre el
-    edificio de la derivación, como las demás acciones del ingreso (:func:`_abrir_ingreso`).
+    Solo se quita una fila que cumple ``IntegranteGrupo.se_puede_quitar``: la sumó la guardia (``orden`` mayor a lo
+    declarado en el Formulario 1, sin columna nueva) y sigue sin confirmar. Nunca el responsable ni un integrante
+    original. Exige el ingreso en curso y el alcance sobre el edificio de la derivación (:func:`_abrir_ingreso`).
 
-    ``total_declarado`` baja en uno y queda ``INTEGRANTE_QUITADO`` en la traza. **Idempotente**: si esa fila ya no
-    está y era de la puerta, devuelve el mismo resultado con ``ya_estaba = True`` sin tocar nada. Las que no
-    se pueden quitar dan ``ValidationError`` con el mensaje de :data:`SOLO_SE_QUITA_LA_DE_LA_PUERTA`.
+    ``total_declarado`` baja en uno y queda ``INTEGRANTE_QUITADO`` en la traza. Además, si la derivación retiene más
+    camas reservadas que personas sin confirmar (la fila sin confirmar que se va ya no pide la suya), se libera la
+    sobrante con la regla de :func:`_ingresar_en_cama_libre`. La fila no tiene cama; la reserva sobrante es de la
+    derivación.
+
+    **El pedido identifica a la fila**, no solo su número: la numeración se reusa (se quita la 4, se agrega otra y
+    es la 4). ``fila_id`` (opcional) es el ``id`` que la pantalla mostró; si ya no es el de la fila que hoy tiene ese
+    ``orden``, es un reenvío tardío y se contesta ``ya_estaba = True`` sin tocar nada. Sin ``fila_id`` (la app o la
+    pestaña vieja) actúa sobre el número.
+
+    **Idempotente**: si esa fila ya no está y la traza dice que se quitó, devuelve ``ya_estaba = True``. Si nunca
+    existió, ``ValidationError``; también si no se puede quitar (:data:`SOLO_SE_QUITA_LA_DE_LA_PUERTA`).
     """
 
-    caso, _derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO)
+    caso, derivacion = _abrir_ingreso(caso, usuario, Estado.INGRESO_EN_CURSO)
     grupo = caso.grupo
     declaradas = grupo.suma_de_cantidades()
     fila = IntegranteGrupo.objects.select_for_update().filter(grupo_id=grupo.pk, orden=orden).first()
     if fila is None:
-        if orden > declaradas:
+        se_quito = TrazaCaso.objects.filter(
+            caso_id=caso.pk, accion=Accion.INTEGRANTE_QUITADO, detalle__startswith=f"Quitada la persona {orden},"
+        ).exists()
+        if se_quito:
             return PersonaQuitada(orden, grupo.total_declarado, ya_estaba=True)
         raise ValidationError({"orden": "Esa persona no es de esta familia. Recargá la lista."})
+    if fila_id is not None and fila.pk != fila_id:
+        return PersonaQuitada(orden, grupo.total_declarado, ya_estaba=True)
     fila.grupo = grupo
-    if not fila.agregada_en_la_puerta or fila.confirmada or fila.ciudadano_id or fila.estadia_id:
+    if not fila.se_puede_quitar:
         raise ValidationError({"orden": SOLO_SE_QUITA_LA_DE_LA_PUERTA})
 
     fila.delete()
-    grupo.total_declarado = max(grupo.total_declarado - 1, 1)
+    grupo.total_declarado -= 1
     grupo.save(update_fields=["total_declarado", "modificado"])
+    sin_confirmar = IntegranteGrupo.objects.filter(grupo_id=grupo.pk, confirmada_en__isnull=True).count()
+    _liberar_la_sobrante(derivacion=derivacion, por_confirmar_despues=sin_confirmar, usuario=usuario)
     _trazar(
         caso,
         usuario,

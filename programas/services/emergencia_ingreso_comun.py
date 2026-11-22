@@ -10,6 +10,8 @@ El orden de los candados y el resto del contrato de la etapa están en el docstr
 ``programas.services.emergencia_alojar``.
 """
 
+from itertools import count, islice
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
@@ -296,18 +298,16 @@ def _filas_de(grupo):
 
 
 def _asegurar_filas(grupo):
-    """Deja una fila de ``IntegranteGrupo`` por cada persona declarada (1 a N). Devuelve todas.
+    """Deja tantas filas de ``IntegranteGrupo`` como personas declaradas (``total_declarado``). Devuelve todas.
 
-    Solo crea las que faltan: una familia que vuelve de un ingreso cancelado ya tiene las suyas. Cuenta filas, no
-    números: «Quitar persona» deja un hueco en la numeración y ese hueco no es una persona más.
+    Solo crea las que faltan, con los primeros números libres: una familia que vuelve de un ingreso cancelado ya
+    tiene las suyas. Cuenta filas, no números: «Quitar persona» deja un hueco en la numeración y ese hueco no es
+    una persona más.
     """
 
     existentes = set(IntegranteGrupo.objects.filter(grupo_id=grupo.pk).values_list("orden", flat=True))
-    cuantas, faltan, orden = max(grupo.total_declarado - len(existentes), 0), [], 0
-    while len(faltan) < cuantas:
-        orden += 1
-        if orden not in existentes:
-            faltan.append(orden)
+    cuantas = max(grupo.total_declarado - len(existentes), 0)
+    faltan = list(islice((orden for orden in count(1) if orden not in existentes), cuantas))
     if faltan:
         IntegranteGrupo.objects.bulk_create([IntegranteGrupo(grupo=grupo, orden=orden) for orden in faltan])
     return _filas_de(grupo)
