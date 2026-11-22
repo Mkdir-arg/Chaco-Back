@@ -474,7 +474,9 @@ class SectoresPlazasMixin:
         usuario = request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
         configura_plazas = puede_configurar_plazas(usuario, dispositivo)
-        edificio_id, _pildoras = filtro_de_edificio(usuario, dispositivo, request.GET.get(PARAM_EDIFICIO_SECTORES, ""))
+        # Sin filtro en el pedido (lo normal) no se consulta nada: el fragmento sigue costando lo de antes.
+        pedido_edificio = request.GET.get(PARAM_EDIFICIO_SECTORES, "")
+        edificio_id = filtro_de_edificio(usuario, dispositivo, pedido_edificio)[0] if pedido_edificio else None
         pk = _entero(request.GET.get("plaza", ""))
         accion = (
             plaza_para_accion(
