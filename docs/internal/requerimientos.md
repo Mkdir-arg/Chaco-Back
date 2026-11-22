@@ -62247,7 +62247,7 @@ Desplegar el código anterior.
 |---|---|
 | **Programa / módulo** | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) |
 | **Etiquetas** | `#emergencia` `#dispositivos` `#infra` |
-| **Solicitante** | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR del carril) |
+| **Solicitante** | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314, #1315 y #1316 (PR de MINOR del carril) |
 | **Fecha del pedido** | 22/11/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Servidor (backoffice y API, sin cambio de comportamiento) · CI |
@@ -62274,8 +62274,13 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
 - **«Cuántas faltan confirmar»** se calcula de dos maneras (`total_declarado` al confirmar, filas sin confirmar al quitar) en
   `emergencia_confirmacion.py`: unificarlo puede mover la regla de la reserva sobrante, así que se deja para un PR con su propio test.
 - **La regla de qué novedades ve cada usuario** (Cambio 523, bitácora) se arma en varios lugares: centralizarla es un refactor aparte.
-- **`.claude/design/dominio/becas.md:22`** sigue citando `_liberar_reservas_al_inactivar` (hoy `_antes_de_inactivar`): es pieza canónica y
+- **`.claude/design/dominio/becas.md:41`** sigue citando `_liberar_reservas_al_inactivar` (hoy `_antes_de_inactivar`): es pieza canónica y
   tocarla obliga a actualizar el agente canónico de diseño; se hace junto con el próximo cambio de UI de Dispositivos.
+- **Docstring de `entregas_pendientes_de`** (la vista paginada suma un COUNT): va con la ficha que guarda `selectors/kits.py`.
+- **`se_puede_cambiar_plaza`** debe llamar a `maneja_plazas` adentro y solo sin plaza (hoy suma una consulta en la estadía para quien no
+  tiene `dispositivo.admitir`).
+- **Copia de `_plural`** en `services/detalle_dispositivo.py:443`.
+- **El aviso del modal de cambio de plaza** deduce el motivo de un booleano.
 - **Refactor de las vistas de la mesa** (una vista que instancia a otra, texto del dueño del caso repetido en dos excepciones):
   queda como está; no cambia lo que ve el usuario.
 
@@ -62296,6 +62301,8 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
   que se corrigieron en su propio PR.
 
 ## Archivos
+También se tocan las entradas 428, 530 y 540 (Historial y corrección de Implementación/Archivos).
+
 `programas/services/emergencia_confirmacion.py`, `programas/views/emergencia_dispositivo.py`, `programas/views/emergencia.py`,
 `programas/views/dispositivos_legajo.py`, `programas/forms_emergencia.py`, `programas/services/estado_institucion.py`,
 `programas/services/sectores_plazas.py`, `programas/services/detalle_dispositivo.py`,
