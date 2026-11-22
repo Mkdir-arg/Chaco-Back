@@ -5,10 +5,11 @@
   hacer nada. El portal ciudadano no carga `utils.css`: queda como estaba.
 * **JS** (`nodo-derivar-distancias.js`, corrido en node con un DOM mínimo; sin node se saltea) — costos de
   Google: sin key no se engancha nada y el botón queda oculto; con key el botón aparece pero abrir la página no
-  le manda nada a Google; el clic calcula una vez aunque lleguen clics repetidos.
+  le manda nada a Google; el primer clic deshabilita el botón y calcula una vez aunque se intente de nuevo.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -71,12 +72,14 @@ global.document = {
 window.NodoMapa = { configurado, importar: () => { importaciones += 1; return new Promise(() => {}); } };
 eval(fuente);
 const esperar = () => new Promise((r) => setTimeout(r, 20));
+// Como el navegador: un botón deshabilitado no recibe el clic. Así el test mide que el primero lo deshabilita.
+const clic = () => { if (!boton.disabled) { oyentes.click(); } };
 (async () => {
   const alCargar = { oculto: boton.hidden, importaciones, clic: !!oyentes.click };
   let trasClics = null;
   if (oyentes.click) {
-    oyentes.click(); await esperar();
-    oyentes.click(); oyentes.click(); await esperar();
+    clic(); await esperar();
+    clic(); clic(); await esperar();
     trasClics = { importaciones, deshabilitado: boton.disabled };
   }
   console.log(JSON.stringify({ alCargar, trasClics }));
@@ -88,6 +91,8 @@ class ScriptDeDistanciaPorCalleTests(SimpleTestCase):
     def _correr(self, caso):
         node = shutil.which("node")
         if not node:
+            if os.environ.get("CI"):
+                self.fail("node no está instalado en el CI: este test no puede saltearse ahí")
             self.skipTest("node no está instalado")
         salida = subprocess.run([node, "-e", HARNESS, str(JS), caso], capture_output=True, text=True, check=True).stdout
         return json.loads(salida)
@@ -101,6 +106,6 @@ class ScriptDeDistanciaPorCalleTests(SimpleTestCase):
         resultado = self._correr("con-key")
         self.assertEqual(resultado["alCargar"], {"oculto": False, "importaciones": 0, "clic": True})
 
-    def test_clics_repetidos_hacen_un_solo_calculo(self):
+    def test_el_primer_clic_deshabilita_el_boton_y_hace_un_solo_calculo(self):
         resultado = self._correr("con-key")
         self.assertEqual(resultado["trasClics"], {"importaciones": 1, "deshabilitado": True})
