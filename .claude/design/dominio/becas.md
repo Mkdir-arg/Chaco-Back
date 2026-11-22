@@ -29,7 +29,7 @@ módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, asign
 `badge-danger` ni en `text-fg-danger`.
 
 Para la institución, `TONOS_ESTADO` y `estado_de_dispositivo` de
-`programas/services/dispositivos.py` entregan el texto y tono del header P4/P19. El nombre de una persona y la fecha corta de un relevamiento salen de `nombre_de_persona`, `nombre_o` y `fecha_corta` del mismo módulo: no se redefinen en cada pantalla. El
+`programas/services/dispositivos.py` entregan el texto y tono del header P4/P19. El
 parcial `_estado_badge.html` acepta modelos y dicts: resuelve `get_estado_display` en
 el template y obtiene el tono con el filtro `tono_estado_dispositivo`, que lee el mismo
 `TONOS_ESTADO` (desconocido → gray). `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
