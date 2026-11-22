@@ -1,4 +1,7 @@
-"""Módulo Emergencia, PR 9: las entregas de kits en el backoffice — E4, E5 y la recepción en el dispositivo.
+"""Módulo Emergencia, PR 9: las entregas de kits en el backoffice — E4 y E5, la mesa.
+
+La recepción en el dispositivo (la guardia) vive en ``test_emergencia_kits_guardia_vistas``, que usa la base
+``BaseVistasKits`` de este módulo.
 
 Las reglas de la entrega ya están probadas contra el servicio en ``test_emergencia_kits``.
 Acá se prueba **la puerta HTTP**: que cada vista exija lo que tiene que exigir, que traduzca
@@ -7,13 +10,12 @@ punta.
 
 * **Acceso de la mesa** — sin login, al login; sin operar ni supervisar, 403. El barrido de
   URLs ``emergencia:*`` de ``test_emergencia_base`` cubre las rutas nuevas sin listarlas.
-* **Acceso de la guardia** (RN-4.8, plan §2 C2) — sin ``recibir_kit`` en ningún dispositivo,
-  403; con la capacidad en **otro** dispositivo, **404**, y nada cambia. Es la mutación de
-  04 §11 por HTTP: con el recorte por alcance de ``RecepcionKitsMixin`` reemplazado por
-  «tiene la capacidad en algún lado», ``test_la_guardia_de_otro_dispositivo_recibe_404``
-  falla con «200 != 404» en las dos pantallas del Club (la guardia de la Escuela ve el
-  formulario de una entrega ajena). El POST lo sigue frenando el servicio, que tiene su
-  propia guarda y su propia mutación en ``test_emergencia_kits``.
+* **Acceso de la guardia** (RN-4.8, plan §2 C2) — en ``test_emergencia_kits_guardia_vistas``: sin
+  ``recibir_kit`` en ningún dispositivo, 403; con la capacidad en **otro** dispositivo, **404**,
+  y nada cambia. Es la mutación de 04 §11 por HTTP: con el recorte por alcance de
+  ``RecepcionKitsMixin`` reemplazado por «tiene la capacidad en algún lado»,
+  ``test_la_guardia_de_otro_dispositivo_recibe_404`` falla con «200 != 404». El POST lo sigue
+  frenando el servicio, que tiene su propia guarda y su propia mutación en ``test_emergencia_kits``.
 * **Punta a punta** — crear en tres pasos → en camino → recibir con diferencia desde el
   dispositivo → E5 muestra la diferencia → reponer.
 * **El asistente no usa la sesión** — lo que se crea es lo que mostró el paso 3.

@@ -5,7 +5,8 @@ Lo que se fija acá, y por qué:
 1. **«Cancelar» del legajo vuelve al origen**: editando, a la ficha de la institución; creando, a la
    lista. Antes iba siempre a la lista y tiraba al usuario fuera del registro que estaba mirando.
 2. **El filtro «Localidad» es un select** con las localidades que existen *en el alcance de quien mira*,
-   y filtra igual que antes (`icontains`). Un valor viejo de la URL no se esconde.
+   y filtra exacto lo que el select ofrece (Cambio 547); un valor viejo de la URL, que no es una de
+   ellas, se sigue filtrando como texto libre (`icontains`) y no se esconde.
 3. **Las exportaciones van al menú** del encabezado: una acción primaria y un menú, no tres botones.
 4. **Los booleanos del tipo son interruptores** (`SwitchInput`) y guardan lo mismo: mismos nombres de
    campo, mismo valor.
@@ -84,6 +85,9 @@ class ScriptsDelLegajoTests(BaseDetalle):
         # El shell trae sus propios inline; lo que no puede traer es la lógica del legajo.
         propios = [s for s in self._scripts_inline(url) if any(m in s for m in self.MARCAS_DEL_LEGAJO)]
         self.assertEqual(propios, [])
+        # `dispositivos-legajo-responsables.js` busca el select por este id (`getElementById`): si el form lo
+        # cambia, el contacto del legajo deja de actualizarse sin ningún error visible.
+        self.assertIn('id="id_responsables"', html)
         # La URL de la búsqueda de duplicados viaja en el propio <script>, no escrita en el JS.
         self.assertIn(f'data-url="{reverse("dispositivos:buscar_duplicados")}"', html)
 
@@ -137,7 +141,29 @@ class FiltroLocalidadTests(BaseListado):
 
         self.assertEqual(sorted(self._filas(respuesta)), ["HOG-1", "HOG-2"])
         self.assertContains(respuesta, '<option value="Barranqueras" selected>Barranqueras</option>')
-        self.assertEqual(respuesta.context["exportar_qs"], "localidad=Barranqueras")
+        self.assertTrue(respuesta.context["url_exportar_csv"].endswith("?localidad=Barranqueras"))
+
+    def test_elegir_una_localidad_no_trae_la_que_la_contiene_en_el_listado_ni_en_la_exportacion(self):
+        """Mutación: con `icontains` también para lo ofrecido, «Corzuela» trae «Corzuela Norte»."""
+        self._dispositivo("COR-1", "Hogar Corzuela", localidad="Corzuela")
+        self._dispositivo("COR-2", "Hogar Corzuela Norte", localidad="Corzuela Norte")
+
+        listado = self.cliente.get(URL_LISTA, {"localidad": "Corzuela"})
+        exportacion = self.cliente.get(
+            reverse("dispositivos:exportar", args=["padron", "csv"]), {"localidad": "Corzuela"}
+        ).content.decode("utf-8-sig")
+
+        self.assertEqual(self._filas(listado), ["COR-1"])
+        self.assertIn("COR-1", exportacion)
+        self.assertNotIn("COR-2", exportacion)
+
+    def test_un_texto_libre_que_no_es_una_localidad_ofrecida_sigue_buscando_por_contenido(self):
+        self._dispositivo("COR-1", "Hogar Corzuela", localidad="Corzuela")
+        self._dispositivo("COR-2", "Hogar Corzuela Norte", localidad="Corzuela Norte")
+
+        respuesta = self.cliente.get(URL_LISTA, {"localidad": "corzuela"})
+
+        self.assertEqual(sorted(self._filas(respuesta)), ["COR-1", "COR-2"])
 
     def test_un_valor_de_la_url_que_no_es_una_localidad_se_ofrece_igual(self):
         """El select no esconde un filtro aplicado (un enlace viejo con texto libre)."""

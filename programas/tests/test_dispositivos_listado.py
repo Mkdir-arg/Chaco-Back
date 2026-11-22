@@ -216,8 +216,9 @@ class FiltrosTests(BaseListado):
     def test_la_exportacion_lleva_los_filtros_y_no_la_pagina(self):
         respuesta = self.cliente.get(URL_LISTA, {"localidad": "Resistencia", "page": 1})
 
-        self.assertEqual(respuesta.context["exportar_qs"], "localidad=Resistencia")
-        self.assertNotIn("page", respuesta.context["exportar_qs"])
+        for formato in ("csv", "xlsx"):
+            url = reverse("dispositivos:exportar", args=["padron", formato]) + "?localidad=Resistencia"
+            self.assertEqual(respuesta.context[f"url_exportar_{formato}"], url)
 
 
 class BusquedaPorTextoTests(BaseListado):
@@ -270,7 +271,7 @@ class BusquedaPorTextoTests(BaseListado):
         pagina_2 = self.cliente.get(URL_LISTA, {"q": "Casa", "page": 2})
         self.assertEqual(len(self._filas(pagina_2)), 5)
         self.assertTrue(all(c.startswith("CAS-") for c in self._filas(pagina_2)))
-        self.assertEqual(pagina_1.context["exportar_qs"], "q=Casa")
+        self.assertTrue(pagina_1.context["url_exportar_csv"].endswith("?q=Casa"))
 
     def test_la_exportacion_filtra_por_q(self):
         respuesta = self.cliente.get(reverse("dispositivos:exportar", args=["padron", "csv"]), {"q": "Nocturno"})

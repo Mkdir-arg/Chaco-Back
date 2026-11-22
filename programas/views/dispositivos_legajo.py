@@ -88,6 +88,7 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
+    localidades_visibles,
     observar_dispositivo,
     puede_configurar_dispositivos,
     puede_editar_legajo,
@@ -196,7 +197,10 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         # `nombre` solo —el orden del modelo— no alcanza para paginar: dos instituciones
         # homónimas pueden repetirse o perderse entre páginas según el plan del motor.
         # `codigo` es único, así que con él el orden queda total.
-        return filtrar_dispositivos(queryset, **self._filtros()).order_by("nombre", "codigo")
+        self.localidades = localidades_visibles(self.request.user)
+        return filtrar_dispositivos(queryset, **self._filtros(), localidades_ofrecidas=self.localidades).order_by(
+            "nombre", "codigo"
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -207,16 +211,10 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         context["tipo_actual"] = filtros["tipo"]
         context["localidad_actual"] = filtros["localidad"]
         # El select ofrece las localidades que existen **dentro del alcance** de quien mira, no las de
-        # todo el padrón. El filtro sigue siendo el de siempre (`localidad__icontains`): lo que cambia es
-        # solo el control. Un valor que viene en la URL y ya no figura (una búsqueda vieja) se ofrece
-        # igual, así el select no esconde el filtro que está aplicado.
-        localidades = list(
-            dispositivos_visibles(self.request.user)
-            .exclude(localidad="")
-            .order_by("localidad")
-            .values_list("localidad", flat=True)
-            .distinct()
-        )
+        # todo el padrón. Lo ofrecido se filtra exacto y el texto libre con `icontains`
+        # (`reportes.filtrar_dispositivos`). Un valor que viene en la URL y ya no figura (una búsqueda
+        # vieja) se ofrece igual, así el select no esconde el filtro que está aplicado.
+        localidades = list(self.localidades)
         if filtros["localidad"] and filtros["localidad"] not in localidades:
             localidades.insert(0, filtros["localidad"])
         context["localidades"] = localidades
@@ -235,8 +233,8 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         context["url_sin_filtros"] = reverse("dispositivos:lista")
         # La exportación lleva los filtros y **no** la página: exporta el padrón filtrado
         # entero, no los 25 que se están mirando.
-        context["exportar_qs"] = urlencode({clave: valor for clave, valor in filtros.items() if valor})
-        sufijo_qs = f"?{context['exportar_qs']}" if context["exportar_qs"] else ""
+        exportar_qs = urlencode({clave: valor for clave, valor in filtros.items() if valor})
+        sufijo_qs = f"?{exportar_qs}" if exportar_qs else ""
         context["url_exportar_csv"] = reverse("dispositivos:exportar", args=["padron", "csv"]) + sufijo_qs
         context["url_exportar_xlsx"] = reverse("dispositivos:exportar", args=["padron", "xlsx"]) + sufijo_qs
         # Semáforo edilicio y plazas de **la página**, cada uno en tres consultas fijas y

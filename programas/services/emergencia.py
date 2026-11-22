@@ -28,9 +28,10 @@ El orden de los candados
 ------------------------
 
 Es global para todo el módulo, y es el de Dispositivos con dos escalones adelante (plan
-§8, R1)::
+§8, R1). La fuente única del orden de Dispositivos —institución → plaza → reserva / estadía →
+persona— es `dispositivos.bloquear_instituciones`; Emergencia le antepone el caso y la derivación::
 
-    caso → derivación → plazas (por pk) → reservas → persona
+    caso → derivación → [institución → plaza (por pk) → reserva → persona]
 
 * Toda función de Emergencia bloquea **primero el caso**. Las de esta etapa no pasan de
   la derivación: derivar **no reserva plazas** (las reserva el dispositivo al aceptar) y

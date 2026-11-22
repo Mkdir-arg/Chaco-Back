@@ -42,14 +42,10 @@ segundo operador no vería la estadía del primero.
 El orden de los candados: institución, plaza y después reserva
 --------------------------------------------------------------
 
-Antes que nada, la **institución**, con un bloqueo compartido
-(`dispositivos.bloquear_institucion`): reservar, prestar, liberar, ingresar, egresar,
-cambiar y asignar plaza, y sacar o reponer una plaza leen ahí su estado y fijan el orden
-contra «Inactivar» y «Cerrar», que la toman en exclusivo y después bloquean plazas y
-reservas. Sin eso, la traza que escribe cada camino (FK a la institución) pedía la fila de la
-institución **después** de la plaza, el orden inverso, y el motor cortaba una de las dos con
-`ERROR 1213`; y una reserva o un ingreso podían colarse en una institución que se estaba
-cerrando. Compartido para que dos ingresos de la misma institución no se esperen entre sí.
+El orden completo (institución → plaza → reserva / estadía → persona) y su porqué están en
+`dispositivos.bloquear_instituciones`, la fuente única: reservar, prestar, liberar, ingresar,
+egresar, cambiar y asignar plaza, y sacar o reponer una plaza toman primero la institución en
+compartido.
 
 Después, `ingresar_persona` y `liberar_reserva` piden la plaza y la reserva en ese orden. Invertirlo
 puede formar un ciclo: InnoDB aborta una transacción con `ERROR 1213`, que el servicio

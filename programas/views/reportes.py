@@ -3,7 +3,7 @@
 from django.http import HttpResponseBadRequest
 from django.views import View
 
-from programas.services.dispositivos import dispositivos_visibles
+from programas.services.dispositivos import dispositivos_visibles, localidades_visibles
 from programas.services.exportacion_reportes import respuesta_reporte
 from programas.services.reportes import (
     filtrar_dispositivos,
@@ -34,6 +34,7 @@ class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
             estado=request.GET.get("estado"),
             localidad=request.GET.get("localidad", "").strip(),
             q=request.GET.get("q", "").strip(),
+            localidades_ofrecidas=localidades_visibles(request.user),
         )
         if reporte == "padron":
             return _respuesta(padron_dispositivos(dispositivos), formato, "padron_dispositivos")

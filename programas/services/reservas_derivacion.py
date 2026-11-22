@@ -40,10 +40,11 @@ Las escribe y las resuelve solo este módulo:
 * `liberar_reservas_de_derivacion` suelta las que quedan vigentes (cierre con diferencia,
   cancelación del ingreso, vencimiento).
 
-**Orden de candados global con Emergencia: caso → derivación → plazas (por pk) → reservas →
-persona.** El caso y la derivación los bloquea el servicio de Emergencia que llama, antes de
-entrar acá; estas funciones no los bloquean ni los releen, y por eso confían en la
-derivación que reciben. Adentro vale el orden de siempre, con dos cuidados:
+**Orden de candados global con Emergencia: caso → derivación, y después el de Dispositivos**
+(institución → plaza → reserva → persona), cuya fuente única es
+`dispositivos.bloquear_instituciones`. El caso y la derivación los bloquea el servicio de
+Emergencia que llama, antes de entrar acá; estas funciones no los bloquean ni los releen, y por
+eso confían en la derivación que reciben. Adentro vale el orden de siempre, con dos cuidados:
 
 * cuando son varias plazas se bloquean **todas de una vez, ordenadas por pk** (igual que
   `ingreso.confirmar_ingreso`), antes de tocar ninguna reserva; en
