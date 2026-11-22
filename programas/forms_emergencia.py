@@ -19,6 +19,7 @@ from django.contrib.auth.models import User
 
 from core.coordenadas import VALIDADORES_LATITUD, VALIDADORES_LONGITUD, exigir_par
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from core.forms_sugerencias import attrs_sugerencias
 from core.selectors.geografia import localidades_operativas
 from core.validators import validar_foto
 from core.widgets import SwitchInput
@@ -282,9 +283,16 @@ class ErroresDelServicioMixin:
             self.add_error(clave if clave in self.fields and clave not in self.CAMPOS_ARRIBA else None, errores)
 
 
+#: Lo que dice el desplegable de «Nuevo caso» cuando el DNI no está en el legajo.
+MENSAJE_SUGERENCIA_SIN_PERSONA_EN_NUEVO_CASO = "No está en el legajo: cargá su nombre y apellido abajo."
+
+AYUDA_BUSCAR_DNI = (
+    "Buscá en el legajo: escribí el DNI y elegí a la persona para completar su nombre y apellido. "
+    "Si no está, cargalos a mano."
+)
 AYUDA_NOMBRE_DEL_RESPONSABLE = (
-    "Solo si la persona todavía no está en el legajo. Si el DNI ya está registrado como otra persona, "
-    "ver la casilla de abajo."
+    "Se completan solos al elegir a la persona del legajo; cargalos a mano si no está. "
+    "Si el DNI ya está registrado como otra persona, ver la casilla de abajo."
 )
 
 
@@ -342,6 +350,12 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         max_length=120,
         help_text=AYUDA_NOMBRE_DEL_RESPONSABLE,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+    documento_extraviado = forms.BooleanField(
+        label="Perdió el documento pero sabe el número",
+        required=False,
+        help_text="Queda anotado en la persona nueva del legajo. A quien ya tiene legajo no se le cambia nada.",
+        widget=SwitchInput(),
     )
     telefono = forms.CharField(
         label="Teléfono de contacto",
@@ -414,7 +428,7 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
     )
 
-    CAMPOS_DE_TRASLADO = ("traslado", "traslado_otro", "dni", "telefono", "nombre", "apellido")
+    CAMPOS_DE_TRASLADO = ("traslado", "traslado_otro", "dni", "telefono", "nombre", "apellido", "documento_extraviado")
     CAMPOS_DE_ASISTENCIA = ("dependientes", "mayores_dependientes", "lactantes")
     FOTOS = {"foto_vivienda": AdjuntoCaso.Tipo.VIVIENDA, "foto_acceso": AdjuntoCaso.Tipo.ACCESO}
 
@@ -435,8 +449,22 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         exigir_par(self)
         return datos
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, url_sugerencias=None, **kwargs):
+        """``url_sugerencias``: el endpoint que busca **solo en el legajo** mientras se escribe el DNI (Hallazgo 15).
+
+        Solo presentación (``nodo-sugerencias.js``): al elegir a una persona se completan el DNI, el nombre y el
+        apellido del legajo. Sin la URL, o sin JavaScript, el campo es el de siempre y ``crear_caso`` decide igual.
+        """
+
         super().__init__(*args, **kwargs)
+        if url_sugerencias:
+            self.fields["dni"].help_text = AYUDA_BUSCAR_DNI
+            self.fields["dni"].widget.attrs.update(
+                attrs_sugerencias(url_sugerencias, MENSAJE_SUGERENCIA_SIN_PERSONA_EN_NUEVO_CASO)
+            )
+            self.fields["dni"].widget.attrs["data-sugerencias-completa"] = (
+                f"nombre:{self['nombre'].id_for_label},apellido:{self['apellido'].id_for_label}"
+            )
         # La casilla solo aparece después del rechazo por DNI registrado, o si ya vino tildada.
         self.muestra_identidad_en_conflicto = bool(self.is_bound and self.data.get("identidad_en_conflicto"))
 

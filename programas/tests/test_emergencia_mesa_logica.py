@@ -18,6 +18,7 @@ from programas.selectors import emergencia_mesa as mesa
 from programas.selectors.emergencia import ResponsableAlojado
 from programas.services import emergencia as servicio
 from programas.services import vencimientos_emergencia
+from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import CasoDeOtroOperador
 from programas.tests.test_emergencia_casos import T0, localidad_operativa
 from programas.tests.test_emergencia_mesa import URL_BANDEJA, BaseMesa
@@ -269,10 +270,10 @@ class SolapaAlojadosTests(BaseMesa):
     def test_un_caso_alojado_no_lleva_la_marca_de_responsable_alojado(self):
         alojado = ResponsableAlojado(1, self.club.pk, "Club Sarmiento", T0)
         caso = selectores.bandeja({"solapa": "alojados"}).get(pk=self.completo.pk)
-        textos = [m["texto"] for m in mesa._marcas_de_fila(caso, None, alojado)]
+        textos = [m["texto"] for m in mesa._marcas_de_fila(caso, None, alojado, sla_vigente(), T0)]
         self.assertNotIn("Responsable alojado en Club Sarmiento", textos)
         antes = selectores.bandeja({"solapa": "abiertos"}).get(pk=self.abierto.pk)
-        textos = [m["texto"] for m in mesa._marcas_de_fila(antes, None, alojado)]
+        textos = [m["texto"] for m in mesa._marcas_de_fila(antes, None, alojado, sla_vigente(), T0)]
         self.assertIn("Responsable alojado en Club Sarmiento", textos)
 
 
