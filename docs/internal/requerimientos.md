@@ -656,6 +656,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 531 | Dispositivos · ficha de la institución: aviso de derivaciones de Emergencia por recibir | Dispositivos (legajo) / Emergencia (Llegadas) | `#emergencia` `#dispositivos` `#ui` `#rbac` | PM — pruebas de Emergencia del 21/11/2026 (#1302) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61532,6 +61533,79 @@ No requiere.
 
 ## Reversión
 Desplegar el código anterior. Sin datos ni esquema.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+
+# Cambio 536 — Dispositivos · estados de la institución y de las plazas con gente adentro
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo de la institución, mapa de plazas y sectores) |
+| **Etiquetas** | `#dispositivos` `#datos` |
+| **Solicitante** | Relevamiento de lógica de Dispositivos del 22/11/2026 (hallazgos 3, 7 y 9) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | Sin issue propio |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Tres huecos de lógica: se podía inactivar o cerrar una institución con alojados, reservas o ingresos de Emergencia a medias; una
+institución inactiva o cerrada seguía permitiendo reservar, prestar y cambiar de plaza; y editar un sector lo cambiaba de edificio
+con gente adentro.
+
+## Alcance acordado
+Antes de diseñar se consultó el archivo vivo por `dispositivos`, `inactiv` y `cerrar`: ninguna decisión registrada choca (el Cambio 409
+fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; eso no cambia).
+
+## Decisiones tomadas
+- **Cerrar** se rechaza siempre que haya estadías abiertas, reservas abiertas (comunes o de derivación) o derivaciones de Emergencia
+  vigentes (`PENDIENTE` o `ACEPTADA`, que es la que espera a la familia o tiene el ingreso a medias). El mensaje dice las cifras:
+  «No se puede cerrar: hay 3 personas alojadas y 2 reservas vigentes…». Una reserva vencida que nadie liberó sigue contando.
+- **Inactivar** se rechaza con estadías abiertas, derivaciones vigentes o reservas de derivación; las reservas comunes (y los
+  préstamos) se liberan con el motivo «Se inactivó la institución», quedan en la traza («N reservas liberadas») y el aviso de la
+  vista dice cuántas se soltaron. Las reservas de derivación se tratan como la derivación: no se liberan por detrás de Emergencia.
+- **Reservar y prestar** exigen institución `ACTIVA`; **cambiar de plaza** se permite en `INACTIVA` y se rechaza en `CERRADA`. Una
+  sola regla, `dispositivos.exigir_institucion_en_estado`, que lee el estado fresco de la base; la comparten `reservar_plaza` y
+  `cambiar_plaza`. El mapa de plazas deja de ofrecer «Reservar» y «Prestar» fuera de activa y «Reubicar» en cerrada.
+- **Mudar un sector de edificio** se rechaza si tiene estadías abiertas o reservas abiertas (con las plazas bloqueadas, el mismo
+  candado que el ingreso); pasar de «sin edificio» a un edificio se permite siempre.
+- **Lo que no cambia:** el ingreso por derivación de Emergencia (`reservar_plazas_de_derivacion`) no pasa por `reservar_plaza` y
+  sigue andando contra una institución activa; `asignar_plaza` (la persona alojada «sin plaza») no se tocó.
+- **Conteo en un selector** (`selectors/compromisos_institucion.py`): tres consultas para la institución y dos para el sector, sin
+  importar cuántas plazas haya.
+
+## Pendientes
+- El estado de la institución se lee sin bloquear su fila en `reservar_plaza` y `cambiar_plaza`: una reserva que entre en el mismo
+  instante que otro operador inactiva puede escaparse a la cuenta. Bloquear la institución en cada ingreso serializaría toda su
+  operación; no se hizo.
+- `asignar_plaza` en una institución cerrada o inactiva sigue permitido; no estaba en el relevamiento.
+
+## Implementación
+`programas/selectors/compromisos_institucion.py` (nuevo), `programas/services/dispositivos.py` (`_transicionar` con
+`antes_de_cambiar`, cerrar, inactivar, `exigir_institucion_en_estado`), `programas/services/estadias.py` (`reservar_plaza`,
+`cambiar_plaza`), `programas/services/plazas.py` (`editar_sector`), `programas/services/sectores_plazas.py` (acciones del mapa),
+`programas/views/dispositivos_legajo.py` (aviso de reservas liberadas) y el texto del modal de «Inactivar».
+
+## Archivos
+Los de arriba y `programas/tests/test_dispositivos_estados_536.py` (nuevo, 25 tests). Verificado por mutación: sacar el control de
+cierre, de inactivar (estadías, derivaciones), la liberación de reservas, la regla de estados de reservar y de cambiar de plaza, el
+bloqueo del sector y su excepción «sin edificio», y acotar las derivaciones a las aceptadas ponen en rojo su test.
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`, ruff, `makemigrations --check`, los `test_dispositivos_*` y los tests de performance en verde.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Reversión
+Desplegar el código anterior: no hay datos nuevos.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

@@ -39,9 +39,13 @@ def compromisos_de_la_institucion(dispositivo):
     """
 
     alojadas = Estadia.objects.activas().filter(dispositivo=dispositivo).count()
-    reservas = ReservaPlaza.objects.abiertas().filter(plaza__sector__dispositivo=dispositivo).aggregate(
-        comunes=Count("pk", filter=Q(derivacion__isnull=True)),
-        de_derivacion=Count("pk", filter=Q(derivacion__isnull=False)),
+    reservas = (
+        ReservaPlaza.objects.abiertas()
+        .filter(plaza__sector__dispositivo=dispositivo)
+        .aggregate(
+            comunes=Count("pk", filter=Q(derivacion__isnull=True)),
+            de_derivacion=Count("pk", filter=Q(derivacion__isnull=False)),
+        )
     )
     derivaciones = Derivacion.objects.filter(dispositivo=dispositivo, estado__in=Derivacion.ESTADOS_VIGENTES).count()
     return CompromisosDeLaInstitucion(

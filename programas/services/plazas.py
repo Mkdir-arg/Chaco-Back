@@ -306,9 +306,13 @@ def _exigir_sector_sin_gente_para_mudarlo(sector):
     if c.alojadas or c.reservas:
         partes = []
         if c.alojadas:
-            partes.append(f"{c.alojadas} persona{'s' if c.alojadas != 1 else ''} alojada{'s' if c.alojadas != 1 else ''}")
+            partes.append(
+                f"{c.alojadas} persona{'s' if c.alojadas != 1 else ''} alojada{'s' if c.alojadas != 1 else ''}"
+            )
         if c.reservas:
-            partes.append(f"{c.reservas} reserva{'s' if c.reservas != 1 else ''} vigente{'s' if c.reservas != 1 else ''}")
+            partes.append(
+                f"{c.reservas} reserva{'s' if c.reservas != 1 else ''} vigente{'s' if c.reservas != 1 else ''}"
+            )
         raise ValidationError(
             {
                 "edificio": "No se puede cambiar el sector de edificio: tiene "

@@ -51,7 +51,9 @@ class BaseEstados(BaseDerivacion):
         )
 
     def _reservar(self, persona=None, plaza=None):
-        return reservar_plaza(plaza=plaza or self.otra_plaza, ciudadano=persona or self.otra_persona, usuario=self.editor)
+        return reservar_plaza(
+            plaza=plaza or self.otra_plaza, ciudadano=persona or self.otra_persona, usuario=self.editor
+        )
 
     def _derivacion_vigente(self, estado=Derivacion.Estado.PENDIENTE):
         return self._derivacion(estado=estado)
@@ -98,7 +100,9 @@ class CerrarTests(BaseEstados):
 
     def test_una_reserva_vencida_sin_liberar_sigue_contando(self):
         reserva = self._reservar()
-        ReservaPlaza.objects.filter(pk=reserva.pk).update(desde=RELOJ - timedelta(hours=3), hasta=RELOJ - timedelta(hours=1))
+        ReservaPlaza.objects.filter(pk=reserva.pk).update(
+            desde=RELOJ - timedelta(hours=3), hasta=RELOJ - timedelta(hours=1)
+        )
 
         with self.assertRaises(ValidationError):
             cerrar_dispositivo(self.cis, self.editor)
@@ -203,7 +207,10 @@ class EstadoDeLaInstitucionTests(BaseEstados):
         plaza = plaza or self.otra_plaza
         return self.client.post(
             reverse(f"dispositivos:{nombre}", args=[self.cis.pk, plaza.pk]),
-            {"dni": self.otra_persona.dni, "hasta": (timezone.localtime() + timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M")},
+            {
+                "dni": self.otra_persona.dni,
+                "hasta": (timezone.localtime() + timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M"),
+            },
             headers={"x-requested-with": "XMLHttpRequest"},
         )
 
@@ -372,5 +379,3 @@ class MudarSectorTests(BaseEstados):
         self.assertIn("edificio", respuesta.json()["errors"])
         self.sector.refresh_from_db()
         self.assertEqual(self.sector.edificio_id, self.edificio_a.pk)
-
-
