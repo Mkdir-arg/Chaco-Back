@@ -12,12 +12,12 @@ from core.forms_sugerencias import MENSAJE_SUGERENCIA_SIN_PERSONA_EN_INGRESO, at
 from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
 
+#: Las opciones del select de sexo y del de género: la vacía y las de `Ciudadano.Genero`.
+OPCIONES_DE_SEXO_O_GENERO = [("", "Seleccionar..."), *Ciudadano.Genero.choices]
+
 
 class IngresoPersonaForm(forms.Form):
     """Paso 1 del asistente de ingreso: a quién se aloja. Busca solo por DNI, sin sexo."""
-
-    # Las etiquetas del género que muestra el resumen de la persona.
-    GENERO_CHOICES = [("", "Seleccionar..."), *Ciudadano.Genero.choices]
 
     dni = forms.CharField(
         label="DNI",
@@ -56,7 +56,7 @@ class IngresoSexoForm(forms.Form):
     )
     sexo = forms.ChoiceField(
         label="Sexo",
-        choices=[("", "Seleccionar..."), *Ciudadano.Genero.choices],
+        choices=OPCIONES_DE_SEXO_O_GENERO,
         error_messages={"required": "Indicá el sexo para consultar el Registro de Personas."},
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
@@ -98,7 +98,7 @@ class IngresoAltaMinimaForm(forms.Form):
     genero = forms.ChoiceField(
         label="Género",
         required=False,
-        choices=[("", "Seleccionar..."), *Ciudadano.Genero.choices],
+        choices=OPCIONES_DE_SEXO_O_GENERO,
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
 

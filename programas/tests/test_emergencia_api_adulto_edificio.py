@@ -191,7 +191,7 @@ class AvisarALaMesaConDerivacionEnOtroEdificioTests(BaseApiLlegadas):
         self.assertIs(cuerpo["puede_ingresar_igual"], False)
         self.assertIs(cuerpo["derivada_a_otro_edificio"], True)
         self.assertEqual(cuerpo["edificio_derivado"], {"id": self.edif_b.pk, "nombre": "Edificio B"})
-        self.assertIn("Edificio B", cuerpo["mensaje"])
+        self.assertIn("derivada al edificio Edificio B de este dispositivo", cuerpo["mensaje"])
         self.assertIsNone(cuerpo["derivacion"])
 
     def test_la_derivacion_aceptada_en_otro_edificio_tambien_cuenta(self):

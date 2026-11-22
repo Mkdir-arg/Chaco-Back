@@ -400,3 +400,10 @@ class AgregarPersonaAlEdificioTests(BaseSelector):
         respuesta = self.client.post(self.url_crear, self._datos(edificio_fijo=self.ed_ajeno.pk), headers=AJAX)
         self.assertEqual(respuesta.status_code, 400)
         self._sin_alta()
+
+    def test_crear_persona_en_un_edificio_de_un_dispositivo_cerrado_no_deja_ni_el_usuario(self):
+        Dispositivo.objects.filter(pk=self.disp_a.pk).update(estado=Dispositivo.Estado.CERRADO)
+        self._entrar(self.admin_programa)
+        respuesta = self.client.post(self.url_crear, self._datos(edificio_fijo=self.ed1.pk), headers=AJAX)
+        self.assertEqual(respuesta.status_code, 400)
+        self._sin_alta()

@@ -343,28 +343,40 @@ def _devolver_a_la_mesa(caso):
     return caso
 
 
-def derivacion_vigente_a_otro_edificio(ciudadano, dispositivo):
-    """La derivación ``PENDIENTE`` o ``ACEPTADA`` de la familia de ``ciudadano`` hacia ``dispositivo``, o ``None``.
+def derivaciones_en_curso_de(ciudadano, dispositivo):
+    """Las derivaciones ``PENDIENTE`` o ``ACEPTADA`` de la familia de ``ciudadano`` hacia ``dispositivo``.
 
-    Pensada para llamarse **después** de descartar la derivación dentro del alcance de quien opera: lo que
-    queda es lo derivado a otro edificio del mismo dispositivo. Es la única regla de «ya está derivada a otro
-    edificio»: la usan la búsqueda por DNI y «Avisar a la mesa». Trae ``edificio`` sin consulta aparte.
+    Es la consulta única de «esta familia ya tiene una derivación vigente acá», de cualquier edificio: la
+    búsqueda por DNI le suma el filtro de alcance de quien opera, y «Avisar a la mesa» la usa tal cual.
+    Más reciente primero; trae ``edificio`` sin consulta aparte.
     """
 
     de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
     return (
         Derivacion.objects.en_curso()
+        # La guarda de RU-9: solo lo derivado a **este** dispositivo. Es la única línea que separa a la
+        # guardia de A de la familia que va a B.
         .filter(de_la_persona, dispositivo=dispositivo)
         .select_related("edificio")
         .distinct()
         .order_by("-id")
-        .first()
     )
+
+
+def derivacion_en_curso_de(ciudadano, dispositivo):
+    """La derivación más reciente de :func:`derivaciones_en_curso_de`, o ``None``.
+
+    Llamada **después** de descartar la derivación dentro del alcance de quien opera, lo que queda es lo
+    derivado a otro edificio del mismo dispositivo: es la regla de «ya está derivada a otro edificio» de la
+    búsqueda por DNI y de «Avisar a la mesa».
+    """
+
+    return derivaciones_en_curso_de(ciudadano, dispositivo).first()
 
 
 def mensaje_otro_edificio(derivacion):
     """El texto de la búsqueda y del 400 de «Avisar a la mesa» cuando la familia ya está en otro edificio."""
 
     edificio = derivacion.edificio
-    donde = f"el edificio {edificio.nombre}" if edificio is not None else "otro edificio"
-    return f"La familia ya está derivada a {donde} de este dispositivo. No la avises a la mesa."
+    donde = f"al edificio {edificio.nombre}" if edificio is not None else "a otro edificio"
+    return f"La familia ya está derivada {donde} de este dispositivo. No la avises a la mesa."
