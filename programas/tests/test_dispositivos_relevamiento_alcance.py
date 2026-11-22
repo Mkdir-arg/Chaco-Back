@@ -15,6 +15,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.urls import reverse
+from django.utils import timezone
 
 from programas.models import AdjuntoRespuestaRelevamiento, Edificio
 from programas.services.inspecciones import crear_inspeccion, inspecciones_visibles
@@ -207,7 +208,7 @@ class FranjaInfraestructuraSinAlcanceTests(BaseInforme):
         self.assertEqual(respuesta.context["infraestructura"]["semaforo"].texto, "Crítico")
         panel = self._panel(respuesta)
         self.assertIn("Crítico", panel)
-        self.assertIn(self.inspeccion.realizada_en.strftime("%d/%m/%Y"), panel)
+        self.assertIn(timezone.localtime(self.inspeccion.realizada_en).strftime("%d/%m/%Y"), panel)
         self.assertNotIn("Humedad estructural", panel)
         self.assertNotIn(self.nombre_agente, panel)
         self.assertFalse(respuesta.context["infraestructura"]["edificios"][0]["ve_detalle"])

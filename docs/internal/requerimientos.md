@@ -52609,6 +52609,7 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+- **22/11/2026 — arreglo del test de la fecha del relevamiento (solo tests, sin cambio de producto).** `FranjaInfraestructuraSinAlcanceTests.test_sin_alcance_ve_el_semaforo_y_la_fecha_pero_no_observaciones_ni_relevador` formateaba `realizada_en` en UTC y el template la muestra en hora local, así que entre las 21:00 y las 00:00 de Argentina quedaba rojo en el CI de todos los PRs; ahora compara contra `timezone.localtime(...)` (mismo antecedente que #863).
 
 ---
 
