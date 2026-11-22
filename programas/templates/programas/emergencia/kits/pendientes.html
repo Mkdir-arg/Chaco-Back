@@ -43,6 +43,7 @@ página propia.{% endcomment %}
         </tbody>
       </table>
     </div>
+    {% include "components/_paginacion.html" with page_obj=pagina entidad="entrega" %}
     {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="No hay entregas por recibir" texto="Cuando la mesa de Emergencia arme una entrega para este dispositivo, aparece acá." %}
     {% endif %}

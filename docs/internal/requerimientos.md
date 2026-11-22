@@ -661,6 +661,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 542 | Dispositivos · la institución se bloquea primero, en compartido: reservar, ingresar, cambiar de plaza y liberar no se cuelan en un «Cerrar» o «Inactivar» ni se cruzan con él en un deadlock | Dispositivos (estadías, reservas, plazas, bitácora) / Emergencia (reservas de derivación y confirmación) | `#dispositivos` `#emergencia` `#datos` | Pendiente del Cambio 536 | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -62171,6 +62172,54 @@ No requiere.
 ## Reversión
 Desplegar el código anterior. Los casos creados con la casilla quedan con la clave en `situacion`, que el código anterior
 ignora.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 540 — Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · Llegadas (E6) y Kits del dispositivo |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#ui` |
+| **Solicitante** | Relevamiento de diseño de Emergencia y Dispositivos del 22/11 (PR-A) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Cerrar los hallazgos 2, 3, 4, 6, 7, 21 y 24 del relevamiento (los 1, 9, 10, 12 y 25 son decisiones del PM y quedan fuera).
+
+## Alcance acordado
+Solo adherencia: piezas e includes del inventario, sin clases, JS ni variantes nuevas, sin tocar reglas, permisos ni URLs. Consultado el archivo vivo
+por `emergencia` (Cambios 532, 535, 537 y 539): ninguna decisión choca.
+
+## Decisiones tomadas
+- **3 · Aceptar desde la fila.** La fila de «Derivaciones por recibir» suma un `nodo-icon-btn` con `data-confirm-url` (la misma vista de aceptar,
+  con confirmación). Son dos acciones: la tabla manda iconos sueltos y no menú (ficha `tabla.md`). «Rechazar» pide motivo y sigue en la tarjeta.
+- **4 · Sugerencias en el DNI de «Llegadas».** `BuscarFamiliaForm(url_sugerencias=…)` con `attrs_sugerencias` y el endpoint de personas del Legajo
+  (`dispositivos:personas_buscar`). La URL se pone solo con `ciudadano.ver`, la capacidad que ese endpoint exige además de `dispositivo.admitir`.
+- **6 · Confirmar la recepción de kits.** El `data-confirm-url` no sirve (postea un formulario sin datos y esta recepción lleva cantidades y
+  remito). Modal del arquetipo Modal cuyo pie envía el formulario con `form_id`; el botón valida antes con `reportValidity()`.
+- **7 · Tope.** «Llegadas» pagina cada lista de a 25 con su parámetro (`pendientes_pag`, `en_curso_pag`) y «Emergencia · Kits» de a 25, con `_paginacion.html`.
+- **21 y 24.** «Paso N de 3» sale de `paso_actual` y `pasos` en los cuatro pasos; el título de «Llegadas» ya no repite «Emergencia ·».
+
+## Pendiente
+- **2 · «Elegir cama» pierde lo escrito en la ficha.** Necesita guardar un borrador (sesión) o JS nuevo: no es adherencia. Se devuelve al juez.
+
+## Implementación
+Sin consultas nuevas: el paginador corta la lista antes de armar las filas.
+
+## Archivos
+- `programas/templates/programas/emergencia/dispositivo/` (`llegadas`, `ficha`, `cama`, `integrantes`, `alojar`) y `kits/` (`pendientes`, `recibir`).
+- `programas/views/emergencia_dispositivo.py`, `programas/views/emergencia_kits.py`, `programas/forms_emergencia_dispositivo.py`, `programas/selectors/emergencia_llegadas.py`.
+- Tests: `test_emergencia_alojar_vistas.py` y `test_emergencia_kits_vistas.py`.
+
+## Reversión
+Desplegar el código anterior.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

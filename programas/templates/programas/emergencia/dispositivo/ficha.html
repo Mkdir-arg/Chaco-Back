@@ -11,7 +11,7 @@ secciones 4 a 8, que se pueden terminar después.{% endcomment %}
 {% block main-content %}
 <div class="space-y-5">
   {% page_header titulo=titulo eyebrow=dispositivo.nombre volver_url=url_integrantes volver_label="integrantes" %}
-    {% bajada %}Paso 2 de 3 · Caso {{ caso.numero }} · {% if confirmada %}Completá las secciones que faltan; la identidad y la cama ya quedaron al confirmar.{% else %}Con las secciones 1 a 3 y una cama, la persona queda alojada. El resto se puede terminar después.{% endif %}{% endbajada %}
+    {% bajada %}Paso {{ paso_actual }} de {{ pasos|length }} · Caso {{ caso.numero }} · {% if confirmada %}Completá las secciones que faltan; la identidad y la cama ya quedaron al confirmar.{% else %}Con las secciones 1 a 3 y una cama, la persona queda alojada. El resto se puede terminar después.{% endif %}{% endbajada %}
   {% endpage_header %}
 
   {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
