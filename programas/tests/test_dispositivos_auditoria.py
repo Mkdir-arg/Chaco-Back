@@ -39,7 +39,7 @@ from programas.models import (
 from programas.selectors.auditoria_dispositivo import TITULOS_TRAZA, auditoria_del_dispositivo
 from programas.services.bitacora import corregir_entrada, crear_turno, editar_turno, registrar_entrada
 from programas.services.detalle_dispositivo import POR_PAGINA_HISTORIAL, eventos_de_historial
-from programas.services.dispositivos import inactivar_dispositivo, registrar_edicion_dispositivo
+from programas.services.dispositivos import registrar_edicion_dispositivo
 from programas.services.estadias import (
     cambiar_plaza,
     egresar_persona,
@@ -49,6 +49,7 @@ from programas.services.estadias import (
     sacar_plaza_de_servicio,
     volver_plaza_a_servicio,
 )
+from programas.services.estado_institucion import inactivar_dispositivo
 from programas.services.inspecciones import (
     agregar_foto,
     cancelar_inspeccion,

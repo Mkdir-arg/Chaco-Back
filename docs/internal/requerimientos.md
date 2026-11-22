@@ -61586,7 +61586,7 @@ fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; 
 
 ## Implementación
 `programas/selectors/compromisos_institucion.py` (nuevo), `programas/services/dispositivos.py` (`_transicionar` con
-`antes_de_cambiar`, cerrar, inactivar, `exigir_institucion_en_estado`), `programas/services/estadias.py` (`reservar_plaza`,
+`antes_de_cambiar`, `exigir_institucion_en_estado`), `programas/services/estado_institucion.py` (nuevo: cerrar e inactivar, aparte para no cerrar un ciclo de imports con `estadias`), `programas/services/estadias.py` (`reservar_plaza`,
 `cambiar_plaza`), `programas/services/plazas.py` (`editar_sector`), `programas/services/sectores_plazas.py` (acciones del mapa),
 `programas/views/dispositivos_legajo.py` (aviso de reservas liberadas) y el texto del modal de «Inactivar».
 

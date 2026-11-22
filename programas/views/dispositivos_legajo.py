@@ -85,12 +85,10 @@ from programas.services.detalle_dispositivo import (
 from programas.services.dispositivos import (
     CAP_VER,
     buscar_posibles_duplicados,
-    cerrar_dispositivo,
     dispositivos_en_alcance,
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
-    inactivar_dispositivo,
     observar_dispositivo,
     puede_configurar_dispositivos,
     puede_editar_legajo,
@@ -128,6 +126,7 @@ from programas.services.estadias import (
     sacar_plaza_de_servicio,
     volver_plaza_a_servicio,
 )
+from programas.services.estado_institucion import cerrar_dispositivo, inactivar_dispositivo
 from programas.services.formularios_tipo import aviso_sin_formulario
 from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar

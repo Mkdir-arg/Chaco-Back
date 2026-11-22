@@ -25,8 +25,8 @@ from programas.models import (
     TrazaDispositivo,
 )
 from programas.selectors.compromisos_institucion import compromisos_de_la_institucion
-from programas.services.dispositivos import cerrar_dispositivo, inactivar_dispositivo
 from programas.services.estadias import cambiar_plaza, ingresar_persona, reservar_plaza
+from programas.services.estado_institucion import cerrar_dispositivo, inactivar_dispositivo
 from programas.services.plazas import editar_sector
 from programas.tests.test_dispositivos_reservas_derivacion import RELOJ, BaseDerivacion
 
