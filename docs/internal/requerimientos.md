@@ -62224,6 +62224,8 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
 - **«Cuántas faltan confirmar»** se calcula de dos maneras (`total_declarado` al confirmar, filas sin confirmar al quitar) en
   `emergencia_confirmacion.py`: unificarlo puede mover la regla de la reserva sobrante, así que se deja para un PR con su propio test.
 - **La regla de qué novedades ve cada usuario** (Cambio 523, bitácora) se arma en varios lugares: centralizarla es un refactor aparte.
+- **`.claude/design/dominio/becas.md:22`** sigue citando `_liberar_reservas_al_inactivar` (hoy `_antes_de_inactivar`): es pieza canónica y
+  tocarla obliga a actualizar el agente canónico de diseño; se hace junto con el próximo cambio de UI de Dispositivos.
 - **Refactor de las vistas de la mesa** (una vista que instancia a otra, texto del dueño del caso repetido en dos excepciones):
   queda como está; no cambia lo que ve el usuario.
 
@@ -62236,7 +62238,7 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
 - `services/dispositivos.py` (`se_puede_cambiar_plaza`): la regla de «Cambiar plaza» / «Asignar plaza» deja de estar escrita tres veces
   en `views/dispositivos_legajo.py`; `acciones_de_plaza` pide `estado_dispositivo` (ya nadie lo omitía).
 - `views/emergencia.py`: sin key de Google la vista deja `panel["distancias"]` en `None` y el template solo lo mira.
-- Docstrings y fichas (`detalle.md`, `becas.md`): «trazas del dispositivo (legajo, plazas, sectores, turnos y edificios)»;
+- Docstrings y la ficha `detalle.md`: «trazas del dispositivo (legajo, plazas, sectores, turnos y edificios)»;
   el contrato de la app y la `description` de `…/quitar/` dicen que un `id` que no es entero da 400.
 - `.github/workflows/release-gate.yml`: `timeout-minutes` del job `suite` de 20 a 30.
 - Ya resueltos en `development` (verificado en el código): selector de edificios de la bitácora, `ValueError` del edificio de la
@@ -62249,7 +62251,7 @@ Del PM, 22/11/2026, registradas en las entradas de origen y no en esta:
 `programas/services/dispositivos.py`, `programas/services/sectores_plazas.py`, `programas/services/detalle_dispositivo.py`,
 `programas/selectors/auditoria_dispositivo.py`, `programas/api/views_emergencia_llegadas.py`,
 `programas/templates/programas/emergencia/casos/detail.html`, `docs/internal/contrato-app-emergencia.md`,
-`.claude/design/arquetipos/detalle.md`, `.claude/design/dominio/becas.md`, `.github/workflows/release-gate.yml` y los tests
+`.claude/design/arquetipos/detalle.md`, `.github/workflows/release-gate.yml` y los tests
 (`test_atributo_hidden`, `test_dispositivos_estados_536`, `test_emergencia_alojar_vistas`, `test_emergencia_derivar`,
 `test_emergencia_formularios_correcciones`, `test_emergencia_identidad_nuevo_caso`).
 
