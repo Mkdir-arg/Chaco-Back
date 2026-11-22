@@ -543,7 +543,9 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
 
       Con ``buscar_en_legajos`` el sexo además **puede faltar** (Cambio 522): sin sexo se busca
       **solo en legajos**, sin llamar a Base de Personas: 200 con el legajo o 404
-      ``no_en_legajo``. Con sexo F/M no cambia nada; un sexo inválido sigue siendo 400.
+      ``no_en_legajo``. Con sexo F/M sigue pasando por Base de Personas (fallecida, 502), pero
+      cuando responde el legajo el ``sexo`` de la respuesta es **siempre el del legajo**, nunca el
+      de la consulta (#1301). Un sexo inválido sigue siendo 400.
 
     El permiso y el throttle son de cada vista; acá no se decide quién puede preguntar.
     """
@@ -580,7 +582,8 @@ def responder_consulta_de_persona(datos, relevamientos_de=None, buscar_en_legajo
     if buscar_en_legajos:
         del_legajo = identificar_en_legajo(dni)
         if del_legajo is not None:
-            del_legajo.update(dni=dni, sexo=sexo)
+            # El sexo es el del legajo, venga o no `sexo` en la consulta (#1301).
+            del_legajo.update(dni=dni)
             return _respuesta_del_legajo(del_legajo)
     if not resultado["validado"]:
         if resultado["error"] and not resultado["no_encontrado"]:

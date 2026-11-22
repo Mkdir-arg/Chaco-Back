@@ -56,6 +56,8 @@ CLAVES_RAIZ = ["casos", "casos/mios", "localidades", "mis-dispositivos", "perfil
 # `llegadas` y `kits` (Cambio 475) son aditivas: `dispositivo` sigue siendo `llegadas or kits`.
 CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "relevar"]
 CLAVES_LOCALIDAD = ["id", "nombre"]
+CLAVES_SUGERENCIAS = ["hay_mas", "resultados"]
+CLAVES_SUGERENCIA = ["apellido", "dni", "nombre"]
 CLAVES_CASO_CREADO = ["id", "numero", "prioridad", "total_declarado"]
 CLAVES_MI_CASO = ["creado_en", "estado", "numero", "total_declarado"]
 CLAVES_CONSULTA = ["data", "datos_api", "origen", "success"]
@@ -177,6 +179,7 @@ SIN_RECIBIR_KIT = {"detail": MENSAJE_SIN_RECIBIR_KIT, "code": "SIN_MODULO"}
 URL_RAIZ = "/api/emergencia/"
 URL_PERFIL = "/api/emergencia/perfil/"
 URL_CONSULTAR = "/api/emergencia/personas/consultar/"
+URL_SUGERIR = "/api/emergencia/personas/sugerir/"
 URL_LOCALIDADES = "/api/emergencia/localidades/"
 URL_CASOS = "/api/emergencia/casos/"
 URL_MIOS = "/api/emergencia/casos/mios/"
