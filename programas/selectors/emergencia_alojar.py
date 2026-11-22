@@ -25,6 +25,8 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Exists, Min, OuterRef, Q
 from django.utils import timezone
 
+from core.edad import MAYORIA_DE_EDAD, edad_en_anios
+
 from programas.models import (
     CasoEmergencia,
     Derivacion,
@@ -119,7 +121,7 @@ def _camas_del_dispositivo(dispositivo, usuario=None, edificio_id=None):
             if usuario is not None
             else Q()
         )
-        .select_related("sector")
+        .select_related("sector__edificio")
         .only(
             "id",
             "sector_id",
@@ -130,6 +132,7 @@ def _camas_del_dispositivo(dispositivo, usuario=None, edificio_id=None):
             "sector__nombre",
             "sector__perfil",
             "sector__edificio",
+            "sector__edificio__nombre",
         )
     )
 
@@ -258,7 +261,7 @@ def plazas_para_caso(dispositivo, caso, usuario, *, puede_ver_personas=False, mo
     nombre::
 
         {
-            "sector": {"id": 3, "nombre": "Pabellón A", "perfil": "Familias"},
+            "sector": {"id": 3, "nombre": "Pabellón A", "perfil": "Familias", "edificio": {"id": 2, "nombre": "Edificio A"}},
             "plazas": [
                 {"id": 41, "codigo": "A-01", "nombre": "A-01 (Pabellón A)",
                  "estado": "RESERVADA_FAMILIA", "elegible": True,
@@ -315,7 +318,12 @@ def plazas_para_caso(dispositivo, caso, usuario, *, puede_ver_personas=False, mo
         armado = por_sector.setdefault(
             cama.sector_id,
             {
-                "sector": {"id": cama.sector_id, "nombre": cama.sector.nombre, "perfil": cama.sector.perfil},
+                "sector": {
+                    "id": cama.sector_id,
+                    "nombre": cama.sector.nombre,
+                    "perfil": cama.sector.perfil,
+                    "edificio": _edificio_como_dict(cama.sector.edificio),
+                },
                 "plazas": [],
                 "total": 0,
                 "libres": 0,
@@ -470,6 +478,30 @@ def _filas_de_la_familia(grupo_pk):
     )
 
 
+def _edificio_como_dict(edificio):
+    """``{"id", "nombre"}`` del edificio, o ``None`` si no tiene (sector o derivación anteriores al campo)."""
+
+    return {"id": edificio.pk, "nombre": edificio.nombre} if edificio is not None else None
+
+
+def es_adulto_confirmado(fila, hoy=None):
+    """¿La fila es un adulto **confirmado** que puede ser adulto responsable de otra persona de la familia?
+
+    La regla única del selector ``adulto_responsable_orden`` (``emergencia_confirmacion.adultos_del_grupo``) y
+    de la marca ``es_adulto`` de la API: confirmada, sin egresar y 18 años cumplidos
+    (``core.edad.MAYORIA_DE_EDAD``) por la fecha de la ficha (vale aproximada) o la del legajo. Sin consultas:
+    lee ``fila.ficha`` y ``fila.ciudadano``. Que una persona no sea su propio adulto responsable lo resuelve
+    quien arma la lista (``excluir_orden``).
+    """
+
+    if not fila.confirmada or fila.egresado_en is not None:
+        return False
+    datos = (fila.ficha or {}).get(SECCION_DATOS) or {}
+    nacimiento = datos.get("fecha_nacimiento") or (fila.ciudadano.fecha_nacimiento if fila.ciudadano_id else None)
+    edad = edad_en_anios(nacimiento, hoy)
+    return edad is not None and edad >= MAYORIA_DE_EDAD
+
+
 def _fila_de_integrante(fila, ingreso_en_curso=False):
     """Una fila de la familia como la leen M2-3 y E6-integrantes. Sin consultas.
 
@@ -513,6 +545,7 @@ def _fila_de_integrante(fila, ingreso_en_curso=False):
         "egresado_en": fila.egresado_en,
         "estadia_id": fila.estadia_id,
         "puede_quitarse": ingreso_en_curso and fila.se_puede_quitar,
+        "es_adulto": es_adulto_confirmado(fila),
     }
 
 

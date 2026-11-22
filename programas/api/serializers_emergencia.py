@@ -401,6 +401,11 @@ class CasoResumenSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class EdificioSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+
+
 class PersonaDelIntegranteSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text="`id` del legajo.")
     nombre = serializers.CharField(help_text="«Apellido, Nombre».")
@@ -457,6 +462,14 @@ class IntegranteSerializer(serializers.Serializer):
             "`true` si la persona se agregó en la puerta con «Agregar persona», sigue sin confirmar y el ingreso "
             "está en curso: se puede quitar con `…/integrantes/{n}/quitar/`. Nunca el responsable ni las personas "
             "del Formulario 1."
+        )
+    )
+    es_adulto = serializers.BooleanField(
+        help_text=(
+            "`true` si la persona está `CONFIRMADA`, no egresó y tiene 18 años o más (por la fecha de su ficha o la "
+            "del legajo): la misma regla con la que el servidor valida `adulto_responsable_orden`. Para armar el "
+            "selector de adulto responsable, ofrecer las filas con `es_adulto` y sin la propia persona; el valor a "
+            "enviar es el `n` de la fila elegida."
         )
     )
 
@@ -552,11 +565,20 @@ class DerivacionLlegadaSerializer(serializers.ModelSerializer):
     )
     telefono = serializers.SerializerMethodField()
     observaciones = serializers.SerializerMethodField()
+    edificio = EdificioSerializer(
+        read_only=True,
+        allow_null=True,
+        help_text=(
+            "El edificio al que va la familia (`{id, nombre}`); `null` en las derivaciones anteriores al campo. "
+            "«Aceptar» reserva solo camas de este edificio: contar las libres de ahí (`sector.edificio` del mapa)."
+        ),
+    )
 
     class Meta:
         model = Derivacion
         fields = [
             "id",
+            "edificio",
             "estado",
             "plazas_pedidas",
             "vence_en",
@@ -610,8 +632,19 @@ class BusquedaPorDniSerializer(serializers.Serializer):
     puede_avisar_a_la_mesa = serializers.BooleanField(
         help_text=(
             "Solo con `SIN_DERIVACION` (si no, `false`): el usuario puede «Avisar a la mesa» desde acá, también con "
-            "alcance por edificios (Cambio 532)."
+            "alcance por edificios (Cambio 532). Es `false` si `derivada_a_otro_edificio` es `true`."
         )
+    )
+    derivada_a_otro_edificio = serializers.BooleanField(
+        help_text=(
+            "Aditiva. `true` cuando el `resultado` es `SIN_DERIVACION` pero la familia ya tiene una derivación "
+            "vigente a **otro edificio de este mismo dispositivo**, fuera del alcance del usuario: avisar a la mesa "
+            "duplicaría el caso. Mostrar `mensaje` y no ofrecer «Avisar a la mesa» (viene en `false`)."
+        )
+    )
+    edificio_derivado = EdificioSerializer(
+        allow_null=True,
+        help_text="Aditiva. Solo con `derivada_a_otro_edificio`: el edificio destino (`{id, nombre}`); si no, `null`.",
     )
 
 
@@ -762,6 +795,10 @@ class SectorDelMapaSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     nombre = serializers.CharField()
     perfil = serializers.CharField()
+    edificio = EdificioSerializer(
+        allow_null=True,
+        help_text="Aditiva. El edificio del sector (`{id, nombre}`); `null` si el sector todavía no tiene edificio.",
+    )
 
 
 class PlazaDelMapaSerializer(serializers.Serializer):
