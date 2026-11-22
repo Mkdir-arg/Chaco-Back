@@ -13,7 +13,7 @@ el ingreso piden motivo y son el arquetipo Modal con POST clásico.{% endcomment
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
   <div class="space-y-5">
     {% page_header titulo=familia eyebrow=dispositivo.nombre volver_url=url_llegadas volver_label="llegadas" %}
-      {% bajada %}Paso 2 de 3 · Caso {{ caso.numero }} · {{ total }} persona{{ total|pluralize }}{% if total != declaradas %} ({{ declaradas }} declarada{{ declaradas|pluralize }} al relevar){% endif %}.{% endbajada %}
+      {% bajada %}Paso {{ paso_actual }} de {{ pasos|length }} · Caso {{ caso.numero }} · {{ total }} persona{{ total|pluralize }}{% if total != declaradas %} ({{ declaradas }} declarada{{ declaradas|pluralize }} al relevar){% endif %}.{% endbajada %}
       {% if puede_alojar %}
       <a href="{{ url_alojar }}" class="btn-nodo btn-brand btn-sm btn-fit"><i class="fas fa-house-circle-check" aria-hidden="true"></i> Familia alojada</a>
       {% endif %}

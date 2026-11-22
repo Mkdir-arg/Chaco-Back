@@ -34,6 +34,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -66,6 +67,9 @@ CAP_VER_CIUDADANO = "ciudadano.ver"
 Estado = CasoEmergencia.Estado
 
 TEMPLATES = "programas/emergencia/dispositivo/"
+
+#: Filas por página de cada lista de «Llegadas» (derivaciones por recibir, ingresos en curso).
+LLEGADAS_POR_PAGINA = 25
 
 SIN_ALCANCE_PARA_INGRESAR_IGUAL = (
     "Ingresar a una familia sin derivación lo puede hacer quien tiene a cargo toda la institución. "
@@ -157,7 +161,13 @@ class LlegadasView(GuardiaView):
     def get(self, request, pk):
         ahora = timezone.now()
         buscado = "dni" in request.GET
-        form = BuscarFamiliaForm(request.GET if buscado else None)
+        # Las sugerencias piden lo mismo que el endpoint: `ciudadano.ver` (ver `PersonasSugeridasView`).
+        url_sugerencias = (
+            reverse("dispositivos:personas_buscar", args=[self.dispositivo.pk])
+            if puede(request.user, CAP_VER_CIUDADANO)
+            else None
+        )
+        form = BuscarFamiliaForm(request.GET if buscado else None, url_sugerencias=url_sugerencias)
         resultado = tarjeta = None
         if buscado and form.is_valid():
             try:
@@ -176,6 +186,8 @@ class LlegadasView(GuardiaView):
             tarjeta = self._tarjeta(resultado.derivacion, ahora)
 
         llegadas = selectores.llegadas_del_dispositivo(self.dispositivo, request.user)
+        pendientes = Paginator(llegadas["pendientes"], LLEGADAS_POR_PAGINA).get_page(request.GET.get("pendientes_pag"))
+        en_curso = Paginator(llegadas["en_curso"], LLEGADAS_POR_PAGINA).get_page(request.GET.get("en_curso_pag"))
         sin_derivacion = resultado is not None and resultado.resultado == servicio.BUSQUEDA_SIN_DERIVACION
         contexto = self.contexto(
             1,
@@ -192,11 +204,16 @@ class LlegadasView(GuardiaView):
             url_ingreso_directo=self.url("ingreso_directo", dni=resultado.dni) if sin_derivacion else "",
             url_avisar=self.url("avisar", dni=resultado.dni) if sin_derivacion else "",
             pendientes=pantalla.filas_de_llegadas(
-                llegadas["pendientes"], ahora, lambda derivacion: self.url("llegadas", derivacion=derivacion.pk)
+                pendientes,
+                ahora,
+                lambda derivacion: self.url("llegadas", derivacion=derivacion.pk),
+                lambda derivacion: self.url("aceptar", derivacion.pk),
             ),
+            pendientes_pagina=pendientes,
             en_curso=pantalla.filas_de_llegadas(
-                llegadas["en_curso"], ahora, lambda derivacion: self.url("integrantes", derivacion.caso_id)
+                en_curso, ahora, lambda derivacion: self.url("integrantes", derivacion.caso_id)
             ),
+            en_curso_pagina=en_curso,
         )
         return render(request, f"{TEMPLATES}llegadas.html", contexto)
 

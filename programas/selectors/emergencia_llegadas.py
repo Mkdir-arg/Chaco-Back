@@ -101,8 +101,11 @@ def tarjeta_de_derivacion(derivacion, ahora):
     }
 
 
-def filas_de_llegadas(derivaciones, ahora, url_de):
-    """Una fila por derivación de la lista de llegadas. ``url_de(derivacion)`` arma el destino. Sin consultas."""
+def filas_de_llegadas(derivaciones, ahora, url_de, url_aceptar_de=None):
+    """Una fila por derivación de la lista de llegadas. ``url_de(derivacion)`` arma el destino. Sin consultas.
+
+    ``url_aceptar_de(derivacion)`` (opcional) suma ``url_aceptar``: el POST de aceptar desde la propia fila.
+    """
 
     filas = []
     for derivacion in derivaciones:
@@ -134,6 +137,7 @@ def filas_de_llegadas(derivaciones, ahora, url_de):
                 "confirmadas": derivacion.confirmadas,
                 "total": grupo.total_declarado,
                 "url": url_de(derivacion),
+                "url_aceptar": url_aceptar_de(derivacion) if url_aceptar_de else "",
             }
         )
     return filas
