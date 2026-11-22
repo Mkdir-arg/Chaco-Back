@@ -1,12 +1,12 @@
 """Etapa 3 de Emergencia, paso 3: cerrar el ingreso, y el cierre del caso cuando egresa el último.
 
 ``alojar_familia`` (N de N, M2-5), ``cerrar_con_diferencia`` (RN-3.9), ``cancelar_ingreso``
-(03 §5) y el receptor de ``estadia_egresada`` (RN-3.12). Se importan desde
+(03 §5), ``cancelar_ingreso_por_la_mesa`` (Cambio 535) y el receptor de ``estadia_egresada`` (RN-3.12). Se importan desde
 ``programas.services.emergencia_alojar``, que tiene el contrato de la etapa y explica por
 qué el egreso no forma un ciclo de candados con este módulo.
 """
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -18,7 +18,8 @@ from programas.models import (
     Sector,
 )
 from programas.senales import estadia_egresada
-from programas.services.emergencia_comun import _nombre_de, _trazar
+from programas.services.emergencia import EstadoCambio
+from programas.services.emergencia_comun import _bloquear_caso, _nombre_de, _trazar
 from programas.services.emergencia_ingreso_comun import (
     Accion,
     Estado,
@@ -30,6 +31,7 @@ from programas.services.emergencia_ingreso_comun import (
     acciones_del_ingreso,
     mensaje_faltan_confirmar,
 )
+from programas.services.emergencia_programa import puede_supervisar_la_mesa
 from programas.services.reservas_derivacion import liberar_reservas_de_derivacion
 
 
@@ -321,6 +323,111 @@ def cancelar_ingreso(*, caso, usuario, motivo, derivacion_vista=None):
         Accion.INGRESO_CANCELADO,
         estado_anterior=Estado.INGRESO_EN_CURSO,
         detalle=f"Ingreso cancelado por {dispositivo.nombre}: {motivo}",
+    )
+    caso.reservas_liberadas = liberadas
+    return caso
+
+
+SIN_PERMISO_DE_CANCELAR_INGRESO = "Solo quien supervisa la mesa puede cancelar un ingreso en curso."
+INGRESO_CON_CONFIRMADAS = (
+    "Ya hay personas confirmadas con cama: el ingreso no se cancela desde la mesa. "
+    "Pedile al dispositivo que lo cierre con diferencia."
+)
+MOTIVO_RESERVAS_CANCELADO_POR_LA_MESA = "Emergencia: la mesa canceló el ingreso."
+
+
+def puede_cancelar_ingreso_por_la_mesa(caso, *, es_supervisor, confirmadas):
+    """¿Se ofrece «Cancelar ingreso» en la ficha de la mesa? **Pura, sin consultas** (Cambio 535).
+
+    La misma regla que vuelve a exigir :func:`cancelar_ingreso_por_la_mesa` sobre las filas bloqueadas:
+    quien supervisa, caso en ingreso y nadie confirmado (``acciones_del_ingreso(...)["cancelar"]``).
+    """
+
+    return (
+        bool(es_supervisor) and acciones_del_ingreso(estado=caso.estado, confirmadas=confirmadas, total=0)["cancelar"]
+    )
+
+
+@transaction.atomic
+def cancelar_ingreso_por_la_mesa(*, caso, usuario, motivo, derivacion_vista=None):
+    """La mesa destraba un ingreso aceptado que no avanza: **solo quien supervisa**, con motivo (Cambio 535).
+
+    Un caso en «Ingreso en curso» no vence (la derivación ``ACEPTADA`` no tiene plazo) y, si la
+    guardia no confirma a nadie ni lo cancela, queda tomando camas para siempre. Esto es la salida
+    de la mesa, con las mismas reglas que ``cancelar_ingreso`` de la guardia:
+
+    * **sin ninguna persona confirmada**: con una sola ya hay alguien adentro y el ingreso se cierra
+      con diferencia, que es de la guardia (``ValidationError``);
+    * libera las reservas vigentes de la derivación (sin alcance sobre el dispositivo: no es una
+      decisión sobre esas camas sino la consecuencia de que el ingreso terminó);
+    * la derivación queda ``CANCELADA`` con el motivo —la guardia que abra la familia lee «La mesa
+      canceló la derivación»— y el caso vuelve a quien lo tenía o a la bandeja;
+    * traza ``INGRESO_CANCELADO`` por supervisor, con el motivo, y una novedad en la bitácora del
+      turno del dispositivo **sin** el motivo libre (la lee quien tiene ``dispositivo.ver``).
+
+    No hay vencimiento automático: lo decide una persona. ``derivacion_vista`` es la derivación que
+    mostró la ficha; si ya no es la vigente, :class:`EstadoCambio` (Cambio 477).
+
+    Candados: caso → derivación → plazas → reservas, el orden global de Emergencia.
+    Devuelve el caso, con ``caso.reservas_liberadas``.
+    """
+
+    if not puede_supervisar_la_mesa(usuario):
+        raise PermissionDenied(SIN_PERMISO_DE_CANCELAR_INGRESO)
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ValidationError({"motivo": "Indicá por qué se cancela el ingreso."})
+    if len(motivo) > 200:
+        raise ValidationError({"motivo": "El motivo no puede tener más de 200 caracteres."})
+
+    caso = _bloquear_caso(caso)
+    pk_vigente = (
+        Derivacion.objects.filter(clave_vigente=caso.pk, estado=Derivacion.Estado.ACEPTADA)
+        .values_list("pk", flat=True)
+        .first()
+    )
+    derivacion = Derivacion.objects.select_for_update().filter(pk=pk_vigente).first() if pk_vigente else None
+    if derivacion_vista not in (None, "") and (
+        derivacion is None or int(getattr(derivacion_vista, "pk", derivacion_vista)) != derivacion.pk
+    ):
+        raise EstadoCambio(
+            f"El ingreso del caso {caso.numero} cambió. Recargá la ficha.", estado_actual=caso.estado, caso=caso
+        )
+    if derivacion is None or derivacion.estado != Derivacion.Estado.ACEPTADA or caso.estado != Estado.INGRESO_EN_CURSO:
+        raise EstadoCambio(
+            f"El caso {caso.numero} ya no tiene un ingreso en curso. Recargá la ficha.",
+            estado_actual=caso.estado,
+            caso=caso,
+        )
+    confirmadas = IntegranteGrupo.objects.filter(grupo_id=caso.grupo_id, confirmada_en__isnull=False).count()
+    if not puede_cancelar_ingreso_por_la_mesa(caso, es_supervisor=True, confirmadas=confirmadas):
+        raise ValidationError(INGRESO_CON_CONFIRMADAS)
+
+    dispositivo = derivacion.dispositivo
+    liberadas = liberar_reservas_de_derivacion(
+        derivacion=derivacion, usuario=usuario, motivo=MOTIVO_RESERVAS_CANCELADO_POR_LA_MESA, verificar_alcance=False
+    )
+    ahora = timezone.now()
+    derivacion.estado = Derivacion.Estado.CANCELADA
+    derivacion.motivo = motivo
+    derivacion.respondida_por = usuario
+    derivacion.respondida_en = ahora
+    derivacion.save(update_fields=["estado", "motivo", "respondida_por", "respondida_en", "modificado"])
+    _devolver_a_la_mesa(caso)
+    _trazar(
+        caso,
+        usuario,
+        Accion.INGRESO_CANCELADO,
+        estado_anterior=Estado.INGRESO_EN_CURSO,
+        detalle=f"Ingreso en {dispositivo.nombre} cancelado por la mesa: {motivo}",
+        por_supervisor=True,
+    )
+    _anotar_en_bitacora(
+        dispositivo,
+        usuario,
+        f"Emergencia · la mesa canceló el ingreso del caso N.° {caso.numero} · camas liberadas: {liberadas}",
+        ahora,
+        derivacion.edificio_id,
     )
     caso.reservas_liberadas = liberadas
     return caso

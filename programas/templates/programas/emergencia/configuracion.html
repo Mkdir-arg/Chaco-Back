@@ -21,7 +21,7 @@
     </div>
     <div class="border-t border-light pt-4">
       <h2 class="text-heading font-bold">Derivaciones y avisos</h2>
-      <p class="mt-1 mb-4 text-xs text-body-subtle">Cuánto dura una derivación sin respuesta y cuándo un caso se marca por vencer.</p>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Cuánto dura una derivación sin respuesta, cuándo un caso se marca por vencer y cuándo se avisa un ingreso aceptado sin movimiento.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {% for field in form.campos_de_derivacion %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
       </div>

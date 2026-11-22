@@ -5360,6 +5360,13 @@ class SLAEmergencia(TimeStamped):
         verbose_name="Minutos sin avance antes de devolver a la bandeja",
         help_text="Con 0 el caso tomado no vuelve solo a la bandeja.",
     )
+    ingreso_sin_movimiento_h = models.PositiveIntegerField(
+        default=6,
+        db_default=6,
+        validators=[MinValueValidator(0)],
+        verbose_name="Horas de un ingreso aceptado sin movimiento antes de avisar",
+        help_text="La bandeja y la ficha avisan «Aceptado sin movimiento». No vence nada. Con 0 no se avisa.",
+    )
     umbral_por_vencer_pct = models.PositiveSmallIntegerField(
         default=80,
         db_default=80,
@@ -6490,6 +6497,17 @@ class EntregaKit(TimeStamped):
         unique=True,
         editable=False,
         verbose_name="Identificador de la recepción (app)",
+    )
+    # El identificador que nace al abrir «Armar entrega» y viaja oculto hasta «Crear entrega»:
+    # volver atrás y reenviar devuelve la misma entrega en vez de armar otra (Cambio 535). Único
+    # sobre columna anulable —MySQL y MariaDB admiten varios NULL en un UNIQUE— y `char(36)` en
+    # MySQL/MariaDB (programas.0135); se busca con `core.db.q_uuid_en_texto`.
+    uuid_cliente = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador del armado (mesa)",
     )
 
     class Meta:

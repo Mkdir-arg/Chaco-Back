@@ -110,6 +110,7 @@ CANTIDAD_RECIBIDA_INVALIDA = "La cantidad recibida de {item} tiene que ser un n�
 ITEM_AJENO = "Hay cantidades de ítems que no son de esta entrega. Recargá la pantalla."
 UUID_INVALIDO = "El identificador del envío no es válido."
 UUID_EN_USO = "Ese identificador de envío ya se usó en otra recepción."
+ARMADO_EN_USO = "Ese armado ya lo creó otra persona: empezá una entrega nueva desde «Armar entrega»."
 FALTA_LA_OBSERVACION = "Escribí la observación."
 SIN_MARCA_DE_SALIDA = "Recibida sin marca de salida"
 YA_EN_CAMINO = "La entrega {numero} ya está en camino. Recargá la pantalla."
@@ -318,8 +319,21 @@ def _edificio_de_la_entrega(destino, edificio, original):
     return unicos[0] if unicos else None
 
 
+def _entrega_de_ese_armado(uuid_cliente, usuario):
+    """La entrega que ya armó ese ``uuid_cliente`` (con ``ya_existia``) o ``None``. Ajena: :class:`UuidEnUso`."""
+
+    existente = EntregaKit.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
+    if existente is None:
+        return None
+    if existente.armada_por_id != usuario.pk:
+        # El mismo identificador en manos de otro no es un reenvío: no se le devuelve una entrega ajena.
+        raise UuidEnUso(ARMADO_EN_USO)
+    existente.ya_existia = True
+    return existente
+
+
 @transaction.atomic
-def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, edificio=None):
+def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, edificio=None, uuid_cliente=None):
     """Arma una entrega ``PREPARADA`` con sus líneas (HU-4.1). **La única función que crea entregas.**
 
     * Exige trabajar en la mesa (``emergencia.operar`` o ``supervisar``).
@@ -335,9 +349,19 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
     * ``edificio`` (Cambio 523): ver :func:`_edificio_de_la_entrega`; sin él sale de la entrega que repone o del
       único edificio del destino; con varios y sin de dónde sacarlo es obligatorio.
     * Numera con el contador de la serie ``K`` («2026-K-000031») y deja la primera traza.
+    * **Idempotencia** (Cambio 535): ``uuid_cliente`` es el identificador que nació al abrir «Armar
+      entrega». Si ya armó una entrega de este usuario, la devuelve tal cual, con
+      ``entrega.ya_existia = True``, sin crear otra ni dejar traza: volver atrás en el navegador y
+      reenviar no duplica. Usado por otro usuario, :class:`UuidEnUso`. Dos envíos a la vez los
+      ordena el UNIQUE de la columna: el segundo vuelve a leer y devuelve la del primero.
     """
 
     _exigir_mesa(usuario)
+    uuid_cliente = _como_uuid(uuid_cliente)
+    if uuid_cliente is not None:
+        existente = _entrega_de_ese_armado(uuid_cliente, usuario)
+        if existente is not None:
+            return existente
     destino = Dispositivo.objects.filter(pk=getattr(dispositivo, "pk", dispositivo)).first()
     if destino is None or destino.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ACTIVO})
@@ -346,15 +370,25 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
     edificio_id = _edificio_de_la_entrega(destino, edificio, original)
 
     ahora = timezone.now()
-    entrega = EntregaKit.objects.create(
-        numero=siguiente_numero_de_entrega(ahora),
-        dispositivo=destino,
-        edificio_id=edificio_id,
-        estado=Estado.PREPARADA,
-        armada_por=usuario,
-        observacion_mesa=(observacion or "").strip(),
-        repone_a=original,
-    )
+    try:
+        # Anidada: si el UNIQUE de `uuid_cliente` salta —el mismo armado llegó dos veces a la vez—,
+        # se deshace este alta y la transacción de afuera sigue sana para devolver la primera.
+        with transaction.atomic():
+            entrega = EntregaKit.objects.create(
+                numero=siguiente_numero_de_entrega(ahora),
+                dispositivo=destino,
+                edificio_id=edificio_id,
+                estado=Estado.PREPARADA,
+                armada_por=usuario,
+                observacion_mesa=(observacion or "").strip(),
+                repone_a=original,
+                uuid_cliente=uuid_cliente,
+            )
+    except IntegrityError:
+        existente = _entrega_de_ese_armado(uuid_cliente, usuario) if uuid_cliente is not None else None
+        if existente is None:
+            raise
+        return existente
     LineaEntrega.objects.bulk_create(
         [
             LineaEntrega(entrega=entrega, item=item, unidad=item.unidad, cantidad_enviada=cantidad)

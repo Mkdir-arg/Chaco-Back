@@ -27,11 +27,11 @@ from collections import Counter
 from dataclasses import dataclass
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Sum
 
 from core.selectors.geografia import PROVINCIA_OPERATIVA, localidades_operativas
 from core.services.ubicaciones_localidades import clave
-from programas.models import CasoEmergencia, Dispositivo, Edificio
+from programas.models import CasoEmergencia, Derivacion, Dispositivo, Edificio
 from programas.selectors.emergencia import (
     MARCA_ALCANZA,
     MARCA_FALTAN,
@@ -190,6 +190,21 @@ def clave_de_grupo(edificio_id, dispositivo_id):
     """``e12`` para el edificio 12; ``d34`` para los sectores sin edificio de la institución 34."""
 
     return f"{PREFIJO_EDIFICIO}{edificio_id}" if edificio_id is not None else f"{PREFIJO_SIN_EDIFICIO}{dispositivo_id}"
+
+
+def pedidas_pendientes(dispositivo_id, edificio_id):
+    """``(camas, derivaciones)`` que la mesa ya pidió a esa institución en ese edificio y todavía no contestó.
+
+    Son las derivaciones ``PENDIENTE`` —también las vencidas que el cron no marcó, que se pueden aceptar
+    igual (RN-3.3)— a ``dispositivo_id`` con ``edificio_id`` (``None`` es el grupo «sin edificio asignado»).
+    Es un **dato** para quien deriva (Cambio 535): **no** se descuenta de las camas libres, porque una
+    derivación pendiente no reserva nada hasta que la institución la acepta. **1 consulta.**
+    """
+
+    totales = Derivacion.objects.filter(
+        dispositivo_id=dispositivo_id, edificio_id=edificio_id, estado=Derivacion.Estado.PENDIENTE
+    ).aggregate(camas=Sum("plazas_pedidas"), derivaciones=Count("id"))
+    return totales["camas"] or 0, totales["derivaciones"]
 
 
 def edificios_para_derivar(caso, usuario, *, plazas=None, momento=None):

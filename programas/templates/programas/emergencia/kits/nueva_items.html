@@ -45,7 +45,7 @@ lleva en ocultos (el asistente no usa la sesión). El resumen del destino lo arm
   <form method="post" action="{{ url_confirmar }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% include "components/_form_errores.html" %}
-    {{ form.repone_a }}
+    {{ form.repone_a }}{{ form.uuid_cliente }}
     <h2 class="text-heading font-bold mb-4">Ítems y cantidades</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {% for field in form.campos_de_cantidad %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
