@@ -665,6 +665,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 542 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 544 | Dispositivos · ficha propia del edificio: títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 546 | Emergencia · la ficha de la guardia no pierde lo escrito al elegir cama (borrador en la sesión) | Emergencia · guardia del dispositivo (ficha de la persona) | `#emergencia` `#dispositivos` | Relevamiento de diseño del 22/11 (hallazgo 2), decisión del juez | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 539 | Emergencia · «Quitar persona»: el pedido identifica la fila, libera la reserva sobrante y la regla es una sola | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` | MINOR de la auditoría del #1313 (PR L1c) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 538 | Emergencia · «Nuevo caso»: «Buscar DNI» en el legajo y «Perdió el documento»; «Identidad a revisar» visible en la ficha y la bandeja; limpieza de la auditoría del #1312 | Emergencia · mesa (alta, bandeja E2, ficha E3) | `#emergencia` `#rbac` `#ui` | Auditoría de Emergencia (hallazgos 15 y 16) y MINOR del PR #1312 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
@@ -62416,6 +62417,47 @@ Solo adherencia con clases existentes. Fuera: el campo «Orden» de los turnos (
 
 ## Archivos
 `programas/templates/programas/dispositivos/edificios/detail.html` y `.claude/design/arquetipos/detalle.md`.
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+---
+
+# Cambio 546 — Emergencia · la ficha de la guardia no pierde lo escrito al elegir cama
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · guardia del dispositivo (ficha de la persona, `emergencia/dispositivo/ficha.html`) |
+| **Etiquetas** | `#emergencia` `#dispositivos` |
+| **Solicitante** | Relevamiento de diseño del 22/11 (hallazgo 2); decisión del juez |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+Hallazgo 2: «Elegir cama» era un enlace al mapa de camas y, si el operador ya había escrito en la ficha, lo escrito se perdía (el Cambio 540 lo devolvió al juez porque pedía guardar un borrador).
+
+## Alcance acordado
+«Elegir cama» pasa a ser un botón de envío del mismo formulario (`name="elegir_cama"`). La vista guarda lo escrito como borrador en la sesión, sin validar y sin escribir en la base, y redirige al mapa. Al volver a la ficha el formulario se precarga (`initial`, sin errores marcados).
+
+## Decisiones tomadas
+- **Borrador en la sesión, atado a la persona.** Clave `emergencia_borrador_ficha:<dispositivo>:<caso>:<integrante>`: no pasa a otra ficha ni a otro caso. Guarda solo los campos de la ficha con valor (no el token, no la cama, que viaja por la URL del mapa). Nunca va a un log ni a la base.
+- **Se borra al confirmar** la persona con éxito. Si el operador abandona sin confirmar queda en la sesión hasta que esta termina.
+- **Sin archivos:** la ficha no tiene adjuntos, así que no hay nada que no viaje.
+- **Enter en un campo** confirma, no elige cama: un primer botón de envío oculto hace de botón por defecto del formulario.
+- El POST normal (Confirmar persona) no cambia: sigue validando igual.
+
+## Pendiente
+- El borrador de una ficha abandonada no se limpia hasta que termina la sesión; si molesta, limpiarlo al «Cancelar».
+
+## Archivos
+`programas/views/emergencia_dispositivo.py`, `programas/templates/programas/emergencia/dispositivo/ficha.html`, `programas/tests/test_emergencia_alojar_vistas.py`.
 
 ## Reversión
 Desplegar el código anterior.

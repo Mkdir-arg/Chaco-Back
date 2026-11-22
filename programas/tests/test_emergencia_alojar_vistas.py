@@ -509,6 +509,81 @@ class IntegrantesTests(BaseLlegadas):
         self.assertContains(respuesta, f'name="plaza" value="{libre.pk}"')
         self.assertContains(respuesta, "Disponible")
 
+    def test_elegir_cama_guarda_lo_escrito_como_borrador_sin_validar_ni_tocar_la_base(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        libre = self._cama_libre()
+        antes = IntegranteGrupo.objects.filter(grupo=self.caso.grupo, confirmada_en__isnull=False).count()
+
+        # Sin DNI ni nombre: un POST normal daría 400; acá solo se guarda lo escrito.
+        respuesta = self.client.post(
+            url, {"elegir_cama": "1", "plaza": str(libre.pk), "telefono": "3624 111111", "parentesco": "HIJO"}
+        )
+
+        self.assertRedirects(
+            respuesta, self._url("cama", self.caso.pk, 2) + f"?cama={libre.pk}", fetch_redirect_response=False
+        )
+        borrador = self.client.session[
+            f"emergencia_borrador_ficha:{self.club.pk}:{self.caso.pk}:{IntegranteGrupo.objects.get(grupo=self.caso.grupo, orden=2).pk}"
+        ]
+        self.assertEqual(borrador, {"telefono": "3624 111111", "parentesco": "HIJO"})
+        self.assertEqual(
+            IntegranteGrupo.objects.filter(grupo=self.caso.grupo, confirmada_en__isnull=False).count(), antes
+        )
+
+    def test_al_volver_del_mapa_la_ficha_se_precarga_con_el_borrador_y_la_cama_elegida(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        libre = self._cama_libre()
+        self.client.post(url, {"elegir_cama": "1", "plaza": "", "telefono": "3624 111111", "nombre": "Juana"})
+
+        respuesta = self.client.get(url, {"cama": libre.pk})
+
+        form = respuesta.context["form"]
+        self.assertFalse(form.is_bound)
+        self.assertEqual(form.initial["telefono"], "3624 111111")
+        self.assertEqual(form.initial["nombre"], "Juana")
+        self.assertEqual(form.initial["plaza"], libre.pk)
+        self.assertContains(respuesta, 'value="3624 111111"')
+        self.assertNotContains(respuesta, "field-error")
+
+    def test_el_borrador_no_se_filtra_a_otra_ficha_ni_a_otro_caso(self):
+        libre = self._cama_libre()
+        self.client.post(
+            self._url("ficha", self.caso.pk, 2), {"elegir_cama": "1", "plaza": str(libre.pk), "telefono": "111"}
+        )
+
+        otra_persona = self.client.get(self._url("ficha", self.caso.pk, 3))
+        self.assertNotIn("telefono", otra_persona.context["form"].initial)
+
+        caso_b, _derivacion_b = self._aceptado(dni="30999888", menores_f=0, menores_m=0, adultos_f=1, adultos_m=1)
+        otro_caso = self.client.get(self._url("ficha", caso_b.pk, 2))
+        self.assertNotIn("telefono", otro_caso.context["form"].initial)
+
+    def test_el_borrador_se_borra_al_confirmar_la_persona(self):
+        url = self._url("ficha", self.caso.pk, 2)
+        plaza = self.reservas[1].plaza
+        self.client.post(url, {"elegir_cama": "1", "plaza": str(plaza.pk), "telefono": "111"})
+        clave = f"emergencia_borrador_ficha:{self.club.pk}:{self.caso.pk}:{IntegranteGrupo.objects.get(grupo=self.caso.grupo, orden=2).pk}"
+        self.assertIn(clave, self.client.session)
+
+        respuesta = self.client.post(url, ficha_post("45000111", plaza=str(plaza.pk)))
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertNotIn(clave, self.client.session)
+
+    def test_el_post_normal_de_la_ficha_no_deja_borrador_y_sigue_validando(self):
+        url = self._url("ficha", self.caso.pk, 2)
+
+        respuesta = self.client.post(url, {"telefono": "111"})
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertFalse([k for k in self.client.session.keys() if k.startswith("emergencia_borrador_ficha")])
+
+    def test_el_boton_elegir_cama_es_un_envio_del_formulario_de_la_ficha(self):
+        respuesta = self.client.get(self._url("ficha", self.caso.pk, 2))
+
+        self.assertContains(respuesta, 'name="elegir_cama"')
+        self.assertNotContains(respuesta, f'href="{self._url("cama", self.caso.pk, 2)}')
+
     def test_una_cama_que_no_se_puede_elegir_cae_en_la_sugerida(self):
         ajena = Plaza.objects.filter(sector__dispositivo=self.escuela).first()
         respuesta = self.client.get(self._url("ficha", self.caso.pk, 2), {"cama": ajena.pk})
