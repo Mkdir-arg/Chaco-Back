@@ -1,6 +1,6 @@
 """«Ubicar en el mapa» en el formulario de edificio (Cambio 526; pendiente del Cambio 520).
 
-El modal de la solapa Infraestructura carga las coordenadas del inmueble con la pieza de domicilio con mapa
+El modal de la sección «Edificios» carga las coordenadas del inmueble con la pieza de domicilio con mapa
 (`components/_ubicacion_domicilio.html`). Es el punto que lee la distancia de «Derivar» de Emergencia.
 """
 

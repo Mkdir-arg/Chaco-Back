@@ -22,12 +22,14 @@ detalle suma el relevamiento (1), sus fotos (1) y su posición entre los del edi
 from django.core.paginator import Paginator
 from django.db.models import Count, Exists, OuterRef, Q
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.text import Truncator
 from django.utils.timesince import timesince
 
 from programas.models import FotoInspeccion, InspeccionEdificio
+from programas.services.bitacora_detalle import plural as _plural
+from programas.services.dispositivos import fecha_corta, nombre_o
 from programas.services.inspecciones import fotos_para_galeria, inspecciones_visibles
+from programas.urls_seguras import entero_de_parametro
 
 POR_PAGINA = 10
 PARAM_PAGINA = "relevamientos_page"
@@ -54,22 +56,8 @@ def _criticidad(valor):
     return _CRITICIDAD.get(valor) or (valor.title() if valor else "Sin criticidad", "gray")
 
 
-def _nombre(usuario):
-    if usuario is None:
-        return "—"
-    return usuario.get_full_name().strip() or usuario.get_username()
-
-
-def _fecha(momento):
-    return timezone.localtime(momento).strftime("%d/%m/%Y")
-
-
 def _hace(momento):
     return f"hace {timesince(momento, depth=1)}"
-
-
-def _plural(cantidad, singular, plural):
-    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
 def _fila(inspeccion, *, marca):
@@ -78,10 +66,10 @@ def _fila(inspeccion, *, marca):
     return {
         "numero": numero_de_relevamiento(inspeccion.pk),
         "marca": marca,
-        "fecha": _fecha(inspeccion.realizada_en),
+        "fecha": fecha_corta(inspeccion.realizada_en),
         "hace": _hace(inspeccion.realizada_en),
         "con_detalle": abre,
-        "relevo": _nombre(inspeccion.realizada_por) if abre else "",
+        "relevo": nombre_o(inspeccion.realizada_por) if abre else "",
         "criticidad": criticidad if abre else "",
         "tono": tono if abre else "",
         "observaciones": (
@@ -136,8 +124,7 @@ def lista_de_relevamientos(user, edificio, pagina, url_pagina):
 
 
 def _id_valido(valor):
-    texto = str(valor or "")
-    return int(texto) if texto.isascii() and texto.isdecimal() and len(texto) < 10 else None
+    return entero_de_parametro(valor, max_digitos=9)
 
 
 def relevamiento_del_edificio(user, edificio, relevamiento_pk):
@@ -191,11 +178,11 @@ def detalle_de_relevamiento(edificio, inspeccion, url_pagina, *, dispositivo_pk,
     ]
     return {
         "numero": numero_de_relevamiento(inspeccion.pk),
-        "subtitulo": f"{edificio.codigo} · {_fecha(inspeccion.realizada_en)} · {_posicion(edificio, inspeccion)}",
-        "fecha": _fecha(inspeccion.realizada_en),
+        "subtitulo": f"{edificio.codigo} · {fecha_corta(inspeccion.realizada_en)} · {_posicion(edificio, inspeccion)}",
+        "fecha": fecha_corta(inspeccion.realizada_en),
         "criticidad": criticidad,
         "tono": tono,
-        "relevo": _nombre(inspeccion.realizada_por),
+        "relevo": nombre_o(inspeccion.realizada_por),
         "observaciones": (inspeccion.observaciones or "").strip(),
         "fotos": galeria,
         "total_fotos": len(galeria),

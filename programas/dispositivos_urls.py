@@ -79,7 +79,7 @@ urlpatterns = [
         capacidad.PlazaReactivarView.as_view(),
         name="plaza_reactivar",
     ),
-    # Edificio de la solapa Infraestructura (P19). El alta lo vincula; «vincular» declara el
+    # Edificio de la sección «Edificios» (P19). El alta lo vincula; «vincular» declara el
     # predio compartido con un edificio que ya existe.
     path("<int:pk>/edificio/nuevo/", capacidad.EdificioCrearView.as_view(), name="edificio_crear"),
     path(

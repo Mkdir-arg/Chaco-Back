@@ -103,6 +103,7 @@ marca).
 - El mapeo estado → variante **no se escribe en la pantalla**: vive en el parcial de badges del
   módulo o en su servicio/selector, que entrega texto y `tono` y el template dibuja
   `badge badge-dot badge-{{ tono }}` (ficha `dominio/becas.md`, sección «Mapa de estados»).
+  Los nombres de persona y las fechas cortas de Dispositivos salen de `nombre_de_persona`, `nombre_o` y `fecha_corta` de `programas/services/dispositivos.py`, junto con `TONOS_ESTADO`.
 - Relevamientos edilicios: `programas/templates/programas/dispositivos/_relevamiento_situacion_badge.html`
   conserva «Completado» y agrega «Revisado» con `badge-success` cuando el
   `relevamiento` opcional tiene `revisado_en`. La revisión no es otro estado del modelo.

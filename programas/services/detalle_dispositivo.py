@@ -39,13 +39,20 @@ from programas.selectors.capacidad_dispositivo import instituciones_del_predio, 
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.bitacora_detalle import plural as _plural
-from programas.services.dispositivos import CAP_VER, alcance_de_edificios, q_edificios_en_alcance
+from programas.services.dispositivos import (
+    CAP_VER,
+    alcance_de_edificios,
+    fecha_corta,
+    nombre_o,
+    q_edificios_en_alcance,
+)
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
     DIAS_POR_VENCER,
     SEMAFOROS,
     SIN_EDIFICIO,
     SIN_RELEVAR,
+    TONOS_CON_COLOR,
     edificios_de_dispositivo_con_asignacion_visible,
     fotos_para_galeria,
     inspecciones_de_dispositivo,
@@ -69,8 +76,6 @@ POR_PAGINA_RELEVAMIENTOS = 10
 SOLAPAS = ("datos", "estadias", "equipo", "historial")
 #: La que abre la pantalla, y a la que vuelven las acciones del encabezado.
 SOLAPA_POR_DEFECTO = "datos"
-#: Las solapas que la ficha tenía y ya no tiene: la vista las redirige a donde viven ahora (`redireccion_de_solapa_vieja`).
-SOLAPAS_QUE_SE_FUERON = ("sectores", "infraestructura")
 
 
 def normalizar_solapa(pedida):
@@ -348,17 +353,10 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
 # --------------------------------------------------------------------------- #
 
 _REALIZADA = InspeccionEdificio.Estado.REALIZADA
-_TONOS_CON_COLOR = ("success", "warning", "danger")
 
 
 def _nombre(usuario):
-    if usuario is None:
-        return "sin responsable"
-    return usuario.get_full_name() or usuario.username
-
-
-def _fecha(momento):
-    return date_format(timezone.localtime(momento), "d/m/Y")
+    return nombre_o(usuario, "sin responsable")
 
 
 def _cantidad_de_fotos(cantidad):
@@ -402,7 +400,7 @@ def evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace="")
         }
     semaforo = semaforo_de_inspeccion(inspeccion)
     evento = {
-        "cuando": f"{_fecha(inspeccion.realizada_en)} · relevamiento · {_nombre(inspeccion.realizada_por)}",
+        "cuando": f"{fecha_corta(inspeccion.realizada_en)} · relevamiento · {_nombre(inspeccion.realizada_por)}",
         "titulo": _cantidad_de_fotos(inspeccion.n_fotos),
         "detalle": rotulos,
         "badge": semaforo.texto,
@@ -411,7 +409,7 @@ def evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace="")
         "observaciones": (inspeccion.observaciones or "").strip(),
         **galeria,
     }
-    if semaforo.tono in _TONOS_CON_COLOR:
+    if semaforo.tono in TONOS_CON_COLOR:
         evento["tono"] = semaforo.tono
     if inspeccion.revisado_en is not None:
         # El badge del encabezado es siempre la criticidad; el estado de revisión va en el panel (`detalle`).
@@ -577,6 +575,7 @@ def _fila_de_edificio(
     con_ocupacion,
     puede_editar,
     agregar_persona_en,
+    con_registro=True,
 ):
     """Una fila de `infraestructura_del_dispositivo`: lo que la tarjeta y la ficha dibujan de un edificio.
 
@@ -614,19 +613,26 @@ def _fila_de_edificio(
         "ve_detalle": ve_detalle,
         "relevo": _nombre(ultima.realizada_por) if ultima and ve_detalle else "",
         "fecha_texto": (
-            f"Relevado el {_fecha(ultima.realizada_en)}" if ultima else f"Cargado el {_fecha(edificio.creado)}"
+            f"Relevado el {fecha_corta(ultima.realizada_en)}"
+            if ultima
+            else f"Cargado el {fecha_corta(edificio.creado)}"
         ),
         "observacion": observacion,
         "otras_instituciones": otras,
         "n_instituciones": otras + 1,
-        "predio": _predio(otras, [i for i in del_predio if i["pk"] != dispositivo.pk]),
+        "predio": _predio(otras, [i for i in del_predio if i["pk"] != dispositivo.pk]) if con_registro else "",
         # Sin alcance no se cuenta lo que no se puede abrir: ni relevamientos ni fotos.
         "conteo": (
-            f"{_plural(realizados, 'relevamiento', 'relevamientos')} · {_plural(total.get('fotos', 0), 'foto', 'fotos')}"
-            if realizados
-            else "Sin relevamientos"
+            (
+                f"{_plural(realizados, 'relevamiento', 'relevamientos')} · "
+                f"{_plural(total.get('fotos', 0), 'foto', 'fotos')}"
+                if realizados
+                else "Sin relevamientos"
+            )
+            if con_registro
+            else ""
         ),
-        "con_conteo": ve_detalle,
+        "con_conteo": ve_detalle and con_registro,
         "url_ver": f"{base}&ver_edificio={edificio.pk}",
         "url_abrir": reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk]),
         "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={edificio.pk}"
@@ -701,7 +707,7 @@ def infraestructura_del_dispositivo(
     agregar_persona_en=None,
     solo_tarjetas=False,
 ):
-    """Lo que dibuja la solapa Infraestructura: tarjetas por edificio y, al abrir uno, su ficha (Cambio 439).
+    """Lo que dibuja la sección «Edificios» de la ficha: tarjetas por edificio y, al abrir uno, su ficha (Cambio 439).
 
     El relevamiento **cuelga del edificio**: un predio compartido muestra los mismos en todas las
     instituciones que lo ocupan. Sin edificio cargado devuelve ``modo="vacio"`` y el semáforo
@@ -737,7 +743,8 @@ def infraestructura_del_dispositivo(
     inspección (`ve_detalle` falso) queda el semáforo y la fecha.
 
     ``solo_tarjetas`` (la ficha de la institución, Cambio 570) no abre nunca la ficha de un edificio, ni siquiera con uno solo:
-    devuelve siempre las filas de ``edificios`` y ``sin_edificio``, y no paga el registro fotográfico. Cada fila trae
+    devuelve siempre las filas de ``edificios`` y ``sin_edificio``, y no paga el registro fotográfico ni las instituciones del
+    predio ni los totales de relevamientos (la tarjeta no los dibuja: esas claves van vacías). Cada fila trae
     ``url_abrir`` (la página operativa del edificio, que es donde se opera) y ``url_agregar_persona`` apunta a su Equipo.
 
     Costo fijo, sin importar cuántos edificios, relevamientos ni fotos: los edificios con su última realizada,
@@ -793,19 +800,19 @@ def infraestructura_del_dispositivo(
         return {**_respuesta_base(), "modo": "vacio", "semaforo": SEMAFOROS[SIN_EDIFICIO], "url_listado": base}
 
     pedido = None
-    if solo_tarjetas:
-        pedido = None
-    elif len(edificios) == 1:
-        pedido = edificios[0].pk
-    else:
-        try:
-            pedido = int(edificio_id)
-        except (TypeError, ValueError):
-            pedido = None
-        if pedido not in {edificio.pk for edificio in edificios}:
-            pedido = None
+    if not solo_tarjetas:
+        if len(edificios) == 1:
+            pedido = edificios[0].pk
+        else:
+            try:
+                pedido = int(edificio_id)
+            except (TypeError, ValueError):
+                pedido = None
+            if pedido not in {edificio.pk for edificio in edificios}:
+                pedido = None
 
-    instituciones = instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
+    # La tarjeta de la ficha no dibuja con quién se comparte el predio ni los conteos del registro: no se leen (2 consultas).
+    instituciones = {} if solo_tarjetas else instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
     # Cambio 428: la criticidad, las observaciones y quién relevó son del informe, que se abre solo
     # por `inspecciones_visibles`. Quien ve el dispositivo sin ese alcance recibe el semáforo y la
     # fecha, nada más. Va como `Exists` en la misma consulta de las últimas, sin una más; sin
@@ -818,15 +825,19 @@ def infraestructura_del_dispositivo(
     )
     sectores_de, sectores_sin_edificio = sectores_por_edificio(dispositivo)
     # Los relevamientos realizados y las fotos de CADA edificio, en una sola consulta agrupada.
-    totales = {
-        fila["edificio_id"]: fila
-        for fila in InspeccionEdificio.objects.filter(edificio_id__in=[edificio.pk for edificio in edificios])
-        .values("edificio_id")
-        .annotate(
-            realizados=Count("pk", filter=Q(estado=_REALIZADA), distinct=True),
-            fotos=Count("fotos", filter=~Q(estado=InspeccionEdificio.Estado.CANCELADA)),
-        )
-    }
+    totales = (
+        {}
+        if solo_tarjetas
+        else {
+            fila["edificio_id"]: fila
+            for fila in InspeccionEdificio.objects.filter(edificio_id__in=[edificio.pk for edificio in edificios])
+            .values("edificio_id")
+            .annotate(
+                realizados=Count("pk", filter=Q(estado=_REALIZADA), distinct=True),
+                fotos=Count("fotos", filter=~Q(estado=InspeccionEdificio.Estado.CANCELADA)),
+            )
+        }
+    )
 
     filas = [
         _fila_de_edificio(
@@ -847,6 +858,7 @@ def infraestructura_del_dispositivo(
             con_ocupacion=ocupadas_por_sector is not None,
             puede_editar=puede_editar,
             agregar_persona_en=agregar_persona_en,
+            con_registro=not solo_tarjetas,
         )
         for edificio in edificios
     ]

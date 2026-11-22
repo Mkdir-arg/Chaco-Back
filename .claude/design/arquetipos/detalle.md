@@ -206,6 +206,8 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).
 
+La ficha de la institución pide las tarjetas con `infraestructura_del_dispositivo(..., solo_tarjetas=True)`: no abre la ficha de un edificio, no lee las instituciones del predio ni los totales de relevamientos, y su comentario de cabecera nombra la sección «Edificios», no una solapa.
+
 En P4, `programas/services/detalle_dispositivo.py` prepara la sección Edificios, el registro del edificio y el Historial según
 quien mira: la institución no recibe el nombre del agente de un relevamiento sin realizar,
 incluidos los cancelados. La asignación la ven el coordinador del edificio y el propio agente

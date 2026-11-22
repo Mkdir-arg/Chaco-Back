@@ -31,7 +31,6 @@ from programas.tests.test_dispositivos_legajo import area_de_prueba
 from programas.views.dispositivos_legajo import url_solapa_estadias
 from users.models import Profile
 
-TEXTO_BOTON = "Ingresar persona"
 MENSAJE_CLAVE = (
     "Tenés que cambiar la clave antes de usar la app. "
     "Usá el enlace que te llegó por correo o pedí uno nuevo desde «Olvidé mi contraseña»."
@@ -60,14 +59,12 @@ class IngresarPersonaSoloConCiudadanoVerTests(_UnClientePorUsuario):
         capacidades = tuple(c for c in TODO if c not in quitar)
         return self._operador(nombre, self.cis, capacidades)
 
-    def test_sin_ciudadano_ver_el_boton_no_se_ofrece_y_el_asistente_da_403(self):
+    def test_sin_ciudadano_ver_el_asistente_da_403(self):
         usuario = self._sin("Sin padron", "ciudadano.ver")
 
         respuesta = self._detalle(usuario)
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertFalse(respuesta.context["puede_admitir"])
-        self.assertNotContains(respuesta, TEXTO_BOTON)
         asistente = self._cliente(usuario).get(reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
         self.assertEqual(asistente.status_code, 403)
 

@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404
 
 from programas.models import Dispositivo
 from programas.services.dispositivos import (
+    entero_de_parametro,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
@@ -108,12 +109,8 @@ class DispositivoAltaPermissionMixin(DispositivoProgramaPermissionMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
-def _entero(valor):
-    """El id de un parámetro GET, o `None`. Solo dígitos ASCII: un superíndice o un dígito
-    arábigo pasan `isdigit()` y rompen `int()`."""
-
-    valor = (valor or "").strip()
-    return int(valor) if valor.isascii() and valor.isdecimal() else None
+#: El parser de ids de GET vive en el servicio (lo comparten los servicios de la ficha); acá conserva su nombre de siempre.
+_entero = entero_de_parametro
 
 
 class DispositivoObjectPermissionMixin(DispositivoProgramaPermissionMixin):

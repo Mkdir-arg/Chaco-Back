@@ -130,3 +130,5 @@ desde `nodo-ficha.css`; ninguna pantalla las escribe a mano.
 - Armar la línea de tiempo o la sección a mano, o copiar el rayado.
 - Emoji (🔒, 📎): el candado es `fa-lock` con `aria-hidden`.
 - `<details>` o JS propio para plegar: lo hace Alpine, ya cargado por el shell.
+
+La ficha propia del edificio no recibe de la institución nada que la ficha ya no use: el registro sale de `registro_de_relevamientos`, con el nombre y la fecha de `nombre_o` y `fecha_corta`.

@@ -26,6 +26,7 @@ from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
     alcance_de_edificios,
     contar_miembros_por_edificio,
+    entero_de_parametro,
 )
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.ocupacion import tension_de_ocupacion
@@ -217,11 +218,6 @@ def nota_de_indicadores(cantidad):
 _PARAMETROS_DE_MODAL_DE_SECTORES = ("plaza", "editar_plaza", "editar_sector")
 
 
-def _entero(valor):
-    texto = str(valor or "")
-    return int(texto) if texto.isascii() and texto.isdecimal() else None
-
-
 def redireccion_de_solapa_vieja(user, dispositivo, get):
     """A dónde va un enlace viejo a una solapa que la ficha ya no tiene, o ``None`` si la ficha lo atiende sola.
 
@@ -258,7 +254,7 @@ def redireccion_de_solapa_vieja(user, dispositivo, get):
             ("ver_edificio", {"tab": "edilicio"}),
             ("agregar_persona", {"tab": "equipo", "equipo": "sumar"}),
         ):
-            pk = _entero(get.get(parametro))
+            pk = entero_de_parametro(get.get(parametro))
             if pk is not None and edificio_de_la_institucion(user, dispositivo, pk) is not None:
                 return pagina(pk, **consulta)
         return None

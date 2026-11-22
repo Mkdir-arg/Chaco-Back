@@ -63,5 +63,5 @@
     </table>
   </div>
   {% include "components/_paginacion.html" with page_obj=estadias entidad="estadía" param="estadias_page" extra_qs="tab=estadias" %}
-  {% include "programas/dispositivos/legajo/_estadia_modales.html" %}
+  {% include "programas/dispositivos/legajo/_estadia_modales.html" with next_url=next_url %}
 </div>

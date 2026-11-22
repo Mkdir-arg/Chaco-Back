@@ -821,6 +821,21 @@ class TrazaDispositivoManager(models.Manager.from_queryset(TrazaDispositivoQuery
     def bulk_update(self, objs, fields, batch_size=None):
         raise ValidationError("Las trazas de dispositivos son inmutables.")
 
+    def registrar(
+        self, dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo="", detalle="", edificio_id=None
+    ):
+        """La única forma de escribir una traza: aditiva e inmutable. ``edificio_id`` atribuye la traza al edificio (Cambio 573)."""
+
+        return self.create(
+            dispositivo=dispositivo,
+            usuario=usuario,
+            accion=accion,
+            estado_anterior=estado_anterior,
+            estado_nuevo=estado_nuevo,
+            detalle=detalle,
+            edificio_id=edificio_id,
+        )
+
 
 class TrazaDispositivo(models.Model):
     """Historial inmutable de altas, cambios y validaciones del dispositivo."""

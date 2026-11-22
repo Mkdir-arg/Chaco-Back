@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from programas.models import Estadia, Plaza, ReservaPlaza
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
+from programas.services.detalle_dispositivo import infraestructura_del_dispositivo
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.ocupacion import Conteo, tension_de_ocupacion
 from programas.tests.test_dispositivos_detalle import BaseDetalle, _alojar, _egresar
@@ -212,9 +213,10 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
 
     def test_estado_fuera_del_catalogo_conserva_el_valor_y_no_rompe_p4(self):
         type(self.parador).objects.filter(pk=self.parador.pk).update(estado="DESCONOCIDO")
-        respuesta = self._detalle(self.admin, self.geriatrico)
-        self.assertEqual(respuesta.status_code, 200)
-        instituciones = respuesta.context["infraestructura"]["edificios"][0]["instituciones"]
+        # La ficha ya no pide las instituciones del predio (la tarjeta no las dibuja, Cambio 572): se mide el servicio.
+        instituciones = infraestructura_del_dispositivo(self.geriatrico, usuario=self.admin)["edificios"][0][
+            "instituciones"
+        ]
         fila = next(fila for fila in instituciones if fila["pk"] == self.parador.pk)
         self.assertEqual(fila["get_estado_display"], "DESCONOCIDO")
 

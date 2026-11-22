@@ -70,7 +70,6 @@ nada más que para dibujarse.
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 
 from programas.models import Dispositivo, Plaza, ReservaPlaza, Sector
 from programas.selectors.capacidad_dispositivo import edificios_del_dispositivo, nombre_de_edificio
@@ -93,6 +92,7 @@ from programas.services.ocupacion import (
     tension_de_ocupacion,
 )
 from programas.services.plazas import motivo_para_no_dar_de_baja
+from programas.urls_seguras import destino_seguro
 
 # Tope por sector: el componente dibuja hasta 200 y avisa «Mostrando 200 de N»; la vista
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.
@@ -277,10 +277,8 @@ def url_vuelta_a_sectores(request, dispositivo):
     (mismo host y esquema, como `destino_de_vuelta` del Equipo); una de otro sitio se ignora.
     """
 
-    siguiente = request.POST.get("next") or request.GET.get("next", "")
-    if siguiente and url_has_allowed_host_and_scheme(
-        siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
+    siguiente = destino_seguro(request, "", desde=("POST", "GET"))
+    if siguiente:
         return siguiente
     pedido = request.POST.get(PARAM_EDIFICIO_SECTORES) or request.GET.get(PARAM_EDIFICIO_SECTORES, "")
     edificio_id, _pildoras = filtro_de_edificio(request.user, dispositivo, pedido)

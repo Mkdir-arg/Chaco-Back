@@ -198,8 +198,8 @@
     },
     "dispositivos_detalle_con_edificios": {
       "servicio": "programas.views.dispositivos_legajo.DispositivoDetailView",
-      "consultas_fijas": 49,
-      "motivo": "Presupuesto nuevo (Cambio 570): la ficha de la institucion con edificios vinculados. Las tarjetas de «Edificios · N» suman cuatro lecturas FIJAS sobre el costo de siempre: los kits pendientes agrupados por edificio (1, solo a quien puede recibirlos), el equipo por edificio (2: la cuenta de toda la institucion y la de los edificios listados) y los ingresos y egresos de hoy agrupados por edificio (1). La ocupacion y los disponibles salen del censo que la ficha ya leia para los indicadores. Medido con 2 y con 7 edificios y la misma ficha: 48 en ambos casos (test_el_costo_no_crece_con_la_cantidad_de_edificios); el techo es medido + 1. Sin edificios la ficha sigue en dispositivos_detalle_sin_estadias."
+      "consultas_fijas": 47,
+      "motivo": "Presupuesto nuevo (Cambio 570): la ficha de la institucion con edificios vinculados. Las tarjetas de «Edificios · N» suman cuatro lecturas FIJAS sobre el costo de siempre: los kits pendientes agrupados por edificio (1, solo a quien puede recibirlos), el equipo por edificio (2: la cuenta de toda la institucion y la de los edificios listados) y los ingresos y egresos de hoy agrupados por edificio (1). La ocupacion y los disponibles salen del censo que la ficha ya leia para los indicadores. Medido con 2 y con 7 edificios y la misma ficha: 46 en ambos casos (test_el_costo_no_crece_con_la_cantidad_de_edificios); el techo es medido + 1. Cambio 572 bajo el techo de 49 a 47: las tarjetas ya no leen las instituciones del predio ni los totales de relevamientos, que no dibujan (2 consultas). Sin edificios la ficha sigue en dispositivos_detalle_sin_estadias."
     },
     "dispositivos_alertas": {
       "servicio": "programas.services.detalle_dispositivo.alertas_del_dispositivo",
