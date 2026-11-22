@@ -521,7 +521,9 @@ class SinSexoEnElBuscadorTests(BaseIngreso):
 
         self.assertContains(respuesta, "no tenés permiso para darla de alta")
         self.assertNotContains(respuesta, 'name="sexo"')
-        envio = cliente.post(self.url_persona, {"accion": "consultar_registro", "persona": "pide_sexo:27555666", "sexo": "F"})
+        envio = cliente.post(
+            self.url_persona, {"accion": "consultar_registro", "persona": "pide_sexo:27555666", "sexo": "F"}
+        )
         self.assertEqual(envio.status_code, 403)
 
     def test_si_aparece_en_el_legajo_mientras_se_pide_el_sexo_no_se_consulta_el_registro(self):
