@@ -56,6 +56,7 @@ from programas.services.estadias import (
     volver_plaza_a_servicio,
 )
 from programas.services.inspecciones import cancelar_inspeccion, crear_inspeccion, registrar_resultado
+from programas.services.sectores_plazas import url_solapa_sectores
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias, _permiso
 from users.models import RolMeta
 
@@ -219,7 +220,7 @@ class ReservaVencidaTests(BaseAlertas):
         self.assertEqual(alerta["origen"], "Plaza P2 · Varones")
         self.assertEqual(alerta["fecha"], prestamo.hasta)
         # Al mapa de plazas, que desde el Cambio de P5 tiene la acción que la resuelve.
-        self.assertEqual(alerta["enlace"], reverse("dispositivos:sectores", args=[self.cis.pk]))
+        self.assertEqual(alerta["enlace"], url_solapa_sectores(self.cis.pk))
         self.assertEqual(alerta["accion"], "Liberar la plaza")
 
     def test_una_reserva_vencida_tambien_y_con_su_titulo(self):
@@ -282,7 +283,7 @@ class ReservaAbiertaTests(BaseAlertas):
         self.assertEqual(alerta["titulo"], "Reserva abierta hace más de 7 días")
         self.assertEqual(alerta["origen"], "Plaza P2 · Varones")
         self.assertEqual(alerta["fecha"], reserva.desde)
-        self.assertEqual(alerta["enlace"], reverse("dispositivos:sectores", args=[self.cis.pk]))
+        self.assertEqual(alerta["enlace"], url_solapa_sectores(self.cis.pk))
 
     def test_con_vencimiento_futuro_tambien_avisa(self):
         self._reserva_abierta(dias=8, hasta=timezone.now() + timedelta(days=1))
@@ -325,7 +326,7 @@ class PlazasFueraDeServicioTests(BaseAlertas):
         self.assertEqual(alerta["tono"], "info")
         self.assertEqual(alerta["titulo"], "1 plaza fuera de servicio")
         self.assertIn("P2 · Varones (Cama rota)", alerta["texto"])
-        self.assertEqual(alerta["enlace"], reverse("dispositivos:sectores", args=[self.cis.pk]))
+        self.assertEqual(alerta["enlace"], url_solapa_sectores(self.cis.pk))
 
     def test_varias_plazas_son_una_sola_alerta(self):
         for plaza in (self.plaza, self.otra_plaza):
@@ -616,7 +617,7 @@ class PantallaTests(BaseAlertas):
         html = self.client.get(self.url).content.decode()
 
         self.assertIn('aria-label="Alertas del dispositivo"', html)
-        url_mapa = reverse("dispositivos:sectores", args=[self.cis.pk])
+        url_mapa = url_solapa_sectores(self.cis.pk)
         self.assertIn(f'href="{url_mapa}"', html)
         self.assertIn("Ver plazas", html)
         orden = [

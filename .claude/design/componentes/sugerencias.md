@@ -6,7 +6,7 @@
 (`PersonasSugeridasView`), `programas/selectors/equipo_sugeridas.py` y `programas/views/dispositivos_equipo.py`
 (`EquipoPersonasSugeridasView`).
 **Consumidores de referencia:** el DNI de «Reservar» y «Prestar» en el modal de una plaza
-(`programas/templates/programas/dispositivos/sectores/sectores.html`), el DNI del paso «Ingresar persona»
+(`programas/templates/programas/dispositivos/sectores/_cuerpo.html`), el DNI del paso «Ingresar persona»
 (`ingreso/paso_persona.html`, Cambio 416) y el campo de «Buscar agente» del modal de alta rápida de usuarios
 (`users/templates/user/_alta_rapida_modal.html`, que se monta desde su propio JS al abrirse como agente; lo cargan
 `legajo/detail.html` y `relevamientos/list.html`) y el buscador «Persona y rol» del modal «Sumar persona al Equipo»

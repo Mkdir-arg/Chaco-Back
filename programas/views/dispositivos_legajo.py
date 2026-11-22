@@ -5,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Q
 from django.db.utils import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -72,6 +73,7 @@ from programas.selectors.estadia_detalle import (
     normalizar_solapa as normalizar_solapa_estadia,
 )
 from programas.services.detalle_dispositivo import (
+    SOLAPA_POR_DEFECTO,
     alertas_del_dispositivo,
     aviso_sin_ingresos,
     contar_alojadas,
@@ -162,13 +164,17 @@ from programas.services.sectores_plazas import (
     ACCION_REUBICAR,
     ACCION_VOLVER,
     MOTIVO_PLAZA_OCUPADA,
+    PARAM_EDIFICIO_SECTORES,
     bloqueo_de_plaza,
     datos_para_el_modal,
+    filtro_de_edificio,
     plaza_para_accion,
     se_puede_cambiar_plaza,
     sectores_con_plazas,
     url_modal_egreso,
     url_solapa_estadias,
+    url_solapa_sectores,
+    url_vuelta_a_sectores,
 )
 from programas.services.ubicacion_reservada import edificio_es_reservado
 from programas.views.ajax_utils import ajax_redirect, is_ajax
@@ -274,7 +280,7 @@ class FormularioInstitucionMixin:
         # POST si vino, si no el guardado. En la edición enlaza a los sectores de la institución.
         form = context["form"]
         context["aviso_plazas"] = tipo_maneja_plazas(form._tipo_elegido(), form.instance)
-        context["url_sectores"] = reverse("dispositivos:sectores", args=[form.instance.pk]) if form.instance.pk else ""
+        context["url_sectores"] = url_solapa_sectores(form.instance.pk) if form.instance.pk else ""
         return context
 
     def _guardar_formulario_tipo(self, form, dispositivo):
@@ -423,12 +429,364 @@ class DispositivoFormularioTipoView(LoginRequiredMixin, View):
             {
                 "formulario_tipo": formulario,
                 "aviso_plazas": tipo_maneja_plazas(tipo, dispositivo),
-                "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]) if dispositivo else "",
+                "url_sectores": url_solapa_sectores(dispositivo.pk) if dispositivo else "",
             },
         )
 
 
-class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
+class SectoresPlazasMixin:
+    """«Sectores y plazas» (MVP v2, etapas 1 y 5 · P5): el mapa de plazas y sus acciones.
+
+    Lo comparten la solapa de la ficha (`DispositivoDetailView`) y la pantalla de siempre
+    (`DispositivoSectoresView`, que sigue respondiendo): las dos dibujan `sectores/_cuerpo.html` con
+    el mismo contexto, así que no hay dos armados que se separen. `en_solapa` y `param_editar_sector`
+    son lo único que cambia: en la ficha los enlaces conservan `?tab=sectores` y el sector se edita
+    con `?editar_sector=` (`?sector=` ya es el filtro de Estadías).
+
+    El modal de la acción se abre con `?plaza=<id>` y lo arma el servidor, como los de P21:
+    el contenido depende del estado de esa plaza y la celda del mapa solo sabe navegar. Si
+    la plaza no se puede gestionar —ajena, inexistente, de un sector dado de baja o sin la
+    capacidad— el modal no se abre y el aviso es el mismo para los cuatro casos.
+
+    «Editar sector» se abre igual, con `?<param_editar_sector>=<id>` (`sector` en la pantalla suelta,
+    `editar_sector` en la ficha). «Nuevo sector» y «+ Agregar plazas» no:
+    no dependen de un registro, así que sus formularios llegan con la página y los abre el
+    botón, como el modal de la golden. Los tres se arman **solo** si quien mira puede
+    configurar las plazas: sin eso, el formulario llegaría armado a quien la acción va a
+    rechazar. El mapa sigue en las consultas fijas de su presupuesto, y el selector del lote
+    en las del suyo; el alta del sector no consulta.
+    """
+
+    en_solapa = False
+    param_editar_sector = "sector"
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("fragmento") == FRAGMENTO_REUBICAR and is_ajax(request):
+            return self._fragmento_reubicar(request)
+        return super().get(request, *args, **kwargs)
+
+    def _fragmento_reubicar(self, request):
+        """Solo el cuerpo del modal «Cambiar de plaza», para abrirlo sin recargar la página.
+
+        Corta **antes** de armar el mapa: resuelve únicamente la plaza pedida, con el mismo
+        gate de alcance y de capacidades que `?plaza=<id>`, y el mismo 404 para la ajena, la
+        inexistente, la que no se reubica y la que el usuario no puede gestionar. Es lo que
+        el mapa no puede traer por plaza sin pasarse de su presupuesto: la estadía y las
+        plazas libres. Lo dibuja la misma parcial que el camino `?plaza=<id>` sin JS.
+        """
+
+        dispositivo = self.object = self.get_object()
+        usuario = request.user
+        puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
+        # Sin filtro en el pedido (lo normal) no se consulta nada: el fragmento sigue costando lo de antes.
+        pedido_edificio = request.GET.get(PARAM_EDIFICIO_SECTORES, "")
+        edificio_id = filtro_de_edificio(usuario, dispositivo, pedido_edificio)[0] if pedido_edificio else None
+        pk = _entero(request.GET.get("plaza", ""))
+        accion = (
+            plaza_para_accion(
+                dispositivo,
+                pk,
+                puede_liberar=puede_liberar,
+                puede_configurar_plazas=configura_plazas,
+                puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
+                usuario=usuario,
+            )
+            if pk is not None
+            else None
+        )
+        if accion is None or ACCION_REUBICAR not in accion["acciones"]:
+            raise Http404
+        context = {
+            "dispositivo": dispositivo,
+            "plaza_accion": accion,
+            "puede_configurar_plazas": configura_plazas,
+            "qs_sectores": self._qs_sectores(edificio_id),
+            "edificio_filtrado": edificio_id,
+        }
+        if not self._preparar_reubicar(context, dispositivo, accion):
+            raise Http404
+        return render(request, "programas/dispositivos/sectores/_modal_reubicar.html", context)
+
+    def _qs_sectores(self, edificio_id):
+        """Lo que los enlaces del cuerpo conservan: la solapa y el filtro «Edificio» (el resto abre modales)."""
+
+        qs = "tab=sectores&" if self.en_solapa else ""
+        if edificio_id is not None:
+            qs += f"{PARAM_EDIFICIO_SECTORES}={edificio_id}&"
+        return qs
+
+    def _preparar_sectores_y_plazas(self, context, dispositivo):
+        """Arma todo lo que dibuja `sectores/_cuerpo.html` y lo suma a ``context``.
+
+        El mapa va en `sectores_mapa` (y no en `sectores`, que en la ficha ya es el censo por sector).
+        El filtro «Edificio» acota el mapa, los totales y los inactivos; su valor se valida contra los
+        edificios que quien mira alcanza (`filtro_de_edificio`): uno ajeno, inexistente o fuera de su
+        alcance se ignora y queda «Todos». Con uno solo en alcance no hay filtro.
+        """
+
+        usuario = self.request.user
+        puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
+
+        edificio_id, pildoras = filtro_de_edificio(
+            usuario, dispositivo, self.request.GET.get(PARAM_EDIFICIO_SECTORES, "")
+        )
+        ver_inactivos = self.request.GET.get("inactivos") == "1"
+        # Lo que los enlaces del cuerpo conservan: la solapa y el filtro (el resto de los parámetros abre modales).
+        qs = self._qs_sectores(edificio_id)
+        ocultos = [("tab", "sectores")] if self.en_solapa else []
+        if ver_inactivos:
+            ocultos.append(("inactivos", "1"))
+
+        datos = sectores_con_plazas(
+            dispositivo,
+            puede_liberar=puede_liberar,
+            puede_configurar_plazas=configura_plazas,
+            puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
+            puede_egresar=puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR),
+            usuario=usuario,
+            edificio_id=edificio_id,
+            qs_url=qs,
+        )
+        context["sectores_mapa"] = datos.pop("sectores")
+        context.update(datos)
+        context["qs_sectores"] = qs
+        context["en_solapa"] = self.en_solapa
+        context["param_editar_sector"] = self.param_editar_sector
+        context["pildoras_sectores"] = pildoras
+        context["edificio_filtrado"] = edificio_id
+        context["ocultos_sectores"] = ocultos
+        context["puede_reubicar"] = puede_liberar
+        # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
+        context["ver_inactivos"] = ver_inactivos
+        if ver_inactivos:
+            q_sectores = _q_sectores_visibles(usuario)
+            q_plazas = _q_plazas_visibles(usuario)
+            if edificio_id is not None:
+                q_sectores &= Q(edificio_id=edificio_id)
+                q_plazas &= Q(sector__edificio_id=edificio_id)
+            context["sectores_inactivos"] = sectores_inactivos(dispositivo, q_alcance=q_sectores)
+            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo, q_alcance=q_plazas)
+        context["puede_configurar_plazas"] = configura_plazas
+        # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
+        context["puede_ampliar_capacidad"] = configura_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
+        self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, configura_plazas)
+        self._preparar_modal(context, dispositivo, puede_liberar, configura_plazas)
+        self._preparar_modales_de_configuracion(context, dispositivo, configura_plazas)
+        return context
+
+    def _preparar_modales_de_configuracion(self, context, dispositivo, puede_configurar_plazas):
+        """«Nuevo sector», «Editar sector» y «+ Agregar plazas»: cuál abrir y con qué formulario.
+
+        Un sector ajeno, inexistente o dado de baja no abre nada y avisa lo mismo que una
+        plaza no gestionable: tres respuestas distintas serían un oráculo de ids. El sector
+        dado de baja entra igual —se edita para reactivarlo—, lo que no abre es el que no
+        es de este dispositivo.
+        """
+
+        if not puede_configurar_plazas:
+            return
+        # Las altas no dependen de un registro: llegan con la página y las abre el botón, sin el
+        # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
+        # porque convive con «Editar sector», que es el mismo formulario.
+        if context["puede_ampliar_capacidad"]:
+            context["form_sector_nuevo"] = SectorForm(dispositivo=dispositivo, auto_id="id_nuevo_%s")
+            context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
+        pedido = self.request.GET.get(self.param_editar_sector, "")
+        # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
+        # sector no se puede editar.
+        if pedido and pedido != "nuevo":
+            pk = _entero(pedido)
+            sector = (
+                Sector.objects.filter(pk=pk, dispositivo=dispositivo)
+                .filter(_q_sectores_visibles(self.request.user))
+                .first()
+                if pk is not None
+                else None
+            )
+            if sector is None:
+                messages.warning(self.request, "Ese sector ya no se puede editar desde acá.")
+            else:
+                context["sector_en_edicion"] = sector
+                context["form_sector"] = SectorForm(dispositivo=dispositivo, sector=sector)
+                context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
+
+        if context["sectores_mapa"] and context["puede_ampliar_capacidad"]:
+            context["form_plazas"] = AgregarPlazasForm(
+                dispositivo=dispositivo,
+                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True).filter(
+                    _q_sectores_visibles(self.request.user)
+                ),
+            )
+            context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
+
+        pedido = self.request.GET.get("editar_plaza", "")
+        if pedido:
+            pk = _entero(pedido)
+            plaza = (
+                Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo)
+                .filter(_q_plazas_visibles(self.request.user))
+                .first()
+                if pk is not None
+                else None
+            )
+            if plaza is None:
+                messages.warning(self.request, "Esa plaza ya no se puede editar desde acá.")
+            else:
+                context["plaza_en_edicion"] = plaza
+                context["form_editar_plaza"] = PlazaForm(dispositivo=dispositivo, plaza=plaza)
+                context["url_editar_plaza"] = reverse("dispositivos:plaza_editar", args=[dispositivo.pk, plaza.pk])
+
+    def _preparar_modal_de_plaza(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
+        """El modal de una plaza, armado **una vez** y sin consultas: lo abre `abrirPlaza(<id>)`.
+
+        Los formularios (reservar, prestar, sacar, liberar) llegan con la página y el `action`
+        del `<form>` se arma en el navegador con la URL de la plaza elegida: las URLs viajan
+        con `__pk__` en el lugar del id, una por acción, y no una por plaza. Los datos de
+        cada plaza (`plazas_modal`) ya los calculó el mapa. Sin ninguna capacidad no se arma nada.
+        """
+
+        context["urls_plaza"] = {}
+        context["motivo_plaza_ocupada"] = MOTIVO_PLAZA_OCUPADA
+        if not (puede_liberar or puede_configurar_plazas):
+            return
+        # Las sugerencias de personas piden lo mismo que reservar y prestar (admitir + ver personas):
+        # a quien no las puede usar no se le ofrecen, y el campo queda como siempre.
+        url_sugerencias = (
+            reverse("dispositivos:personas_buscar", args=[dispositivo.pk])
+            if puede_ingresar_persona(self.request.user, dispositivo)
+            else None
+        )
+        context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR, url_sugerencias=url_sugerencias)
+        context["form_prestar"] = PrestarPlazaForm(auto_id=AUTO_ID_PLAZA_PRESTAR, url_sugerencias=url_sugerencias)
+        context["form_sacar"] = SacarPlazaDeServicioForm(auto_id=AUTO_ID_PLAZA_SACAR)
+        context["form_liberar"] = LiberarPlazaForm(auto_id=AUTO_ID_PLAZA_LIBERAR)
+        context["urls_plaza"] = {
+            accion: reverse(nombre, args=[dispositivo.pk, 0]).replace("/plazas/0/", "/plazas/__pk__/")
+            for accion, nombre in URL_DE_ACCION.items()
+        }
+
+    def _preparar_modal(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
+        """`?plaza=<id>`: el enlace directo, y el camino de vuelta a una plaza concreta.
+
+        Resuelve las acciones de la plaza con `plaza_para_accion` y, si no hay ninguna que ofrecer, avisa
+        con un mensaje. Las acciones que se arman en el navegador (todas menos reubicar) abren el modal ya
+        elegido (`plaza_inicial`, sumando la plaza a `plazas_modal` si quedó más allá del tope de la
+        grilla); la reubicación, que depende de la estadía, la arma el servidor en `_preparar_reubicar`. Una
+        plaza ocupada abre el formulario de reubicar solo si es lo único que ofrece o si la URL trae
+        `&opcion=reubicar` (el regreso de «Cambiar de plaza»); con más opciones llega el menú.
+        """
+
+        pedida = self.request.GET.get("plaza", "")
+        if not pedida:
+            return
+        pk = _entero(pedida)
+        accion = (
+            plaza_para_accion(
+                dispositivo,
+                pk,
+                puede_liberar=puede_liberar,
+                puede_configurar_plazas=puede_configurar_plazas,
+                puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
+                puede_egresar=puede_operar_dispositivo(self.request.user, dispositivo, CAP_EGRESAR),
+                usuario=self.request.user,
+            )
+            if pk is not None
+            else None
+        )
+        if accion is None:
+            messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
+            return
+        plaza = accion["plaza"]
+        abre_reubicar = ACCION_REUBICAR in accion["acciones"] and (
+            accion["acciones"] == [ACCION_REUBICAR] or self.request.GET.get("opcion") == OPCION_REUBICAR
+        )
+        if abre_reubicar or ACCION_REUBICAR not in accion["acciones"]:
+            context["plaza_accion"] = accion
+        if abre_reubicar:
+            # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
+            if not self._preparar_reubicar(context, dispositivo, accion):
+                context.pop("plaza_accion")
+                messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
+            return
+        # Una plaza más allá del tope de la grilla no está en `plazas_modal`: se suma acá.
+        context["plazas_modal"].setdefault(
+            plaza.pk,
+            datos_para_el_modal(
+                plaza,
+                accion["estado"],
+                accion["acciones"],
+                accion["bloqueo"],
+                accion["enlaces"],
+                con_reserva_abierta=accion["reserva"] is not None,
+            ),
+        )
+        context["plaza_inicial"] = plaza.pk
+
+    def _preparar_reubicar(self, context, dispositivo, accion):
+        """Reubicar a quien ocupa la plaza: el formulario del cambio de plaza de P7, dentro del mapa.
+
+        Se arma **solo** con el modal abierto (el mapa cerrado conserva sus consultas
+        fijas). El POST va a `dispositivos:cambiar_plaza`, que es quien aplica la regla.
+        Sin plazas libres el modal avisa y no trae formulario. Devuelve `False` si la persona
+        ya no está en la plaza (no hay a quién mover); quien llama decide cómo avisarlo.
+        """
+
+        estadia = (
+            Estadia.objects.activas()
+            .filter(plaza=accion["plaza"])
+            .select_related("ciudadano", "dispositivo", "plaza__sector")
+            .first()
+        )
+        if estadia is None:
+            # La persona se fue entre el dibujo del mapa y el clic: no hay a quién mover.
+            return False
+        estadia.persona_visible = (
+            estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
+        )
+        form, url = _form_de_cambio_de_plaza(
+            dispositivo, estadia, _sectores_para_cambio(dispositivo, self.request.user)
+        )
+        # Bajo `reubicar` y no en `form_cambio`/`estadia_cambio`: en la solapa de la ficha esas claves son las
+        # del modal «Cambiar plaza» de Estadías, y abrirían los dos.
+        reubicar = {"estadia": estadia}
+        accion["bloqueo"] = bloqueo_de_plaza(
+            accion["estado"], ACCION_REUBICAR, hay_plazas_libres=form.hay_plazas_libres
+        )
+        if not accion["bloqueo"]:
+            reubicar.update(form=form, url=url)
+        context["reubicar"] = reubicar
+        return True
+
+
+class DispositivoSectoresView(SectoresPlazasMixin, DispositivoObjectPermissionMixin, DetailView):
+    """La pantalla «Sectores y plazas» de siempre: sigue respondiendo (enlaces guardados, la app, los tests).
+
+    Dibuja el mismo cuerpo que la solapa de la ficha. Los enlaces de adentro ya no llevan acá:
+    las acciones vuelven a la solapa (`url_solapa_sectores`).
+    """
+
+    capacidad_requerida = "dispositivo.ver"
+    model = Dispositivo
+    template_name = "programas/dispositivos/sectores/sectores.html"
+    context_object_name = "dispositivo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        dispositivo = self.object
+        self._preparar_sectores_y_plazas(context, dispositivo)
+        # Con el nombre de siempre para esta pantalla (no hay otro `sectores` que lo pise).
+        context["sectores"] = context["sectores_mapa"]
+        context["migas"] = [
+            {"label": "Instituciones", "url": reverse("dispositivos:lista")},
+            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
+            {"label": "Sectores y plazas", "url": ""},
+        ]
+        return context
+
+
+class DispositivoDetailView(SectoresPlazasMixin, DispositivoObjectPermissionMixin, DetailView):
     """Detalle del dispositivo (MVP v2, etapa 2 · P4): indicadores, sectores, estadías, infraestructura e historial.
 
     Las cifras de plazas salen del censo de `ocupacion_de_plazas` y el resto de los datos de
@@ -439,6 +797,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
     model = Dispositivo
     template_name = "programas/dispositivos/legajo/detail.html"
     context_object_name = "dispositivo"
+    en_solapa = True
+    # `?sector=` ya es el filtro de la solapa Estadías: el sector a editar viaja con otro nombre.
+    param_editar_sector = "editar_sector"
 
     def get_queryset(self):
         return Dispositivo.objects.select_related("tipo", "area_ministerio__secretaria")
@@ -566,7 +927,6 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                     if puede_cambiar
                     else None
                 ),
-                "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
                 # «Emergencia · Kits» del menú: solo para quien recibe kits en ESTE dispositivo.
@@ -581,7 +941,27 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         self._preparar_relevamiento(context, dispositivo)
         self._preparar_equipo(context, dispositivo)
+        self._preparar_solapa_sectores(context, dispositivo, con_plazas)
         return context
+
+    def _preparar_solapa_sectores(self, context, dispositivo, con_plazas):
+        """La solapa «Sectores y plazas»: el mapa y sus acciones, **solo** con la solapa abierta.
+
+        Armarla cuesta las consultas del mapa, y la ficha se abre casi siempre en otra solapa: sin
+        `?tab=sectores` no se pide nada y el botón de la solapa navega a esa URL (`sectores_cargados`).
+        Los parámetros que abren sus modales (`plaza`, `editar_plaza`, `editar_sector`) la abren sola.
+        """
+
+        get = self.request.GET
+        if not con_plazas:
+            return
+        abre_modal = any(parametro in get for parametro in ("plaza", "editar_plaza", self.param_editar_sector))
+        if abre_modal and not get.get("tab") and context["tab"] == SOLAPA_POR_DEFECTO:
+            context["tab"] = "sectores"
+        context["sectores_cargados"] = context["tab"] == "sectores"
+        context["url_solapa_sectores"] = url_solapa_sectores(dispositivo.pk)
+        if context["sectores_cargados"]:
+            self._preparar_sectores_y_plazas(context, dispositivo)
 
     def _permisos_equipo(self, dispositivo):
         """``permisos_del_equipo`` de quien mira, resueltos una sola vez por request."""
@@ -998,288 +1378,6 @@ def _q_plazas_visibles(usuario):
     return q_edificios_en_alcance(usuario, "dispositivo.ver", "sector__dispositivo_id", "sector__edificio_id")
 
 
-class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
-    """«Sectores y plazas» (MVP v2, etapas 1 y 5 · P5): el mapa de plazas y sus acciones.
-
-    El modal de la acción se abre con `?plaza=<id>` y lo arma el servidor, como los de P21:
-    el contenido depende del estado de esa plaza y la celda del mapa solo sabe navegar. Si
-    la plaza no se puede gestionar —ajena, inexistente, de un sector dado de baja o sin la
-    capacidad— el modal no se abre y el aviso es el mismo para los cuatro casos.
-
-    «Editar sector» se abre igual, con `?sector=<id>`. «Nuevo sector» y «+ Agregar plazas» no:
-    no dependen de un registro, así que sus formularios llegan con la página y los abre el
-    botón, como el modal de la golden. Los tres se arman **solo** si quien mira puede
-    configurar las plazas: sin eso, el formulario llegaría armado a quien la acción va a
-    rechazar. El mapa sigue en las consultas fijas de su presupuesto, y el selector del lote
-    en las del suyo; el alta del sector no consulta.
-    """
-
-    capacidad_requerida = "dispositivo.ver"
-    model = Dispositivo
-    template_name = "programas/dispositivos/sectores/sectores.html"
-    context_object_name = "dispositivo"
-
-    def get(self, request, *args, **kwargs):
-        if request.GET.get("fragmento") == FRAGMENTO_REUBICAR and is_ajax(request):
-            return self._fragmento_reubicar(request)
-        return super().get(request, *args, **kwargs)
-
-    def _fragmento_reubicar(self, request):
-        """Solo el cuerpo del modal «Cambiar de plaza», para abrirlo sin recargar la página.
-
-        Corta **antes** de armar el mapa: resuelve únicamente la plaza pedida, con el mismo
-        gate de alcance y de capacidades que `?plaza=<id>`, y el mismo 404 para la ajena, la
-        inexistente, la que no se reubica y la que el usuario no puede gestionar. Es lo que
-        el mapa no puede traer por plaza sin pasarse de su presupuesto: la estadía y las
-        plazas libres. Lo dibuja la misma parcial que el camino `?plaza=<id>` sin JS.
-        """
-
-        dispositivo = self.object = self.get_object()
-        usuario = request.user
-        puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
-        pk = _entero(request.GET.get("plaza", ""))
-        accion = (
-            plaza_para_accion(
-                dispositivo,
-                pk,
-                puede_liberar=puede_liberar,
-                puede_configurar_plazas=configura_plazas,
-                puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
-                usuario=usuario,
-            )
-            if pk is not None
-            else None
-        )
-        if accion is None or ACCION_REUBICAR not in accion["acciones"]:
-            raise Http404
-        context = {
-            "dispositivo": dispositivo,
-            "plaza_accion": accion,
-            "puede_configurar_plazas": configura_plazas,
-        }
-        if not self._preparar_reubicar(context, dispositivo, accion):
-            raise Http404
-        return render(request, "programas/dispositivos/sectores/_modal_reubicar.html", context)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        dispositivo = self.object
-        usuario = self.request.user
-        puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
-
-        context.update(
-            sectores_con_plazas(
-                dispositivo,
-                puede_liberar=puede_liberar,
-                puede_configurar_plazas=configura_plazas,
-                puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
-                puede_egresar=puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR),
-                usuario=usuario,
-            )
-        )
-        context["puede_reubicar"] = puede_liberar
-        # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
-        context["ver_inactivos"] = self.request.GET.get("inactivos") == "1"
-        if context["ver_inactivos"]:
-            context["sectores_inactivos"] = sectores_inactivos(dispositivo, q_alcance=_q_sectores_visibles(usuario))
-            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo, q_alcance=_q_plazas_visibles(usuario))
-        context["migas"] = [
-            {"label": "Instituciones", "url": reverse("dispositivos:lista")},
-            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
-            {"label": "Sectores y plazas", "url": ""},
-        ]
-        context["puede_configurar_plazas"] = configura_plazas
-        # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
-        context["puede_ampliar_capacidad"] = configura_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
-        self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, configura_plazas)
-        self._preparar_modal(context, dispositivo, puede_liberar, configura_plazas)
-        self._preparar_modales_de_configuracion(context, dispositivo, configura_plazas)
-        return context
-
-    def _preparar_modales_de_configuracion(self, context, dispositivo, puede_configurar_plazas):
-        """«Nuevo sector», «Editar sector» y «+ Agregar plazas»: cuál abrir y con qué formulario.
-
-        Un sector ajeno, inexistente o dado de baja no abre nada y avisa lo mismo que una
-        plaza no gestionable: tres respuestas distintas serían un oráculo de ids. El sector
-        dado de baja entra igual —se edita para reactivarlo—, lo que no abre es el que no
-        es de este dispositivo.
-        """
-
-        if not puede_configurar_plazas:
-            return
-        # Las altas no dependen de un registro: llegan con la página y las abre el botón, sin el
-        # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
-        # porque convive con «Editar sector», que es el mismo formulario.
-        if context["puede_ampliar_capacidad"]:
-            context["form_sector_nuevo"] = SectorForm(dispositivo=dispositivo, auto_id="id_nuevo_%s")
-            context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
-        pedido = self.request.GET.get("sector", "")
-        # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
-        # sector no se puede editar.
-        if pedido and pedido != "nuevo":
-            pk = _entero(pedido)
-            sector = (
-                Sector.objects.filter(pk=pk, dispositivo=dispositivo)
-                .filter(_q_sectores_visibles(self.request.user))
-                .first()
-                if pk is not None
-                else None
-            )
-            if sector is None:
-                messages.warning(self.request, "Ese sector ya no se puede editar desde acá.")
-            else:
-                context["sector_en_edicion"] = sector
-                context["form_sector"] = SectorForm(dispositivo=dispositivo, sector=sector)
-                context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
-
-        if context["sectores"] and context["puede_ampliar_capacidad"]:
-            context["form_plazas"] = AgregarPlazasForm(
-                dispositivo=dispositivo,
-                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True).filter(
-                    _q_sectores_visibles(self.request.user)
-                ),
-            )
-            context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
-
-        pedido = self.request.GET.get("editar_plaza", "")
-        if pedido:
-            pk = _entero(pedido)
-            plaza = (
-                Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo)
-                .filter(_q_plazas_visibles(self.request.user))
-                .first()
-                if pk is not None
-                else None
-            )
-            if plaza is None:
-                messages.warning(self.request, "Esa plaza ya no se puede editar desde acá.")
-            else:
-                context["plaza_en_edicion"] = plaza
-                context["form_editar_plaza"] = PlazaForm(dispositivo=dispositivo, plaza=plaza)
-                context["url_editar_plaza"] = reverse("dispositivos:plaza_editar", args=[dispositivo.pk, plaza.pk])
-
-    def _preparar_modal_de_plaza(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
-        """El modal de una plaza, armado **una vez** y sin consultas: lo abre `abrirPlaza(<id>)`.
-
-        Los formularios (reservar, prestar, sacar, liberar) llegan con la página y el `action`
-        del `<form>` se arma en el navegador con la URL de la plaza elegida: las URLs viajan
-        con `__pk__` en el lugar del id, una por acción, y no una por plaza. Los datos de
-        cada plaza (`plazas_modal`) ya los calculó el mapa. Sin ninguna capacidad no se arma nada.
-        """
-
-        context["urls_plaza"] = {}
-        context["motivo_plaza_ocupada"] = MOTIVO_PLAZA_OCUPADA
-        if not (puede_liberar or puede_configurar_plazas):
-            return
-        # Las sugerencias de personas piden lo mismo que reservar y prestar (admitir + ver personas):
-        # a quien no las puede usar no se le ofrecen, y el campo queda como siempre.
-        url_sugerencias = (
-            reverse("dispositivos:personas_buscar", args=[dispositivo.pk])
-            if puede_ingresar_persona(self.request.user, dispositivo)
-            else None
-        )
-        context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR, url_sugerencias=url_sugerencias)
-        context["form_prestar"] = PrestarPlazaForm(auto_id=AUTO_ID_PLAZA_PRESTAR, url_sugerencias=url_sugerencias)
-        context["form_sacar"] = SacarPlazaDeServicioForm(auto_id=AUTO_ID_PLAZA_SACAR)
-        context["form_liberar"] = LiberarPlazaForm(auto_id=AUTO_ID_PLAZA_LIBERAR)
-        context["urls_plaza"] = {
-            accion: reverse(nombre, args=[dispositivo.pk, 0]).replace("/plazas/0/", "/plazas/__pk__/")
-            for accion, nombre in URL_DE_ACCION.items()
-        }
-
-    def _preparar_modal(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
-        """`?plaza=<id>`: el enlace directo, y el camino de vuelta a una plaza concreta.
-
-        Resuelve las acciones de la plaza con `plaza_para_accion` y, si no hay ninguna que ofrecer, avisa
-        con un mensaje. Las acciones que se arman en el navegador (todas menos reubicar) abren el modal ya
-        elegido (`plaza_inicial`, sumando la plaza a `plazas_modal` si quedó más allá del tope de la
-        grilla); la reubicación, que depende de la estadía, la arma el servidor en `_preparar_reubicar`. Una
-        plaza ocupada abre el formulario de reubicar solo si es lo único que ofrece o si la URL trae
-        `&opcion=reubicar` (el regreso de «Cambiar de plaza»); con más opciones llega el menú.
-        """
-
-        pedida = self.request.GET.get("plaza", "")
-        if not pedida:
-            return
-        pk = _entero(pedida)
-        accion = (
-            plaza_para_accion(
-                dispositivo,
-                pk,
-                puede_liberar=puede_liberar,
-                puede_configurar_plazas=puede_configurar_plazas,
-                puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
-                puede_egresar=puede_operar_dispositivo(self.request.user, dispositivo, CAP_EGRESAR),
-                usuario=self.request.user,
-            )
-            if pk is not None
-            else None
-        )
-        if accion is None:
-            messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
-            return
-        plaza = accion["plaza"]
-        abre_reubicar = ACCION_REUBICAR in accion["acciones"] and (
-            accion["acciones"] == [ACCION_REUBICAR] or self.request.GET.get("opcion") == OPCION_REUBICAR
-        )
-        if abre_reubicar or ACCION_REUBICAR not in accion["acciones"]:
-            context["plaza_accion"] = accion
-        if abre_reubicar:
-            # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
-            if not self._preparar_reubicar(context, dispositivo, accion):
-                context.pop("plaza_accion")
-                messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
-            return
-        # Una plaza más allá del tope de la grilla no está en `plazas_modal`: se suma acá.
-        context["plazas_modal"].setdefault(
-            plaza.pk,
-            datos_para_el_modal(
-                plaza,
-                accion["estado"],
-                accion["acciones"],
-                accion["bloqueo"],
-                accion["enlaces"],
-                con_reserva_abierta=accion["reserva"] is not None,
-            ),
-        )
-        context["plaza_inicial"] = plaza.pk
-
-    def _preparar_reubicar(self, context, dispositivo, accion):
-        """Reubicar a quien ocupa la plaza: el formulario del cambio de plaza de P7, dentro del mapa.
-
-        Se arma **solo** con el modal abierto (el mapa cerrado conserva sus consultas
-        fijas). El POST va a `dispositivos:cambiar_plaza`, que es quien aplica la regla.
-        Sin plazas libres el modal avisa y no trae formulario. Devuelve `False` si la persona
-        ya no está en la plaza (no hay a quién mover); quien llama decide cómo avisarlo.
-        """
-
-        estadia = (
-            Estadia.objects.activas()
-            .filter(plaza=accion["plaza"])
-            .select_related("ciudadano", "dispositivo", "plaza__sector")
-            .first()
-        )
-        if estadia is None:
-            # La persona se fue entre el dibujo del mapa y el clic: no hay a quién mover.
-            return False
-        estadia.persona_visible = (
-            estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
-        )
-        form, url = _form_de_cambio_de_plaza(
-            dispositivo, estadia, _sectores_para_cambio(dispositivo, self.request.user)
-        )
-        context["estadia_cambio"] = estadia
-        accion["bloqueo"] = bloqueo_de_plaza(
-            accion["estado"], ACCION_REUBICAR, hay_plazas_libres=form.hay_plazas_libres
-        )
-        if not accion["bloqueo"]:
-            context["form_cambio"] = form
-            context["url_cambiar_plaza"] = url
-        return True
-
-
 # Acciones sobre una plaza del mapa (P5). Mutan: solo POST con CSRF. Las reglas —que la
 # plaza no esté tomada, que la reserva siga abierta, el bloqueo de la fila— viven en
 # `programas.services.estadias`; acá se resuelve el alcance y se traduce lo que el
@@ -1325,7 +1423,7 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
 
     def post(self, request, pk, plaza_pk):
         dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
-        volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
+        volver = url_vuelta_a_sectores(request, dispositivo)
         # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
         # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
         # Sin alcance es 404; con alcance pero sin `ciudadano.ver` (capacidad) sigue siendo 403.
@@ -1802,7 +1900,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         if destino == "dispositivo":
             volver = url_solapa_estadias(dispositivo.pk)
         elif destino == "sectores":
-            volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
+            volver = url_vuelta_a_sectores(request, dispositivo)
         else:
             volver = url_volver_a_la_estadia(request.user, dispositivo, estadia)
 

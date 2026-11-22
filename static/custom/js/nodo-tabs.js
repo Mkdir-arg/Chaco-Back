@@ -13,6 +13,9 @@
  * detalle del ciudadano, `cambiarTab(...)`). Sin este archivo las solapas siguen
  * funcionando con el mouse igual que antes.
  *
+ * Una solapa marcada con `data-solapa-navega` (la que, sin su contenido cargado, abre otra
+ * página) recibe el foco con las flechas pero no se activa: se abre con Enter, Espacio o clic.
+ *
  * Qué agrega, siguiendo el patrón «tabs» de WAI-ARIA:
  *   - ← y → mueven el foco a la solapa anterior/siguiente, con vuelta circular;
  *   - Home y End van a la primera y a la última;
@@ -77,22 +80,28 @@
         }
     }
 
+    // Las flechas llevan el foco y activan la solapa. Una solapa que **navega** a otra página
+    // (`data-solapa-navega`, la de contenido que se arma solo cuando se la abre) solo recibe el
+    // foco: recorrer la barra con flechas no puede recargar la página a cada paso; se la abre
+    // con Enter, Espacio o clic, que ya hacen su `click()` nativo.
+    function activar(destino) {
+        destino.setAttribute('tabindex', '0');
+        destino.focus();
+        if (!destino.hasAttribute('data-solapa-navega')) destino.click();
+    }
+
     function mover(lista, desde, delta) {
         var solapas = solapasDe(lista);
         if (solapas.length < 2) return;
         var destino = solapas[(desde + delta + solapas.length) % solapas.length];
-        destino.setAttribute('tabindex', '0');
-        destino.focus();
-        destino.click();
+        activar(destino);
     }
 
     function irA(lista, indice) {
         var solapas = solapasDe(lista);
         if (!solapas.length) return;
         var destino = solapas[indice < 0 ? solapas.length - 1 : indice];
-        destino.setAttribute('tabindex', '0');
-        destino.focus();
-        destino.click();
+        activar(destino);
     }
 
     document.addEventListener('keydown', function (event) {
