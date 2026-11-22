@@ -12,7 +12,7 @@ import unicodedata
 
 from django.db.models import Q
 
-from core.dni import normalizar_dni
+from core.dni import LARGOS_DNI_VALIDOS, normalizar_dni
 from legajos.models import Ciudadano
 from users.services.busqueda import normalizar_tecleado, palabras_del_tecleado, q_prefijo_por_palabras
 
@@ -22,10 +22,35 @@ MAXIMO_RESULTADOS = 10
 _SOLO_DNI = re.compile(r"[\d.\s]+")
 
 
+def _prefijos_con_puntos(digitos):
+    """Cómo empieza, guardado con puntos, un DNI que empieza con estos dígitos.
+
+    Las fichas viejas con `12.345.678` conviven con su gemela normalizada (`Ciudadano.save`
+    ya no las deja entrar, pero siguen en la base). Se busca por **prefijo del texto
+    guardado**, no con una función sobre la columna: para cada largo válido del documento
+    se ponen los puntos donde irían (cada tres dígitos, de derecha a izquierda) y se omite el
+    punto final, que todavía no se tecleó. Son a lo sumo dos prefijos más, sobre el mismo
+    índice. Solo el separador punto, que es el formato que existe.
+    """
+
+    prefijos = set()
+    for largo in LARGOS_DNI_VALIDOS:
+        if len(digitos) > largo:
+            continue
+        prefijo = ""
+        for posicion, digito in enumerate(digitos, start=1):
+            prefijo += digito
+            if posicion < len(digitos) and (largo - posicion) % 3 == 0:
+                prefijo += "."
+        prefijos.add(prefijo)
+    prefijos.discard(digitos)
+    return sorted(prefijos)
+
+
 def _filtros(texto):
     """Los `Q` que se consultan por separado y se unen en Python; lista vacía si no hay qué buscar.
 
-    Números: uno solo, prefijo de DNI. Palabras: la primera es prefijo de apellido **o** de nombre, y cada
+    Números: uno solo, prefijo de DNI (también de las fichas guardadas con puntos). Palabras: la primera es prefijo de apellido **o** de nombre, y cada
     una de las demás también. Ese OR de la primera se parte en dos consultas, una por columna: el
     `OR` entre dos columnas lo resuelve MySQL con `index_merge` y, con un prefijo común (`gar`, `mar`),
     ordena todo lo que coincide antes de cortar en 11 (200k filas: 51 ms contra 0,7 ms por columna).
@@ -33,7 +58,12 @@ def _filtros(texto):
 
     if _SOLO_DNI.fullmatch(texto):
         digitos = normalizar_dni(texto)
-        return [Q(dni__istartswith=digitos)] if len(digitos) >= MINIMO_CARACTERES else []
+        if len(digitos) < MINIMO_CARACTERES:
+            return []
+        filtro = Q(dni__istartswith=digitos)
+        for prefijo in _prefijos_con_puntos(digitos):
+            filtro |= Q(dni__istartswith=prefijo)
+        return [filtro]
     palabras = palabras_del_tecleado(texto)
     if not palabras:
         return []

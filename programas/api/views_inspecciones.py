@@ -37,6 +37,7 @@ from programas.api.serializers_inspecciones import (
     InspeccionCampoDetailSerializer,
     InspeccionCampoListSerializer,
     ResultadoInspeccionSerializer,
+    ResultadoRegistradoSerializer,
 )
 from programas.models import InspeccionEdificio
 from programas.services.dispositivos import puede_en_programa_dispositivos
@@ -198,11 +199,11 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         request=ResultadoInspeccionSerializer,
-        responses={200: InspeccionCampoDetailSerializer, **_RESPUESTAS_DE_ENVIO},
+        responses={200: ResultadoRegistradoSerializer, **_RESPUESTAS_DE_ENVIO},
         description=(
             "Registra la criticidad y las observaciones y deja el relevamiento realizado. Si tiene formulario, "
             "`respuestas` se valida contra su definición vigente (obligatorios, condiciones y tipos; los campos "
-            "de archivo no se exigen acá). Idempotente por `uuid_cliente`: el reenvío del mismo devuelve 200 con "
+            "de archivo no se exigen: si falta alguno obligatorio, lo dice en `avisos` y cierra igual). Idempotente por `uuid_cliente`: el reenvío del mismo devuelve 200 con "
             "el relevamiento como quedó."
         ),
     )
@@ -213,7 +214,7 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
         if not entrada.is_valid():
             return _respuesta_400(entrada.errors)
         datos = entrada.validated_data
-        _, respuesta = _ejecutar(
+        realizada, respuesta = _ejecutar(
             lambda: registrar_resultado(
                 request.user,
                 inspeccion,
@@ -225,7 +226,10 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
             ),
             inspeccion,
         )
-        return respuesta or Response(self._detalle(inspeccion))
+        if respuesta:
+            return respuesta
+        # `avisos`: lo que falta y no bloquea (los archivos obligatorios que el envío no trae).
+        return Response({**self._detalle(inspeccion), "avisos": list(realizada.avisos)})
 
     @extend_schema(
         request={"multipart/form-data": FotoInspeccionEnvioSerializer},
