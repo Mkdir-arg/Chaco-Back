@@ -27,12 +27,6 @@ from programas.forms_dispositivos import (
     SacarPlazaDeServicioForm,
     SectorForm,
 )
-from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
-    DispositivoAltaPermissionMixin,
-    DispositivoObjectPermissionMixin,
-    DispositivoProgramaPermissionMixin,
-    dispositivo_operable_o_404,
-)
 from programas.models import (
     Estadia,
     Plaza,

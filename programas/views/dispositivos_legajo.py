@@ -37,15 +37,11 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     dispositivo_operable_o_404,
 )
 from programas.mixins_dispositivos_equipo import EquipoDelLegajoMixin
-from programas.mixins_dispositivos_sectores import (  # noqa: F401  (re-exportados: los usan las vistas de plazas de acá)
+from programas.mixins_dispositivos_sectores import (
     AUTO_ID_CAMBIO,
-    FRAGMENTO_REUBICAR,
-    OPCION_REUBICAR,
-    URL_DE_ACCION,
     SectoresPlazasMixin,
     _entero,
     _form_de_cambio_de_plaza,
-    _q_plazas_visibles,
     _q_sectores_visibles,
     _sectores_para_cambio,
 )

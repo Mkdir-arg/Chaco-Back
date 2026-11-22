@@ -431,7 +431,7 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
         self.assertNotContains(respuesta, PARAM_EDIFICIO_SECTORES)
 
     @tag("performance")
-    def test_el_fragmento_con_filtro_cuesta_pocas_consultas_y_no_crece(self):
+    def test_el_fragmento_con_filtro_entra_en_su_techo(self):
         """El filtro suma las consultas de validar el edificio contra el alcance: un costo fijo, con tope propio.
 
         Peor caso: alcance Edificios (que se resuelve otra vez para la lista de edificios) con el filtro pedido.

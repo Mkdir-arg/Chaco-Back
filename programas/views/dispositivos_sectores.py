@@ -3,12 +3,7 @@
 from django.urls import reverse
 from django.views.generic import DetailView
 
-from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
-    DispositivoAltaPermissionMixin,
-    DispositivoObjectPermissionMixin,
-    DispositivoProgramaPermissionMixin,
-    dispositivo_operable_o_404,
-)
+from programas.mixins_dispositivos import DispositivoObjectPermissionMixin
 from programas.mixins_dispositivos_sectores import SectoresPlazasMixin
 from programas.models import (
     Dispositivo,

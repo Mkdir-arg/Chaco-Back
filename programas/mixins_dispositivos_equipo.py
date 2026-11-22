@@ -16,12 +16,6 @@ from programas.forms_equipo_dispositivo import (
     CrearPersonaEquipoForm,
     SumarMiembroEquipoForm,
 )
-from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
-    DispositivoAltaPermissionMixin,
-    DispositivoObjectPermissionMixin,
-    DispositivoProgramaPermissionMixin,
-    dispositivo_operable_o_404,
-)
 from programas.mixins_dispositivos_sectores import _entero
 from programas.models import (
     Edificio,
