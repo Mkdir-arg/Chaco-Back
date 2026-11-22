@@ -1,3 +1,13 @@
+/* El atributo `hidden` oculta siempre (issue 1297). Sin esto, un `display` de clase (`.btn-nodo` es
+   `inline-flex`) le gana al `[hidden]` del navegador, que es de origen agente de usuario y pierde contra cualquier regla de autor:
+   el botón «Calcular distancia por calle» se veía sin hacer nada cuando Google no estaba. Las reglas
+   `[hidden]` de cada pieza quedan; `nodo-buscador.css` conserva la suya porque la carga la inscripción
+   pública (el portal no carga este archivo). En el backoffice las demás son redundantes. */
+[hidden]
+{
+    display: none !important;
+}
+
 .hide
 {
     display: none !important;
