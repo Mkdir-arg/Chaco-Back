@@ -36,6 +36,7 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/derivaciones/{id}/rechazar/` | llegadas | Rechazar la derivación con motivo (§13.4) |
 | `GET /api/emergencia/casos/{id}/integrantes/` | llegadas | Las personas de la familia y el contador (§13.5) |
 | `POST /api/emergencia/casos/{id}/integrantes/` | llegadas | Agregar una persona (idempotente) (§13.5) |
+| `POST /api/emergencia/casos/{id}/integrantes/{n}/quitar/` | llegadas | Quitar a quien se agregó por error en la puerta, sin confirmar (idempotente) (§13.5) |
 | `GET /api/emergencia/casos/{id}/integrantes/{n}/` | llegadas | Una persona con su ficha (§13.6) |
 | `PATCH /api/emergencia/casos/{id}/integrantes/{n}/` | llegadas | Completar las secciones 4 a 8 (§13.6) |
 | `GET /api/emergencia/dispositivos/{id}/plazas/?caso=` | llegadas | Mapa de camas para elegir (§13.7) |
@@ -681,21 +682,22 @@ u `observacion`; 409 si ya no estaba pendiente.
     "responsable": {"id": 9, "nombre": "Benítez, Rosa", "dni": "30111222"},
     "plaza": {"id": 41, "codigo": "B-12", "nombre": "B-12 (Pabellón B)"},
     "parentesco": "Jefe/a de hogar",
-    "confirmada_en": "2026-11-12T10:20:00-03:00", "egresado_en": null},
+    "confirmada_en": "2026-11-12T10:20:00-03:00", "egresado_en": null, "puede_quitarse": false},
    {"n": 2, "estado": "SIN_CONFIRMAR", "ficha_completa": false, "persona": null, "responsable": null,
-    "plaza": null, "parentesco": "", "confirmada_en": null, "egresado_en": null}],
+    "plaza": null, "parentesco": "", "confirmada_en": null, "egresado_en": null, "puede_quitarse": false}],
  "confirmadas": 1, "total_declarado": 7, "declaradas_al_relevar": 7, "con_ficha_incompleta": 1}
 ```
 
 | Clave | Qué es |
 |---|---|
 | `derivacion.id` | La derivación aceptada de **este** ingreso. Si la mesa vuelve a derivar el caso al mismo dispositivo y se acepta de nuevo, cambia. La app la guarda con la pantalla y la manda como `derivacion` en los cierres de §13.9 |
-| `integrantes[].n` | Número de la persona en la familia (1 a `total_declarado`): va en las rutas de §13.6 a §13.8 |
+| `integrantes[].n` | Número de la persona en la familia (sin huecos salvo que se haya quitado una agregada, §13.5): va en las rutas de §13.6 a §13.8 |
 | `integrantes[].estado` | `SIN_CONFIRMAR`, `CONFIRMADA` o `EGRESADA` (confirmada que ya se fue) |
 | `integrantes[].ficha_completa` | Secciones 4 a 8 con algún dato o «sin datos». `false` → «ficha incompleta» |
 | `integrantes[].persona` | La persona confirmada (legajo); `null` hasta confirmar |
 | `integrantes[].responsable` | Solo en `n` 1: el responsable que cargó el caso, `{id, nombre, dni}`, **también sin confirmar** (Cambio 521). La app rotula con él la persona 1 en vez de «Persona 1». En las demás, `null` |
 | `integrantes[].plaza` | La cama **de hoy** (si la cambiaron desde el mapa, la nueva) |
+| `integrantes[].puede_quitarse` | (Cambio 537, **aditiva**) `true` si la persona se agregó en la puerta con «Agregar persona», sigue `SIN_CONFIRMAR` y el ingreso está en curso: la app ofrece «Quitar persona». Nunca es `true` para el responsable ni para las del Formulario 1 (`n` de 1 a `declaradas_al_relevar`). Una app que no la lee sigue andando |
 | `confirmadas` / `total_declarado` | El contador «1 de 7 confirmadas» |
 | `declaradas_al_relevar` | Lo que dijo el Formulario 1. Si `total_declarado` es mayor, «llegaron 8 sobre 7» |
 
@@ -721,6 +723,17 @@ La app no compara `detail`: lo muestra, y recarga con `estado_actual` (§13.1).
 (obligatorio). Respuesta **201** `{"integrante": {…fila…}, "total_declarado": 8}`; el reenvío del mismo
 `uuid_cliente` devuelve **200** con la misma fila, sin sumar otra. La persona nueva no tiene cama
 reservada: se elige una libre al confirmarla.
+
+**Quitar persona** (Cambio 537): `POST /api/emergencia/casos/{id}/integrantes/{n}/quitar/`, **sin cuerpo**. Deshace
+«Agregar persona» cuando la guardia se equivocó. Respuesta **200** `{"n": 8, "total_declarado": 7,
+"ya_estaba_quitada": false}`; repetirla (reintento, doble toque) devuelve **200** con `ya_estaba_quitada: true` y
+no toca nada. Solo se quita a quien se agregó en la puerta y todavía no se confirmó (`puede_quitarse` de la fila):
+si no, **400** `{"orden": ["Solo se puede quitar a quien se agregó en la puerta y todavía no ingresó. …"]}` (el
+responsable, una persona del Formulario 1 o una ya confirmada). Con el ingreso que ya no está en curso, **409** con
+`estado_actual` (§13.1); sin alcance sobre el edificio de la derivación, **404**. `total_declarado` baja en uno y
+queda en la traza del caso. Como la numeración no se compacta, tras quitar la persona 8 la siguiente que se agregue
+recibe el 8 de nuevo; si se quita una del medio queda un hueco, y `n` **ya no llega siempre hasta `total_declarado`**:
+la app usa el `n` de cada fila y no lo calcula.
 
 ### 13.6 Una persona y su ficha
 

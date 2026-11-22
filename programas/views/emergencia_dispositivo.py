@@ -335,7 +335,10 @@ class IntegrantesView(_IngresoView):
             2,
             caso,
             familia=f"Familia {caso.grupo.responsable.apellido}",
-            filas=pantalla.filas_de_integrantes(datos, lambda n: self.url("ficha", caso.pk, n)),
+            filas=[
+                {**fila, "url_quitar": self.url("quitar", caso.pk, fila["n"]) if fila["puede_quitarse"] else ""}
+                for fila in pantalla.filas_de_integrantes(datos, lambda n: self.url("ficha", caso.pk, n))
+            ],
             confirmadas=confirmadas,
             total=total,
             declaradas=datos["declaradas_al_relevar"],
@@ -375,6 +378,24 @@ class AgregarIntegranteView(_IngresoView):
             request, f"Persona {integrante.orden} agregada. La cama se elige entre las libres al confirmarla."
         )
         return redirect(self.url("ficha", self.caso.pk, integrante.orden))
+
+
+class QuitarIntegranteView(_IngresoView):
+    """Deshace «Agregar persona»: quita a quien la guardia sumó por error y todavía no confirmó."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk, caso_pk, orden):
+        quitada, respuesta = self.traducir(
+            request, lambda: servicio.quitar_integrante(caso=self.caso, orden=orden, usuario=request.user)
+        )
+        if respuesta is not None:
+            return respuesta
+        if quitada.ya_estaba:
+            messages.info(request, f"La persona {orden} ya estaba quitada.")
+        else:
+            messages.success(request, f"Persona {orden} quitada. La familia queda en {quitada.total_declarado}.")
+        return redirect(self.url_integrantes())
 
 
 class _IntegranteView(_IngresoView):

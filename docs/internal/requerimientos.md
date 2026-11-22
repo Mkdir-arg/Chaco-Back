@@ -659,6 +659,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 534 | Dispositivos · avisos, adjuntos, sugerencias y doble envío: alerta de reserva abierta hace más de 7 días, aviso del archivo obligatorio faltante, sugerencias de DNI con puntos y alta de edificio sin 500 | Dispositivos (alertas, relevamientos, ingreso, infraestructura) | `#dispositivos` `#ui` `#api` `#mobile` | Auditoría de Dispositivos (hallazgos 14, 22, 24 y 25) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 535 | Emergencia · ingreso en curso: la mesa lo cancela (quien supervisa, sin nadie confirmado) y avisa «Aceptado sin movimiento»; camas ya pedidas en «Derivar»; «Crear entrega» de kits idempotente; DNI con espacios en la bandeja | Emergencia · mesa (bandeja E2, ficha E3, E7) / Kits | `#emergencia` `#rbac` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (PR L5) | 22/11/2026 | 🟢 **Hecho** | Sí (0135, 0136) |
+| 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61825,3 +61826,82 @@ Para sacarlas, desaplicar `0136` y `0135`.
 
 ## Historial
 - **22/11/2026:** alta del cambio.
+
+
+# Cambio 537 — Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Emergencia · Llegadas (E6 integrantes y API M2-3) |
+| **Etiquetas** | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` |
+| **Solicitante** | Relevamiento de lógica de Emergencia y Dispositivos del 22/11/2026 (hallazgo 12), PR L1b |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+En la pantalla de integrantes del ingreso, «Agregar persona» no tiene vuelta atrás: si la guardia suma a alguien por error, queda en el
+grupo, el contador pide confirmarla y el ingreso no se puede cerrar «N de N» sin esa persona.
+
+## Alcance acordado
+Una acción «Quitar persona», en el backoffice y en la API de la app, solo para filas (a) agregadas en la puerta y (b) sin confirmar. Consultado
+el archivo vivo por `emergencia` y «Agregar persona» (Cambios 474 y 532): ninguna decisión registrada choca.
+
+## Decisiones tomadas
+- **Cómo se sabe que una fila se agregó en la puerta (sin columna nueva).** `agregar_integrante` numera siempre a continuación de la última
+  fila, y las originales son las `1..suma_de_cantidades()` del Formulario 1: toda fila con `orden` mayor a lo declarado es de la puerta
+  (`IntegranteGrupo.agregada_en_la_puerta`). Es la misma comparación que ya usaba `llegaron_mas`. No depende de `uuid_cliente_alta`, que solo
+  lleva la fila agregada por la API.
+- **Qué se puede quitar.** Solo una fila de la puerta sin persona, sin estadía y sin `confirmada_en`. Una fila así no tiene cama (la cama se
+  elige al confirmar), así que no hay reserva que devolver. Nunca el responsable (`orden` 1) ni una persona original: «Solo se puede quitar a
+  quien se agregó en la puerta y todavía no ingresó».
+- **Regla y autorización.** `services.emergencia_confirmacion.quitar_integrante` (reexportada por `emergencia_alojar`) abre el ingreso con
+  `_abrir_ingreso`: alcance por edificio de la derivación (`_exigir_alcance`), candado caso → derivación, e ingreso en curso. La vista y la API
+  solo orquestan. `total_declarado` baja en uno y la traza del caso dice `INTEGRANTE_QUITADO` (el campo `accion` no tiene `choices`: sin
+  migración).
+- **Idempotente.** Si la fila ya no está y su número es mayor a lo declarado, devuelve el mismo resultado con `ya_estaba = True` sin tocar nada
+  (web: «La persona N ya estaba quitada»; API: 200 con `ya_estaba_quitada: true`). Si ya no está y era original, es error.
+- **La numeración no se compacta** (las confirmadas tienen su `n` en las rutas de la app). `_asegurar_filas` pasó de «un número por cada
+  `1..total_declarado`» a «tantas filas como `total_declarado`»: sin eso, el hueco de una persona quitada habría generado una fila fantasma al
+  volver a aceptar el ingreso.
+- **Web.** Botón `nodo-icon-btn--danger` con `data-confirm-url` (arquetipo Confirmación, modal del sistema) en la fila, solo si
+  `puede_quitarse`; `POST …/integrantes/<orden>/quitar/` (`emergencia_quitar`). Ninguna clase ni componente nuevo.
+- **API (aditiva).** `integrantes[].puede_quitarse` en `GET …/integrantes/` y en el detalle; `POST /api/emergencia/casos/{id}/integrantes/{n}/quitar/`
+  sin cuerpo → 200 `{n, total_declarado, ya_estaba_quitada}`; 400 `orden` si no se puede, 404 sin alcance, 409 con el ingreso ya cerrado. Se
+  eligió POST y no DELETE para ir como `confirmar/` y no depender de que el WAF de ECOM deje pasar el verbo. La app publicada no lee la clave y
+  sigue andando.
+
+## Implementación
+La guardia ve «Quitar» solo en la fila que ella sumó y todavía no confirmó, con confirmación; el total baja, la traza lo cuenta y repetir la
+acción no rompe.
+
+## Archivos
+- `programas/models/__init__.py` — `IntegranteGrupo.agregada_en_la_puerta`, `TrazaCaso.Accion.INTEGRANTE_QUITADO`.
+- `programas/services/emergencia_confirmacion.py` — `quitar_integrante`; `emergencia_alojar.py` lo reexporta; `emergencia_ingreso_comun.py` — `_asegurar_filas` por cantidad.
+- `programas/selectors/emergencia_alojar.py` — `puede_quitarse` en la fila.
+- `programas/views/emergencia_dispositivo.py`, `programas/dispositivos_emergencia_urls.py` y `programas/templates/programas/emergencia/dispositivo/integrantes.html`.
+- `programas/api/views_emergencia_llegadas.py`, `programas/api/serializers_emergencia.py`, `programas/api_emergencia_urls.py`.
+- `docs/internal/contrato-app-emergencia.md` (resumen y §13.5).
+- Tests: `programas/tests/test_emergencia_quitar_persona.py` (nuevo), `base_emergencia_api.py` y `test_emergencia_api_contrato.py`.
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos en `test_emergencia_quitar_persona.py` (22: servicio, pantalla y API) y el contrato actualizado (`puede_quitarse`, ruta `quitar/`). **Mutación** (7, todas en rojo): sin el chequeo de «agregada en la puerta»; sin el de «confirmada»; error en vez del resultado idempotente; sin el decremento de `total_declarado`; `puede_quitarse` sin mirar la puerta; `_exigir_alcance` sin el chequeo; `_asegurar_filas` contando números. Suites `test_emergencia_*` (1429) y `--tag performance` (94) en verde; `manage.py check`, `makemigrations --check`, ruff de lo tocado, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` y `check_design_agent --base origin/development` OK.
+
+## Puesta en marcha en el servidor
+No requiere. Para la app: leer `puede_quitarse` y llamar a `…/quitar/` (PR aparte en Chaco-mobile).
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Desplegar el código anterior. No hay datos que revertir: las filas quitadas están borradas y `total_declarado` ya quedó ajustado; una traza
+`INTEGRANTE_QUITADO` es solo texto.
+
+## Historial
+- **22/11/2026:** alta del cambio (PR L1b del relevamiento de lógica).
