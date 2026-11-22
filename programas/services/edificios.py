@@ -35,6 +35,7 @@ from django.db import IntegrityError, transaction
 from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.services.dispositivos import puede_editar_legajo
+from programas.services.equipo_dispositivo import soltar_edificio_del_equipo
 
 #: La misma capacidad con la que se edita el legajo: el edificio es dato del legajo.
 CAP_EDITAR = "dispositivo.editar"
@@ -240,6 +241,11 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
         and InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists()
     ):
         raise ValidationError({"__all__": RELEVAMIENTO_EN_CURSO})
+
+    # El Equipo, bajo el mismo bloqueo del dispositivo: `sumar_miembro` y `dar_de_baja` lo toman primero, así
+    # que ninguna alta puede meter este edificio en un alcance entre esta lectura y el `remove()` (y si entra
+    # antes, ya está en la lectura; si entra después, el edificio ya no está vinculado y se rechaza).
+    soltar_edificio_del_equipo(dispositivo, edificio)
 
     dispositivo.edificios.remove(edificio)
     _trazar(dispositivo, usuario, "EDIFICIO_DESVINCULADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
