@@ -61866,7 +61866,7 @@ fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; 
   préstamos) se liberan con el motivo «Se inactivó la institución», quedan en la traza («N reservas liberadas») y el aviso de la
   vista dice cuántas se soltaron. Las reservas de derivación se tratan como la derivación: no se liberan por detrás de Emergencia.
 - **Reservar y prestar** exigen institución `ACTIVA`; **cambiar de plaza** se permite en `INACTIVA` y se rechaza en `CERRADA`. Una
-  sola regla, `dispositivos.exigir_institucion_en_estado`, que lee el estado fresco de la base («No se puede reservar: el dispositivo
+  sola regla, `dispositivos.exigir_institucion_en_estado`, que lee el estado fresco de la base («No se puede reservar una plaza: el dispositivo
   está inactivo.»); la comparten `reservar_plaza` y `cambiar_plaza`, y la misma lista de estados (`estados_que_reservan`,
   `estados_que_cambian_de_plaza`) decide qué ofrecen el mapa de plazas («Reservar», «Prestar», «Reubicar») y la pantalla de la
   estadía («Cambiar plaza»).
@@ -61880,13 +61880,15 @@ fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; 
   cuántas plazas haya.
 
 ## Pendientes
-- **Carrera de reservar/ingresar contra cerrar.** El estado de la institución se lee sin bloquear su fila en `reservar_plaza` y
-  `cambiar_plaza` (y en el ingreso): una reserva o un ingreso que entre en el mismo instante que otro operador cierra puede dejar una
-  institución cerrada con una reserva o una estadía vivas.
-- **Inversión del orden de bloqueos.** Inactivar toma institución → plaza → reserva; el ingreso que consume una reserva toma plaza →
-  reserva → institución (por la FK). Si coinciden, el motor puede cortar una de las dos con `ERROR 1213` (deadlock).
-- **Arreglo propuesto, en un PR aparte:** leer el estado con un bloqueo compartido (`select_for_update(of=…)`/`LOCK IN SHARE MODE`) de
-  la fila de la institución antes de bloquear la plaza. Cierra la carrera y fija un solo orden, sin serializar los ingresos entre sí.
+- **Carrera de reservar/ingresar contra cerrar o inactivar.** El estado de la institución se lee sin bloquear su fila en
+  `reservar_plaza` y `cambiar_plaza` (y en el ingreso): una reserva o un ingreso que entre en el mismo instante que otro operador
+  cierra o inactiva puede dejar una institución cerrada o inactiva con una reserva o una estadía vivas.
+- **Inversión del orden de bloqueos.** «Inactivar» toma institución → plaza → reserva. Reservar, liberar, cambiar de plaza e ingresar
+  toman plaza → traza (que tiene una FK al dispositivo) → dispositivo, o sea el orden contrario. Si coinciden, el motor corta una de
+  las dos con `ERROR 1213` (deadlock) y el operador ve un 500, sin pérdida de datos.
+- **Arreglo propuesto, en un PR aparte:** leer el estado con un bloqueo compartido por SQL crudo (`LOCK IN SHARE MODE`) de la fila de
+  la institución antes de bloquear la plaza; `select_for_update(of=…)` no sirve porque es exclusivo y serializaría los ingresos entre
+  sí. El bloqueo compartido cierra la carrera y fija un solo orden.
 - `asignar_plaza` en una institución cerrada o inactiva sigue permitido; no estaba en el relevamiento.
 
 ## Implementación
@@ -61895,7 +61897,8 @@ fijó que el cerrado no vuelve y que inactivar es reversible con «Reactivar»; 
 `programas/selectors/capacidad_dispositivo.py` (`compromisos_del_sector`), `programas/services/dispositivos.py` (`_transicionar` con
 `antes_de_cambiar`, `exigir_institucion_en_estado`), `programas/services/estado_institucion.py` (nuevo: cerrar e inactivar, aparte para no cerrar un ciclo de imports con `estadias`), `programas/services/estadias.py` (`reservar_plaza`,
 `cambiar_plaza`), `programas/services/plazas.py` (`editar_sector`), `programas/services/sectores_plazas.py` (acciones del mapa),
-`programas/views/dispositivos_legajo.py` (aviso de reservas liberadas) y el texto del modal de «Inactivar».
+`programas/views/dispositivos_legajo.py` (aviso de reservas liberadas; no ofrece «Cambiar plaza» en una institución cerrada) y el
+texto de los modales de «Inactivar» y «Cerrar» (`legajo/detail.html`).
 
 ## Archivos
 Los de arriba y `programas/tests/test_dispositivos_estados_536.py` (nuevo, 30 tests). Verificado por mutación: sacar el control de
