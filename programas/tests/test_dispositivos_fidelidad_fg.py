@@ -18,6 +18,14 @@ from programas.tests.test_dispositivos_detalle import BaseDetalle
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 
 
+def _js_del_legajo(*nombres):
+    """El JS del legajo (P3) vive en `static/custom/js/`: se lee el archivo, no la página."""
+    return "\n".join(
+        (settings.BASE_DIR / f"static/custom/js/dispositivos-legajo-{nombre}.js").read_text(encoding="utf-8")
+        for nombre in nombres
+    )
+
+
 class _ContenidoAlerta(HTMLParser):
     """Lee el HTML crudo: un navegador corregiría un ul dentro de p y ocultaría el defecto."""
 
@@ -110,20 +118,20 @@ class FidelidadFGTests(BaseDetalle):
 
     def test_lista_de_duplicados_se_inserta_fuera_de_un_parrafo(self):
         html = self.client.get(reverse("dispositivos:crear")).content.decode()
-        selector = re.search(r"aviso.querySelector\('\[([^\]]+)\]'\).replaceChildren\(lista\)", html)
+        js = _js_del_legajo("duplicados")
+        selector = re.search(r"aviso.querySelector\('\[([^\]]+)\]'\).replaceChildren\(lista\)", js)
         self.assertIsNotNone(selector, "La inserción debe usar el selector propio del contenido")
         parser = _ContenidoAlerta(selector.group(1))
         parser.feed(html)
         self.assertEqual(len(parser.destinos), 1)
         self.assertNotIn("p", parser.destinos[0], "El ul dinámico no puede tener un párrafo como ancestro")
         self.assertEqual(parser.destinos[0][-1], "div")
-        self.assertNotIn("querySelector('strong')", html)
-        self.assertNotIn("querySelector('p')", html)
-        self.assertIn("querySelector('[data-duplicados-mensaje]')", html)
+        self.assertNotIn("querySelector('strong')", js)
+        self.assertNotIn("querySelector('p')", js)
+        self.assertIn("querySelector('[data-duplicados-mensaje]')", js)
 
     def test_ambos_fallos_de_busqueda_se_registran_en_consola(self):
-        html = self.client.get(reverse("dispositivos:crear")).content.decode()
-        capturas = re.findall(r"\.catch\(function \(error\) \{(.*?)\}\);", html, re.S)
+        capturas = re.findall(r"\.catch\(function \(error\) \{(.*?)\}\);", _js_del_legajo("duplicados", "tipo"), re.S)
         # La tercera es la carga del formulario del tipo (P17): también deja rastro en consola.
         duplicados = [captura for captura in capturas if "verificar duplicados" in captura]
         self.assertEqual(len(duplicados), 2)

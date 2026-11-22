@@ -662,6 +662,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 536 | Dispositivos · estados de la institución y de las plazas con gente adentro: cerrar e inactivar con compromisos, reservar y cambiar de plaza según el estado, mudar un sector de edificio | Dispositivos (legajo, mapa de plazas, sectores) | `#dispositivos` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 3, 7 y 9) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 537 | Emergencia · «Quitar persona»: deshacer «Agregar persona» cuando la guardia se equivocó en la puerta | Emergencia · Llegadas (E6 integrantes y API M2-3) | `#emergencia` `#dispositivos` `#api` `#mobile` `#ui` | Relevamiento de lógica del 22/11/2026 (hallazgo 12) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 540 | Emergencia · guardia (Llegadas y Kits): adherencia al sistema de diseño (aceptar desde la fila, sugerencias de DNI, paginación, confirmación de la recepción, paso desde el stepper) | Emergencia · Llegadas (E6) y Kits del dispositivo | `#emergencia` `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-A) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 543 | Dispositivos · configuración y formularios (PR-D del relevamiento de diseño): «Cancelar» al editar, interruptores del tipo, JS del legajo en archivos, filtro de localidad como select y exportaciones al menú | Dispositivos · legajo, listado y tipos; Emergencia · «Nuevo caso» (marcador) | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-D) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 542 | Dispositivos · ficha y modales (PR-C del relevamiento de diseño) y MINOR de la auditoría del #1316 (Kits: Enter abre el modal, título, tests) | Dispositivos · legajo, estadía y egreso; Emergencia · Kits | `#dispositivos` `#emergencia` `#ui` | Relevamiento de diseño del 22/11 (PR-C) y auditoría del #1316 | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 541 | Emergencia y Dispositivos · MINOR acumulados de las auditorías del lote (adulto responsable, bitácora, estados de la institución, «Nuevo caso», «Quitar persona», atributo hidden) y timeout del release gate | Emergencia / Dispositivos / Backoffice (limpieza, tests, textos y documentación) | `#emergencia` `#dispositivos` `#infra` | Auditorías de los PR #1293, #1294, #1296, #1305, #1306, #1307, #1309, #1311, #1314 y #1315 (PR de MINOR) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 544 | Dispositivos · ficha propia del edificio: títulos de sección canónicos (PR-E) | Dispositivos · Edificios | `#dispositivos` `#ui` | Relevamiento de diseño del 22/11 (PR-E) | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -62419,6 +62420,79 @@ Solo adherencia con clases existentes. Fuera: el campo «Orden» de los turnos (
 
 ## Reversión
 Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
+
+# Cambio 543 — Dispositivos · configuración y formularios con piezas canónicas (PR-D del relevamiento de diseño)
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo, listado de instituciones, tipos) / Emergencia («Nuevo caso», solo el marcador) |
+| **Etiquetas** | `#dispositivos` `#emergencia` `#ui` |
+| **Solicitante** | Relevamiento de diseño del 22/11/2026 (PR-D) |
+| **Fecha del pedido** | 22/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor (backoffice) · estáticos |
+| **Migración** | No requiere |
+
+## Pedido original
+Siete hallazgos del relevamiento de diseño de Dispositivos (8, 15, 17, 18, 19, 20 y 23): «Cancelar» del legajo, booleanos del tipo,
+JS inline del legajo, botones del encabezado del listado, filtro «Localidad», marcadores de arquetipo e ícono de «Editar tipo».
+
+## Alcance acordado
+**Entra:** esos siete hallazgos, sin cambiar vocabulario (cama/plaza, institución/dispositivo) ni lo que se guarda.
+**Queda afuera:** el hallazgo 16 (reescritura del cargador de modal y solapas de `tipo_detail.html`), que es otro PR; y los archivos
+de otro PR abierto (`legajo/detail.html`, `estadia/detalle.html`, Kits).
+
+## Decisiones tomadas
+- **Cancelar (8):** editando vuelve a la ficha de la institución; creando, a la lista. Reusa `url_volver` que ya calculaba el encabezado.
+- **Localidad (19):** select con las localidades que existen **dentro del alcance** de quien mira (`dispositivos_visibles`), sin tocar
+  el filtro (`localidad__icontains`): el parámetro GET sigue siendo `localidad` y un valor viejo de la URL se ofrece igual para no
+  esconder el filtro aplicado. Suma una consulta fija al listado (presupuesto 14 a 15, justificado en `_meta.adjustments`).
+- **Exportaciones (18):** el encabezado deja de tener tres botones sueltos: queda «Nueva institución» y un menú «Exportar» con CSV y
+  Excel (`menu_fila`, misma forma que el detalle). Las URL conservan los filtros.
+- **Marcadores (20):** el legajo (P3) declara `{# arquetipo: formulario + asistencia #}`; el auditor ganó esa variante, que es la
+  «Formulario con asistencia lateral» que la ficha ya documentaba (el `<form>` es contenedor y las tarjetas son sus hijas). «Nuevo caso»
+  de Emergencia solo necesitaba nombrar `_field.html`, que se incluye desde el parcial de bloques.
+
+- **«Editar tipo» (23):** el texto vive en `config/_tipo_detail_content.html` y no en `tipo_detail.html`; el ícono se puso ahí.
+
+## Pendientes / a definir
+- **Hallazgo 16** (cargador de modal y solapas de `tipo_detail.html`): PR aparte.
+- **Tres botones de encabezado con tamaños mezclados:** el disparador del menú es `btn-sm` junto al `btn-base` de la acción primaria,
+  como en cualquier encabezado que usa `menu_fila` con texto; si se quiere uniforme, es decisión de la ficha de botones.
+
+## Implementación
+- `legajo/form.html`: «Cancelar» a `url_volver`; los cinco `<script>` inline pasan a `static/custom/js/dispositivos-legajo-faltantes.js`,
+  `-tipo.js`, `-franjas.js`, `-responsables.js` y `-duplicados.js` (misma lógica; el id de responsables es el del form y la URL de
+  duplicados viaja en `data-url` del `<script>`); se carga cada uno donde antes estaba el inline y, en el alta, los dos que solo
+  corresponden al alta.
+- `legajo/list.html` y `views/dispositivos_legajo.py`: select de localidades (`localidades`), `url_exportar_csv` y `url_exportar_xlsx`.
+- `forms.py` y `config/_tipo_form_fields.html`: los cuatro booleanos de `TipoDispositivoForm` con `SwitchInput`.
+- `config/_tipo_detail_content.html`: ícono `fa-pen` en «Editar tipo».
+- `emergencia/casos/form.html`: marcador de campos.
+- `scripts/design_audit.py`: variante `formulario + asistencia`. `scripts/perf_budgets.json`: techo 15 con su justificación.
+- Fichas `.claude/design/arquetipos/formulario.md` y `.claude/design/componentes/field.md`.
+- Tests: `test_dispositivos_diseno_d.py` (nuevo) y los que leían el JS de la página (`fidelidad_fi`, `fidelidad_fg`, `cambio_407`,
+  `formulario_alta`, `duplicados_fi.cjs`), que ahora leen los archivos.
+
+## Base de datos
+No requiere.
+
+## Validación
+Tests nuevos de «Cancelar», del select (alcance, filtro, valor viejo), del menú de exportación, de los interruptores y del ícono.
+**Mutación (cada una en rojo, restaurando sin stash):** «Cancelar» fijo a la lista; el select con `Dispositivo.objects.all()` en vez del
+alcance; `activo` otra vez con `CheckboxInput`; «Editar tipo» sin el ícono. `manage.py check`, ruff, `design_audit --ratchet`,
+`--arquetipo formulario`, `compile_templates --bloques`, `check_design_agent` y `requerimientos.py --check` en verde.
+
+## Puesta en marcha en el servidor
+`collectstatic` toma los cinco archivos nuevos (el entrypoint ya lo corre). Sin cambios de configuración.
+
+## Reversión
+Desplegar el código anterior. No hay datos que revertir.
 
 ## Historial
 - **22/11/2026:** alta del cambio.

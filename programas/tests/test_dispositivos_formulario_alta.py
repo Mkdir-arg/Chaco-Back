@@ -8,7 +8,6 @@ MINOR del Cambio 343 (franjas). Los presupuestos van con `@tag("performance")`.
 """
 
 import json
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -675,8 +674,7 @@ class FranjasMinorTests(_Base):
     def test_una_franja_que_vuelve_marcada_para_quitar_se_oculta_y_no_cuenta(self):
         """Mutación: sin ocultar la fila marcada en `prepararQuitar`, sigue visible y la
         franja nueva del mismo horario se rechaza por superposición."""
-        html = self.client.get(self.crear).content.decode()
-        script = next(s for s in re.findall(r"<script>(.*?)</script>", html, re.S) if "prepararQuitar" in s)
+        script = (settings.BASE_DIR / "static/custom/js" / "dispositivos-legajo-franjas.js").read_text(encoding="utf-8")
         resultado = subprocess.run(
             [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/franjas_quitar_fa.cjs")],
             input=json.dumps(script),

@@ -9,6 +9,7 @@
    responde 403 `debe_cambiar_contrasena` mientras la marca esté puesta, y el enlace la limpia.
 """
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -116,7 +117,12 @@ class BuscadorEnElFormularioDelTipoTests(_UnClientePorUsuario):
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertContains(respuesta, "custom/css/nodo-buscador.css")
                 self.assertContains(respuesta, "custom/js/nodo-buscador.js")
-                self.assertContains(respuesta, "window.nodoBuscador.montar(seccion)")
+                # El script del legajo ya no es inline: la página lo carga y el montaje vive en el archivo.
+                self.assertContains(respuesta, "custom/js/dispositivos-legajo-tipo.js")
+                self.assertIn(
+                    "window.nodoBuscador.montar(seccion)",
+                    (settings.BASE_DIR / "static/custom/js/dispositivos-legajo-tipo.js").read_text(encoding="utf-8"),
+                )
 
 
 def _completar(dispositivo):

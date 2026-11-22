@@ -35,6 +35,7 @@ const localidad = input('Resistencia');
 const elementos = { id_codigo: codigo, id_nombre: nombre, id_localidad: localidad,
   'duplicate-search': aviso, 'duplicate-empty': vacio, 'duplicate-count': contador };
 global.document = {
+  currentScript: { dataset: { url: '/dispositivos/duplicados/' } },
   getElementById: id => elementos[id],
   createElement: () => ({ appendChild() {} }),
 };
