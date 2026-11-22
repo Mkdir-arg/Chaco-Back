@@ -651,6 +651,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 525 | Dispositivos · Edificios: la dirección se parte en líneas en el celular; Becas · eliminar: el bloqueo avisa que se libera con el cierre automático de la madrugada | Dispositivos · Edificios / Becas · eliminación | `#dispositivos` `#relevamientos` `#ui` `#textos` | QA en testing del 19/11/2026 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 526 | Dispositivos · formulario de edificio: «Ubicar en el mapa» (las coordenadas del edificio, para la distancia de «Derivar») | Dispositivos · legajo (P19, solapa Infraestructura) | `#dispositivos` `#gps` `#ui` `#datos` | Usuario — pendiente del Cambio 520 | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 527 | Emergencia y Dispositivos · correcciones de formularios de la auditoría del 21/11: encargado que recibe = usuario logueado, adulto responsable elegido del grupo, fecha aproximada fuera del legajo, teléfono validado, localidad del edificio del catálogo, hora de salida del kit | Emergencia (Formulario 1 y 2, kits) / Dispositivos (edificio) | `#emergencia` `#dispositivos` `#datos` `#ui` | PM — decisiones del 21/11/2026 sobre la auditoría de formularios | 21/11/2026 | 🟢 **Hecho** | No requiere |
+| 529 | Backoffice · el atributo hidden oculta siempre: «Calcular distancia por calle» ya no se ve sin Google Maps | Backoffice (CSS base) / Emergencia (Derivar) | `#emergencia` `#ui` `#infra` | PM — pruebas de Emergencia del 21/11/2026 (#1297) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 530 | Emergencia · Llegadas: el administrador del programa y el superusuario recibían 403 al aceptar una derivación o «Ingresar igual» (`exclude` con el `Q()` vacío del alcance total) | Emergencia · Llegadas (E6 y API M2) / Dispositivos · alcance por edificio | `#emergencia` `#dispositivos` `#rbac` | QA en testing del 21/11/2026 (#1298) | 21/11/2026 | 🟢 **Hecho** | No requiere |
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 531 | Dispositivos · ficha de la institución: aviso de derivaciones de Emergencia por recibir | Dispositivos (legajo) / Emergencia (Llegadas) | `#emergencia` `#dispositivos` `#ui` `#rbac` | PM — pruebas de Emergencia del 21/11/2026 (#1302) | 22/11/2026 | 🟢 **Hecho** | No requiere |
@@ -61166,6 +61167,76 @@ ignora; las fechas aproximadas que no entraron al legajo siguen en la ficha.
 - **21/11/2026:** alta del cambio.
 - **21/11/2026:** auditoría del #1294: el adulto responsable ya no bloquea al menor (se valida solo si llega la sección, se conserva lo
   guardado, texto libre si no hay adultos) y la hora del kit se compara al minuto.
+
+# Cambio 529 — Backoffice · el atributo hidden oculta siempre: «Calcular distancia por calle» ya no se ve sin Google Maps
+
+🟢 **HECHO — 22/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Backoffice (CSS base) y Emergencia (panel «Derivar» de la ficha del caso) |
+| **Etiquetas** | `#emergencia` `#ui` `#infra` |
+| **Solicitante** | PM — pruebas de Emergencia en testing del 21/11/2026 |
+| **Fecha del pedido** | 21/11/2026 |
+| **Issue / épica** | #1297 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+En el panel «Derivar» (Cambio 520, fase 2) el botón «Calcular distancia por calle» se veía y no hacía nada cuando el ambiente no
+tiene Google Maps (testing, `nodo-mapa-config = {"key": ""}`). El botón nace con `hidden`, pero `.btn-nodo` declara `display: inline-flex`
+y le gana al `[hidden]` del navegador (misma especificidad, la hoja va después). La falta de key la resuelve infraestructura y no es de este cambio.
+
+## Alcance acordado
+Una regla global para que `hidden` oculte siempre, y que sin Google el panel no ofrezca un botón que no hace nada, sin tocar los
+costos de Google. Antes de diseñar se consultó el archivo vivo por `emergencia` y `mapa` (Cambios 493 y 520: el cálculo es a pedido).
+
+## Decisiones tomadas
+- **Regla global** `[hidden] { display: none !important; }` en `static/custom/css/utils.css`, la hoja del shell del backoffice que ya
+  tiene `.hide`. **No** va en `chaco-tokens.css` ni `nodo-buttons.css` porque las carga también el portal ciudadano: `utils.css` no está
+  en `portal/base.html`, así que el portal queda como estaba (sus únicos `hidden` son el contenedor de mensajes de Django).
+- **Revisión de dependencias del atributo:** se listaron los 23 elementos de templates con `hidden` y todos los `.hidden =`,
+  `removeAttribute('hidden')` y reglas `[hidden]` de JS y CSS. Ninguna hoja le da un `display` distinto de `none` a un `[hidden]` (un test lo
+  vigila), ningún `x-show` ni `style.display` se aplica sobre un elemento con el atributo, y los tooltips, menús, buscadores,
+  sugerencias, mapas y la ubicación con mapa ya lo declaraban `none`. Las reglas `[hidden]` de cada pieza quedan por compatibilidad.
+  La corrección también cubre `_ubicacion_domicilio.html` (botones `btn-nodo` con `hidden`), que ya tenía su regla propia.
+- **Sin Google Maps: oculto, no deshabilitado.** El agente de diseño no define un estado «deshabilitado por entorno» y la lista de
+  edificios ya muestra la distancia en línea recta, así que no se agrega aviso ni pieza nueva. Con `GOOGLE_MAPS_API_KEY` vacía la ficha
+  **no renderiza** el botón ni su texto de estado (`google_maps_config`, el mismo tag del cargador); con key, el botón nace con
+  `hidden` y lo muestra `nodo-derivar-distancias.js` cuando `NodoMapa.configurado`. Con la key rechazada o el script bloqueado
+  siguen valiendo `nodo-mapa:error` y el aviso de error.
+- **Costos de Google, sin cambios:** nada se calcula ni se carga al abrir la página (el script sale en la primera línea sin key y con key
+  solo muestra el botón); el clic sigue costando 1 geocoding (si el domicilio no está guardado, `ubicar_domicilio` intacto) más una matriz
+  de hasta 10 destinos. La protección real contra el doble pago es el `disabled` del primer clic; se agregó además un guard, que es defensa ante un clic sintético (otro script). El botón se oculta
+  al terminar bien y un reintento tras un error es una acción explícita.
+
+## Pendientes
+Infraestructura: configurar `GOOGLE_MAPS_API_KEY` y `GOOGLE_MAPS_MAP_ID` en testing para probar el cálculo (`docs/mapa.md` §1).
+
+## Implementación
+`static/custom/css/utils.css`, `programas/templates/programas/emergencia/casos/detail.html`, `static/custom/js/nodo-derivar-distancias.js`;
+ficha `botones_badges.md` y fila de «Botones y badges NODO» del agente de diseño.
+
+## Archivos
+Los de arriba, `core/tests/test_atributo_hidden.py` (nuevo: regla CSS, portal, ninguna regla que muestre un `[hidden]`, y el script corrido
+en node: sin key / con key sin llamadas a Google / clics repetidos) y `programas/tests/test_emergencia_derivar.py`. Verificado por
+mutación: sacar la regla, el guard de clics, la condición de key del template y la de `configurado` del script ponen en rojo su test.
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques`, `check_design_agent --base origin/development`,
+y los tests de `core` y de Emergencia en verde. El CSS de Tailwind no cambia (no hace falta `build:tailwind`).
+
+## Puesta en marcha en el servidor
+No requiere (estáticos con el deploy de siempre).
+
+## Reversión
+Desplegar el código anterior.
+
+## Historial
+- **22/11/2026:** alta del cambio.
 
 # Cambio 530 — Emergencia · Llegadas: el administrador del programa recibe 403 al aceptar una derivación o «Ingresar igual»
 
