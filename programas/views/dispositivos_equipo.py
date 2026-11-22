@@ -16,17 +16,17 @@ from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
 from programas.forms_equipo_dispositivo import AlcanceMiembroEquipoForm, CrearPersonaEquipoForm, SumarMiembroEquipoForm
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
-from programas.models import Dispositivo, MiembroEquipoDispositivo
+from programas.models import Dispositivo, Edificio, MiembroEquipoDispositivo
 from programas.selectors.equipo_sugeridas import sugerir_pares_equipo
 from programas.services import equipo_dispositivo as equipo
-from programas.views.ajax_utils import ajax_redirect, errores_del_servicio, is_ajax
+from programas.services.dispositivos import nombre_de_persona
+from programas.views.ajax_utils import ajax_redirect, con_parametro, destino_seguro, errores_del_servicio, is_ajax
 from users.forms import MENSAJE_DNI_DUPLICADO
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.views.quick_create import MENSAJES_COLISION, MENSAJES_DNI_DUPLICADO, _campo_en_colision
@@ -43,14 +43,13 @@ def url_solapa_equipo(dispositivo_pk):
 
 
 def destino_de_vuelta(request, dispositivo_pk):
-    """Adónde vuelve el POST: el ``next`` del formulario si es de este sitio, y si no la solapa Equipo de la institución."""
+    """Adónde vuelve el POST: el ``next`` si es de este sitio, y si no la solapa Equipo de la institución.
 
-    siguiente = request.POST.get("next", "")
-    if siguiente and url_has_allowed_host_and_scheme(
-        siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return siguiente
-    return url_solapa_equipo(dispositivo_pk)
+    El ``next`` viaja en el formulario de los modales (POST) o en la URL de las acciones con confirmación, que arman
+    su POST solas (GET).
+    """
+
+    return destino_seguro(request, url_solapa_equipo(dispositivo_pk), desde=("POST", "GET"))
 
 
 class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
@@ -59,6 +58,8 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
     capacidad_requerida = "dispositivo.ver"
     http_method_names = ["post"]
     mensaje_exito = ""
+    #: La fila que la acción dejó sumada, si la hay: la página de vuelta la resalta (``?nuevo=<id>``).
+    miembro_nuevo_pk = None
 
     def ejecutar(self, request, dispositivo, miembro):
         raise NotImplementedError
@@ -87,10 +88,19 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
                 return JsonResponse({"ok": False, "errors": errores_del_servicio(error, self.form)}, status=400)
             messages.error(request, error.messages[0])
             return redirect(volver)
+        if self.miembro_nuevo_pk:
+            volver = con_parametro(volver, "nuevo", self.miembro_nuevo_pk)
         if is_ajax(request):
             return ajax_redirect(request, volver, self.mensaje_exito)
         messages.success(request, self.mensaje_exito)
         return redirect(volver)
+
+
+def _mensaje_sumada_en_edificio(usuario, edificio_id, rol):
+    """El aviso de quien entra al Equipo desde un edificio (Equipo-Sumar-4): «<Nombre> se sumó al Equipo de <Edificio> como <Rol>.»."""
+
+    nombre_edificio = Edificio.objects.filter(pk=edificio_id).values_list("nombre", flat=True).first()
+    return f"{nombre_de_persona(usuario)} se sumó al Equipo de {nombre_edificio} como {rol.name}."
 
 
 class EquipoSumarView(_EquipoAccionView):
@@ -98,7 +108,7 @@ class EquipoSumarView(_EquipoAccionView):
 
     #: «Agregar persona al edificio» (viaja ``edificio_fijo``): qué le pasó a la fila de una persona que ya estaba.
     MENSAJES_EN_EDIFICIO = {
-        equipo.RESULTADO_SUMADA: "Persona sumada al Equipo en ese edificio.",
+        # La de «SUMADA» lleva nombre, edificio y rol: se arma al ejecutar.
         equipo.RESULTADO_AGREGADA: "Edificio sumado al alcance de la persona; su rol, contratación y marca de responsable no cambian.",
         equipo.RESULTADO_YA_ALCANZA: "La persona ya tiene alcance sobre ese edificio: no se cambió nada.",
     }
@@ -122,8 +132,14 @@ class EquipoSumarView(_EquipoAccionView):
             tipo_contratacion=form.cleaned_data["tipo_contratacion"],
         )
         if form.edificio_fijo:
-            _, resultado = equipo.sumar_miembro_en_edificio(edificio_id=form.cleaned_data["edificio_fijo"], **datos)
-            self.mensaje_exito = self.MENSAJES_EN_EDIFICIO[resultado]
+            edificio_id = form.cleaned_data["edificio_fijo"]
+            miembro, resultado = equipo.sumar_miembro_en_edificio(edificio_id=edificio_id, **datos)
+            if resultado == equipo.RESULTADO_SUMADA:
+                self.mensaje_exito = _mensaje_sumada_en_edificio(usuario, edificio_id, rol)
+            else:
+                self.mensaje_exito = self.MENSAJES_EN_EDIFICIO[resultado]
+            if resultado != equipo.RESULTADO_YA_ALCANZA:
+                self.miembro_nuevo_pk = miembro.pk
         else:
             equipo.sumar_miembro(**datos, **form.datos_de_alcance())
 
@@ -187,7 +203,11 @@ class EquipoCrearPersonaView(_EquipoAccionView):
             logger.warning("Alta de persona desde el Equipo: colisión de unicidad (campo %s)", campo)
             raise ValidationError({"dni" if campo in ("dni", "username") else "__all__": MENSAJES_COLISION[campo]})
         aviso = self._entregar_clave(request, usuario, datos["rol"])
-        self.mensaje_exito = f"Persona creada y sumada al Equipo. {aviso}"
+        if form.edificio_fijo:
+            sumada = _mensaje_sumada_en_edificio(usuario, datos["edificio_fijo"], datos["rol"])
+            self.mensaje_exito = f"{sumada} {aviso}"
+        else:
+            self.mensaje_exito = f"Persona creada y sumada al Equipo. {aviso}"
 
     @staticmethod
     def _errores_del_alta(alta):

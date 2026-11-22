@@ -145,6 +145,7 @@ class SumarMiembroEquipoForm(_CamposAlcanceEquipo):
         self._armar_alcance(opciones, edificio_fijo)
         self.dispositivo = dispositivo
         campo = self.fields["persona"]
+        campo.marca_requerido = True  # el campo visible no es `required` (viaja `persona_rol`), pero se pide
         campo.widget.attrs.update(attrs_sugerencias(url_sugerencias, sin_resultados))
         if url_sugerencias:
             campo.widget.attrs["data-sugerencias-destino"] = self["persona_rol"].auto_id

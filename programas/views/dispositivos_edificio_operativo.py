@@ -12,16 +12,46 @@ La solapa «Sectores y plazas» (Cambio 565) es el cuerpo de la pantalla de sect
 (``SectoresPlazasMixin.edificio_fijo``): se arma solo con la solapa abierta y sus acciones vuelven a ella.
 """
 
+from django.contrib import messages
 from django.http import Http404
 from django.urls import reverse
 from django.views.generic import DetailView
 
-from programas.mixins_dispositivos import DispositivoObjectPermissionMixin
+from programas.mixins_dispositivos import DispositivoObjectPermissionMixin, _entero
+from programas.mixins_dispositivos_equipo import contexto_modal_alcance, contexto_modal_sumar_persona
 from programas.mixins_dispositivos_sectores import SectoresPlazasMixin
 from programas.models import Dispositivo
 from programas.services.dispositivos import CAP_VER
 from programas.services.edificio_operativo import contexto_del_edificio, edificio_de_la_institucion
 from programas.services.edificio_operativo_edilicio import contexto_edilicio
+
+
+def modales_del_equipo(request, dispositivo, edificio, contexto):
+    """Abre «Agregar persona al edificio» o «Cambiar alcance» si la URL lo pide (``?equipo=sumar|alcance``).
+
+    Igual que en la ficha de la institución: los formularios (con sus consultas) se arman solo con un modal abierto.
+    Se ofrece solo lo que el servidor va a aceptar; si no, un aviso y la página de siempre. El edificio del alta es
+    **este**, siempre: no viaja por la URL.
+    """
+
+    pedido = request.GET.get("equipo")
+    if not contexto["equipo_cargado"] or pedido not in ("sumar", "alcance"):
+        return
+    permisos = contexto["permisos_equipo"]
+    if not permisos.gestiona:
+        return
+    if pedido == "sumar":
+        if contexto["puede_sumar_persona"]:
+            contexto.update(contexto_modal_sumar_persona(dispositivo, request.user, edificio, permisos))
+        else:
+            messages.warning(request, "No se pueden agregar personas a este edificio.")
+        return
+    pk = _entero(request.GET.get("miembro"))
+    miembro = next((m for m in contexto["equipo"] if m.pk == pk), None)
+    if miembro is None or not miembro.puede_cambiar_alcance:
+        messages.warning(request, "No se puede cambiar el alcance de esa persona.")
+        return
+    contexto.update(contexto_modal_alcance(dispositivo, request.user, miembro, permisos))
 
 
 class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixin, DetailView):
@@ -65,4 +95,7 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
             if edilicio is None:
                 raise Http404("Ese relevamiento no es de este edificio o no está en tu alcance.")
             context.update(edilicio)
+        modales_del_equipo(self.request, dispositivo, self.edificio_fijo, context)
+        # La fila que el alta acaba de dejar (`?nuevo=<id>`) sale resaltada.
+        context["miembro_nuevo"] = _entero(self.request.GET.get("nuevo"))
         return context
