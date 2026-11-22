@@ -10,6 +10,7 @@
 """
 
 import json
+import re
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -363,7 +364,9 @@ class SoloConSuSolapaTests(BaseEquipoEdificio):
         respuesta = self._get(tab="equipo")
 
         self.assertTrue(respuesta.context["equipo_cargado"])
-        self.assertNotContains(respuesta, "data-solapa-navega")
+        boton = re.search(r'<button[^>]*id="tab-equipo"[^>]*>', respuesta.content.decode())
+        self.assertIsNotNone(boton)
+        self.assertNotIn("data-solapa-navega", boton.group(0))
 
 
 class PresupuestoDelEquipoTests(BaseEquipoEdificio):
