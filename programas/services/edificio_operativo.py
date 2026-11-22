@@ -48,6 +48,7 @@ from programas.services.dispositivos import (
     puede_editar_legajo,
     puede_operar_edificio,
 )
+from programas.services.edificio_historial import contar_eventos_del_edificio
 from programas.services.edificios import admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.equipo_dispositivo import (
@@ -297,6 +298,9 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         # si no vino, el botón de la solapa navega a ella. El contador y la franja usan la lista corta de arriba.
         "equipo_cargado": tab == "equipo",
         "url_solapa_equipo": f"{url_pagina}?tab=equipo",
+        # El Historial (Cambio 571) también se arma solo con su solapa abierta.
+        "historial_cargado": tab == "historial",
+        "url_solapa_historial": f"{url_pagina}?tab=historial",
         "solapas": disponibles,
         "url_institucion": url_institucion,
         "migas": [
@@ -316,6 +320,10 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "estadias": contar_alojadas(dispositivo, q_alcance=q_estadias_del_edificio(edificio)),
             "kits": pendientes_de_kit,
             "equipo": len(equipo),
+            # Una consulta (UNION ALL). Con la solapa abierta lo pone la vista: es el total del paginador de la lista.
+            "historial": None
+            if tab == "historial"
+            else contar_eventos_del_edificio(user, dispositivo, edificio, puede_kits=acciones["puede_kits"]),
         },
         # Dónde se opera hoy cada solapa, hasta que los PR siguientes la llenen: el vacío no es un callejón sin salida.
         "enlaces_de_institucion": {

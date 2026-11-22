@@ -12,9 +12,12 @@
 """
 
 import json
+from contextlib import contextmanager
+from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
@@ -30,6 +33,20 @@ AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 CLAVE_PRESUPUESTO = "dispositivos_edificio_operativo"
 CLAVE_PRESUPUESTO_SECTORES = "dispositivos_edificio_operativo_solapa_sectores"
+
+
+@contextmanager
+def sin_panel_historial():
+    """Mide el encabezado solo: la solapa Historial (Cambio 571) se arma con su solapa y ya no hay una solapa vacía.
+
+    Con ``?tab=historial`` y el panel reemplazado por uno vacío, la página cuesta lo que el encabezado sin su contador
+    (que con esa solapa abierta sale del paginador). El costo del panel y del contador tienen su propio techo en
+    ``test_dispositivos_edificio_historial``.
+    """
+
+    vacio = {"historial": Paginator([], 20).get_page(1), "eventos_historial": []}
+    with mock.patch("programas.views.dispositivos_edificio_operativo.contexto_historial", return_value=vacio):
+        yield
 
 
 class BaseOperativo(BaseAlcance):
@@ -484,12 +501,15 @@ class PresupuestoTests(BaseOperativo):
 
     def test_la_pagina_cuesta_lo_mismo_con_uno_que_con_muchos(self):
         # Con otra solapa abierta el mapa no se arma: el costo es el del encabezado.
-        antes = self._medir(tab="historial")
-        self._crecer()
-        despues = self._medir(tab="historial")
+        with sin_panel_historial():
+            antes = self._medir(tab="historial")
+            self._crecer()
+            despues = self._medir(tab="historial")
 
         self.assertEqual(antes, despues)
-        self.assertLessEqual(despues, self._techo(CLAVE_PRESUPUESTO))
+        # Más el contador del Historial (una consulta, que con su solapa abierta sale del paginador; ver
+        # `test_dispositivos_edificio_historial`).
+        self.assertLessEqual(despues + 1, self._techo(CLAVE_PRESUPUESTO))
 
     def test_la_solapa_sectores_no_crece_con_sectores_ni_plazas(self):
         antes = self._medir(tab="sectores")

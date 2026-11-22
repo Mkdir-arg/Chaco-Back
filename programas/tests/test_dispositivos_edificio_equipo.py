@@ -21,6 +21,7 @@ from django.urls import reverse
 
 from programas.models import MiembroEquipoDispositivo
 from programas.services.dispositivos import miembros_del_edificio
+from programas.tests.test_dispositivos_edificio_operativo import sin_panel_historial
 from programas.tests.test_dispositivos_equipo_crear_persona_420 import AJAX
 from programas.tests.test_equipo_selector_alcance import BaseSelector
 from programas.views.ajax_utils import con_parametro, destino_seguro
@@ -389,7 +390,8 @@ class PresupuestoDelEquipoTests(BaseEquipoEdificio):
 
     def test_la_pagina_con_otra_solapa_no_paga_lo_del_panel(self):
         # El techo de la página (`dispositivos_edificio_operativo`) no incluye lo propio del Equipo.
-        con_otra = self._medir(f"{self.url}?tab=historial")
+        with sin_panel_historial():
+            con_otra = self._medir(f"{self.url}?tab=historial")
         con_equipo = self._medir(self.url_equipo)
 
         self.assertLess(con_otra, con_equipo)
