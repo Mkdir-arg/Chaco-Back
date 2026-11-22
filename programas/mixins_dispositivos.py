@@ -4,7 +4,8 @@ Viven **fuera de `programas/views/`** a propósito: los usan `dispositivos_legaj
 `dispositivos_relevamientos` y `reportes`, y una vista que le pide un helper a otra
 vista es justo lo que mide el ratchet de `programas/tests/test_arquitectura.py`
 (`CapasTests.test_no_crecen_las_dependencias_entre_vistas`). `dispositivos_legajo`
-los re-exporta para no romper los imports que ya existen.
+los re-exporta para no romper los imports que ya existen. Aloja también `_entero`, el parser de ids de GET
+que comparten los mixins de la ficha (Sectores, Equipo) y las vistas del Dispositivo.
 """
 
 from django.contrib.auth.mixins import LoginRequiredMixin

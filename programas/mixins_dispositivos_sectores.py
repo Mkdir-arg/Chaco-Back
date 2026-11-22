@@ -138,6 +138,8 @@ class SectoresPlazasMixin:
     configurar las plazas: sin eso, el formulario llegaría armado a quien la acción va a
     rechazar. El mapa sigue en las consultas fijas de su presupuesto, y el selector del lote
     en las del suyo; el alta del sector no consulta.
+
+    Requiere `DispositivoObjectPermissionMixin` en la MRO (de ahí sale `_puede_operar`).
     """
 
     en_solapa = False
