@@ -4,6 +4,7 @@ from programas import dispositivos_emergencia_urls
 from programas.views import dispositivos_bitacora as bitacora
 from programas.views import dispositivos_capacidad as capacidad
 from programas.views import dispositivos_config as cfg
+from programas.views import dispositivos_edificio_operativo as edificio_operativo
 from programas.views import dispositivos_edificios as edificios
 from programas.views import dispositivos_equipo as equipo_views
 from programas.views import dispositivos_formularios as frm
@@ -135,6 +136,12 @@ urlpatterns = [
     path("<int:pk>/bitacora/novedad/", bitacora.NovedadCrearView.as_view(), name="bitacora_novedad"),
     path("<int:pk>/bitacora/corregir/", bitacora.NovedadCorregirView.as_view(), name="bitacora_corregir"),
     path("<int:pk>/bitacora/turnos/", bitacora.TurnoGuardarView.as_view(), name="bitacora_turnos"),
+    # Página operativa del edificio, siempre en el contexto de una institución (Cambio 563).
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/",
+        edificio_operativo.EdificioOperativoView.as_view(),
+        name="edificio_operativo",
+    ),
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),
     path("<int:pk>/ingresar/confirmar/", ingreso.IngresoConfirmarView.as_view(), name="ingreso_confirmar"),
