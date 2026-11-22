@@ -41,7 +41,7 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
 
 ## Accesibilidad y teclado
 
-- La grilla es una `ul` con `role="list"` y un `li` por plaza; el código se lee «Plaza A-01». La celda (`<a>`, `<button>` o `<div>`) lleva `h-full`: el `li` se estira a la fila de la grilla y todas las plazas de una fila miden lo mismo, aunque una lleve la línea «Elegida».
+- La grilla es una `ul` con `role="list"` y un `li` por plaza; el código se lee «Plaza A-01». La celda (`<a>`, `<button>` o `<div>`) es `flex h-full flex-col`: el `li` se estira a la fila de la grilla y todas las plazas de una fila miden lo mismo, aunque una lleve la línea «Elegida»; con `flex-col` el contenido queda arriba también en el `<button>`, que si no lo centraría verticalmente al estirarse.
 - Una plaza con `url` es un `<a>` real: se llega con Tab, se activa con Enter y muestra el foco nativo.
   Usa `cursor-pointer`. Con `click` (expresión Alpine, p. ej. `abrirPlaza(12)`) es en cambio un
   `<button type="button" @click aria-haspopup="dialog">` y **gana sobre `url`**: abre el modal de la

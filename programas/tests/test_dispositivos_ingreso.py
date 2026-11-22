@@ -45,6 +45,16 @@ class BaseIngreso(BaseEstadias):
             if nombre != "csrfmiddlewaretoken"
         }
 
+    def _post_con_sexo(self, dni, sexo, cliente=None):
+        """Como lo hace el navegador: busca el DNI y, si la pantalla pide el sexo, lo envía con sus ocultos."""
+
+        cliente = cliente or self.client
+        pagina = cliente.post(self.url_persona, {"dni": dni})
+        ocultos = self._campos_ocultos(pagina)
+        if "accion" not in ocultos:
+            return pagina
+        return cliente.post(self.url_persona, {**ocultos, "sexo": sexo})
+
     def _elegir_plaza(self, plaza):
         """Como lo hace la persona: toca la plaza en el mapa y, si la pantalla lo pide, «Continuar»."""
 
@@ -398,8 +408,67 @@ class VerificacionEnLaRedTests(BaseIngreso):
         self.assertEqual(self.client.get(self.url_persona).status_code, 302)
 
 
+class AltaDesdeElRegistroDePersonasTests(BaseIngreso):
+    DATOS = {
+        "success": True,
+        "data": {
+            "dni": "27555666",
+            "nombre": "Marta",
+            "apellido": "Ruiz",
+            "fecha_nacimiento": "1980-05-02",
+            "genero": "F",
+            "domicilio": "Mitre 100",
+            "provincia": None,
+        },
+        "datos_api": {},
+    }
+
+    def test_la_persona_se_da_de_alta_recien_al_confirmar(self):
+        with mock.patch(
+            "programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=self.DATOS
+        ) as consulta:
+            respuesta = self._post_con_sexo("27.555.666", "F")
+        consulta.assert_called_once_with("27555666", "F")
+        self.assertRedirects(respuesta, self.url_plaza)
+        self.assertFalse(Ciudadano.objects.filter(dni="27555666").exists(), "un paso intermedio no escribe")
+
+        self._elegir_plaza(self.plaza)
+        self._confirmar()
+
+        ciudadano = Ciudadano.objects.get(dni="27555666")
+        self.assertEqual(ciudadano.estado_renaper, Ciudadano.EstadoRenaper.REGISTRADO)
+        self.assertEqual(Estadia.objects.get(ciudadano=ciudadano).plaza, self.plaza)
+
+    def test_si_la_plaza_se_ocupa_no_queda_un_legajo_huerfano(self):
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=self.DATOS):
+            self._post_con_sexo("27555666", "F")
+        self._elegir_plaza(self.plaza)
+        ingresar_persona(ciudadano=self.otra_persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza)
+
+        respuesta = self._confirmar()
+
+        self.assertRedirects(respuesta, self.url_plaza)
+        self.assertFalse(Ciudadano.objects.filter(dni="27555666").exists())
+
+    def test_sin_sexo_no_se_consulta(self):
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper") as consulta:
+            pagina = self.client.post(self.url_persona, {"dni": "27555666"})
+            respuesta = self.client.post(self.url_persona, {**self._campos_ocultos(pagina), "sexo": ""})
+        consulta.assert_not_called()
+        self.assertContains(respuesta, "Indicá el sexo")
+
+    def test_si_el_registro_no_la_encuentra_se_explica(self):
+        with mock.patch(
+            "programas.services.ingreso.CiudadanosService.consultar_renaper",
+            return_value={"success": False, "error": "sin resultados"},
+        ):
+            respuesta = self._post_con_sexo("27555666", "F")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "sin resultados")
+
+
 class SinSexoEnElBuscadorTests(BaseIngreso):
-    """El paso 1 ya no pide el sexo (como la consulta de Emergencia, Cambio 522): busca por DNI en el legajo."""
+    """El buscador del paso 1 no pide el sexo: se pide solo si la persona no está en el legajo."""
 
     def test_el_formulario_de_busqueda_no_tiene_sexo(self):
         pagina = self.client.get(self.url_persona)
@@ -407,29 +476,64 @@ class SinSexoEnElBuscadorTests(BaseIngreso):
         self.assertNotContains(pagina, 'name="sexo"')
         self.assertNotContains(pagina, "Sexo")
 
-    def test_buscar_a_una_persona_del_legajo_funciona_sin_sexo_y_no_llama_al_registro(self):
+    def test_con_legajo_se_sigue_sin_sexo_y_no_se_consulta_el_registro(self):
         with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper") as consulta:
             respuesta = self.client.post(self.url_persona, {"dni": self.persona.dni})
 
         consulta.assert_not_called()
         self.assertRedirects(respuesta, self.url_plaza)
 
-    def test_un_post_viejo_con_sexo_no_rompe_y_el_sexo_se_ignora(self):
+    def test_un_post_viejo_de_busqueda_con_sexo_no_rompe_y_con_legajo_no_consulta(self):
         with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper") as consulta:
             respuesta = self.client.post(self.url_persona, {"dni": self.persona.dni, "sexo": "F"})
-            sin_legajo = self.client.post(self.url_persona, {"dni": "27555666", "sexo": "M"})
 
         consulta.assert_not_called()
-        self.assertRedirects(respuesta, self.url_plaza, fetch_redirect_response=False)
-        self.assertContains(sin_legajo, "Alta de la persona")
+        self.assertRedirects(respuesta, self.url_plaza)
 
-    def test_sin_legajo_se_ofrece_el_alta_minima_sin_pedir_el_sexo(self):
-        respuesta = self.client.post(self.url_persona, {"dni": "27555666"})
+    def test_sin_legajo_se_pide_el_sexo_antes_de_consultar(self):
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper") as consulta:
+            respuesta = self.client.post(self.url_persona, {"dni": "27555666", "sexo": "F"})
 
+        consulta.assert_not_called()
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, "No está en el Legajo Ciudadano. Cargá sus datos")
-        self.assertNotContains(respuesta, "Indicá el sexo")
-        self.assertContains(respuesta, 'name="genero"')
+        self.assertContains(respuesta, "Consultar el Registro de Personas")
+        self.assertContains(respuesta, 'name="sexo"')
+        self.assertContains(respuesta, 'id="id_sexo_dni"')
+        self.assertNotContains(respuesta, "Alta de la persona")
+
+    def test_el_dni_del_formulario_del_sexo_sale_de_la_sesion(self):
+        pagina = self.client.post(self.url_persona, {"dni": "27555666"})
+        ocultos = self._campos_ocultos(pagina)
+        with mock.patch(
+            "programas.services.ingreso.CiudadanosService.consultar_renaper",
+            return_value={"success": False, "error": "sin resultados"},
+        ) as consulta:
+            self.client.post(self.url_persona, {**ocultos, "dni": "30111222", "sexo": "F"})
+
+        consulta.assert_called_once_with("27555666", "F")
+
+    def test_sin_ciudadano_crear_no_se_pide_el_sexo(self):
+        sin_crear = self._operador("Admisor sin alta 2", self.cis, (*CAPACIDADES_OPERATIVAS, "ciudadano.ver"))
+        cliente = self.client_class()
+        cliente.force_login(sin_crear)
+
+        respuesta = cliente.post(self.url_persona, {"dni": "27555666"})
+
+        self.assertContains(respuesta, "no tenés permiso para darla de alta")
+        self.assertNotContains(respuesta, 'name="sexo"')
+        envio = cliente.post(self.url_persona, {"accion": "consultar_registro", "persona": "pide_sexo:27555666", "sexo": "F"})
+        self.assertEqual(envio.status_code, 403)
+
+    def test_si_aparece_en_el_legajo_mientras_se_pide_el_sexo_no_se_consulta_el_registro(self):
+        pagina = self.client.post(self.url_persona, {"dni": "27555666"})
+        ocultos = self._campos_ocultos(pagina)
+        Ciudadano.objects.create(dni="27555666", nombre="Marta", apellido="Ruiz")
+
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper") as consulta:
+            respuesta = self.client.post(self.url_persona, {**ocultos, "sexo": "F"})
+
+        consulta.assert_not_called()
+        self.assertRedirects(respuesta, self.url_plaza)
 
 
 class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
@@ -620,6 +724,37 @@ class DosPestanasTests(BaseIngreso):
         self.assertNotIn("plaza_id", estado, "se guardó para Juan la plaza que A eligió para Ana")
         self.assertRedirects(self.client.get(self.url_confirmar), self.url_plaza)
 
+    def test_mismo_dni_con_otro_sexo_en_otra_pestana_no_da_de_alta_a_esa_persona(self):
+        """Sin legajo, la persona es el DNI **y** el sexo con que se consultó el Registro de Personas."""
+
+        marta = AltaDesdeElRegistroDePersonasTests.DATOS
+        mario = {
+            **marta,
+            "data": {**marta["data"], "nombre": "Mario", "genero": "M", "fecha_nacimiento": "1975-01-09"},
+        }
+        # Pestaña A: Marta (DNI 27555666, F), en «Confirmar» con P1.
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=marta):
+            self._post_con_sexo("27555666", "F")
+        self._elegir_plaza(self.plaza)
+        pestana_a = self.client.get(self.url_confirmar)
+        self.assertContains(pestana_a, "Marta")
+        mostrado_en_a = self._campos_ocultos(pestana_a)
+
+        # Pestaña B: el mismo DNI con sexo M es otra persona; también con P1.
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=mario):
+            self._post_con_sexo("27555666", "M")
+        self._elegir_plaza(self.plaza)
+
+        respuesta = self.client.post(self.url_confirmar, mostrado_en_a)
+
+        self.assertFalse(
+            Ciudadano.objects.filter(dni="27555666").exists(),
+            "se dio de alta a la persona de la otra pestaña, que esta pantalla nunca mostró",
+        )
+        self.assertFalse(Estadia.objects.exists())
+        self.assertContains(respuesta, "cambió en otra pestaña")
+        self.assertContains(respuesta, "Mario")
+
     def test_abrir_el_asistente_de_otro_dispositivo_no_borra_el_progreso(self):
         rol = self.operador_cis.groups.get()
         MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=self.operador_cis, rol=rol)
@@ -647,9 +782,11 @@ class EntrePasosTests(BaseIngreso):
     def test_la_cache_del_legajo_se_invalida_recien_despues_del_commit(self):
         """Si se invalida adentro de la transacción, otra petición la vuelve a llenar con lo viejo."""
 
-        self.client.post(self.url_persona, {"dni": "27555666"})
-        ocultos = self._campos_ocultos(self.client.get(self.url_persona))
-        self.client.post(self.url_persona, {**ocultos, "nombre": "Marta", "apellido": "Ruiz"})
+        with mock.patch(
+            "programas.services.ingreso.CiudadanosService.consultar_renaper",
+            return_value=AltaDesdeElRegistroDePersonasTests.DATOS,
+        ):
+            self._post_con_sexo("27555666", "F")
         self._elegir_plaza(self.plaza)
         mostrado = self._campos_ocultos(self.client.get(self.url_confirmar))
 
@@ -664,14 +801,22 @@ class EntrePasosTests(BaseIngreso):
 
 
 class AltaMinimaTests(BaseIngreso):
-    """La persona que no está en el legajo se carga a mano (el género es opcional)."""
+    """La persona que no está en el legajo ni en el Registro de Personas se carga a mano.
 
+    El Registro se mockea con la falla real de testing («Configuracion RENAPER incompleta»).
+    """
+
+    SIN_REGISTRO = {"success": False, "error": "Configuracion RENAPER incompleta (URL)."}
     DNI = "27555666"
     DATOS_FORM = {"nombre": "Marta", "apellido": "Ruiz", "fecha_nacimiento": "1980-05-02", "genero": "F"}
 
-    def _consultar(self, dni=None, cliente=None):
+    def _consultar(self, dni=None, sexo="F", resultado=None, cliente=None):
         cliente = cliente or self.client
-        return cliente.post(self.url_persona, {"dni": dni or self.DNI})
+        with mock.patch(
+            "programas.services.ingreso.CiudadanosService.consultar_renaper",
+            return_value=resultado or self.SIN_REGISTRO,
+        ):
+            return self._post_con_sexo(dni or self.DNI, sexo, cliente)
 
     def _enviar_alta(self, datos=None, ocultos=None):
         """Envía el formulario chico como lo hace el navegador: con sus ocultos."""
@@ -687,9 +832,12 @@ class AltaMinimaTests(BaseIngreso):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "No encontramos a la persona")
-        self.assertContains(respuesta, "No está en el Legajo Ciudadano. Cargá sus datos")
+        self.assertContains(
+            respuesta,
+            "No está en el Legajo Ciudadano ni en el Registro de Personas (Configuracion RENAPER incompleta (URL)).",
+        )
         self.assertContains(respuesta, "Alta de la persona")
-        self.assertEqual(self._sesion(), {"sin_registro": {"dni": self.DNI}})
+        self.assertEqual(self._sesion(), {"sin_registro": {"dni": self.DNI, "sexo": "F"}})
         self.assertFalse(Ciudadano.objects.filter(dni=self.DNI).exists())
         # Sin persona elegida, los pasos siguientes vuelven al primero.
         self.assertRedirects(self.client.get(self.url_plaza), self.url_persona)
@@ -706,6 +854,17 @@ class AltaMinimaTests(BaseIngreso):
         # Los dos formularios conviven: cada id aparece una sola vez.
         self.assertContains(pagina, 'id="id_dni"', count=1)
         self.assertContains(pagina, 'id="id_alta_dni"', count=1)
+
+    def test_un_fallecido_despues_de_un_no_encontrada_descarta_el_alta_minima(self):
+        self._consultar(sexo="F")
+        self.assertEqual(self._sesion(), {"sin_registro": {"dni": self.DNI, "sexo": "F"}})
+
+        respuesta = self._consultar(sexo="M", resultado={"success": False, "fallecido": True})
+
+        self.assertContains(respuesta, "figura como fallecida")
+        self.assertNotIn("sin_registro", self._sesion())
+        pagina = self.client.get(self.url_persona)
+        self.assertNotContains(pagina, "Alta de la persona")
 
     def test_buscar_otro_dni_descarta_el_alta_minima(self):
         self._consultar()
@@ -785,7 +944,7 @@ class AltaMinimaTests(BaseIngreso):
     def test_sin_alta_minima_en_la_sesion_el_envio_no_escribe(self):
         respuesta = self.client.post(
             self.url_persona,
-            {"accion": "alta_minima", "persona": f"sin_registro:{self.DNI}:", "dni": self.DNI, **self.DATOS_FORM},
+            {"accion": "alta_minima", "persona": f"sin_registro:{self.DNI}:F", "dni": self.DNI, **self.DATOS_FORM},
         )
 
         self.assertRedirects(respuesta, self.url_persona, fetch_redirect_response=False)
@@ -804,10 +963,26 @@ class AltaMinimaTests(BaseIngreso):
         self.assertNotContains(respuesta, "Alta de la persona")
         envio = cliente.post(
             self.url_persona,
-            {"accion": "alta_minima", "persona": f"sin_registro:{self.DNI}:", **self.DATOS_FORM},
+            {"accion": "alta_minima", "persona": f"sin_registro:{self.DNI}:F", **self.DATOS_FORM},
         )
         self.assertEqual(envio.status_code, 403)
         self.assertFalse(Ciudadano.objects.filter(dni=self.DNI).exists())
+
+    def test_el_fallecido_no_ofrece_alta_minima(self):
+        respuesta = self._consultar(resultado={"success": False, "fallecido": True})
+
+        self.assertContains(respuesta, "figura como fallecida")
+        self.assertNotContains(respuesta, "Alta de la persona")
+        self.assertNotIn("sin_registro", self._sesion())
+
+    def test_sin_sexo_sigue_pidiendo_el_sexo(self):
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper") as consulta:
+            pagina = self.client.post(self.url_persona, {"dni": self.DNI})
+            respuesta = self.client.post(self.url_persona, {**self._campos_ocultos(pagina), "sexo": ""})
+
+        consulta.assert_not_called()
+        self.assertContains(respuesta, "Indicá el sexo")
+        self.assertNotContains(respuesta, "Alta de la persona")
 
     def test_si_aparece_en_el_legajo_entre_pasos_se_usa_la_existente(self):
         self._consultar()
@@ -867,7 +1042,7 @@ class AltaMinimaTests(BaseIngreso):
     def test_el_formulario_de_otra_pestana_no_guarda_nada(self):
         self._consultar()
         ocultos = self._campos_ocultos(self.client.get(self.url_persona))
-        self._consultar(dni="30999888")  # otra pestaña consulta a otra persona
+        self._consultar(dni="30999888", sexo="M")  # otra pestaña consulta a otra persona
 
         respuesta = self._enviar_alta(ocultos=ocultos)
 

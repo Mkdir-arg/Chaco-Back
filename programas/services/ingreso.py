@@ -17,6 +17,8 @@ Dos reglas que no se pueden perder:
    no queda un legajo huérfano.
 """
 
+from typing import NamedTuple
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -41,6 +43,9 @@ ESTADOS_GUARDADOS = (ESTADO_RESERVADA, ESTADO_PRESTADA)
 
 #: Mismo tope por sector que el mapa de «Sectores y plazas».
 TOPE_PLAZAS_POR_SECTOR = 200
+
+#: Los campos de RENAPER que viajan por la sesión hasta la confirmación.
+CAMPOS_RENAPER = ("dni", "nombre", "apellido", "fecha_nacimiento", "genero", "domicilio", "provincia")
 
 
 def maneja_plazas(dispositivo):
@@ -77,6 +82,32 @@ def buscar_ciudadano_por_dni(dni):
         if normalizar_dni(candidato_dni) == dni:
             return Ciudadano.objects.get(pk=candidato_id)
     return None
+
+
+class RespuestaRegistro(NamedTuple):
+    """Lo que respondió el Registro de Personas, con el motivo de la falla por separado."""
+
+    datos: dict | None
+    motivo: str
+    fallecido: bool
+
+
+def buscar_en_registro_de_personas(dni, sexo):
+    """Pide los datos a RENAPER y devuelve `RespuestaRegistro(datos, motivo, fallecido)`.
+
+    `motivo` es el texto de la falla, sin prefijo ni punto final (vacío si hubo datos);
+    `fallecido` distingue a la persona que figura fallecida, que nunca se aloja.
+    """
+
+    resultado = CiudadanosService.consultar_renaper(dni, sexo)
+    if resultado.get("fallecido"):
+        return RespuestaRegistro(None, "La persona consultada figura como fallecida en el Registro de Personas.", True)
+    if not resultado.get("success"):
+        motivo = str(resultado.get("error") or "error desconocido").strip().rstrip(".")
+        return RespuestaRegistro(None, motivo, False)
+    datos = {campo: resultado["data"].get(campo) for campo in CAMPOS_RENAPER}
+    datos["dni"] = normalizar_dni(datos["dni"] or dni)
+    return RespuestaRegistro(datos, "", False)
 
 
 #: Qué dice la celda de la plaza que la persona tiene guardada: es suya, así que se puede elegir.
