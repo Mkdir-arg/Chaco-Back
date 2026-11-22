@@ -133,7 +133,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. La tabla «Personas que ingresan
   juntas» agrega una fila «Responsable» (sexo en «—», total 1) antes de la de totales cuando el grupo tiene
   `responsable_aparte`; misma `nodo-td`, sin clases nuevas. Los rótulos `<dt>` de la ficha (Responsable, DNI, Fuerza que traslada…) van
-  `text-xs font-bold uppercase text-heading` para que se lean como título del dato. Las filas las arma `franjas_del_grupo` (selector de la
+  `text-xs font-semibold uppercase text-body-subtle`, igual que en el resto de las fichas, para que el valor sea lo destacado. Las filas las arma `franjas_del_grupo` (selector de la
   mesa), la misma fuente que la tarjeta de «Llegadas» del dispositivo. Sin panel lateral,
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
@@ -180,8 +180,8 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   «Crítico» aunque haya vencidos; sin inmuebles, «Sin edificio cargado». Los sectores sin edificio van en una
   `_alerta` warning; «Asignar edificio» solo con `puede_asignar_edificio`. P2 usa el mismo servicio.
 - Ficha propia del edificio (`programas/templates/programas/dispositivos/edificios/detail.html`, `{# arquetipo: detalle + apilado #}`):
-  solo lectura, sin métricas, desde la sección Edificios (`EdificioDetailView`, `ficha_de_edificio` de
-  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo» y «Crear relevamiento» solo con `url_asignar`; los títulos de sección son `h2 text-heading font-bold`;
+  sin métricas, solo lectura salvo «Editar edificio», desde la sección Edificios (`EdificioDetailView`, `ficha_de_edificio` de
+  `programas/selectors/edificios.py`). `page_header` con volver a «Edificios», estado, aviso, «Inactivo», «Crear relevamiento» solo con `url_asignar` y «Editar edificio» (`btn-secondary btn-sm`) solo con `url_editar`, que lleva al modal de la solapa Infraestructura de la primera institución del predio (por nombre) que el usuario abre, que no está cerrada y sobre la que alcanza toda la institución (`dispositivo.editar`; con alcance Edificios no se ofrece); los títulos de sección son `h2 text-heading font-bold`;
   secciones Datos (`_ubicacion.html` compacto), Instituciones del predio, Sectores por institución, Último relevamiento y Registro
   fotográfico (`_linea_tiempo` plegable + `_paginacion`). Quién relevó, observaciones y el registro solo con `ve_detalle` (Cambio 428). La fila
   del listado abre la ficha con el nombre enlazado y un `nodo-icon-btn` «Ver», junto al de «Crear relevamiento».

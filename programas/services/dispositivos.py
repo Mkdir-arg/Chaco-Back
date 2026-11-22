@@ -452,6 +452,26 @@ def puede_editar_legajo(user, dispositivo, capacidad=CAP_EDITAR):
     return puede_operar_institucion(user, dispositivo, capacidad)
 
 
+def dispositivos_de_institucion(user, capacidad):
+    """:func:`puede_operar_institucion` en forma de queryset: las instituciones sobre las que ``user`` alcanza
+    **toda la institución** con ``capacidad`` (admin del programa, o Equipo con alcance institución).
+
+    Sirve para saber, en una consulta, en cuáles de varias instituciones puede editar el legajo (y con él sus
+    edificios). Con alcance Edificios la institución no entra, fail-closed.
+    """
+
+    from programas.models import Dispositivo
+
+    programa = programa_dispositivos(user)
+    if programa is None or not rbac.puede(user, capacidad, programa=programa):
+        return Dispositivo.objects.none()
+    if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
+        return Dispositivo.objects.all()
+    return Dispositivo.objects.filter(
+        pk__in=_filas_de_institucion(_filtro_equipo(user, capacidad, programa)).values("dispositivo_id")
+    )
+
+
 def _filas_de_institucion(filas):
     """Las filas del Equipo con alcance institución (o sin alcance cargado) de un queryset de ``_filtro_equipo``."""
 
