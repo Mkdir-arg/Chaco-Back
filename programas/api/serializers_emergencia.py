@@ -429,6 +429,12 @@ _IDENTIDAD_A_REVISAR_HELP = (
 class IntegranteSerializer(serializers.Serializer):
     """Una fila de M2-3 («Persona 3 · sin confirmar» o «Pérez, Juan · cama B-12 · ficha incompleta»)."""
 
+    id = serializers.IntegerField(
+        help_text=(
+            "Identifica la fila, no solo su número: el número se reusa si se quita una persona y se agrega otra. "
+            "«Quitar» lo reenvía en el cuerpo para que un reenvío tardío no borre a otra persona."
+        )
+    )
     n = serializers.IntegerField(
         help_text="Número de la persona en la familia (puede haber huecos si se quitó una agregada). Va en la URL."
     )
@@ -682,6 +688,16 @@ class AgregarIntegranteEnvioSerializer(serializers.Serializer):
 class IntegranteAgregadoSerializer(serializers.Serializer):
     integrante = IntegranteSerializer()
     total_declarado = serializers.IntegerField()
+
+
+class QuitarIntegranteEnvioSerializer(serializers.Serializer):
+    id = serializers.IntegerField(
+        required=False,
+        help_text=(
+            "El `id` de la fila que la pantalla mostró. Opcional: sin él se actúa sobre el número de la URL. Con él, "
+            "si esa fila ya no es la que tiene ese número, es un reenvío y no se toca nada (`ya_estaba_quitada`)."
+        ),
+    )
 
 
 class IntegranteQuitadoSerializer(serializers.Serializer):

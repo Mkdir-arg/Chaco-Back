@@ -48,6 +48,7 @@ from programas.api.serializers_emergencia import (
     IntegranteQuitadoSerializer,
     IntegrantesDelCasoSerializer,
     MapaDePlazasSerializer,
+    QuitarIntegranteEnvioSerializer,
     RechazarDerivacionEnvioSerializer,
     RechazoSerializer,
 )
@@ -358,12 +359,12 @@ class IntegranteView(_VistaDeLlegadas):
 
 class QuitarIntegranteView(_VistaDeLlegadas):
     @extend_schema(
-        request=None,
+        request=QuitarIntegranteEnvioSerializer,
         responses={
             200: IntegranteQuitadoSerializer,
             400: _400(
                 "`orden`: solo se quita a quien se agregó en la puerta y todavía no ingresó (no el responsable, no las "
-                "personas del Formulario 1, no una ya confirmada), o la persona no es de la familia."
+                "personas del Formulario 1, no una ya confirmada), o la persona no es de la familia (nunca existió)."
             ),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
@@ -371,14 +372,21 @@ class QuitarIntegranteView(_VistaDeLlegadas):
             409: _CAMBIO,
         },
         description=(
-            "Deshace «Agregar persona»: quita la fila agregada por error y `total_declarado` baja en uno. Sin cuerpo. "
-            "Idempotente: repetirlo contesta 200 con `ya_estaba_quitada` en `true`. Solo con el ingreso en curso."
+            "Deshace «Agregar persona»: quita la fila agregada por error y `total_declarado` baja en uno. El cuerpo es "
+            'opcional: `{"id": <id de integrantes[]>}` identifica la fila. Idempotente: repetirlo, o reenviar el '
+            "`id` de una fila que ya no tiene ese número, contesta 200 con `ya_estaba_quitada` en `true` sin tocar "
+            "nada. Si la baja libera una cama reservada de más, se libera sola. Solo con el ingreso en curso."
         ),
     )
     def post(self, request, pk, n):
         caso, _derivacion = self._ingreso(request, pk)
+        datos, respuesta = self._entrada(QuitarIntegranteEnvioSerializer, request)
+        if respuesta is not None:
+            return respuesta
         quitada, respuesta = self._ejecutar(
-            lambda: servicio_alojar.quitar_integrante(caso=caso.pk, orden=n, usuario=request.user)
+            lambda: servicio_alojar.quitar_integrante(
+                caso=caso.pk, orden=n, usuario=request.user, fila_id=datos.get("id")
+            )
         )
         if respuesta is not None:
             return respuesta
