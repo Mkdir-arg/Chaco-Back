@@ -146,7 +146,14 @@ i = next(k for k, ln in enumerate(lineas) if "Consumo por persona — acumulado 
 cab = [x.strip() for x in lineas[i + 2].split("|")]
 cols = {}
 for j, x in enumerate(cab):
-    for nombre, mes in (("Junio", "06"), ("Julio", "07"), ("Agosto", "08"), ("Septiembre", "09"), ("Octubre", "10"), ("Noviembre", "11")):
+    for nombre, mes in (
+        ("Junio", "06"),
+        ("Julio", "07"),
+        ("Agosto", "08"),
+        ("Septiembre", "09"),
+        ("Octubre", "10"),
+        ("Noviembre", "11"),
+    ):
         if x.startswith(nombre):
             cols[j] = mes
 suma_col, suma_tot, total_fila = {}, 0.0, None
@@ -193,7 +200,9 @@ if desg:
     sd = sum(int(a) * 60 + int(b) for _, a, b in desg)
     ok(sd == mins, f"desglose del contador {sd} min vs contador {mins} min")
     for nombre, a, b in desg:
-        mes = {"junio": "06", "julio": "07", "agosto": "08", "septiembre": "09", "octubre": "10", "noviembre": "11"}[nombre.lower()]
+        mes = {"junio": "06", "julio": "07", "agosto": "08", "septiembre": "09", "octubre": "10", "noviembre": "11"}[
+            nombre.lower()
+        ]
         ok(
             abs(int(a) + int(b) / 60 - mes_h[mes]) < 0.02,
             f"desglose — {nombre}: {a} h {b} min vs registro {hm(mes_h[mes])}",
