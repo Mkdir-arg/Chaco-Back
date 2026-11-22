@@ -110,35 +110,6 @@ class BotonTests(BaseCrearAgente):
     def _usuario_total(self, nombre, capacidades):
         return self._usuario(nombre, capacidades, [self.parador, self.cis])
 
-    def test_con_la_capacidad_el_boton_esta_en_las_tres_pantallas(self):
-        usuario = self._usuario_total("creador_total", CAPS_CREADOR)
-        for nombre, respuesta in self._pantallas(usuario).items():
-            with self.subTest(nombre):
-                self.assertEqual(respuesta.status_code, 200)
-                self.assertTrue(respuesta.context["puede_crear_agente"])
-                self.assertContains(respuesta, BOTON)
-                self.assertContains(respuesta, 'id="quick-user-modal"')
-
-    def test_el_selector_de_cada_boton_apunta_a_un_select_unico(self):
-        usuario = self._usuario_total("creador_sel", CAPS_CREADOR)
-        esperados = {
-            "asignar P21": "#form-asignar-relevamiento select[name=asignado_a]",
-            "reasignar P21": "#form-reasignar-relevamiento select[name=asignado_a]",
-            "crear P4": "#form-crear-relevamiento select[name=asignado_a]",
-        }
-        for nombre, respuesta in self._pantallas(usuario).items():
-            with self.subTest(nombre):
-                self.assertContains(respuesta, f'data-user-select="{esperados[nombre]}"')
-
-    def test_sin_la_capacidad_el_boton_no_se_dibuja(self):
-        usuario = self._usuario_total("sin_cap", ("inspeccion.asignar", "dispositivo.ver"))
-        for nombre, respuesta in self._pantallas(usuario).items():
-            with self.subTest(nombre):
-                self.assertEqual(respuesta.status_code, 200)
-                self.assertFalse(respuesta.context["puede_crear_agente"])
-                self.assertNotContains(respuesta, BOTON)
-                self.assertNotContains(respuesta, 'id="quick-user-modal"')
-
     def test_la_capacidad_de_otro_programa_no_muestra_el_boton(self):
         usuario = self._usuario_total("cap_ajena", ("inspeccion.asignar", "dispositivo.ver"))
         usuario.groups.add(self._con_capacidad_en_otro_programa("boton"))

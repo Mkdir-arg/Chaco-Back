@@ -879,7 +879,7 @@ def infraestructura_del_dispositivo(
             + ". Hasta asignarlos no figuran en ningún edificio.",
             # «Asignar edificio» abre la edición del primero; el resto se asigna de a uno, igual.
             "primero_pk": sectores_sin_edificio[0]["pk"],
-            "url_asignar": url_solapa_sectores(dispositivo.pk) + f"&editar_sector={sectores_sin_edificio[0]['pk']}",
+            "url_asignar": url_solapa_sectores(dispositivo.pk) + f"?sector={sectores_sin_edificio[0]['pk']}",
         }
         if sectores_sin_edificio and (pedido is None or len(filas) == 1)
         else None

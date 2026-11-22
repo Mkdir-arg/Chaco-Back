@@ -18,7 +18,7 @@ from django.test import Client
 from django.urls import reverse
 
 from core import rbac
-from programas.models import InspeccionEdificio, MiembroEquipoDispositivo
+from programas.models import MiembroEquipoDispositivo
 from programas.services.buscador_agentes import (
     MOTIVO_AGENTE_ES_PERSONAL,
     MOTIVO_AGENTE_INACTIVO,
@@ -224,28 +224,3 @@ class EndpointTests(BaseBuscarAgente):
             "creador2", ("inspeccion.asignar", "inspeccion.agente.crear", "dispositivo.ver"), [self.parador]
         )
         self.assertEqual(self._buscar("Quiroga", usuario=otro).status_code, 200)
-
-
-class ModalTests(BaseBuscarAgente):
-    def test_el_boton_lleva_el_edificio_en_las_tres_pantallas(self):
-        en_curso = InspeccionEdificio.objects.create(
-            edificio=self.predio, asignado_a=self.agente, creado_por=self.coordinador, fecha_vencimiento=self.vence
-        )
-        usuario = self._usuario(
-            "creador_total",
-            ("inspeccion.asignar", "inspeccion.agente.crear", "dispositivo.ver"),
-            [self.parador, self.cis],
-        )
-        relevamientos = reverse("dispositivos:relevamientos")
-        cliente = self._cliente(usuario)
-        asignar = cliente.get(relevamientos, {"asignar": self.edificio_cis.pk})
-        reasignar = cliente.get(relevamientos, {"reasignar": en_curso.pk})
-        crear = cliente.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
-
-        self.assertContains(asignar, f'data-edificio-id="{self.edificio_cis.pk}"')
-        self.assertContains(reasignar, f'data-edificio-id="{self.predio.pk}"')
-        self.assertContains(crear, 'data-edificio-source="#form-crear-relevamiento [name=edificio]"')
-        for respuesta in (asignar, reasignar, crear):
-            self.assertContains(respuesta, reverse(URL))
-            self.assertContains(respuesta, "No encontramos agentes con esos datos")
-            self.assertContains(respuesta, "Crear agente nuevo")

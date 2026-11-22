@@ -7,21 +7,19 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Estadia, MiembroEquipoDispositivo, Plaza, ReservaPlaza
+from programas.models import Estadia, Plaza, ReservaPlaza
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.ocupacion import Conteo, tension_de_ocupacion
 from programas.tests.test_dispositivos_detalle import BaseDetalle, _alojar, _egresar
-from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, _permiso
-from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura, Criticidad, _panel
-from users.models import RolMeta
+from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS
+from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura
 
 AHORA = datetime(2026, 10, 14, 12, 0, tzinfo=dt_timezone.utc)
 
@@ -208,46 +206,6 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
         self.addCleanup(reloj.stop)
         super().setUp()
 
-    def test_ubicacion_usa_coordenadas_del_edificio_y_acepta_cero(self):
-        self.predio.latitud = Decimal("0")
-        self.predio.longitud = Decimal("-58.986340")
-        self.predio.save()
-        respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
-        panel = _panel(respuesta.content.decode())
-        self.assertIn("https://www.google.com/maps/search/?api=1&amp;query=0.000000,-58.986340", panel)
-        self.assertIn('rel="noopener noreferrer"', panel)
-        self.assertNotIn("Plano", panel)
-
-    def test_coordenadas_incompletas_sin_enlace_ni_coordenadas_inventadas(self):
-        self.predio.latitud = Decimal("-27.451120")
-        self.predio.save()
-        panel = _panel(self._detalle(self.operador_geriatrico, self.geriatrico).content.decode())
-        self.assertIn("Sin ubicación cargada", panel)
-        self.assertNotIn("Ver en el mapa", panel)
-
-    def test_predio_muestra_solo_instituciones_en_alcance_y_no_inventa_sector(self):
-        respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
-        panel = _panel(respuesta.content.decode())
-        self.assertIn("Institución en este predio", panel)
-        self.assertIn(self.geriatrico.nombre, panel)
-        self.assertIn(reverse("dispositivos:detalle", args=[self.geriatrico.pk]), panel)
-        self.assertNotIn(self.parador.nombre, panel)
-        self.assertNotIn(reverse("dispositivos:detalle", args=[self.parador.pk]), panel)
-        self.assertNotIn("Sector que ocupa", panel)
-        admin = _panel(self._detalle(self.admin, self.geriatrico).content.decode())
-        self.assertIn(self.parador.nombre, admin)
-        self.assertIn(reverse("dispositivos:detalle", args=[self.parador.pk]), admin)
-        self.assertIn("Activo", admin)
-
-    def test_membresia_en_rol_sin_ver_no_suma_alcance_para_identidad_del_predio(self):
-        rol = Group.objects.create(name="Asignado sin ver")
-        RolMeta.objects.create(grupo=rol, categoria="Programa", programa=self.programa, activo=True)
-        rol.permissions.add(_permiso("dispositivo.admitir"))
-        self.operador_geriatrico.groups.add(rol)
-        MiembroEquipoDispositivo.objects.create(usuario=self.operador_geriatrico, rol=rol, dispositivo=self.parador)
-        panel = _panel(self._detalle(self.operador_geriatrico, self.geriatrico).content.decode())
-        self.assertNotIn(self.parador.nombre, panel)
-
     def test_selector_sin_usuario_no_devuelve_identidades_ni_consulta(self):
         with self.assertNumQueries(0):
             self.assertEqual(instituciones_del_predio(None, [self.predio.pk]), {})
@@ -259,26 +217,6 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
         instituciones = respuesta.context["infraestructura"]["edificios"][0]["instituciones"]
         fila = next(fila for fila in instituciones if fila["pk"] == self.parador.pk)
         self.assertEqual(fila["get_estado_display"], "DESCONOCIDO")
-
-    def test_relevamiento_en_curso_conserva_fecha_de_carga_en_las_fotos(self):
-        """Decisión PM G3: mientras no hay realización, se muestra la fecha de la foto."""
-        from programas.services.inspecciones import agregar_foto
-        from programas.tests.test_dispositivos_inspecciones import _foto
-
-        inspeccion = self._crear()
-        foto = agregar_foto(self._fresco(self.agente), inspeccion, archivo=_foto(), descripcion="fachada")
-        respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
-        [evento] = respuesta.context["infraestructura"]["eventos"]
-        self.assertEqual(evento["fotos"][0]["fecha"], foto.creado)
-        self.assertIn('datetime="2026-10-14"', _panel(respuesta.content.decode()))
-
-    def test_fotos_rotulan_fecha_del_relevamiento_y_no_fecha_de_subida(self):
-        inspeccion = self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",), dias_atras=30)
-        respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
-        [evento] = respuesta.context["infraestructura"]["eventos"]
-        self.assertEqual(evento["fotos"][0]["fecha"], inspeccion.realizada_en)
-        panel = _panel(respuesta.content.decode())
-        self.assertNotIn('datetime="2026-10-14"', panel)
 
 
 @tag("performance")

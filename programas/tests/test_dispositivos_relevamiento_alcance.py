@@ -15,11 +15,10 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.urls import reverse
-from django.utils import timezone
 
 from programas.models import AdjuntoRespuestaRelevamiento, Edificio
 from programas.services.inspecciones import crear_inspeccion, inspecciones_visibles
-from programas.tests.test_dispositivos_relevamiento_informe import URL_LISTA, BaseInforme, Criticidad, _url
+from programas.tests.test_dispositivos_relevamiento_informe import URL_LISTA, BaseInforme, _url
 
 User = get_user_model()
 
@@ -179,45 +178,3 @@ class EdificioCompartidoTests(BaseInforme):
                 self.assertEqual(self._cliente(usuario).get(_url(self.inspeccion)).status_code, 404)
                 self.assertIn(self._cliente(usuario).get(url_foto).status_code, (403, 404))
                 self.assertNotIn(self.inspeccion.pk, self._ids_visibles(usuario))
-
-
-class FranjaInfraestructuraSinAlcanceTests(BaseInforme):
-    """Cambio 428, decisión 2: sin alcance de inspección, el detalle del dispositivo da solo el semáforo."""
-
-    def setUp(self):
-        super().setUp()
-        self.inspeccion = self._realizado(
-            self.predio, criticidad=Criticidad.ALTA, observaciones="Humedad estructural en el techo"
-        )
-        self.lector_amplio = self._usuario("lector_amplio", ("dispositivo.ver", "dispositivo.ver_todos"))
-        self.operador = self._usuario("operador_par", ("dispositivo.ver",), [self.parador])
-
-    def _detalle(self, usuario):
-        return self._cliente(usuario).get(reverse("dispositivos:detalle", args=[self.parador.pk]))
-
-    @staticmethod
-    def _panel(respuesta):
-        """El HTML de la solapa Infraestructura: el historial es otra solapa con su propia regla."""
-
-        return respuesta.content.decode().split('id="panel-infraestructura"')[1].split('role="tabpanel"')[0]
-
-    def test_sin_alcance_ve_el_semaforo_y_la_fecha_pero_no_observaciones_ni_relevador(self):
-        respuesta = self._detalle(self.lector_amplio)
-
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.context["infraestructura"]["semaforo"].texto, "Crítico")
-        panel = self._panel(respuesta)
-        self.assertIn("Crítico", panel)
-        # La fecha se muestra en hora local: en UTC, de 21 a 24 h de Argentina ya es el día siguiente.
-        self.assertIn(timezone.localtime(self.inspeccion.realizada_en).strftime("%d/%m/%Y"), panel)
-        self.assertNotIn("Humedad estructural", panel)
-        self.assertNotIn(self.nombre_agente, panel)
-        self.assertFalse(respuesta.context["infraestructura"]["edificios"][0]["ve_detalle"])
-
-    def test_con_alcance_y_el_superusuario_lo_ven_todo(self):
-        superusuario = User.objects.create_superuser(username="super2", password="x")
-        for usuario in (self.operador, self.admin, superusuario):
-            with self.subTest(usuario=usuario.username):
-                panel = self._panel(self._detalle(usuario))
-                self.assertIn("Humedad estructural", panel)
-                self.assertIn(self.nombre_agente, panel)

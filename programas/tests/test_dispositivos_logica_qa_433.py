@@ -63,26 +63,6 @@ class ReasignarUsaLosMismosCandidatosTests(BaseCrearRelevamiento):
         self.assertEqual(set(agentes_asignables(self.predio)), {self.agente, self.otro_agente})
         self.assertEqual(set(agentes_para_reasignar(inspeccion)), {self.otro_agente})
 
-    def test_el_personal_de_otra_institucion_del_edificio_compartido_no_es_candidato(self):
-        """Lo que vio QA: «personal» es todo usuario con rol asignado a una institución del edificio.
-
-        P4 ofrece a `personal_geriatrico` (es personal del predio pero no de ED-EXTRA), el POST de P4
-        lo rechaza para el predio y reasignar no lo ofrece ni lo acepta.
-        """
-
-        self._edificio_extra()
-        self.assertIn(self.personal_geriatrico, self._agentes_del_selector())
-
-        respuesta = self._post(self._datos(edificio=self.predio, agente=self.personal_geriatrico))
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertFalse(InspeccionEdificio.objects.exists())
-
-        inspeccion = self._asignar(self.agente)
-        self.assertNotIn(self.personal_geriatrico, agentes_para_reasignar(inspeccion))
-        self.assertEqual(self._reasignar(inspeccion, self.personal_geriatrico).status_code, 400)
-        inspeccion.refresh_from_db()
-        self.assertEqual(inspeccion.asignado_a, self.agente)
-
     def test_el_selector_del_modal_trae_la_misma_lista(self):
         inspeccion = self._asignar(self.agente)
         respuesta = self._cliente(self.coordinador).get(

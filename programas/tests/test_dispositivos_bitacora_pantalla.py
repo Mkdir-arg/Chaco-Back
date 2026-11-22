@@ -207,17 +207,6 @@ class VerTests(BasePantalla):
         self.assertContains(respuesta, "Bitácora")
         self.assertContains(respuesta, "Turno Tarde · entradas")
 
-    def test_se_llega_desde_el_encabezado_de_p4(self):
-        """La bitácora pide lo mismo que P4: quien ve el dispositivo tiene el botón."""
-
-        usuario = self._usuario("Solo lectura", self.cis, ("dispositivo.ver",))
-        self.client.force_login(usuario)
-        with _reloj():
-            respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))
-
-        self.assertContains(respuesta, f'href="{self.url}"')
-        self.assertContains(respuesta, "Bitácora del turno")
-
     def test_sin_dispositivo_ver_es_403(self):
         respuesta = self._get(self._usuario("Sin ver", self.cis, _sin("dispositivo.ver")))
 

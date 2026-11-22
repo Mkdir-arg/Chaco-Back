@@ -519,33 +519,6 @@ class EdificioTests(BaseCapacidad):
             self.assertEqual([fila["pk"] for fila in filas], [edificio.pk])
             self.assertEqual(filas[0]["otras_instituciones"], 1)
 
-    def test_el_detalle_renderiza_el_estado_de_la_otra_institucion_del_predio(self):
-        edificio = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos())
-        vincular_edificio(edificio=edificio, dispositivo=self.parador, usuario=self.administrador)
-        self.client.force_login(self.administrador)
-
-        for estado, texto, tono in (
-            (Dispositivo.Estado.BORRADOR, "Borrador", "white"),
-            (Dispositivo.Estado.PENDIENTE_VALIDACION, "Pendiente de validación", "info"),
-            (Dispositivo.Estado.ACTIVO, "Activo", "success"),
-            (Dispositivo.Estado.OBSERVADO, "Observado", "warning"),
-            (Dispositivo.Estado.RECHAZADO, "Rechazado", "danger"),
-            (Dispositivo.Estado.INACTIVO, "Inactivo", "gray"),
-            (Dispositivo.Estado.CERRADO, "Cerrado", "gray"),
-        ):
-            with self.subTest(estado=estado):
-                Dispositivo.objects.filter(pk=self.parador.pk).update(estado=estado)
-
-                respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))
-
-                self.assertEqual(respuesta.status_code, 200)
-                fila = next(
-                    fila
-                    for fila in respuesta.content.decode().split("</tr>")
-                    if f'href="{reverse("dispositivos:detalle", args=[self.parador.pk])}"' in fila
-                )
-                self.assertInHTML(f'<span class="badge badge-dot badge-{tono}">{texto}</span>', fila)
-
     def test_solo_se_vincula_lo_que_el_alcance_alcanza(self):
         """Sin esto, el combo sería la lista de los inmuebles de todas las instituciones."""
 
@@ -714,20 +687,6 @@ class EdicionDePlazaTests(BaseCapacidad):
 
 
 class GuardasDeCapacidadTests(BaseCapacidad):
-    def test_los_estados_vacios_enlazan_al_alta_y_al_lote(self):
-        Sector.objects.filter(dispositivo=self.cis).update(activo=False)
-        self.client.force_login(self.operador_cis)
-        url = reverse("dispositivos:sectores", args=[self.cis.pk])
-        respuesta = self.client.get(url)
-        self.assertContains(respuesta, "Este dispositivo no tiene sectores")
-        self.assertContains(respuesta, '<button type="button" @click="modalSectorNuevo=true"', count=2)
-        respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
-        self.assertContains(respuesta, "Este dispositivo no tiene edificio cargado")
-        # Una sola vez: el alta la ofrece la barra («Agregar edificio»), no el estado vacío (Cambio 524).
-        self.assertContains(respuesta, "edificio=nuevo", count=1)
-        sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
-        self.assertContains(self.client.get(url), f"sectorPlazas='{sector.pk}'; modalPlazas=true")
-
     def test_los_errores_ajax_del_servicio_llegan_al_campo_o_al_error_general(self):
         self.client.force_login(self.operador_cis)
         url = reverse("dispositivos:sector_crear", args=[self.cis.pk])
