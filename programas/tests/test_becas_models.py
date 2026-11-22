@@ -78,6 +78,8 @@ COLUMNAS_UUID_AMPLIADAS = (
         "uuid_cliente_recepcion",
         "programas.0121",
     ),
+    # Cambio 535: el identificador del armado de una entrega de kits (idempotencia).
+    ("programas.EntregaKit", "uuid_cliente", "programas_entregakit", "uuid_cliente", "programas.0136"),
     ("users.SolicitudCambioEmail", "token", "users_solicitudcambioemail", "token", "users.0023"),
     ("legajos.LegajoAtencion", "id", "legajos_legajoatencion", "id", "legajos.0007"),
     ("legajos.AlertaCiudadano", "legajo", "legajos_alertaciudadano", "legajo_id", "legajos.0007"),

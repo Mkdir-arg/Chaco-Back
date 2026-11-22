@@ -38,6 +38,7 @@ CAMPOS_SLA = (
     "objetivo_alojar_min",
     "vigencia_derivacion_min",
     "sin_avance_min",
+    "ingreso_sin_movimiento_h",
     "umbral_por_vencer_pct",
     "inicio_evento",
 )
