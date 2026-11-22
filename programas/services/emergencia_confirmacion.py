@@ -23,6 +23,7 @@ from programas.models import (
     TrazaCaso,
 )
 from programas.selectors.emergencia_alojar import camas_libres
+from programas.services.dispositivos import bloquear_institucion, bloquear_instituciones
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_alta import _como_uuid, nombre_en_conflicto
 from programas.services.emergencia_comun import _trazar
@@ -405,6 +406,8 @@ def _liberar_la_sobrante(*, derivacion, por_confirmar_despues, usuario):
     sobrante = _reserva_sobrante(derivacion, por_confirmar_despues)
     if sobrante is None:
         return
+    # Las reservas de la derivación son de su dispositivo: la institución, en compartido, antes que la plaza.
+    bloquear_institucion(derivacion.dispositivo_id)
     list(Plaza.objects.select_for_update().filter(pk=sobrante.plaza_id).order_by("pk").values_list("pk", flat=True))
     try:
         liberar_reserva(reserva=sobrante, usuario=usuario, motivo=MOTIVO_RESERVA_SOBRANTE, verificar_alcance=False)
@@ -438,7 +441,10 @@ def _ingresar_en_cama_libre(*, ciudadano, cama, propia, derivacion, por_confirma
     ]
     # Solo el candado: `liberar_reserva` e `ingresar_persona` vuelven a tomar cada plaza. Va
     # siempre, aunque no haya nada que liberar: la cama tiene que quedar tomada antes que la
-    # persona, como en `ingresar_persona` y `reservar_plaza` (plaza → persona).
+    # persona, como en `ingresar_persona` y `reservar_plaza` (plaza → persona). Antes que las plazas,
+    # las instituciones en compartido y por pk: la de la derivación (cama y sobrante) y las de las
+    # comunes, que pueden ser de otros dispositivos (`dispositivos.bloquear_institucion`).
+    bloquear_instituciones({derivacion.dispositivo_id} | {comun.plaza.sector.dispositivo_id for comun in comunes})
     list(
         Plaza.objects.select_for_update()
         .filter(pk__in={cama.pk} | {reserva.plaza_id for reserva, _motivo in a_liberar})
