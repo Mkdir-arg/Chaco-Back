@@ -803,13 +803,13 @@ class FichaTests(BaseMesa):
         self.assertIsNone(self._ficha(caso, derivar=self.club.pk).context["confirmar_derivar"])
 
     def test_con_menos_plazas_que_las_pedidas_la_confirmacion_pregunta(self):
-        """RN-2.5: «Vas a reservar 5 de 7 plazas. ¿Seguís?»."""
+        """RN-2.5 y Cambio 535: «Vas a pedir 7 plazas y hay 5 libres. ¿Seguís?»."""
         caso = self._caso_tomado(menores_f=5)  # 7 personas
         parroquia = self._dispositivo("Parroquia", camas=5)
         respuesta = self._ficha(caso, grupo=f"d{parroquia.pk}", derivar=parroquia.pk)
         confirmacion = respuesta.context["confirmar_derivar"]
         self.assertEqual((confirmacion["faltan"], confirmacion["accion"]), (True, "Sí, derivar igual"))
-        self.assertContains(respuesta, "Vas a reservar 5 de 7 plazas. ¿Seguís?")
+        self.assertContains(respuesta, "Vas a pedir 7 plazas y hay 5 libres. ¿Seguís?")
         self.assertContains(respuesta, 'name="confirmar_faltantes" value="True"')
 
     def test_un_dispositivo_sin_plazas_o_que_no_es_elegible_no_abre_la_confirmacion(self):
@@ -1157,7 +1157,7 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
         )
         self.assertIn("5 de las 7 plazas", self._avisos(sin_confirmar)[0])
         self.assertFalse(Derivacion.objects.exists())
-        self.assertContains(self.client.get(sin_confirmar.url), "Vas a reservar 5 de 7 plazas. ¿Seguís?")
+        self.assertContains(self.client.get(sin_confirmar.url), "Vas a pedir 7 plazas y hay 5 libres. ¿Seguís?")
 
         confirmado = self._post(
             "caso_derivar", caso, {"dispositivo": parroquia.pk, "plazas": "7", "confirmar_faltantes": "True"}
@@ -1303,6 +1303,9 @@ class PresupuestoDeConsultasTests(BaseMesa):
     #: traza (3), el responsable alojado (1) y el panel de derivar (6: los elegibles, las tres del censo,
     #: los edificios y los centroides de las localidades; Cambio 520).
     CONSULTAS_E3 = 20
+    #: Con la confirmación de «Derivar» abierta, una más: las camas ya pedidas a esa institución en ese
+    #: edificio (``pedidas_pendientes``, Cambio 535). Fija: no depende de cuántas haya.
+    CONSULTAS_E3_CON_CONFIRMACION = CONSULTAS_E3 + 1
 
     def _casos_en_lote(self, cuantos):
         """``cuantos`` casos abiertos sin pasar por el servicio: acá se mide leer, no crear."""
@@ -1382,8 +1385,8 @@ class PresupuestoDeConsultasTests(BaseMesa):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.context["panel"]["total"], 51)
         self.assertEqual(len(respuesta.context["panel"]["edificios"]), mesa.TOPE_DISPOSITIVOS)
-        # Con la confirmación abierta cuesta lo mismo: sale de lo que el panel ya leyó.
-        with self.assertNumQueries(self.CONSULTAS_E3):
+        # Con la confirmación abierta, una sola más: las camas ya pedidas ahí (Cambio 535).
+        with self.assertNumQueries(self.CONSULTAS_E3_CON_CONFIRMACION):
             self.assertIsNotNone(
                 self._ficha(caso, grupo=f"d{self.club.pk}", derivar=self.club.pk).context["confirmar_derivar"]
             )

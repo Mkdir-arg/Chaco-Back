@@ -34,6 +34,7 @@ from programas.services.emergencia import (
     estado_visible_de_caso,
     prioridad_visible,
 )
+from programas.services.emergencia_cierre import puede_cancelar_ingreso_por_la_mesa
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_OPERAR,
@@ -150,7 +151,7 @@ def localidades_con_casos():
 # ---------------------------------------------------------------------------
 
 
-def avisos_de_la_mesa(caso):
+def avisos_de_la_mesa(caso, sla=None, ahora=None):
     """Los avisos que dejan las etapas 3 y 4 sobre el caso: ``[{"texto", "tono", "detalle"}]``.
 
     Los mismos para la fila de E2 (``texto`` y ``tono``) y para la cabecera de E3 (que suma
@@ -163,6 +164,8 @@ def avisos_de_la_mesa(caso):
       un dispositivo que dejó de estar activo (02 §9).
     * «Derivación vencida sin marcar» mientras la pendiente pasó su plazo y el cron no la marcó (RN-3.3).
     * «Llegaron 8 sobre 7 declaradas» cuando el dispositivo agregó personas (``GrupoFamiliar.llegaron_mas``, RN-3.8).
+    * «Aceptado sin movimiento hace N h» cuando el ingreso en curso no se movió en el plazo de E7
+      (``selectors.emergencia.horas_sin_movimiento``, Cambio 535). Necesita ``sla`` y ``ahora``.
     """
 
     avisos = []
@@ -203,6 +206,19 @@ def avisos_de_la_mesa(caso):
                 ),
             }
         )
+    horas = selectores.horas_sin_movimiento(caso, sla, ahora) if sla is not None and ahora is not None else None
+    if horas is not None:
+        avisos.append(
+            {
+                "texto": f"Aceptado sin movimiento hace {horas} h",
+                "tono": "warning",
+                "detalle": (
+                    "Nadie confirmó personas ni dejó novedades en el caso desde entonces. Contactá a la guardia; si "
+                    "la familia no va a llegar y no hay nadie confirmado, quien supervisa la mesa puede cancelar el "
+                    "ingreso y liberar las camas."
+                ),
+            }
+        )
     if caso.grupo.llegaron_mas:
         avisos.append(
             {
@@ -214,7 +230,7 @@ def avisos_de_la_mesa(caso):
     return avisos
 
 
-def _marcas_de_fila(caso, duplicados, alojado):
+def _marcas_de_fila(caso, duplicados, alojado, sla=None, ahora=None):
     """Los avisos de la fila, en texto: ``[{"texto", "tono"}]``.
 
     «Ingreso parcial» y «En la puerta de X» salen de lo que dejó la etapa 3 en el propio caso
@@ -229,7 +245,7 @@ def _marcas_de_fila(caso, duplicados, alojado):
         marcas.append({"texto": f"En la puerta de {en_la_puerta}", "tono": "warning"})
     elif caso.es_ingreso_directo:
         marcas.append({"texto": "Ingreso directo", "tono": "info"})
-    marcas.extend({"texto": aviso["texto"], "tono": aviso["tono"]} for aviso in avisos_de_la_mesa(caso))
+    marcas.extend({"texto": aviso["texto"], "tono": aviso["tono"]} for aviso in avisos_de_la_mesa(caso, sla, ahora))
     if caso.ingreso_parcial:
         marcas.append(
             {"texto": f"Ingreso parcial · {caso.total_alojado} de {caso.grupo.total_declarado}", "tono": "warning"}
@@ -278,7 +294,7 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
                 "prioridad_tono": prioridad_tono,
                 "tomado_por": nombre_de(caso.tomado_por) if caso.tomado_por_id else "",
                 "sla": selectores.estado_sla(caso, sla, ahora),
-                "marcas": _marcas_de_fila(caso, duplicados.get(caso.pk), alojados.get(caso.pk)),
+                "marcas": _marcas_de_fila(caso, duplicados.get(caso.pk), alojados.get(caso.pk), sla, ahora),
                 "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
             }
         )
@@ -560,6 +576,7 @@ def _derivacion_vigente(caso, ahora):
         return None
     pendiente = derivacion.estado == Derivacion.Estado.PENDIENTE
     return {
+        "id": derivacion.pk,
         "dispositivo": derivacion.dispositivo.nombre,
         "edificio": derivacion.edificio.nombre if derivacion.edificio_id else "",
         "localidad": derivacion.dispositivo.localidad,
@@ -583,7 +600,7 @@ def panel_de_derivar(
     familia; con ``grupo`` (la clave de un edificio de la lista), las **instituciones** de ese edificio con
     sus camas ahí, cada una con su botón «Derivar a …».
 
-    ``plazas`` es lo que la mesa quiere reservar (por omisión, el total declarado; nunca menos de 1).
+    ``plazas`` es lo que la mesa quiere pedir (por omisión, el total declarado; nunca menos de 1).
     ``texto`` busca en el nombre y el domicilio del edificio y en el nombre de sus instituciones;
     ``localidad`` filtra por la del edificio. ``url_de_grupo(clave)`` arma el botón de un edificio y
     ``url_de_accion(clave, dispositivo_id, plazas)`` el de una institución. Un edificio o una institución
@@ -708,6 +725,7 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         desde = f" {_hace(caso.tomado_en, ahora)}" if caso.tomado_en else ""
         tomado = "Lo tenés tomado vos." if acciones["es_duenio"] else f"Tomado por {nombre_de(caso.tomado_por)}{desde}."
 
+    integrantes = _integrantes(caso)
     duplicados = selectores.posibles_duplicados(caso)
     duplicado = None
     if duplicados:
@@ -757,7 +775,11 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         "responsable_alojado": selectores.responsable_alojado(caso, usuario),
         "derivacion": derivacion,
         "motivo_cierre": caso.get_motivo_cierre_display() if caso.motivo_cierre else "",
-        "integrantes": _integrantes(caso),
+        "integrantes": integrantes,
         "alojamiento": _alojamiento(caso),
-        "avisos": avisos_de_la_mesa(caso),
+        "avisos": avisos_de_la_mesa(caso, sla, ahora),
+        # Cambio 535: quien supervisa destraba un ingreso aceptado sin nadie confirmado.
+        "puede_cancelar_ingreso": puede_cancelar_ingreso_por_la_mesa(
+            caso, es_supervisor=es_supervisor, confirmadas=integrantes["confirmadas"] if integrantes else 0
+        ),
     }

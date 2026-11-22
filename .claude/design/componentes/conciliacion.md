@@ -9,6 +9,8 @@ nueva**: es la tabla densa canónica (`tabla.md`) con una columna cuya celda dib
 copiada de la línea va como metadato bajo el ítem). Las líneas llegan de `programas/selectors/kits.py`
 (`lineas_de`); el estado de la entrega y la hora de salida (no anterior al armado, al minuto) los decide `programas/services/kits.py`. «Recibida con diferencias sin revisar»
 es una sola condición, `q_entrega_sin_revisar` del mismo selector, que comparten el aviso y la foto del tablero E1.
+El armado que la llena es idempotente: `crear_entrega` de `programas/services/kits.py` devuelve la entrega ya creada
+por el mismo `uuid_cliente` (oculto desde el paso 2), así que reenviar el paso 3 no duplica filas (Cambio 535).
 
 ## Invocación
 
