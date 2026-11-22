@@ -327,6 +327,23 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertContains(editar_tipo, "closest('a[data-edit-url]')")
         self.assertNotContains(editar_tipo, "closest('[data-edit-url]')")
 
+    def test_el_detalle_del_tipo_guarda_el_modal_con_el_ajax_estandar_y_no_con_uno_propio(self):
+        """El envío del modal «Editar tipo» es el de `_ajax_js.html` (form `data-ajax`, evento
+        `becas-saved`); la página no vuelve a escribir su propio `submit` ni lee `data.errors`."""
+        self.client.force_login(self.admin)
+
+        for url in (
+            reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]),
+            reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
+        ):
+            html = self.client.get(url).content.decode()
+            self.assertIn("window.becasAjax", html)  # _ajax_js.html cargado
+            self.assertIn("addEventListener('becas-saved'", html)  # cierra el modal al guardar
+            # Un solo envío con fetch en toda la página: el de `_ajax_js.html`.
+            self.assertEqual(html.count("fetch(form.action"), 1)
+        modal = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk])).content.decode()
+        self.assertIn("data-ajax", modal.split("data-edit-modal-panel", 1)[1].split("</form>", 1)[0] + "</form>")
+
     def test_get_ajax_de_ediciones_devuelve_solo_el_modal(self):
         self.client.force_login(self.admin)
 
