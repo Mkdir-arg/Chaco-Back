@@ -160,7 +160,7 @@ class BaseAlertas(BaseEstadias):
         return alertas
 
     def _todas_encendidas(self):
-        """Las cinco reglas cumplidas en el CIS, cada una por su origen."""
+        """Las seis reglas cumplidas en el CIS, cada una por su origen."""
 
         self._prestamo_vencido()
         self._reserva_abierta(dias=10, plaza=Plaza.objects.create(sector=self.sector, codigo="PA"), dni="30555666")
@@ -572,7 +572,7 @@ class EnlaceDeResolucionTests(BaseAlertas):
 
 
 class NuncaBloqueaTests(BaseAlertas):
-    """Con las cinco alertas encendidas, ninguna acción deja de poder completarse."""
+    """Con todas las alertas encendidas, ninguna acción deja de poder completarse."""
 
     def test_con_todas_las_alertas_las_operaciones_se_completan(self):
         self._todas_encendidas()
@@ -672,6 +672,10 @@ class AlertasPresupuestoTests(BaseAlertas):
         )
         for plaza in Plaza.objects.bulk_create(Plaza(sector=self.sector, codigo=f"R{n}") for n in range(10)):
             self._prestamo_vencido(plaza=plaza)
+        for n, plaza in enumerate(
+            Plaza.objects.bulk_create(Plaza(sector=self.sector, codigo=f"A{n}") for n in range(10))
+        ):
+            self._reserva_abierta(dias=10, plaza=plaza, dni=f"31{n:06d}")
         for n in range(5):
             edificio = Edificio.objects.create(codigo=f"ED-{n}", nombre=f"Edificio {n}")
             edificio.dispositivos.add(self.cis)

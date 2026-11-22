@@ -656,7 +656,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 528 | Emergencia · API: la consulta de persona devuelve siempre el sexo del legajo y suma sugerencias de DNI para la app | Emergencia · API de campo (consulta de identidad) | `#emergencia` `#api` `#mobile` | Usuario — pruebas de testing del 21/11 (#1301, #1299) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 531 | Dispositivos · ficha de la institución: aviso de derivaciones de Emergencia por recibir | Dispositivos (legajo) / Emergencia (Llegadas) | `#emergencia` `#dispositivos` `#ui` `#rbac` | PM — pruebas de Emergencia del 21/11/2026 (#1302) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 | 533 | Emergencia · mesa: acción sobre una pantalla vieja con aviso, modales que reabren con el error, localidad del alta acotada a la provincia, buscador de la bandeja por integrante y palabras, «Derivar» sin acentos, solapa «Alojados» y derivación vencida sin marcar a la vista | Emergencia · mesa (bandeja E2, ficha E3 y «Nuevo caso») | `#emergencia` `#ui` `#datos` | Relevamiento de lógica del 22/11/2026 (hallazgos 6, 8, 17, 19, 20, 21 y 5) | 22/11/2026 | 🟢 **Hecho** | No requiere |
-| 534 | Dispositivos · avisos, adjuntos, sugerencias y doble envío: alerta de reserva abierta hace más de 7 días, aviso del archivo obligatorio faltante, sugerencias de DNI con puntos y alta de edificio sin 500 | Dispositivos (alertas, relevamientos, ingreso, infraestructura) | `#dispositivos` `#ui` | Auditoría de Dispositivos (hallazgos 14, 22, 24 y 25) | 22/11/2026 | 🟢 **Hecho** | No requiere |
+| 534 | Dispositivos · avisos, adjuntos, sugerencias y doble envío: alerta de reserva abierta hace más de 7 días, aviso del archivo obligatorio faltante, sugerencias de DNI con puntos y alta de edificio sin 500 | Dispositivos (alertas, relevamientos, ingreso, infraestructura) | `#dispositivos` `#ui` `#api` `#mobile` | Auditoría de Dispositivos (hallazgos 14, 22, 24 y 25) | 22/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -61544,7 +61544,7 @@ Desplegar el código anterior. Sin datos ni esquema.
 | | |
 |---|---|
 | **Programa / módulo** | Dispositivos (alertas de la ficha, relevamientos edilicios, sugerencias de DNI, infraestructura) |
-| **Etiquetas** | `#dispositivos` `#ui` |
+| **Etiquetas** | `#dispositivos` `#ui` `#api` `#mobile` |
 | **Solicitante** | Auditoría de Dispositivos — hallazgos 14, 22, 24 y 25 |
 | **Fecha del pedido** | 22/11/2026 |
 | **Issue / épica** | Sin issue |
@@ -61563,19 +61563,22 @@ Consultado el archivo vivo por `dispositivos` y `reserva`: ninguna decisión reg
   hace más de 7 días», con `DIAS_RESERVA_ABIERTA = 7` junto a las demás constantes, mismo enlace al mapa de plazas. La reserva no vence
   sola. Cubre las reservas comunes abiertas (`que_toman`) con `desde` anterior al umbral, con o sin `hasta` futuro; no incluye los
   préstamos (siempre vencen y los cubre «vencido sin liberar»), las ya vencidas ni las de derivación (`derivacion` no nulo: las gobierna
-  la derivación). Una consulta fija; `dispositivos_alertas` pasa de 8 a 9 en `scripts/perf_budgets.json`.
+  la derivación). Una consulta fija; `dispositivos_alertas` pasa de 8 a 9 y `dispositivos_detalle_sin_estadias` de 27 a 28 en `scripts/perf_budgets.json` (entrada
+  `cambio_534_reserva_abierta`).
 - **22 · Se avisa, no se bloquea.** Confirmado: los campos ARCHIVO no se exigen a propósito (el archivo llega después por el endpoint de
   adjuntos) y el informe ya marcaba «Falta un archivo obligatorio». Se suma el aviso al cerrar: `registrar_resultado` deja en
   `inspeccion.avisos` un texto por cada ARCHIVO obligatorio y visible que el envío no trae (`validacion_relevamiento.avisos_de_archivos_obligatorios`)
-  y el `POST .../resultado/` lo devuelve en la clave aditiva `avisos` (lista, vacía si no falta nada; también vacía en el reenvío
-  idempotente). El resultado se cierra igual.
+  y el `POST .../resultado/` lo devuelve en la clave aditiva `avisos` (lista, vacía si no falta nada; el 200 está declarado en OpenAPI con
+  `ResultadoRegistradoSerializer`). El resultado se cierra igual. **El reenvío idempotente repite los avisos** (decisión del juez): se
+  calculan desde las respuestas guardadas con la foto con la que se guardaron, y en el primer envío y en el reenvío se descuentan las
+  claves que ya tienen un `AdjuntoRespuestaRelevamiento` en esa inspección.
 - **24 · Existen DNI con puntos.** `Ciudadano.save` normaliza desde G1c-08, pero las fichas viejas (`12.345.678`) siguen en la base (ver
   `listar_dni_no_normalizados` y `ingreso.buscar_ciudadano_por_dni`). La búsqueda por prefijo suma, en la misma consulta, los prefijos del
   texto guardado con puntos para cada largo válido (`core.dni.LARGOS_DNI_VALIDOS`): `123` busca también `1.23%` y `12.3%`. Sin funciones
   sobre la columna ni recorrido total: sigue siendo una consulta por el índice de `dni` con el tope de 10.
-- **25 · Doble envío del alta de edificio.** `crear_edificio` y `editar_edificio` guardan dentro de un savepoint (`_codigo_unico`): si otra
-  petición ganó el `UNIQUE` entre el chequeo y el guardado, sale el mismo error de campo «Ya hay un edificio con ese código.» y la
-  transacción sigue usable. No se devuelve el existente: el código repetido es siempre un error para quien lo carga.
+- **25 · Doble envío del alta de edificio.** `crear_edificio` y `editar_edificio` traducen en `_codigo_unico` el `IntegrityError` del `UNIQUE`: si otra
+  petición lo ganó entre el chequeo y el guardado, sale el mismo error de campo «Ya hay un edificio con ese código.» y el `atomic` de
+  la función deshace el alta. No se devuelve el existente: el código repetido es siempre un error para quien lo carga.
 
 ## Pendientes
 La app móvil puede mostrar `avisos` cuando quiera; hasta entonces el campo se ignora.

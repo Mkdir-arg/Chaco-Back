@@ -37,6 +37,7 @@ from programas.api.serializers_inspecciones import (
     InspeccionCampoDetailSerializer,
     InspeccionCampoListSerializer,
     ResultadoInspeccionSerializer,
+    ResultadoRegistradoSerializer,
 )
 from programas.models import InspeccionEdificio
 from programas.services.dispositivos import puede_en_programa_dispositivos
@@ -198,7 +199,7 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         request=ResultadoInspeccionSerializer,
-        responses={200: InspeccionCampoDetailSerializer, **_RESPUESTAS_DE_ENVIO},
+        responses={200: ResultadoRegistradoSerializer, **_RESPUESTAS_DE_ENVIO},
         description=(
             "Registra la criticidad y las observaciones y deja el relevamiento realizado. Si tiene formulario, "
             "`respuestas` se valida contra su definición vigente (obligatorios, condiciones y tipos; los campos "
@@ -228,7 +229,7 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
         if respuesta:
             return respuesta
         # `avisos`: lo que falta y no bloquea (los archivos obligatorios que el envío no trae).
-        return Response({**self._detalle(inspeccion), "avisos": list(getattr(realizada, "avisos", []))})
+        return Response({**self._detalle(inspeccion), "avisos": list(realizada.avisos)})
 
     @extend_schema(
         request={"multipart/form-data": FotoInspeccionEnvioSerializer},

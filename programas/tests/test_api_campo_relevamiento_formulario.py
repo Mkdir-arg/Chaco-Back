@@ -448,14 +448,32 @@ class ResultadoConRespuestasTests(BaseFormulario):
         self.assertEqual(respuesta.data["estado"], "REALIZADA")
         self.assertEqual(respuesta.data["avisos"], ["Falta adjuntar «Plano», que es obligatorio."])
 
-    def test_el_reenvio_idempotente_no_repite_los_avisos_y_sigue_siendo_200(self):
+    def test_el_reenvio_idempotente_repite_los_avisos_y_sigue_siendo_200(self):
         cuerpo = {"uuid_cliente": str(uuid.uuid4())}
         primera = self._resultado_con(self._completas(), **cuerpo)
         segunda = self._resultado_con(self._completas(), **cuerpo)
 
+        self.assertEqual(segunda.status_code, 200)
         self.assertEqual(len(primera.data["avisos"]), 1)
+        self.assertEqual(segunda.data["avisos"], primera.data["avisos"])
+
+    def test_un_adjunto_ya_recibido_descuenta_el_aviso_en_el_reenvio(self):
+        cuerpo = {"uuid_cliente": str(uuid.uuid4())}
+        self._resultado_con(self._completas(), **cuerpo)
+        self._enviar_adjunto(self.agente, self.inspeccion.pk)
+
+        segunda = self._resultado_con(self._completas(), **cuerpo)
+
         self.assertEqual(segunda.status_code, 200)
         self.assertEqual(segunda.data["avisos"], [])
+
+    def test_un_adjunto_que_llego_antes_del_resultado_tampoco_se_avisa(self):
+        self._enviar_adjunto(self.agente, self.inspeccion.pk)
+
+        respuesta = self._resultado_con(self._completas())
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+        self.assertEqual(respuesta.data["avisos"], [])
 
 
 class SinFormularioTests(BaseApiInspecciones):

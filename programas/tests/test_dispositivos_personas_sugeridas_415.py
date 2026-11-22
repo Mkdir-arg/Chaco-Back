@@ -9,6 +9,8 @@ Lo que se fija acá, y por qué:
 4. **Prefijo**, por DNI (con o sin puntos) o por apellido o nombre.
 """
 
+import re
+
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
@@ -248,6 +250,12 @@ class CostoTests(BaseSugerencias):
         donde = consultas[0]["sql"].upper().split("WHERE", 1)[1]
         for funcion in ("REGEXP", "REPLACE(", "CAST(", "UPPER("):
             self.assertNotIn(funcion, donde)
+        # Todo `LIKE` es por prefijo: el patrón termina en `%` y no empieza con `%` (si no, no usa el índice).
+        patrones = re.findall(r"LIKE '([^']*)'", consultas[0]["sql"], flags=re.IGNORECASE)
+        self.assertGreaterEqual(len(patrones), 2, "el DNI pelado y al menos una variante con puntos")
+        for patron in patrones:
+            self.assertTrue(patron.endswith("%"), patron)
+            self.assertFalse(patron.startswith("%"), patron)
 
 
 class IntegracionConElModalTests(BaseSugerencias):

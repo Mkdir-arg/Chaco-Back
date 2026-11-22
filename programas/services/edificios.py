@@ -81,6 +81,9 @@ def _normalizar(texto):
     return " ".join((texto or "").split())
 
 
+MENSAJE_CODIGO_REPETIDO = "Ya hay un edificio con ese código."
+
+
 def _exigir_codigo_libre(codigo, *, excepto=None):
     """El `unique` del código dicho como error de campo: un `IntegrityError` aborta la transacción."""
 
@@ -91,22 +94,18 @@ def _exigir_codigo_libre(codigo, *, excepto=None):
         raise ValidationError({"codigo": MENSAJE_CODIGO_REPETIDO})
 
 
-MENSAJE_CODIGO_REPETIDO = "Ya hay un edificio con ese código."
-
-
 @contextmanager
 def _codigo_unico():
     """Un `UNIQUE` del código que gana otra petición entre el chequeo y el guardado, como error de campo.
 
     `_exigir_codigo_libre` mira antes, pero dos envíos casi simultáneos (el doble clic) pasan
     los dos ese chequeo y el segundo choca contra el `UNIQUE`: sin esto es un `IntegrityError`
-    que sale como 500 y deja rota la transacción. El savepoint la deja usable para devolver el
-    mismo error que da el chequeo.
+    que sale como 500. Se lo traduce al mismo error que da el chequeo; el `atomic` de la función
+    que lo usa deshace el alta entera al salir con la excepción.
     """
 
     try:
-        with transaction.atomic():
-            yield
+        yield
     except IntegrityError:
         raise ValidationError({"codigo": MENSAJE_CODIGO_REPETIDO}) from None
 

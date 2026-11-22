@@ -72,6 +72,7 @@ from programas.models import (
     FotoInspeccion,
     InspeccionEdificio,
     MiembroEquipoDispositivo,
+    RespuestasRelevamiento,
     TrazaInspeccion,
 )
 from programas.services.dispositivos import (
@@ -92,7 +93,10 @@ from programas.services.respuestas_dispositivo import (
     foto_vigente,
     guardar_respuestas_relevamiento,
 )
-from programas.services.validacion_relevamiento import avisos_de_archivos_obligatorios, validar_respuestas_de_campo
+from programas.services.validacion_relevamiento import (
+    avisos_de_archivos_obligatorios,
+    validar_respuestas_con_avisos,
+)
 
 CAP_ASIGNAR = "inspeccion.asignar"
 CAP_RELEVAR = "inspeccion.relevar"
@@ -568,6 +572,27 @@ def _guardar_foto(inspeccion, usuario, archivo, descripcion="", uuid_cliente=Non
     return foto
 
 
+def _claves_adjuntadas(inspeccion):
+    """Las claves de ARCHIVO del formulario que ya tienen un adjunto recibido en este relevamiento."""
+
+    return set(AdjuntoRespuestaRelevamiento.objects.filter(inspeccion=inspeccion).values_list("clave", flat=True))
+
+
+def _avisos_guardados(inspeccion):
+    """Los avisos de archivos obligatorios de un relevamiento ya realizado, desde sus respuestas guardadas.
+
+    Sin formulario (sin respuestas guardadas) no hay nada que avisar. Usa la foto con la que se
+    guardó, no la vigente: es la definición con la que el territorial capturó.
+    """
+
+    fila = RespuestasRelevamiento.objects.filter(inspeccion=inspeccion).only("definicion", "respuestas").first()
+    if fila is None:
+        return []
+    return avisos_de_archivos_obligatorios(
+        fila.definicion or {}, fila.respuestas, adjuntadas=_claves_adjuntadas(inspeccion)
+    )
+
+
 @archivos_atomicos
 @transaction.atomic
 def registrar_resultado(
@@ -603,6 +628,8 @@ def registrar_resultado(
     inspeccion = _bloquear_como_agente(usuario, inspeccion)
     if inspeccion.estado == InspeccionEdificio.Estado.REALIZADA:
         if uuid_resultado is not None and inspeccion.uuid_resultado == uuid_resultado:
+            # El reenvío repite los avisos: lo que falta lo dicen las respuestas guardadas y los adjuntos recibidos.
+            inspeccion.avisos = _avisos_guardados(inspeccion)
             return inspeccion
         raise InspeccionEnConflicto(CONFLICTO_YA_REALIZADA, "Este relevamiento ya tiene un resultado registrado.")
     if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
@@ -615,9 +642,12 @@ def registrar_resultado(
         raise ValidationError({"criticidad": "Elegí una criticidad válida."})
     diseno = diseno_vigente_de(inspeccion)
     foto = efectivas = None
+    avisos = []
     if diseno is not None:
         foto = foto_vigente(diseno)
-        efectivas, errores = validar_respuestas_de_campo(foto, respuestas)
+        efectivas, errores, avisos = validar_respuestas_con_avisos(
+            foto, respuestas, adjuntadas=_claves_adjuntadas(inspeccion)
+        )
         if errores:
             raise RespuestasInvalidas(errores)
     inspeccion.estado = InspeccionEdificio.Estado.REALIZADA
@@ -640,7 +670,7 @@ def registrar_resultado(
     if diseno is not None:
         guardar_respuestas_relevamiento(inspeccion, diseno, foto, efectivas, usuario, version_capturada)
     # Avisa y no bloquea: el archivo llega después. Atributo de la instancia, como `ya_existia`.
-    inspeccion.avisos = avisos_de_archivos_obligatorios(foto, respuestas) if diseno is not None else []
+    inspeccion.avisos = avisos
     cantidad = 0
     for una_foto in fotos:
         archivo, descripcion = una_foto if isinstance(una_foto, tuple) else (una_foto, "")
