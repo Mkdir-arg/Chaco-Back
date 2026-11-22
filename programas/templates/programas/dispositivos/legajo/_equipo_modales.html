@@ -1,0 +1,98 @@
+{% comment %}
+Modales del Equipo de un dispositivo: «Sumar persona al Equipo» (o «Agregar persona al edificio» con `edificio_fijo`),
+«Cambiar alcance» y «Crear persona». Lo usan la ficha de la institución y, con el edificio fijo, la página del edificio.
+Cada modal se dibuja solo si llegó su formulario (se arman con `contexto_modal_sumar_persona` y `contexto_modal_alcance` de `programas/mixins_dispositivos_equipo.py`).
+
+Contexto: `form_equipo`, `form_alcance`, `form_crear_persona`, `edificio_fijo`, `url_equipo_sumar`, `url_equipo_alcance`,
+`url_equipo_crear_persona`, `puede_crear_persona`, `mensaje_pedir_alta`, `miembro_alcance`; `next_url` es opcional: si viene, viaja
+como `next` en los tres POST y la vista vuelve ahí (validado en el servidor); sin él vuelve a la solapa Equipo de la institución.
+
+Le pide al contenedor (el `x-data` de la página) tres booleanos de Alpine, `modalEquipo`, `modalCrearPersona` y `modalAlcance`
+(`modalEquipo` y `modalAlcance` arrancan en true si llegó su formulario), la directiva `x-becas-modal` (`becas-modal.js`) y el
+cierre de los tres en su `@becas-saved.window`. Los scripts `_ajax_js.html` y `nodo-sugerencias.js` van en `customJS` de la página.
+{% endcomment %}
+  {% if form_equipo %}
+  {# Modal: Sumar persona al Equipo (arquetipo Modal) #}
+  <div x-show="modalEquipo" x-cloak x-becas-modal="modalEquipo" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEquipo=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-equipo-titulo">
+      {% if edificio_fijo %}
+      {% include "programas/becas/_modal_header.html" with titulo="Agregar persona al edificio" titulo_id="modal-equipo-titulo" subtitulo="La persona opera solo este edificio, con el rol que elijas." icono="fa-user-plus" cerrar="modalEquipo=false" %}
+      {% else %}
+      {% include "programas/becas/_modal_header.html" with titulo="Sumar persona al Equipo" titulo_id="modal-equipo-titulo" subtitulo="La persona opera el dispositivo con el rol que elijas." icono="fa-user-plus" cerrar="modalEquipo=false" %}
+      {% endif %}
+      <form method="post" action="{{ url_equipo_sumar }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% with field=form_equipo.persona %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+            {# Lo que viaja es el par elegido de la lista: el buscador lo completa (data-sugerencias-destino) #}
+            {{ form_equipo.persona_rol }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="persona_rol"></p>
+            {% if puede_crear_persona %}
+            <button type="button" @click="modalEquipo=false; modalCrearPersona=true" class="btn-nodo btn-secondary btn-sm btn-fit mt-3">
+              <i class="fas fa-user-plus" aria-hidden="true"></i> Crear persona
+            </button>
+            {% elif mensaje_pedir_alta %}
+            <p class="mt-2 text-xs text-body-subtle">{{ mensaje_pedir_alta }}</p>
+            {% endif %}
+          </div>
+          <div>{% with field=form_equipo.tipo_contratacion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          {% include "programas/dispositivos/legajo/_equipo_alcance.html" with form=form_equipo edificio_fijo=edificio_fijo only %}
+          <div>{% with field=form_equipo.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEquipo=false" accion_texto="Sumar al Equipo" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if form_alcance %}
+  {# Modal: Cambiar el alcance de una persona del Equipo (arquetipo Modal) #}
+  <div x-show="modalAlcance" x-cloak x-becas-modal="modalAlcance" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalAlcance=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-alcance-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cambiar alcance" titulo_id="modal-alcance-titulo" subtitulo=miembro_alcance.persona icono="fa-building" cerrar="modalAlcance=false" %}
+      <form method="post" action="{{ url_equipo_alcance }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <p class="text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+          {% include "programas/dispositivos/legajo/_equipo_alcance.html" with form=form_alcance only %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalAlcance=false" accion_texto="Guardar alcance" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if form_crear_persona %}
+  {# Modal: Crear persona y sumarla al Equipo (arquetipo Modal). Solo lo arma quien administra los usuarios de Dispositivos #}
+  <div x-show="modalCrearPersona" x-cloak x-becas-modal="modalCrearPersona" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCrearPersona=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-crear-persona-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Crear persona" titulo_id="modal-crear-persona-titulo" subtitulo="Se crea el usuario y se suma al Equipo con el rol que elijas." icono="fa-user-plus" cerrar="modalCrearPersona=false" %}
+      <form method="post" action="{{ url_equipo_crear_persona }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% with field=form_crear_persona.dni %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          </div>
+          <div>{% with field=form_crear_persona.first_name %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          <div>{% with field=form_crear_persona.last_name %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          <div>{% with field=form_crear_persona.email %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          <div>{% with field=form_crear_persona.rol %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          <div>{% with field=form_crear_persona.tipo_contratacion %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+          {% include "programas/dispositivos/legajo/_equipo_alcance.html" with form=form_crear_persona edificio_fijo=edificio_fijo only %}
+          <div>{% with field=form_crear_persona.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCrearPersona=false" accion_texto="Crear y sumar al Equipo" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}

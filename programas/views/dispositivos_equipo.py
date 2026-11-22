@@ -16,6 +16,7 @@ from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from core.http_cache import sin_cache
@@ -39,6 +40,17 @@ ALTAS_PERSONA_POR_MINUTO = 20
 
 def url_solapa_equipo(dispositivo_pk):
     return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=equipo"
+
+
+def destino_de_vuelta(request, dispositivo_pk):
+    """Adónde vuelve el POST: el ``next`` del formulario si es de este sitio, y si no la solapa Equipo de la institución."""
+
+    siguiente = request.POST.get("next", "")
+    if siguiente and url_has_allowed_host_and_scheme(
+        siguiente, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return siguiente
+    return url_solapa_equipo(dispositivo_pk)
 
 
 class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
@@ -65,7 +77,7 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
             if is_ajax(request):
                 return JsonResponse({"ok": False, "message": self.mensaje_sin_permiso}, status=403)
             raise PermissionDenied
-        volver = url_solapa_equipo(dispositivo.pk)
+        volver = destino_de_vuelta(request, dispositivo.pk)
         try:
             self.ejecutar(request, dispositivo, kwargs)
         except PermissionDenied:
