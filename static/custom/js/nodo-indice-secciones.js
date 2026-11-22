@@ -25,7 +25,7 @@
 
   var ACTIVA = ['bg-brand-soft', 'text-fg-brand', 'font-bold'];
   var INACTIVA = ['text-body', 'font-medium', 'hover:bg-secondary'];
-  var BOTON = 'inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-left transition focus-visible:ring-2 lg:w-full';
+  var BOTON = 'inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2 min-h-11 lg:min-h-0 text-sm text-left transition focus-visible:ring-2 focus-visible:ring-brand lg:w-full';
   var MARGEN = 24;
 
   function conError(seccion) {
@@ -46,6 +46,8 @@
     if (!cuerpo || !lista) { return null; }
     var secciones = Array.prototype.slice.call(cuerpo.querySelectorAll('[data-indice-seccion]'));
     if (!secciones.length) { return null; }
+    if (nav.getAttribute('data-indice-montado')) { return null; }
+    nav.setAttribute('data-indice-montado', 'true');
 
     var entradas = secciones.map(function (seccion) {
       var item = document.createElement('li');
@@ -67,10 +69,14 @@
       return { seccion: seccion, item: item, boton: boton, aviso: aviso };
     });
 
+    // Tras un clic, la entrada elegida queda activa mientras dura el desplazamiento (secciones cortas: no se pisa).
+    var fijada = false;
+
     function ir(seccion) {
       var quieto = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
       seccion.scrollIntoView({ block: 'start', behavior: quieto ? 'auto' : 'smooth' });
       seccion.focus({ preventScroll: true });
+      fijada = true;
       marcar(seccion);
     }
 
@@ -88,8 +94,11 @@
     }
 
     function seguirScroll() {
+      if (fijada) { return; }
       var lectura = visibles();
       if (!lectura.length) { return; }
+      // Modal cerrado (sin alto) o cuerpo arriba de todo: se lee la primera; con todo en top 0 no se puede medir.
+      if (!cuerpo.clientHeight || cuerpo.scrollTop <= 0) { marcar(lectura[0].seccion); return; }
       var tope = cuerpo.getBoundingClientRect().top;
       var elegida = lectura[0];
       lectura.forEach(function (entrada) {
@@ -112,6 +121,10 @@
     }
 
     cuerpo.addEventListener('scroll', seguirScroll);
+    // La persona retoma el scroll: el seguimiento vuelve a mandar.
+    ['wheel', 'touchmove', 'keydown', 'mousedown'].forEach(function (tipo) {
+      cuerpo.addEventListener(tipo, function () { fijada = false; });
+    });
     if (global.MutationObserver) {
       var observador = new global.MutationObserver(sincronizar);
       secciones.forEach(function (seccion) {

@@ -5,22 +5,24 @@ de lo que pasa al confirmar. Va como hijo del `<form data-ajax>` del modal; el e
   form_egreso        EgresoForm (contexto de la pantalla)
   formulario_egreso  formulario del tipo para el egreso; sin él no se dibuja (contexto de la pantalla)
   estadia_egreso     opcional: si viene, antecede los campos con «Ingreso … · plaza … · N días de permanencia»
-Dos formas, según los grupos del formulario del tipo:
-  · 0 o 1 grupo (o sin formulario): el cuerpo de siempre; el formulario, si hay, va en su tarjeta (`_formulario_tipo.html`).
-  · 2 o más grupos: ÍNDICE DE SECCIONES. Los campos fijos son la primera sección («Datos del egreso») y cada grupo del tipo,
-    una sección más (`_formulario_tipo_secciones.html`); el índice es `components/_indice_secciones.html`. La pantalla que
-    lo incluye ensancha el panel con la MISMA condición (`max-w-4xl`) y carga `nodo-indice-secciones.js`.{% endcomment %}
-{% if formulario_egreso and formulario_egreso.grupos|length > 1 %}
+Dos formas, según el formulario del tipo:
+  · Con 1 o más grupos: SECCIONES PLANAS, sin tarjeta anidada. Los campos fijos son la primera sección («Datos del egreso») y
+    cada grupo del tipo otra (`_formulario_tipo_secciones.html`).
+    - Con 2 o más grupos (`formulario_egreso.varios_grupos`) suma el ÍNDICE (`components/_indice_secciones.html`) y la pantalla
+      ensancha el panel (`max-w-4xl`) con la MISMA condición y carga `nodo-indice-secciones.js`.
+    - Con 1 grupo: sin índice y con el panel de 560 px.
+  · Sin formulario (o sin grupos): el cuerpo de siempre; si hay un formulario vacío, su tarjeta lleva el contrato del POST.{% endcomment %}
+{% if formulario_egreso.grupos %}
 <div class="px-6 py-6 overflow-y-auto min-h-0" data-indice-cuerpo>
   <div class="flex flex-col lg:flex-row gap-5 lg:gap-8">
-    {% include "components/_indice_secciones.html" with nombre="Secciones del egreso" %}
+    {% if formulario_egreso.varios_grupos %}{% include "components/_indice_secciones.html" with nombre="Secciones del egreso" %}{% endif %}
     <div class="flex-1 min-w-0 space-y-5">
       <section id="egreso-seccion-0" tabindex="-1" aria-labelledby="egreso-seccion-0-titulo" data-indice-seccion data-indice-titulo="Datos del egreso" class="space-y-5 focus:outline-none">
         <h3 id="egreso-seccion-0-titulo" class="text-sm font-bold text-heading">Datos del egreso</h3>
         {% include "programas/dispositivos/_form_egreso_campos.html" %}
       </section>
       <div data-formulario-tipo-egreso>
-        {% include "programas/dispositivos/legajo/_formulario_tipo_secciones.html" with formulario_tipo=formulario_egreso secciones_prefijo="egreso-seccion" formulario_nota="Lo pide el tipo de la institución. Los campos con * hacen falta para registrar el egreso." %}
+        {% include "programas/dispositivos/legajo/_formulario_tipo_secciones.html" with formulario_tipo=formulario_egreso secciones_prefijo="egreso-seccion" formulario_nota="Formulario de egreso: lo pide el tipo de la institución. Los campos con * hacen falta para registrar el egreso." %}
       </div>
       {% include "components/_alerta.html" with tono="info" texto="Libera la plaza y la persona vuelve a poder alojarse en cualquier dispositivo de la red. El egreso queda en el historial del dispositivo." %}
     </div>

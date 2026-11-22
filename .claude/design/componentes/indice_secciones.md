@@ -5,7 +5,7 @@ el panel ancho (`max-w-4xl`) del arquetipo Modal.
 **Evidencia:** `templates/components/_indice_secciones.html`, `static/custom/js/nodo-indice-secciones.js`,
 `core/tests/test_nodo_ui_piezas.py` (`IndiceSeccionesTest`), `core/tests/test_nodo_indice_secciones.py` (harness de
 `node`) y `programas/tests/test_dispositivos_formulario_estadia.py` (`EgresoConIndiceDeSeccionesTests`).
-**Consumidor de referencia:** «Registrar egreso» de Dispositivos cuando el formulario del tipo trae 2 o más grupos:
+**Consumidor de referencia:** «Registrar egreso» de Dispositivos cuando el formulario del tipo trae 2 o más grupos (con 1 las secciones van sin índice):
 `programas/templates/programas/dispositivos/_form_egreso.html` (lo comparten P4, `legajo/detail.html`, y P7,
 `estadia/detalle.html`).
 
@@ -47,7 +47,7 @@ pantalla la repite en la clase del panel; el cuerpo, en el `{% if %}` del parcia
 ## Comportamiento
 
 - Las entradas son `<button type="button">`: Tab llega, Enter o Espacio llevan a la sección (`scrollIntoView`, o
-  inmediato con `prefers-reduced-motion`) y le dan el foco; el foco visible es `focus-visible:ring-2`.
+  inmediato con `prefers-reduced-motion`) y le dan el foco; el foco visible es `focus-visible:ring-2 focus-visible:ring-brand`.
 - La sección que se lee queda con `aria-current="true"` y el estilo de activa (`bg-brand-soft text-fg-brand font-bold`);
   sigue al scroll del cuerpo y, al llegar al fondo, queda la última.
 - Una sección `hidden` (por una condición del formulario) sale del índice; con menos de dos visibles el `<nav>` se
@@ -64,3 +64,11 @@ pantalla la repite en la clase del panel; el cuerpo, en el `{% if %}` del parcia
 - Un `<style>`, un `style=` o clases de paleta cruda: la pieza usa solo tokens y utilidades compiladas.
 - Reescribir el índice a mano en una pantalla, o usar solapas (`role="tab"`) para lo que es una sola lectura de corrida.
 - Entradas que son enlaces `<a>`: el shell les fuerza el color de marca y navegarían con el hash.
+
+## Detalles de uso
+
+- Clic en una entrada: queda activa al instante y el seguimiento del scroll no la pisa mientras dura el desplazamiento; la
+  persona retoma el control con `wheel`, `touchmove`, `keydown` o `mousedown` en el cuerpo.
+- Con el cuerpo arriba de todo, o sin alto (modal cerrado al montar), se marca la primera sección.
+- Montar dos veces no duplica las entradas (`data-indice-montado`).
+- Debajo de `lg` cada entrada mide al menos 44 px (`min-h-11`); desde `lg`, `lg:min-h-0`.

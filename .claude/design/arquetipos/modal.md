@@ -109,9 +109,11 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   del tipo `formulario_egreso` si lo pide, nota de consecuencia). Lo incluyen P4 (`legajo/detail.html`, un modal para
   todas las filas, con `estadia_egreso` para la línea «Ingreso … · N días») y P7 (`estadia/detalle.html`, sin esa
   línea). Cada pantalla conserva su encabezado, el `<form>` (URL de POST, `volver`) y el pie; el cuerpo no se copia.
-  Con el formulario del tipo de 2 o más grupos el cuerpo cambia de forma (los campos fijos son la sección «Datos del
-  egreso», cada grupo otra, con índice y `max-w-4xl`; `legajo/_formulario_tipo_secciones.html` en vez de la tarjeta); con
-  0 o 1 grupo queda como siempre. Los campos fijos viven en `_form_egreso_campos.html`.
+  Con el formulario del tipo de 1 o más grupos el cuerpo va en secciones planas, sin tarjeta anidada (los campos fijos son la
+  sección «Datos del egreso», cada grupo otra; `legajo/_formulario_tipo_secciones.html`); con 2 o más suma el índice y
+  `max-w-4xl` (`formulario_egreso.varios_grupos`), con 1 queda el panel de 560 px sin índice. Sin formulario, como siempre.
+  Con el panel ancho el form lleva `data-toast-temporal` (el aviso «Revisá los datos» se cierra a los 7 s y no tapa el pie).
+  Los campos fijos viven en `_form_egreso_campos.html`.
   Observar y Rechazar (P4) no tienen Form de Django: su `textarea` a mano es el canon de «Confirmación con motivo».
 - Título dinámico Nuevo/Editar: `titulo_x_text` (expresión Alpine) en `_modal_header.html`.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del

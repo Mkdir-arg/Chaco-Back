@@ -169,6 +169,62 @@ class IndiceDeSeccionesTests(SimpleTestCase):
 
         self.assertEqual(log["scrolls"][0]["opciones"]["behavior"], "auto")
 
+    def test_con_el_modal_cerrado_al_montar_queda_marcada_la_primera(self):
+        """Cerrado, todas las secciones miden top 0: sin medida posible se lee la primera, no la última."""
+        log = _correr(
+            "var m = __modal(['A', 'B', 'C']);\n"
+            "m.cuerpo.clientHeight = 0; m.cuerpo.scrollTop = 0;\n"
+            "NodoIndiceSecciones.montar(m.nav);\n"
+            "__log.cerrado = __actual(m);\n"
+            "m.cuerpo.clientHeight = 100;\n"
+            "m.cuerpo.disparar('scroll');\n"
+            "__log.arriba = __actual(m);\n"
+        )
+
+        self.assertEqual(log["cerrado"], [True, False, False])
+        self.assertEqual(log["arriba"], [True, False, False], "abierto y arriba de todo, también la primera")
+
+    def test_tras_un_clic_el_seguimiento_no_pisa_la_elegida_hasta_que_la_persona_scrollea(self):
+        """Con secciones cortas el scroll no llega al tope de la elegida: el seguimiento marcaría otra."""
+        log = _correr(
+            "var m = __modal(['A', 'B', 'C']);\n"
+            "m.secciones[0].top = -900; m.secciones[1].top = -400; m.secciones[2].top = 80;\n"
+            "m.cuerpo.scrollTop = 900; m.cuerpo.clientHeight = 100; m.cuerpo.scrollHeight = 1000;\n"
+            "NodoIndiceSecciones.montar(m.nav);\n"
+            "__botones(m)[1].disparar('click');\n"
+            "m.cuerpo.disparar('scroll');\n"
+            "__log.durante = __actual(m);\n"
+            "m.cuerpo.disparar('wheel');\n"
+            "m.cuerpo.disparar('scroll');\n"
+            "__log.despues = __actual(m);\n"
+        )
+
+        self.assertEqual(
+            log["durante"], [False, True, False], "la elegida queda activa mientras dura el desplazamiento"
+        )
+        self.assertEqual(
+            log["despues"], [False, False, True], "al scrollear la persona, vuelve a mandar el seguimiento"
+        )
+
+    def test_las_entradas_miden_al_menos_44_px_en_movil(self):
+        log = _correr(
+            "var m = __modal(['A', 'B']);\nNodoIndiceSecciones.montar(m.nav);\n__log.clases = __botones(m)[0].className;\n"
+        )
+
+        self.assertIn("min-h-11", log["clases"])
+        self.assertIn("lg:min-h-0", log["clases"])
+
+    def test_montar_dos_veces_no_duplica_las_entradas(self):
+        log = _correr(
+            "var m = __modal(['A', 'B']);\n"
+            "NodoIndiceSecciones.montar(m.nav);\n"
+            "__log.segunda = NodoIndiceSecciones.montar(m.nav);\n"
+            "__log.entradas = m.lista.hijos.length;\n"
+        )
+
+        self.assertEqual(log["entradas"], 2)
+        self.assertIsNone(log["segunda"])
+
     def test_la_entrada_activa_cambia_de_estilo_y_las_otras_no_la_comparten(self):
         log = _correr(
             "var m = __modal(['A', 'B']);\n"

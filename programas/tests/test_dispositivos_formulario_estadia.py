@@ -684,6 +684,13 @@ class EgresoConIndiceDeSeccionesTests(_Base):
     def _paginas(self):
         return [self.client.get(url) for url in (self.url_p7, self.url_p4)]
 
+    def _el_modal_trae_el_segundo_grupo(self):
+        """Ata el POST a lo que el PR dibuja: el índice y el campo del segundo grupo están en las dos pantallas."""
+        clave = self._item("Referente", self.egreso).clave
+        for pagina in self._paginas():
+            self.assertContains(pagina, "data-indice-secciones")
+            self.assertContains(pagina, f'name="formulario-{clave}"')
+
     def _datos(self, **extra):
         datos = {
             "fecha_egreso": timezone.localtime().replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M"),
@@ -705,6 +712,7 @@ class EgresoConIndiceDeSeccionesTests(_Base):
             self.assertContains(pagina, "data-indice-secciones")
             self.assertContains(pagina, 'aria-label="Secciones del egreso"')
             self.assertContains(pagina, "custom/js/nodo-indice-secciones.js")
+            self.assertIn(" data-ajax data-toast-temporal", html)
             self.assertRegex(html, self.DIALOGO_ANCHO)
             self.assertNotRegex(html, self.DIALOGO_ANGOSTO)
             # Tres secciones: los campos fijos primero y después un grupo del tipo cada una, en ese orden.
@@ -742,16 +750,18 @@ class EgresoConIndiceDeSeccionesTests(_Base):
             self.assertTemplateUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo_secciones.html")
             self.assertTemplateUsed(pagina, "components/_indice_secciones.html")
 
-    def test_con_un_solo_grupo_no_hay_indice_y_el_modal_queda_como_hoy(self):
+    def test_con_un_solo_grupo_va_plano_sin_tarjeta_sin_indice_y_con_el_panel_de_siempre(self):
         for pagina in self._paginas():
             html = pagina.content.decode()
             self.assertNotContains(pagina, "data-indice-secciones")
-            self.assertNotContains(pagina, "data-indice-seccion ")
             self.assertRegex(html, self.DIALOGO_ANGOSTO)
             self.assertNotRegex(html, self.DIALOGO_ANCHO)
-            self.assertContains(pagina, 'id="titulo-formulario-tipo"')
+            self.assertNotContains(pagina, 'id="titulo-formulario-tipo"')
+            self.assertContains(pagina, 'id="egreso-seccion-1"')
+            self.assertNotIn(" data-ajax data-toast-temporal", html)
             self.assertContains(pagina, "Formulario de egreso")
-            self.assertTemplateNotUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo_secciones.html")
+            self.assertTemplateUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo_secciones.html")
+            self.assertTemplateNotUsed(pagina, "programas/dispositivos/legajo/_formulario_tipo.html")
 
     def test_sin_formulario_del_tipo_no_hay_indice_ni_tarjeta(self):
         self._agregar_grupo()
@@ -784,6 +794,7 @@ class EgresoConIndiceDeSeccionesTests(_Base):
 
     def test_el_egreso_con_dos_grupos_se_registra(self):
         self._agregar_grupo()
+        self._el_modal_trae_el_segundo_grupo()
         self.client.force_login(self.operador_cis)
 
         respuesta = self.client.post(self.url, self._datos(), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
@@ -796,6 +807,7 @@ class EgresoConIndiceDeSeccionesTests(_Base):
 
     def test_el_egreso_desde_p7_vuelve_a_la_estadia(self):
         self._agregar_grupo()
+        self._el_modal_trae_el_segundo_grupo()
         self.client.force_login(self.operador_cis)
 
         respuesta = self.client.post(self.url, self._datos(volver="estadia"))
@@ -807,6 +819,7 @@ class EgresoConIndiceDeSeccionesTests(_Base):
     def test_un_error_del_segundo_grupo_vuelve_en_su_campo(self):
         """El 400 trae la clave del campo de la sección que no se ve: el JS del modal lo marca y le da el foco."""
         self._agregar_grupo()
+        self._el_modal_trae_el_segundo_grupo()
         self.client.force_login(self.operador_cis)
         referente = self._item("Referente", self.egreso).clave
 

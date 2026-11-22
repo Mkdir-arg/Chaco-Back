@@ -1,0 +1,6 @@
+{% comment %}Lo que el POST necesita para validar el formulario del tipo: el diseño y la versión que se mostraron, y los ítems planos que lee el JS
+(`nodo-condiciones.js`). Lo comparten la tarjeta (`_formulario_tipo.html`) y las secciones del modal (`_formulario_tipo_secciones.html`).
+Contexto: `formulario_tipo`.{% endcomment %}
+<input type="hidden" name="formulario_tipo_diseno" value="{{ formulario_tipo.diseno.pk }}">
+<input type="hidden" name="formulario_tipo_version" value="{{ formulario_tipo.diseno.version }}">
+{{ formulario_tipo.planos|json_script:"formulario-tipo-items" }}

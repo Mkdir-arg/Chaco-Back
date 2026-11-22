@@ -184,12 +184,12 @@
   {# Modal: Registrar egreso — mismo contrato que el de la solapa Estadías del dispositivo (dispositivos:egresar + EgresoForm) #}
   <div x-show="modalEgreso" x-cloak x-becas-modal="modalEgreso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEgreso=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full {% if formulario_egreso and formulario_egreso.grupos|length > 1 %}max-w-4xl{% else %}max-w-[560px]{% endif %} max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+    <div class="relative bg-white rounded-2xl shadow-xl w-full {% if formulario_egreso.varios_grupos %}max-w-4xl{% else %}max-w-[560px]{% endif %} max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo">
       {% with titulo_egreso="Registrar egreso de "|add:persona.nombre_completo %}
       {% include "programas/becas/_modal_header.html" with titulo=titulo_egreso titulo_id="modal-egreso-titulo" subtitulo=estadia.resumen icono="fa-users" tono="danger" cerrar="modalEgreso=false" %}
       {% endwith %}
-      <form method="post" action="{{ url_egresar }}" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{{ url_egresar }}" data-ajax{% if formulario_egreso.varios_grupos %} data-toast-temporal{% endif %} class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         {# Una clave, no una URL: el servidor la traduce a esta pantalla con `reverse` #}
         <input type="hidden" name="volver" value="estadia">
