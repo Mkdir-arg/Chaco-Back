@@ -10,12 +10,9 @@ compromisos que impiden o acompañan el cambio. El conteo sale de
 from django.core.exceptions import ValidationError
 
 from programas.selectors.compromisos_institucion import compromisos_de_la_institucion, reservas_comunes_abiertas
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import _transicionar
 from programas.services.estadias import liberar_reserva
-
-
-def _plural(cantidad, singular, plural):
-    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
 def _frases_de_compromisos(partes):
@@ -72,11 +69,11 @@ def _exigir_inactivar_sin_compromisos(c):
         raise ValidationError(f"No se puede inactivar: hay {detalle}. Resolvelo antes de inactivar la institución.")
 
 
-def _liberar_reservas_al_inactivar(dispositivo, usuario):
-    """Libera las reservas comunes de una institución que se inactiva y devuelve el texto de la traza.
+def _antes_de_inactivar(dispositivo, usuario):
+    """Exige que nada impida inactivar, libera las reservas comunes y devuelve el texto de la traza.
 
-    Deja la cuenta en `dispositivo.reservas_liberadas`, para el aviso de la vista. Antes exige que no
-    haya nada que impida inactivar (`_exigir_inactivar_sin_compromisos`).
+    Deja la cuenta en `dispositivo.reservas_liberadas`, para el aviso de la vista. Es el `antes_de_cambiar`
+    de `inactivar_dispositivo`: el rechazo (`_exigir_inactivar_sin_compromisos`) y la liberación van juntos.
     """
     _exigir_inactivar_sin_compromisos(compromisos_de_la_institucion(dispositivo))
     reservas = reservas_comunes_abiertas(dispositivo)
@@ -96,7 +93,7 @@ def inactivar_dispositivo(dispositivo, usuario):
         origenes=(Dispositivo.Estado.ACTIVO,),
         destino=Dispositivo.Estado.INACTIVO,
         accion="INACTIVADO",
-        antes_de_cambiar=lambda bloqueado: _liberar_reservas_al_inactivar(bloqueado, usuario),
+        antes_de_cambiar=lambda bloqueado: _antes_de_inactivar(bloqueado, usuario),
     )
 
 

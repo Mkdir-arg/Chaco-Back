@@ -229,7 +229,7 @@ def _resolver_adulto_responsable(ficha, filas, orden):
     if not elegido:
         return
     adultos = {adulto["orden"]: adulto["nombre"] for adulto in adultos_del_grupo(filas, excluir_orden=orden)}
-    if not elegido.isdigit() or int(elegido) not in adultos:
+    if not elegido.isdecimal() or int(elegido) not in adultos:
         raise ValidationError(
             {
                 "adulto_responsable_orden": (
@@ -376,6 +376,12 @@ def _error_de_cama(error, cama):
     nombre = plaza_con_sector(cama, cama.sector.nombre)
     mensajes = " ".join(error.messages)
     return ValidationError({"plaza": f"Cama {nombre}: {mensajes} Recargá el mapa y elegí otra."})
+
+
+def _prefijo_de_persona_quitada(orden):
+    """Cómo empieza el detalle de la traza ``INTEGRANTE_QUITADO``: lo escribe quien traza y lo busca el reenvío."""
+
+    return f"Quitada la persona {orden},"
 
 
 def _reserva_sobrante(derivacion, por_confirmar_despues):
@@ -662,7 +668,7 @@ def completar_ficha(*, caso, orden, usuario, ficha):
     if SECCION_OBSERVACIONES in ficha:
         # Solo si la sección llega: guardar otra sección no revalida (ni pierde) al adulto de antes. Si llega
         # sin adulto —ni orden ni texto—, se conserva lo guardado: «sin tocar» no es «borralo».
-        enviada = normalizar_ficha({SECCION_OBSERVACIONES: ficha[SECCION_OBSERVACIONES]})[SECCION_OBSERVACIONES]
+        enviada = nueva[SECCION_OBSERVACIONES]
         if enviada.get("adulto_responsable_orden") or enviada.get("adulto_responsable"):
             _resolver_adulto_responsable(nueva, _filas_de(caso.grupo), orden)
         else:
@@ -774,7 +780,7 @@ def quitar_integrante(*, caso, orden, usuario, fila_id=None):
     fila = IntegranteGrupo.objects.select_for_update().filter(grupo_id=grupo.pk, orden=orden).first()
     if fila is None:
         se_quito = TrazaCaso.objects.filter(
-            caso_id=caso.pk, accion=Accion.INTEGRANTE_QUITADO, detalle__startswith=f"Quitada la persona {orden},"
+            caso_id=caso.pk, accion=Accion.INTEGRANTE_QUITADO, detalle__startswith=_prefijo_de_persona_quitada(orden)
         ).exists()
         if se_quito:
             return PersonaQuitada(orden, grupo.total_declarado, ya_estaba=True)
@@ -796,7 +802,7 @@ def quitar_integrante(*, caso, orden, usuario, fila_id=None):
         Accion.INTEGRANTE_QUITADO,
         estado_anterior=caso.estado,
         detalle=(
-            f"Quitada la persona {orden}, agregada por error en la puerta · {grupo.total_declarado} sobre "
+            f"{_prefijo_de_persona_quitada(orden)} agregada por error en la puerta · {grupo.total_declarado} sobre "
             f"{declaradas} declaradas"
         ),
     )

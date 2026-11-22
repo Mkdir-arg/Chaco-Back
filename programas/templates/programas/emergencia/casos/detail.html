@@ -287,8 +287,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
               {% endfor %}
             </div>
             {% elif panel.edificios %}
-            {% google_maps_config as mapa_google %}
-            {% if panel.distancias and mapa_google.key %}{# sin key de Google no hay botón: nada que ofrecer ni que se vea sin hacer nada (issue 1297) #}
+            {% if panel.distancias %}{# la vista deja `distancias` en None sin key de Google: sin botón ni script (issue 1297) #}
             <div class="flex flex-wrap items-center gap-2">
               <button type="button" class="btn-nodo btn-secondary btn-sm" data-derivar-por-calle hidden><i class="fas fa-route" aria-hidden="true"></i> Calcular distancia por calle</button>
               <p class="text-xs text-body-subtle" data-derivar-por-calle-estado role="status" hidden></p>

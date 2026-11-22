@@ -602,6 +602,21 @@ class IntegrantesTests(BaseLlegadas):
         self.assertEqual(de_nuevo.context["form"].initial["asiste_escuela"], "si")
         self.assertIs(de_nuevo.context["form"].initial["trabajo_sin_datos"], True)
 
+    def test_la_ficha_que_vuelve_con_error_conserva_la_ayuda_del_adulto_guardado(self):
+        """Al guardar con un error la pantalla sigue diciendo «Guardado: …» junto al selector del adulto."""
+
+        for orden, reserva in enumerate(self.reservas[:2], start=1):
+            self._confirmar(self.caso, orden, str(45_000_100 + orden), plaza=reserva.plaza)
+        persona = IntegranteGrupo.objects.get(grupo=self.caso.grupo, orden=2)
+        persona.ficha = {**persona.ficha, "observaciones": {"adulto_responsable": "Tía Marta"}}
+        persona.save(update_fields=["ficha"])
+
+        respuesta = self.client.post(self._url("ficha", self.caso.pk, 2), {"nivel_educativo": "INVENTADO"})
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("nivel_educativo", respuesta.context["form"].errors)
+        self.assertContains(respuesta, "Guardado: Tía Marta", status_code=400)
+
     def test_agregar_persona_suma_la_fila_y_abre_su_ficha_sin_cama_reservada(self):
         for orden, reserva in enumerate(self.reservas, start=1):
             self._confirmar(self.caso, orden, str(45_000_100 + orden), plaza=reserva.plaza)
