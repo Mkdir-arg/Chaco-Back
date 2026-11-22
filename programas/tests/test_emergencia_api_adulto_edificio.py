@@ -9,13 +9,14 @@ sacar el chequeo de «confirmada» / «egresada»; que ``es_adulto`` no use la m
 ``derivada_a_otro_edificio`` de ``buscar_por_dni``; nombrar un edificio que no es el destino.
 """
 
+import uuid
 from datetime import date, timedelta
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from programas.models import Derivacion, IntegranteGrupo
+from programas.models import CasoEmergencia, Derivacion, IntegranteGrupo
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
 from programas.services.emergencia_confirmacion import adultos_de_la_familia
@@ -231,3 +232,76 @@ class AvisarALaMesaConDerivacionEnOtroEdificioTests(BaseApiLlegadas):
 
         self.assertIs(cuerpo["derivada_a_otro_edificio"], False)
         self.assertIs(cuerpo["puede_avisar_a_la_mesa"], True)
+
+
+class AvisarALaMesaPostConDerivacionEnOtroEdificioTests(BaseApiLlegadas):
+    """El POST de «Avisar a la mesa» aplica la misma regla que la búsqueda (no depende de que la app la haya leído)."""
+
+    def setUp(self):
+        super().setUp()
+        self.edif_a, self.edif_b = _partir_en_edificios(self.centro)
+        self.guardia_a = _con_alcance_edificios(
+            self._guardia("guardia_a", ["dispositivo.ver", "dispositivo.admitir"], [self.centro]),
+            self.centro,
+            self.edif_a,
+        )
+        caso = self._caso_tomado(menores_f=0, menores_m=0, dni="31000002")
+        self.derivacion = mesa.derivar_caso(caso, self.operador, self.centro, 1, True, edificio=self.edif_b)
+
+    def _avisar(self, dni="31000002", usuario=None):
+        return self._como(usuario or self.guardia_a).post(
+            _url("dispositivo-avisar-mesa", self.centro.pk), self._cuerpo(dni=dni), format="multipart"
+        )
+
+    def test_rechaza_con_400_y_el_mismo_mensaje_que_la_busqueda_sin_crear_el_caso(self):
+        antes = CasoEmergencia.objects.count()
+
+        respuesta = self._avisar()
+
+        self.assertEqual(respuesta.status_code, 400, respuesta.content)
+        cuerpo = respuesta.json()
+        busqueda = (
+            self._como(self.guardia_a)
+            .get(_url("dispositivo-buscar", self.centro.pk), {"dni": "31000002"})
+            .json()["mensaje"]
+        )
+        self.assertEqual(cuerpo["detail"], busqueda)
+        self.assertEqual(cuerpo["code"], "VALIDACION")
+        self.assertIn("Edificio B", cuerpo["detail"])
+        self.assertEqual(CasoEmergencia.objects.count(), antes)
+
+    def test_rechaza_tambien_la_derivacion_aceptada(self):
+        servicio.aceptar_derivacion(derivacion=self.derivacion, usuario=self.guardia_centro)
+
+        self.assertEqual(self._avisar().status_code, 400)
+
+    def test_sin_derivacion_sigue_aceptando(self):
+        self.assertEqual(self._avisar(dni="33444555").status_code, 201)
+
+    def test_con_derivacion_vencida_sigue_aceptando(self):
+        Derivacion.objects.filter(pk=self.derivacion.pk).update(vence_en=self.derivacion.creado - timedelta(minutes=1))
+        mesa.vencer_derivacion(Derivacion.objects.get(pk=self.derivacion.pk))
+
+        self.assertEqual(self._avisar().status_code, 201)
+
+    def test_con_derivacion_a_otro_dispositivo_sigue_aceptando(self):
+        caso = self._caso_tomado(menores_f=0, menores_m=0, dni="31000003")
+        mesa.derivar_caso(caso, self.operador, self.escuela, 1, True)
+
+        self.assertEqual(self._avisar(dni="31000003").status_code, 201)
+
+    def test_el_reintento_de_un_aviso_ya_creado_sigue_devolviendo_el_mismo_caso(self):
+        identificador = uuid.uuid4()
+        cuerpo = self._cuerpo(uuid_cliente=identificador, dni="33444555")
+        url = _url("dispositivo-avisar-mesa", self.centro.pk)
+        primera = self._como(self.guardia_a).post(url, cuerpo, format="multipart")
+        # La mesa deriva a esa familia a otro edificio después del aviso: el reintento no se rechaza.
+        caso = CasoEmergencia.objects.get(pk=primera.json()["caso"]["id"])
+        mesa.tomar_caso(caso, self.operador)
+        mesa.derivar_caso(
+            CasoEmergencia.objects.get(pk=caso.pk), self.operador, self.centro, 1, True, edificio=self.edif_b
+        )
+
+        segunda = self._como(self.guardia_a).post(url, cuerpo, format="multipart")
+
+        self.assertEqual(segunda.status_code, 200, segunda.content)

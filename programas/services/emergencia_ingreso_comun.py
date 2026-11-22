@@ -13,6 +13,7 @@ El orden de los candados y el resto del contrato de la etapa están en el docstr
 from itertools import count, islice
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.utils import timezone
 
 from programas.models import (
@@ -340,3 +341,30 @@ def _devolver_a_la_mesa(caso):
     caso.estado = Estado.EN_GESTION if caso.tomado_por_id else Estado.NUEVO
     caso.save(update_fields=["estado", "modificado"])
     return caso
+
+
+def derivacion_vigente_a_otro_edificio(ciudadano, dispositivo):
+    """La derivación ``PENDIENTE`` o ``ACEPTADA`` de la familia de ``ciudadano`` hacia ``dispositivo``, o ``None``.
+
+    Pensada para llamarse **después** de descartar la derivación dentro del alcance de quien opera: lo que
+    queda es lo derivado a otro edificio del mismo dispositivo. Es la única regla de «ya está derivada a otro
+    edificio»: la usan la búsqueda por DNI y «Avisar a la mesa». Trae ``edificio`` sin consulta aparte.
+    """
+
+    de_la_persona = Q(caso__grupo__responsable=ciudadano) | Q(caso__grupo__integrantes__ciudadano=ciudadano)
+    return (
+        Derivacion.objects.en_curso()
+        .filter(de_la_persona, dispositivo=dispositivo)
+        .select_related("edificio")
+        .distinct()
+        .order_by("-id")
+        .first()
+    )
+
+
+def mensaje_otro_edificio(derivacion):
+    """El texto de la búsqueda y del 400 de «Avisar a la mesa» cuando la familia ya está en otro edificio."""
+
+    edificio = derivacion.edificio
+    donde = f"el edificio {edificio.nombre}" if edificio is not None else "otro edificio"
+    return f"La familia ya está derivada a {donde} de este dispositivo. No la avises a la mesa."
