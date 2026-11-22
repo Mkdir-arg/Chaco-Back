@@ -28,13 +28,20 @@ La barra de la institución (Agregar edificio, Crear relevamiento) la dibuja `de
         </div>
       </div>
     </div>
-    {% if puede_editar %}
+    {% if puede_editar or edificio.url_agregar_persona %}
     <div class="flex gap-2 flex-wrap items-center">
+      {% if puede_editar %}
       <a href="{{ edificio.url_editar }}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
       </a>
+      {% endif %}
       {% menu_fila id="acciones-edificio-ficha" etiqueta="Acciones de "|add:edificio.nombre %}
+        {% if edificio.url_agregar_persona %}
+        {% include "components/_menu_fila_item.html" with texto="Agregar persona al edificio" icono="fa-user-plus" url=edificio.url_agregar_persona only %}
+        {% endif %}
+        {% if puede_editar %}
         {% include "components/_menu_fila_item.html" with texto="Desvincular de "|add:dispositivo.nombre icono="fa-link-slash" peligro=True confirm_url=edificio.url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+        {% endif %}
       {% endmenu_fila %}
     </div>
     {% endif %}

@@ -42,6 +42,7 @@ urlpatterns = [
         equipo_views.EquipoPersonasSugeridasView.as_view(),
         name="equipo_personas_buscar",
     ),
+    path("<int:pk>/equipo/<int:miembro_pk>/alcance/", equipo_views.EquipoAlcanceView.as_view(), name="equipo_alcance"),
     path("<int:pk>/equipo/<int:miembro_pk>/baja/", equipo_views.EquipoBajaView.as_view(), name="equipo_baja"),
     path(
         "<int:pk>/equipo/<int:miembro_pk>/responsable/",

@@ -21,7 +21,7 @@ La barra de la institución (Agregar edificio, Crear relevamiento) la dibuja `de
 {% if infraestructura.listado %}
 <div class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
   {% for edificio in infraestructura.listado %}
-  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=edificio.url_ver url_editar=edificio.url_editar url_desvincular=edificio.url_desvincular only %}
+  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=edificio.url_ver url_editar=edificio.url_editar url_desvincular=edificio.url_desvincular url_agregar_persona=edificio.url_agregar_persona only %}
   {% endfor %}
 </div>
 {% else %}

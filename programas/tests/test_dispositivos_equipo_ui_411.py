@@ -45,6 +45,7 @@ class BaseUI(BaseEquipo):
             "baja": reverse("dispositivos:equipo_baja", args=[d, m]),
             "marcar": reverse("dispositivos:equipo_responsable", args=[d, m]),
             "quitar": reverse("dispositivos:equipo_quitar_responsable", args=[d, m]),
+            "alcance": reverse("dispositivos:equipo_alcance", args=[d, m]),
         }
 
 
@@ -179,6 +180,15 @@ class AccionesDelEquipoTests(BaseUI):
         self.assertEqual(self.client.post(url).status_code, 404)
         ajena.refresh_from_db()
         self.assertTrue(ajena.activo)
+
+    def test_la_fila_de_otro_dispositivo_es_404_al_cambiar_el_alcance(self):
+        ajena = self._miembro(self.disp_b, self.miembro, self.rol_ver)
+        MiembroEquipoDispositivo.objects.filter(pk=ajena.pk).update(alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS)
+        self._entrar(self.admin)
+        url = reverse("dispositivos:equipo_alcance", args=[self.disp_a.pk, ajena.pk])
+        self.assertEqual(self.client.post(url, {"alcance": "INSTITUCION"}).status_code, 404)
+        ajena.refresh_from_db()
+        self.assertEqual(ajena.alcance, MiembroEquipoDispositivo.Alcance.EDIFICIOS)
 
 
 class AltaConResponsablesTests(BaseUI):
