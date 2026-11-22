@@ -18,6 +18,7 @@ import uuid
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.urls import reverse
+from django.utils import timezone
 
 from programas.models import CasoEmergencia, IntegranteGrupo, ReservaPlaza, TrazaCaso
 from programas.selectors import emergencia_alojar as selectores
@@ -99,6 +100,13 @@ class QuitarIntegranteServicioTests(BaseQuitar):
     def test_no_quita_a_una_agregada_ya_confirmada(self):
         (orden,) = self._agregar()
         self._confirmar_agregada(orden)
+
+        self.assertEqual(self._rechazado(orden), [SOLO_SE_QUITA_LA_DE_LA_PUERTA])
+        self.assertEqual(self._total(), 4)
+
+    def test_no_quita_a_una_fila_marcada_confirmada_aunque_no_tenga_persona_ni_estadia(self):
+        (orden,) = self._agregar()
+        IntegranteGrupo.objects.filter(grupo_id=self.caso.grupo_id, orden=orden).update(confirmada_en=timezone.now())
 
         self.assertEqual(self._rechazado(orden), [SOLO_SE_QUITA_LA_DE_LA_PUERTA])
         self.assertEqual(self._total(), 4)
@@ -193,10 +201,18 @@ class QuitarIntegranteServicioTests(BaseQuitar):
         self._agregar(2)  # 4 y 5
         servicio.quitar_integrante(caso=self.caso, orden=4, usuario=self.guardia_b)
 
+        self.caso.grupo.refresh_from_db()  # total_declarado = 4 con las filas 1, 2, 3 y 5
         filas = _asegurar_filas(self.caso.grupo)
 
         self.assertEqual(sorted(fila.orden for fila in filas), [1, 2, 3, 5])
         self.assertEqual((len(filas), self._total()), (4, 4))
+
+    def test_asegurar_filas_repone_la_que_falta_con_el_primer_numero_libre(self):
+        IntegranteGrupo.objects.filter(grupo_id=self.caso.grupo_id, orden=2).delete()
+
+        filas = _asegurar_filas(self.caso.grupo)
+
+        self.assertEqual(sorted(fila.orden for fila in filas), [1, 2, 3])
 
     def test_la_fila_trae_la_bandera_solo_si_es_de_la_puerta_y_esta_sin_confirmar(self):
         agregada, otra = self._agregar(2)
