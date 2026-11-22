@@ -501,6 +501,7 @@ def _fila_de_integrante(fila, ingreso_en_curso=False):
     if fila.parentesco == IntegranteGrupo.Parentesco.OTRO and fila.parentesco_otro:
         parentesco = fila.parentesco_otro
     return {
+        "id": fila.pk,
         "n": fila.orden,
         "estado": estado,
         "ficha_completa": fila.ficha_completa,
@@ -511,7 +512,7 @@ def _fila_de_integrante(fila, ingreso_en_curso=False):
         "confirmada_en": fila.confirmada_en,
         "egresado_en": fila.egresado_en,
         "estadia_id": fila.estadia_id,
-        "puede_quitarse": ingreso_en_curso and not fila.confirmada and fila.agregada_en_la_puerta,
+        "puede_quitarse": ingreso_en_curso and fila.se_puede_quitar,
     }
 
 

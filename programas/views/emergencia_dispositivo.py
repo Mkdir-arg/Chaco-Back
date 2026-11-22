@@ -336,7 +336,12 @@ class IntegrantesView(_IngresoView):
             caso,
             familia=f"Familia {caso.grupo.responsable.apellido}",
             filas=[
-                {**fila, "url_quitar": self.url("quitar", caso.pk, fila["n"]) if fila["puede_quitarse"] else ""}
+                {
+                    **fila,
+                    "url_quitar": self.url("quitar", caso.pk, fila["n"], id=fila["id"])
+                    if fila["puede_quitarse"]
+                    else "",
+                }
                 for fila in pantalla.filas_de_integrantes(datos, lambda n: self.url("ficha", caso.pk, n))
             ],
             confirmadas=confirmadas,
@@ -385,9 +390,19 @@ class QuitarIntegranteView(_IngresoView):
 
     http_method_names = ["post"]
 
+    @staticmethod
+    def _id_de_la_fila(request):
+        """El ``id`` de la fila que la pantalla mostró, en la URL (el modal de confirmación solo manda el token)."""
+
+        valor = request.GET.get("id", "")
+        return int(valor) if valor.isdecimal() else None
+
     def post(self, request, pk, caso_pk, orden):
         quitada, respuesta = self.traducir(
-            request, lambda: servicio.quitar_integrante(caso=self.caso, orden=orden, usuario=request.user)
+            request,
+            lambda: servicio.quitar_integrante(
+                caso=self.caso, orden=orden, usuario=request.user, fila_id=self._id_de_la_fila(request)
+            ),
         )
         if respuesta is not None:
             return respuesta
