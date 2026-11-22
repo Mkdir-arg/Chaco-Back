@@ -5,8 +5,10 @@ Es el contenido de la celda: el <td class="nodo-td"> lo escribe la tabla canóni
 Contexto:
   enviada   entero, la cantidad que salió.
   recibida  entero, la cantidad que se recibió. None = todavía no se recibió: dibuja «—».
+  item      opcional, el nombre del ítem: se suma entre paréntesis al texto del badge («−2 · faltan (Agua 6 l)»). Para tablas
+            donde una fila junta varios ítems. Sin él, el texto es el de siempre.
 La resta (recibida − enviada) es lo único que hace la pieza, con el filtro `menos`. El signo y la palabra van
 siempre en texto: «−2 · faltan» (danger), «+1 · de más» (warning), «sin diferencia» (neutro, sin badge).
 Si alguna de las dos no es un entero se dibuja «—» («Sin dato» para el lector de pantalla): nunca un
 «sin diferencia» inventado.
-{% endcomment %}{% with falta=enviada|menos:recibida sobra=recibida|menos:enviada %}{% if falta is None %}<span class="text-body-subtle" aria-hidden="true">—</span><span class="sr-only">{% if recibida is None %}Todavía no recibida{% else %}Sin dato{% endif %}</span>{% elif falta > 0 %}<span class="badge badge-danger">−{{ falta }} · falta{{ falta|pluralize:"n" }}</span>{% elif sobra > 0 %}<span class="badge badge-warning">+{{ sobra }} · de más</span>{% else %}<span class="text-body-subtle">sin diferencia</span>{% endif %}{% endwith %}
+{% endcomment %}{% with falta=enviada|menos:recibida sobra=recibida|menos:enviada %}{% if falta is None %}<span class="text-body-subtle" aria-hidden="true">—</span><span class="sr-only">{% if recibida is None %}Todavía no recibida{% else %}Sin dato{% endif %}</span>{% elif falta > 0 %}<span class="badge badge-danger">−{{ falta }} · falta{{ falta|pluralize:"n" }}{% if item %} ({{ item }}){% endif %}</span>{% elif sobra > 0 %}<span class="badge badge-warning">+{{ sobra }} · de más{% if item %} ({{ item }}){% endif %}</span>{% else %}<span class="text-body-subtle">sin diferencia</span>{% endif %}{% endwith %}

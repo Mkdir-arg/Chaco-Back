@@ -112,7 +112,8 @@
         </button>
         {# Kits: el botón y el panel van bajo el mismo `{% if %}` (la vista da `puede_kits` con `emergencia.recibir_kit` sobre este edificio) #}
         {% if puede_kits %}
-        <button @click="tab='kits'" type="button" role="tab" id="tab-kits" aria-controls="panel-kits"
+        {# Los kits se arman solo con la solapa abierta (`kits_cargados`): si no vino, el botón navega a ella #}
+        <button @click="{% if kits_cargados %}tab='kits'{% else %}window.location.href='{{ url_solapa_kits|escapejs }}'{% endif %}" type="button" role="tab" id="tab-kits" aria-controls="panel-kits" {% if not kits_cargados %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='kits'"
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='kits' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
@@ -159,7 +160,7 @@
 
       {% if puede_kits %}
       <div x-show="tab==='kits'" x-cloak role="tabpanel" id="panel-kits" aria-labelledby="tab-kits" class="p-5">
-        {% include "programas/dispositivos/edificios/operativo/_kits.html" %}
+        {% if kits_cargados %}{% include "programas/dispositivos/edificios/operativo/_kits.html" %}{% endif %}
       </div>
       {% endif %}
 
@@ -183,7 +184,7 @@
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}
 {# Sectores, Equipo y Estadías comparten el AJAX de sus modales y `becas-modal.js`; el egreso suma los scripts de su formulario #}
-{% if sectores_cargados or equipo_cargado or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
+{% if sectores_cargados or equipo_cargado or kits_cargados or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endif %}
 {% if sectores_cargados or equipo_cargado %}<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endif %}
 {% include "programas/dispositivos/legajo/_estadia_modales_js.html" %}{% endblock %}

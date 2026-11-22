@@ -23,6 +23,7 @@ from programas.mixins_dispositivos_estadias import contexto_modales_de_estadia, 
 from programas.mixins_dispositivos_sectores import SectoresPlazasMixin
 from programas.models import Dispositivo
 from programas.services.dispositivos import CAP_VER
+from programas.services.edificio_kits import contexto_de_la_lista, contexto_del_detalle
 from programas.services.edificio_operativo import (
     contexto_del_edificio,
     edificio_de_la_institucion,
@@ -90,6 +91,9 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         tab = self.request.GET.get("tab", "")
         if not tab and ("cambio" in self.request.GET or "egreso" in self.request.GET):
             tab = "estadias"
+        # Abrir una entrega abre la solapa Kits: el detalle vive ahí.
+        if self.request.GET.get("entrega"):
+            tab = "kits"
         context.update(contexto_del_edificio(self.request.user, dispositivo, self.edificio_fijo, tab))
         if context["sectores_cargados"]:
             self._preparar_sectores_y_plazas(context, dispositivo)
@@ -107,6 +111,11 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
             if edilicio is None:
                 raise Http404("Ese relevamiento no es de este edificio o no está en tu alcance.")
             context.update(edilicio)
+        # Kits (Cambio 568): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=kits`.
+        context["url_solapa_kits"] = f"{url_pagina}?tab=kits"
+        context["kits_cargados"] = context["puede_kits"] and context["tab"] == "kits"
+        if context["kits_cargados"]:
+            context["kits"] = self._kits(dispositivo, edificio, self.request.GET.get("entrega", ""))
         modales_del_equipo(self.request, dispositivo, self.edificio_fijo, context)
         # La fila que el alta acaba de dejar (`?nuevo=<id>`) sale resaltada.
         context["miembro_nuevo"] = _entero(self.request.GET.get("nuevo"))
@@ -158,3 +167,19 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
             )
         )
         return contexto
+
+    def _kits(self, dispositivo, edificio, entrega):
+        """Solapa Kits (Cambio 568): la tabla de entregas o el detalle de una; una de otro edificio es un 404."""
+
+        user = self.request.user
+        url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
+        if not entrega:
+            return contexto_de_la_lista(dispositivo, edificio, user, self.request.GET.get("kits_page"), url_pagina)
+        detalle = (
+            contexto_del_detalle(dispositivo, edificio, user, entrega, url_pagina)
+            if entrega.isascii() and entrega.isdecimal()
+            else None
+        )
+        if detalle is None:
+            raise Http404("Esa entrega no es de este edificio.")
+        return detalle
