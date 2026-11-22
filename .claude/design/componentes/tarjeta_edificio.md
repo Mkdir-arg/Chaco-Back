@@ -62,6 +62,7 @@ concatena URL.
 - El «Vencido» (`danger`) y el «Vence en N días» (`warning`) son un badge aparte del estado: la criticidad de la
   última realizada no se pisa.
 - Autoescape siempre: ningún `|safe`.
+- La ficha arma las filas con `infraestructura_del_dispositivo(..., solo_tarjetas=True)`, que no lee las instituciones del predio ni los totales de relevamientos (la tarjeta no los dibuja; esas claves van vacías). Quien las necesite usa los otros modos del servicio, no la ficha (Cambio 572).
 
 ## Prohibido
 
