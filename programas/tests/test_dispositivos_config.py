@@ -17,6 +17,8 @@ from django.urls import reverse
 from core import rbac
 from programas.forms import DispositivoForm, TipoDispositivoForm
 from programas.models import Dispositivo, Plaza, Programa, Sector, TipoDispositivo
+from programas.services.reportes import filtrar_dispositivos
+from programas.tests.js_harness import correr_harness_js, requiere_node, script_de_plantilla
 from users.models import Capacidad, RolMeta
 
 
@@ -329,20 +331,46 @@ class ConfiguracionDispositivosViewsTests(TestCase):
 
     def test_el_detalle_del_tipo_guarda_el_modal_con_el_ajax_estandar_y_no_con_uno_propio(self):
         """El envío del modal «Editar tipo» es el de `_ajax_js.html` (form `data-ajax`, evento
-        `becas-saved`); la página no vuelve a escribir su propio `submit` ni lee `data.errors`."""
+        `becas-saved`): la página no escribe un segundo envío con `fetch`."""
         self.client.force_login(self.admin)
+        detalle = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])).content.decode()
+        modal = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk])).content.decode()
 
-        for url in (
-            reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]),
-            reverse("dispositivos:tipo_editar", args=[self.tipo.pk]),
-        ):
-            html = self.client.get(url).content.decode()
+        for html in (detalle, modal):
             self.assertIn("window.becasAjax", html)  # _ajax_js.html cargado
             self.assertIn("addEventListener('becas-saved'", html)  # cierra el modal al guardar
             # Un solo envío con fetch en toda la página: el de `_ajax_js.html`.
             self.assertEqual(html.count("fetch(form.action"), 1)
-        modal = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk])).content.decode()
         self.assertIn("data-ajax", modal.split("data-edit-modal-panel", 1)[1].split("</form>", 1)[0] + "</form>")
+
+    @requiere_node
+    def test_el_modal_se_cierra_solo_si_el_formulario_enviado_sigue_montado(self):
+        """Un `becas-saved` de un formulario que ya no está (modal reabierto) no cierra el modal actual."""
+        script = script_de_plantilla("programas/templates/programas/dispositivos/config/tipo_detail.html")
+
+        resultado = correr_harness_js("tipo_detail_cierre.cjs", script)
+
+        self.assertEqual(resultado.returncode, 0, resultado.stderr)
+
+    @requiere_node
+    def test_una_sesion_vencida_en_el_guardado_ajax_navega_al_login_de_la_pagina_actual(self):
+        """401 con `redirect` del mismo origen: va al login con `next` = la página; de otro origen o sin
+        `redirect`, avisa y libera el formulario."""
+        script = script_de_plantilla("programas/templates/programas/becas/_ajax_js.html")
+
+        resultado = correr_harness_js("ajax_401.cjs", script)
+
+        self.assertEqual(resultado.returncode, 0, resultado.stderr)
+
+    def test_filtrar_dispositivos_exige_las_localidades_ofrecidas(self):
+        """Sin default: quien lo llame sin ellas no filtra «exacto» sin enterarse (el listado y la exportación lo pasan)."""
+        with self.assertRaises(TypeError):
+            filtrar_dispositivos(Dispositivo.objects.all(), localidad="Resistencia")
+
+        self.assertEqual(
+            list(filtrar_dispositivos(Dispositivo.objects.none(), localidad="Resistencia", localidades_ofrecidas=())),
+            [],
+        )
 
     def test_get_ajax_de_ediciones_devuelve_solo_el_modal(self):
         self.client.force_login(self.admin)

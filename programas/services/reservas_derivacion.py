@@ -57,7 +57,8 @@ eso confían en la derivación que reciben. Adentro vale el orden de siempre, co
   compartido que toma el `INSERT` nunca se sube.
 
 Y un candado que **no** hay que tomar. Liberar una reserva de derivación desde el mapa
-(`liberar_reserva`, sin pasar por Emergencia) bloquea plaza → reserva y **no** toca la
+(`liberar_reserva`, sin pasar por Emergencia) bloquea institución → plaza → reserva (el orden de
+`dispositivos.bloquear_instituciones`, la fuente única) y **no** toca la
 derivación: por eso `ReservaPlaza` no tiene un índice `(derivacion, estado)`. Con uno,
 InnoDB lo adoptaría para la FK y el `UPDATE` de `estado` pediría un lock compartido sobre la
 fila de la derivación *después* de la plaza —lo mismo que arriba se cuenta de `(plaza,
@@ -241,8 +242,9 @@ def consumir_reserva_de_derivacion(*, reserva, ciudadano, usuario, fecha_ingreso
     motivo: una persona que ya está adentro no puede seguir bloqueando plazas. Las de
     derivación no, que son de su familia.
 
-    **Candados**: plaza → reserva → persona, el orden de siempre. Si hay reservas comunes que
-    liberar, sus plazas y la de la cama se bloquean primero, de una vez y ordenadas por pk. La
+    **Candados**: institución → plaza → reserva / estadía → persona, el orden de siempre y cuya fuente
+    única es `dispositivos.bloquear_instituciones`. Si hay reservas comunes que liberar, sus
+    instituciones y después sus plazas y la de la cama se bloquean primero, de una vez y ordenadas por pk. La
     persona se bloquea **antes** del `UPDATE` que la escribe en la reserva (ver el docstring
     del módulo) y, con ella bloqueada, se vuelve a mirar que no le hayan guardado otra plaza.
     `ingresar_persona` vuelve a pedir los tres, ya tomados por esta transacción.

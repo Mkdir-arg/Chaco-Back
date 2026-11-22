@@ -319,7 +319,7 @@ class _BaseCarrera(MotorRealMixin, TransactionTestCase):
         usuario.groups.add(rol)
         for dispositivo in dispositivos:
             MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
-        return User.objects.get(pk=usuario.pk)
+        return self._fresco(usuario)
 
     def _fresco(self, usuario):
         """`rbac` memoiza las capacidades en el objeto, y cada hilo necesita el suyo."""
@@ -698,6 +698,20 @@ class CarreraDeInspeccionTests(_BaseCarrera):
     def _archivos_en_media(self):
         return [Path(raiz) / nombre for raiz, _, nombres in os.walk(self.media) for nombre in nombres]
 
+    def _trazas(self, inspeccion, accion):
+        """Cuántas líneas de auditoría de esa acción dejó el relevamiento."""
+        return TrazaInspeccion.objects.filter(inspeccion=inspeccion, accion=accion).count()
+
+    def _enviar_resultado(self, inspeccion, **datos):
+        """La operación «el agente manda el resultado de este relevamiento», para `en_paralelo`."""
+
+        def operacion():
+            return registrar_resultado(
+                self._fresco(self.agente), InspeccionEdificio.objects.get(pk=inspeccion.pk), **datos
+            )
+
+        return operacion
+
     def _desvincular(self):
         return desvincular_edificio(
             edificio=Edificio.objects.get(pk=self.edificio.pk),
@@ -744,7 +758,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
         self.assertEqual(inspeccion.revisado_por_id, resultados[0].revisado_por_id)
         self.assertEqual(inspeccion.revisado_en, resultados[0].revisado_en)
         self.assertEqual(inspeccion.estado, InspeccionEdificio.Estado.REALIZADA)
-        self.assertEqual(inspeccion.trazas.filter(accion=TrazaInspeccion.Accion.REVISADA).count(), 1)
+        self.assertEqual(self._trazas(inspeccion, TrazaInspeccion.Accion.REVISADA), 1)
 
     def test_dos_asignaciones_del_mismo_edificio_dejan_un_relevamiento_en_curso(self):
         """Escenario 6: dos coordinadores asignan el mismo predio en el mismo minuto.
@@ -781,14 +795,12 @@ class CarreraDeInspeccionTests(_BaseCarrera):
         inspeccion = self._crear()
         mismo = uuid.uuid4()
 
-        def enviar():
-            return registrar_resultado(
-                self._fresco(self.agente),
-                InspeccionEdificio.objects.get(pk=inspeccion.pk),
-                criticidad=InspeccionEdificio.Criticidad.MEDIA,
-                observaciones="Humedad en el techo",
-                uuid_resultado=mismo,
-            )
+        enviar = self._enviar_resultado(
+            inspeccion,
+            criticidad=InspeccionEdificio.Criticidad.MEDIA,
+            observaciones="Humedad en el techo",
+            uuid_resultado=mismo,
+        )
 
         resultados, errores = en_paralelo(enviar, enviar, punto_a=INSPECCION_BLOQUEADA)
 
@@ -807,7 +819,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
         # con el mismo resultado»: sin el candado los dos hilos escriben el mismo estado y
         # la fila final es idéntica, pero quedan dos líneas de que se relevó.
         self.assertEqual(
-            TrazaInspeccion.objects.filter(inspeccion=inspeccion, accion=TrazaInspeccion.Accion.REALIZADA).count(),
+            self._trazas(inspeccion, TrazaInspeccion.Accion.REALIZADA),
             1,
             "el reenvío dejó una segunda línea de auditoría: el resultado se escribió dos veces",
         )
@@ -817,20 +829,13 @@ class CarreraDeInspeccionTests(_BaseCarrera):
 
         inspeccion = self._crear()
 
-        def enviar(criticidad):
-            def operacion():
-                return registrar_resultado(
-                    self._fresco(self.agente),
-                    InspeccionEdificio.objects.get(pk=inspeccion.pk),
-                    criticidad=criticidad,
-                    uuid_resultado=uuid.uuid4(),
-                )
-
-            return operacion
-
         resultados, errores = en_paralelo(
-            enviar(InspeccionEdificio.Criticidad.ALTA),
-            enviar(InspeccionEdificio.Criticidad.BAJA),
+            self._enviar_resultado(
+                inspeccion, criticidad=InspeccionEdificio.Criticidad.ALTA, uuid_resultado=uuid.uuid4()
+            ),
+            self._enviar_resultado(
+                inspeccion, criticidad=InspeccionEdificio.Criticidad.BAJA, uuid_resultado=uuid.uuid4()
+            ),
             punto_a=INSPECCION_BLOQUEADA,
         )
 
@@ -842,10 +847,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
         # El que ganó es el que quedó: la criticidad y el uuid son del mismo envío.
         self.assertEqual(inspeccion.criticidad, resultados[0].criticidad)
         self.assertEqual(inspeccion.uuid_resultado, resultados[0].uuid_resultado)
-        self.assertEqual(
-            TrazaInspeccion.objects.filter(inspeccion=inspeccion, accion=TrazaInspeccion.Accion.REALIZADA).count(),
-            1,
-        )
+        self.assertEqual(self._trazas(inspeccion, TrazaInspeccion.Accion.REALIZADA), 1)
 
     def test_la_misma_foto_mandada_dos_veces_no_deja_un_archivo_huerfano(self):
         """Escenario 9: idempotencia de `agregar_foto`, con el storage incluido.
@@ -881,10 +883,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
             [Path(FotoInspeccion.objects.get().archivo.path)],
             "quedó un archivo en media/ que ninguna fila apunta",
         )
-        self.assertEqual(
-            TrazaInspeccion.objects.filter(inspeccion=inspeccion, accion=TrazaInspeccion.Accion.FOTO).count(),
-            1,
-        )
+        self.assertEqual(self._trazas(inspeccion, TrazaInspeccion.Accion.FOTO), 1)
 
 
 # --------------------------------------------------------------------------- #
