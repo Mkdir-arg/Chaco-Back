@@ -29,7 +29,7 @@ from programas.models import (
 )
 from programas.services.bitacora import corregir_entrada, registrar_entrada
 from programas.services.estadias import cambiar_plaza, reservar_plaza, sacar_plaza_de_servicio
-from programas.services.plazas import agregar_plazas, crear_sector
+from programas.services.plazas import agregar_plazas, crear_sector, editar_sector
 from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, MIERCOLES, TODO, _local, _reloj
 from programas.tests.test_dispositivos_edificio_operativo import PRESUPUESTOS, BaseOperativo
 
@@ -445,3 +445,94 @@ class PresupuestoDelHistorialTests(BaseHistorial):
             sin = self._medir(tab="estadias")
 
         self.assertEqual(con - sin, 1)
+
+
+class TrazaConEdificioTests(BaseHistorial):
+    """Desde el Cambio 573 la traza guarda el edificio del sector: no depende de que conserve su nombre."""
+
+    def _fuera_de_servicio_en_a(self):
+        with _reloj():
+            sacar_plaza_de_servicio(plaza=self.libre_a, usuario=self.operador, motivo="Colchón roto")
+        return TrazaDispositivo.objects.get(accion="PLAZA_FUERA_SERVICIO", dispositivo=self.cis)
+
+    def test_la_traza_nueva_de_plaza_y_de_lote_lleva_el_edificio_del_sector(self):
+        traza = self._fuera_de_servicio_en_a()
+        with _reloj():
+            agregar_plazas(sector=self.sector_b, usuario=self.operador, cantidad=1)
+            crear_sector(dispositivo=self.cis, usuario=self.operador, nombre="Anexo", tipo="OTRO", edificio=self.edif_b)
+
+        self.assertEqual(traza.edificio_id, self.edif_a.pk)
+        lote = TrazaDispositivo.objects.get(accion="PLAZAS_AGREGADAS", dispositivo=self.cis)
+        self.assertEqual(lote.edificio_id, self.edif_b.pk)
+        sector = TrazaDispositivo.objects.get(accion="SECTOR_CREADO", detalle__startswith="Sector Anexo")
+        self.assertEqual(sector.edificio_id, self.edif_b.pk)
+
+    def test_un_sector_renombrado_no_pierde_las_trazas_nuevas(self):
+        self._fuera_de_servicio_en_a()
+        with _reloj():
+            editar_sector(
+                sector=self.sector_a,
+                usuario=self.operador,
+                nombre="Pabellón Renombrado",
+                tipo="OTRO",
+                edificio=self.edif_a,
+                capacidad=self.sector_a.capacidad,
+            )
+
+        self.assertIn("A-LIBRE (Varones)", self._textos(self._historial()))
+
+    def test_un_sector_homonimo_en_otro_edificio_no_se_lleva_las_trazas_nuevas(self):
+        # La sonda del auditor: sacar una plaza de servicio en A, renombrar el sector y crear otro de ese nombre en B.
+        self._fuera_de_servicio_en_a()
+        with _reloj():
+            editar_sector(
+                sector=self.sector_a,
+                usuario=self.operador,
+                nombre="Pabellón Viejo",
+                tipo="OTRO",
+                edificio=self.edif_a,
+                capacidad=self.sector_a.capacidad,
+            )
+            crear_sector(
+                dispositivo=self.cis, usuario=self.operador, nombre="Varones", tipo="OTRO", edificio=self.edif_b
+            )
+
+        en_b = self._textos(self._historial(edificio=self.edif_b))
+
+        self.assertNotIn("A-LIBRE", en_b)
+        self.assertNotIn("Colchón roto", en_b)
+        self.assertIn("A-LIBRE (Varones)", self._textos(self._historial()))
+
+    def test_un_sector_mudado_no_se_lleva_las_trazas_nuevas_de_sus_plazas(self):
+        self._fuera_de_servicio_en_a()
+        # El sector Varones tiene ingresos activos: se muda uno vacío con una plaza ya trazada.
+        vacio = Sector.objects.create(dispositivo=self.cis, edificio=self.edif_a, nombre="Vacío", capacidad=1)
+        plaza = Plaza.objects.create(sector=vacio, codigo="V-01")
+        with _reloj():
+            sacar_plaza_de_servicio(plaza=plaza, usuario=self.operador, motivo="Humedad")
+            editar_sector(
+                sector=vacio, usuario=self.operador, nombre="Vacío", tipo="OTRO", edificio=self.edif_b, capacidad=1
+            )
+
+        en_b = self._textos(self._historial(edificio=self.edif_b))
+        en_a = self._textos(self._historial())
+
+        self.assertNotIn("V-01", en_b)
+        self.assertIn("V-01 (Vacío)", en_a)
+
+    def test_la_traza_vieja_sin_edificio_sigue_saliendo_por_el_texto(self):
+        self._traza("PLAZA_FUERA_SERVICIO", "Plaza A-LIBRE (Varones) · motivo: Vieja")
+
+        self.assertIn("Vieja", self._textos(self._historial()))
+        self.assertNotIn("Vieja", self._textos(self._historial(edificio=self.edif_b)))
+
+    def test_la_traza_nueva_de_la_otra_institucion_del_predio_no_entra(self):
+        TrazaDispositivo.objects.create(
+            dispositivo=self.otra,
+            usuario=self.operador,
+            accion="PLAZA_FUERA_SERVICIO",
+            detalle="Plaza SEC-01 (Sector Secreto) · motivo: nueva",
+            edificio=self.edif_a,
+        )
+
+        self.assertNotIn("Secreto", self._textos(self._historial()))
