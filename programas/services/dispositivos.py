@@ -5,10 +5,12 @@ import json
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 
 from core import db as core_db
 from core import rbac
 from programas.services.programa_cache import clave_de, programa_por_codigo
+from programas.urls_seguras import entero_de_parametro  # noqa: F401  (re-export: vive en el módulo neutral)
 
 PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
@@ -46,6 +48,18 @@ TONOS_ESTADO = {
     "INACTIVO": "gray",
     "CERRADO": "gray",
 }
+
+
+def nombre_o(usuario, vacio="—"):
+    """El nombre de `usuario`, o `vacio` si no hay (una asignación sin agente, un autor borrado)."""
+
+    return vacio if usuario is None else nombre_de_persona(usuario)
+
+
+def fecha_corta(momento):
+    """«22/11/2026» en hora local: la fecha de un relevamiento o de una carga, sin la hora."""
+
+    return timezone.localtime(momento).strftime("%d/%m/%Y")
 
 
 def estado_de_dispositivo(dispositivo):
@@ -574,13 +588,8 @@ def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):
     from programas.models import TrazaDispositivo
 
-    TrazaDispositivo.objects.create(
-        dispositivo=dispositivo,
-        usuario=usuario,
-        accion=accion,
-        estado_anterior=estado_anterior,
-        estado_nuevo=estado_nuevo,
-        detalle=detalle,
+    TrazaDispositivo.objects.registrar(
+        dispositivo, usuario, accion, estado_anterior=estado_anterior, estado_nuevo=estado_nuevo, detalle=detalle
     )
 
 

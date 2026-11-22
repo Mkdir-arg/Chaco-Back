@@ -25,7 +25,6 @@ contador, una.
 
 from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.http import urlencode
 from django.utils.text import Truncator
 
@@ -44,7 +43,9 @@ from programas.services.dispositivos import (
     CAP_EDITAR,
     CAP_VER,
     alcance_de_edificios,
+    fecha_corta,
     miembros_del_edificio,
+    nombre_de_persona,
     puede_editar_legajo,
     puede_operar_edificio,
 )
@@ -115,10 +116,6 @@ def _domicilio(edificio):
     return [linea for linea in (calle, zona) if linea]
 
 
-def _fecha(momento):
-    return timezone.localtime(momento).strftime("%d/%m/%Y")
-
-
 def _estado_edilicio(user, edificio):
     """Estado de la franja y de la solapa: de la última relevada, con lo que el usuario puede ver de ella.
 
@@ -136,7 +133,7 @@ def _estado_edilicio(user, edificio):
     if ultima is None:
         detalle = "Todavía no se relevó este edificio."
     else:
-        fecha = _fecha(ultima.realizada_en)
+        fecha = fecha_corta(ultima.realizada_en)
         if ultima.con_detalle:
             observacion = Truncator((ultima.observaciones or "").strip()).chars(_LARGO_OBSERVACION)
             detalle = f"{observacion or 'Sin observaciones'} · {fecha}"
@@ -173,10 +170,6 @@ def _contexto_equipo(user, dispositivo, edificio, url_pagina):
     }
 
 
-def _nombre(usuario):
-    return usuario.get_full_name().strip() or usuario.get_username()
-
-
 def _equipo_en_turno(dispositivo, equipo):
     """Los nombres para la franja y el turno que rige ahora: ``{"nombres", "turno"}``.
 
@@ -190,7 +183,7 @@ def _equipo_en_turno(dispositivo, equipo):
         if miembro.usuario_id in vistos:
             continue
         vistos.add(miembro.usuario_id)
-        nombres.append(_nombre(miembro.usuario))
+        nombres.append(nombre_de_persona(miembro.usuario))
     visibles = nombres[:_NOMBRES_EN_LA_FRANJA]
     resto = len(nombres) - len(visibles)
     texto = " · ".join(visibles)
@@ -322,15 +315,6 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "historial": None
             if tab == "historial"
             else contar_eventos_del_edificio(user, dispositivo, edificio, puede_kits=acciones["puede_kits"]),
-        },
-        # Dónde se opera hoy cada solapa, hasta que los PR siguientes la llenen: el vacío no es un callejón sin salida.
-        "enlaces_de_institucion": {
-            "sectores": f"{url_institucion}?tab=sectores",
-            "estadias": f"{url_institucion}?tab=estadias",
-            "kits": acciones["url_kits"],
-            "equipo": f"{url_institucion}?tab=equipo",
-            "edilicio": f"{url_institucion}?tab=infraestructura&ver_edificio={edificio.pk}",
-            "historial": f"{url_institucion}?tab=historial",
         },
         **acciones,
     }

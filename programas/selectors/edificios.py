@@ -1,7 +1,7 @@
 """Los edificios que un usuario puede ver, para la sección «Edificios» de Dispositivos (#1166).
 
 Es la base del listado (#1167) y de la ficha (#1168), y es solo lectura: alta, edición, vínculo e
-inactivación siguen en la solapa Infraestructura de cada institución (`services/edificios.py`).
+inactivación siguen en la sección «Edificios» de cada institución (`services/edificios.py`).
 
 Alcance (análisis #1164, R2 y R3)
 ---------------------------------
@@ -37,6 +37,7 @@ from programas.services.dispositivos import (
     dispositivos_de_institucion,
     dispositivos_en_alcance,
     dispositivos_visibles,
+    nombre_o,
     puede_configurar_dispositivos,
 )
 from programas.services.edificios import admite_editar_edificio
@@ -191,10 +192,6 @@ def _instituciones_por_edificio(user, ids):
     }
 
 
-def _quien(usuario):
-    return (usuario.get_full_name() or usuario.username) if usuario else "sin responsable"
-
-
 def _url_asignar(edificio_pk):
     return f"{reverse('dispositivos:relevamientos')}?asignar={edificio_pk}"
 
@@ -255,7 +252,7 @@ def filas_del_listado(user, edificios):
 
 
 def _url_editar(user, edificio, instituciones):
-    """El enlace al modal «Editar edificio» de la solapa Infraestructura de una institución del predio, o ``""``.
+    """El enlace al modal «Editar edificio» de la sección «Edificios» de una institución del predio, o ``""``.
 
     La edición es del legajo (`dispositivo.editar` con alcance **institución**, RN5) y siempre se hace *desde* una
     institución que ocupa el edificio: es la regla de `services.edificios.editar_edificio`, que vuelve a exigirla
@@ -352,7 +349,7 @@ def ficha_de_edificio(user, edificio, pagina=1):
         "latitud": edificio.latitud,
         "longitud": edificio.longitud,
         "ve_detalle": ve_detalle,
-        "relevo": _quien(ultima.realizada_por) if ve_detalle else "",
+        "relevo": nombre_o(ultima.realizada_por, "sin responsable") if ve_detalle else "",
         "observaciones": (ultima.observaciones or "").strip() if ve_detalle else "",
         "sectores": sectores,
         "n_sectores": sum(len(grupo["sectores"]) for grupo in sectores),

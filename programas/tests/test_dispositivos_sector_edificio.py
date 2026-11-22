@@ -3,7 +3,7 @@
 Cubre: el alta exige edificio y solo uno vinculado al dispositivo, el cambio de edificio en la
 edición y su traza, el bloqueo de desvincular un edificio con sectores activos, la migración de
 datos de los sectores existentes (1 edificio → asignado; 2 o más → sin edificio) y la vista
-jerárquica de la solapa Infraestructura con el bloque «Sin edificio».
+jerárquica de la sección «Edificios» con el bloque «Sin edificio».
 """
 
 import importlib

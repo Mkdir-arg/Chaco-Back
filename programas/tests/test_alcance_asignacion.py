@@ -104,12 +104,12 @@ PERMITIDAS = {
         "base = base.filter(Q(asignado_a_id=asignado_id) & asignacion_visible)",
         'agentes = get_user_model().objects.filter(pk__in=asignaciones_visibles.values("asignado_a"))',
         '"nombre": "asignado_a",',
-        # Sin-relevar: el relevamiento en curso del edificio, con el nombre ya pasado por `_nombre`.
+        # Sin-relevar: el relevamiento en curso del edificio, con el nombre ya pasado por `nombre_de_persona`.
         "if edificio.asignado_a:",
         '"valor": edificio.asignado_a,',
-        'edificio.asignado_a = _nombre(relevamiento.asignado_a) if relevamiento else ""',
+        'edificio.asignado_a = nombre_de_persona(relevamiento.asignado_a) if relevamiento else ""',
         # Lectura del nombre, decidida por `ve_la_asignacion_en_lote`.
-        'relevamiento.agente_visible = _nombre(relevamiento.asignado_a) if ve_asignacion else ""',
+        'relevamiento.agente_visible = nombre_de_persona(relevamiento.asignado_a) if ve_asignacion else ""',
         # Carga de la relación (no decide visibilidad).
         'base = visibles.select_related("edificio", "asignado_a", "revisado_por")',
         ').select_related("edificio", "asignado_a")',

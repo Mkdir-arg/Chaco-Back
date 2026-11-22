@@ -1,4 +1,4 @@
-"""«Crear relevamiento» desde la solapa Infraestructura de P4 (MVP v2, P21 · #701).
+"""«Crear relevamiento» desde la sección «Edificios» de P4 (MVP v2, P21 · #701).
 
 Lo que se fija acá, y por qué:
 
@@ -76,10 +76,6 @@ class BaseCrearRelevamiento(BaseInspecciones):
             creado_por=self.coordinador,
             fecha_vencimiento=self.vence,
         )
-
-    def _agentes_del_selector(self, **parametros):
-        form = self._detalle(self.coordinador, **parametros).context["form_relevamiento"]
-        return set(form.fields["asignado_a"].queryset)
 
 
 class PostTests(BaseCrearRelevamiento):

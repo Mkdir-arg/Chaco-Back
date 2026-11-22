@@ -19,7 +19,7 @@ la solapa que resolvió el servidor y filtrar desde otra volvía a «En curso».
 
 :class:`RelevamientoInformeView` muestra el resultado de un relevamiento y **no
 es solo del coordinador**: también entra quien opera una institución del edificio, desde la
-solapa Infraestructura. Por eso no lleva el mixin de capacidad: la única regla es
+sección «Edificios». Por eso no lleva el mixin de capacidad: la única regla es
 `inspecciones_visibles`, y lo ajeno da el mismo 404 que lo inexistente.
 """
 
@@ -52,6 +52,7 @@ from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
+    nombre_de_persona,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
@@ -89,7 +90,7 @@ from programas.views.ajax_utils import ajax_redirect, is_ajax
 PARAMETROS_DE_MODAL = ("nuevo", "asignar", "reasignar", "cancelar")
 PARAMETRO_VOLVER = "volver"
 #: Lo que el informe recuerda de dónde se entró, para volver ahí y para que «Revisado» vuelva al informe con lo mismo:
-#: el listado de P21 (`volver`), la solapa Infraestructura de una institución (`dispositivo`) o la ficha del
+#: el listado de P21 (`volver`), la sección «Edificios» de una institución (`dispositivo`) o la ficha del
 #: edificio de la sección Edificios (`edificio`, Cambio 487).
 PARAMETROS_DE_ORIGEN = (PARAMETRO_VOLVER, "dispositivo", "edificio")
 #: Lo que se conserva al elegir el edificio de «Nuevo relevamiento»: la solapa y los filtros.
@@ -135,10 +136,6 @@ def _vence_relativo(fecha, hoy):
     if dias == -1:
         return "hace 1 día"
     return f"hace {-dias} días"
-
-
-def _nombre(usuario):
-    return usuario.get_full_name() or usuario.username
 
 
 #: Tono del badge de estado de las tarjetas de móvil: el mismo que decide
@@ -306,7 +303,9 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         pildora_agente = {
             "nombre": "asignado_a",
             "etiqueta": "Asignado a",
-            "opciones": [(str(u.pk), _nombre(u)) for u in agentes.order_by("first_name", "last_name", "username")],
+            "opciones": [
+                (str(u.pk), nombre_de_persona(u)) for u in agentes.order_by("first_name", "last_name", "username")
+            ],
             "valor": str(asignado_id or ""),
         }
         pildora_estado = {"nombre": "estado", "etiqueta": "Estado", "opciones": Situacion.EN_CURSO, "valor": situacion}
@@ -355,7 +354,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         for solapa in solapas:
             for relevamiento in solapa["filas"]:
                 ve_asignacion = relevamiento.pk in con_asignacion_visible
-                relevamiento.agente_visible = _nombre(relevamiento.asignado_a) if ve_asignacion else ""
+                relevamiento.agente_visible = nombre_de_persona(relevamiento.asignado_a) if ve_asignacion else ""
                 self._preparar_fila(user, relevamiento, hoy, en_alcance, vista, solapa["clave"])
 
         edificios_libres = edificios_para_asignar(user)
@@ -406,7 +405,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         for edificio in filas:
             relevamiento = en_curso.get(edificio.pk)
             edificio.relevamiento_en_curso = relevamiento
-            edificio.asignado_a = _nombre(relevamiento.asignado_a) if relevamiento else ""
+            edificio.asignado_a = nombre_de_persona(relevamiento.asignado_a) if relevamiento else ""
             consulta = vista.copy()
             consulta["tab"] = SOLAPA_SIN_RELEVAR
             consulta["asignar"] = edificio.pk
@@ -547,7 +546,7 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
 
     **Sin mixin de capacidad a propósito.** La entran tres personas distintas —el
     coordinador desde P21, el agente que lo cargó y quien opera una institución del edificio
-    desde la solapa Infraestructura— y cada una tiene una capacidad distinta. Poner una sola
+    desde la sección «Edificios»— y cada una tiene una capacidad distinta. Poner una sola
     acá sería una segunda regla de alcance que se desincroniza de `inspecciones_visibles`:
     la única es esa, y lo que no está en ella da **404**, el mismo que un id inexistente (sin
     oráculo de existencia). Quien no tiene ninguna capacidad de Dispositivos cae ahí también,
@@ -620,7 +619,7 @@ class _RelevamientoAccionView(DispositivoProgramaPermissionMixin, View):
         return redirect(self._volver())
 
     def _creado(self, edificio, agente):
-        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(agente)}.")
+        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {nombre_de_persona(agente)}.")
 
     def _errores_del_servicio(self, error, form):
         if not hasattr(error, "error_dict"):
@@ -773,7 +772,7 @@ class RelevamientoReasignarView(_RelevamientoAccionView):
             return self._prohibido(error)
         except ValidationError as error:
             return self._rechazar(self._errores_del_servicio(error, form))
-        return self._ok(f"Relevamiento de {relevamiento.edificio.nombre} reasignado a {_nombre(agente)}.")
+        return self._ok(f"Relevamiento de {relevamiento.edificio.nombre} reasignado a {nombre_de_persona(agente)}.")
 
 
 class RelevamientoCancelarView(_RelevamientoAccionView):

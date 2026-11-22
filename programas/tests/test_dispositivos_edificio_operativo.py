@@ -148,6 +148,14 @@ class CapacidadesTests(BaseOperativo):
     def _contexto(self, usuario):
         return self._get(usuario, self.edif_a).context
 
+    def test_el_ingreso_exige_ciudadano_ver_ademas_de_admitir(self):
+        # La misma regla que el asistente (`puede_ingresar_persona`): sin padrón no se ofrece «Ingresar persona».
+        sin_padron = self._con("Admite sin padron", "dispositivo.ver", "dispositivo.admitir")
+        con_padron = self._con("Admite con padron", "dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
+
+        self.assertEqual(self._contexto(sin_padron)["url_ingreso"], "")
+        self.assertNotEqual(self._contexto(con_padron)["url_ingreso"], "")
+
     def test_cada_accion_exige_su_capacidad(self):
         casos = (
             ("url_ingreso", "dispositivo.admitir"),

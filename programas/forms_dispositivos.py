@@ -405,7 +405,7 @@ AUTO_ID_RELEVAMIENTO = "relev_%s"
 
 
 class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
-    """«Crear relevamiento» desde la solapa Infraestructura de P4: el edificio se elige acá.
+    """«Crear relevamiento» desde la sección «Edificios» de P4: el edificio se elige acá.
 
     Mismos cuatro campos que :class:`AsignarRelevamientoForm`; cambia solo el de edificio,
     que es un selector de los ``edificios`` que el servicio ya dejó elegibles (en alcance, sin
@@ -678,7 +678,7 @@ class PlazaForm(forms.Form):
 
 
 class EdificioForm(forms.Form):
-    """Alta y edición del inmueble (P19 · solapa Infraestructura).
+    """Alta y edición del inmueble (P19 · sección «Edificios»).
 
     El domicilio va **normalizado**, cada parte en su campo: `Dispositivo.domicilio` es una
     línea libre que no se puede comparar entre las instituciones de un mismo predio, y el

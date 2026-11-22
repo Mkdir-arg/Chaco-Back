@@ -107,13 +107,7 @@ def _trazar(dispositivo, usuario, accion, *, detalle="", edificio_id=None):
     depender de que el sector conserve su nombre.
     """
 
-    TrazaDispositivo.objects.create(
-        dispositivo=dispositivo,
-        usuario=usuario,
-        accion=accion,
-        detalle=detalle,
-        edificio_id=edificio_id,
-    )
+    TrazaDispositivo.objects.registrar(dispositivo, usuario, accion, detalle=detalle, edificio_id=edificio_id)
 
 
 def puede_configurar_plazas(usuario, dispositivo, *, puede_editar=None):
