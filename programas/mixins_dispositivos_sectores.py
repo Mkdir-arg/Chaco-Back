@@ -144,6 +144,17 @@ class SectoresPlazasMixin:
 
     en_solapa = False
     param_editar_sector = "sector"
+    #: El ``Edificio`` fijo de la página operativa de un edificio (Cambio 565): acota el mapa, los totales, los
+    #: inactivos, los modales y las altas a ese edificio, y las acciones vuelven a esa página (``next``).
+    edificio_fijo = None
+
+    def _vuelta_a(self):
+        """La solapa «Sectores y plazas» de la página del edificio, adonde vuelven las acciones; ``""`` fuera de ella."""
+
+        if self.edificio_fijo is None:
+            return ""
+        url = reverse("dispositivos:edificio_operativo", args=[self.kwargs["pk"], self.edificio_fijo.pk])
+        return f"{url}?tab=sectores"
 
     def get(self, request, *args, **kwargs):
         if request.GET.get("fragmento") == FRAGMENTO_REUBICAR and is_ajax(request):
@@ -167,6 +178,8 @@ class SectoresPlazasMixin:
         # Sin filtro en el pedido (lo normal) no se consulta nada: el fragmento sigue costando lo de antes.
         pedido_edificio = request.GET.get(PARAM_EDIFICIO_SECTORES, "")
         edificio_id = filtro_de_edificio(usuario, dispositivo, pedido_edificio)[0] if pedido_edificio else None
+        if self.edificio_fijo is not None:
+            edificio_id = None
         pk = _entero(request.GET.get("plaza", ""))
         accion = (
             plaza_para_accion(
@@ -176,6 +189,7 @@ class SectoresPlazasMixin:
                 puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
                 usuario=usuario,
+                edificio_id=self._edificio_fijo_id(),
             )
             if pk is not None
             else None
@@ -188,10 +202,14 @@ class SectoresPlazasMixin:
             "puede_configurar_plazas": configura_plazas,
             "qs_sectores": self._qs_sectores(edificio_id),
             "edificio_filtrado": edificio_id,
+            "vuelta_a": self._vuelta_a(),
         }
         if not self._preparar_reubicar(context, dispositivo, accion):
             raise Http404
         return render(request, "programas/dispositivos/sectores/_modal_reubicar.html", context)
+
+    def _edificio_fijo_id(self):
+        return self.edificio_fijo.pk if self.edificio_fijo is not None else None
 
     def _qs_sectores(self, edificio_id):
         """Lo que los enlaces del cuerpo conservan: la solapa y el filtro «Edificio» (el resto abre modales)."""
@@ -214,9 +232,14 @@ class SectoresPlazasMixin:
         puede_liberar = self._puede_operar(dispositivo, CAP_ADMITIR)
         configura_plazas = puede_configurar_plazas(usuario, dispositivo)
 
-        edificio_id, pildoras = filtro_de_edificio(
-            usuario, dispositivo, self.request.GET.get(PARAM_EDIFICIO_SECTORES, "")
-        )
+        # En la página de un edificio no hay filtro: el edificio es fijo y ya está validado contra el alcance.
+        if self.edificio_fijo is not None:
+            edificio_id, pildoras = None, []
+        else:
+            edificio_id, pildoras = filtro_de_edificio(
+                usuario, dispositivo, self.request.GET.get(PARAM_EDIFICIO_SECTORES, "")
+            )
+        acote_id = self._edificio_fijo_id() or edificio_id
         ver_inactivos = self.request.GET.get("inactivos") == "1"
         # Lo que los enlaces del cuerpo conservan: la solapa y el filtro (el resto de los parámetros abre modales).
         qs = self._qs_sectores(edificio_id)
@@ -231,7 +254,7 @@ class SectoresPlazasMixin:
             puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
             puede_egresar=self._puede_operar(dispositivo, CAP_EGRESAR),
             usuario=usuario,
-            edificio_id=edificio_id,
+            edificio_id=acote_id,
             qs_url=qs,
         )
         context["sectores_mapa"] = datos.pop("sectores")
@@ -241,6 +264,8 @@ class SectoresPlazasMixin:
         context["param_editar_sector"] = self.param_editar_sector
         context["pildoras_sectores"] = pildoras
         context["edificio_filtrado"] = edificio_id
+        context["edificio_fijo"] = self.edificio_fijo is not None
+        context["vuelta_a"] = self._vuelta_a()
         context["ocultos_sectores"] = ocultos
         context["puede_reubicar"] = puede_liberar
         # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
@@ -248,9 +273,9 @@ class SectoresPlazasMixin:
         if ver_inactivos:
             q_sectores = _q_sectores_visibles(usuario)
             q_plazas = _q_plazas_visibles(usuario)
-            if edificio_id is not None:
-                q_sectores &= Q(edificio_id=edificio_id)
-                q_plazas &= Q(sector__edificio_id=edificio_id)
+            if acote_id is not None:
+                q_sectores &= Q(edificio_id=acote_id)
+                q_plazas &= Q(sector__edificio_id=acote_id)
             context["sectores_inactivos"] = sectores_inactivos(dispositivo, q_alcance=q_sectores)
             context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo, q_alcance=q_plazas)
         context["puede_configurar_plazas"] = configura_plazas
@@ -260,6 +285,11 @@ class SectoresPlazasMixin:
         self._preparar_modal(context, dispositivo, puede_liberar, configura_plazas)
         self._preparar_modales_de_configuracion(context, dispositivo, configura_plazas)
         return context
+
+    def _q_del_edificio_fijo(self, campo):
+        """Acota al edificio de la página operativa; sin edificio fijo (la ficha, la pantalla suelta) no acota."""
+
+        return Q(**{campo: self.edificio_fijo.pk}) if self.edificio_fijo is not None else Q()
 
     def _preparar_modales_de_configuracion(self, context, dispositivo, puede_configurar_plazas):
         """«Nuevo sector», «Editar sector» y «+ Agregar plazas»: cuál abrir y con qué formulario.
@@ -276,7 +306,9 @@ class SectoresPlazasMixin:
         # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
         # porque convive con «Editar sector», que es el mismo formulario.
         if context["puede_ampliar_capacidad"]:
-            context["form_sector_nuevo"] = SectorForm(dispositivo=dispositivo, auto_id="id_nuevo_%s")
+            context["form_sector_nuevo"] = SectorForm(
+                dispositivo=dispositivo, auto_id="id_nuevo_%s", initial={"edificio": self._edificio_fijo_id()}
+            )
             context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
         pedido = self.request.GET.get(self.param_editar_sector, "")
         # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
@@ -286,6 +318,7 @@ class SectoresPlazasMixin:
             sector = (
                 Sector.objects.filter(pk=pk, dispositivo=dispositivo)
                 .filter(_q_sectores_visibles(self.request.user))
+                .filter(self._q_del_edificio_fijo("edificio_id"))
                 .first()
                 if pk is not None
                 else None
@@ -300,9 +333,9 @@ class SectoresPlazasMixin:
         if context["sectores_mapa"] and context["puede_ampliar_capacidad"]:
             context["form_plazas"] = AgregarPlazasForm(
                 dispositivo=dispositivo,
-                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True).filter(
-                    _q_sectores_visibles(self.request.user)
-                ),
+                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True)
+                .filter(_q_sectores_visibles(self.request.user))
+                .filter(self._q_del_edificio_fijo("edificio_id")),
             )
             context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
 
@@ -312,6 +345,7 @@ class SectoresPlazasMixin:
             plaza = (
                 Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo)
                 .filter(_q_plazas_visibles(self.request.user))
+                .filter(self._q_del_edificio_fijo("sector__edificio_id"))
                 .first()
                 if pk is not None
                 else None
@@ -378,6 +412,7 @@ class SectoresPlazasMixin:
                 puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
                 puede_egresar=self._puede_operar(dispositivo, CAP_EGRESAR),
                 usuario=self.request.user,
+                edificio_id=self._edificio_fijo_id(),
             )
             if pk is not None
             else None
