@@ -14,24 +14,14 @@ from programas.forms import INPUT_CLASS
 
 
 class IngresoPersonaForm(forms.Form):
-    """Paso 1 del asistente de ingreso: a quién se aloja (DNI y, si hace falta, sexo)."""
+    """Paso 1 del asistente de ingreso: a quién se aloja. Busca solo por DNI, sin sexo."""
 
-    GENERO_CHOICES = [("", "Seleccionar...")] + [
-        ("M", "Masculino"),
-        ("F", "Femenino"),
-        ("X", "No binario"),
-    ]
+    # Las etiquetas del género que muestra el resumen de la persona.
+    GENERO_CHOICES = [("", "Seleccionar..."), *Ciudadano.Genero.choices]
 
     dni = forms.CharField(
         label="DNI",
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Ej.: 30123456", "inputmode": "numeric"}),
-    )
-    sexo = forms.ChoiceField(
-        label="Sexo",
-        required=False,
-        choices=GENERO_CHOICES,
-        help_text="Solo si la persona no está en el Legajo Ciudadano: el Registro de Personas lo pide.",
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
 
     def __init__(self, *args, url_sugerencias=None, **kwargs):
@@ -51,6 +41,31 @@ class IngresoPersonaForm(forms.Form):
         if not dni_valido(dni):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
+
+
+class IngresoSexoForm(forms.Form):
+    """El sexo que pide el Registro de Personas para consultar a quien no está en el legajo.
+
+    El DNI se muestra y no se edita: la vista lo toma de la sesión, nunca del POST.
+    """
+
+    dni = forms.CharField(
+        label="DNI",
+        disabled=True,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
+    )
+    sexo = forms.ChoiceField(
+        label="Sexo",
+        choices=[("", "Seleccionar..."), *Ciudadano.Genero.choices],
+        error_messages={"required": "Indicá el sexo para consultar el Registro de Personas."},
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    def __init__(self, *args, dni, **kwargs):
+        kwargs["initial"] = {"dni": dni}
+        # Convive con los otros formularios del paso 1: sin prefijo se repetirían id_dni & co.
+        kwargs.setdefault("auto_id", "id_sexo_%s")
+        super().__init__(*args, **kwargs)
 
 
 class IngresoAltaMinimaForm(forms.Form):

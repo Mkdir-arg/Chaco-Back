@@ -77,6 +77,7 @@ vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparte
 el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`. Lo mismo hace
 `IngresoAltaMinimaForm` (`programas/forms_ingreso.py`) con `id_alta_%s`: convive con `IngresoPersonaForm`,
 que también tiene `dni`, en el paso 1 del ingreso a un dispositivo (Cambio 375).
+El buscador del paso 1 (`IngresoPersonaForm`) ya no tiene sexo (Cambio 557): `IngresoSexoForm` (`auto_id` `id_sexo_%s`, DNI deshabilitado) lo pide en su propia tarjeta solo si la persona no está en el legajo.
 El `dni` de `IngresoPersonaForm` lleva además `data-sugerencias-*` (`attrs_sugerencias`, ficha `sugerencias.md`) con su
 propio aviso de vacío (Cambio 416): es mejora progresiva, el campo sigue siendo un `TextInput` común.
 
