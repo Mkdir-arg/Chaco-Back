@@ -18,7 +18,7 @@ simultáneas no pueden dejarlo sin responsables.
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import BooleanField, Case, When
+from django.db.models import BooleanField, Case, Value, When
 
 from core import rbac
 from programas.services.dispositivos import (
@@ -191,6 +191,73 @@ def _exigir_miembro_dentro_de_mis_edificios(actor, dispositivo, miembro):
     ids = list(miembro.edificios.values_list("pk", flat=True))
     alcance = miembro.alcance or MiembroEquipoDispositivo.Alcance.INSTITUCION
     _exigir_dentro_de_mis_edificios(actor, dispositivo, alcance, ids)
+
+
+MIEMBROS_SIN_EDIFICIOS = (
+    "No se puede desvincular el edificio: dejaría sin ningún edificio a {personas}, que en el Equipo tiene{plural} "
+    "alcance por edificio y no vería nada. Dalo{plural_lo} de baja del Equipo o cambiá su alcance antes de "
+    "desvincularlo."
+)
+
+
+def soltar_edificio_del_equipo(dispositivo, edificio):
+    """Quita ``edificio`` del alcance del Equipo antes de desvincularlo, o rechaza si alguien quedaría sin ninguno.
+
+    Rechaza (``ValidationError`` con el nombre de las personas) si deja a alguien con membresía **vigente** y con alcance
+    Edificios sin ningún edificio vigente: no vería nada (fail-closed, Cambio 523) y nadie se enteraría. Se mira por
+    **persona**, como `alcance_de_edificios`: quien tiene otra fila vigente (`q_membresia_vigente`: activa, con rol
+    activo del programa y todavía asignado) con toda la institución (o sin alcance cargado), o con otro edificio que sigue vinculado, no pierde nada. Si nadie queda ciego, le saca solo este
+    edificio a cada fila que lo tenga (también a las de baja) y no toca nada más. Todo o nada: el rechazo ocurre
+    antes de escribir.
+
+    Lo llama `edificios.desvincular_edificio` ya con el bloqueo del dispositivo tomado, el mismo con el que
+    arrancan `sumar_miembro` y `dar_de_baja`: una alta concurrente no puede meter este edificio en un alcance
+    entre la lectura y el ``remove()``; si entra antes, esta lectura la ve; si entra después, el edificio ya no
+    está vinculado y `sumar_miembro` la rechaza. Una consulta si el edificio no estaba en el alcance de nadie.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    Alcance = MiembroEquipoDispositivo.Alcance
+    vigente = q_membresia_vigente(programa_dispositivos())
+    filas = list(
+        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, edificios=edificio)
+        .annotate(vigente=Case(When(vigente, then=Value(True)), default=Value(False), output_field=BooleanField()))
+        .values_list("pk", "usuario_id", "vigente", "alcance")
+    )
+    if not filas:
+        return
+    candidatos = {
+        usuario_id for _pk, usuario_id, vigente_, alcance in filas if vigente_ and alcance == Alcance.EDIFICIOS
+    }
+    if candidatos:
+        activas = list(
+            MiembroEquipoDispositivo.objects.filter(
+                vigente, dispositivo=dispositivo, usuario_id__in=candidatos
+            ).values_list("pk", "usuario_id", "alcance")
+        )
+        con_todo = {usuario_id for _pk, usuario_id, alcance in activas if alcance != Alcance.EDIFICIOS}
+        vigentes = dispositivo.edificios.exclude(pk=edificio.pk).values("pk")
+        con_otro = set(
+            MiembroEquipoDispositivo.edificios.through.objects.filter(
+                miembroequipodispositivo_id__in=[pk for pk, _u, _a in activas], edificio_id__in=vigentes
+            ).values_list("miembroequipodispositivo__usuario_id", flat=True)
+        )
+        ciegos = candidatos - con_todo - con_otro
+        if ciegos:
+            personas = get_user_model().objects.filter(pk__in=ciegos).order_by("last_name", "first_name", "username")
+            nombres = [nombre_de_persona(persona) for persona in personas]
+            plural = len(nombres) > 1
+            raise ValidationError(
+                {
+                    "__all__": MIEMBROS_SIN_EDIFICIOS.format(
+                        personas=", ".join(nombres), plural="n" if plural else "", plural_lo="s" if plural else ""
+                    )
+                }
+            )
+    MiembroEquipoDispositivo.edificios.through.objects.filter(
+        miembroequipodispositivo_id__in=[pk for pk, *_ in filas], edificio_id=edificio.pk
+    ).delete()
 
 
 def _exigir_otro_responsable(dispositivo, miembro):
