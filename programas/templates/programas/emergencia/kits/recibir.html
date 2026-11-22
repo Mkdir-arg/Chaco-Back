@@ -22,6 +22,7 @@ abre el modal si el navegador valida (`@submit` + `modalConfirmar`); con el moda
   <form id="form-recibir-entrega" method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6"
         @submit="if (!modalConfirmar) { $event.preventDefault(); if ($el.reportValidity()) modalConfirmar = true }">
     {% csrf_token %}
+    {% if siguiente %}<input type="hidden" name="next" value="{{ siguiente }}">{% endif %}
     {% include "components/_form_errores.html" %}
     <h2 class="text-heading font-bold mb-4">Lo que llegó</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
