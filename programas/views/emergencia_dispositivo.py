@@ -27,6 +27,7 @@ El estado del recorrido es el del caso, no la sesión: no hay nada que una segun
 pueda pisar, y cada paso se abre por su URL.
 """
 
+import uuid
 from collections import Counter
 from urllib.parse import urlencode
 
@@ -65,6 +66,11 @@ CAP_VER_CIUDADANO = "ciudadano.ver"
 Estado = CasoEmergencia.Estado
 
 TEMPLATES = "programas/emergencia/dispositivo/"
+
+SIN_ALCANCE_PARA_INGRESAR_IGUAL = (
+    "Ingresar a una familia sin derivación lo puede hacer quien tiene a cargo toda la institución. "
+    "Avisale a la mesa para que la derive."
+)
 
 
 def _errores_de(form):
@@ -180,7 +186,10 @@ class LlegadasView(GuardiaView):
             form_rechazo=RechazarDerivacionForm(auto_id="rechazo_%s") if tarjeta and tarjeta["pendiente"] else None,
             sin_derivacion=sin_derivacion,
             alojada=resultado is not None and resultado.resultado == servicio.BUSQUEDA_ALOJADA,
-            puede_ingresar_igual=sin_derivacion and resultado.plazas_libres > 0,
+            # Las dos banderas del servicio (hallazgo 4): «Ingresar igual» exige la institución entera.
+            alcance_para_ingresar=sin_derivacion and resultado.puede_ingresar_igual,
+            puede_ingresar_igual=sin_derivacion and resultado.puede_ingresar_igual and resultado.plazas_libres > 0,
+            puede_avisar=sin_derivacion and resultado.puede_avisar_a_la_mesa,
             url_ingreso_directo=self.url("ingreso_directo", dni=resultado.dni) if sin_derivacion else "",
             url_avisar=self.url("avisar", dni=resultado.dni) if sin_derivacion else "",
             pendientes=pantalla.filas_de_llegadas(
@@ -662,6 +671,18 @@ class CancelarIngresoView(_IngresoView):
 # ---------------------------------------------------------------------------
 
 
+YA_SE_HABIA_ENVIADO = "Ese formulario ya se había enviado: es el caso {numero}."
+
+
+def _ya_se_habia_enviado(request, caso):
+    """El mismo Formulario 1 llegó dos veces (doble clic, volver atrás y reenviar): no se creó nada nuevo,
+    y decirle «Caso N creado» otra vez haría creer que hay dos."""
+    if not getattr(caso, "ya_existia", False):
+        return False
+    messages.info(request, YA_SE_HABIA_ENVIADO.format(numero=caso.numero))
+    return True
+
+
 class _Formulario1View(GuardiaView):
     """El Formulario 1 cargado en la puerta del dispositivo. Las subclases dicen qué se hace con él."""
 
@@ -669,6 +690,7 @@ class _Formulario1View(GuardiaView):
     bajada = ""
     accion = ""
     icono = "fa-check"
+    sin_alcance = servicio.SIN_ALCANCE
 
     def _render(self, request, form, status=200):
         contexto = self.contexto(1, form=form, titulo=self.titulo, bajada=self.bajada, accion=self.accion)
@@ -676,14 +698,21 @@ class _Formulario1View(GuardiaView):
         return render(request, f"{TEMPLATES}formulario1.html", contexto, status=status)
 
     def get(self, request, pk):
-        return self._render(request, Formulario1DispositivoForm(initial={"dni": request.GET.get("dni", "")}))
+        # El identificador del envío nace acá: dos POST de este mismo formulario son un solo caso.
+        inicial = {"dni": request.GET.get("dni", ""), "uuid_cliente": uuid.uuid4()}
+        return self._render(request, Formulario1DispositivoForm(initial=inicial))
 
     def post(self, request, pk):
         form = Formulario1DispositivoForm(request.POST, request.FILES)
         if not form.is_valid():
             return self._render(request, form, status=400)
         try:
-            caso = self.ejecutar(request, form.datos_formulario1())
+            caso = self.ejecutar(request, form.datos_formulario1(), form.cleaned_data.get("uuid_cliente"))
+        except PermissionDenied:
+            # Sin el alcance para esta acción (p. ej. «Ingresar igual» con alcance Edificios): el
+            # Formulario 1 no se pierde; queda en pantalla con el motivo.
+            form.add_error(None, self.sin_alcance)
+            return self._render(request, form, status=403)
         except ValidationError as error:
             form.agregar_errores_del_servicio(rechazo_para_mostrar(request, error))
             return self._render(request, form, status=400)
@@ -699,10 +728,14 @@ class AvisarALaMesaView(_Formulario1View):
     accion = "Avisar a la mesa"
     icono = "fa-bullhorn"
 
-    def ejecutar(self, request, datos):
-        return servicio.avisar_a_la_mesa(dispositivo=self.dispositivo, usuario=request.user, datos_formulario1=datos)
+    def ejecutar(self, request, datos, uuid_cliente):
+        return servicio.avisar_a_la_mesa(
+            dispositivo=self.dispositivo, usuario=request.user, datos_formulario1=datos, uuid_cliente=uuid_cliente
+        )
 
     def despues(self, request, caso):
+        if _ya_se_habia_enviado(request, caso):
+            return redirect(self.url("llegadas"))
         messages.success(
             request,
             f"Caso {caso.numero} enviado a la mesa. Cuando lo deriven acá, buscá a la familia de nuevo."
@@ -718,11 +751,24 @@ class IngresoDirectoView(_Formulario1View):
         "por la mesa, y queda marcado como ingreso directo."
     )
     accion = "Crear el caso y seguir con las fichas"
+    sin_alcance = SIN_ALCANCE_PARA_INGRESAR_IGUAL
 
-    def ejecutar(self, request, datos):
-        return servicio.ingreso_directo(dispositivo=self.dispositivo, usuario=request.user, datos_formulario1=datos)
+    def preparar(self, request, **kwargs):
+        # «Ingresar igual» exige la institución entera (hallazgo 4): a quien no la tiene no se le
+        # muestra el formulario para rechazárselo después.
+        if request.method == "GET" and not servicio.puede_ingresar_igual(request.user, self.dispositivo):
+            messages.warning(request, SIN_ALCANCE_PARA_INGRESAR_IGUAL)
+            return redirect(self.url("llegadas"))
+        return None
+
+    def ejecutar(self, request, datos, uuid_cliente):
+        return servicio.ingreso_directo(
+            dispositivo=self.dispositivo, usuario=request.user, datos_formulario1=datos, uuid_cliente=uuid_cliente
+        )
 
     def despues(self, request, caso):
+        if _ya_se_habia_enviado(request, caso):
+            return redirect(self.url("integrantes", caso.pk))
         if caso.faltantes:
             messages.warning(
                 request,

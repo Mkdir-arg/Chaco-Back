@@ -60,24 +60,42 @@ def _camas(cantidad):
 # ---------------------------------------------------------------------------
 
 
-def _exigir_alcance(usuario, dispositivo, derivacion=None, *, institucion=False):
+def _exigir_alcance(usuario, dispositivo, derivacion=None):
     """RU-8: ``dispositivo.admitir`` sobre **este** dispositivo. Sin él, ``PermissionDenied``.
 
     Con alcance Edificios (Cambio 523): si se conoce la ``derivacion``, tiene que ser de uno de sus edificios
-    (``derivacion.edificio``; sin edificio no entra); con ``institucion=True`` (lo que no cuelga de una
-    derivación, como el ingreso directo) hace falta alcance sobre toda la institución.
+    (``derivacion.edificio``; sin edificio no entra). Lo que no cuelga de una derivación tiene su propia regla:
+    :func:`puede_ingresar_igual` y :func:`puede_avisar_a_la_mesa`.
     """
 
     if dispositivo is None:
         raise PermissionDenied(SIN_ALCANCE)
     if derivacion is not None:
         permitido = puede_operar_edificio(usuario, dispositivo, derivacion.edificio_id, CAP_ADMITIR)
-    elif institucion:
-        permitido = puede_operar_institucion(usuario, dispositivo, CAP_ADMITIR)
     else:
         permitido = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
     if not permitido:
         raise PermissionDenied(SIN_ALCANCE)
+
+
+def puede_ingresar_igual(usuario, dispositivo):
+    """¿Puede hacer «Ingresar igual» (el ingreso directo) en ``dispositivo``? Sin mirar camas.
+
+    Exige alcance sobre **toda la institución**: el ingreso directo no cuelga de una derivación a un
+    edificio. La regla que aplican el servicio, la pantalla de Llegadas y la API (``buscar``).
+    """
+
+    return dispositivo is not None and puede_operar_institucion(usuario, dispositivo, CAP_ADMITIR)
+
+
+def puede_avisar_a_la_mesa(usuario, dispositivo):
+    """¿Puede «Avisar a la mesa» desde ``dispositivo``? Alcanza con admitir en él, con cualquier alcance.
+
+    Con alcance Edificios también (relevamiento del 22/11/2026, hallazgo 4): el aviso no reserva
+    nada ni toca un edificio, solo le pasa a la mesa la familia que está en la puerta.
+    """
+
+    return dispositivo is not None and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
 
 
 def _dispositivo_de(derivacion, usuario):

@@ -5,7 +5,7 @@ sacar sin tocar el resto— y «Avisar a la mesa» (``avisar_a_la_mesa``). Se im
 ``programas.services.emergencia_alojar``.
 """
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -27,14 +27,16 @@ from programas.services.emergencia import (
 )
 from programas.services.emergencia_comun import _bloquear_caso, _trazar
 from programas.services.emergencia_ingreso_comun import (
+    SIN_ALCANCE,
     Accion,
     Estado,
     Origen,
     _anotar_en_bitacora,
     _asegurar_filas,
-    _exigir_alcance,
     _reservar_camas,
     _resumen_de_reservas,
+    puede_avisar_a_la_mesa,
+    puede_ingresar_igual,
 )
 
 SIN_CAMAS_PARA_INGRESO_DIRECTO = (
@@ -58,6 +60,22 @@ def _formulario1_en_el_dispositivo(datos_formulario1, dispositivo):
         if len(candidatas) == 1:
             datos["localidad"] = candidatas[0]
     return datos
+
+
+def _camas_de_un_edificio(libres, cuantas):
+    """``(edificio_id, camas)``: hasta ``cuantas`` camas de ``libres``, **todas del mismo edificio**.
+
+    El edificio con más camas libres; a igualdad, el de la primera cama de ``libres`` (que ya viene
+    ordenada por sector). Las camas sin edificio cuentan como un grupo más, con ``edificio_id``
+    ``None``. Así el ingreso directo nace con su edificio y la guardia de ese edificio lo sigue
+    (relevamiento del 22/11/2026, hallazgo 18); si no alcanza, faltan, como al aceptar una derivación.
+    """
+
+    por_edificio = {}
+    for cama in libres:
+        por_edificio.setdefault(cama.sector.edificio_id, []).append(cama)
+    edificio_id, camas = max(por_edificio.items(), key=lambda par: len(par[1]))
+    return edificio_id, camas[:cuantas]
 
 
 def _con_sus_reservas(caso):
@@ -92,14 +110,15 @@ def _exigir_reenvio_de_este_ingreso(caso, dispositivo):
 def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=None):
     """«Ingresar igual»: la familia llegó sola y el dispositivo la recibe sin pasar por la mesa (HU-3.6, RN-3.10).
 
-    Exige ``dispositivo.admitir`` sobre **ese** dispositivo, que sea elegible para alojar
+    Exige ``dispositivo.admitir`` sobre **toda la institución** (:func:`puede_ingresar_igual`), que sea elegible para alojar
     familias y que tenga **al menos una cama libre**. En una transacción:
 
     * crea el caso con ``crear_caso(origen=DISPOSITIVO)`` —misma validación del Formulario 1,
       con dirección y localidad opcionales—;
     * crea una ``Derivacion`` ``ACEPTADA`` hacia el propio dispositivo, para que todo lo que
       sigue (confirmar, alojar, diferencia, egreso) sea el mismo camino;
-    * reserva camas para la familia **hasta donde alcance** y crea sus N filas;
+    * reserva camas para la familia **hasta donde alcance**, todas de un mismo edificio —el que
+      tiene más libres—, que queda como el edificio de la derivación, y crea sus N filas;
     * deja el caso en ``INGRESO_EN_CURSO`` con ``tomado_en = derivado_en = aceptado_en =
       creado``: el tramo de la mesa vale 0 y el tablero lo separa como ingreso directo.
 
@@ -110,7 +129,8 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
     Devuelve el ``CasoEmergencia`` con ``ya_existia``, ``reservadas`` y ``faltantes``.
     """
 
-    _exigir_alcance(usuario, dispositivo, institucion=True)
+    if not puede_ingresar_igual(usuario, dispositivo):
+        raise PermissionDenied(SIN_ALCANCE)
     uuid_cliente = _como_uuid(uuid_cliente)
     if uuid_cliente is not None:
         existente = _caso_de_ese_envio(uuid_cliente, usuario)
@@ -134,9 +154,11 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
     caso = _bloquear_caso(caso)
     grupo = caso.grupo
     momento = caso.creado
+    edificio_id, camas = _camas_de_un_edificio(libres, grupo.total_declarado)
     derivacion = Derivacion(
         caso=caso,
         dispositivo=dispositivo,
+        edificio_id=edificio_id,
         estado=Derivacion.Estado.ACEPTADA,
         plazas_pedidas=grupo.total_declarado,
         vence_en=momento,
@@ -145,9 +167,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         respondida_en=momento,
     )
     derivacion.save()
-    reservas = _reservar_camas(
-        derivacion=derivacion, plazas=libres[: grupo.total_declarado], usuario=usuario, momento=momento
-    )
+    reservas = _reservar_camas(derivacion=derivacion, plazas=camas, usuario=usuario, momento=momento)
 
     caso.estado = Estado.INGRESO_EN_CURSO
     for marca in ("tomado_en", "derivado_en", "aceptado_en"):
@@ -166,7 +186,11 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         detalle=f"Ingreso directo en {dispositivo.nombre}, sin pasar por la mesa · {resumen}",
     )
     _anotar_en_bitacora(
-        dispositivo, usuario, f"Emergencia · ingreso directo · caso N.° {caso.numero} · {resumen}", timezone.now()
+        dispositivo,
+        usuario,
+        f"Emergencia · ingreso directo · caso N.° {caso.numero} · {resumen}",
+        timezone.now(),
+        edificio_id,
     )
     caso.ya_existia = False
     caso.reservadas, caso.faltantes = reservadas, faltantes
@@ -185,12 +209,14 @@ def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=No
         {"dispositivo_id": 12, "dispositivo": "Club Sarmiento"}
 
     No reserva nada ni exige camas libres: es justo lo que se usa cuando no hay lugar.
-    Exige ``dispositivo.admitir`` sobre ese dispositivo. Idempotente por ``uuid_cliente``.
+    Exige ``dispositivo.admitir`` sobre ese dispositivo, con cualquier alcance —también Edificios—
+    (:func:`puede_avisar_a_la_mesa`). Idempotente por ``uuid_cliente``.
 
     Devuelve el ``CasoEmergencia`` con ``ya_existia``.
     """
 
-    _exigir_alcance(usuario, dispositivo, institucion=True)
+    if not puede_avisar_a_la_mesa(usuario, dispositivo):
+        raise PermissionDenied(SIN_ALCANCE)
     caso = crear_caso(
         usuario=usuario,
         origen=Origen.DISPOSITIVO,

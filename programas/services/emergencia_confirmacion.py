@@ -288,7 +288,7 @@ def _completar_legajo(ciudadano, ficha):
         ciudadano.save(update_fields=[*campos, "modificado"])
 
 
-def _cama_del_dispositivo(plaza, dispositivo, derivacion):
+def _cama_del_dispositivo(plaza, dispositivo, derivacion, usuario):
     """La cama elegida, **de este dispositivo**, con su sector. Sin candado.
 
     El mismo error para la que no existe y para la de otra institución, como
@@ -310,7 +310,7 @@ def _cama_del_dispositivo(plaza, dispositivo, derivacion):
         except (TypeError, ValueError):
             cama = None
     if cama is None:
-        if pk in (None, "") and not _hay_cama_para_elegir(dispositivo, derivacion):
+        if pk in (None, "") and not _hay_cama_para_elegir(dispositivo, derivacion, usuario):
             # HU-3.5: la fila existe, pero no hay dónde alojar a la persona.
             raise ValidationError({"plaza": SIN_CAMA_LIBRE})
         raise ValidationError({"plaza": ELEGI_UNA_CAMA})
@@ -324,11 +324,14 @@ def _cama_del_dispositivo(plaza, dispositivo, derivacion):
     return cama
 
 
-def _hay_cama_para_elegir(dispositivo, derivacion):
-    """¿Queda alguna cama guardada para la familia, o alguna libre?"""
+def _hay_cama_para_elegir(dispositivo, derivacion, usuario):
+    """¿Queda alguna cama guardada para la familia, o alguna libre **que quien confirma pueda elegir**?
+
+    Con alcance Edificios, una cama libre de otro edificio no cuenta: no la puede elegir.
+    """
 
     return ReservaPlaza.objects.abiertas().filter(derivacion_id=derivacion.pk).exists() or bool(
-        camas_libres(dispositivo)
+        camas_libres(dispositivo, usuario=usuario)
     )
 
 
@@ -390,24 +393,26 @@ def _ingresar_en_cama_libre(*, ciudadano, cama, propia, derivacion, por_confirma
     comunes = [comun for comun in _reservas_abiertas_de(ciudadano.pk) if propia is None or comun.pk != propia.pk]
     vigentes = list(ReservaPlaza.objects.abiertas().filter(derivacion_id=derivacion.pk).order_by("plaza_id"))
     sobrante = vigentes[-1] if len(vigentes) > por_confirmar_despues else None
-    # La sobrante es de este dispositivo (el alcance ya se exigió); las comunes pueden ser de
-    # otro donde quien confirma no opera: no es una decisión suya, es que la persona ya entró.
-    a_liberar = ([(sobrante, MOTIVO_RESERVA_SOBRANTE, True)] if sobrante is not None else []) + [
-        (comun, MOTIVO_RESERVA_CERRADA_POR_INGRESO, False) for comun in comunes
+    # Ninguna de las dos se libera con el alcance de quien confirma: la sobrante es de la familia
+    # cuya derivación ya se le exigió (puede estar en otro edificio si se reservó antes del Cambio
+    # 532), y las comunes pueden ser de otro dispositivo donde no opera. No es una decisión suya: es
+    # que la persona ya entró.
+    a_liberar = ([(sobrante, MOTIVO_RESERVA_SOBRANTE)] if sobrante is not None else []) + [
+        (comun, MOTIVO_RESERVA_CERRADA_POR_INGRESO) for comun in comunes
     ]
     # Solo el candado: `liberar_reserva` e `ingresar_persona` vuelven a tomar cada plaza. Va
     # siempre, aunque no haya nada que liberar: la cama tiene que quedar tomada antes que la
     # persona, como en `ingresar_persona` y `reservar_plaza` (plaza → persona).
     list(
         Plaza.objects.select_for_update()
-        .filter(pk__in={cama.pk} | {reserva.plaza_id for reserva, _motivo, _alcance in a_liberar})
+        .filter(pk__in={cama.pk} | {reserva.plaza_id for reserva, _motivo in a_liberar})
         .order_by("pk")
         .values_list("pk", flat=True)
     )
     reserva_liberada = False
-    for reserva, motivo, verificar_alcance in a_liberar:
+    for reserva, motivo in a_liberar:
         try:
-            liberar_reserva(reserva=reserva, usuario=usuario, motivo=motivo, verificar_alcance=verificar_alcance)
+            liberar_reserva(reserva=reserva, usuario=usuario, motivo=motivo, verificar_alcance=False)
         except ValidationError:
             continue  # ya la resolvió otro (la liberaron desde el mapa): no retiene nada
         reserva_liberada = reserva_liberada or reserva is sobrante
@@ -507,7 +512,7 @@ def confirmar_integrante(*, caso, orden, usuario, ficha, plaza, uuid_cliente=Non
         raise ValidationError({"dni": MENSAJE_DNI_DE_OTRA_PERSONA})
     _resolver_adulto_responsable(ficha, filas, orden)
     ficha = ficha_minima_valida(_con_lo_del_legajo(ficha, existente))
-    cama = _cama_del_dispositivo(plaza, dispositivo, derivacion)
+    cama = _cama_del_dispositivo(plaza, dispositivo, derivacion, usuario)
 
     # La reserva que toma esa cama, leída sin candado: decide el camino. `reservas_derivacion` la
     # vuelve a leer bloqueada, y si cambió en el medio falla con su propio error. Que sea de
