@@ -25,6 +25,7 @@ from programas.services.plazas import (
     editar_sector,
     reactivar_plaza,
 )
+from programas.services.sectores_plazas import url_solapa_sectores
 from programas.tests.test_dispositivos_capacidad import BaseCapacidad
 
 
@@ -167,7 +168,7 @@ class VistasDeBajaDePlazaTests(BaseBajaDePlaza):
 
         respuesta = self.client.post(self._url("plaza_baja"))
 
-        self.assertRedirects(respuesta, reverse("dispositivos:sectores", args=[self.cis.pk]))
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
         self.assertFalse(Plaza.todas.get(pk=self.otra_plaza.pk).activa)
 
     def test_la_plaza_tomada_vuelve_con_el_motivo(self):
@@ -219,7 +220,7 @@ class VistasDeBajaDePlazaTests(BaseBajaDePlaza):
 
         respuesta = self.client.post(self._url("plaza_reactivar"))
 
-        self.assertRedirects(respuesta, mapa)
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk))
         self.assertTrue(Plaza.objects.filter(pk=self.otra_plaza.pk).exists())
 
     def test_reactivar_una_plaza_activa_da_404(self):

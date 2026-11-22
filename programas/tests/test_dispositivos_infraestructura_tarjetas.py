@@ -143,7 +143,7 @@ class SinEdificioTests(BaseTarjetas):
         self.assertEqual(infra["sin_edificio"]["primero_pk"], self.huerfano.pk)
         self.assertIn("1 sector todavía no tiene edificio", panel)
         self.assertIn("Asignar edificio", panel)
-        self.assertIn(f"?sector={self.huerfano.pk}", panel)
+        self.assertIn(f"?tab=sectores&amp;editar_sector={self.huerfano.pk}", panel)
 
     def test_sin_capacidad_de_edicion_queda_el_aviso_sin_la_accion(self):
         _, _, panel = self._infra(self.solo_ver)

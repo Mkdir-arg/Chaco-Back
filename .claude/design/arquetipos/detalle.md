@@ -144,6 +144,13 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   tablas canónicas en secciones con `h2`. Sin gráficos. Evidencia: `programas/templates/programas/emergencia/tablero.html` (E1).
 - Solapa con carga diferida: `@click="tab='x'; $dispatch('<evento>')"` y el JS escucha ese
   evento en `window` (molde: `config/programa_detail.html`, que dispara `becas-dashboard-abrir`).
+- Solapa que navega (variante de la carga diferida, sin JS de pantalla): cuando el contenido pesa y la vista solo lo
+  arma con `?tab=<x>`, el panel va vacío hasta entonces y el `@click` del botón, mientras no esté cargado, es
+  `window.location.href='<url con ?tab=<x>>'`. Ese botón lleva `data-solapa-navega` (solo mientras no está cargado): con
+  ← → recibe el foco pero no se activa (recorrer la barra no recarga la página); se abre con Enter, Espacio o clic. Lo
+  lee `static/custom/js/nodo-tabs.js` (`componentes/tabs.md`). Molde: la solapa «Sectores y plazas» de
+  `programas/templates/programas/dispositivos/legajo/detail.html`, cuyo cuerpo es `dispositivos/sectores/_cuerpo.html`,
+  el mismo que dibuja la pantalla suelta de siempre.
 - Solapa condicionada por permiso: el `{% if %}` envuelve **el botón y el panel**.
 - Solapa inicial validada por el servidor: en P4
   (`programas/templates/programas/dispositivos/legajo/detail.html`),

@@ -59,14 +59,14 @@ parámetro no excluido trae valor; por defecto excluye `page`, y acepta una list
 
 Cuando el alta es un modal que ya llega con la página (el esqueleto de la golden de Modal, sin
 parámetro GET), el vacío lo abre con `accion_click` en vez de mandar a una URL que recarga.
-Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/sectores/sectores.html`,
+Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/sectores/_cuerpo.html`, el cuerpo que comparten la solapa de la ficha y la pantalla suelta,
 `accion_click="modalSectorNuevo=true"`). Los campos de esos modales usan el campo canónico (`field.md`). Esa acción
 solo se ofrece si el servicio admite el alta (`puede_ampliar_capacidad`): sin ella el vacío es el de lectura.
 El modal «Agregar plazas» de ese mapa explica la numeración por sector (el número sigue al mayor que ya tiene el sector con ese prefijo; no pisa ni reusa), en una `_alerta` informativa y sin pieza nueva (Cambio 430).
 El modal de la plaza ocupada de ese mapa es un menú de enlaces y botones (`btn-secondary`; «Sacar de servicio» con `disabled` y su motivo debajo), sin pieza nueva (Cambio 437). «Sin edificio» lo resuelve el selector o el servicio (`edificio_nombre`: SQL en `sectores_inactivos`, `nombre_de_edificio` en los sectores activos), no el template.
 El menú de la plaza disponible abre con «Ingresar persona», un enlace (`btn-secondary`, `fa-user-plus`) al asistente de ingreso con `?plaza=<id>`, igual que «Ver estadía»; sin pieza nueva (Cambio 461).
 El modal «Liberar» de ese mismo mapa distingue préstamo de reserva por el dato `es_prestamo` de `plazasModal`, no por el texto del estado.
-El filtro `?inactivos=1` de ese mapa suma una surface «Sectores inactivos» con su vacío de lectura (`icono="fa-layer-group"`, sin acción) y un «Reactivar» por fila con `data-confirm-url` (confirmación `_confirm_js.html`, POST sin modal propio) y un «Editar» (enlace `?inactivos=1&sector=<id>` al mismo modal «Editar sector», con el edificio y el switch «Sector activo»), sin pieza nueva (Cambio 435). El encabezado de cada sector y cada fila de inactivos nombran su edificio («Sin edificio» si no tiene).
+El filtro `?inactivos=1` de ese mapa suma una surface «Sectores inactivos» con su vacío de lectura (`icono="fa-layer-group"`, sin acción) y un «Reactivar» por fila con `data-confirm-url` (confirmación `_confirm_js.html`, POST sin modal propio) y un «Editar» (enlace `?inactivos=1&<param>=<id>`, con `sector` en la pantalla suelta y `editar_sector` en la ficha, al mismo modal «Editar sector», con el edificio y el switch «Sector activo»), sin pieza nueva (Cambio 435). El encabezado de cada sector y cada fila de inactivos nombran su edificio («Sin edificio» si no tiene).
 El mismo filtro (botón «Ver inactivos») suma una surface «Plazas dadas de baja» con el mismo esqueleto: filas con «Reactivar» por `data-confirm-url` y vacío de lectura `icono="fa-bed"`. «Dar de baja» vive al pie del modal de la plaza junto a «Editar plaza» (`btn-secondary`, `fa-trash-can`) y abre su panel dentro del mismo modal: aviso `_alerta` warning y pie con `accion_tono="danger"`, o el bloqueo (`bloqueo_baja` de `plazasModal`) en lugar del formulario; sin pieza nueva (Cambio 479).
 
 ## Dentro de un modal
