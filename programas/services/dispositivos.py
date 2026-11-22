@@ -595,13 +595,8 @@ def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):
     from programas.models import TrazaDispositivo
 
-    TrazaDispositivo.objects.create(
-        dispositivo=dispositivo,
-        usuario=usuario,
-        accion=accion,
-        estado_anterior=estado_anterior,
-        estado_nuevo=estado_nuevo,
-        detalle=detalle,
+    TrazaDispositivo.objects.registrar(
+        dispositivo, usuario, accion, estado_anterior=estado_anterior, estado_nuevo=estado_nuevo, detalle=detalle
     )
 
 

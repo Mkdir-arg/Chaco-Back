@@ -277,10 +277,10 @@ def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo=""
     persona vive en su propio legajo, con su propio control de acceso.
     """
 
-    TrazaDispositivo.objects.create(
-        dispositivo=dispositivo,
-        usuario=usuario,
-        accion=accion,
+    TrazaDispositivo.objects.registrar(
+        dispositivo,
+        usuario,
+        accion,
         estado_anterior=estado_anterior,
         estado_nuevo=estado_nuevo,
         detalle=detalle,

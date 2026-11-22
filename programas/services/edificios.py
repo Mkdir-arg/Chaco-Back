@@ -67,7 +67,7 @@ SECTORES_ACTIVOS_EN_EL_EDIFICIO = (
 def _trazar(dispositivo, usuario, accion, *, detalle=""):
     """Traza aditiva del legajo institucional, igual que la de sectores y plazas."""
 
-    TrazaDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, accion=accion, detalle=detalle)
+    TrazaDispositivo.objects.registrar(dispositivo, usuario, accion, detalle=detalle)
 
 
 def admite_editar_edificio(estado):

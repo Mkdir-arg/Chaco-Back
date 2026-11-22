@@ -28,8 +28,22 @@ from programas.models import (
     TrazaInspeccion,
 )
 from programas.services.bitacora import corregir_entrada, registrar_entrada
-from programas.services.estadias import cambiar_plaza, reservar_plaza, sacar_plaza_de_servicio
-from programas.services.plazas import agregar_plazas, crear_sector, editar_sector
+from programas.services.estadias import (
+    cambiar_plaza,
+    liberar_reserva,
+    reservar_plaza,
+    sacar_plaza_de_servicio,
+    volver_plaza_a_servicio,
+)
+from programas.services.plazas import (
+    agregar_plazas,
+    crear_sector,
+    dar_de_baja_plaza,
+    editar_plaza,
+    editar_sector,
+    reactivar_plaza,
+    reactivar_sector,
+)
 from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, MIERCOLES, TODO, _local, _reloj
 from programas.tests.test_dispositivos_edificio_operativo import PRESUPUESTOS, BaseOperativo
 
@@ -536,3 +550,62 @@ class TrazaConEdificioTests(BaseHistorial):
         )
 
         self.assertNotIn("Secreto", self._textos(self._historial()))
+
+
+class EscritoresDeTrazaConEdificioTests(BaseHistorial):
+    """Cada escritor de plazas y sectores deja la traza con el edificio de su sector, no solo los que ya tenían su prueba."""
+
+    def _nuevas(self, accion):
+        """Las trazas de la institución que escribió ``accion()``, de la más vieja a la más nueva."""
+
+        antes = set(TrazaDispositivo.objects.filter(dispositivo=self.cis).values_list("pk", flat=True))
+        with _reloj():
+            accion()
+        nuevas = list(TrazaDispositivo.objects.filter(dispositivo=self.cis).exclude(pk__in=antes).order_by("pk"))
+        self.assertTrue(nuevas, "el escritor no dejó ninguna traza")
+        return nuevas
+
+    def _todas_en_b(self, accion):
+        # El sector B es del edificio B: una traza sin edificio, o con el de A, es el bug que este test caza.
+        for traza in self._nuevas(accion):
+            with self.subTest(accion=traza.accion):
+                self.assertEqual(traza.edificio_id, self.edif_b.pk)
+
+    def test_reservar_y_liberar_una_reserva(self):
+        self._todas_en_b(lambda: reservar_plaza(plaza=self.libre_b, ciudadano=self.dora, usuario=self.operador))
+        from programas.models import ReservaPlaza
+
+        reserva = ReservaPlaza.objects.get(plaza=self.libre_b)
+
+        self._todas_en_b(lambda: liberar_reserva(reserva=reserva, usuario=self.operador, motivo="Ya no viene"))
+
+    def test_sacar_y_volver_una_plaza_a_servicio(self):
+        self._todas_en_b(lambda: sacar_plaza_de_servicio(plaza=self.libre_b, usuario=self.operador, motivo="Humedad"))
+        self._todas_en_b(lambda: volver_plaza_a_servicio(plaza=self.libre_b, usuario=self.operador))
+
+    def test_editar_dar_de_baja_y_reactivar_una_plaza(self):
+        self._todas_en_b(
+            lambda: editar_plaza(plaza=self.libre_b, usuario=self.operador, codigo="B-NUEVA", tipo=self.libre_b.tipo)
+        )
+        self.libre_b.refresh_from_db()
+        self._todas_en_b(lambda: dar_de_baja_plaza(plaza=self.libre_b, usuario=self.operador))
+        self.libre_b.refresh_from_db()
+        self._todas_en_b(lambda: reactivar_plaza(plaza=self.libre_b, usuario=self.operador))
+
+    def test_dar_de_baja_y_reactivar_un_sector(self):
+        vacio = Sector.objects.create(dispositivo=self.cis, edificio=self.edif_b, nombre="Vacío B", capacidad=1)
+        Plaza.objects.create(sector=vacio, codigo="VB-01")
+
+        self._todas_en_b(
+            lambda: editar_sector(
+                sector=vacio,
+                usuario=self.operador,
+                nombre="Vacío B",
+                tipo="OTRO",
+                edificio=self.edif_b,
+                capacidad=1,
+                activo=False,
+            )
+        )
+        vacio.refresh_from_db()
+        self._todas_en_b(lambda: reactivar_sector(sector=vacio, usuario=self.operador))

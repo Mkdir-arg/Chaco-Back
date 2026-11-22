@@ -219,7 +219,7 @@ def _horario(turno):
 def _trazar_turno(dispositivo, usuario, accion, detalle):
     """La configuración de turnos deja rastro en el historial del dispositivo (#699)."""
 
-    TrazaDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, accion=accion, detalle=detalle)
+    TrazaDispositivo.objects.registrar(dispositivo, usuario, accion, detalle=detalle)
 
 
 @transaction.atomic
