@@ -124,6 +124,7 @@ class BandejaCasosView(MesaPermissionMixin, View):
             "page_obj": pagina,
             "filas": mesa.filas_de_bandeja(pagina.object_list, request.user, sla, ahora),
             "solapa": solapa,
+            "solapa_explicita": form.solapa_explicita(),
             "solapas": self._chips(mesa.SOLAPAS_DE_LA_BANDEJA, solapa, conteos, elegidos),
             "filtro": elegidos,
             "estados": CasoEmergencia.Estado.choices,
@@ -137,7 +138,7 @@ class BandejaCasosView(MesaPermissionMixin, View):
             "operadores": [(str(operador.pk), mesa.nombre_de(operador)) for operador in mesa.operadores_de_la_mesa()],
             "operador_mios": mesa.OPERADOR_MIOS,
             "hay_casos": conteos["total"] > 0,
-            "url_sin_filtros": _url("emergencia:bandeja", solapa=solapa),
+            "url_sin_filtros": _url("emergencia:bandeja", solapa=form.solapa_explicita()),
             "url_nuevo": reverse("emergencia:caso_nuevo"),
         }
         return render(request, TEMPLATE_BANDEJA, contexto)

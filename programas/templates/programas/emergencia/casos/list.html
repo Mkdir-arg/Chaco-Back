@@ -17,7 +17,7 @@
   {% comment %}Filtros: el <form> va sin class y cada control con aria-label (dynamic_list_filters.js vacía
   el form al montar). El oculto `solapa` se conserva: filtrar no cambia de solapa.{% endcomment %}
   <form method="get" data-dynamic-list-filters>
-    <input type="hidden" name="solapa" value="{{ solapa }}">
+    {% if solapa_explicita %}<input type="hidden" name="solapa" value="{{ solapa_explicita }}">{% endif %}
     <input type="search" name="texto" value="{{ filtro.texto }}" class="nodo-field max-w-xs" aria-label="N.° de caso, DNI o nombre de la familia" placeholder="Caso, DNI o nombre">
     <select name="estado" class="nodo-field max-w-xs" aria-label="Estado">
       <option value="">Todos</option>

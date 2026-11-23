@@ -48,6 +48,7 @@ from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
 from programas.models import CasoEmergencia, TrazaCaso
 from programas.selectors import emergencia_tablero as tablero
 from programas.selectors.emergencia import (
+    SOLAPA_ALOJADOS,
     camas_de,
     camas_libres_del_conteo,
     rechazo_sin_nueva_accion,
@@ -248,7 +249,7 @@ def ingresos_parciales_sin_revisar(sla, ahora, usuario=None, foto=None):
         usuario,
         singular="ingreso parcial",
         plural="ingresos parciales",
-        url=reverse("emergencia:bandeja"),
+        url=f"{reverse('emergencia:bandeja')}?solapa={SOLAPA_ALOJADOS}",
         accion="Ver en la bandeja",
     )
 

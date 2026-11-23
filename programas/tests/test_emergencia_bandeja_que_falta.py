@@ -101,7 +101,11 @@ class QueFaltaTests(BaseMarcas):
         Dispositivo.objects.filter(pk=self.club.pk).update(estado=Dispositivo.Estado.INACTIVO)
         self.assertEqual(
             self._que_falta(caso),
-            {"texto": "Derivarlo a otra institución", "nota": "Club Sarmiento dejó de estar activa", "urgente": True},
+            {
+                "texto": "Cancelar la derivación y derivarlo a otra institución",
+                "nota": "Club Sarmiento dejó de estar activa",
+                "urgente": True,
+            },
         )
 
     def test_ingreso_en_curso_espera_que_confirmen_a_las_personas(self):
@@ -133,7 +137,7 @@ class QueFaltaTests(BaseMarcas):
             self._que_falta(caso, "alojados"),
             {
                 "texto": "Contactar a la familia",
-                "nota": "Faltan 1 persona de las 2 declaradas",
+                "nota": "Falta 1 persona de las 2 declaradas",
                 "urgente": True,
             },
         )
@@ -178,3 +182,75 @@ class QueFaltaSinConsultasPorFilaTests(BaseMarcas):
         self._caso_tomado()
         self._rechazado()
         self.assertEqual(consultas(), con_uno)
+
+
+class EnlacesQueEntranALaBandejaTests(BaseMarcas):
+    """Los enlaces que arma el código y no traen solapa no pueden caer en «Sin tomar» (Cambio 580)."""
+
+    def _numeros(self, url):
+        self.client.force_login(self.operador)
+        respuesta = self.client.get(url)
+        self.assertEqual(respuesta.status_code, 200)
+        return {fila["caso"].numero for fila in respuesta.context["filas"]}
+
+    def test_el_aviso_de_ingresos_parciales_lleva_a_los_alojados(self):
+        from programas.services import avisos_emergencia
+        from programas.services.configuracion_emergencia import sla_vigente
+
+        casos = []
+        for n in range(avisos_emergencia.TOPE_POR_REGLA + 1):
+            caso = self._caso(dni=str(30700000 + n), apellido=f"Parcial{n}")
+            CasoEmergencia.objects.filter(pk=caso.pk).update(
+                estado=Estado.ALOJADO,
+                total_alojado=1,
+                tomado_en=caso.creado,
+                derivado_en=caso.creado,
+                aceptado_en=caso.creado,
+                alojado_en=caso.creado,
+            )
+            casos.append(caso)
+        avisos = avisos_emergencia.ingresos_parciales_sin_revisar(
+            sla_vigente(), self.reloj.ahora + timedelta(hours=1), self.operador
+        )
+        resumen = avisos[-1]
+        self.assertTrue(resumen.enlace.endswith("?solapa=alojados"), resumen.enlace)
+        self.assertIn(casos[-1].numero, self._numeros(resumen.enlace))
+
+
+class FiltrarSinSolapaEnLaUrlTests(BaseMarcas):
+    """Con la solapa implícita, buscar o filtrar por quién lo tiene mira todos los abiertos (Cambio 580)."""
+
+    def setUp(self):
+        super().setUp()
+        self.ajeno = self._caso_tomado(por=self.otro_operador, apellido="Ajena")
+        self.client.force_login(self.operador)
+
+    def _numeros(self, filtros):
+        respuesta = self.client.get(URL_BANDEJA, filtros)
+        self.assertEqual(respuesta.status_code, 200)
+        return [fila["caso"].numero for fila in respuesta.context["filas"]], respuesta
+
+    def test_filtrar_por_el_operador_que_lo_tiene(self):
+        numeros, _ = self._numeros({"operador": str(self.otro_operador.pk)})
+        self.assertEqual(numeros, [self.ajeno.numero])
+
+    def test_buscar_por_dni_y_por_numero_de_un_caso_con_dueno(self):
+        for texto in (self.ajeno.grupo.responsable.dni, self.ajeno.numero):
+            with self.subTest(texto=texto):
+                self.assertEqual(self._numeros({"texto": texto})[0], [self.ajeno.numero])
+
+    def test_la_solapa_implicita_no_se_vuelve_explicita_al_filtrar(self):
+        _, respuesta = self._numeros({"texto": self.ajeno.numero})
+        self.assertNotContains(respuesta, 'name="solapa"')
+        self.assertEqual(respuesta.context["solapa_explicita"], "")
+
+    def test_una_solapa_explicita_se_respeta_y_su_hidden_se_conserva(self):
+        numeros, respuesta = self._numeros({"solapa": "sin_tomar", "texto": self.ajeno.numero})
+        self.assertEqual(numeros, [])
+        self.assertContains(respuesta, '<input type="hidden" name="solapa" value="sin_tomar">', html=True)
+
+    def test_sin_filtros_sigue_abriendo_sin_tomar(self):
+        self._caso(dni="30800001", apellido="Libre")
+        numeros, _ = self._numeros({})
+        self.assertNotIn(self.ajeno.numero, numeros)
+        self.assertEqual(len(numeros), 1)

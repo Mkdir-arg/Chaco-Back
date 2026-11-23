@@ -84,8 +84,8 @@ class LocalidadesHomonimasTests(BaseDeudaE1):
     def test_dos_localidades_homonimas_no_se_mezclan(self):
         filas = {fila["localidad_id"]: fila for fila in self._filas() if fila["localidad_id"]}
         self.assertEqual((filas[self.norte.pk]["nuevos"], filas[self.sur.pk]["nuevos"]), (2, 1))
-        self.assertEqual(filas[self.norte.pk]["url"], f"/emergencia/casos/?localidad={self.norte.pk}")
-        self.assertEqual(filas[self.sur.pk]["url"], f"/emergencia/casos/?localidad={self.sur.pk}")
+        self.assertEqual(filas[self.norte.pk]["url"], f"/emergencia/casos/?solapa=abiertos&localidad={self.norte.pk}")
+        self.assertEqual(filas[self.sur.pk]["url"], f"/emergencia/casos/?solapa=abiertos&localidad={self.sur.pk}")
         self.assertEqual(sum(fila["nuevos"] for fila in self._filas()), 4)
 
     def test_las_camas_de_un_nombre_ambiguo_van_aparte_y_sin_enlace(self):

@@ -151,7 +151,20 @@ class EnlacesTests(BaseVista):
         html = self._html(self.supervisor)
         self.assertIn("Ir al tablero de la mesa", html)
         self.assertIn("Ver los avisos operativos en el tablero de la mesa →</a>", html)
-        self.assertIn(f'href="/emergencia/casos/?localidad={self.res.pk}"', html)
+        self.assertIn(f'href="/emergencia/casos/?solapa=abiertos&amp;localidad={self.res.pk}"', html)
+
+    def test_los_enlaces_a_la_bandeja_encuentran_los_casos_con_dueno_de_la_localidad(self):
+        """Sin la solapa en el enlace caía en «Sin tomar», que no trae lo que ya tiene dueño (Cambio 580)."""
+        CasoEmergencia.objects.filter(pk=self.c3.pk).update(tomado_por=self.supervisor)
+        enlaces = set(
+            re.findall(r'href="(/emergencia/casos/\?[^"]*localidad=%d)"' % self.bar.pk, self._html(self.supervisor))
+        )
+        self.assertTrue(enlaces)
+        self.client.force_login(self.supervisor)
+        for enlace in enlaces:
+            with self.subTest(enlace=enlace):
+                respuesta = self.client.get(enlace.replace("&amp;", "&"))
+                self.assertIn(self.c3.numero, {fila["caso"].numero for fila in respuesta.context["filas"]})
 
     def test_tc_1184_06_e1_enlaza_a_e8(self):
         self.assertIn(f'href="{URL}"', self._html(self.supervisor, "/emergencia/tablero/"))

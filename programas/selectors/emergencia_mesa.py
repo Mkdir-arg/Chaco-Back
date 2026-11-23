@@ -320,7 +320,7 @@ def que_falta(caso, sla, ahora):
                 nota, urgente = f"La familia espera en la puerta de {caso.esperando_en_la_puerta}", True
     elif estado == Estado.DERIVADO:
         if caso.derivada_a_inactivo:
-            texto = "Derivarlo a otra institución"
+            texto = "Cancelar la derivación y derivarlo a otra institución"
             nota, urgente = f"{institucion} dejó de estar activa", True
         elif caso.derivacion_vencida_sin_marcar:
             texto = f"Confirmar con {institucion} si lo acepta"
@@ -340,7 +340,10 @@ def que_falta(caso, sla, ahora):
         if caso.ingreso_parcial:
             faltan = caso.grupo.total_declarado - caso.total_alojado
             texto = "Contactar a la familia"
-            nota, urgente = f"Faltan {_personas(faltan)} de las {caso.grupo.total_declarado} declaradas", True
+            nota, urgente = (
+                f"{'Falta' if faltan == 1 else 'Faltan'} {_personas(faltan)} de las {caso.grupo.total_declarado} declaradas",
+                True,
+            )
         else:
             texto = "Nada: se cierra cuando egrese la familia"
     else:
