@@ -8,9 +8,9 @@ nueva**: es la tabla densa canónica (`tabla.md`) con una columna cuya celda dib
 `programas/templates/programas/emergencia/kits/detail.html` (ítem · enviado · recibido · diferencia; la unidad
 copiada de la línea va como metadato bajo el ítem). Las líneas llegan de `programas/selectors/kits.py`
 (`lineas_de`; `entregas_por_recibir_de` cuenta las abiertas de la institución para el aviso de la ficha); el estado de la entrega y la hora de salida (no anterior al armado, al minuto) los decide `programas/services/kits.py`. «Recibida con diferencias sin revisar»
-es una sola condición, `q_entrega_sin_revisar` del mismo selector, que comparten el aviso y la foto del tablero E1.
+es una sola condición, `q_entrega_sin_revisar` del mismo selector, que comparten el aviso y la foto del tablero E1; desde el Cambio 586 exige además la diferencia **sin cerrar** (`cierre_diferencia` nulo: se cierra reponiendo, una sola vez, o aceptándola con motivo, ambas en `programas/services/kits.py`).
 El armado que la llena es idempotente: `crear_entrega` de `programas/services/kits.py` devuelve la entrega ya creada
-por el mismo `uuid_cliente` (oculto desde el paso 2), así que reenviar el paso 3 no duplica filas (Cambio 535).
+por el mismo `uuid_cliente` (oculto en la pantalla «Nueva entrega»), así que reenviar el formulario no duplica filas (Cambio 535).
 La línea guarda el `nombre` del insumo al armarse (`nombre_visible` cae al del ítem si falta): la columna «Ítem» lee ese nombre, no el del catálogo, para que un insumo desactivado no cambie lo que dice una entrega vieja.
 
 ## Invocación

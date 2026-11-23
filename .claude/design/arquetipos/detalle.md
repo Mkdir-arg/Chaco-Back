@@ -136,7 +136,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   `text-xs font-semibold uppercase text-body-subtle`, igual que en el resto de las fichas, para que el valor sea lo destacado. Las filas las arma `franjas_del_grupo` (selector de la
   mesa), la misma fuente que la tarjeta de «Llegadas» del dispositivo. Sin panel lateral,
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
-  (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
+  (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza; con una diferencia sin cerrar, una sección «Qué hacer ahora: cerrar la diferencia» con «Reponer lo que faltó» y «Aceptar la diferencia», este último un modal con el motivo obligatorio, Cambio 586). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.
 - Tablero de programa como Detalle apilado (`{# arquetipo: detalle + apilado #}`): `{% hero_inicio %}` ocupa el
   lugar del `page_header` (solo en las pantallas de `HERO_PANTALLAS`, ficha `componentes/hero_inicio.md`), una franja
