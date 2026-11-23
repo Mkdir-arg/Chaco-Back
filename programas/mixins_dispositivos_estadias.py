@@ -5,6 +5,8 @@ la página del edificio compartan el armado. Vive **fuera de `programas/views/`*
 vista que le pide algo a otra vista es lo que mide el ratchet de `programas/tests/test_arquitectura.py`.
 """
 
+from functools import cache
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
@@ -17,6 +19,7 @@ from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_dispositivos import EgresoForm
 from programas.mixins_dispositivos_sectores import _form_de_cambio_de_plaza
 from programas.models import Estadia, MomentoFormulario
+from programas.selectors.estadia_origen_emergencia import marcas_de_emergencia
 from programas.services.dispositivos import q_edificios_en_alcance
 from programas.services.ingreso import maneja_plazas
 from programas.services.sectores_plazas import se_puede_cambiar_plaza
@@ -44,6 +47,27 @@ def formulario_de_egreso(dispositivo, data=None, files=None):
     return formulario_de_momento_para(dispositivo.tipo_id, MomentoFormulario.EGRESO, data, files)
 
 
+def _marca_para_la_fila(marca, puede_abrir_caso):
+    """La marca lista para dibujar: ``url`` solo con capacidad sobre Emergencia y ``titulo`` con el caso y la familia.
+
+    ``puede_abrir_caso`` es una función: se evalúa solo si alguna fila tiene marca, para que una lista sin casos de
+    Emergencia no pague la consulta del programa.
+    """
+
+    if marca is None:
+        return None
+    titulo = f"Caso {marca['numero']}" + (f" · {marca['familia']}" if marca["familia"] else "")
+    url = reverse("emergencia:caso_detalle", args=[marca["caso_pk"]]) if puede_abrir_caso() else ""
+    return {**marca, "url": url, "titulo": titulo}
+
+
+def preparar_marca_de_emergencia(estadia, *, puede_ver_ciudadano, puede_abrir_caso):
+    """``estadia.marca_emergencia`` de una sola estadía (la ficha), con las mismas reglas que las filas."""
+
+    marcas = marcas_de_emergencia([estadia.pk], con_familia=puede_ver_ciudadano)
+    estadia.marca_emergencia = _marca_para_la_fila(marcas.get(estadia.pk), puede_abrir_caso)
+
+
 def preparar_filas_de_estadias(
     estadias,
     *,
@@ -54,15 +78,22 @@ def preparar_filas_de_estadias(
     puede_egresar,
     con_plazas,
     plazas_elegibles,
+    puede_abrir_caso=lambda: False,
 ):
     """Deja en cada estadía de la página lo que la fila dibuja: el nombre, el enlace a la estadía y sus acciones.
 
     La comparten la solapa Estadías de la ficha de la institución y la del edificio (Cambio 566). ``url_base`` es la
     página que abre el modal de cambio (``?tab=estadias&cambio=<id>``); ``plazas_elegibles`` es una función que
-    devuelve el conjunto de plazas libres y solo se llama si alguna fila ofrece el cambio.
+    devuelve el conjunto de plazas libres y solo se llama si alguna fila ofrece el cambio. A las que vienen de un caso
+    de Emergencia les deja ``marca_emergencia`` (una consulta fija, Cambio 575): el número enlaza al caso si
+    ``puede_abrir_caso()`` y el nombre de la familia sale solo con ``puede_ver_ciudadano``.
     """
 
+    marcas = marcas_de_emergencia([e.pk for e in estadias], con_familia=puede_ver_ciudadano)
+    puede_abrir_caso = cache(puede_abrir_caso)  # una sola evaluación por lista
+
     for estadia in estadias:
+        estadia.marca_emergencia = _marca_para_la_fila(marcas.get(estadia.pk), puede_abrir_caso)
         estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
         estadia.persona_del_menu = estadia.persona_visible
         if not puede_ver_ciudadano:
