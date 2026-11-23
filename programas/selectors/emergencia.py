@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.utils import timezone
 
 from core.dni import DIGITOS_ASCII, dni_valido, normalizar_dni
@@ -224,6 +224,9 @@ def ids_fuera_de_sla(sla, ahora: datetime):
 # Bandeja (E2)
 # ---------------------------------------------------------------------------
 
+SOLAPA_MIS_CASOS = "mis_casos"
+SOLAPA_SIN_TOMAR = "sin_tomar"
+SOLAPA_ESPERANDO_INSTITUCION = "esperando_institucion"
 SOLAPA_ABIERTOS = "abiertos"
 SOLAPA_NUEVOS = "nuevos"
 SOLAPA_EN_GESTION = "en_gestion"
@@ -234,8 +237,14 @@ SOLAPA_INGRESO_DIRECTO = "ingreso_directo"
 SOLAPA_ALOJADOS = "alojados"
 SOLAPA_CERRADOS = "cerrados"
 
-#: Las solapas de E2, en el orden de la pantalla.
+#: Las solapas de E2. Las primeras cinco son los chips de la bandeja (Cambio 580), en el orden de la pantalla;
+#: el resto sigue siendo válido porque lo usan los enlaces de los avisos (``?solapa=fuera_sla``, ``derivados``…).
 SOLAPAS = (
+    SOLAPA_MIS_CASOS,
+    SOLAPA_SIN_TOMAR,
+    SOLAPA_ESPERANDO_INSTITUCION,
+    SOLAPA_ALOJADOS,
+    SOLAPA_CERRADOS,
     SOLAPA_ABIERTOS,
     SOLAPA_NUEVOS,
     SOLAPA_EN_GESTION,
@@ -243,17 +252,23 @@ SOLAPAS = (
     SOLAPA_INGRESO_EN_CURSO,
     SOLAPA_FUERA_SLA,
     SOLAPA_INGRESO_DIRECTO,
-    SOLAPA_ALOJADOS,
-    SOLAPA_CERRADOS,
 )
+
+#: Los estados en los que un caso sin dueño espera que alguien de la mesa lo tome o lo siga: todos los abiertos
+#: menos el alojado, que ya tiene a la familia adentro y se mira en «Alojados».
+ESTADOS_SIN_TOMAR = (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO, Estado.INGRESO_EN_CURSO)
+
+#: En manos de la institución: la derivación espera respuesta o ya fue aceptada y la familia está ingresando.
+ESTADOS_ESPERANDO_INSTITUCION = (Estado.DERIVADO, Estado.INGRESO_EN_CURSO)
 
 #: Qué filtra cada solapa que sale del estado o del origen. «Fuera de SLA» no está: no es
 #: una condición de la base, se calcula.
 _Q_DE_SOLAPA = {
-    # Solo los que siguen pidiendo algo: un alojado completo no está en gestión y va en «Alojados»; el de
-    # ingreso parcial sigue acá porque la mesa tiene que contactar a la familia (aviso AE de ingreso parcial).
-    SOLAPA_ABIERTOS: ~Q(estado=Estado.CERRADO)
-    & (~Q(estado=Estado.ALOJADO) | Q(total_alojado__lt=F("grupo__total_declarado"))),
+    # Es ``CasoEmergencia.abierto`` en SQL: todo lo que no está cerrado (un alojado también: sigue abierto hasta que
+    # egresa la familia). Una definición distinta hacía que la solapa y la propiedad se contradijeran (Cambio 580).
+    SOLAPA_ABIERTOS: ~Q(estado=Estado.CERRADO),
+    SOLAPA_SIN_TOMAR: Q(tomado_por__isnull=True, estado__in=ESTADOS_SIN_TOMAR),
+    SOLAPA_ESPERANDO_INSTITUCION: Q(estado__in=ESTADOS_ESPERANDO_INSTITUCION),
     SOLAPA_NUEVOS: Q(estado=Estado.NUEVO),
     SOLAPA_EN_GESTION: Q(estado=Estado.EN_GESTION),
     SOLAPA_DERIVADOS: Q(estado=Estado.DERIVADO),
@@ -272,7 +287,28 @@ _ORDEN_PRIORIDAD = Case(
     output_field=IntegerField(),
 )
 
-FILTROS_DE_BANDEJA = ("solapa", "estado", "prioridad", "localidad", "tomado_por", "origen", "sla", "texto")
+#: ``usuario`` es el id de quien mira: lo necesita la solapa «Mis casos» (los abiertos que tiene tomados).
+FILTROS_DE_BANDEJA = (
+    "solapa",
+    "estado",
+    "prioridad",
+    "localidad",
+    "tomado_por",
+    "origen",
+    "sla",
+    "texto",
+    "usuario",
+)
+
+
+def _q_de_solapa(solapa, usuario_id=None):
+    """El filtro de la solapa. «Mis casos» depende de quien mira; sin usuario no hay casos suyos."""
+
+    if solapa == SOLAPA_MIS_CASOS:
+        if usuario_id is None:
+            return Q(pk__in=[])
+        return Q(tomado_por_id=usuario_id) & ~Q(estado=Estado.CERRADO)
+    return _Q_DE_SOLAPA[solapa]
 
 
 def _q_de_dni(dni):
@@ -341,6 +377,7 @@ def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
     * ``tomado_por`` — id de usuario («Míos» es el del que mira).
     * ``sla`` — ``EN_TERMINO``, ``POR_VENCER`` o ``FUERA``.
     * ``texto`` — N.° de caso, DNI, nombre o apellido del responsable o de un integrante, por palabras.
+    * ``usuario`` — id de quien mira; lo exige la solapa ``mis_casos`` (sin él no devuelve nada).
 
     Con ``sla`` y ``ahora`` (el ``SLAEmergencia`` vigente y el instante) el orden es el de
     la pantalla: **fuera de SLA primero**, después por prioridad, después el más viejo.
@@ -376,8 +413,8 @@ def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
     if (solapa == SOLAPA_FUERA_SLA or filtro_sla) and not con_reloj:
         raise ValueError("El filtro por SLA necesita el SLA vigente y el instante (`sla` y `ahora`).")
 
-    if solapa in _Q_DE_SOLAPA:
-        casos = casos.filter(_Q_DE_SOLAPA[solapa])
+    if solapa == SOLAPA_MIS_CASOS or solapa in _Q_DE_SOLAPA:
+        casos = casos.filter(_q_de_solapa(solapa, filtros.get("usuario")))
     for campo in ("estado", "prioridad", "origen"):
         if filtros.get(campo):
             casos = casos.filter(**{campo: filtros[campo]})
@@ -401,8 +438,10 @@ def bandeja(filtros=None, *, sla=None, ahora=None, semaforos=None):
     return casos.order_by(*orden)
 
 
-def conteo_por_solapa():
+def conteo_por_solapa(usuario_id=None):
     """Cuántos casos hay en cada solapa que sale del estado o del origen.
+
+    ``usuario_id`` es quien mira, para «Mis casos» (sin él, 0).
 
     **Una consulta**, agregada (sin ``GROUP BY`` que después haya que sumar en Python y
     sin una consulta por solapa). Devuelve un dict con las claves de :data:`SOLAPAS`
@@ -414,7 +453,9 @@ def conteo_por_solapa():
 
     return CasoEmergencia.objects.aggregate(
         total=Count("id"),
-        **{solapa: Count("id", filter=condicion) for solapa, condicion in _Q_DE_SOLAPA.items()},
+        **{
+            solapa: Count("id", filter=_q_de_solapa(solapa, usuario_id)) for solapa in (SOLAPA_MIS_CASOS, *_Q_DE_SOLAPA)
+        },
     )
 
 
@@ -449,6 +490,8 @@ def con_avisos_de_la_mesa(casos, ahora=None):
     Suma a cada caso, como subconsultas correlacionadas **de la misma consulta** —no cuesta
     una consulta más, ni por fila ni por página—:
 
+    * ``derivada_a`` — el nombre del dispositivo de la derivación vigente (pendiente o aceptada), que lee la
+      columna «Qué falta» de la bandeja.
     * ``ultima_accion`` — la ``accion`` de la última ``TrazaCaso``. «Sin acción posterior»
       al rechazo o al vencimiento es que esa siga siendo la última.
     * ``ultima_traza_en`` — cuándo fue esa última traza: el último movimiento del caso, que
@@ -475,7 +518,9 @@ def con_avisos_de_la_mesa(casos, ahora=None):
     pendiente_vencida = Derivacion.objects.filter(
         clave_vigente=OuterRef("pk"), estado=Derivacion.Estado.PENDIENTE, vence_en__lt=ahora or timezone.now()
     )
+    vigente = Derivacion.objects.filter(clave_vigente=OuterRef("pk"))
     return casos.annotate(
+        derivada_a=Subquery(vigente.values("dispositivo__nombre")[:1]),
         ultima_accion=Subquery(ultima_traza.values("accion")[:1]),
         ultima_traza_en=Subquery(ultima_traza.values("creado_en")[:1]),
         rechazada_por=Subquery(ultima_rechazada.values("dispositivo__nombre")[:1]),

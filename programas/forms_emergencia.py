@@ -34,7 +34,7 @@ from programas.models import (
     SLAEmergencia,
     TipoKit,
 )
-from programas.selectors.emergencia import ESTADOS_SLA, SOLAPA_ABIERTOS, SOLAPAS
+from programas.selectors.emergencia import ESTADOS_SLA, SOLAPA_SIN_TOMAR, SOLAPAS
 from programas.selectors.emergencia_mesa import OPERADOR_MIOS, nombre_de, operadores_de_la_mesa
 from programas.services.configuracion_emergencia import (
     CAMPOS_SLA,
@@ -738,11 +738,12 @@ class FiltrosBandejaForm(forms.Form):
         return {campo: valor for campo, valor in self.cleaned_data.items() if valor not in (None, "")}
 
     def filtros(self, usuario):
-        """El dict que recibe ``selectors.emergencia.bandeja``; por omisión, la solapa «Abiertos»."""
+        """El dict que recibe ``selectors.emergencia.bandeja``; por omisión, la solapa «Sin tomar»."""
 
         limpios = self.limpios()
         filtros = {campo: limpios[campo] for campo in self.CAMPOS_DEL_SELECTOR if campo in limpios}
-        filtros["solapa"] = limpios.get("solapa") or SOLAPA_ABIERTOS
+        filtros["solapa"] = limpios.get("solapa") or SOLAPA_SIN_TOMAR
+        filtros["usuario"] = usuario.pk
         operador = limpios.get("operador", "")
         if operador == OPERADOR_MIOS:
             filtros["tomado_por"] = usuario.pk

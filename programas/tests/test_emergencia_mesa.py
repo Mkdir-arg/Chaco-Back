@@ -419,8 +419,7 @@ class BandejaTests(BaseMesa):
         return [fila["caso"].numero for fila in respuesta.context["filas"]]
 
     def _chips(self, respuesta):
-        chips = respuesta.context["solapas_por_estado"] + respuesta.context["solapas_de_atencion"]
-        return {chip["texto"]: chip for chip in chips}
+        return {chip["texto"]: chip for chip in respuesta.context["solapas"]}
 
     def test_sin_casos_ofrece_cargar_el_primero(self):
         respuesta = self.client.get(URL_BANDEJA)
@@ -428,42 +427,46 @@ class BandejaTests(BaseMesa):
         self.assertContains(respuesta, "Todavía no hay casos")
         self.assertContains(respuesta, f'href="{URL_NUEVO}"')
 
-    def test_las_ocho_solapas_llevan_su_conteo(self):
+    def test_los_cinco_chips_llevan_su_conteo_en_una_sola_fila(self):
         nuevo = self._caso(apellido="Acosta")
         mio = self._caso_tomado(apellido="Benítez")
         derivado = self._caso_tomado(apellido="Cáceres")
         servicio.derivar_caso(derivado, self.operador, self.club, 2)
         cerrado = self._caso_tomado(apellido="Díaz")
         servicio.cerrar_sin_alojamiento(cerrado, self.operador, CasoEmergencia.MotivoCierre.NO_REQUIERE)
-        self.reloj.avanzar(minutes=16)  # el nuevo, sin tomar, ya pasó sus 15 minutos
+        self.reloj.avanzar(minutes=16)
 
         respuesta = self.client.get(URL_BANDEJA)
 
         chips = self._chips(respuesta)
         self.assertEqual(
             {texto: chip["n"] for texto, chip in chips.items()},
-            {
-                "Abiertos": 3,
-                "Nuevos": 1,
-                "En gestión": 1,
-                "Derivados": 1,
-                "Ingreso en curso": 0,
-                "Cerrados": 1,
-                "Fuera de SLA": 1,
-                "Ingreso directo": 0,
-                "Alojados": 0,
-            },
+            {"Mis casos": 2, "Sin tomar": 1, "Esperando a la institución": 1, "Alojados": 0, "Cerrados": 1},
         )
-        self.assertEqual([texto for texto, chip in chips.items() if chip["activo"]], ["Abiertos"])
-        # Por defecto, los abiertos: fuera de SLA primero, y el cerrado no está.
-        self.assertEqual(self._numeros(respuesta), [nuevo.numero, mio.numero, derivado.numero])
+        self.assertEqual(list(chips), ["Mis casos", "Sin tomar", "Esperando a la institución", "Alojados", "Cerrados"])
+        # Sin solapa en la URL se abre «Sin tomar»: lo que la mesa tiene que atender primero.
+        self.assertEqual([texto for texto, chip in chips.items() if chip["activo"]], ["Sin tomar"])
+        self.assertEqual(self._numeros(respuesta), [nuevo.numero])
+        self.assertEqual(
+            self._numeros(self.client.get(URL_BANDEJA, {"solapa": "mis_casos"})), [mio.numero, derivado.numero]
+        )
+        self.assertEqual(
+            self._numeros(self.client.get(URL_BANDEJA, {"solapa": "esperando_institucion"})), [derivado.numero]
+        )
         self.assertEqual(self._numeros(self.client.get(URL_BANDEJA, {"solapa": "cerrados"})), [cerrado.numero])
         self.assertEqual(self._numeros(self.client.get(URL_BANDEJA, {"solapa": "fuera_sla"})), [nuevo.numero])
         self.assertContains(respuesta, 'aria-current="true"')
+        self.assertContains(respuesta, 'aria-label="Filtrar los casos"', count=1)
+
+    def test_mis_casos_son_los_de_quien_mira(self):
+        propio = self._caso_tomado(apellido="Benítez")
+        self._caso_tomado(por=self.otro_operador, apellido="Cáceres")
+        self.assertEqual(self._numeros(self.client.get(URL_BANDEJA, {"solapa": "mis_casos"})), [propio.numero])
+        self.assertEqual(self._chips(self.client.get(URL_BANDEJA))["Mis casos"]["n"], 1)
 
     def test_la_fila_muestra_familia_estado_prioridad_y_quien_lo_tiene(self):
         caso = self._caso_tomado(apellido="Benítez", embarazo=True, localidad=self.resistencia.pk)
-        respuesta = self.client.get(URL_BANDEJA)
+        respuesta = self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
         fila = respuesta.context["filas"][0]
         self.assertEqual(
             (fila["familia"], fila["detalle"], fila["localidad"], fila["tomado_por"]),
@@ -477,7 +480,7 @@ class BandejaTests(BaseMesa):
     def test_tomar_se_ofrece_solo_en_los_nuevos(self):
         nuevo = self._caso()
         tomado = self._caso_tomado()
-        respuesta = self.client.get(URL_BANDEJA)
+        respuesta = self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
         self.assertContains(respuesta, f'action="{self._url("caso_tomar", nuevo)}"')
         self.assertNotContains(respuesta, f'action="{self._url("caso_tomar", tomado)}"')
 
@@ -493,7 +496,7 @@ class BandejaTests(BaseMesa):
         estadia.clave_alojamiento = estadia.clave_para(alojado.grupo.responsable)
         estadia.save()
 
-        html = self.client.get(URL_BANDEJA).content.decode()
+        html = self.client.get(URL_BANDEJA, {"solapa": "abiertos"}).content.decode()
 
         self.assertIn("Ubicación aproximada", html)
         self.assertEqual(html.count("Posible duplicado: caso "), 2)
@@ -504,7 +507,7 @@ class BandejaTests(BaseMesa):
 
     def test_un_caso_relevado_y_enviado_en_el_momento_no_lleva_la_marca(self):
         self._caso()
-        self.assertNotContains(self.client.get(URL_BANDEJA), "enviado")
+        self.assertNotContains(self.client.get(URL_BANDEJA, {"solapa": "abiertos"}), "enviado")
 
     def test_los_filtros(self):
         mio = self._caso_tomado(apellido="Benítez", localidad=self.resistencia.pk, embarazo=True)
@@ -512,7 +515,7 @@ class BandejaTests(BaseMesa):
         nuevo = self._caso(apellido="Acosta")
 
         def numeros(**filtros):
-            return set(self._numeros(self.client.get(URL_BANDEJA, filtros)))
+            return set(self._numeros(self.client.get(URL_BANDEJA, {"solapa": "abiertos", **filtros})))
 
         self.assertEqual(numeros(operador="mios"), {mio.numero})
         self.assertEqual(numeros(operador=str(self.otro_operador.pk)), {ajeno.numero})
@@ -547,6 +550,7 @@ class BandejaTests(BaseMesa):
         respuesta = self.client.get(URL_BANDEJA, {"solapa": "nuevos", "prioridad": "BAJA", "page": "1"})
         chips = self._chips(respuesta)
         self.assertEqual(chips["Cerrados"]["url"], f"{URL_BANDEJA}?solapa=cerrados&prioridad=BAJA")
+        self.assertEqual(chips["Mis casos"]["url"], f"{URL_BANDEJA}?solapa=mis_casos&prioridad=BAJA")
         self.assertContains(respuesta, '<input type="hidden" name="solapa" value="nuevos">', html=True)
         self.assertContains(respuesta, '<option value="BAJA" selected>Baja</option>', html=True)
 
@@ -554,9 +558,9 @@ class BandejaTests(BaseMesa):
         self._caso()
         con_filtro = self.client.get(URL_BANDEJA, {"texto": "zzz"})
         self.assertContains(con_filtro, "Ningún caso coincide con los filtros")
-        self.assertContains(con_filtro, f'href="{URL_BANDEJA}?solapa=abiertos"')
+        self.assertContains(con_filtro, f'href="{URL_BANDEJA}?solapa=sin_tomar"')
         solapa_vacia = self.client.get(URL_BANDEJA, {"solapa": "cerrados"})
-        self.assertContains(solapa_vacia, "No hay casos en esta solapa")
+        self.assertContains(solapa_vacia, "No hay casos en esta vista")
         self.assertNotContains(solapa_vacia, "Ningún caso coincide")
 
     def test_los_operadores_del_filtro_son_los_de_la_mesa(self):
@@ -588,7 +592,7 @@ class SemaforoEnPantallaTests(BaseMesa):
         cerrado = self._caso_tomado(apellido="Díaz")
         servicio.cerrar_sin_alojamiento(cerrado, self.operador, CasoEmergencia.MotivoCierre.NO_REQUIERE)
 
-        abiertos = SEMAFORO.findall(self.client.get(URL_BANDEJA).content.decode())
+        abiertos = SEMAFORO.findall(self.client.get(URL_BANDEJA, {"solapa": "abiertos"}).content.decode())
         cerrados = SEMAFORO.findall(self.client.get(URL_BANDEJA, {"solapa": "cerrados"}).content.decode())
 
         self.assertEqual(
@@ -608,7 +612,7 @@ class SemaforoEnPantallaTests(BaseMesa):
     def test_un_lapso_largo_se_lee_en_horas(self):
         self._caso()
         self.reloj.avanzar(hours=3)
-        semaforos = SEMAFORO.findall(self.client.get(URL_BANDEJA).content.decode())
+        semaforos = SEMAFORO.findall(self.client.get(URL_BANDEJA, {"solapa": "abiertos"}).content.decode())
         self.assertEqual([_texto(cuerpo) for _estado, cuerpo in semaforos], ["Fuera de SLA · 2 h"])
 
     def test_la_ficha_lleva_un_solo_reloj_con_el_tramo(self):
@@ -1069,7 +1073,7 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
         caso = self._cargar(apellido="Benítez")
 
         # Aparece en la bandeja, en gestión y a nombre de quien lo cargó.
-        bandeja = self.client.get(URL_BANDEJA, {"operador": "mios"})
+        bandeja = self.client.get(URL_BANDEJA, {"operador": "mios", "solapa": "abiertos"})
         fila = bandeja.context["filas"][0]
         self.assertEqual(
             (fila["caso"].pk, fila["estado_texto"], fila["tomado_por"]), (caso.pk, "En gestión", "Ana López")
@@ -1140,7 +1144,7 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
             [t.accion for t in self._trazas(caso)],
             [Accion.CREADO, Accion.CONTACTO, Accion.DERIVADO, Accion.DERIVACION_CANCELADA, Accion.CERRADO],
         )
-        self.assertEqual(self.client.get(URL_BANDEJA).context["filas"], [])
+        self.assertEqual(self.client.get(URL_BANDEJA, {"solapa": "abiertos"}).context["filas"], [])
         self.assertEqual(self.client.get(URL_BANDEJA, {"solapa": "cerrados"}).context["filas"][0]["caso"].pk, caso.pk)
 
     def test_derivar_con_faltantes_pide_confirmar_y_recien_ahi_deriva(self):
@@ -1348,10 +1352,10 @@ class PresupuestoDeConsultasTests(BaseMesa):
         self._casos_en_lote(500)
         self.reloj.avanzar(minutes=40)  # una parte queda fuera de SLA: el orden usa la lista de ids
         self.client.force_login(self.operador)
-        self.client.get(URL_BANDEJA)  # calienta lo que es del proceso (content types, programa)
+        self.client.get(URL_BANDEJA, {"solapa": "abiertos"})  # calienta lo que es del proceso (content types, programa)
 
         with self.assertNumQueries(self.CONSULTAS_E2):
-            respuesta = self.client.get(URL_BANDEJA)
+            respuesta = self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(len(respuesta.context["filas"]), CASOS_POR_PAGINA)
@@ -1364,9 +1368,9 @@ class PresupuestoDeConsultasTests(BaseMesa):
     def test_e2_cuesta_lo_mismo_con_pocos_casos(self):
         self._casos_en_lote(6)
         self.client.force_login(self.operador)
-        self.client.get(URL_BANDEJA)
+        self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
         with self.assertNumQueries(self.CONSULTAS_E2):
-            self.assertEqual(len(self.client.get(URL_BANDEJA).context["filas"]), 6)
+            self.assertEqual(len(self.client.get(URL_BANDEJA, {"solapa": "abiertos"}).context["filas"]), 6)
 
     def test_e3_con_50_dispositivos(self):
         for numero in range(50):
