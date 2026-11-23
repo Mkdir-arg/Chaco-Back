@@ -21,12 +21,12 @@ Situación de la plaza                  Acción               Capacidad
 =====================================  ===================  ==========================
 Fuera de servicio                      volver a servicio    ``dispositivo.editar``
 Con una reserva o préstamo sin liberar liberar              ``dispositivo.admitir``
-Ocupada                                cambiar de plaza     ``dispositivo.admitir``
-                                       ver la estadía       ``ciudadano.ver``
-                                       ver el legajo        ``ciudadano.ver``
-                                       registrar el egreso  ``dispositivo.egresar``
+Ocupada (en este orden)                registrar el egreso  ``dispositivo.egresar``
+                                       cambiar de plaza     ``dispositivo.admitir``
                                        sacar de servicio,   ``dispositivo.editar``
                                        **bloqueada**
+                                       ver la estadía       ``ciudadano.ver``
+                                       ver el legajo        ``ciudadano.ver``
 Disponible                             reservar, prestar    ``dispositivo.admitir``
                                        y sacar de servicio  ``dispositivo.editar``
 =====================================  ===================  ==========================
@@ -66,6 +66,8 @@ resolver son otra consulta sola, la misma para cualquiera que mire. Antes eran t
 por sector, así que un dispositivo con ocho pabellones costaba veinticuatro consultas
 nada más que para dibujarse.
 """
+
+from urllib.parse import urlencode
 
 from django.db.models import Q
 from django.urls import reverse
@@ -151,9 +153,9 @@ def acciones_de_plaza(
     Fuera de servicio gana: es la misma precedencia que dibuja `estado_de_plazas`, y una
     plaza fuera de servicio con una reserva abierta —que el servicio de estadías no deja
     escribir— se repone antes de nada. Una reserva abierta se libera (`admitir`). La ocupada
-    ofrece, en este orden y cada una con su capacidad: cambiar de plaza (`admitir`), ver la
-    estadía y el legajo (`ciudadano.ver`, `puede_buscar_personas`), registrar el egreso
-    (`egresar`) y «sacar de servicio» (`editar`), esta última siempre bloqueada con su motivo. La disponible ofrece reservar y prestar (`admitir`) y sacar de
+    ofrece, en este orden y cada una con su capacidad (Cambio 582): registrar el egreso
+    (`egresar`), cambiar de plaza (`admitir`), «sacar de servicio» (`editar`), siempre bloqueada con su motivo, y ver la
+    estadía y el legajo (`ciudadano.ver`, `puede_buscar_personas`). La disponible ofrece reservar y prestar (`admitir`) y sacar de
     servicio (`editar`), y además ingresar a una persona en ella, que abre el asistente de ingreso con la
     plaza marcada: pide lo mismo que el asistente (`admitir` + `ciudadano.ver`) y un dispositivo activo
     (`estado_dispositivo`), porque el asistente rechaza los demás. Reservar y prestar buscan a la persona por DNI en el padrón, así que
@@ -166,13 +168,13 @@ def acciones_de_plaza(
     if con_reserva_abierta:
         return [ACCION_LIBERAR] if puede_admitir else []
     if estado.estado == ESTADO_OCUPADA:
-        acciones = [ACCION_REUBICAR] if puede_admitir and puede_reubicar else []
-        if puede_buscar_personas:
-            acciones += [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO]
-        if puede_egresar:
-            acciones.append(ACCION_EGRESAR)
+        acciones = [ACCION_EGRESAR] if puede_egresar else []
+        if puede_admitir and puede_reubicar:
+            acciones.append(ACCION_REUBICAR)
         if puede_editar:
             acciones.append(ACCION_FUERA_SERVICIO)
+        if puede_buscar_personas:
+            acciones += [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO]
         return acciones
     acciones = []
     if puede_admitir and puede_buscar_personas:
@@ -216,6 +218,11 @@ def url_solapa_estadias(dispositivo_pk):
 
 #: Parámetro GET del filtro «Edificio» de la solapa. No se llama `edificio`: ese ya abre los modales del edificio.
 PARAM_EDIFICIO_SECTORES = "sectores_edificio"
+
+#: Parámetros GET de «Plazas dadas de baja» (Cambio 582). El filtro por sector no se llama `sector`: ese ya abre el
+#: modal «Editar sector» de la pantalla suelta. `baja_abierto` abre un grupo sin filtrar: es la vuelta de «Reactivar».
+PARAM_BAJA_SECTOR = "baja_sector"
+PARAM_BAJA_ABIERTO = "baja_abierto"
 
 
 def url_solapa_sectores(dispositivo_pk, edificio_id=None):
@@ -279,10 +286,28 @@ def url_vuelta_a_sectores(request, dispositivo):
 
     siguiente = destino_seguro(request, "", desde=("POST", "GET"))
     if siguiente:
-        return siguiente
+        return _con_bajas(siguiente, request)
     pedido = request.POST.get(PARAM_EDIFICIO_SECTORES) or request.GET.get(PARAM_EDIFICIO_SECTORES, "")
     edificio_id, _pildoras = filtro_de_edificio(request.user, dispositivo, pedido)
-    return url_solapa_sectores(dispositivo.pk, edificio_id)
+    return _con_bajas(url_solapa_sectores(dispositivo.pk, edificio_id), request)
+
+
+def _con_bajas(url, request):
+    """Suma a la vuelta «Ver inactivos» con el filtro por sector y el grupo abierto de «Plazas dadas de baja».
+
+    Solo si el pedido los trae (los manda «Reactivar» de una plaza): son números, nada que venga de afuera se copia a
+    la URL. Si el sector ya no existe, no tiene bajas o es ajeno, la pantalla los ignora al armar la lista.
+    """
+
+    pedidos = {}
+    for nombre in (PARAM_BAJA_SECTOR, PARAM_BAJA_ABIERTO):
+        valor = request.POST.get(nombre) or request.GET.get(nombre, "")
+        if valor.isascii() and valor.isdecimal():
+            pedidos[nombre] = int(valor)
+    if not pedidos:
+        return url
+    separador = "&" if "?" in url else "?"
+    return f"{url}{separador}inactivos=1&{urlencode(pedidos)}"
 
 
 def url_modal_egreso(dispositivo_pk, estadia_pk):
@@ -365,7 +390,7 @@ def plaza_para_accion(
     )
     if plaza is None:
         return None
-    estado = estado_de_plazas([plaza])[plaza.pk]
+    estado = estado_de_plazas([plaza], puede_ver_personas=puede_ver_personas)[plaza.pk]
     reserva = reserva_abierta_de(plaza)
     # `puede_liberar` es `dispositivo.admitir`: liberar, reubicar, reservar y prestar.
     acciones = acciones_de_plaza(
@@ -391,16 +416,21 @@ def plaza_para_accion(
     }
 
 
-def datos_para_el_modal(plaza, estado, acciones, bloqueo="", enlaces=None, con_reserva_abierta=False):
+def datos_para_el_modal(plaza, estado, acciones, bloqueo="", enlaces=None, con_reserva_abierta=False, sector_nombre=""):
     """Lo que el modal Alpine necesita de una plaza, serializable con `json_script`.
 
     Sale de lo que el mapa ya calculó: ni una consulta más por plaza. `detalle` es el de
     `estado_de_plazas`, así que respeta `ciudadano.ver` igual que la celda. `bloqueo_baja` es por
     qué «Dar de baja» no va a proceder (plaza ocupada o con una reserva sin liberar), o vacío.
+    `sector` y `ocupante` arman la línea de contexto de la plaza ocupada («A3 · Pabellón A · Ocupada por Pérez,
+    Ana»); `ocupante` es el de `estado_de_plazas` y llega vacío a quien no tiene `ciudadano.ver`.
     """
 
     return {
         "codigo": plaza.codigo,
+        "sector": sector_nombre,
+        "ocupada": estado.estado == ESTADO_OCUPADA,
+        "ocupante": estado.ocupante,
         "estado": estado.estado,
         # El aviso de «Liberar» distingue préstamo de reserva: lo dice el dato, no el texto de la etiqueta.
         "es_prestamo": estado.estado == ESTADO_PRESTADA,
@@ -579,6 +609,7 @@ def sectores_con_plazas(
                     bloqueo_del_modal(estado, acciones),
                     enlaces_de_plaza(dispositivo, estado, acciones, plaza.pk),
                     con_reserva_abierta=plaza.pk in reservas,
+                    sector_nombre=sector.nombre,
                 )
             if not url and puede_configurar_plazas:
                 # Editar la identidad no libera la reserva ni exige dispositivo.admitir.

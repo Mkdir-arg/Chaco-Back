@@ -215,7 +215,7 @@ class AccesoTests(BaseMesa):
 
 class SidebarTests(BaseMesa):
     ENLACE_BANDEJA = 'href="/emergencia/casos/"'
-    ENLACE_CONFIGURACION = 'href="/emergencia/config/"'
+    ENLACE_CONFIGURACION = 'href="/emergencia/config/insumos/"'
 
     def _inicio(self, usuario):
         self.client.force_login(usuario)
@@ -246,11 +246,13 @@ class SidebarTests(BaseMesa):
     def test_la_entrada_marca_la_pantalla_en_la_que_se_esta(self):
         self.client.force_login(self.supervisor)
         bandeja = self.client.get(URL_BANDEJA).content.decode()
-        configuracion = self.client.get(reverse("emergencia:configuracion")).content.decode()
-        # Las dos entradas del grupo desplegado (el ícono del menú colapsado es del módulo entero).
-        marca = re.compile(r'href="(/emergencia/[a-z]+/)"\s+class="flex items-center gap-2[^>]*aria-current="page"')
+        insumos = self.client.get(reverse("emergencia:insumos")).content.decode()
+        plazos = self.client.get(reverse("emergencia:plazos")).content.decode()
+        # Las entradas del grupo desplegado (el ícono del menú colapsado es del módulo entero).
+        marca = re.compile(r'href="(/emergencia/[a-z/]+/)"\s+class="flex items-center gap-2[^>]*aria-current="page"')
         self.assertEqual(set(marca.findall(bandeja)), {"/emergencia/casos/"})
-        self.assertEqual(set(marca.findall(configuracion)), {"/emergencia/config/"})
+        self.assertEqual(set(marca.findall(insumos)), {"/emergencia/config/insumos/"})
+        self.assertEqual(set(marca.findall(plazos)), {"/emergencia/config/plazos/"})
 
 
 # ---------------------------------------------------------------------------

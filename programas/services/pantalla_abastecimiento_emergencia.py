@@ -9,7 +9,7 @@ Nada de acá consulta la base ni decide una regla: los números salen de
   inventario.
 * **«Preparar entrega»** (paso 2 de E4) solo con ``operar`` o ``supervisar`` y el dispositivo
   ``ACTIVO``: sin eso, la URL ni se calcula.
-* **Enlace a E7** (Configuración de la mesa) solo con ``supervisar``.
+* **Enlaces a «Insumos» y «Plazos de atención»** (la configuración de la mesa) solo con ``supervisar``.
 * **Ubicación reservada** (RN-009-13): «Dispositivo de ubicación reservada», sin nombre ni localidad.
 """
 
@@ -24,10 +24,12 @@ from programas.services.alertas_situacion_emergencia import alertas_de_abastecim
 from programas.services.ocupacion import etiqueta_y_tono
 from programas.services.pantalla_situacion_emergencia import DIAS, RED_PROVINCIAL, SIN_DATO, badge, local, numero
 
-IR_A_E7 = "Ir a Configuración de la mesa"
+TEXTO_SIN_ESTIMAR = "Sin estimar · no se calcula en Situación"
+IR_A_PLAZOS = "Ir a Plazos de atención"
+IR_A_INSUMOS = "Ir a Insumos"
 
 #: Los estados vacíos de la solapa (§3.9 y §12), listos para ``components/_estado_vacio.html``. La acción
-#: de los que piden ir a E7 solo viaja con ``supervisar``.
+#: de los que piden ir a Plazos o a Insumos solo viaja con ``supervisar``.
 VACIO_SIN_PEDIR = {
     "icono": "fa-boxes-stacked",
     "titulo": "El abastecimiento se calcula cuando lo pedís",
@@ -38,14 +40,14 @@ VACIO_SIN_PEDIR = {
 VACIO_SIN_INICIO = {
     "icono": "fa-calendar-xmark",
     "titulo": "Para estimar el abastecimiento falta la fecha de inicio del evento",
-    "texto": "Todo lo recibido y lo consumido se cuenta desde esa fecha. Se carga en Configuración de la mesa.",
-    "accion_texto": IR_A_E7,
+    "texto": "Todo lo recibido y lo consumido se cuenta desde esa fecha. Se carga en Plazos de atención.",
+    "accion_texto": IR_A_PLAZOS,
 }
 VACIO_SIN_REGLAS = {
     "icono": "fa-sliders",
-    "titulo": "Ningún ítem tiene regla de consumo: se configuran en Configuración de la mesa",
+    "titulo": "Ningún ítem tiene regla de consumo: se configuran en Insumos",
     "texto": "Sin una regla por ítem no se puede estimar qué falta.",
-    "accion_texto": IR_A_E7,
+    "accion_texto": IR_A_INSUMOS,
 }
 VACIO_SIN_ALOJADOS = {
     "icono": "fa-house-chimney-user",
@@ -65,15 +67,30 @@ def cantidad_de_la_regla(cantidad):
     return number_format(cantidad.normalize() if hasattr(cantidad, "normalize") else cantidad)
 
 
-def texto_de_la_regla(item):
-    """«1 por persona · dotación», «0,5 por persona por día», «1 por familia cada 3 días»."""
-
-    base = f"{cantidad_de_la_regla(item.cantidad)} por {POR.get(item.por, item.por.lower())}"
-    if item.modo == TipoKit.ModoRegla.DOTACION:
-        return f"{base} · dotación"
-    if item.cada_dias == 1:
+def _regla_dicha(cantidad, por, modo, cada_dias, dotacion):
+    base = f"{cantidad_de_la_regla(cantidad)} por {POR.get(por, por.lower())}"
+    if modo == TipoKit.ModoRegla.DOTACION:
+        return f"{base}{dotacion}"
+    if cada_dias == 1:
         return f"{base} por día"
-    return f"{base} cada {item.cada_dias} días"
+    return f"{base} cada {cada_dias} días"
+
+
+def texto_de_la_regla(item, dotacion=" · dotación"):
+    """«1 por persona · dotación», «0,5 por persona por día», «1 por familia cada 3 días».
+
+    ``dotacion`` es cómo se dice la dotación al final: cada pantalla conserva su forma.
+    """
+
+    return _regla_dicha(item.cantidad, item.por, item.modo, item.cada_dias, dotacion)
+
+
+def texto_de_consumo(tipo):
+    """El consumo de un insumo del catálogo, dicho para «Insumos»: «1 por familia, una sola vez»."""
+
+    if tipo.regla_modo == TipoKit.ModoRegla.SIN_REGLA or tipo.regla_cantidad is None:
+        return TEXTO_SIN_ESTIMAR
+    return _regla_dicha(tipo.regla_cantidad, tipo.regla_por, tipo.regla_modo, tipo.regla_cada_dias, ", una sola vez")
 
 
 def _media_hora(momento):
@@ -229,8 +246,12 @@ def como_se_calcula(abastecimiento):
     return [f"{item.nombre}: {texto_de_la_regla(item)}" for item in abastecimiento.items_con_regla]
 
 
-def _url_configuracion(supervisa):
-    return reverse("emergencia:configuracion") if supervisa else ""
+def _url_insumos(supervisa):
+    return reverse("emergencia:insumos") if supervisa else ""
+
+
+def _url_plazos(supervisa):
+    return reverse("emergencia:plazos") if supervisa else ""
 
 
 def _vacio(vacio, url=""):
@@ -248,13 +269,13 @@ def panel_sin_calcular(*, pedido, inicio_evento, url_calcular, supervisa):
     """El panel cuando la solapa no calcula, o ``None`` si hay que calcularla. Sin consultas.
 
     Sin ``?tab=abastecimiento`` (``pedido`` falso), «Calcular el abastecimiento» con ``url_calcular``;
-    sin ``inicio_evento``, el estado que lo pide (con el enlace a E7 solo para ``supervisar``).
+    sin ``inicio_evento``, el estado que lo pide (con el enlace a Plazos solo para ``supervisar``).
     """
 
     if not pedido:
         return _vacio(VACIO_SIN_PEDIR, url_calcular)
     if inicio_evento is None:
-        return _vacio(VACIO_SIN_INICIO, _url_configuracion(supervisa))
+        return _vacio(VACIO_SIN_INICIO, _url_plazos(supervisa))
     return None
 
 
@@ -262,19 +283,19 @@ def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa):
     """Todo lo que dibuja la solapa calculada. Sin consultas.
 
     ``abastecimiento`` es el de ``armar_abastecimiento``; ``opera`` (``operar`` o ``supervisar``) decide
-    los nombres de la salud y «Preparar entrega»; ``supervisa``, el enlace a E7.
+    los nombres de la salud y «Preparar entrega»; ``supervisa``, el enlace a Insumos.
     """
 
-    url_configuracion = _url_configuracion(supervisa)
+    url_insumos = _url_insumos(supervisa)
     if not abastecimiento.hay_reglas:
-        return _vacio(VACIO_SIN_REGLAS, url_configuracion)
+        return _vacio(VACIO_SIN_REGLAS, url_insumos)
     if not abastecimiento.hay_alojados:
         return _vacio(VACIO_SIN_ALOJADOS)
     salud = presentar_salud(abastecimiento.salud, opera)
     return {
         "calculado": True,
         "vacio": None,
-        "url_configuracion": url_configuracion,
+        "url_insumos": url_insumos,
         "nota": nota(abastecimiento),
         "tarjetas": tarjetas(abastecimiento),
         "atencion": alertas_de_abastecimiento(abastecimiento, salud),

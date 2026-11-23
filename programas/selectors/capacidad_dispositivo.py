@@ -7,6 +7,7 @@ from django.db.models import Case, Count, Exists, F, OuterRef, Q, Value, When
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.inspecciones import edificios_en_alcance
+from programas.services.nombre_plaza import clave_natural
 
 
 def instituciones_del_predio(usuario, edificios_ids, tambien=None):
@@ -167,16 +168,76 @@ def sectores_inactivos(dispositivo, *, q_alcance=None):
     )
 
 
-def plazas_dadas_de_baja(dispositivo, *, q_alcance=None):
-    """Las plazas dadas de baja de los sectores activos del dispositivo, por sector y código (una consulta).
+#: Cuántas bajas de un sector se ven de entrada; el resto va plegado en el mismo grupo («Ver las N restantes»).
+TOPE_BAJAS_POR_GRUPO = 20
 
-    Las de un sector inactivo no se listan: vuelven con su sector, y reactivar una sola no tendría
-    dónde dibujarse.
+
+class GrupoDeBajas(NamedTuple):
+    """Las plazas dadas de baja de un sector: las primeras `TOPE_BAJAS_POR_GRUPO` y las que quedan plegadas."""
+
+    sector: Sector
+    cantidad: int
+    visibles: list
+    restantes: list
+    abierto: bool
+
+
+class PlazasDadasDeBaja(NamedTuple):
+    """Lo que dibuja la sección «Plazas dadas de baja»: ya agrupado, contado y con el filtro validado.
+
+    `opciones` son todos los sectores que tienen bajas (`[(pk, nombre)]`), también con el filtro puesto: es lo que
+    ofrece el select. `filtro` es el sector elegido, o ``None`` si no se pidió o no vale.
     """
 
-    return (
+    total: int
+    cantidad_sectores: int
+    opciones: list
+    filtro: int | None
+    grupos: list
+
+
+def plazas_dadas_de_baja(dispositivo, *, q_alcance=None, sector_id=None, abierto_id=None, tope=TOPE_BAJAS_POR_GRUPO):
+    """Las plazas dadas de baja de los sectores activos del dispositivo, agrupadas por sector (una consulta).
+
+    Las de un sector inactivo no se listan: vuelven con su sector, y reactivar una sola no tendría
+    dónde dibujarse. Una consulta fija: el agrupado, la cuenta y el recorte de cada grupo se hacen en Python sobre
+    ese resultado, así que no crece con los sectores ni con las plazas.
+
+    ``sector_id`` es el filtro pedido: solo vale si ese sector tiene bajas (uno ajeno, inexistente o sin bajas se
+    ignora y quedan todos) y deja solo su grupo, abierto. ``abierto_id`` abre el grupo de ese sector sin filtrar
+    (la vuelta de «Reactivar»). Por grupo se ven ``tope`` plazas y el resto va en `restantes`.
+    """
+
+    filas = (
         Plaza.todas.filter(sector__dispositivo=dispositivo, sector__activo=True, activa=False)
         .filter(q_alcance if q_alcance is not None else Q())
         .select_related("sector")
-        .order_by("sector__nombre", "codigo")
+        .order_by("sector__nombre", "sector_id", "codigo")
+    )
+    por_sector = {}
+    for plaza in filas:
+        por_sector.setdefault(plaza.sector_id, []).append(plaza)
+    opciones = [(pk, plazas[0].sector.nombre) for pk, plazas in por_sector.items()]
+    filtro = sector_id if sector_id in por_sector else None
+    grupos = []
+    for pk, plazas in por_sector.items():
+        if filtro is not None and pk != filtro:
+            continue
+        # El orden natural dentro del grupo («99» antes que «100»), como el mapa.
+        plazas = sorted(plazas, key=lambda plaza: clave_natural(plaza.codigo))
+        grupos.append(
+            GrupoDeBajas(
+                sector=plazas[0].sector,
+                cantidad=len(plazas),
+                visibles=plazas[:tope],
+                restantes=plazas[tope:],
+                abierto=filtro is not None or pk == abierto_id,
+            )
+        )
+    return PlazasDadasDeBaja(
+        total=sum(len(plazas) for plazas in por_sector.values()),
+        cantidad_sectores=len(por_sector),
+        opciones=opciones,
+        filtro=filtro,
+        grupos=grupos,
     )

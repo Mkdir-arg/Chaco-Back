@@ -135,7 +135,13 @@ class PermisosTests(BaseVista):
 
     def test_tc_1182_03_la_autoridad_no_abre_la_mesa(self):
         self.client.force_login(self.autoridad)
-        for url in ("/emergencia/casos/", "/emergencia/entregas/", "/emergencia/tablero/", "/emergencia/config/"):
+        for url in (
+            "/emergencia/casos/",
+            "/emergencia/entregas/",
+            "/emergencia/tablero/",
+            "/emergencia/config/insumos/",
+            "/emergencia/config/plazos/",
+        ):
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 403)
 
@@ -283,7 +289,7 @@ class SidebarTests(BaseVista):
         html = self._html(self.autoridad)
         self.assertIn(f'href="{URL}"', html)
         self.assertNotIn('href="/emergencia/casos/"', html)
-        self.assertNotIn('href="/emergencia/config/"', html)
+        self.assertNotIn('href="/emergencia/config/insumos/"', html)
 
     def test_tc_1184_38_situacion_es_la_pagina_actual(self):
         html = self._html(self.supervisor)
@@ -302,7 +308,7 @@ class SidebarTests(BaseVista):
         html = self._html(mixto)
         self.assertIn('href="/emergencia/casos/"', html)
         self.assertIn('href="/emergencia/entregas/"', html)
-        self.assertNotIn('href="/emergencia/config/"', html)
+        self.assertNotIn('href="/emergencia/config/insumos/"', html)
 
 
 class MigracionVerSituacionTests(TestCase):

@@ -1,4 +1,4 @@
-"""Módulo Emergencia, PR 1: programa, capacidades y configuración (E7).
+"""Módulo Emergencia, PR 1: programa, capacidades y «Plazos de atención» (antes E7).
 
 Qué fija este archivo, regla por regla:
 
@@ -11,8 +11,9 @@ Qué fija este archivo, regla por regla:
   PR siguiente entra sola. ``UnRolDeOtroProgramaNoAbreEmergenciaTests`` se vio en rojo
   contra la regla invertida antes de quedar verde (el detalle, en su docstring).
 * **RU-11** — el ciudadano del portal no llega a ninguna URL del módulo.
-* **RN-5.5** — guardar E7 deja ``TrazaConfiguracion`` solo de los campos que cambiaron.
-* **RN-4.7** — un ``TipoKit`` se agrega y se desactiva; no se borra.
+* **RN-5.5** — guardar los plazos deja ``TrazaConfiguracion`` solo de los campos que cambiaron.
+* **RN-4.7** — un ``TipoKit`` se agrega y se desactiva; no se borra (sus pruebas, en
+  ``test_emergencia_insumos.py``).
 * **Cambio 104** — el seed crea el programa y la fila del SLA y no pisa lo configurado.
 """
 
@@ -30,7 +31,6 @@ from django.urls import reverse
 from core import rbac
 from core.tests.historico import estado_historico
 from core.tests.test_superficie_publica import rutas_concretas
-from programas.forms_emergencia import PREFIJO_KITS
 from programas.management.commands.seed_emergencia import (
     PROGRAMA_EMERGENCIA_DEFAULTS,
     asegurar_programa_emergencia,
@@ -50,7 +50,7 @@ SUPERVISAR = "emergencia.supervisar"
 RECIBIR_KIT = "emergencia.recibir_kit"
 LAS_DE_LA_MESA = {RELEVAR, OPERAR, SUPERVISAR}
 
-URL_CONFIGURACION = "/emergencia/config/"
+URL_PLAZOS = "/emergencia/config/plazos/"
 
 
 def _permiso(codigo):
@@ -234,7 +234,7 @@ class UnRolDeOtroProgramaNoAbreEmergenciaTests(BaseEmergencia):
     def _no_abre(self, usuario):
         self.client.force_login(usuario)
         urls = urls_de_emergencia()
-        self.assertIn(URL_CONFIGURACION, urls, "el barrido no encontró las URLs del módulo")
+        self.assertIn(URL_PLAZOS, urls, "el barrido no encontró las URLs del módulo")
         for url in urls:
             with self.subTest(url=url, metodo="GET"):
                 self.assertIn(self.client.get(url).status_code, (302, 403))
@@ -258,7 +258,7 @@ class UnRolDeOtroProgramaNoAbreEmergenciaTests(BaseEmergencia):
     def test_la_configuracion_no_se_guarda_para_quien_no_abre(self):
         colado = self._usuario("colado", [SUPERVISAR], programa=self.becas)
         self.client.force_login(colado)
-        self.client.post(URL_CONFIGURACION, {"objetivo_tomar_min": 99})
+        self.client.post(URL_PLAZOS, {"objetivo_tomar_min": 99})
         self.assertEqual(servicio.sla_vigente().objetivo_tomar_min, 15)
         self.assertFalse(TrazaConfiguracion.objects.exists())
 
@@ -279,7 +279,7 @@ class CiudadanoDelPortalTests(BaseEmergencia):
 
 
 # ---------------------------------------------------------------------------
-# E7 · Configuración
+# Plazos de atención (la mitad SLA de la antigua E7)
 # ---------------------------------------------------------------------------
 
 
@@ -287,33 +287,16 @@ class BaseE7(BaseEmergencia):
     def setUp(self):
         super().setUp()
         self.supervisor = self._usuario("supervisor", [SUPERVISAR])
-        self.url = reverse("emergencia:configuracion")
+        self.url = reverse("emergencia:plazos")
 
-    def _datos(self, kits_nuevos=(), **cambios):
-        """El POST que mandaría el navegador: lo que la pantalla muestra, más ``cambios``.
-
-        Las claves de ``cambios`` son nombres de campo del SLA o ``kits-<n>-<campo>``.
-        """
+    def _datos(self, **cambios):
+        """El POST que mandaría el navegador: lo que la pantalla muestra, más ``cambios``."""
         respuesta = self.client.get(self.url)
         self.assertEqual(respuesta.status_code, 200)
-        form, kits = respuesta.context["form"], respuesta.context["kits"]
+        form = respuesta.context["form"]
         datos = {nombre: form[nombre].value() for nombre in form.fields}
-        for campo in kits.management_form:
-            datos[campo.html_name] = campo.value()
-        for fila in kits.forms:
-            for nombre in fila.fields:
-                valor = fila[nombre].value()
-                if valor is True:
-                    datos[fila[nombre].html_name] = "on"
-                elif valor is not False and valor is not None:
-                    datos[fila[nombre].html_name] = valor
         datos.update(cambios)
         return {clave: valor for clave, valor in datos.items() if valor is not None}
-
-    def _fila_nueva(self, **campos):
-        """Las claves de la fila vacía del formset (la de «Agregar ítem»)."""
-        indice = TipoKit.objects.count()
-        return {f"{PREFIJO_KITS}-{indice}-{campo}": valor for campo, valor in campos.items()}
 
 
 class AccesoE7Tests(BaseE7):
@@ -324,7 +307,12 @@ class AccesoE7Tests(BaseE7):
         self.assertEqual(self.client.post(self.url, {}).status_code, 302)
 
     def test_la_url_es_la_del_namespace_emergencia(self):
-        self.assertEqual(self.url, URL_CONFIGURACION)
+        self.assertEqual(self.url, URL_PLAZOS)
+
+    def test_la_url_vieja_de_configuracion_lleva_a_insumos(self):
+        self.client.force_login(self.supervisor)
+        respuesta = self.client.get("/emergencia/config/")
+        self.assertRedirects(respuesta, reverse("emergencia:insumos"), fetch_redirect_response=False)
 
     def test_sin_supervisar_rechaza(self):
         self.client.force_login(self._usuario("sin_rol"))
@@ -341,23 +329,30 @@ class AccesoE7Tests(BaseE7):
         self.client.force_login(self.supervisor)
         respuesta = self.client.get(self.url)
         self.assertEqual(respuesta.status_code, 200)
-        self.assertTemplateUsed(respuesta, "programas/emergencia/configuracion.html")
+        self.assertTemplateUsed(respuesta, "programas/emergencia/plazos.html")
         form = respuesta.context["form"]
         self.assertEqual(
             [form[campo].value() for campo in servicio.CAMPOS_SLA],
             ["Emergencia", 15, 30, 120, 60, 720, 60, 6, 80, None],
         )
-        self.assertContains(respuesta, "Catálogo de kits")
         self.assertContains(respuesta, "csrfmiddlewaretoken")
 
-    def test_la_regla_de_consumo_dice_que_no_es_stock_y_da_un_ejemplo(self):
-        """#1365: «Cantidad» se leyó como raciones disponibles; el campo es el consumo de cada persona, familia o lactante."""
+    def test_ya_no_mezcla_los_insumos_con_los_plazos(self):
         self.client.force_login(self.supervisor)
         respuesta = self.client.get(self.url)
-        self.assertContains(respuesta, "Consumo por unidad")
-        self.assertNotContains(respuesta, ">Cantidad<")
-        self.assertContains(respuesta, "No es stock: el sistema no lleva inventario ni descuenta al enviar.")
-        self.assertContains(respuesta, "Ej.: 3 raciones por persona cada 1 día")
+        self.assertNotContains(respuesta, "Catálogo de kits")
+        self.assertNotContains(respuesta, 'name="kits-')
+        self.assertNotContains(respuesta, "Agregar ítem")
+
+    def test_la_bajada_no_dice_lo_falso_sobre_los_minutos_sin_avance(self):
+        """La bajada vieja decía que «los minutos sin avance valen para lo que se cree desde ahora»: el cron los lee en cada corrida."""
+        self.client.force_login(self.supervisor)
+        html = self.client.get(self.url).content.decode()
+        self.assertNotIn("valen para lo que se cree desde ahora", html)
+        self.assertIn("Vale para los casos abiertos", html)
+        self.assertIn("Vale para las derivaciones nuevas", html)
+        for texto in ("Tomar el caso", "Derivarlo", "Que la institución responda", "Alojar a la familia"):
+            self.assertIn(texto, html)
 
     def test_el_superusuario_abre(self):
         self.client.force_login(User.objects.create_superuser("root", "root@example.com", "x"))
@@ -365,11 +360,14 @@ class AccesoE7Tests(BaseE7):
 
 
 class SidebarTests(BaseE7):
-    ENLACE = 'href="/emergencia/config/"'
+    ENLACE = 'href="/emergencia/config/plazos/"'
+    ENLACE_INSUMOS = 'href="/emergencia/config/insumos/"'
 
-    def test_el_supervisor_ve_la_entrada_emergencia(self):
+    def test_el_supervisor_ve_las_dos_entradas_de_la_configuracion(self):
         self.client.force_login(self.supervisor)
-        self.assertContains(self.client.get(self.url), self.ENLACE)
+        respuesta = self.client.get(self.url)
+        self.assertContains(respuesta, self.ENLACE)
+        self.assertContains(respuesta, self.ENLACE_INSUMOS)
 
     def test_sin_capacidad_de_emergencia_no_se_ve(self):
         self.client.force_login(self._usuario("becario", ["becas.segmento.ver"], programa=self.becas))
@@ -393,6 +391,7 @@ class SidebarTests(BaseE7):
         respuesta = self.client.get(reverse("core:inicio"))
         self.assertEqual(respuesta.status_code, 200)
         self.assertNotContains(respuesta, self.ENLACE)
+        self.assertNotContains(respuesta, self.ENLACE_INSUMOS)
         self.assertContains(respuesta, 'href="/emergencia/casos/"')
 
 
@@ -467,117 +466,6 @@ class GuardarSLATests(BaseE7):
             (sla.vigencia_derivacion_min, sla.umbral_por_vencer_pct, sla.sin_avance_min, sla.objetivo_tomar_min),
             (30, 95, 0, 1),
         )
-
-
-class CatalogoDeKitsE7Tests(BaseE7):
-    def setUp(self):
-        super().setUp()
-        self.client.force_login(self.supervisor)
-
-    def test_se_agrega_un_item(self):
-        datos = self._datos(**self._fila_nueva(nombre="Agua 6 l", unidad="bidón", orden=2))
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-
-        tipo = TipoKit.objects.get()
-        self.assertEqual((tipo.nombre, tipo.unidad, tipo.orden, tipo.activo), ("Agua 6 l", "bidón", 2, True))
-        traza = TrazaConfiguracion.objects.get()
-        self.assertEqual(
-            (traza.objeto, traza.objeto_id, traza.campo, traza.valor_nuevo, traza.usuario_id),
-            (TrazaConfiguracion.Objeto.TIPO_KIT, tipo.pk, servicio.CAMPO_ALTA, "Agua 6 l (bidón)", self.supervisor.pk),
-        )
-
-    def test_la_fila_vacia_no_agrega_nada(self):
-        self.assertRedirects(self.client.post(self.url, self._datos()), self.url)
-        self.assertFalse(TipoKit.objects.exists())
-
-    def test_un_item_sin_unidad_se_rechaza(self):
-        respuesta = self.client.post(self.url, self._datos(**self._fila_nueva(nombre="Colchón")))
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertFalse(TipoKit.objects.exists())
-
-    def test_se_desactiva_y_no_se_borra(self):
-        tipo = TipoKit.objects.create(nombre="Kit de higiene", unidad="kit")
-        datos = self._datos()
-        self.assertEqual(datos.pop(f"{PREFIJO_KITS}-0-activo"), "on")
-        # Un POST armado a mano que además pide borrar la fila: el formset no tiene borrado.
-        datos[f"{PREFIJO_KITS}-0-DELETE"] = "on"
-
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-
-        tipo.refresh_from_db()
-        self.assertFalse(tipo.activo)
-        self.assertEqual(TipoKit.objects.count(), 1)
-        traza = TrazaConfiguracion.objects.get()
-        self.assertEqual((traza.campo, traza.valor_anterior, traza.valor_nuevo), ("activo", "Sí", "No"))
-        self.assertEqual(list(servicio.catalogo_kits(solo_activos=True)), [])
-        self.assertEqual(list(servicio.catalogo_kits()), [tipo])
-
-    def test_la_pantalla_no_ofrece_borrar(self):
-        TipoKit.objects.create(nombre="Kit de higiene", unidad="kit")
-        respuesta = self.client.get(self.url)
-        self.assertFalse(respuesta.context["kits"].can_delete)
-        self.assertNotContains(respuesta, "-DELETE")
-
-    def test_se_vuelve_a_activar(self):
-        tipo = TipoKit.objects.create(nombre="Frazada", unidad="unidad", activo=False)
-        datos = self._datos(**{f"{PREFIJO_KITS}-0-activo": "on"})
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-        tipo.refresh_from_db()
-        self.assertTrue(tipo.activo)
-
-    def test_se_edita_nombre_y_unidad_con_una_traza_por_campo(self):
-        tipo = TipoKit.objects.create(nombre="Agua", unidad="unidad")
-        datos = self._datos(**{f"{PREFIJO_KITS}-0-nombre": "Agua 6 l", f"{PREFIJO_KITS}-0-unidad": "bidón"})
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-        tipo.refresh_from_db()
-        self.assertEqual((tipo.nombre, tipo.unidad), ("Agua 6 l", "bidón"))
-        self.assertEqual(
-            {t.campo: (t.valor_anterior, t.valor_nuevo) for t in TrazaConfiguracion.objects.all()},
-            {"nombre": ("Agua", "Agua 6 l"), "unidad": ("unidad", "bidón")},
-        )
-
-    def test_un_nombre_duplicado_se_rechaza(self):
-        TipoKit.objects.create(nombre="Agua 6 l", unidad="bidón")
-        for nombre in ("Agua 6 l", "agua 6 L", "  Agua   6 l "):
-            with self.subTest(nombre=nombre):
-                datos = self._datos(**self._fila_nueva(nombre=nombre, unidad="botella"))
-                respuesta = self.client.post(self.url, datos)
-                self.assertEqual(respuesta.status_code, 400)
-                self.assertContains(respuesta, servicio.MENSAJE_NOMBRE_DUPLICADO, status_code=400)
-                self.assertEqual(TipoKit.objects.count(), 1)
-                self.assertFalse(TrazaConfiguracion.objects.exists())
-
-    def test_renombrar_un_item_al_nombre_de_otro_se_rechaza(self):
-        TipoKit.objects.create(nombre="Agua", unidad="bidón", orden=1)
-        colchon = TipoKit.objects.create(nombre="Colchón", unidad="unidad", orden=2)
-        respuesta = self.client.post(self.url, self._datos(**{f"{PREFIJO_KITS}-1-nombre": "agua"}))
-        self.assertEqual(respuesta.status_code, 400)
-        colchon.refresh_from_db()
-        self.assertEqual(colchon.nombre, "Colchón")
-
-    def test_varios_items_se_editan_en_un_solo_guardado(self):
-        """Con `zeal` prendido en la suite, un ``get`` por fila acá es un ``NPlusOneError``."""
-        for orden, nombre in enumerate(("Agua", "Colchón", "Frazada"), start=1):
-            TipoKit.objects.create(nombre=nombre, unidad="unidad", orden=orden)
-        datos = self._datos(**{f"{PREFIJO_KITS}-{i}-unidad": "pieza" for i in range(3)})
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-        self.assertEqual(set(TipoKit.objects.values_list("unidad", flat=True)), {"pieza"})
-        self.assertEqual(TrazaConfiguracion.objects.filter(campo="unidad").count(), 3)
-
-    def test_un_id_que_no_es_del_catalogo_se_rechaza(self):
-        TipoKit.objects.create(nombre="Agua", unidad="bidón")
-        for valor in ("999999", "abc"):
-            with self.subTest(id=valor):
-                datos = self._datos(**{f"{PREFIJO_KITS}-0-id": valor, f"{PREFIJO_KITS}-0-nombre": "Otro"})
-                self.assertEqual(self.client.post(self.url, datos).status_code, 400)
-                self.assertEqual(TipoKit.objects.get().nombre, "Agua")
-
-    def test_un_error_en_el_catalogo_no_deja_guardado_el_sla(self):
-        """E7 es una sola transacción: o entra todo, o no entra nada."""
-        datos = self._datos(objetivo_tomar_min=20, **self._fila_nueva(nombre="Sin unidad"))
-        self.assertEqual(self.client.post(self.url, datos).status_code, 400)
-        self.assertEqual(SLAEmergencia.objects.get().objetivo_tomar_min, 15)
-        self.assertFalse(TrazaConfiguracion.objects.exists())
 
 
 class ServicioConfiguracionTests(BaseEmergencia):
@@ -671,18 +559,6 @@ class ServicioConfiguracionTests(BaseEmergencia):
         with self.assertRaises(ValidationError):
             servicio.crear_tipo_kit(self.supervisor, nombre="AGUA", unidad="botella")
         self.assertEqual(TipoKit.objects.count(), 1)
-
-    def test_guardar_configuracion_es_todo_o_nada(self):
-        servicio.crear_tipo_kit(self.supervisor, nombre="Agua", unidad="bidón")
-        TrazaConfiguracion.objects.all()._raw_delete(TrazaConfiguracion.objects.db)
-        with self.assertRaises(ValidationError):
-            servicio.guardar_configuracion(
-                self.supervisor,
-                sla={"objetivo_tomar_min": 20},
-                kits=[(None, {"nombre": "agua", "unidad": "botella", "orden": 0, "activo": True})],
-            )
-        self.assertEqual(servicio.sla_vigente().objetivo_tomar_min, 15)
-        self.assertFalse(TrazaConfiguracion.objects.exists())
 
 
 # ---------------------------------------------------------------------------

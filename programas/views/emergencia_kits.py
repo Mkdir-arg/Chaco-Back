@@ -292,9 +292,7 @@ class _PasoConDestino(MesaPermissionMixin, View):
             "repone_a": original,
             "url_items": reverse("emergencia:entrega_nueva_items", args=[dispositivo.pk]),
             "url_confirmar": reverse("emergencia:entrega_nueva_confirmar", args=[dispositivo.pk]),
-            "url_configuracion": (
-                reverse("emergencia:configuracion") if puede_supervisar_la_mesa(self.request.user) else ""
-            ),
+            "url_insumos": reverse("emergencia:insumos") if puede_supervisar_la_mesa(self.request.user) else "",
         }
 
     def _paso_items(self, request, dispositivo, form, original, status=200):

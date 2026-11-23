@@ -5317,7 +5317,7 @@ class CorridaSiis(TimeStamped):
 
 
 class SLAEmergencia(TimeStamped):
-    """Parámetros de la mesa de Emergencia. **Una fila por programa** (pantalla E7).
+    """Parámetros de la mesa de Emergencia. **Una fila por programa** (pantalla «Plazos de atención»).
 
     Los objetivos son los minutos que tiene cada tramo del caso antes de quedar fuera de
     SLA; el semáforo se calcula al leer, así que cambiarlos mueve el de todos los casos
@@ -5452,7 +5452,7 @@ class TipoKit(TimeStamped):
     # Regla de consumo (análisis 009, RN-009-15): con qué estima la solapa «Abastecimiento»
     # de E8 lo que necesita cada dispositivo. «Sin regla» = el ítem no se calcula. Los cuatro
     # son ``blank=True``: si no, el ``full_clean`` del servicio rechazaría los ítems que ya
-    # existen (nacen sin regla) y E7 dejaría de poder editarlos.
+    # existen (nacen sin regla) y «Insumos» dejaría de poder editarlos.
     regla_modo = models.CharField(
         max_length=12,
         choices=ModoRegla.choices,
@@ -5543,7 +5543,7 @@ class TrazaConfiguracionManager(models.Manager.from_queryset(TrazaConfiguracionQ
 
 
 class TrazaConfiguracion(models.Model):
-    """Historial inmutable de la configuración de Emergencia (E7): un cambio por fila.
+    """Historial inmutable de la configuración de Emergencia («Insumos» y «Plazos de atención»): un cambio por fila.
 
     Es lo que le permite a la mesa explicar por qué un caso dejó de estar fuera de SLA:
     quién cambió qué, cuándo, y de qué valor a cuál. No hereda ``TimeStamped`` porque una
@@ -6606,8 +6606,11 @@ class EntregaKit(TimeStamped):
 class LineaEntrega(TimeStamped):
     """Un ítem de una entrega: cuánto salió y cuánto llegó (RN-4.1, RN-4.3).
 
-    ``unidad`` se **copia** del catálogo al crear la entrega: si después el catálogo cambia
-    la unidad del ítem, la entrega vieja no cambia de significado (04 §10).
+    ``unidad`` y ``nombre`` se **copian** del catálogo al crear la entrega: si después el catálogo
+    cambia la unidad o el nombre del ítem, la entrega vieja no cambia de significado (04 §10).
+    Un ítem ya usado en alguna entrega no cambia de nombre ni de unidad (el servicio lo impide);
+    ``nombre`` es ``NULL`` solo en lo que se creó antes de que existiera la columna y lo que la
+    migración de datos no alcanzó: ahí vale el del ítem.
     ``cantidad_recibida`` es ``NULL`` hasta que el dispositivo confirma la recepción.
     """
 
@@ -6623,6 +6626,13 @@ class LineaEntrega(TimeStamped):
         related_name="lineas_de_entrega",
         verbose_name="Ítem",
     )
+    nombre = models.CharField(
+        max_length=80,
+        null=True,
+        blank=True,
+        verbose_name="Nombre del ítem",
+        help_text="Cómo se llamaba el ítem cuando salió. Las entregas viejas lo traen de su ítem (``nombre_visible``).",
+    )
     unidad = models.CharField(max_length=30, verbose_name="Unidad")
     cantidad_enviada = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name="Cantidad enviada")
     cantidad_recibida = models.PositiveIntegerField(null=True, blank=True, verbose_name="Cantidad recibida")
@@ -6637,7 +6647,13 @@ class LineaEntrega(TimeStamped):
         ]
 
     def __str__(self):
-        return f"{self.item.nombre} × {self.cantidad_enviada} · entrega {self.entrega.numero}"
+        return f"{self.nombre_visible} × {self.cantidad_enviada} · entrega {self.entrega.numero}"
+
+    @property
+    def nombre_visible(self):
+        """El nombre con el que salió el ítem; sin copia, el del catálogo (``item`` tiene que venir leído)."""
+
+        return self.nombre or self.item.nombre
 
     @property
     def diferencia(self):

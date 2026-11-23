@@ -269,7 +269,7 @@ class RecepcionKitForm(ErroresDelServicioMixin, forms.Form):
         cantidades = {}
         for linea in self.lineas:
             cantidades[_campo_de(linea.item_id)] = forms.IntegerField(
-                label=linea.item.nombre,
+                label=linea.nombre_visible,
                 min_value=0,
                 max_value=CANTIDAD_MAXIMA,
                 initial=linea.cantidad_enviada,

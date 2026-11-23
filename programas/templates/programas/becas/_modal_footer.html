@@ -12,11 +12,15 @@ Parámetros:
   accion_tono     brand (default) | danger
   form_id         id del <form> cuando el pie queda fuera de él: el submit lo apunta
                   con el atributo `form=`
+  secundario_texto, secundario_nombre, secundario_valor
+                  segundo envío opcional, antes de la acción principal (p. ej. «Guardar y
+                  cargar otro»): `<button type="submit" name value>` en `btn-secondary`.
+                  Sin `secundario_texto` el pie queda idéntico.
 
 Uso:
   {% include "programas/becas/_modal_footer.html" with cancelar="modalCrear=false" accion_texto="Guardar y configurar" %}
 {% endcomment %}
 <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
   <button type="button" data-becas-modal-cerrar {% if cancelar %}@click="{{ cancelar }}"{% endif %} class="btn-nodo btn-tertiary btn-base">{{ cancelar_texto|default:"Cancelar" }}</button>
-  <button type="submit"{% if form_id %} form="{{ form_id }}"{% endif %} class="btn-nodo {% if accion_tono == 'danger' %}btn-danger{% else %}btn-brand{% endif %} btn-base">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{{ accion_texto }}</button>
+  {% if secundario_texto %}<button type="submit"{% if secundario_nombre %} name="{{ secundario_nombre }}"{% endif %}{% if secundario_valor %} value="{{ secundario_valor }}"{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %} class="btn-nodo btn-secondary btn-base">{{ secundario_texto }}</button>{% endif %}<button type="submit"{% if form_id %} form="{{ form_id }}"{% endif %} class="btn-nodo {% if accion_tono == 'danger' %}btn-danger{% else %}btn-brand{% endif %} btn-base">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{{ accion_texto }}</button>
 </div>

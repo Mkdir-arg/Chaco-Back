@@ -427,7 +427,7 @@ class NuevaEntregaTests(BaseVistasKits):
         self.assertContains(respuesta, "El catálogo de kits no tiene ítems activos")
         self.assertNotContains(respuesta, "Continuar")
         self.assertNotContains(respuesta, 'name="repone_a"')
-        self.assertNotContains(respuesta, reverse("emergencia:configuracion") + '"')
+        self.assertNotContains(respuesta, reverse("emergencia:insumos") + '"')
 
     def test_hu_4_1_una_cantidad_en_cero_no_avanza(self):
         datos = self._cantidades(a=(self.colchon, 0), b=(self.alimentos, 3))

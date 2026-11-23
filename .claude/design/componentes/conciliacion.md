@@ -11,6 +11,7 @@ copiada de la línea va como metadato bajo el ítem). Las líneas llegan de `pro
 es una sola condición, `q_entrega_sin_revisar` del mismo selector, que comparten el aviso y la foto del tablero E1.
 El armado que la llena es idempotente: `crear_entrega` de `programas/services/kits.py` devuelve la entrega ya creada
 por el mismo `uuid_cliente` (oculto desde el paso 2), así que reenviar el paso 3 no duplica filas (Cambio 535).
+La línea guarda el `nombre` del insumo al armarse (`nombre_visible` cae al del ítem si falta): la columna «Ítem» lee ese nombre, no el del catálogo, para que un insumo desactivado no cambie lo que dice una entrega vieja.
 
 ## Invocación
 

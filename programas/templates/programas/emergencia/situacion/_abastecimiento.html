@@ -75,7 +75,7 @@ la capacidad que los habilita.{% endcomment %}
           <td class="nodo-td text-right">{{ fila.preparadas }}</td>
           <td class="nodo-td text-right">{% if fila.falta %}<strong>{{ fila.faltan }}</strong>{% else %}{{ fila.faltan }}{% endif %}</td>
           {% else %}
-          <td class="nodo-td">Sin regla de consumo{% if abastecimiento.url_configuracion %} · <a href="{{ abastecimiento.url_configuracion }}" class="text-fg-brand hover:underline">Configurar</a>{% endif %}</td>
+          <td class="nodo-td">Sin regla de consumo{% if abastecimiento.url_insumos %} · <a href="{{ abastecimiento.url_insumos }}" class="text-fg-brand hover:underline">Configurar</a>{% endif %}</td>
           <td class="nodo-td text-right">—</td>
           <td class="nodo-td text-right">—</td>
           <td class="nodo-td text-right">—</td>
@@ -146,7 +146,7 @@ la capacidad que los habilita.{% endcomment %}
       <p><strong>Es una estimación: no es un inventario.</strong> Lo recibido se da por consumido según la regla de cada ítem. No sabe lo que llegó por fuera de la mesa ni lo que se perdió.</p>
       <p><strong>Dotación</strong> (una vez por unidad): necesario = unidades de hoy × cantidad − recibido. Ej.: 64 personas, colchón 1 por persona, 40 recibidos → 24.</p>
       <p><strong>Reposición</strong> (cada N días): se descuenta lo consumido por las personas, familias o lactantes que de verdad estuvieron desde la primera recepción del ítem; necesario = consumo de 48 h − lo que queda. Ej.: agua 0,5 por persona por día, 40 personas, 60 bidones recibidos hace 2 días → quedan 20, necesario 20 (cubre ≈ 24 h).</p>
-      <p><strong>Desde el inicio del evento:</strong> lo recibido, lo en camino, lo preparado y la gente que pasó se cuentan desde la fecha de inicio cargada en Configuración de la mesa. Se cuenta lo recibido, no lo enviado; las entregas canceladas no cuentan.</p>
+      <p><strong>Desde el inicio del evento:</strong> lo recibido, lo en camino, lo preparado y la gente que pasó se cuentan desde la fecha de inicio cargada en Plazos de atención. Se cuenta lo recibido, no lo enviado; las entregas canceladas no cuentan.</p>
       <p><strong>Faltan</strong> = necesario − en camino − preparadas, dispositivo por dispositivo, redondeado hacia arriba. Un ítem sin regla nunca deja a un dispositivo sin cobertura.</p>
       <p><strong>Familias y lactantes:</strong> una familia cuenta entera en el dispositivo de su integrante alojado de menor número. Los lactantes son los declarados al relevar.{% if not abastecimiento.hay_regla_lactante %} Ningún ítem tiene regla por lactante: no se alerta sobre lactantes.{% endif %}</p>
       <p><strong>Límite conocido:</strong> si una persona se traslada y cambia de estadía, su consumo anterior deja de contarse en el dispositivo de origen.</p>

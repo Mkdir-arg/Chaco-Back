@@ -4,8 +4,8 @@ Aparte de `programas/forms.py` a propósito (igual que `forms_dispositivos.py`):
 es evidencia del campo canónico (`INPUT_CLASS`), y un formulario nuevo que solo la consume
 no mueve esa pieza.
 
-E7 · Configuración: un ModelForm del SLA y un formset del catálogo de kits **sin borrado**
-(RN-4.7). Los dos validan la entrada; lo que se guarda y la traza son del servicio
+Configuración (Cambio 578): un ModelForm del SLA («Plazos de atención») y un ModelForm de un
+insumo del catálogo de kits, que **nunca se borra** (RN-4.7). Los dos validan la entrada; lo que se guarda y la traza son del servicio
 (`programas/services/configuracion_emergencia.py`).
 
 La mesa (abajo): el Formulario 1 de «Nuevo caso», los filtros de la bandeja (E2) y los
@@ -38,7 +38,6 @@ from programas.selectors.emergencia import ESTADOS_SLA, SOLAPA_ABIERTOS, SOLAPA_
 from programas.selectors.emergencia_mesa import OPERADOR_MIOS, nombre_de, operadores_de_la_mesa
 from programas.services.configuracion_emergencia import (
     CAMPOS_SLA,
-    CAMPOS_TIPO_KIT,
     MENSAJE_NOMBRE_DUPLICADO,
     nombre_de_kit_en_uso,
     normalizar_nombre,
@@ -46,9 +45,6 @@ from programas.services.configuracion_emergencia import (
 from programas.services.emergencia import MOTIVOS_DE_CIERRE_MANUAL, NECESIDADES
 from programas.services.emergencia_alta import DniRegistrado
 
-PREFIJO_KITS = "kits"
-#: Tope de filas que un POST armado a mano puede pedir que se instancien.
-MAXIMO_KITS = 200
 #: Tope de plazas que acepta el panel «Derivar»: el del campo `plazas_pedidas` (smallint).
 PLAZAS_MAXIMAS = 32767
 
@@ -63,6 +59,44 @@ class SLAEmergenciaForm(forms.ModelForm):
     class Meta:
         model = SLAEmergencia
         fields = list(CAMPOS_SLA)
+        # Lo que lee quien configura, dicho como lo hace el sistema (selectors/emergencia.py y
+        # services/emergencia.py): qué tramo mide cada plazo y a qué casos alcanza cada aviso.
+        labels = {
+            "nombre_evento": "Nombre del evento",
+            "inicio_evento": "Inicio del evento",
+            "objetivo_tomar_min": "Tomar el caso",
+            "objetivo_derivar_min": "Derivarlo",
+            "objetivo_aceptar_min": "Que la institución responda",
+            "objetivo_alojar_min": "Alojar a la familia",
+            "umbral_por_vencer_pct": "Avisar cuando falta poco (% del plazo)",
+            "sin_avance_min": "Devolver el caso a la lista (minutos sin novedad)",
+            "vigencia_derivacion_min": "La derivación vence a los (minutos)",
+            "ingreso_sin_movimiento_h": "Avisar ingreso sin movimiento (horas)",
+        }
+        help_texts = {
+            "nombre_evento": "Es el título de Situación y del Tablero.",
+            "inicio_evento": (
+                "Desde este momento se cuenta lo que recibió cada institución. "
+                "Sin fecha, Situación no puede estimar qué falta."
+            ),
+            "objetivo_tomar_min": "Desde que llega hasta que alguien de la mesa lo toma.",
+            "objetivo_derivar_min": "Desde que se toma hasta que se deriva a una institución.",
+            "objetivo_aceptar_min": "Desde la derivación hasta que la institución la acepta.",
+            "objetivo_alojar_min": "Desde que la institución acepta hasta que la familia queda alojada.",
+            "umbral_por_vencer_pct": "Entre 50 y 95. El caso se marca por vencer al llegar a este porcentaje de su plazo.",
+            "sin_avance_min": (
+                "Si quien tomó el caso no hace nada en este tiempo, vuelve a la lista sin responsable. "
+                "Vale para los casos abiertos. Con 0 no vuelve solo."
+            ),
+            "vigencia_derivacion_min": (
+                "Si la institución no responde, la derivación vence y el caso vuelve a la mesa. "
+                "Mínimo 30. Vale para las derivaciones nuevas."
+            ),
+            "ingreso_sin_movimiento_h": (
+                "La institución aceptó y nadie confirmó a las personas: la mesa lo ve marcado. "
+                "No vence nada. Con 0 no se avisa."
+            ),
+        }
         widgets = {
             "nombre_evento": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "objetivo_tomar_min": _minutos(1),
@@ -91,12 +125,12 @@ class SLAEmergenciaForm(forms.ModelForm):
     def campos_de_objetivos(self):
         return [self[campo] for campo in CAMPOS_SLA if campo.startswith("objetivo_")]
 
-    def campos_de_derivacion(self):
+    def campos_de_avisos(self):
         return [
-            self["vigencia_derivacion_min"],
-            self["sin_avance_min"],
-            self["ingreso_sin_movimiento_h"],
             self["umbral_por_vencer_pct"],
+            self["sin_avance_min"],
+            self["vigencia_derivacion_min"],
+            self["ingreso_sin_movimiento_h"],
         ]
 
     def campos_para_guardar(self):
@@ -104,17 +138,34 @@ class SLAEmergenciaForm(forms.ModelForm):
         return {campo: self.cleaned_data[campo] for campo in CAMPOS_SLA}
 
 
-class TipoKitForm(forms.ModelForm):
-    """Una fila del catálogo. La fila vacía del final es la de «agregar ítem»."""
+CAMPOS_DE_INSUMO = ("nombre", "unidad", "regla_modo", "regla_cantidad", "regla_por", "regla_cada_dias")
+
+
+class InsumoForm(forms.ModelForm):
+    """Un insumo del catálogo: alta y edición en el mismo modal (Cambio 578).
+
+    Sin formset ni fila vacía: cada guardado es un insumo. Activar y desactivar no pasa por
+    acá (son sus propias acciones con confirmación) y el orden de las entregas es el del
+    catálogo (``orden``, que acá no se toca).
+
+    ``en_uso`` es la regla 1: con líneas de entrega, el nombre y la unidad se muestran de solo
+    lectura. Un campo ``disabled`` ignora lo que llegue por POST y devuelve el valor guardado,
+    así que el servicio nunca ve un cambio; además el servicio lo vuelve a exigir.
+    """
+
+    #: Cómo se llama cada modo de la regla para quien carga el insumo (los del modelo son los de la traza).
+    OPCIONES_DE_CONSUMO = (
+        (TipoKit.ModoRegla.SIN_REGLA, "No lo estimo"),
+        (TipoKit.ModoRegla.DOTACION, "Se entrega una sola vez"),
+        (TipoKit.ModoRegla.REPOSICION, "Se repone cada cierto tiempo"),
+    )
 
     class Meta:
         model = TipoKit
-        fields = list(CAMPOS_TIPO_KIT)
+        fields = list(CAMPOS_DE_INSUMO)
         widgets = {
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "unidad": forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "kit, unidad, bidón…"}),
-            "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "inputmode": "numeric"}),
-            "activo": SwitchInput(),
+            "unidad": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "regla_modo": forms.Select(attrs={"class": INPUT_CLASS}),
             "regla_cantidad": forms.NumberInput(
                 attrs={
@@ -128,12 +179,35 @@ class TipoKitForm(forms.ModelForm):
             "regla_por": forms.Select(attrs={"class": INPUT_CLASS}),
             "regla_cada_dias": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "inputmode": "numeric"}),
         }
+        labels = {"regla_modo": "¿Cuánto hace falta?"}
+        help_texts = {
+            "nombre": "Como figura en el remito. No puede repetirse.",
+            "unidad": "Por ejemplo: unidad, kit, bidón, paquete.",
+            "regla_modo": (
+                "Con esto la pantalla Situación estima qué le falta a cada institución. "
+                "No es stock: el sistema no lleva inventario ni descuenta al enviar, y no cambia lo que se puede enviar."
+            ),
+        }
+
+    def __init__(self, *args, en_uso=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.en_uso = en_uso
+        self.fields["regla_modo"].choices = list(self.OPCIONES_DE_CONSUMO)
+        if en_uso:
+            for campo in ("nombre", "unidad"):
+                self.fields[campo].disabled = True
+
+    def campos_de_identidad(self):
+        return [self["nombre"], self["unidad"]]
+
+    def campos_de_consumo(self):
+        return [self["regla_cantidad"], self["regla_por"], self["regla_cada_dias"]]
 
     def clean(self):
-        """**Pasar** a «Sin regla» vacía la regla sola: no obliga a borrar a mano cantidad, por y días.
+        """**Pasar** a «No lo estimo» vacía la regla sola: no obliga a borrar a mano cantidad, por y días.
 
         Solo cuando el modo cambió en este envío: una regla cargada (cantidad, por o días) con el
-        modo que ya estaba en «Sin regla» no se descarta en silencio, la rechaza el modelo. Después
+        modo que ya estaba en «No lo estimo» no se descarta en silencio, la rechaza el modelo. Después
         valida el modelo (RN-009-15): con dotación o reposición, lo que falta o sobra es error (una
         dotación con días se rechaza, no se borra en silencio: TC-1186-08).
         """
@@ -151,99 +225,9 @@ class TipoKitForm(forms.ModelForm):
     def validate_unique(self):
         """El duplicado ya lo dijo ``clean_nombre``, sin distinguir mayúsculas: no se repite el error."""
 
-    @property
-    def es_nuevo(self):
-        return self.instance.pk is None
-
     def campos_para_guardar(self):
-        """Lo que recibe el servicio: los campos del ítem ya validados."""
-        return {campo: self.cleaned_data[campo] for campo in CAMPOS_TIPO_KIT}
-
-
-class _IdDeFila(forms.ModelChoiceField):
-    """El ``id`` oculto de cada fila, resuelto contra el catálogo que el formset ya leyó.
-
-    El campo de fábrica hace un ``queryset.get(pk=…)`` **por fila** al validar: con veinte
-    ítems son veinte consultas para confirmar lo que el formset trajo en una.
-    """
-
-    def __init__(self, *args, buscar, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._buscar = buscar
-
-    def to_python(self, value):
-        if value in self.empty_values:
-            return None
-        try:
-            objeto = self._buscar(value)
-        except (TypeError, ValueError, forms.ValidationError):
-            objeto = None
-        if objeto is None:
-            raise forms.ValidationError(self.error_messages["invalid_choice"], code="invalid_choice")
-        return objeto
-
-
-class BaseTipoKitFormSet(forms.BaseModelFormSet):
-    """Catálogo de kits: se edita y se agrega, **no se borra** (``can_delete=False``)."""
-
-    def add_fields(self, form, index):
-        super().add_fields(form, index)
-        de_fabrica = form.fields[self._pk_field.name]
-        form.fields[self._pk_field.name] = _IdDeFila(
-            de_fabrica.queryset,
-            buscar=self._fila_por_id,
-            initial=de_fabrica.initial,
-            required=False,
-            widget=forms.HiddenInput,
-        )
-
-    def _fila_por_id(self, valor):
-        """El ítem con ese id entre los que el formset ya trajo (el POST lo manda como texto)."""
-        return self._existing_object(self.model._meta.pk.to_python(valor))
-
-    def clean(self):
-        super().clean()
-        vistos = set()
-        for form in self.forms:
-            if form.errors or not form.has_changed() and form.es_nuevo:
-                continue
-            nombre = (form.cleaned_data.get("nombre") or "").casefold()
-            if not nombre:
-                continue
-            if nombre in vistos:
-                form.add_error("nombre", MENSAJE_NOMBRE_DUPLICADO)
-            vistos.add(nombre)
-
-    def validate_unique(self):
-        """Los repetidos entre filas los marca ``clean`` en su fila, no como error del conjunto."""
-
-    def filas_existentes(self):
-        return [form for form in self.forms if not form.es_nuevo]
-
-    def filas_nuevas(self):
-        return [form for form in self.forms if form.es_nuevo]
-
-    def cambios_para_guardar(self):
-        """``[(tipo, campos)]`` para ``guardar_configuracion``: solo las filas que cambiaron.
-
-        Una fila nueva sin tocar no es un ítem: es el lugar para agregar uno.
-        """
-        return [
-            (None if form.es_nuevo else form.instance, form.campos_para_guardar())
-            for form in self.forms
-            if form.has_changed()
-        ]
-
-
-TipoKitFormSet = forms.modelformset_factory(
-    TipoKit,
-    form=TipoKitForm,
-    formset=BaseTipoKitFormSet,
-    extra=1,
-    can_delete=False,
-    max_num=MAXIMO_KITS,
-    absolute_max=MAXIMO_KITS,
-)
+        """Lo que recibe el servicio: los campos del insumo ya validados."""
+        return {campo: self.cleaned_data[campo] for campo in CAMPOS_DE_INSUMO}
 
 
 # ---------------------------------------------------------------------------
