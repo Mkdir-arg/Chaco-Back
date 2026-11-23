@@ -159,7 +159,6 @@ class InsumoForm(forms.ModelForm):
         (TipoKit.ModoRegla.DOTACION, "Se entrega una sola vez"),
         (TipoKit.ModoRegla.REPOSICION, "Se repone cada cierto tiempo"),
     )
-    CAMPOS = CAMPOS_DE_INSUMO
 
     class Meta:
         model = TipoKit
@@ -228,7 +227,7 @@ class InsumoForm(forms.ModelForm):
 
     def campos_para_guardar(self):
         """Lo que recibe el servicio: los campos del insumo ya validados."""
-        return {campo: self.cleaned_data[campo] for campo in self.CAMPOS}
+        return {campo: self.cleaned_data[campo] for campo in CAMPOS_DE_INSUMO}
 
 
 # ---------------------------------------------------------------------------

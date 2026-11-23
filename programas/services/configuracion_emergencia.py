@@ -26,12 +26,13 @@ from decimal import Decimal
 
 from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from programas.models import SLAEmergencia, TipoKit, TrazaConfiguracion
 from programas.services.emergencia_programa import CAP_SUPERVISAR, programa_emergencia, puede_en_programa_emergencia
 
-#: Los campos del SLA que E7 deja editar, en el orden de la pantalla.
+#: Los campos del SLA que «Plazos de atención» deja editar, en el orden de la pantalla.
 CAMPOS_SLA = (
     "nombre_evento",
     "objetivo_tomar_min",
@@ -48,7 +49,7 @@ CAMPOS_SLA = (
 #: Los campos de la regla de consumo (RN-009-15), en el orden en que se trazan en el alta.
 CAMPOS_REGLA = ("regla_modo", "regla_cantidad", "regla_por", "regla_cada_dias")
 
-#: Los campos de un tipo de kit que E7 deja editar.
+#: Los campos de un tipo de kit que «Insumos» deja editar.
 CAMPOS_TIPO_KIT = ("nombre", "unidad", "orden", "activo", *CAMPOS_REGLA)
 
 #: «Campo» de la traza del alta de un tipo de kit: no es una columna, es el hecho.
@@ -212,15 +213,21 @@ def crear_tipo_kit(
     *,
     nombre,
     unidad,
-    orden=0,
+    orden=None,
     activo=True,
     regla_modo="",
     regla_cantidad=None,
     regla_por="",
     regla_cada_dias=None,
 ):
-    """Agrega un ítem al catálogo. Deja la traza del alta y, si nace con regla, la de cada dato de la regla."""
+    """Agrega un ítem al catálogo. Deja la traza del alta y, si nace con regla, la de cada dato de la regla.
+
+    Sin ``orden`` el insumo nuevo va al final del catálogo: el máximo actual más uno, dentro de la transacción.
+    """
     _exigir_supervisar(usuario)
+    if orden is None:
+        ultimo = TipoKit.objects.aggregate(ultimo=Max("orden"))["ultimo"]
+        orden = 0 if ultimo is None else ultimo + 1
     tipo = TipoKit(
         nombre=normalizar_nombre(nombre),
         unidad=(unidad or "").strip(),
@@ -244,13 +251,6 @@ def crear_tipo_kit(
     return tipo
 
 
-@transaction.atomic
-def editar_tipo_kit(usuario, tipo, **campos):
-    """Cambia nombre, unidad, orden, estado o regla de un ítem. Una traza por campo que cambió."""
-    _exigir_supervisar(usuario)
-    return _editar_bloqueado(usuario, TipoKit.objects.select_for_update().get(pk=tipo.pk), campos)
-
-
 def insumo_usado_en_entregas(tipo):
     """¿Alguna línea de entrega referencia a este insumo? Una consulta (``EXISTS``)."""
     return tipo.pk is not None and tipo.lineas_de_entrega.exists()
@@ -267,9 +267,13 @@ def _exigir_identidad_intacta(tipo, campos):
         raise ValidationError({campo: MENSAJE_INSUMO_USADO for campo in cambian})
 
 
-def _editar_bloqueado(usuario, tipo, campos):
-    """La edición sobre una fila ya tomada con ``select_for_update``."""
+@transaction.atomic
+def editar_tipo_kit(usuario, tipo, **campos):
+    """Cambia nombre, unidad, orden, estado o regla de un ítem. Una traza por campo que cambió."""
+    _exigir_supervisar(usuario)
+    tipo = TipoKit.objects.select_for_update().get(pk=tipo.pk)
     campos = dict(campos)
+
     if "nombre" in campos:
         campos["nombre"] = normalizar_nombre(campos["nombre"])
     if "unidad" in campos:

@@ -5317,7 +5317,7 @@ class CorridaSiis(TimeStamped):
 
 
 class SLAEmergencia(TimeStamped):
-    """Parámetros de la mesa de Emergencia. **Una fila por programa** (pantalla E7).
+    """Parámetros de la mesa de Emergencia. **Una fila por programa** (pantalla «Plazos de atención»).
 
     Los objetivos son los minutos que tiene cada tramo del caso antes de quedar fuera de
     SLA; el semáforo se calcula al leer, así que cambiarlos mueve el de todos los casos
@@ -5452,7 +5452,7 @@ class TipoKit(TimeStamped):
     # Regla de consumo (análisis 009, RN-009-15): con qué estima la solapa «Abastecimiento»
     # de E8 lo que necesita cada dispositivo. «Sin regla» = el ítem no se calcula. Los cuatro
     # son ``blank=True``: si no, el ``full_clean`` del servicio rechazaría los ítems que ya
-    # existen (nacen sin regla) y E7 dejaría de poder editarlos.
+    # existen (nacen sin regla) y «Insumos» dejaría de poder editarlos.
     regla_modo = models.CharField(
         max_length=12,
         choices=ModoRegla.choices,
@@ -5543,7 +5543,7 @@ class TrazaConfiguracionManager(models.Manager.from_queryset(TrazaConfiguracionQ
 
 
 class TrazaConfiguracion(models.Model):
-    """Historial inmutable de la configuración de Emergencia (E7): un cambio por fila.
+    """Historial inmutable de la configuración de Emergencia («Insumos» y «Plazos de atención»): un cambio por fila.
 
     Es lo que le permite a la mesa explicar por qué un caso dejó de estar fuera de SLA:
     quién cambió qué, cuándo, y de qué valor a cuál. No hereda ``TimeStamped`` porque una

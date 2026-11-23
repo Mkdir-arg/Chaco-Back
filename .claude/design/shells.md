@@ -19,7 +19,7 @@ Le sigue «Edificios» (`dispositivos:edificios`, capacidad `edificio.ver`, sub�
 El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto y destino.
 
 - El sidebar es un **único panel responsivo**: overlay en móvil y fijo/colapsable en escritorio,
-  con una sola inclusión de `templates/includes/sidebar/opciones.html`. Su control de cierre móvil
+  con una sola inclusión de `templates/includes/sidebar/opciones.html` (el grupo de Emergencia trae «Insumos» y «Plazos de atención», solo con `emergencia.supervisar`). Su control de cierre móvil
   queda fuera del panel y usa `x-show="sidebarOpen"` con `display: none` inicial, para no
   interceptar el botón de abrir cuando está fuera de pantalla.
 - **Grupo nuevo del sidebar:** se escribe con utilidades, sin `style=` (el ratchet de `INLINESTYLE`

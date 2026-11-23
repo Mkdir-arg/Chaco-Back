@@ -50,6 +50,7 @@ text-heading` (envuelto junto al subtítulo en `flex-1 min-w-0`) y la X
 | `accion_icono` | Ícono de la acción |
 | `accion_tono` | `brand` (por defecto) o `danger` |
 | `form_id` | Apunta con `form=` a un `<form>` de afuera del pie |
+| `secundario_texto`, `secundario_nombre`, `secundario_valor` | Segundo envío opcional (`btn-secondary`) antes de la acción, p. ej. «Guardar y cargar otro»; sin `secundario_texto` el pie no cambia |
 
 Render: `flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary`, Cancelar
 `btn-nodo btn-tertiary btn-base` y acción `btn-nodo btn-brand btn-base` (o `btn-danger`).

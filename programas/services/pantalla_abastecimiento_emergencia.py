@@ -24,11 +24,12 @@ from programas.services.alertas_situacion_emergencia import alertas_de_abastecim
 from programas.services.ocupacion import etiqueta_y_tono
 from programas.services.pantalla_situacion_emergencia import DIAS, RED_PROVINCIAL, SIN_DATO, badge, local, numero
 
+TEXTO_SIN_ESTIMAR = "Sin estimar · no se calcula en Situación"
 IR_A_PLAZOS = "Ir a Plazos de atención"
 IR_A_INSUMOS = "Ir a Insumos"
 
 #: Los estados vacíos de la solapa (§3.9 y §12), listos para ``components/_estado_vacio.html``. La acción
-#: de los que piden ir a E7 solo viaja con ``supervisar``.
+#: de los que piden ir a Plazos o a Insumos solo viaja con ``supervisar``.
 VACIO_SIN_PEDIR = {
     "icono": "fa-boxes-stacked",
     "titulo": "El abastecimiento se calcula cuando lo pedís",
@@ -66,15 +67,30 @@ def cantidad_de_la_regla(cantidad):
     return number_format(cantidad.normalize() if hasattr(cantidad, "normalize") else cantidad)
 
 
-def texto_de_la_regla(item):
-    """«1 por persona · dotación», «0,5 por persona por día», «1 por familia cada 3 días»."""
-
-    base = f"{cantidad_de_la_regla(item.cantidad)} por {POR.get(item.por, item.por.lower())}"
-    if item.modo == TipoKit.ModoRegla.DOTACION:
-        return f"{base} · dotación"
-    if item.cada_dias == 1:
+def _regla_dicha(cantidad, por, modo, cada_dias, dotacion):
+    base = f"{cantidad_de_la_regla(cantidad)} por {POR.get(por, por.lower())}"
+    if modo == TipoKit.ModoRegla.DOTACION:
+        return f"{base}{dotacion}"
+    if cada_dias == 1:
         return f"{base} por día"
-    return f"{base} cada {item.cada_dias} días"
+    return f"{base} cada {cada_dias} días"
+
+
+def texto_de_la_regla(item, dotacion=" · dotación"):
+    """«1 por persona · dotación», «0,5 por persona por día», «1 por familia cada 3 días».
+
+    ``dotacion`` es cómo se dice la dotación al final: cada pantalla conserva su forma.
+    """
+
+    return _regla_dicha(item.cantidad, item.por, item.modo, item.cada_dias, dotacion)
+
+
+def texto_de_consumo(tipo):
+    """El consumo de un insumo del catálogo, dicho para «Insumos»: «1 por familia, una sola vez»."""
+
+    if tipo.regla_modo == TipoKit.ModoRegla.SIN_REGLA or tipo.regla_cantidad is None:
+        return TEXTO_SIN_ESTIMAR
+    return _regla_dicha(tipo.regla_cantidad, tipo.regla_por, tipo.regla_modo, tipo.regla_cada_dias, ", una sola vez")
 
 
 def _media_hora(momento):
@@ -253,7 +269,7 @@ def panel_sin_calcular(*, pedido, inicio_evento, url_calcular, supervisa):
     """El panel cuando la solapa no calcula, o ``None`` si hay que calcularla. Sin consultas.
 
     Sin ``?tab=abastecimiento`` (``pedido`` falso), «Calcular el abastecimiento» con ``url_calcular``;
-    sin ``inicio_evento``, el estado que lo pide (con el enlace a E7 solo para ``supervisar``).
+    sin ``inicio_evento``, el estado que lo pide (con el enlace a Plazos solo para ``supervisar``).
     """
 
     if not pedido:

@@ -43,12 +43,12 @@
                 {% if insumo.activo %}<span class="badge badge-dot badge-success">Activo</span>{% else %}<span class="badge badge-dot badge-gray">Inactivo</span>{% endif %}
               </td>
               <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
-                <a href="{% url 'emergencia:insumos' %}?estado={{ estado }}&amp;editar={{ insumo.pk }}" class="nodo-icon-btn" aria-label="Editar el insumo {{ insumo.nombre }}">
+                <a href="{{ insumo.url_editar }}" class="nodo-icon-btn" aria-label="Editar el insumo {{ insumo.nombre }}">
                   <i class="fas fa-pen" aria-hidden="true"></i>
                 </a>
                 {% if insumo.activo %}
                 <button type="button" class="nodo-icon-btn" aria-label="Desactivar el insumo {{ insumo.nombre }}"
-                        data-confirm-url="{% url 'emergencia:insumo_desactivar' insumo.pk %}?estado={{ estado }}"
+                        data-confirm-url="{{ insumo.url_desactivar }}"
                         data-confirm-title="¿Desactivar el insumo?"
                         data-confirm-text="{{ insumo.nombre }} deja de ofrecerse en las entregas nuevas. Las entregas anteriores lo siguen mostrando y se puede volver a activar."
                         data-confirm-ok="Sí, desactivar"
@@ -57,7 +57,7 @@
                 </button>
                 {% else %}
                 <button type="button" class="nodo-icon-btn" aria-label="Activar el insumo {{ insumo.nombre }}"
-                        data-confirm-url="{% url 'emergencia:insumo_activar' insumo.pk %}?estado={{ estado }}"
+                        data-confirm-url="{{ insumo.url_activar }}"
                         data-confirm-title="¿Volver a activar el insumo?"
                         data-confirm-text="{{ insumo.nombre }} vuelve a ofrecerse al armar una entrega nueva."
                         data-confirm-ok="Sí, activar"
@@ -111,12 +111,11 @@
             </div>
           </fieldset>
         </div>
-        {# Pie: el canónico (_modal_footer.html) más «Guardar y cargar otro», que ese include no tiene #}
-        <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
-          <button type="button" data-becas-modal-cerrar @click="modalInsumo=false" class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-          {% if not editando %}<button type="submit" name="continuar" value="1" class="btn-nodo btn-secondary btn-base">Guardar y cargar otro</button>{% endif %}
-          <button type="submit" class="btn-nodo btn-brand btn-base">Guardar insumo</button>
-        </div>
+        {% if editando %}
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalInsumo=false" accion_texto="Guardar insumo" %}
+        {% else %}
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalInsumo=false" accion_texto="Guardar insumo" secundario_texto="Guardar y cargar otro" secundario_nombre="continuar" secundario_valor="1" %}
+        {% endif %}
       </form>
     </div>
   </div>

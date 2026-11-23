@@ -1,6 +1,6 @@
 """Configuración de la mesa de Emergencia (Cambio 578): «Insumos» y «Plazos de atención».
 
-La pantalla única de E7 se partió en dos entradas del menú. La vista solo orquesta: los
+La pantalla única de configuración se partió en dos entradas del menú. La vista solo orquesta: los
 formularios validan la entrada y `programas/services/configuracion_emergencia.py` guarda,
 vuelve a exigir la capacidad y deja la traza. Las dos exigen `emergencia.supervisar`, como
 la pantalla que reemplazan.
@@ -24,7 +24,6 @@ from programas.selectors.emergencia_insumos import (
     conteos_de_insumos,
     estado_valido,
     insumos_del_catalogo,
-    texto_de_consumo,
 )
 from programas.services.configuracion_emergencia import (
     cambiar_estado_tipo_kit,
@@ -35,6 +34,7 @@ from programas.services.configuracion_emergencia import (
     sla_vigente,
 )
 from programas.services.emergencia_programa import CAP_SUPERVISAR
+from programas.services.pantalla_abastecimiento_emergencia import texto_de_consumo
 
 TEMPLATE_INSUMOS = "programas/emergencia/insumos.html"
 TEMPLATE_PLAZOS = "programas/emergencia/plazos.html"
@@ -72,6 +72,11 @@ def _url_insumos(estado, **parametros):
     return f"{reverse('emergencia:insumos')}?{urlencode(consulta)}"
 
 
+def _url_accion(nombre, pk, estado):
+    """La URL de activar o desactivar un insumo, con el chip al que se vuelve."""
+    return f"{reverse(nombre, args=[pk])}?{urlencode({'estado': estado})}"
+
+
 class InsumosEmergenciaView(EmergenciaPermissionMixin, View):
     """«Insumos»: el catálogo de lo que la mesa puede enviar, con su alta y edición en un modal.
 
@@ -87,6 +92,9 @@ class InsumosEmergenciaView(EmergenciaPermissionMixin, View):
         pagina = Paginator(insumos_del_catalogo(estado), INSUMOS_POR_PAGINA).get_page(request.GET.get("page"))
         for insumo in pagina.object_list:
             insumo.consumo = texto_de_consumo(insumo)
+            insumo.url_editar = _url_insumos(estado, editar=insumo.pk)
+            insumo.url_desactivar = _url_accion("emergencia:insumo_desactivar", insumo.pk, estado)
+            insumo.url_activar = _url_accion("emergencia:insumo_activar", insumo.pk, estado)
         chips = [
             {"texto": rotulo, "url": _url_insumos(clave), "activo": clave == estado, "n": conteos[clave]}
             for clave, rotulo in ESTADOS
@@ -96,7 +104,6 @@ class InsumosEmergenciaView(EmergenciaPermissionMixin, View):
             "insumos": pagina.object_list,
             "chips": chips,
             "estado": estado,
-            "total_activos": conteos["activos"],
             "hay_insumos": conteos["todos"] > 0,
             "form": form,
             "abre_modal": form is not None,

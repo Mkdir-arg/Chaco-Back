@@ -21,6 +21,7 @@ from django.urls import reverse
 from programas.models import LineaEntrega, TipoKit, TrazaConfiguracion
 from programas.selectors import emergencia_insumos as selector
 from programas.services import configuracion_emergencia as servicio
+from programas.services import pantalla_abastecimiento_emergencia as pantalla
 from programas.tests.test_emergencia_kits import BaseKits
 
 URL_INSUMOS = "/emergencia/config/insumos/"
@@ -139,7 +140,7 @@ class ListadoDeInsumosTests(BaseInsumos):
 
     def test_el_consumo_se_dice_en_palabras(self):
         casos = (
-            (dict(), selector.TEXTO_SIN_ESTIMAR),
+            (dict(), pantalla.TEXTO_SIN_ESTIMAR),
             (dict(regla_modo="DOTACION", regla_cantidad=1, regla_por="PERSONA"), "1 por persona, una sola vez"),
             (
                 dict(regla_modo="REPOSICION", regla_cantidad="0.5", regla_por="FAMILIA", regla_cada_dias=1),
@@ -155,7 +156,7 @@ class ListadoDeInsumosTests(BaseInsumos):
                 if "regla_cantidad" in campos:
                     campos["regla_cantidad"] = Decimal(str(campos["regla_cantidad"]))
                 tipo = TipoKit(nombre=f"X{i}", unidad="u", **campos)
-                self.assertEqual(selector.texto_de_consumo(tipo), texto)
+                self.assertEqual(pantalla.texto_de_consumo(tipo), texto)
 
     def test_el_listado_no_hace_una_consulta_por_fila(self):
         for i in range(10):
@@ -166,6 +167,19 @@ class ListadoDeInsumosTests(BaseInsumos):
 
 
 class AltaDeInsumosTests(BaseInsumos):
+    def test_un_insumo_nuevo_queda_ultimo_en_el_catalogo_de_las_entregas(self):
+        """Va al final aunque su nombre ordene antes: el orden es ``orden`` y después el nombre."""
+        mayor = max(TipoKit.objects.values_list("orden", flat=True))
+        self.assertEqual(
+            self.client.post(self.url, {"regla_modo": "", "nombre": "Almohada", "unidad": "u"}).status_code, 302
+        )
+        self.assertEqual(
+            self.client.post(self.url, {"regla_modo": "", "nombre": "Abrigo", "unidad": "u"}).status_code, 302
+        )
+        catalogo = list(TipoKit.objects.filter(activo=True).values_list("nombre", flat=True))
+        self.assertEqual(catalogo[-2:], ["Almohada", "Abrigo"])
+        self.assertEqual(TipoKit.objects.get(nombre="Abrigo").orden, mayor + 2)
+
     def test_nuevo_abre_el_modal_vacio(self):
         respuesta = self.client.get(self.url, {"nuevo": 1})
         self.assertTrue(respuesta.context["abre_modal"])
