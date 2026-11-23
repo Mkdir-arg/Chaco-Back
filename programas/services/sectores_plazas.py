@@ -94,7 +94,7 @@ from programas.services.ocupacion import (
     tension_de_ocupacion,
 )
 from programas.services.plazas import motivo_para_no_dar_de_baja
-from programas.urls_seguras import destino_seguro
+from programas.urls_seguras import destino_seguro, entero_de_parametro
 
 # Tope por sector: el componente dibuja hasta 200 y avisa «Mostrando 200 de N»; la vista
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.
@@ -223,6 +223,9 @@ PARAM_EDIFICIO_SECTORES = "sectores_edificio"
 #: modal «Editar sector» de la pantalla suelta. `baja_abierto` abre un grupo sin filtrar: es la vuelta de «Reactivar».
 PARAM_BAJA_SECTOR = "baja_sector"
 PARAM_BAJA_ABIERTO = "baja_abierto"
+#: Cuántos dígitos puede tener el id que viaja en esos dos parámetros: más no cabe en la columna, y ``int()`` de un número
+#: de miles de dígitos levanta ``ValueError`` (500) con una URL armada a mano.
+DIGITOS_DE_ID_EN_LA_URL = 10
 
 
 def url_solapa_sectores(dispositivo_pk, edificio_id=None):
@@ -301,9 +304,11 @@ def _con_bajas(url, request):
 
     pedidos = {}
     for nombre in (PARAM_BAJA_SECTOR, PARAM_BAJA_ABIERTO):
-        valor = request.POST.get(nombre) or request.GET.get(nombre, "")
-        if valor.isascii() and valor.isdecimal():
-            pedidos[nombre] = int(valor)
+        numero = entero_de_parametro(
+            request.POST.get(nombre) or request.GET.get(nombre, ""), max_digitos=DIGITOS_DE_ID_EN_LA_URL
+        )
+        if numero is not None:
+            pedidos[nombre] = numero
     if not pedidos:
         return url
     separador = "&" if "?" in url else "?"

@@ -51,6 +51,7 @@ from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import CasoEmergencia
 from programas.respuestas_personas import responder_personas_sugeridas
 from programas.selectors import emergencia as selectores
+from programas.selectors import emergencia_ficha as ficha
 from programas.selectors import emergencia_mesa as mesa
 from programas.selectors.emergencia_derivar import clave_de_grupo, pedidas_pendientes
 from programas.services import emergencia as servicio
@@ -69,8 +70,9 @@ CASOS_POR_PAGINA = 50
 
 #: Parámetros de la bandeja que no son un filtro que el usuario eligió.
 NO_SON_FILTRO = ("page", "solapa")
-#: Parámetros de la ficha que arman el panel «Derivar» y se conservan al elegir un dispositivo.
-PARAMETROS_DEL_PANEL = ("plazas", "q", "localidad_dispositivo")
+#: Parámetros de la ficha que arman el panel «Derivar» y se conservan al elegir un dispositivo; ``tab`` es la
+#: solapa a la vista, para que recargar la lista no la pierda.
+PARAMETROS_DEL_PANEL = ("plazas", "q", "localidad_dispositivo", "tab")
 
 
 def _url(nombre, *args, **parametros):
@@ -287,8 +289,8 @@ def contexto_de_ficha(request, caso, *, atados=None, modal=None, solapa=None):
     falló vive en una (el de contactos); sin ella manda ``?tab=`` y, si no vino, la primera (Cambio 589).
     """
 
-    contexto = mesa.ficha_de_caso(caso, request.user, sla_vigente(), timezone.now())
-    contexto["solapa"] = mesa.solapa_de_la_ficha(solapa or request.GET.get("tab"))
+    contexto = ficha.ficha_de_caso(caso, request.user, sla_vigente(), timezone.now())
+    contexto["solapa"] = ficha.solapa_de_la_ficha(solapa or request.GET.get("tab"))
     contexto["url_ficha"] = _url_ficha(caso)
     if contexto["duplicado"]:
         contexto["duplicado"]["url"] = reverse("emergencia:caso_detalle", args=[contexto["duplicado"]["pk"]])
@@ -321,7 +323,7 @@ class CasoDetalleView(MesaPermissionMixin, View):
     """E3: lo relevado, los contactos, la traza y, a la derecha, derivar o la derivación vigente."""
 
     def get(self, request, pk):
-        caso = get_object_or_404(mesa.casos_para_ficha(), pk=pk)
+        caso = get_object_or_404(ficha.casos_para_ficha(), pk=pk)
         return render(request, TEMPLATE_FICHA, contexto_de_ficha(request, caso))
 
 
@@ -359,7 +361,7 @@ class _AccionDeCasoView(MesaPermissionMixin, View):
         Cambio 533, en vez de un 400 sin el formulario (Cambio 535).
         """
 
-        caso = get_object_or_404(mesa.casos_para_ficha(), pk=caso.pk)
+        caso = get_object_or_404(ficha.casos_para_ficha(), pk=caso.pk)
         contexto = contexto_de_ficha(
             request, caso, atados={self.clave_form: form}, modal=self.modal, solapa=self.solapa
         )

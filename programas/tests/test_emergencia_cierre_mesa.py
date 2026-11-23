@@ -38,12 +38,6 @@ class _Base(BaseAlojar):
         self.jefe = self._usuario("jefe_mesa", [OPERAR, SUPERVISAR, CAP])
         MotivoEgreso.objects.get_or_create(codigo="otro", defaults={"nombre": "Otro", "orden": 9})
 
-    def _alojada(self, personas=2, **kwargs):
-        caso, derivacion = self._aceptado(menores_f=0, menores_m=0, adultos_f=1, adultos_m=personas - 1, **kwargs)
-        for orden, reserva in enumerate(self._reservas(derivacion), start=1):
-            self._confirmar(caso, orden, str(45_000_100 + orden), plaza=reserva.plaza)
-        return alojar.alojar_familia(caso=caso, usuario=self.guardia)
-
     def _trazas_de(self, caso, accion):
         return TrazaCaso.objects.filter(caso=caso, accion=accion)
 

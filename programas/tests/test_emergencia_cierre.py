@@ -246,12 +246,6 @@ class CerrarElIngresoTests(BaseAlojar):
 
 
 class EgresoTests(BaseAlojar):
-    def _alojada(self, personas=2):
-        caso, derivacion = self._aceptado(menores_f=0, menores_m=0, adultos_f=1, adultos_m=personas - 1)
-        for orden, reserva in enumerate(self._reservas(derivacion), start=1):
-            self._confirmar(caso, orden, str(45_000_100 + orden), plaza=reserva.plaza)
-        return servicio.alojar_familia(caso=caso, usuario=self.guardia)
-
     def _egresar(self, caso, orden):
         estadia = IntegranteGrupo.objects.get(grupo=caso.grupo, orden=orden).estadia
         self.reloj.avanzar(hours=1)

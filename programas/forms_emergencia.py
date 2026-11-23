@@ -35,6 +35,7 @@ from programas.models import (
     TipoKit,
 )
 from programas.selectors.emergencia import ESTADOS_SLA, SOLAPA_ABIERTOS, SOLAPA_SIN_TOMAR, SOLAPAS
+from programas.selectors.emergencia_ficha import SOLAPAS_DE_LA_FICHA
 from programas.selectors.emergencia_mesa import OPERADOR_MIOS, nombre_de, operadores_de_la_mesa
 from programas.services.configuracion_emergencia import (
     CAMPOS_SLA,
@@ -701,9 +702,10 @@ class UbicarDomicilioForm(forms.Form):
 class PanelDerivarForm(forms.Form):
     """Lo que la ficha lee de la URL para armar el panel «Derivar». Es un GET: nada de esto escribe.
 
-    ``grupo`` (el edificio elegido, ``e12``, o los sectores sin edificio de una institución, ``d34``) y
-    ``derivar`` (la institución que se eligió adentro) viajan en la misma URL pero no son controles del
-    panel: van ocultos solo para leerlos, y ``campos_visibles`` no los incluye.
+    ``grupo`` (el edificio elegido, ``e12``, o los sectores sin edificio de una institución, ``d34``),
+    ``derivar`` (la institución que se eligió adentro) y ``tab`` (la solapa de la ficha que está a la vista, de
+    una lista cerrada) viajan en la misma URL pero no son controles del panel: van ocultos solo para leerlos, y
+    ``campos_visibles`` no los incluye.
     """
 
     plazas = forms.IntegerField(
@@ -727,6 +729,9 @@ class PanelDerivarForm(forms.Form):
     )
     grupo = forms.RegexField(regex=r"^[ed][1-9][0-9]{0,9}$", required=False, widget=forms.HiddenInput)
     derivar = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+    tab = forms.ChoiceField(
+        required=False, choices=[(clave, clave) for clave in SOLAPAS_DE_LA_FICHA], widget=forms.HiddenInput
+    )
 
     CAMPOS_VISIBLES = ("plazas", "q", "localidad_dispositivo")
 

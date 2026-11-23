@@ -602,8 +602,8 @@ def crear_caso(
     # Una familia, un caso abierto. El candado del numerador serializa toda alta y va ANTES de dar de alta al
     # responsable: quien llega segundo espera al commit del primero y lo ve (READ COMMITTED). Sin él, dos ingresos
     # a la vez abrirían dos casos. Y antes del alta de la persona, porque el INSERT del legajo deja un candado S
-    # sobre el final del índice de ``dni`` (REPEATABLE READ en el motor real) que frena el INSERT de otra
-    # familia: dos familias distintas se esperaban ahí, no en el numerador.
+    # sobre el final del índice de ``dni`` que, medido en MariaDB, frena el INSERT de otra familia: dos familias
+    # distintas se esperaban ahí, no en el numerador.
     numerador = serializar_altas(ahora)
     if uuid_cliente is not None:
         # El mismo envío llegó dos veces a la vez: la búsqueda de arriba no vio nada porque el otro no había

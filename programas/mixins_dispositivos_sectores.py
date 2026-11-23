@@ -51,6 +51,7 @@ from programas.services.sectores_plazas import (
     ACCION_RESERVAR,
     ACCION_REUBICAR,
     ACCION_VOLVER,
+    DIGITOS_DE_ID_EN_LA_URL,
     MOTIVO_PLAZA_OCUPADA,
     PARAM_BAJA_ABIERTO,
     PARAM_BAJA_SECTOR,
@@ -61,6 +62,7 @@ from programas.services.sectores_plazas import (
     plaza_para_accion,
     sectores_con_plazas,
 )
+from programas.urls_seguras import entero_de_parametro
 from programas.views.ajax_utils import is_ajax
 
 
@@ -284,8 +286,12 @@ class SectoresPlazasMixin:
             context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(
                 dispositivo,
                 q_alcance=q_plazas,
-                sector_id=_entero(self.request.GET.get(PARAM_BAJA_SECTOR, "")),
-                abierto_id=_entero(self.request.GET.get(PARAM_BAJA_ABIERTO, "")),
+                sector_id=entero_de_parametro(
+                    self.request.GET.get(PARAM_BAJA_SECTOR, ""), max_digitos=DIGITOS_DE_ID_EN_LA_URL
+                ),
+                abierto_id=entero_de_parametro(
+                    self.request.GET.get(PARAM_BAJA_ABIERTO, ""), max_digitos=DIGITOS_DE_ID_EN_LA_URL
+                ),
             )
         context["puede_configurar_plazas"] = configura_plazas
         # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
