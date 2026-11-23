@@ -10,12 +10,14 @@ from datetime import timedelta
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.test import RequestFactory
+from django.db import connection
+from django.test import RequestFactory, tag
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Estadia, Plaza, ReservaPlaza, Sector, TrazaDispositivo
-from programas.selectors.capacidad_dispositivo import sectores_inactivos
+from programas.selectors.capacidad_dispositivo import TOPE_BAJAS_POR_GRUPO, plazas_dadas_de_baja, sectores_inactivos
 from programas.services.estadias import egresar_persona, ingresar_persona, reservar_plaza
 from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.plazas import (
@@ -215,7 +217,8 @@ class VistasDeBajaDePlazaTests(BaseBajaDePlaza):
         con_filtro = self.client.get(mapa, {"inactivos": "1"})
 
         self.assertNotIn("plazas_dadas_de_baja", sin_filtro.context)
-        self.assertEqual([p.pk for p in con_filtro.context["plazas_dadas_de_baja"]], [self.otra_plaza.pk])
+        grupos = con_filtro.context["plazas_dadas_de_baja"].grupos
+        self.assertEqual([[p.pk for p in grupo.visibles] for grupo in grupos], [[self.otra_plaza.pk]])
         self.assertContains(con_filtro, self._url("plaza_reactivar"))
 
         respuesta = self.client.post(self._url("plaza_reactivar"))
@@ -246,3 +249,187 @@ class VistasDeBajaDePlazaTests(BaseBajaDePlaza):
         respuesta = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk]))
 
         self.assertNotContains(respuesta, "Sí, dar de baja")
+
+
+class BajasAgrupadasPorSectorTests(BaseBajaDePlaza):
+    """«Plazas dadas de baja» agrupadas por sector (Cambio 582): lo agrupa el selector, no el template."""
+
+    ABIERTO = '<details class="border-t border-light" open>'
+
+    def setUp(self):
+        super().setUp()
+        self.sector_b = Sector.objects.create(dispositivo=self.cis, nombre="Pabellón B", capacidad=4)
+        self.sector_c = Sector.objects.create(dispositivo=self.cis, nombre="Anexo", capacidad=4)
+        self.mapa = reverse("dispositivos:sectores", args=[self.cis.pk])
+
+    def _bajas(self, sector, cantidad, prefijo):
+        return [
+            Plaza.objects.create(sector=sector, codigo=f"{prefijo}-{n:02d}", activa=False)
+            for n in range(1, cantidad + 1)
+        ]
+
+    def _cargar(self):
+        """El sector del terreno con 25 bajas, B con 3 y el Anexo sin ninguna."""
+
+        self._bajas(self.sector, 25, "A")
+        self._bajas(self.sector_b, 3, "B")
+
+    def test_agrupa_por_sector_con_su_cantidad_y_el_total_general(self):
+        self._cargar()
+
+        bajas = plazas_dadas_de_baja(self.cis)
+
+        self.assertEqual((bajas.total, bajas.cantidad_sectores), (28, 2))
+        self.assertEqual(
+            [(g.sector.nombre, g.cantidad) for g in bajas.grupos], [("Pabellón B", 3), (self.sector.nombre, 25)]
+        )
+        self.assertEqual([nombre for _pk, nombre in bajas.opciones], ["Pabellón B", self.sector.nombre])
+
+    def test_cada_grupo_muestra_las_primeras_veinte_y_deja_el_resto_plegado(self):
+        self._cargar()
+
+        grande = plazas_dadas_de_baja(self.cis).grupos[1]
+
+        self.assertEqual(TOPE_BAJAS_POR_GRUPO, 20)
+        self.assertEqual(len(grande.visibles), 20)
+        self.assertEqual(len(grande.restantes), 5)
+        # Orden natural, sin perder ninguna: las visibles y las restantes son las 25.
+        self.assertEqual([p.codigo for p in grande.visibles + grande.restantes], [f"A-{n:02d}" for n in range(1, 26)])
+
+    def test_un_grupo_de_exactamente_veinte_no_ofrece_ver_restantes(self):
+        self._bajas(self.sector_b, 20, "B")
+
+        self.assertEqual(plazas_dadas_de_baja(self.cis).grupos[0].restantes, [])
+
+    def test_los_grupos_llegan_cerrados_salvo_el_pedido(self):
+        self._cargar()
+
+        self.assertEqual([g.abierto for g in plazas_dadas_de_baja(self.cis).grupos], [False, False])
+        self.assertEqual(
+            [g.abierto for g in plazas_dadas_de_baja(self.cis, abierto_id=self.sector_b.pk).grupos], [True, False]
+        )
+
+    def test_el_filtro_deja_solo_ese_grupo_abierto_y_conserva_las_opciones(self):
+        self._cargar()
+
+        bajas = plazas_dadas_de_baja(self.cis, sector_id=self.sector_b.pk)
+
+        self.assertEqual(bajas.filtro, self.sector_b.pk)
+        self.assertEqual([(g.sector, g.abierto) for g in bajas.grupos], [(self.sector_b, True)])
+        self.assertEqual((bajas.total, len(bajas.opciones)), (28, 2))
+
+    def test_un_filtro_ajeno_inexistente_o_sin_bajas_se_ignora(self):
+        self._cargar()
+        for pedido in (self.plaza_parador.sector_id, 999999, self.sector_c.pk, None):
+            with self.subTest(pedido=pedido):
+                bajas = plazas_dadas_de_baja(self.cis, sector_id=pedido)
+
+                self.assertIsNone(bajas.filtro)
+                self.assertEqual(len(bajas.grupos), 2)
+
+    def test_el_sector_inactivo_y_el_de_otra_institucion_no_aparecen(self):
+        self._cargar()
+        self._bajas(self.sector_c, 2, "X")
+        Sector.objects.filter(pk=self.sector_c.pk).update(activo=False)
+        self._bajas(self.plaza_parador.sector, 2, "Z")
+
+        bajas = plazas_dadas_de_baja(self.cis)
+
+        self.assertEqual(bajas.total, 28)
+        self.assertNotIn(self.sector_c.pk, [pk for pk, _nombre in bajas.opciones])
+
+    def test_es_una_consulta_y_no_crece_con_los_sectores_ni_las_plazas(self):
+        self._cargar()
+        with CaptureQueriesContext(connection) as pocas:
+            plazas_dadas_de_baja(self.cis)
+        for n in range(6):
+            self._bajas(Sector.objects.create(dispositivo=self.cis, nombre=f"Extra {n}", capacidad=2), 30, f"E{n}")
+        with CaptureQueriesContext(connection) as muchas:
+            plazas_dadas_de_baja(self.cis, sector_id=self.sector_b.pk)
+
+        self.assertEqual((len(pocas), len(muchas)), (1, 1))
+
+    @tag("performance")
+    def test_la_pantalla_con_inactivos_cuesta_lo_mismo_con_dos_sectores_que_con_ocho(self):
+        self._cargar()
+        self.client.force_login(self.operador_cis)
+        self.client.get(self.mapa, {"inactivos": "1"})  # calienta sesión y cachés
+        with CaptureQueriesContext(connection) as antes:
+            self.client.get(self.mapa, {"inactivos": "1"})
+        for n in range(6):
+            self._bajas(Sector.objects.create(dispositivo=self.cis, nombre=f"Extra {n}", capacidad=2), 25, f"E{n}")
+        with CaptureQueriesContext(connection) as despues:
+            self.client.get(self.mapa, {"inactivos": "1"})
+
+        # Los sectores nuevos suman consultas del mapa solo si crece algo por sector: no debe.
+        self.assertEqual(len(antes), len(despues))
+
+    def test_la_pantalla_dice_el_total_agrupa_y_ofrece_ver_las_restantes(self):
+        self._cargar()
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.mapa, {"inactivos": "1"})
+
+        self.assertContains(respuesta, "28 plazas dadas de baja en 2 sectores")
+        self.assertContains(respuesta, f"{self.sector.nombre} · 25 plazas dadas de baja")
+        self.assertContains(respuesta, "Pabellón B · 3 plazas dadas de baja")
+        self.assertContains(respuesta, "Ver las 5 restantes")
+        self.assertNotContains(respuesta, self.ABIERTO)
+        # El select conserva «Ver inactivos» y su valor llega a la vista.
+        self.assertContains(respuesta, '<input type="hidden" name="inactivos" value="1">')
+        self.assertContains(respuesta, 'name="baja_sector"')
+
+    def test_la_pantalla_con_el_filtro_deja_un_solo_grupo_abierto(self):
+        self._cargar()
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.mapa, {"inactivos": "1", "baja_sector": self.sector_b.pk})
+
+        self.assertContains(respuesta, self.ABIERTO, count=1)
+        self.assertContains(respuesta, "Pabellón B · 3 plazas dadas de baja")
+        self.assertNotContains(respuesta, f"{self.sector.nombre} · 25 plazas dadas de baja")
+        self.assertContains(respuesta, f'<option value="{self.sector_b.pk}" selected>')
+        # Un filtro ajeno se ignora: vuelven los dos grupos, cerrados.
+        ajeno = self.client.get(self.mapa, {"inactivos": "1", "baja_sector": self.plaza_parador.sector_id})
+        self.assertContains(ajeno, "Pabellón B · 3 plazas dadas de baja")
+        self.assertContains(ajeno, f"{self.sector.nombre} · 25 plazas dadas de baja")
+        self.assertNotContains(ajeno, self.ABIERTO)
+
+    def test_reactivar_vuelve_con_el_mismo_filtro_y_el_grupo_abierto(self):
+        self._cargar()
+        plaza = Plaza.todas.get(sector=self.sector_b, codigo="B-01")
+        self.client.force_login(self.operador_cis)
+        pantalla = self.client.get(self.mapa, {"inactivos": "1", "baja_sector": self.sector_b.pk})
+        url = self._url("plaza_reactivar", plaza)
+        # El botón lleva a dónde vuelve: el filtro y el grupo de la plaza.
+        self.assertContains(
+            pantalla, f'data-confirm-url="{url}?baja_sector={self.sector_b.pk}&amp;baja_abierto={self.sector_b.pk}"'
+        )
+
+        respuesta = self.client.post(f"{url}?baja_sector={self.sector_b.pk}&baja_abierto={self.sector_b.pk}")
+
+        destino = f"{self.mapa}?inactivos=1&baja_sector={self.sector_b.pk}&baja_abierto={self.sector_b.pk}"
+        self.assertRedirects(respuesta, destino, fetch_redirect_response=False)
+        vuelta = self.client.get(destino)
+        self.assertContains(vuelta, "Pabellón B · 2 plazas dadas de baja")
+        self.assertContains(vuelta, self.ABIERTO, count=1)
+
+    def test_reactivar_sin_filtro_abre_el_grupo_de_la_plaza(self):
+        self._cargar()
+        plaza = Plaza.todas.get(sector=self.sector_b, codigo="B-01")
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(f"{self._url('plaza_reactivar', plaza)}?baja_abierto={self.sector_b.pk}")
+
+        destino = f"{self.mapa}?inactivos=1&baja_abierto={self.sector_b.pk}"
+        self.assertRedirects(respuesta, destino, fetch_redirect_response=False)
+        grupos = self.client.get(destino).context["plazas_dadas_de_baja"].grupos
+        self.assertEqual([g.abierto for g in grupos], [True, False])
+
+    def test_un_parametro_de_vuelta_que_no_es_un_numero_no_llega_a_la_url(self):
+        self._baja()
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(f"{self._url('plaza_reactivar')}?baja_sector=x&baja_abierto=https://otro.example")
+
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk), fetch_redirect_response=False)

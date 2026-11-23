@@ -536,6 +536,9 @@ class EstadoPlaza:
     #: Salen de la misma consulta que el estado: no cuestan ninguna más.
     estadia_id: int | None = None
     ciudadano_id: int | None = None
+    #: Solo en la plaza ocupada y solo con `puede_ver_personas`: «Apellido, Nombre» completo, para la línea de
+    #: contexto del modal de la plaza (la celda del mapa muestra `detalle`, abreviado).
+    ocupante: str = ""
     #: Solo en la plaza reservada **para una derivación de Emergencia**: cuál. `None` en la
     #: reserva común, el préstamo y todo otro estado. Las pantallas de Dispositivos no lo leen
     #: —la plaza se ve «Reservada» como cualquiera—; es para que Emergencia distinga las camas
@@ -580,6 +583,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
     for plaza in plazas:
         detalle = ""
         detalle_completo = ""
+        ocupante = ""
         estadia_id = ciudadano_id = derivacion_id = None
         if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
             estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
@@ -587,6 +591,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             estado = ESTADO_OCUPADA
             apellido, nombre, estadia_id, ciudadano_id = ocupadas[plaza.pk]
             detalle = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
+            ocupante = f"{apellido}, {nombre}".strip(", ") if puede_ver_personas else ""
         elif plaza.pk in reservas:
             tipo, apellido, nombre, hasta, derivacion_id = reservas[plaza.pk]
             prestada = tipo == ReservaPlaza.Tipo.PRESTAMO
@@ -605,6 +610,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             detalle_completo=detalle_completo or detalle,
             estadia_id=estadia_id,
             ciudadano_id=ciudadano_id,
+            ocupante=ocupante,
             derivacion_id=derivacion_id,
         )
     return derivados

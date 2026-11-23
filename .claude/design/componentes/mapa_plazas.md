@@ -49,8 +49,9 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
   viniendo como enlace directo (`?plaza=<id>`) para quien llegue por la barra de direcciones. Es
   opcional y la pieza no lo infiere: lo decide la vista (en P5, toda plaza accionable: la disponible
   abre un modal ya cargado en la página con `abrirPlaza(<id>)`; la ocupada abre ese mismo modal como
-  menú —«Cambiar de plaza», «Ver estadía», «Ver legajo», «Registrar egreso» y «Sacar de servicio»
-  deshabilitada con su motivo, cada una solo si quien mira tiene la capacidad de su destino (Cambio 437)—
+  menú —«Registrar egreso», «Cambiar de plaza», «Sacar de servicio» deshabilitada con su motivo, «Ver estadía»
+  y «Ver legajo», en ese orden y cada una solo si quien mira tiene la capacidad de su destino (Cambios 437 y 582);
+  arriba, «A3 · Pabellón A · Ocupada por Apellido, Nombre» (el nombre solo con `ciudadano.ver`)—
   y, si lo único que puede hacer es cambiarla de plaza, pide su cuerpo al servidor con
   `abrirReubicar(<id>)`, porque depende de la estadía; si ese pedido falla, la pantalla navega al `url` con `&opcion=reubicar`, que abre el formulario de reubicar aunque la plaza ofrezca más cosas; sin ese parámetro, `?plaza=<id>` sobre una plaza ocupada con varias opciones abre el menú). Como el modal es único, la pantalla lo limpia (`reset` de los forms,
   errores y `aria-invalid`) al abrir otra plaza y al volver al menú de opciones. Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
