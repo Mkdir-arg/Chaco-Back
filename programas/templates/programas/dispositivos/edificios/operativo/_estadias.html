@@ -29,6 +29,7 @@
               {% if puede_ver_ciudadano %}
               <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
               {% endif %}
+              {% include "programas/dispositivos/_marca_emergencia.html" with marca=estadia.marca_emergencia only %}
             </div>
           </td>
           <td class="nodo-td whitespace-nowrap"><time datetime="{{ estadia.fecha_ingreso|date:'c' }}" title="{{ estadia.fecha_ingreso|date:'d/m/Y H:i' }}">hace {{ estadia.fecha_ingreso|timesince }}</time>{% if estadia.fecha_egreso %}<span class="text-xs text-body-subtle block mt-px">Egreso {{ estadia.fecha_egreso|date:"d/m/Y H:i" }}</span>{% endif %}</td>

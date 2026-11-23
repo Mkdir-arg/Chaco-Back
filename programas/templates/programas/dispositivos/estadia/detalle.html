@@ -13,6 +13,7 @@
   {% page_header titulo=persona.nombre_completo eyebrow=ubicacion volver_url=url_volver volver_label="Estadías" migas=migas estado_texto=estadia.estado estado_variante=estadia.tono %}
     {% bajada %}DNI {{ persona.dni|dni }}{% if persona.edad is not None %} · {{ persona.edad }} años{% endif %} · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} día{{ estadia.dias|pluralize }} de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
     {% if estadia.reingreso %}<span class="badge badge-brand">Reingreso</span>{% endif %}
+    {% include "programas/dispositivos/_marca_emergencia.html" with marca=marca_emergencia only %}
     {% if puede_cambiar_plaza %}<button type="button" @click="modalCambio=true" class="btn-nodo btn-secondary btn-sm">{% if es_asignacion %}Asignar plaza{% else %}Cambiar plaza{% endif %}</button>{% endif %}
     {% if puede_egresar %}<button type="button" @click="modalEgreso=true" class="btn-nodo btn-danger btn-sm">Egresar</button>{% endif %}
   {% endpage_header %}
