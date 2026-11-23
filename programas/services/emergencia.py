@@ -108,6 +108,7 @@ from programas.services.emergencia_comun import (  # noqa: F401
     SIN_PERMISO_DE_MESA,
     _bloquear_caso,
     _bloquear_numerador,
+    _cerrar,
     _exigir_mesa,
     _hora,
     _nombre_de,
@@ -169,7 +170,6 @@ MOTIVOS_DE_CIERRE_MANUAL = (
 #: Desde qué estados se puede cada acción de la mesa. Son **la** regla: la leen los guardas
 #: de cada servicio sobre la fila bloqueada y :func:`acciones_posibles` para no ofrecer en
 #: pantalla un botón que el servicio va a rechazar.
-ESTADOS_PARA_TOMAR = (Estado.NUEVO,)
 ESTADOS_PARA_SOLTAR = (Estado.EN_GESTION,)
 ESTADOS_PARA_DERIVAR = (Estado.EN_GESTION,)
 ESTADOS_PARA_CERRAR = (Estado.EN_GESTION,)
@@ -177,7 +177,7 @@ ESTADOS_PARA_CANCELAR_DERIVACION = (Estado.DERIVADO,)
 
 SIN_PERMISO_DE_SUPERVISAR = "Solo quien supervisa la mesa puede reasignar un caso."
 NO_ES_EL_DUENIO = "Solo quien tiene tomado el caso, o quien supervisa la mesa, puede hacer esto."
-CASO_CERRADO = "El caso está cerrado y no se reabre. Si hace falta, cargá uno nuevo."
+CASO_CERRADO = "El caso está cerrado. Quien tiene permiso para reabrir casos lo puede reabrir; si no, cargá uno nuevo."
 SIN_PLAZAS = "El dispositivo no tiene plazas libres. Elegí otro."
 DISPOSITIVO_NO_ELEGIBLE = "A ese dispositivo no se le pueden derivar familias: no está activo o no maneja camas."
 EDIFICIO_AJENO = "Esa institución no tiene camas en ese edificio. Elegí el edificio de nuevo."
@@ -286,6 +286,17 @@ def _exigir_abierto(caso):
         raise EstadoCambio(CASO_CERRADO, estado_actual=caso.estado, caso=caso)
 
 
+def puede_tomar_el_caso(caso):
+    """Un caso abierto **sin dueño** se puede tomar, esté en el estado que esté (Cambio 588). Sin consultas.
+
+    Antes solo en ``NUEVO``; pero un ingreso directo nace con el ingreso en curso y sin dueño, y la mesa tampoco
+    podía hacerse cargo de un derivado o un alojado que quedó sin nadie. Es la regla única: la leen el servicio, la
+    ficha y la bandeja.
+    """
+
+    return caso.abierto and caso.tomado_por_id is None
+
+
 def _es_duenio(caso, usuario):
     """«Dueño» es quien tiene tomado el caso (RU-12). Sin consultas."""
 
@@ -326,13 +337,13 @@ def acciones_posibles(caso, usuario, *, es_supervisor: bool, derivacion_pendient
         "es_duenio": es_duenio,
         "es_supervisor": es_supervisor,
         "puede_actuar": puede_actuar,
-        "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
+        "puede_tomar": puede_tomar_el_caso(caso),
         "puede_soltar": puede_actuar and caso.estado in ESTADOS_PARA_SOLTAR,
         "puede_derivar": puede_actuar and caso.estado in ESTADOS_PARA_DERIVAR,
         "puede_cerrar": puede_actuar and caso.estado in ESTADOS_PARA_CERRAR,
         "puede_cancelar_derivacion": puede_actuar and bool(derivacion_pendiente),
         "puede_reasignar": es_supervisor and caso.abierto,
-        "solo_lectura": caso.abierto and not puede_actuar and caso.estado not in ESTADOS_PARA_TOMAR,
+        "solo_lectura": caso.abierto and not puede_actuar and not puede_tomar_el_caso(caso),
     }
 
 
@@ -343,11 +354,13 @@ def acciones_posibles(caso, usuario, *, es_supervisor: bool, derivacion_pendient
 
 @transaction.atomic
 def tomar_caso(caso, usuario):
-    """Toma un caso ``NUEVO``: pasa a ``EN_GESTION`` a nombre de ``usuario`` (HU-2.1, RN-2.1).
+    """Toma un caso abierto **sin dueño**: a nombre de ``usuario`` (HU-2.1, RN-2.1, Cambio 588).
 
-    El candado sobre la fila es lo que hace que de dos operadores gane uno: el segundo
-    espera, lee el caso ya tomado y recibe :class:`CasoTomadoPorOtro`. ``tomado_en`` se
-    escribe solo la primera vez (RN-2.9).
+    Un caso ``NUEVO`` pasa a ``EN_GESTION``; en cualquier otro estado abierto (un ingreso directo, un derivado, un
+    alojado que quedó sin nadie) **conserva su estado** y solo gana dueño: tomarlo no lo mueve de etapa. El candado
+    sobre la fila es lo que hace que de dos operadores gane uno: el segundo espera, lee el caso ya tomado y recibe
+    :class:`CasoTomadoPorOtro`, así que **con dueño no se pisa**. ``tomado_en`` se escribe solo la primera vez
+    (RN-2.9).
 
     Si quien lo pide **ya lo tiene tomado** (doble clic, segunda pestaña) devuelve el caso
     sin tocar nada ni dejar traza.
@@ -356,19 +369,19 @@ def tomar_caso(caso, usuario):
     _exigir_mesa(usuario)
     caso = _bloquear_caso(caso)
     _exigir_abierto(caso)
-    if caso.estado == Estado.EN_GESTION and caso.tomado_por_id == usuario.pk:
-        return caso
-    if caso.tomado_por_id is not None and caso.tomado_por_id != usuario.pk:
+    if not puede_tomar_el_caso(caso):
+        if _es_duenio(caso, usuario):
+            return caso
         raise CasoTomadoPorOtro(caso)
-    _exigir_estado(
-        caso, *ESTADOS_PARA_TOMAR, mensaje=f"El caso {caso.numero} ya no está para tomar. Recargá la bandeja."
-    )
-    ahora = timezone.now()
-    caso.estado = Estado.EN_GESTION
+    anterior = caso.estado
+    campos = ["tomado_por", "tomado_en", "modificado"]
     caso.tomado_por = usuario
-    caso.marcar("tomado_en", ahora)
-    caso.save(update_fields=["estado", "tomado_por", "tomado_en", "modificado"])
-    _trazar(caso, usuario, Accion.TOMADO, estado_anterior=Estado.NUEVO, detalle=f"Tomado por {_nombre_de(usuario)}")
+    caso.marcar("tomado_en", timezone.now())
+    if anterior == Estado.NUEVO:
+        caso.estado = Estado.EN_GESTION
+        campos.append("estado")
+    caso.save(update_fields=campos)
+    _trazar(caso, usuario, Accion.TOMADO, estado_anterior=anterior, detalle=f"Tomado por {_nombre_de(usuario)}")
     return caso
 
 
@@ -791,7 +804,7 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
     """Cierra un caso ``EN_GESTION`` que no necesita alojamiento (HU-2.7, RN-2.13).
 
     El dueño o quien supervisa. El motivo sale de :data:`MOTIVOS_DE_CIERRE_MANUAL`; con
-    «Otro» la observación es obligatoria. ``CERRADO`` es terminal: no se reabre.
+    «Otro» la observación es obligatoria. Un caso cerrado solo lo reabre quien tiene ``emergencia.cerrar_reabrir``.
 
     Un caso ``DERIVADO`` no se cierra: primero se cancela la derivación (RN-2.6). Eso, y
     cualquier otro estado, es un :class:`EstadoCambio`.
@@ -811,11 +824,7 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
     _exigir_estado(caso, *ESTADOS_PARA_CERRAR, mensaje=mensaje)
     por_supervisor = _exigir_duenio_o_supervisor(caso, usuario)
 
-    caso.estado = Estado.CERRADO
-    caso.marcar("cerrado_en", timezone.now())
-    caso.motivo_cierre = motivo
-    caso.observacion_cierre = observacion
-    caso.save(update_fields=["estado", "cerrado_en", "motivo_cierre", "observacion_cierre", "modificado"])
+    _cerrar(caso, motivo, observacion)
     _trazar(
         caso,
         usuario,
