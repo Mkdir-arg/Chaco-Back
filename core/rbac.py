@@ -142,6 +142,12 @@ CATALOGO = [
                 "emergencia.ver_situacion",
                 "Ver la situación de la emergencia (tablero estratégico y mapa, sin datos personales)",
             ),
+            # Cambio 588: la supervisión corrige la mesa. Es propia: ni la guardia ni quien solo opera o supervisa
+            # la tienen; el Administrador la recibe por la migración y cualquier otro rol la tilda el PM.
+            (
+                "emergencia.cerrar_reabrir",
+                "Cerrar desde la mesa una familia alojada o un ingreso parcial, y reabrir un caso cerrado",
+            ),
         ],
     },
     {

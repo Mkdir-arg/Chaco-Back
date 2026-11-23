@@ -619,6 +619,21 @@ class CancelarIngresoMesaForm(forms.Form):
     derivacion = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
 
 
+class CerrarAlojadoMesaForm(forms.Form):
+    """«Cerrar: la familia ya no está» de la ficha: solo con ``emergencia.cerrar_reabrir`` (Cambio 588)."""
+
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        help_text="Queda en la traza del caso y como observación del cierre.",
+        error_messages={
+            "required": "Indicá por qué se cierra el caso desde la mesa.",
+            "max_length": "El motivo no puede tener más de 200 caracteres.",
+        },
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "maxlength": 200}),
+    )
+
+
 class PrioridadCasoForm(forms.Form):
     prioridad = forms.ChoiceField(
         label="Prioridad",

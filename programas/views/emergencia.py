@@ -35,6 +35,7 @@ from programas.api.throttles import rechazo_para_mostrar
 from programas.forms_emergencia import (
     CancelarDerivacionForm,
     CancelarIngresoMesaForm,
+    CerrarAlojadoMesaForm,
     CierreCasoForm,
     ContactoCasoForm,
     DerivarCasoForm,
@@ -56,8 +57,10 @@ from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import CasoDeOtroOperador, EstadoCambio, FaltanPlazas
 from programas.services.emergencia_cierre import cancelar_ingreso_por_la_mesa
-from programas.services.emergencia_programa import puede_supervisar_la_mesa
+from programas.services.emergencia_cierre_mesa import cerrar_alojado_por_la_mesa, reabrir_caso
+from programas.services.emergencia_programa import puede_cerrar_y_reabrir, puede_supervisar_la_mesa
 from programas.services.estadias import CAP_VER_CIUDADANO
+from programas.urls_seguras import destino_seguro
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
 TEMPLATE_FICHA = "programas/emergencia/casos/detail.html"
@@ -299,6 +302,8 @@ def contexto_de_ficha(request, caso, *, atados=None, modal=None):
         contexto["form_cancelar"] = CancelarDerivacionForm(auto_id="cancelar_%s")
     if contexto["puede_reasignar"]:
         contexto["form_reasignar"] = ReasignarCasoForm(auto_id="reasignar_%s")
+    if contexto["puede_cerrar_alojado"]:
+        contexto["form_cerrar_alojado"] = CerrarAlojadoMesaForm(auto_id="cerrar_alojado_%s")
     if contexto["puede_cancelar_ingreso"]:
         contexto["form_cancelar_ingreso"] = CancelarIngresoMesaForm(
             initial={"derivacion": contexto["derivacion"]["id"] if contexto["derivacion"] else None},
@@ -537,6 +542,44 @@ class CancelarIngresoMesaView(_AccionDeCasoView):
         liberadas = actualizado.reservas_liberadas
         camas = "1 cama liberada" if liberadas == 1 else f"{liberadas} camas liberadas"
         return f"Ingreso del caso {caso.numero} cancelado ({camas}). El caso volvió a la mesa."
+
+
+class _SupervisionDeCasoView(_AccionDeCasoView):
+    """Las acciones de ``emergencia.cerrar_reabrir`` (Cambio 588): la vista lo decide y el servicio lo vuelve a exigir.
+
+    Vuelven a donde pida ``next`` si es de este sitio (``destino_seguro``) y, si no, a la ficha.
+    """
+
+    def tiene_permiso(self, user):
+        return puede_cerrar_y_reabrir(user)
+
+    def destino(self, caso):
+        return destino_seguro(self.request, _url_ficha(caso))
+
+
+class CerrarAlojadoMesaView(_SupervisionDeCasoView):
+    """Cierra con motivo una familia alojada (o con ingreso parcial) que ya no está; egresa a quien siga adentro."""
+
+    form_class = CerrarAlojadoMesaForm
+    clave_form = "form_cerrar_alojado"
+    auto_id = "cerrar_alojado_%s"
+    modal = "cerrar_alojado"
+
+    def ejecutar(self, request, caso, form):
+        cerrado = cerrar_alojado_por_la_mesa(caso, request.user, form.cleaned_data["motivo"])
+        egresadas = cerrado.estadias_egresadas
+        if not egresadas:
+            return f"Caso {caso.numero} cerrado."
+        personas = "1 persona egresada" if egresadas == 1 else f"{egresadas} personas egresadas"
+        return f"Caso {caso.numero} cerrado ({personas} del dispositivo)."
+
+
+class ReabrirCasoView(_SupervisionDeCasoView):
+    """Reabre un caso cerrado: vuelve al estado anterior al cierre, salvo que la familia ya tenga otro abierto."""
+
+    def ejecutar(self, request, caso, form):
+        reabierto = reabrir_caso(caso, request.user)
+        return f"Caso {caso.numero} reabierto: vuelve a «{reabierto.get_estado_display()}»."
 
 
 class CerrarCasoView(_AccionDeCasoView):

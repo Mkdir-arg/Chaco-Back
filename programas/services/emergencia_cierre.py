@@ -464,7 +464,11 @@ def al_egresar_estadia(sender, estadia, usuario=None, **_kwargs):
     if fila is None:
         return
     integrante_pk, grupo_id, orden = fila
-    caso = CasoEmergencia.objects.select_for_update().get(grupo_id=grupo_id)
+    # `filter().first()` y no `get()`: el cierre de la mesa egresa a toda la familia en un pedido (Cambio 588) y
+    # `zeal` lee esos `get()` de la misma línea como un N+1.
+    caso = CasoEmergencia.objects.select_for_update().filter(grupo_id=grupo_id).first()
+    if caso is None:
+        return
     momento = estadia.fecha_egreso or timezone.now()
     IntegranteGrupo.objects.filter(pk=integrante_pk).update(egresado_en=momento, modificado=timezone.now())
     _trazar(

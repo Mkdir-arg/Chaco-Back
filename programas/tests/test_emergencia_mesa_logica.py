@@ -65,7 +65,8 @@ class PantallaViejaTests(BaseMesa):
         respuesta = self._post("caso_prioridad", self.caso, {"prioridad": "ALTA"})
         self.assertRedirects(respuesta, self._url("caso_detalle", self.caso), fetch_redirect_response=False)
         self.assertEqual(
-            self._avisos(respuesta), ["El caso está cerrado y no se reabre. Si hace falta, cargá uno nuevo."]
+            self._avisos(respuesta),
+            ["El caso está cerrado. Quien supervisa la mesa lo puede reabrir; si no, cargá uno nuevo."],
         )
 
 

@@ -22,6 +22,9 @@ CAP_EMERGENCIA_OPERAR = "emergencia.operar"
 CAP_SUPERVISAR = "emergencia.supervisar"
 #: E8 «Situación» (análisis 009, §3.2): la de las autoridades, que miran sin operar la mesa.
 CAP_VER_SITUACION = "emergencia.ver_situacion"
+#: Cambio 588: la supervisión cierra desde la mesa una familia alojada y reabre un caso cerrado. Propia: no la
+#: implica ``emergencia.supervisar`` ni la guardia la tiene.
+CAP_CERRAR_REABRIR = "emergencia.cerrar_reabrir"
 #: Las dos de la guardia del dispositivo. Son del programa **Dispositivos** (RU-8, hallazgo
 #: H3 del plan): se evalúan con el Equipo de cada institución, no con el programa EMERGENCIA.
 CAP_ADMITIR = "dispositivo.admitir"
@@ -68,6 +71,15 @@ def puede_ver_situacion(user):
     no depende de cómo se armó el rol. Operar sola no alcanza.
     """
     return puede_en_programa_emergencia(user, CAP_VER_SITUACION) or puede_supervisar_la_mesa(user)
+
+
+def puede_cerrar_y_reabrir(user):
+    """¿Cierra un caso alojado y reabre uno cerrado? ``emergencia.cerrar_reabrir`` **y** trabaja en la mesa.
+
+    Las dos cosas: la capacidad sola, sin ``operar`` ni ``supervisar``, no abre la ficha del caso, y sin
+    ficha no hay desde dónde ejercerla. Ninguna otra capacidad la implica (Cambio 588).
+    """
+    return puede_en_programa_emergencia(user, CAP_CERRAR_REABRIR) and puede_operar_la_mesa(user)
 
 
 def roles_en_app(user):

@@ -6404,6 +6404,9 @@ class TrazaCaso(models.Model):
         RELEVAMIENTO_REPETIDO = "RELEVAMIENTO_REPETIDO", "Familia relevada de nuevo en territorio"
         PERSONAS_SUMADAS = "PERSONAS_SUMADAS", "Personas sumadas a la familia alojada"
         CASO_NUEVO_DE_LA_FAMILIA = "CASO_NUEVO_DE_LA_FAMILIA", "La mesa abrió otro caso para la misma familia"
+        # Cambio 588 · la supervisión corrige la mesa (sin `choices` en la columna: no hay migración).
+        CERRADO_POR_LA_MESA = "CERRADO_POR_LA_MESA", "Cerrado por la mesa: la familia ya no está"
+        REABIERTO = "REABIERTO", "Caso reabierto"
 
     caso = models.ForeignKey(
         CasoEmergencia,

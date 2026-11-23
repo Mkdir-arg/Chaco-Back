@@ -1672,7 +1672,8 @@ class AccionesPosiblesTests(BaseCasos):
                         error = self._ejecutar(accion, caso, derivacion, usuario)
                         if acciones[accion]:
                             self.assertIsNone(error, f"Se ofrece y el servicio contesta: {error!r}")
-                        elif (accion, estado, rol) == ("puede_tomar", Estado.EN_GESTION, "dueño"):
+                        elif accion == "puede_tomar" and rol == "dueño" and estado != Estado.CERRADO:
+                            # Tomar lo que ya es suyo es idempotente (Cambio 588: en cualquier estado abierto).
                             self.assertIsNone(error)
                             self.assertEqual(self._fila(caso)["tomado_por_id"], usuario.pk)
                         else:

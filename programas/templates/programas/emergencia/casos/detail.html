@@ -13,6 +13,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
 <div x-data="{ modalCerrar: {% if modal_abierto == 'cerrar' %}true{% else %}false{% endif %}, modalCancelar: {% if modal_abierto == 'cancelar' %}true{% else %}false{% endif %},
                modalPrioridad: {% if modal_abierto == 'prioridad' %}true{% else %}false{% endif %}, modalReasignar: {% if modal_abierto == 'reasignar' %}true{% else %}false{% endif %},
                modalCancelarIngreso: {% if modal_abierto == 'cancelar_ingreso' %}true{% else %}false{% endif %},
+               modalCerrarAlojado: {% if modal_abierto == 'cerrar_alojado' %}true{% else %}false{% endif %},
                modalDerivar: {% if confirmar_derivar %}true{% else %}false{% endif %} }">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
@@ -20,6 +21,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
 
     {% url 'emergencia:bandeja' as url_volver %}
     {% url 'emergencia:caso_soltar' caso.pk as url_soltar %}
+    {% url 'emergencia:caso_reabrir' caso.pk as url_reabrir %}
     {% page_header titulo=titulo eyebrow="Programa Emergencia" volver_url=url_volver volver_label="casos" estado_texto=estado_texto estado_variante=estado_tono %}
       {% bajada %}{{ bajada }}{% if tomado %} · {{ tomado }}{% endif %}{% endbajada %}
       <span class="badge badge-{{ prioridad_tono }}">Prioridad {{ prioridad_texto|lower }}</span>
@@ -43,6 +45,12 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
         {% endif %}
         {% if puede_cerrar %}
         {% include "components/_menu_fila_item.html" with texto="Cerrar sin alojamiento" icono="fa-lock" abre_modal="modalCerrar" peligro=True only %}
+        {% endif %}
+        {% if puede_cerrar_alojado %}
+        {% include "components/_menu_fila_item.html" with texto="Cerrar: la familia ya no está" icono="fa-lock" abre_modal="modalCerrarAlojado" peligro=True only %}
+        {% endif %}
+        {% if puede_reabrir %}
+        {% include "components/_menu_fila_item.html" with texto="Reabrir caso" icono="fa-lock-open" confirm_url=url_reabrir confirm_title="¿Reabrir el caso?" confirm_text="Vuelve al estado en que estaba antes de cerrarse y queda anotado en la traza. Si la familia ya tiene otro caso abierto, no se puede reabrir." confirm_ok="Sí, reabrir" only %}
         {% endif %}
       {% endmenu_fila %}
     {% endpage_header %}
@@ -400,9 +408,29 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           {% for error in form_cierre.non_field_errors %}{% include "components/_alerta.html" with tono="danger" texto=error %}{% endfor %}
           {% for field in form_cierre %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
-          {% include "components/_alerta.html" with tono="warning" texto="El caso queda cerrado y no se reabre. Si la familia vuelve a necesitar alojamiento, se carga un caso nuevo." %}
+          {% include "components/_alerta.html" with tono="warning" texto="El caso queda cerrado. Si lo cerrás por error, quien supervisa la mesa lo puede reabrir; si la familia vuelve a necesitar alojamiento, se carga un caso nuevo." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCerrar=false" accion_texto="Sí, cerrar el caso" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cerrar_alojado %}
+  {# Modal: Cerrar una familia alojada que ya no está — solo con `emergencia.cerrar_reabrir`, con motivo (arquetipo Modal, Cambio 588) #}
+  <div x-show="modalCerrarAlojado" x-cloak x-becas-modal="modalCerrarAlojado" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCerrarAlojado=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cerrar-alojado-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cerrar: la familia ya no está" titulo_id="modal-cerrar-alojado-titulo" icono="fa-lock" tono="danger" cerrar="modalCerrarAlojado=false" %}
+      <form method="post" action="{% url 'emergencia:caso_cerrar_alojado' caso.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for error in form_cerrar_alojado.non_field_errors %}{% include "components/_alerta.html" with tono="danger" texto=error %}{% endfor %}
+          {% with field=form_cerrar_alojado.motivo %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          {% include "components/_alerta.html" with tono="warning" texto="Las personas que sigan con la estadía abierta se egresan del dispositivo y se liberan sus camas. El caso queda cerrado; quien supervisa lo puede reabrir, pero los egresos no se deshacen." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCerrarAlojado=false" cancelar_texto="Volver" accion_texto="Sí, cerrar el caso" accion_tono="danger" %}
       </form>
     </div>
   </div>
