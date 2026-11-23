@@ -17,7 +17,7 @@ líneas de todas con su ítem. El detalle: la entrega con sus líneas (2) y su p
 """
 
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Case, Count, IntegerField, Q, When
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.timesince import timesince
@@ -81,17 +81,27 @@ def _fila(entrega, url_pagina):
     }
 
 
-def _resumen(total, en_camino):
+def _resumen(total, por_recibir):
+    """«2 entregas · 0 por recibir»: el mismo «por recibir» (en camino o preparadas) de los contadores del edificio."""
+
     entregas = "1 entrega" if total == 1 else f"{total} entregas"
-    return f"{entregas} · {en_camino} en camino"
+    return f"{entregas} · {por_recibir} por recibir"
 
 
 def contexto_de_la_lista(dispositivo, edificio, usuario, pagina, url_pagina):
     """La tabla «Entregas a este edificio»: filas de la página pedida, su paginador y el resumen del encabezado."""
 
     entregas = entregas_del_edificio(dispositivo, edificio, usuario)
-    # El total y las «en camino» en una sola consulta; el paginador no vuelve a contar.
-    cuentas = entregas.aggregate(total=Count("pk"), en_camino=Count("pk", filter=Q(estado=EntregaKit.Estado.EN_CAMINO)))
+    # El total y las «por recibir» en una sola consulta; el paginador no vuelve a contar.
+    cuentas = entregas.aggregate(
+        total=Count("pk"), por_recibir=Count("pk", filter=Q(estado__in=EntregaKit.ESTADOS_ABIERTOS))
+    )
+    # Las por recibir van primero (#1361: «Recibir kit (N)» lleva acá); dentro de cada grupo, de la más nueva a la más vieja.
+    entregas = entregas.order_by(
+        Case(When(estado__in=EntregaKit.ESTADOS_ABIERTOS, then=0), default=1, output_field=IntegerField()),
+        "-creado",
+        "-id",
+    )
     paginador = Paginator(entregas, ENTREGAS_POR_PAGINA)
     paginador.__dict__["count"] = cuentas["total"]
     pagina_actual = paginador.get_page(pagina)
@@ -99,7 +109,7 @@ def contexto_de_la_lista(dispositivo, edificio, usuario, pagina, url_pagina):
         "modo": "lista",
         "filas": [_fila(entrega, url_pagina) for entrega in pagina_actual],
         "pagina": pagina_actual,
-        "resumen": _resumen(cuentas["total"], cuentas["en_camino"]),
+        "resumen": _resumen(cuentas["total"], cuentas["por_recibir"]),
     }
 
 

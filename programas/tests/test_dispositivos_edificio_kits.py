@@ -141,7 +141,7 @@ class TablaTests(BaseKitsEdificio):
         self.assertContains(respuesta, "Entregas a este edificio")
         self.assertContains(respuesta, f'aria-label="Recibir {nueva.numero}"')
         self.assertContains(respuesta, f'aria-label="Ver detalle {vieja.numero}"')
-        self.assertContains(respuesta, "2 entregas · 1 en camino")
+        self.assertContains(respuesta, "2 entregas · 1 por recibir")
 
     def test_la_diferencia_dice_cuanto_y_de_que_item(self):
         entrega = self._entrega("2026-K-000303", self.edif_a, estado=Estado.RECIBIDA_CON_DIFERENCIAS)
@@ -153,14 +153,15 @@ class TablaTests(BaseKitsEdificio):
         self.assertContains(respuesta, "−2 · faltan (Agua 6 l)")
         self.assertContains(respuesta, "+1 · de más (Colchón)")
 
-    def test_en_camino_no_cuenta_las_preparadas_y_el_badge_si(self):
+    def test_por_recibir_cuenta_en_camino_y_preparadas_en_la_tabla_y_en_el_badge(self):
         self._entrega("2026-K-000304", self.edif_a)
         self._entrega("2026-K-000305", self.edif_a, estado=Estado.PREPARADA)
 
         respuesta = self._get(self.recibe_inst, self.edif_a, tab="kits")
 
-        self.assertContains(respuesta, "2 entregas · 1 en camino")
+        self.assertContains(respuesta, "2 entregas · 2 por recibir")
         self.assertEqual(respuesta.context["contadores"]["kits"], 2)
+        self.assertContains(respuesta, "2 por recibir</span>")
 
     def test_las_fechas_van_en_dias_desde_un_dia(self):
         entrega = self._entrega("2026-K-000306", self.edif_a)

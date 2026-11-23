@@ -23,13 +23,16 @@ Constante: no hay consultas por sector, por estadía, por miembro ni por kit. El
 contador, una.
 """
 
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Count, Exists, Min, OuterRef, Q
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 from django.utils.text import Truncator
 
 from core.rbac import puede
 from programas.models import Edificio, EntregaKit, InspeccionEdificio, Sector
+from programas.selectors.emergencia_alojar import pendientes_por_recibir
+from programas.selectors.emergencia_llegadas import aviso_de_pendientes
 from programas.services.bitacora import turno_vigente
 from programas.services.detalle_dispositivo import (
     contar_alojadas,
@@ -196,6 +199,68 @@ def _equipo_en_turno(dispositivo, equipo):
     }
 
 
+def _kits_por_recibir(dispositivo, edificio):
+    """``(cantidad, primera)``: las entregas **por recibir** de este edificio (en camino o preparadas) y el id de la más vieja.
+
+    Solo las de ``edificio`` exacto: una de otro edificio de la misma institución, o sin edificio, no cuenta. Una
+    consulta. Con una sola entrega, ``primera`` es esa entrega.
+    """
+
+    resumen = EntregaKit.objects.filter(
+        dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
+    ).aggregate(cantidad=Count("pk"), primera=Min("pk"))
+    return resumen["cantidad"], resumen["primera"]
+
+
+def _recibir_kit(url_pagina, cantidad, primera):
+    """El ítem «Recibir kit» del menú: ``(url, texto)``; sin entregas por recibir, ``("", "")`` y no se dibuja.
+
+    Con una, va al detalle de esa entrega en la solapa Kits (el formulario de recepción, que al confirmar vuelve a la
+    solapa). Con varias, a la solapa Kits, que lista primero las por recibir.
+    """
+
+    if not cantidad:
+        return "", ""
+    if cantidad == 1:
+        return f"{url_pagina}?tab=kits&entrega={primera}", "Recibir kit"
+    return f"{url_pagina}?tab=kits", f"Recibir kit ({cantidad})"
+
+
+def _avisos(user, dispositivo, edificio, acciones):
+    """Los avisos de arriba de la página: derivaciones y kits por recibir **en este edificio** (#1362).
+
+    Mismo criterio de quién los ve que los de la ficha de la institución: ``dispositivo.admitir`` para las
+    derivaciones y ``emergencia.recibir_kit`` para los kits, los dos con alcance sobre **este** edificio (``_acciones``
+    ya lo resolvió: ``url_llegadas`` y ``url_recibir_kit`` vienen vacías sin él). Sin pendientes no hay aviso.
+    Una consulta por aviso y ninguna para quien no puede verlo.
+    """
+
+    avisos = []
+    if acciones["url_llegadas"]:
+        derivaciones = aviso_de_pendientes(
+            pendientes_por_recibir(dispositivo, user, edificio),
+            acciones["url_llegadas"],
+            timezone.now(),
+            en_este_edificio=True,
+        )
+        if derivaciones:
+            avisos.append(derivaciones)
+    cantidad = acciones["kits_por_recibir"]
+    if cantidad:
+        entregas = "1 entrega de kits por recibir" if cantidad == 1 else f"{cantidad} entregas de kits por recibir"
+        avisos.append(
+            {
+                "tono": "warning",
+                "icono": "box-open",
+                "titulo": f"{entregas} en este edificio",
+                "texto": "Hasta que se confirme la recepción, la mesa de Emergencia las ve en camino.",
+                "accion_url": acciones["url_recibir_kit"],
+                "accion_texto": "Recibir kit" if cantidad == 1 else "Ver entregas",
+            }
+        )
+    return avisos
+
+
 def _acciones(user, dispositivo, edificio):
     """Las acciones de la página y las URL de cada una, **solo** las que ``user`` puede hacer sobre este edificio.
 
@@ -210,8 +275,11 @@ def _acciones(user, dispositivo, edificio):
     # Editar y desvincular son del legajo (RN5): alcance institución, y un dispositivo cerrado no cambia su edificio.
     puede_editar = puede_editar_legajo(user, dispositivo, CAP_EDITAR) and admite_editar_edificio(dispositivo.estado)
     url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, pk])
+    kits_por_recibir, primera_entrega = _kits_por_recibir(dispositivo, edificio) if puede_kits else (0, None)
+    url_recibir_kit, texto_recibir_kit = _recibir_kit(url_pagina, kits_por_recibir, primera_entrega)
     acciones = {
         "puede_kits": puede_kits,
+        "kits_por_recibir": kits_por_recibir,
         "url_ingreso": (
             reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]) + como_param
             if dispositivo.estado == dispositivo.Estado.ACTIVO
@@ -224,8 +292,10 @@ def _acciones(user, dispositivo, edificio):
         if puede_admitir
         else "",
         "url_kits": reverse("emergencia:dispositivo_kits", args=[dispositivo.pk]) + como_param if puede_kits else "",
-        # «Recibir kit» lleva a la solapa Kits de esta página, donde cada entrega en camino se recibe (PR 3).
-        "url_recibir_kit": f"{url_pagina}?tab=kits" if puede_kits else "",
+        # «Recibir kit» solo existe si hay algo por recibir en este edificio (#1361): una entrega, a su recepción; varias,
+        # a la solapa Kits con las por recibir primero.
+        "url_recibir_kit": url_recibir_kit,
+        "texto_recibir_kit": texto_recibir_kit,
         "url_relevamiento": (
             f"{reverse('dispositivos:relevamientos')}?asignar={pk}"
             if edificios_para_asignar(user).filter(pk=pk).exists()
@@ -267,13 +337,7 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
     equipo = miembros_del_edificio(dispositivo, edificio.pk)
     estado = _estado_edilicio(user, edificio)
     disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
-    pendientes_de_kit = (
-        EntregaKit.objects.filter(
-            dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
-        ).count()
-        if acciones["puede_kits"]
-        else 0
-    )
+    pendientes_de_kit = acciones["kits_por_recibir"]
     url_institucion = reverse("dispositivos:detalle", args=[dispositivo.pk])
     tab = normalizar_solapa(tab_pedida, disponibles)
     url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
@@ -293,6 +357,7 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         "historial_cargado": tab == "historial",
         "url_solapa_historial": f"{url_pagina}?tab=historial",
         "solapas": disponibles,
+        "avisos": _avisos(user, dispositivo, edificio, acciones),
         "url_institucion": url_institucion,
         "migas": [
             {"label": "Dispositivos", "url": ""},

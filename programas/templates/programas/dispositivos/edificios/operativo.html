@@ -33,7 +33,7 @@
         {% include "components/_menu_fila_item.html" with texto="Emergencia · Kits" icono="fa-box-open" url=url_kits only %}
         {% endif %}
         {% if url_recibir_kit %}
-        {% include "components/_menu_fila_item.html" with texto="Recibir kit" icono="fa-truck-ramp-box" url=url_recibir_kit only %}
+        {% include "components/_menu_fila_item.html" with texto=texto_recibir_kit icono="fa-truck-ramp-box" url=url_recibir_kit only %}
         {% endif %}
         {% if url_relevamiento %}
         {% include "components/_menu_fila_item.html" with texto="Crear relevamiento" icono="fa-clipboard-check" url=url_relevamiento only %}
@@ -71,6 +71,11 @@
     {% if predio_compartido %}
     {% include "components/_alerta.html" with tono="info" titulo="Predio compartido." texto="En este edificio también funciona otra institución. Acá ves solo los sectores, las personas y los kits de "|add:dispositivo.nombre|add:"." role="status" %}
     {% endif %}
+
+    {# Derivaciones y kits por recibir en ESTE edificio: el servicio los arma solo para quien los puede atender #}
+    {% for aviso in avisos %}
+    {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto accion_url=aviso.accion_url accion_texto=aviso.accion_texto role="status" %}
+    {% endfor %}
 
     {# ===== Indicadores del edificio: salen del censo de plazas de este edificio y de esta institución ===== #}
     {% if maneja_plazas %}
@@ -118,7 +123,7 @@
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='kits' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-box-open" aria-hidden="true"></i> Kits
-          <span class="badge" :class="tab==='kits' ? 'badge-info' : 'badge-gray'">{{ contadores.kits }}</span>
+          <span class="badge" :class="tab==='kits' ? 'badge-info' : 'badge-gray'">{{ contadores.kits }} por recibir</span>
         </button>
         {% endif %}
         {# El Equipo se arma solo con la solapa abierta (`equipo_cargado`): si no vino, el botón navega a ella #}

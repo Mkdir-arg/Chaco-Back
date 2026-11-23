@@ -52,16 +52,13 @@ def _kits_pendientes(dispositivo, edificio_ids):
 
 
 def _texto_de_kits(en_camino, preparadas):
-    """«Ninguno pendiente», «1 en camino» o «1 en camino · 2 preparadas», más su tono de texto."""
+    """«0 por recibir» o «3 por recibir» (en camino y preparadas juntas), más su tono de texto.
 
-    partes = []
-    if en_camino:
-        partes.append(f"{en_camino} en camino")
-    if preparadas:
-        partes.append(_plural(preparadas, "preparada", "preparadas"))
-    if not partes:
-        return "Ninguno pendiente", "text-heading"
-    return " · ".join(partes), "text-fg-warning"
+    Nunca un número suelto: el 0 de «por recibir» se leía como «no se recibió nada» (#1365).
+    """
+
+    por_recibir = en_camino + preparadas
+    return f"{por_recibir} por recibir", "text-fg-warning" if por_recibir else "text-heading"
 
 
 def _movimientos_de_hoy(dispositivo, edificio_ids, hoy):
