@@ -97,6 +97,16 @@ def _hora(momento):
     return f"{timezone.localtime(momento):%H:%M}"
 
 
+def _cerrar(caso, motivo, observacion="", momento=None):
+    """Pasa el caso a ``CERRADO`` con su motivo, su observación y la fecha del cierre. Quien llama lo traza."""
+
+    caso.estado = CasoEmergencia.Estado.CERRADO
+    caso.marcar("cerrado_en", momento or timezone.now())
+    caso.motivo_cierre = motivo
+    caso.observacion_cierre = observacion
+    caso.save(update_fields=["estado", "cerrado_en", "motivo_cierre", "observacion_cierre", "modificado"])
+
+
 def _bloquear_caso(caso):
     """La fila del caso con ``FOR UPDATE``, recién leída. **Siempre el primer candado.**
 

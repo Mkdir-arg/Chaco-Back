@@ -54,6 +54,7 @@ from programas.models import (
 )
 from programas.services import emergencia as servicio
 from programas.services.emergencia import CasoAbiertoDeLaFamilia, CasoTomadoPorOtro, EstadoCambio
+from programas.services.emergencia_cierre_mesa import ReaperturaConOtroCasoAbierto, reabrir_caso
 from programas.tests.test_dispositivos_concurrencia import _permiso, en_paralelo, punto_critico
 from users.models import RolMeta
 
@@ -306,3 +307,43 @@ class CarreraDeUnaFamiliaTests(_BaseCarreraEmergencia):
         self.assertEqual(len(resultados), 1, f"resultados={resultados!r} errores={errores!r}")
         self._un_error(errores, CasoAbiertoDeLaFamilia)
         self.assertEqual(CasoEmergencia.objects.count(), 2, "el caso de setUp y uno solo de la familia")
+
+
+@tag("mysql")
+class CarreraDeReabrirTests(_BaseCarreraEmergencia):
+    """Cambio 588: reabrir dos casos cerrados de la misma familia a la vez deja **un** caso abierto.
+
+    El que decide es el candado del numerador, que ``reabrir_caso`` toma antes de buscar el otro caso abierto.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.jefe = self._usuario(
+            "jefe_conc", ["emergencia.operar", "emergencia.supervisar", "emergencia.cerrar_reabrir"]
+        )
+        datos = self._datos()
+        Ciudadano.objects.create(dni=datos["dni"], nombre=datos["nombre"], apellido=datos["apellido"])
+        self.primero = self._cerrado(self._crear_caso(datos))
+        self.segundo = self._cerrado(self._crear_caso(datos))
+
+    def _cerrado(self, caso):
+        caso = servicio.tomar_caso(caso, self._fresco(self.ana))
+        return servicio.cerrar_sin_alojamiento(caso, self._fresco(self.ana), "NO_REQUIERE")
+
+    def _reabrir(self, caso):
+        def operacion():
+            return reabrir_caso(CasoEmergencia.objects.get(pk=caso.pk), self._fresco(self.jefe))
+
+        return operacion
+
+    def test_dos_reaperturas_a_la_vez_dejan_un_solo_caso_abierto(self):
+        resultados, errores = en_paralelo(
+            self._reabrir(self.primero), self._reabrir(self.segundo), punto_a=NUMERADOR_BLOQUEADO
+        )
+
+        self.assertEqual(len(resultados), 1, f"resultados={resultados!r} errores={errores!r}")
+        self._un_error(errores, ReaperturaConOtroCasoAbierto)
+        abiertos = CasoEmergencia.objects.filter(pk__in=[self.primero.pk, self.segundo.pk]).exclude(
+            estado=CasoEmergencia.Estado.CERRADO
+        )
+        self.assertEqual(abiertos.count(), 1)
