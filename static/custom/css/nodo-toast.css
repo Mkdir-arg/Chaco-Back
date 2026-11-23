@@ -200,3 +200,30 @@
         max-height: 40vh;
     }
 }
+
+/* Aviso con lista (errores de un form, opts.items de nodo-toast.js): una línea por ítem; con muchos, la lista scrollea. */
+.toast__lista {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.toast__enlace {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.toast__enlace:hover {
+    color: var(--text-heading);
+}
+
+.toast__enlace:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-brand);
+    border-radius: var(--radius-md);
+}

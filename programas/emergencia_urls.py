@@ -45,6 +45,9 @@ urlpatterns = [
     path("casos/<int:pk>/cancelar-derivacion/", mesa.CancelarDerivacionView.as_view(), name="caso_cancelar_derivacion"),
     path("casos/<int:pk>/cancelar-ingreso/", mesa.CancelarIngresoMesaView.as_view(), name="caso_cancelar_ingreso"),
     path("casos/<int:pk>/cerrar/", mesa.CerrarCasoView.as_view(), name="caso_cerrar"),
+    # Cambio 588: la supervisión corrige la mesa (`emergencia.cerrar_reabrir`).
+    path("casos/<int:pk>/cerrar-alojado/", mesa.CerrarAlojadoMesaView.as_view(), name="caso_cerrar_alojado"),
+    path("casos/<int:pk>/reabrir/", mesa.ReabrirCasoView.as_view(), name="caso_reabrir"),
     # Entregas de kits (etapa 4): E4 (listado y «Nueva entrega» en una sola pantalla) y E5 (detalle).
     path("entregas/", kits.EntregasListView.as_view(), name="entregas"),
     path("entregas/nueva/", kits.NuevaEntregaView.as_view(), name="entrega_nueva"),

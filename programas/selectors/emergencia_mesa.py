@@ -28,18 +28,20 @@ from programas.selectors import emergencia as selectores
 from programas.selectors import emergencia_alojar as selectores_alojar
 from programas.selectors import emergencia_derivar as selectores_derivar
 from programas.services.emergencia import (
-    ESTADOS_PARA_TOMAR,
     NECESIDADES,
     acciones_posibles,
     estado_visible_de_caso,
     prioridad_visible,
+    puede_tomar_el_caso,
 )
 from programas.services.emergencia_cierre import puede_cancelar_ingreso_por_la_mesa
+from programas.services.emergencia_cierre_mesa import puede_cerrar_alojado_por_la_mesa, puede_reabrir_el_caso
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_OPERAR,
     CAP_SUPERVISAR,
     programa_emergencia,
+    puede_cerrar_y_reabrir,
     puede_supervisar_la_mesa,
 )
 from programas.services.identidad import texto_comparable
@@ -384,7 +386,7 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
                 "sla": selectores.estado_sla(caso, sla, ahora),
                 "que_falta": que_falta(caso, sla, ahora),
                 "marcas": _marcas_de_fila(caso, duplicados.get(caso.pk), alojados.get(caso.pk), sla, ahora),
-                "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
+                "puede_tomar": puede_tomar_el_caso(caso),
             }
         )
     return filas
@@ -829,7 +831,10 @@ def ficha_de_caso(caso, usuario, sla, ahora):
             "texto": "El caso se deriva cuando alguien de la mesa lo toma.",
         }
     elif not caso.abierto:
-        sin_panel = {"titulo": "Caso cerrado", "texto": "Un caso cerrado no se deriva ni se reabre."}
+        sin_panel = {
+            "titulo": "Caso cerrado",
+            "texto": "Un caso cerrado no se deriva. Quien tiene permiso para reabrir casos lo puede reabrir.",
+        }
     else:
         sin_panel = {
             "titulo": "Lo deriva quien lo tiene tomado",
@@ -865,4 +870,18 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         "puede_cancelar_ingreso": puede_cancelar_ingreso_por_la_mesa(
             caso, es_supervisor=es_supervisor, confirmadas=integrantes["confirmadas"] if integrantes else 0
         ),
+        # Cambio 588: la supervisión corrige la mesa (capacidad propia).
+        **_acciones_de_supervision(caso, usuario),
+        # Tomar habilita derivar y cerrar solo en un caso nuevo; en los demás es hacerse cargo.
+        "tomar_para_gestionar": caso.estado == Estado.NUEVO,
+    }
+
+
+def _acciones_de_supervision(caso, usuario):
+    """``puede_cerrar_alojado`` y ``puede_reabrir``: las dos de ``emergencia.cerrar_reabrir``. Sin consultas de datos."""
+
+    puede = puede_cerrar_y_reabrir(usuario)
+    return {
+        "puede_cerrar_alojado": puede and puede_cerrar_alojado_por_la_mesa(caso),
+        "puede_reabrir": puede and puede_reabrir_el_caso(caso),
     }

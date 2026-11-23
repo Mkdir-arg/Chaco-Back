@@ -48,6 +48,12 @@ toast local por módulo (nada de `becasToast`), y los templates hijos **no** rep
   pasar el mouse o con el foco.
 - **Errores:** persisten (sin barra) hasta cerrarlos con el botón o con Escape (no si hay un modal
   abierto), salvo que se pase una duración explícita.
+- **Aviso con lista (errores de un form):** `window.toast('error', '', { title, items: [{texto, href}] })`.
+  La lista va en `ul.toast__lista` (scrollea pasados 40 vh) y cada ítem es `li.toast__message`; con `href`
+  `#id` el ítem es un `a.toast__enlace` que baja al control y le da el foco, sin `href` es texto. Un aviso con
+  `items` nunca se cierra solo (como un error persistente, salvo `duration` explícita), puede llevar mensaje
+  vacío y todo el texto se pinta con `textContent`. No se arma a mano: lo abre el include
+  `templates/components/_aviso_errores.html` (ver abajo).
 - Máximo 3 visibles en escritorio y 1 en ≤ 640 px sin modal. Con un modal abierto en ≤ 640 px la
   pila se apoya bajo el encabezado y sobre el pie del modal **solo si** hay ≥ 120 px entre ambos;
   si no se pueden detectar o no hay espacio, los errores se comportan como un toast común mientras
@@ -57,6 +63,30 @@ toast local por módulo (nada de `becasToast`), y los templates hijos **no** rep
   `padding-bottom` del `<body>` el alto de la pila más el offset del breakpoint, para que el error
   no tape el pie de la página; al desaparecer se restaura el valor previo.
 - Roles y live regions ya están resueltos: no se tocan.
+
+## Aviso flotante con la lista de errores de un form
+
+**Pieza:** `templates/components/_aviso_errores.html` + el tag `resumen_errores` de
+`core/templatetags/nodo_ui.py` + `opts.items` de `nodo-toast.js` (y `.toast__lista`/`.toast__enlace` en
+`nodo-toast.css`). **Test:** `core/tests/test_nodo_ui_piezas.py` (`AvisoErroresTest`).
+
+```django
+{% include "components/_form_errores.html" %}
+{% include "components/_aviso_errores.html" %}                              {# uno u otro: un solo include por página #}
+{% include "components/_aviso_errores.html" with form=form_domicilio %}  {# alternativa si el form no es el `form` del contexto #}
+```
+
+- Los dos ejemplos son **alternativas**: un solo include por página (el id `aviso-errores` es fijo). Va después de `_form_errores.html`. **Suma** al error debajo de cada campo y al bloque de arriba; no los
+  reemplaza. Sin JS, la pantalla queda como antes.
+- `form` por contexto. Sin errores (sin bindear, válido o ausente) no dibuja nada. Un ítem por mensaje:
+  «Etiqueta: mensaje» enlazado a `#<id del control>`; el error del conjunto va solo con el mensaje y sin enlace.
+  Título «No se guardó: hay N cosas para corregir» («1 cosa»).
+- La lista viaja en `<script type="application/json" id="aviso-errores">` (`json_script`, escapado). Un solo
+  aviso por página: el JS del shell lo abre al cargar, baja al primer control con error y le da el foco.
+  Tocar un ítem hace lo mismo con su control. Queda hasta cerrarlo (botón o Escape).
+- Se usa en «Nuevo caso» de la mesa y en el Formulario 1 de la puerta (Emergencia). Otro formulario lo suma con
+  el include, sin JS propio. E7 · Configuración (formset del catálogo, con el nombre del ítem en cada error)
+  queda pendiente: necesita su propia lista armada desde los formsets.
 
 ## Prohibido
 

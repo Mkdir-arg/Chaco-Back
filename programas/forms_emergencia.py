@@ -44,6 +44,7 @@ from programas.services.configuracion_emergencia import (
 )
 from programas.services.emergencia import MOTIVOS_DE_CIERRE_MANUAL, NECESIDADES
 from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegistrado
+from programas.services.emergencia_cierre_mesa import MOTIVO_LARGO, MOTIVO_OBLIGATORIO
 
 #: Tope de plazas que acepta el panel «Derivar»: el del campo `plazas_pedidas` (smallint).
 PLAZAS_MAXIMAS = 32767
@@ -617,6 +618,18 @@ class CancelarIngresoMesaForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "maxlength": 200}),
     )
     derivacion = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+
+
+class CerrarAlojadoMesaForm(forms.Form):
+    """«Cerrar: la familia ya no está» de la ficha: solo con ``emergencia.cerrar_reabrir`` (Cambio 588)."""
+
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        help_text="Queda en la traza del caso y como observación del cierre.",
+        error_messages={"required": MOTIVO_OBLIGATORIO, "max_length": MOTIVO_LARGO},
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "maxlength": 200}),
+    )
 
 
 class PrioridadCasoForm(forms.Form):

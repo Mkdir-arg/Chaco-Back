@@ -25,9 +25,14 @@
  *   tipo      : 'success' | 'error' | 'warning' | 'info'
  *               (o alias es-AR: 'confirmacion', 'alerta', ...)
  *   mensaje   : string
- *   opciones  : { duration?: ms, title?: string|null }
+ *   opciones  : { duration?: ms, title?: string|null, items?: [{texto, href?}] }
  *               duration explícita también cierra un error solo.
  *               title === '' o null oculta el título.
+ *               items: lista bajo el título (cada texto con textContent; con href
+ *               '#id' el ítem es un enlace que baja al control y le da el foco).
+ *               Un aviso con lista nunca se cierra solo (salvo duration explícita)
+ *               y puede llevar mensaje vacío. Lo arma el include
+ *               components/_aviso_errores.html con los errores de un form.
  * ============================================================= */
 (function () {
     'use strict';
@@ -81,9 +86,11 @@
 
     function show(type, message, opts) {
         opts = opts || {};
-        if (message === null || message === undefined || String(message).trim() === '') {
+        var items = (opts.items && opts.items.length) ? opts.items : null;
+        if (!items && (message === null || message === undefined || String(message).trim() === '')) {
             return null;
         }
+        message = (message === null || message === undefined) ? '' : message;
 
         var variant = VARIANTS[resolveType(type)];
         var duration = (typeof opts.duration === 'number' && opts.duration > 0)
@@ -96,17 +103,21 @@
         // su encabezado y su pie, se comporta como antes (7 s, con barra, 1 solo).
         var explicita = (typeof opts.duration === 'number' && opts.duration > 0);
         var ctx = contextoModal();
-        var persistent = isError && !explicita && !ctx.sinLugar;
-        var temporalDeModal = isError && !explicita && ctx.sinLugar;
+        var persiste = isError || !!items;
+        var persistent = persiste && !explicita && !ctx.sinLugar;
+        var temporalDeModal = persiste && !explicita && ctx.sinLugar;
 
         var container = getContainer();
         ubicarPila();
         if (temporalDeModal) { soloUnErrorTemporal(); }
 
         // Deduplicación: un error persistente idéntico ya visible no se apila.
+        var clave = String(message) + (items
+            ? '|' + (opts.title || '') + '|' + items.map(function (i) { return i.texto; }).join('|')
+            : '');
         if (persistent) {
             for (var p = 0; p < persistentes.length; p++) {
-                if (persistentes[p]._msg === String(message) && !persistentes[p]._closed) {
+                if (persistentes[p]._msg === clave && !persistentes[p]._closed) {
                     return persistentes[p];
                 }
             }
@@ -118,7 +129,7 @@
         toast.setAttribute('role', isUrgent ? 'alert' : 'status');
         toast.setAttribute('aria-live', isUrgent ? 'assertive' : 'polite');
         if (persistent) {
-            toast._msg = String(message);
+            toast._msg = clave;
             persistentes.push(toast);
         }
         toast._prevFocus = document.activeElement || null;
@@ -143,10 +154,38 @@
             body.appendChild(titleEl);
         }
 
-        var msgEl = document.createElement('p');
-        msgEl.className = 'toast__message';
-        msgEl.textContent = String(message); // textContent → seguro contra XSS
-        body.appendChild(msgEl);
+        if (String(message).trim() !== '') {
+            var msgEl = document.createElement('p');
+            msgEl.className = 'toast__message';
+            msgEl.textContent = String(message); // textContent → seguro contra XSS
+            body.appendChild(msgEl);
+        }
+
+        // Lista opcional (errores de un form): cada ítem con textContent; con href '#id' es un enlace.
+        if (items) {
+            var lista = document.createElement('ul');
+            lista.className = 'toast__lista';
+            items.forEach(function (it) {
+                var li = document.createElement('li');
+                li.className = 'toast__message';
+                var texto = String(it.texto === undefined || it.texto === null ? '' : it.texto);
+                var href = String(it.href || '');
+                if (/^#[\w:.-]+$/.test(href)) {
+                    var a = document.createElement('a');
+                    a.className = 'toast__enlace';
+                    a.setAttribute('href', href);
+                    a.textContent = texto;
+                    a.addEventListener('click', function (ev) {
+                        if (irAlControl(href)) { ev.preventDefault(); }
+                    });
+                    li.appendChild(a);
+                } else {
+                    li.textContent = texto;
+                }
+                lista.appendChild(li);
+            });
+            body.appendChild(lista);
+        }
 
         // Botón cerrar
         var closeBtn = document.createElement('button');
@@ -440,6 +479,15 @@
         if (target) { target._dismiss(); }
     });
 
+    // Baja hasta el control `#id` y le pone el foco. false si no existe (el enlace sigue su curso).
+    function irAlControl(href) {
+        var el = document.getElementById(href.slice(1));
+        if (!el) { return false; }
+        if (typeof el.scrollIntoView === 'function') { el.scrollIntoView({block: 'center'}); }
+        if (typeof el.focus === 'function') { el.focus({preventScroll: true}); }
+        return true;
+    }
+
     // ── API pública ──────────────────────────────────────────────
     var api = function (type, message, opts) { return show(type, message, opts); };
     api.success = function (m, o) { return show('success', m, o); };
@@ -469,9 +517,24 @@
         if (box.parentNode) { box.parentNode.removeChild(box); }
     }
 
+    // Errores de un form: `components/_aviso_errores.html` deja la lista en un json_script
+    // (#aviso-errores). Se abre un solo aviso con lista y la pantalla baja al primer error.
+    function flushAvisoErrores() {
+        var nodo = document.getElementById('aviso-errores');
+        if (!nodo) { return; }
+        var datos = null;
+        try { datos = JSON.parse(nodo.textContent || ''); } catch (e) { datos = null; }
+        if (!datos || !datos.items || !datos.items.length) { return; }
+        show('error', '', {title: datos.titulo, items: datos.items});
+        for (var i = 0; i < datos.items.length; i++) {
+            if (datos.items[i].href && irAlControl(datos.items[i].href)) { break; }
+        }
+    }
+
+    function alCargar() { flushDjangoMessages(); flushAvisoErrores(); }
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', flushDjangoMessages);
+        document.addEventListener('DOMContentLoaded', alCargar);
     } else {
-        flushDjangoMessages();
+        alCargar();
     }
 })();

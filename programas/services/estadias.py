@@ -556,7 +556,15 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
 
 @transaction.atomic
 def egresar_persona(
-    *, estadia, usuario, fecha_egreso=None, motivo="", motivo_egreso=None, destino="", pertenencias_devueltas=False
+    *,
+    estadia,
+    usuario,
+    fecha_egreso=None,
+    motivo="",
+    motivo_egreso=None,
+    destino="",
+    pertenencias_devueltas=False,
+    verificar_alcance=True,
 ):
     """Cierra la estadía y suelta la clave de alojamiento y la plaza.
 
@@ -573,9 +581,14 @@ def egresar_persona(
     razón de un egreso, y la razón es la del catálogo: `motivo` es texto libre y no
     sustituye a ninguna opción. Las estadías **ya egresadas** sin motivo no se tocan: la
     regla rige para los egresos nuevos.
+
+    `verificar_alcance=False` solo lo usa quien **ya autorizó** el egreso por otra vía: el cierre de una familia
+    alojada desde la mesa de Emergencia (`emergencia_cierre_mesa`, Cambio 588), que exige su propia capacidad y no
+    pertenece al Equipo del dispositivo. Todo lo demás —motivo del catálogo, destino, fechas, candados, señal—
+    vale igual.
     """
 
-    if not puede_operar_plaza(usuario, estadia.dispositivo, estadia.plaza_id, CAP_EGRESAR):
+    if verificar_alcance and not puede_operar_plaza(usuario, estadia.dispositivo, estadia.plaza_id, CAP_EGRESAR):
         raise PermissionDenied("No tenés alcance para registrar egresos en este dispositivo.")
 
     # Se relee con la fila bloqueada: el objeto que llega puede venir de una pantalla
@@ -583,7 +596,11 @@ def egresar_persona(
     # los dos su motivo y su responsable, sin que nadie se entere de que hubo dos.
     # Antes, la institución en compartido: el orden de siempre (institución → estadía).
     bloquear_institucion(estadia.dispositivo_id)
-    estadia = Estadia.objects.select_for_update().get(pk=estadia.pk)
+    # `filter().first()` y no `get()`: el cierre de la mesa egresa a varias personas en un pedido (Cambio 588).
+    bloqueada = Estadia.objects.select_for_update().filter(pk=estadia.pk).first()
+    if bloqueada is None:
+        raise ValidationError({"estado": "La estadía ya no existe."})
+    estadia = bloqueada
     if not estadia.activa:
         raise ValidationError({"estado": "La estadía ya está cerrada."})
 
