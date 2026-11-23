@@ -24,11 +24,9 @@ from django.utils import timezone
 from programas.models import EntregaKit, Estadia
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
-    alcance_de_edificios,
     contar_miembros_por_edificio,
     entero_de_parametro,
 )
-from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.ocupacion import tension_de_ocupacion
 
 #: Cuántos edificios con lugar nombra el aviso antes de dejar de enumerarlos.
@@ -89,13 +87,14 @@ def _texto_de_movimientos(ingresos, egresos):
     return "Hoy: " + " · ".join(partes) if partes else "Hoy: sin movimientos"
 
 
-def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede_recibir_kits):
+def completar_tarjetas(filas, *, dispositivo, ocupacion, con_plazas, alcance_kits):
     """Suma a cada fila de ``infraestructura_del_dispositivo`` lo que la tarjeta del edificio dibuja.
 
-    ``ocupacion`` es la ``OcupacionDispositivo`` de la ficha (ya acotada al alcance de ``user``). Sin plazas en el tipo
-    de la institución, la fila no lleva ocupación ni disponibles: la tarjeta no dibuja una barra vacía. Los kits solo se
-    cuentan donde ``user`` puede recibirlos (``emergencia.recibir_kit`` sobre ese edificio), como en la página del edificio.
-    ``puede_recibir_kits`` es lo que la vista ya resolvió para la institución: no se vuelve a preguntar.
+    ``ocupacion`` es la ``OcupacionDispositivo`` de la ficha (ya acotada al alcance de quien mira). Sin plazas en el
+    tipo de la institución, la fila no lleva ocupación ni disponibles: la tarjeta no dibuja una barra vacía.
+    ``alcance_kits`` es el de ``emergencia.recibir_kit`` que la vista ya calculó (el mismo que decide el aviso de kits
+    de la ficha): ``None`` si quien mira no recibe kits en la institución. Los kits solo se cuentan en los edificios que
+    alcanza, como en la página del edificio.
     """
 
     if not filas:
@@ -103,7 +102,6 @@ def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede
     ids = [fila["pk"] for fila in filas]
     hoy = timezone.localdate()
 
-    alcance_kits = alcance_de_edificios(user, dispositivo, CAP_RECIBIR_KIT) if puede_recibir_kits else None
     ids_con_kits = [pk for pk in ids if alcance_kits is not None and alcance_kits.permite(pk)]
     kits = _kits_pendientes(dispositivo, ids_con_kits) if ids_con_kits else {}
     equipo = contar_miembros_por_edificio(dispositivo, ids)

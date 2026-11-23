@@ -67,6 +67,7 @@ from programas.selectors.estadia_detalle import (
 from programas.selectors.estadia_detalle import (
     normalizar_solapa as normalizar_solapa_estadia,
 )
+from programas.selectors.kits import entregas_por_recibir_de
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.detalle_dispositivo import (
     alertas_del_dispositivo,
@@ -83,6 +84,7 @@ from programas.services.detalle_dispositivo import (
 )
 from programas.services.dispositivos import (
     CAP_VER,
+    alcance_de_edificios,
     buscar_posibles_duplicados,
     dispositivos_en_alcance,
     dispositivos_visibles,
@@ -134,6 +136,7 @@ from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import (
     semaforos_de_dispositivos,
 )
+from programas.services.kits import aviso_de_kits_por_recibir
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.plazas import puede_configurar_plazas
@@ -462,6 +465,11 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
         puede_egresar = self._puede_operar(dispositivo, CAP_EGRESAR)
         puede_cambiar = self._puede_operar(dispositivo, CAP_ADMITIR)
         puede_recibir_kits = puede_operar_dispositivo(user, dispositivo, CAP_RECIBIR_KIT)
+        # El aviso de kits es de la INSTITUCIÓN (Cambio 523): con alcance solo Edificios no se ofrece (las entregas de
+        # los otros edificios no son suyas); su aviso vive en la página de cada edificio. El alcance se calcula una vez
+        # y también lo usan las tarjetas de edificios.
+        alcance_kits = alcance_de_edificios(user, dispositivo, CAP_RECIBIR_KIT) if puede_recibir_kits else None
+        puede_avisar_kits = bool(alcance_kits and alcance_kits.todo)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         puede_validar = self._puede_operar(dispositivo, "dispositivo.validar")
         # Editar el legajo es de alcance institución (RN5): con alcance Edificios, no.
@@ -542,6 +550,9 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
                     if puede_cambiar
                     else None
                 ),
+                # Kits por recibir (#1347): mismo patrón que las derivaciones. Una consulta, y ninguna para quien
+                # no recibe kits con alcance sobre toda la institución.
+                "aviso_kits": self._aviso_de_kits(dispositivo) if puede_avisar_kits else None,
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
                 # «Emergencia · Kits» del menú: solo para quien recibe kits en ESTE dispositivo.
@@ -554,10 +565,19 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         self._preparar_equipo(context, dispositivo)
-        self._preparar_edificios(context, dispositivo, ocupacion, con_plazas)
+        self._preparar_edificios(context, dispositivo, ocupacion, con_plazas, alcance_kits)
         return context
 
-    def _preparar_edificios(self, context, dispositivo, ocupacion, con_plazas):
+    @staticmethod
+    def _aviso_de_kits(dispositivo):
+        """El aviso de entregas de kits por recibir de la institución, o ``None`` sin ninguna (una consulta)."""
+
+        cantidad, _primera, mas_vieja = entregas_por_recibir_de(dispositivo)
+        return aviso_de_kits_por_recibir(
+            cantidad, reverse("emergencia:dispositivo_kits", args=[dispositivo.pk]), mas_vieja=mas_vieja
+        )
+
+    def _preparar_edificios(self, context, dispositivo, ocupacion, con_plazas, alcance_kits):
         """La sección «Edificios · N»: una tarjeta por edificio y el aviso del que no tiene plazas disponibles.
 
         Las tarjetas salen de las filas de `infraestructura_del_dispositivo` más lo que suma `completar_tarjetas`; el
@@ -567,11 +587,10 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
         infraestructura = context["infraestructura"]
         tarjetas = completar_tarjetas(
             infraestructura["listado"],
-            user=self.request.user,
             dispositivo=dispositivo,
             ocupacion=ocupacion,
             con_plazas=con_plazas,
-            puede_recibir_kits=context["puede_recibir_kits"],
+            alcance_kits=alcance_kits,
         )
         context["tarjetas_edificios"] = tarjetas
         context["aviso_sin_plazas"] = aviso_sin_plazas(tarjetas, dispositivo) if con_plazas else None
