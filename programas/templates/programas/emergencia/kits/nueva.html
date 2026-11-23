@@ -61,10 +61,10 @@ servicio vuelve arriba del formulario.{% endcomment %}
             <tr class="hover:bg-secondary">
               <td class="nodo-td text-heading font-medium">
                 <label for="{{ fila.campo.id_for_label }}">{{ fila.item.nombre }}</label>
-                <span class="block text-xs text-body-subtle">{{ fila.item.unidad }}</span>
+                <span id="{{ fila.campo.auto_id }}-ayuda" class="block text-xs text-body-subtle">{{ fila.item.unidad }}</span>
               </td>
               <td class="nodo-td text-right">
-                {% if fila.estimado %}{{ fila.estimado.faltan }}{% if fila.estimado.demoradas %}<span class="block text-xs text-body-subtle">{{ fila.estimado.demoradas }} demorado{{ fila.estimado.demoradas|pluralize }} (más de 48 h)</span>{% endif %}{% else %}—{% endif %}
+                {% if fila.estimado %}{{ fila.estimado.faltan }}{% if fila.estimado.demoradas %}<span class="block text-xs text-body-subtle">{{ fila.estimado.demoradas }} demorado{{ fila.estimado.demoradas|pluralize }} (más de {{ horas_demorada }} h)</span>{% endif %}{% else %}—{% endif %}
               </td>
               <td class="nodo-td text-right">
                 {% campo_control fila.campo %}

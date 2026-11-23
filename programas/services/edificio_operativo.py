@@ -66,7 +66,7 @@ from programas.services.equipo_dispositivo import (
 from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, CAP_VER_CIUDADANO, puede_ingresar_persona
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import edificios_para_asignar, inspecciones_visibles
-from programas.services.kits import aviso_de_kits_por_recibir
+from programas.services.kits import aviso_de_kits_por_recibir, url_de_kits_del_edificio
 from programas.services.ocupacion import ocupacion_de_plazas
 
 #: Las solapas de la página, en el orden en que se dibujan.
@@ -224,8 +224,8 @@ def _recibir_kit(url_pagina, cantidad, primera):
     if not cantidad:
         return "", ""
     if cantidad == 1:
-        return f"{url_pagina}?tab=kits&entrega={primera}", "Recibir kit"
-    return f"{url_pagina}?tab=kits", f"Recibir kit ({cantidad})"
+        return url_de_kits_del_edificio(url_pagina, primera), "Recibir kit"
+    return url_de_kits_del_edificio(url_pagina), f"Recibir kit ({cantidad})"
 
 
 def _avisos(user, dispositivo, edificio, acciones):

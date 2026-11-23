@@ -22,7 +22,6 @@ un oculto del formulario, y «Crear y enviar» escribe exactamente lo que ese en
 La columna «Le falta (estimado)» sale de las mismas reglas que la solapa Abastecimiento de Situación.
 """
 
-from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -93,11 +92,24 @@ def _estado(entrega):
     return {"estado_texto": texto, "estado_tono": tono}
 
 
-def url_de_recepcion_en_el_edificio(entrega):
-    """La solapa Kits del edificio de la entrega, abierta en ella: el único lugar donde se recibe (Cambio 586)."""
+def _puede_abrir_el_edificio(usuario, dispositivo):
+    """Si la página del edificio le abre a ``usuario``: pide ``dispositivo.ver``, igual que el enlace a la institución."""
 
-    pagina = reverse("dispositivos:edificio_operativo", args=[entrega.dispositivo_id, entrega.edificio_id])
-    return f"{pagina}?tab=kits&entrega={entrega.pk}"
+    return puede_operar_dispositivo(usuario, dispositivo, "dispositivo.ver")
+
+
+def _url_de_recepcion(entrega, dispositivo, puede_abrir_el_edificio):
+    """Dónde se recibe ``entrega`` (Cambio 586): la solapa Kits de su edificio, que es el lugar de la recepción.
+
+    Sin ``dispositivo.ver`` esa página contesta 403 (es el caso de la guardia con solo ``emergencia.recibir_kit``):
+    ahí, y en las entregas anteriores al Cambio 523 que no tienen edificio, va el formulario de recepción del
+    dispositivo. ``puede_abrir_el_edificio`` se resuelve una vez por pantalla, no por fila.
+    """
+
+    if entrega.edificio_id is not None and puede_abrir_el_edificio:
+        pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, entrega.edificio_id])
+        return servicio.url_de_kits_del_edificio(pagina, entrega)
+    return reverse("emergencia:dispositivo_kit_recibir", args=[dispositivo.pk, entrega.pk])
 
 
 def _quien_y_cuando(usuario, momento):
@@ -128,7 +140,7 @@ class EntregasListView(MesaPermissionMixin, View):
             for solapa, texto in selectores.SOLAPAS
         ]
 
-    def _fila(self, entrega, conservados, corte_de_demora):
+    def _fila(self, entrega, conservados, ahora):
         acciones = []
         sin_cerrar = entrega.diferencia_sin_cerrar
         if sin_cerrar:
@@ -163,11 +175,7 @@ class EntregasListView(MesaPermissionMixin, View):
             "recibida": _quien_y_cuando(entrega.recibida_por, entrega.recibida_en),
             "url": reverse("emergencia:entrega_detalle", args=[entrega.pk]),
             "acciones": acciones,
-            "demorada": (
-                entrega.estado == EntregaKit.Estado.EN_CAMINO
-                and entrega.despachada_en is not None
-                and entrega.despachada_en < corte_de_demora
-            ),
+            "demorada": selectores.es_demorada(entrega, ahora),
             "diferencia_sin_cerrar": sin_cerrar,
             **_estado(entrega),
         }
@@ -217,11 +225,11 @@ class EntregasListView(MesaPermissionMixin, View):
         conservados = {"solapa": solapa, **elegidos, "page": pagina.number if pagina.number > 1 else None}
         conteos = selectores.conteos_de_solapas(ahora)
         dispositivos, localidades = selectores.destinos_con_entregas()
-        corte_de_demora = ahora - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
         contexto = {
             "page_obj": pagina,
             "alerta_demoradas": self._alerta_de_demoradas(conteos, solapa),
-            "filas": [self._fila(entrega, conservados, corte_de_demora) for entrega in pagina.object_list],
+            "rotulo_demorada": selectores.ROTULO_DEMORADA,
+            "filas": [self._fila(entrega, conservados, ahora) for entrega in pagina.object_list],
             "solapa": solapa,
             "solapas": self._chips(solapa, conteos, elegidos),
             "filtro": elegidos,
@@ -295,12 +303,7 @@ class NuevaEntregaView(MesaPermissionMixin, View):
             return None
         return (
             selectores.entregas_para_detalle()
-            .filter(
-                pk=pedido,
-                dispositivo=destino,
-                estado=EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS,
-                cierre_diferencia__isnull=True,
-            )
+            .filter(selectores.q_diferencia_sin_cerrar(), pk=pedido, dispositivo=destino)
             .first()
         )
 
@@ -353,7 +356,9 @@ class NuevaEntregaView(MesaPermissionMixin, View):
                 form=form,
                 filas=form.filas_de_cantidad(estimado),
                 aviso_estimado=aviso,
-                hay_estimado=bool(estimado),
+                # En una reposición las cantidades arrancan con lo que faltó, no con lo estimado: el botón no se ofrece.
+                hay_estimado=bool(estimado) and original is None,
+                horas_demorada=EntregaKit.HORAS_PARA_DEMORADA,
                 url_estimado=_url(
                     "emergencia:entrega_nueva",
                     dispositivo=destino.pk,
@@ -671,16 +676,13 @@ class KitsDelDispositivoView(RecepcionKitsMixin, View):
         pagina = Paginator(
             selectores.entregas_pendientes_de(self.dispositivo, request.user), PENDIENTES_POR_PAGINA
         ).get_page(request.GET.get("page"))
+        puede_ver = _puede_abrir_el_edificio(request.user, self.dispositivo)
         filas = [
             {
                 "entrega": entrega,
                 "items": selectores.resumen_de_items(list(entrega.lineas.all())),
                 "en_camino_desde": selectores.fecha_hora(entrega.despachada_en),
-                "url": (
-                    url_de_recepcion_en_el_edificio(entrega)
-                    if entrega.edificio_id is not None
-                    else reverse("emergencia:dispositivo_kit_recibir", args=[self.dispositivo.pk, entrega.pk])
-                ),
+                "url": _url_de_recepcion(entrega, self.dispositivo, puede_ver),
                 **_estado(entrega),
             }
             for entrega in pagina
@@ -690,11 +692,7 @@ class KitsDelDispositivoView(RecepcionKitsMixin, View):
             "filas": filas,
             "pagina": pagina,
             # Un enlace que va a rebotar no se ofrece: el detalle pide `dispositivo.ver`.
-            "url_dispositivo": (
-                reverse("dispositivos:detalle", args=[self.dispositivo.pk])
-                if puede_operar_dispositivo(request.user, self.dispositivo, "dispositivo.ver")
-                else ""
-            ),
+            "url_dispositivo": reverse("dispositivos:detalle", args=[self.dispositivo.pk]) if puede_ver else "",
         }
         return render(request, TEMPLATE_PENDIENTES, contexto)
 
@@ -727,10 +725,11 @@ class RecibirKitView(RecepcionKitsMixin, View):
         entrega = self._entrega(pk)
         if not entrega.abierta:
             return self._ya_no_esta_abierta(request, entrega)
-        if entrega.edificio_id is not None:
-            # Cambio 586: la recepción se hace solo en la solapa Kits del edificio. Esta URL queda para el POST (que
-            # la solapa usa) y para las entregas anteriores al Cambio 523, que no tienen edificio.
-            return redirect(url_de_recepcion_en_el_edificio(entrega))
+        if entrega.edificio_id is not None and _puede_abrir_el_edificio(request.user, self.dispositivo):
+            # Cambio 586: la recepción se hace en la solapa Kits del edificio. Esta URL queda para el POST (que la
+            # solapa usa), para las entregas anteriores al Cambio 523 (sin edificio) y para quien no puede abrir la
+            # página del edificio (la guardia con solo ``emergencia.recibir_kit``): ellos reciben acá.
+            return redirect(_url_de_recepcion(entrega, self.dispositivo, True))
         return self._render(request, entrega, RecepcionKitForm(lineas=list(entrega.lineas.all())))
 
     def post(self, request, dispositivo, pk):

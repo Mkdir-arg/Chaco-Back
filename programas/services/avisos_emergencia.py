@@ -47,7 +47,7 @@ from django.urls import reverse
 
 from core.services import vencimientos
 from core.services.vencimientos import Aviso, ReglaAviso, registrar_aviso
-from programas.models import CasoEmergencia, TrazaCaso
+from programas.models import CasoEmergencia, EntregaKit, TrazaCaso
 from programas.selectors import emergencia_tablero as tablero
 from programas.selectors.emergencia import (
     SOLAPA_ALOJADOS,
@@ -56,6 +56,7 @@ from programas.selectors.emergencia import (
     rechazo_sin_nueva_accion,
     texto_de_minutos,
 )
+from programas.selectors.kits import SOLAPA_DEMORADAS
 from programas.services.alertas_dispositivos import ICONOS, TONOS
 from programas.services.emergencia_programa import puede_operar_la_mesa
 
@@ -309,7 +310,7 @@ def entregas_demoradas(sla, ahora, usuario=None, foto=None):
         horas = max(int((ahora - entrega.despachada_en).total_seconds() // 3600), 0)
         avisos.append(
             Aviso(
-                titulo=f"Entrega {entrega.numero} lleva más de 48 horas en camino sin recibirse",
+                titulo=f"Entrega {entrega.numero} lleva más de {EntregaKit.HORAS_PARA_DEMORADA} horas en camino sin recibirse",
                 texto=f"Salió hacia {entrega.dispositivo} hace {horas} h y nadie la recibió.",
                 origen=f"Entrega {entrega.numero}",
                 fecha=None,
@@ -322,7 +323,7 @@ def entregas_demoradas(sla, ahora, usuario=None, foto=None):
         usuario,
         singular="entrega demorada",
         plural="entregas demoradas",
-        url=f"{reverse('emergencia:entregas')}?solapa=demoradas",
+        url=f"{reverse('emergencia:entregas')}?solapa={SOLAPA_DEMORADAS}",
         accion="Ver las entregas",
     )
 
@@ -469,7 +470,7 @@ REGLAS = (
     ),
     (
         "emergencia.entrega_demorada",
-        "Entrega en camino hace más de 48 horas sin recibirse.",
+        f"Entrega en camino hace más de {EntregaKit.HORAS_PARA_DEMORADA} horas sin recibirse.",
         "media",
         entregas_demoradas,
     ),

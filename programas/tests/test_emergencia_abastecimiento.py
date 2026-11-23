@@ -38,6 +38,7 @@ from programas.selectors.emergencia_abastecimiento import (
     ItemDelCatalogo,
     PersonaDelAbastecimiento,
     lecturas_de_abastecimiento,
+    lecturas_de_un_dispositivo,
 )
 from programas.services import abastecimiento_emergencia as reglas
 from programas.services import alertas_situacion_emergencia as alertas
@@ -50,6 +51,7 @@ from programas.services.abastecimiento_emergencia import (
     Salud,
     Unidades,
     armar_abastecimiento,
+    faltantes_de_un_dispositivo,
     presentar_salud,
 )
 from programas.services.ocupacion import NIVEL_CRITICA, NIVEL_EXIGIDA
@@ -627,6 +629,45 @@ def _panel(html):
 
 IR_A_PLAZOS = "Ir a Plazos de atención"
 IR_A_INSUMOS = "Ir a Insumos"
+
+
+class LeFaltaDeLaEntregaNuevaTests(EscenarioAbastecimiento):
+    """«Le falta (estimado)» de «Nueva entrega» sale de las mismas reglas que la solapa (Cambio 586)."""
+
+    def _propios(self, dispositivo_id):
+        lecturas = lecturas_de_un_dispositivo(dispositivo_id, INICIO, T0)
+        return faltantes_de_un_dispositivo(lecturas, dispositivo_id, T0)
+
+    def test_cada_dispositivo_da_lo_mismo_en_las_dos_pantallas(self):
+        armado, _foto = self._armar()
+
+        self.assertTrue(armado.dispositivos)
+        for fila in armado.dispositivos:
+            propios = self._propios(fila.dispositivo.id)
+            for item in fila.items:
+                with self.subTest(dispositivo=fila.dispositivo.nombre, item=item.item.nombre):
+                    self.assertEqual(propios[item.item.id], item)
+
+    def test_un_egreso_entre_el_inicio_y_la_primera_recepcion_del_dispositivo_cuenta_igual(self):
+        """El corte de los egresados es la primera recepción de **toda la red** (la solapa), no la del dispositivo: el
+        Club recibió ayer, pero la Escuela recibió al inicio del evento y desde ahí cuentan los que se fueron.
+        Mutación: cortar por la primera recepción del propio dispositivo deja este test en rojo."""
+        self._grupo(self.club, 6, T0 - timedelta(days=2), egresado_en=T0 - timedelta(hours=36))
+        foto = self._foto()
+        de_la_solapa = lecturas_de_abastecimiento(foto, INICIO)
+        propias = lecturas_de_un_dispositivo(self.club.pk, INICIO, T0)
+
+        def del_club(lecturas):
+            return sorted(
+                ((p.ingreso, p.egresado_en) for p in lecturas.personas if p.dispositivo_id == self.club.pk),
+                key=lambda par: (par[0], par[1] or T0),
+            )
+
+        self.assertIn(T0 - timedelta(hours=36), [egreso for _ingreso, egreso in del_club(propias)])
+        self.assertEqual(del_club(propias), del_club(de_la_solapa))
+
+    def test_sin_gente_alojada_no_hay_nada_que_estimar(self):
+        self.assertEqual(self._propios(self._dispositivo("Vacío", 1, localidad="Resistencia").pk), {})
 
 
 class VistaAbastecimientoTests(EscenarioAbastecimiento):

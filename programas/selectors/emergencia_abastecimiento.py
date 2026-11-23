@@ -30,13 +30,14 @@ Ninguna consulta es por dispositivo ni por ítem: los cruces son diccionarios en
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from typing import NamedTuple
 
 from django.db.models import Min, Q, Sum
 
 from programas.models import Dispositivo, EntregaKit, IntegranteGrupo, LineaEntrega
+from programas.selectors.kits import q_demorada
 from programas.services.configuracion_emergencia import catalogo_kits
 
 #: La clave de «en camino hace más de 48 h»: va aparte de ``EN_CAMINO`` en ``LecturasAbastecimiento.abiertas``.
@@ -124,6 +125,14 @@ def _recibido(inicio_evento, dispositivo_id=None):
     }
 
 
+def _primera_recepcion(inicio_evento):
+    """La recepción más vieja desde el inicio, de todos los dispositivos: el corte de los egresados de A4."""
+
+    return LineaEntrega.objects.filter(
+        entrega__estado__in=EntregaKit.ESTADOS_RECIBIDOS, entrega__recibida_en__gte=inicio_evento
+    ).aggregate(primera=Min("entrega__recibida_en"))["primera"]
+
+
 def _abiertas(inicio_evento, ahora, dispositivo_id=None):
     """A3: lo enviado de las entregas ``PREPARADA`` y ``EN_CAMINO`` creadas desde el inicio, por estado.
 
@@ -132,7 +141,6 @@ def _abiertas(inicio_evento, ahora, dispositivo_id=None):
     siendo **una** consulta. Con ``dispositivo_id`` solo ese dispositivo.
     """
 
-    corte = ahora - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
     lineas = LineaEntrega.objects.filter(
         entrega__estado__in=EntregaKit.ESTADOS_ABIERTOS, entrega__creado__gte=inicio_evento
     )
@@ -142,10 +150,7 @@ def _abiertas(inicio_evento, ahora, dispositivo_id=None):
         lineas.values("entrega__dispositivo_id", "item_id", "entrega__estado")
         .annotate(
             cantidad=Sum("cantidad_enviada"),
-            demorada=Sum(
-                "cantidad_enviada",
-                filter=Q(entrega__estado=EntregaKit.Estado.EN_CAMINO, entrega__despachada_en__lt=corte),
-            ),
+            demorada=Sum("cantidad_enviada", filter=q_demorada(ahora, "entrega__")),
         )
         .order_by()
     )
@@ -231,7 +236,8 @@ def lecturas_de_abastecimiento(foto, inicio_evento: datetime) -> LecturasAbastec
 
 def lecturas_de_un_dispositivo(dispositivo_id, inicio_evento: datetime, ahora: datetime) -> LecturasAbastecimiento:
     """A1-A4 acotadas a **un** dispositivo, sin la foto de situación: lo que necesita «Le falta (estimado)» de
-    la entrega nueva (Cambio 586). **4 consultas fijas** (ítems, recibido, en camino y preparadas, personas).
+    la entrega nueva (Cambio 586). **5 consultas fijas** (ítems, recibido, primera recepción de la red, en camino y
+    preparadas, personas).
 
     Lo que se calcula con esto sale de las mismas reglas que la solapa Abastecimiento (``armar_abastecimiento``),
     así que el faltante de acá coincide con el de Situación. ``fuera_de_la_red`` va vacío: no hace falta el nombre.
@@ -240,7 +246,9 @@ def lecturas_de_un_dispositivo(dispositivo_id, inicio_evento: datetime, ahora: d
     if inicio_evento is None:
         raise ValueError("Sin inicio del evento no se estima: la pantalla lo dice.")
     recibido = _recibido(inicio_evento, dispositivo_id)
-    primera = min((r.primera for r in recibido.values()), default=None)
+    # El corte de los egresados es el de la solapa: la primera recepción de **toda la red**, no la de este
+    # dispositivo; si no, con un egreso entre las dos fechas la cobertura de las dos pantallas difiere.
+    primera = _primera_recepcion(inicio_evento)
     return LecturasAbastecimiento(
         inicio_evento=inicio_evento,
         items=_items(),

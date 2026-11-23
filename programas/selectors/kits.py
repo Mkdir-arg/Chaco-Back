@@ -2,8 +2,8 @@
 
 Las reglas —quién puede, en qué estado, qué queda en la traza— están en
 ``programas.services.kits``. Acá viven el listado de la mesa (E4), el detalle (E5), las
-pendientes de un dispositivo (recepción web y M3) y el resumen de un destino (paso 1 del
-asistente).
+pendientes de un dispositivo (recepción web y M3) y el resumen de un destino (la pantalla
+«Nueva entrega»).
 
 **Alcance (RN-4.8).** La mesa ve todas las entregas; la guardia, solo las de los
 dispositivos donde tiene ``emergencia.recibir_kit`` (``dispositivos_en_alcance``). Las
@@ -52,22 +52,47 @@ SOLAPA_CANCELADAS = "canceladas"
 #: Las solapas de E4, en el orden en que se dibujan: clave y rótulo.
 SOLAPAS = (
     (SOLAPA_ABIERTAS, "Abiertas"),
-    (SOLAPA_DEMORADAS, "Demoradas (más de 48 h)"),
+    (SOLAPA_DEMORADAS, f"Demoradas (más de {EntregaKit.HORAS_PARA_DEMORADA} h)"),
     (SOLAPA_CON_DIFERENCIAS, "Con diferencia sin cerrar"),
     (SOLAPA_RECIBIDAS, "Recibidas"),
     (SOLAPA_CANCELADAS, "Canceladas"),
 )
 
+#: «Demorada (más de 48 h)»: el rótulo del chip de la fila y de la columna de Abastecimiento.
+ROTULO_DEMORADA = f"Demorada (más de {EntregaKit.HORAS_PARA_DEMORADA} h)"
 
-def q_demorada(ahora=None):
+
+def corte_de_demora(ahora=None):
+    """El momento antes del cual una entrega en camino se considera demorada (Cambio 586). **Único lugar** de la cuenta."""
+
+    return (ahora or timezone.now()) - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
+
+
+def q_demorada(ahora=None, prefijo=""):
     """En camino y sin recibir hace más de :attr:`EntregaKit.HORAS_PARA_DEMORADA` horas (Cambio 586).
 
     No se cancela sola: se avisa a la mesa y se la separa de lo «en camino» en el cálculo de faltante. Una sin
-    marca de salida (``PREPARADA``) no entra: todavía no salió.
+    marca de salida (``PREPARADA``) no entra: todavía no salió. ``prefijo`` (``"entrega__"``) la usa desde una
+    consulta que parte de otro modelo.
     """
 
-    corte = (ahora or timezone.now()) - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
-    return Q(estado=Estado.EN_CAMINO, despachada_en__lt=corte)
+    return Q(**{f"{prefijo}estado": Estado.EN_CAMINO, f"{prefijo}despachada_en__lt": corte_de_demora(ahora)})
+
+
+def es_demorada(entrega, ahora=None):
+    """La misma regla de :func:`q_demorada`, sobre una entrega ya leída (sin consultas)."""
+
+    return (
+        entrega.estado == Estado.EN_CAMINO
+        and entrega.despachada_en is not None
+        and entrega.despachada_en < corte_de_demora(ahora)
+    )
+
+
+def q_diferencia_sin_cerrar():
+    """Recibida con diferencias y sin cerrar (ni repuesta ni aceptada): lo que la mesa tiene que resolver (Cambio 586)."""
+
+    return Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS, cierre_diferencia__isnull=True)
 
 
 def _q_de_solapas(ahora):
@@ -77,7 +102,7 @@ def _q_de_solapas(ahora):
     return {
         SOLAPA_ABIERTAS: Q(estado__in=EntregaKit.ESTADOS_ABIERTOS),
         SOLAPA_DEMORADAS: q_demorada(ahora),
-        SOLAPA_CON_DIFERENCIAS: Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS, cierre_diferencia__isnull=True),
+        SOLAPA_CON_DIFERENCIAS: q_diferencia_sin_cerrar(),
         SOLAPA_RECIBIDAS: Q(estado=Estado.RECIBIDA)
         | Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS, cierre_diferencia__isnull=False),
         SOLAPA_CANCELADAS: Q(estado=Estado.CANCELADA),
@@ -94,7 +119,7 @@ def q_entrega_sin_revisar():
     """
 
     observada = TrazaEntrega.objects.filter(entrega=OuterRef("pk"), accion=TrazaEntrega.Accion.OBSERVADA)
-    return Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS, cierre_diferencia__isnull=True) & ~Q(Exists(observada))
+    return q_diferencia_sin_cerrar() & ~Q(Exists(observada))
 
 
 #: Cuántos ítems nombra el resumen de una fila antes de cortar con «…».
@@ -421,7 +446,7 @@ def mis_dispositivos(usuario):
 
 
 # ---------------------------------------------------------------------------
-# Paso 1 del asistente: el destino
+# «Nueva entrega»: el destino
 # ---------------------------------------------------------------------------
 
 
@@ -453,7 +478,7 @@ def destinos_posibles(texto=""):
 
 
 def resumenes_de_destino(dispositivos, momento=None):
-    """``{id: resumen}`` de cada dispositivo, para elegir a quién enviarle (E4, paso 1).
+    """``{id: resumen}`` de cada dispositivo, para elegir a quién enviarle (E4, «Nueva entrega»).
 
     Cada resumen: ``alojadas`` (personas con estadía activa hoy), ``plazas_ocupadas`` y
     ``plazas_operativas`` (de ``ocupacion_de_plazas``, la misma cuenta que ve el dispositivo),

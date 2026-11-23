@@ -72,7 +72,7 @@ fila solo navega. Qué acción se ofrece lo decide la vista; el servicio lo vuel
               </td>
               <td class="nodo-td">
                 <span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>
-                {% if fila.demorada %}<span class="block mt-1"><span class="badge badge-warning">Demorada (más de 48 h)</span></span>{% endif %}
+                {% if fila.demorada %}<span class="block mt-1"><span class="badge badge-warning">{{ rotulo_demorada }}</span></span>{% endif %}
                 {% if fila.diferencia_sin_cerrar %}<span class="block mt-1"><span class="badge badge-warning">Diferencia sin cerrar</span></span>{% endif %}
               </td>
               <td class="nodo-td text-body">{{ fila.armada }}</td>

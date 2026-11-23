@@ -247,6 +247,53 @@ class ListadoDeEntregasTests(BaseVistasKits):
         self.assertEqual(chips["Abiertas"]["url"], f"{URL_ENTREGAS}?solapa=abiertas&dispositivo={self.club.pk}")
         self.assertContains(respuesta, "Recibida con diferencias")
 
+    def test_una_demorada_lleva_su_chip_y_el_listado_avisa_con_un_enlace_a_la_solapa(self):
+        """Mutación: ``es_demorada`` siempre falso deja en rojo el chip; sin ``_alerta_de_demoradas``, el aviso."""
+        vieja, reciente = self._en_camino(), self._en_camino()
+        EntregaKit.objects.filter(pk=vieja.pk).update(
+            despachada_en=T0 - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA + 12)
+        )
+        rotulo = f"Demorada (más de {EntregaKit.HORAS_PARA_DEMORADA} h)"
+
+        respuesta = self.client.get(URL_ENTREGAS)
+
+        self.assertContains(respuesta, f'<span class="badge badge-warning">{rotulo}</span>', count=1)
+        self.assertEqual(
+            {fila["entrega"].pk: fila["demorada"] for fila in respuesta.context["filas"]},
+            {vieja.pk: True, reciente.pk: False},
+        )
+        alerta = respuesta.context["alerta_demoradas"]
+        self.assertEqual(
+            alerta["titulo"],
+            f"1 entrega lleva más de {EntregaKit.HORAS_PARA_DEMORADA} horas en camino sin recibirse",
+        )
+        self.assertEqual(alerta["url"], f"{URL_ENTREGAS}?solapa=demoradas")
+        self.assertContains(respuesta, alerta["titulo"])
+        # En la propia solapa de las demoradas el aviso sobra.
+        self.assertIsNone(self.client.get(URL_ENTREGAS, {"solapa": "demoradas"}).context["alerta_demoradas"])
+
+    def test_sin_demoradas_no_hay_aviso_ni_chip(self):
+        self._en_camino()
+
+        respuesta = self.client.get(URL_ENTREGAS)
+
+        self.assertIsNone(respuesta.context["alerta_demoradas"])
+        self.assertNotContains(respuesta, "Demorada (más de")
+
+    def test_una_diferencia_sin_cerrar_lleva_su_chip_y_lo_pierde_al_cerrarse(self):
+        original = self._recibida_con_faltante()
+
+        abierta = self.client.get(URL_ENTREGAS, {"solapa": "con_diferencias"})
+        self.assertContains(abierta, '<span class="badge badge-warning">Diferencia sin cerrar</span>', count=1)
+        self.assertEqual(
+            [accion["texto"] for accion in abierta.context["filas"][0]["acciones"]], ["Cerrar la diferencia"]
+        )
+
+        servicio.aceptar_diferencia(original, self.operador, "Lo cubre otro envío")
+        cerrada = self.client.get(URL_ENTREGAS, {"solapa": "recibidas"})
+        self.assertEqual([fila["entrega"] for fila in cerrada.context["filas"]], [original])
+        self.assertNotContains(cerrada, "Diferencia sin cerrar</span>")
+
     def test_los_filtros_recortan_el_listado(self):
         del_club = self._entrega(dispositivo=self.club)
         de_la_escuela = self._entrega(dispositivo=self.escuela)
@@ -575,6 +622,22 @@ class NuevaEntregaTests(BaseVistasKits):
         self.assertContains(cargado, f'name="cantidad_{self.colchon.pk}" value="5"')
         self.assertNotContains(cargado, f'name="cantidad_{self.alimentos.pk}" value=')
         self.assertContains(cargado, "2 demorados (más de 48 h)")
+
+    def test_en_una_reposicion_no_se_ofrece_cargar_lo_estimado(self):
+        """Con ``repone`` las cantidades arrancan con lo que faltó: el botón no haría nada. Mutación: quitar el
+        ``original is None`` de ``hay_estimado`` en la vista deja en rojo este test."""
+        from types import SimpleNamespace
+
+        from programas.views.emergencia_kits import NuevaEntregaView
+
+        recibida = self._recibir(self._en_camino(), {self.colchon.pk: 8, self.alimentos.pk: 3})
+        estimado = {self.colchon.pk: SimpleNamespace(faltan=5, demoradas=0)}
+        with mock.patch.object(NuevaEntregaView, "_estimado", return_value=(estimado, "")):
+            repuesta = self.client.get(f"{self.url_club}&repone={recibida.pk}")
+            comun = self.client.get(self.url_club)
+
+        self.assertNotContains(repuesta, "Cargar lo estimado")
+        self.assertContains(comun, "Cargar lo estimado")
 
     def test_reponer_arranca_con_lo_que_falto(self):
         recibida = self._recibir(self._en_camino(), {self.colchon.pk: 8, self.alimentos.pk: 4})

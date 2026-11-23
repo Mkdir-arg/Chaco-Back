@@ -35,11 +35,13 @@ El orden de los candados
 
 Una entrega no toca casos, derivaciones ni plazas, así que su orden es propio y corto::
 
-    numerador (serie K)  ·  entrega
+    dispositivo destino  ·  entrega original  ·  edificio  ·  numerador (serie K)  ·  entrega nueva
 
-``crear_entrega`` bloquea solo el numerador (todavía no hay entrega) y, si repone, antes la entrega
-original (para cerrarla como repuesta); las transiciones bloquean solo la entrega. Ninguna toma
-el numerador y *después* una entrega, así que no hay orden que cruzar.
+``crear_entrega`` toma ese orden (la entrega original solo si repone; el edificio, el elegido, el único o el de la
+original). El dispositivo va antes que el edificio porque «inactivar» y «desvincular» edificio van Dispositivo → Edificio
+y el ``INSERT`` pide un candado compartido sobre el dispositivo (FK). Cancelar una reposición bloquea la original y después
+la reposición, el mismo orden relativo; las demás transiciones bloquean solo la entrega. Ninguna toma el numerador y
+*después* una entrega, así que no hay orden que cruzar.
 La carrera cancelar / recibir se resuelve sobre la misma fila: gana quien llega primero al
 candado y el otro lee el estado nuevo y recibe :class:`EstadoCambioEntrega`. Las carreras
 contra el motor real están en ``programas.tests.test_emergencia_kits`` con ``@tag("mysql")``
@@ -314,10 +316,15 @@ def _validar_reposicion(repone_a, dispositivo):
     ):
         raise ValidationError({"repone_a": REPOSICION_INVALIDA})
     if original.cierre_diferencia is not None:
-        raise ValidationError(
+        raise _ReposicionYaHecha(
             {"repone_a": REPOSICION_YA_HECHA.format(numero=original.numero, como=_como_se_cerro(original))}
         )
     return original
+
+
+class _ReposicionYaHecha(ValidationError):
+    """La entrega a reponer ya tiene su diferencia cerrada. ``crear_entrega`` la distingue del resto: si la cerró **este
+    mismo armado** (doble envío a la vez), devuelve esa entrega en vez de rechazar."""
 
 
 def _cerrar_como_repuesta(original, reposicion, usuario, ahora):
@@ -432,11 +439,22 @@ def crear_entrega(
         existente = _entrega_de_ese_armado(uuid_cliente, usuario)
         if existente is not None:
             return existente
-    destino = Dispositivo.objects.filter(pk=getattr(dispositivo, "pk", dispositivo)).first()
+    # El destino va primero y con candado: «inactivar» y «desvincular» edificio bloquean Dispositivo y después
+    # Edificio, y el INSERT de la entrega pide además un candado compartido sobre el Dispositivo (FK). Tomarlo antes
+    # que el edificio evita el ciclo.
+    destino = Dispositivo.objects.select_for_update().filter(pk=getattr(dispositivo, "pk", dispositivo)).first()
     if destino is None or destino.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ACTIVO})
     validas = _validar_lineas(lineas)
-    original = _validar_reposicion(repone_a, destino)
+    try:
+        original = _validar_reposicion(repone_a, destino)
+    except _ReposicionYaHecha:
+        # Doble envío a la vez del mismo armado: el primero ya repuso y su fila existe. Bajo el candado de la original
+        # se vuelve a mirar antes de rechazar, así el segundo recibe la entrega del primero y no un error.
+        existente = _entrega_de_ese_armado(uuid_cliente, usuario) if uuid_cliente is not None else None
+        if existente is None:
+            raise
+        return existente
     edificio_id = _edificio_de_la_entrega(destino, edificio, original)
 
     ahora = timezone.now()
@@ -797,6 +815,17 @@ def aceptar_diferencia(entrega, usuario, motivo):
     )
     _trazar(bloqueada, usuario, Accion.DIFERENCIA_ACEPTADA, estado_anterior=bloqueada.estado, detalle=motivo)
     return bloqueada
+
+
+def url_de_kits_del_edificio(url_pagina, entrega=None):
+    """La solapa Kits de la página del edificio (``url_pagina``), abierta en ``entrega`` si se pasa (id o instancia).
+
+    **Único lugar** donde se arma ese enlace: lo usan la recepción de la mesa, la lista y el detalle de la solapa y el
+    ítem «Recibir kit» del menú del edificio (Cambio 586).
+    """
+
+    pk = getattr(entrega, "pk", entrega)
+    return f"{url_pagina}?tab=kits&entrega={pk}" if pk else f"{url_pagina}?tab=kits"
 
 
 def aviso_de_kits_por_recibir(cantidad, url, *, en_este_edificio=False, mas_vieja=None):

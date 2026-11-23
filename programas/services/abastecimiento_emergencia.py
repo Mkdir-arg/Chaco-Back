@@ -462,6 +462,22 @@ def _salud(total, sin, dispositivos, filas_por_id, items_de_lactantes):
     return Salud(total, por_dispositivo, tuple(lactantes), tuple(items_de_lactantes))
 
 
+def _item_de(lecturas, dispositivo_id, item, unidades, tramos, ahora):
+    """Un ítem de un dispositivo con lo recibido, lo en camino, lo preparado y lo demorado de ``lecturas``."""
+
+    estados = EntregaKit.Estado
+    return _item_del_dispositivo(
+        item,
+        unidades,
+        tramos,
+        lecturas.recibido.get((dispositivo_id, item.id)),
+        lecturas.abiertas.get((dispositivo_id, item.id, estados.EN_CAMINO), 0),
+        lecturas.abiertas.get((dispositivo_id, item.id, estados.PREPARADA), 0),
+        ahora,
+        lecturas.abiertas.get((dispositivo_id, item.id, DEMORADA), 0),
+    )
+
+
 def armar_abastecimiento(lecturas, foto, ahora: datetime) -> Abastecimiento:
     """Franja, tabla por ítem, dispositivos sin cobertura ordenados y salud. **0 consultas.**
 
@@ -476,23 +492,10 @@ def armar_abastecimiento(lecturas, foto, ahora: datetime) -> Abastecimiento:
     ultima = {dispositivo.id: dispositivo.ultima_recepcion for dispositivo in foto.con_gente}
     inicio_del_dia, _fin = dia_operativo(ahora)
     hoy = Counter(p.dispositivo_id for p in lecturas.personas if p.egresado_en is None and p.ingreso >= inicio_del_dia)
-    Est = EntregaKit.Estado
 
     filas = {}
     for pk, u in unidades.items():
-        items = tuple(
-            _item_del_dispositivo(
-                item,
-                u,
-                tramos[pk],
-                lecturas.recibido.get((pk, item.id)),
-                lecturas.abiertas.get((pk, item.id, Est.EN_CAMINO), 0),
-                lecturas.abiertas.get((pk, item.id, Est.PREPARADA), 0),
-                ahora,
-                lecturas.abiertas.get((pk, item.id, DEMORADA), 0),
-            )
-            for item in items_con_regla
-        )
+        items = tuple(_item_de(lecturas, pk, item, u, tramos[pk], ahora) for item in items_con_regla)
         fila = FilaDispositivo(dispositivos[pk], u, hoy.get(pk, 0), ultima.get(pk), items)
         filas[pk] = fila._replace(urgencia=urgencia(fila.nunca_recibio, items) if fila.sin_cobertura else "")
 
@@ -547,18 +550,8 @@ def faltantes_de_un_dispositivo(lecturas, dispositivo_id, ahora: datetime) -> di
     if unidades is None:
         return {}
     tramos = presencias(lecturas.personas, ahora)[dispositivo_id]
-    Est = EntregaKit.Estado
     return {
-        item.id: _item_del_dispositivo(
-            item,
-            unidades,
-            tramos,
-            lecturas.recibido.get((dispositivo_id, item.id)),
-            lecturas.abiertas.get((dispositivo_id, item.id, Est.EN_CAMINO), 0),
-            lecturas.abiertas.get((dispositivo_id, item.id, Est.PREPARADA), 0),
-            ahora,
-            lecturas.abiertas.get((dispositivo_id, item.id, DEMORADA), 0),
-        )
+        item.id: _item_de(lecturas, dispositivo_id, item, unidades, tramos, ahora)
         for item in lecturas.items
         if tiene_regla(item)
     }

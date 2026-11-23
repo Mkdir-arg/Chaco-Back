@@ -60,7 +60,7 @@ from programas.selectors.emergencia import (
     texto_de_minutos,
     ultima_traza_del_caso,
 )
-from programas.selectors.kits import q_entrega_sin_revisar, resumen_de_items
+from programas.selectors.kits import corte_de_demora, q_entrega_sin_revisar, resumen_de_items
 from programas.services.bitacora_detalle import plural
 from programas.services.ocupacion import Conteo
 
@@ -376,7 +376,7 @@ def _entregas(ahora):
         .order_by("recibida_en", "id")
         .values_list("id", "numero", "estado", "dispositivo__nombre", "recibida_en", "despachada_en")
     )
-    corte = ahora - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
+    corte = corte_de_demora(ahora)
     sin_revisar, demoradas, en_camino = [], [], 0
     for pk, numero, estado, dispositivo, recibida_en, despachada_en in filas:
         if estado == EntregaKit.Estado.EN_CAMINO:

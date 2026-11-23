@@ -35,7 +35,9 @@ FORMATO_FECHA_HORA = "%Y-%m-%dT%H:%M"
 ELEGI_UNA_HORA_VALIDA = "Indicá la fecha y la hora de salida, o dejala vacía para usar la de ahora."
 CANTIDAD_RECIBIDA_REQUERIDA = "Indicá cuánto llegó, aunque sea cero."
 ELEGI_EL_EDIFICIO_DE_LA_ENTREGA = "Elegí el edificio al que va la entrega."
-ITEM_FUERA_DEL_CATALOGO = "Algún ítem ya no está en el catálogo activo. Volvé al paso anterior y revisá las cantidades."
+ITEM_FUERA_DEL_CATALOGO = (
+    "Algún ítem ya no está en el catálogo activo. Volvé a cargar la pantalla y revisá las cantidades."
+)
 CANTIDAD_RECIBIDA_INVALIDA = "Tiene que ser un número entero, cero o más."
 
 
@@ -106,103 +108,22 @@ class DestinoEntregaForm(forms.Form):
         return self.cleaned_data.get("dispositivo")
 
 
-class ItemsEntregaForm(forms.Form):
-    """Las cantidades de la entrega: una por cada ítem del catálogo activo (RN-4.1).
-
-    Un campo `cantidad_<id>` por ítem. Vacío es «este ítem no va»; un cero no es una
-    cantidad. ``repone_a`` viaja oculto cuando la entrega repone a otra (HU-4.5).
-    """
-
-    oculta_cantidades = False
-
-    repone_a = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
-    #: Nace al abrir el paso 2 y viaja oculto hasta «Crear entrega»: reenviar el mismo armado (volver
-    #: atrás en el navegador) devuelve la entrega ya creada en vez de otra (Cambio 535).
-    uuid_cliente = forms.UUIDField(required=False, widget=forms.HiddenInput)
-
-    def __init__(self, *args, catalogo, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.catalogo = list(catalogo)
-        for item in self.catalogo:
-            self.fields[_campo_de(item.pk)] = forms.IntegerField(
-                label=item.nombre,
-                required=False,
-                min_value=1,
-                max_value=CANTIDAD_MAXIMA,
-                help_text=f"En {item.unidad}.",
-                error_messages={
-                    "invalid": CANTIDAD_INVALIDA,
-                    "min_value": CANTIDAD_INVALIDA,
-                    "max_value": CANTIDAD_INVALIDA,
-                },
-                widget=forms.HiddenInput if self.oculta_cantidades else _numero(1),
-            )
-
-    def clean(self):
-        limpio = super().clean()
-        # Una cantidad de un ítem que ya no está en el catálogo activo (se desactivó entre un
-        # paso y el otro) no se descarta en silencio: la entrega saldría distinta de lo mostrado.
-        if any(
-            clave.startswith(PREFIJO_CANTIDAD) and clave not in self.fields and str(valor).strip()
-            for clave, valor in self.data.items()
-        ):
-            raise forms.ValidationError(ITEM_FUERA_DEL_CATALOGO)
-        # Si alguna cantidad ya falló, ese es el error: no se le suma «no hay ítems».
-        if not self.errors and not self.lineas(limpio):
-            raise forms.ValidationError(SIN_LINEAS)
-        return limpio
-
-    def campos_de_cantidad(self):
-        return [self[_campo_de(item.pk)] for item in self.catalogo]
-
-    def filas_de_cantidad(self, estimado):
-        """``[{"item", "campo", "estimado"}]`` para la tabla: ``estimado`` es ``{item_id: ItemDelDispositivo}``."""
-
-        return [
-            {"item": item, "campo": self[_campo_de(item.pk)], "estimado": estimado.get(item.pk)}
-            for item in self.catalogo
-        ]
-
-    def lineas(self, datos=None):
-        """``[(TipoKit, cantidad)]`` de los ítems con cantidad: lo que recibe ``crear_entrega``."""
-
-        datos = self.cleaned_data if datos is None else datos
-        return [(item, datos[_campo_de(item.pk)]) for item in self.catalogo if datos.get(_campo_de(item.pk))]
-
-    def cantidades_cargadas(self):
-        """Los valores válidos de este envío como ``initial`` de otro form (para volver o confirmar)."""
-
-        iniciales = {_campo_de(item.pk): cantidad for item, cantidad in self.lineas()}
-        iniciales["repone_a"] = self.cleaned_data.get("repone_a")
-        iniciales["uuid_cliente"] = self.cleaned_data.get("uuid_cliente") or uuid.uuid4()
-        return iniciales
-
-    @staticmethod
-    def iniciales_de(faltantes, repone_a=None):
-        """``initial`` a partir de ``[(TipoKit, cantidad)]``: la precarga de «Reponer»."""
-
-        iniciales = {_campo_de(item.pk): cantidad for item, cantidad in faltantes}
-        iniciales["repone_a"] = getattr(repone_a, "pk", repone_a)
-        return iniciales
-
-    @staticmethod
-    def armado_nuevo(iniciales=None):
-        """``iniciales`` con un ``uuid_cliente`` nuevo: el del armado que se abre (Cambio 535)."""
-
-        return {**(iniciales or {}), "uuid_cliente": uuid.uuid4()}
-
-
-class NuevaEntregaForm(ItemsEntregaForm):
+class NuevaEntregaForm(forms.Form):
     """La entrega nueva en una sola pantalla (Cambio 586): destino, cantidades, salida y nota.
 
-    El destino viaja oculto (``dispositivo``) y la vista lo vuelve a validar contra los destinos posibles. Las
-    cantidades son las del catálogo activo; ``salida`` dice si la entrega sale ya (se crea y se marca en camino en una
-    sola operación) o queda preparada. **No guarda nada en la sesión**: se crea lo que este envío trae.
+    Un campo ``cantidad_<id>`` por cada ítem del catálogo activo (RN-4.1): vacío es «este ítem no va»; un cero no es
+    una cantidad. El destino viaja oculto (``dispositivo``) y la vista lo vuelve a validar contra los destinos
+    posibles. ``salida`` dice si la entrega sale ya (se crea y se marca en camino en una sola operación) o queda
+    preparada. ``repone_a`` viaja oculto cuando la entrega repone a otra (HU-4.5) y ``uuid_cliente`` nace al abrir la
+    pantalla: reenviar el mismo armado (volver atrás en el navegador) devuelve la entrega ya creada en vez de otra
+    (Cambio 535). **No guarda nada en la sesión**: se crea lo que este envío trae.
     """
 
     SALE_AHORA = "ahora"
     TODAVIA_NO = "despues"
 
+    repone_a = forms.IntegerField(required=False, min_value=1, widget=forms.HiddenInput)
+    uuid_cliente = forms.UUIDField(required=False, widget=forms.HiddenInput)
     dispositivo = forms.IntegerField(required=True, min_value=1, widget=forms.HiddenInput)
     salida = forms.ChoiceField(
         label="¿Sale ahora?",
@@ -221,8 +142,23 @@ class NuevaEntregaForm(ItemsEntregaForm):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
     )
 
-    def __init__(self, *args, edificios=(), **kwargs):
+    def __init__(self, *args, catalogo, edificios=(), **kwargs):
         super().__init__(*args, **kwargs)
+        self.catalogo = list(catalogo)
+        for item in self.catalogo:
+            self.fields[_campo_de(item.pk)] = forms.IntegerField(
+                label=item.nombre,
+                required=False,
+                min_value=1,
+                max_value=CANTIDAD_MAXIMA,
+                help_text=f"En {item.unidad}.",
+                error_messages={
+                    "invalid": CANTIDAD_INVALIDA,
+                    "min_value": CANTIDAD_INVALIDA,
+                    "max_value": CANTIDAD_INVALIDA,
+                },
+                widget=_numero(1),
+            )
         # Cambio 523: un destino con más de un edificio exige elegir a cuál va la entrega; con uno solo queda
         # fijo y el campo no existe (lo resuelve ``crear_entrega``).
         edificios = list(edificios)
@@ -237,6 +173,48 @@ class NuevaEntregaForm(ItemsEntregaForm):
                     "invalid_choice": ELEGI_EL_EDIFICIO_DE_LA_ENTREGA,
                 },
             )
+
+    def clean(self):
+        limpio = super().clean()
+        # Una cantidad de un ítem que ya no está en el catálogo activo (se desactivó mientras la pantalla estaba
+        # abierta) no se descarta en silencio: la entrega saldría distinta de lo mostrado.
+        if any(
+            clave.startswith(PREFIJO_CANTIDAD) and clave not in self.fields and str(valor).strip()
+            for clave, valor in self.data.items()
+        ):
+            raise forms.ValidationError(ITEM_FUERA_DEL_CATALOGO)
+        # Si alguna cantidad ya falló, ese es el error: no se le suma «no hay ítems».
+        if not self.errors and not self.lineas(limpio):
+            raise forms.ValidationError(SIN_LINEAS)
+        return limpio
+
+    def filas_de_cantidad(self, estimado):
+        """``[{"item", "campo", "estimado"}]`` para la tabla: ``estimado`` es ``{item_id: ItemDelDispositivo}``."""
+
+        return [
+            {"item": item, "campo": self[_campo_de(item.pk)], "estimado": estimado.get(item.pk)}
+            for item in self.catalogo
+        ]
+
+    def lineas(self, datos=None):
+        """``[(TipoKit, cantidad)]`` de los ítems con cantidad: lo que recibe ``crear_entrega``."""
+
+        datos = self.cleaned_data if datos is None else datos
+        return [(item, datos[_campo_de(item.pk)]) for item in self.catalogo if datos.get(_campo_de(item.pk))]
+
+    @staticmethod
+    def iniciales_de(faltantes, repone_a=None):
+        """``initial`` a partir de ``[(TipoKit, cantidad)]``: la precarga de «Reponer» o de «Cargar lo estimado»."""
+
+        iniciales = {_campo_de(item.pk): cantidad for item, cantidad in faltantes}
+        iniciales["repone_a"] = getattr(repone_a, "pk", repone_a)
+        return iniciales
+
+    @staticmethod
+    def armado_nuevo(iniciales=None):
+        """``iniciales`` con un ``uuid_cliente`` nuevo: el del armado que se abre (Cambio 535)."""
+
+        return {**(iniciales or {}), "uuid_cliente": uuid.uuid4()}
 
     def campos_visibles(self):
         return [self[nombre] for nombre in ("edificio", "salida", "observacion") if nombre in self.fields]

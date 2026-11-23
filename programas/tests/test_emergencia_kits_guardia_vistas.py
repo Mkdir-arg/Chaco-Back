@@ -150,20 +150,36 @@ class RecepcionEnElDispositivoTests(BaseVistasKits):
         self.assertContains(respuesta, "Entregar a la directora.")
         self.assertContains(respuesta, "Se enviaron 10 · en unidad.")
 
-    def test_una_entrega_con_edificio_se_recibe_en_la_solapa_kits_del_edificio(self):
+    def _con_edificio(self):
         from programas.models import Edificio
-        from programas.views.emergencia_kits import url_de_recepcion_en_el_edificio
 
         edificio = Edificio.objects.create(codigo="EG-1", nombre="Edificio guardia")
         edificio.dispositivos.add(self.club)
         EntregaKit.objects.filter(pk=self.entrega.pk).update(edificio=edificio)
+        return edificio
+
+    def test_con_dispositivo_ver_una_entrega_con_edificio_se_recibe_en_la_solapa_kits(self):
+        edificio = self._con_edificio()
+        con_ver = self._guardia("guardia_con_ver", [RECIBIR_KIT, "dispositivo.ver"], [self.club])
+        self.client.force_login(con_ver)
+        pagina = reverse("dispositivos:edificio_operativo", args=[self.club.pk, edificio.pk])
+        destino = f"{pagina}?tab=kits&entrega={self.entrega.pk}"
+
+        self.assertRedirects(self.client.get(self.url_recibir), destino, fetch_redirect_response=False)
+        self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], destino)
+
+    def test_sin_dispositivo_ver_la_recepcion_sigue_en_el_formulario_y_no_en_un_403(self):
+        """La guardia con solo ``emergencia.recibir_kit`` no puede abrir la página del edificio (403): su fila y su GET
+        van al formulario de recibir. Mutación: redirigir siempre a la solapa deja este test en rojo (403)."""
+        self._con_edificio()
         self.client.force_login(self.guardia)
 
-        respuesta = self.client.get(self.url_recibir)
+        respuesta = self.client.get(self.url_recibir, follow=True)
 
-        destino = url_de_recepcion_en_el_edificio(EntregaKit.objects.get(pk=self.entrega.pk))
-        self.assertRedirects(respuesta, destino, fetch_redirect_response=False)
-        self.assertIn("tab=kits", destino)
+        self.assertEqual((respuesta.redirect_chain, respuesta.status_code), ([], 200))
+        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/recibir.html")
+        self.assertContains(respuesta, 'enctype="multipart/form-data"')
+        self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], self.url_recibir)
 
     def test_hu_4_3_confirmar_sin_tocar_nada_la_deja_recibida(self):
         self.client.force_login(self.guardia)
