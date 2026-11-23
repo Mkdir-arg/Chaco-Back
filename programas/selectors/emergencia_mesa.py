@@ -354,6 +354,68 @@ def que_falta(caso, sla, ahora):
     return {"texto": texto, "nota": nota, "urgente": urgente}
 
 
+#: Las acciones de «Qué hacer ahora», de la más importante a la menos: el tono es el del botón.
+_TONOS_DE_ACCION = ("brand", "secondary", "tertiary")
+
+
+def _accion_de_la_ficha(clave, texto, icono, tono):
+    return {"clave": clave, "texto": texto, "icono": icono, "tono": tono}
+
+
+def que_hacer_ahora(caso, puede, paso, *, tomar_para_gestionar=False):
+    """El bloque «Qué hacer ahora» de la ficha: el paso que sigue y los botones que quien mira puede usar.
+
+    **Pura, sin consultas.** No decide nada nuevo: ``paso`` es :func:`que_falta` (la misma fuente que la columna
+    «Qué falta» de la bandeja) y ``puede`` son los predicados que ya calculó la ficha —``acciones_posibles``, los de
+    ``emergencia_cierre`` y ``emergencia_cierre_mesa`` (Cambio 588)—, así que **no ofrece lo que el servicio va a
+    rechazar ni lo que pide una capacidad que quien mira no tiene**. Cada botón es una acción que la ficha ya trae
+    (el menú «Más acciones» o el panel «Derivar»): acá se destaca la que corresponde al estado.
+
+    Devuelve ``{"paso", "nota", "ayuda", "urgente", "acciones"}``; ``acciones`` va ordenada con las de tono ``brand``
+    primero y cada una trae ``clave``, ``texto``, ``icono`` y ``tono``. Sin acciones, el bloque solo informa.
+    """
+
+    acciones = []
+    if puede["puede_tomar"]:
+        acciones.append(_accion_de_la_ficha("tomar", "Tomar el caso", "fa-hand", "brand"))
+    if puede["puede_derivar"]:
+        acciones.append(_accion_de_la_ficha("derivar", "Elegir institución", "fa-share", "brand"))
+    if puede["puede_cancelar_derivacion"]:
+        tono = "brand" if paso["urgente"] else "secondary"
+        acciones.append(_accion_de_la_ficha("cancelar_derivacion", "Cancelar la derivación", "fa-ban", tono))
+    if puede["puede_cancelar_ingreso"]:
+        acciones.append(_accion_de_la_ficha("cancelar_ingreso", "Cancelar el ingreso", "fa-ban", "secondary"))
+    if puede["puede_reabrir"]:
+        acciones.append(_accion_de_la_ficha("reabrir", "Reabrir el caso", "fa-lock-open", "brand"))
+    if puede["puede_actuar"]:
+        # «Contactar a la familia» es el paso de un ingreso parcial; en los demás estados es una acción de apoyo.
+        tono = "brand" if caso.estado == Estado.ALOJADO and caso.ingreso_parcial else "secondary"
+        acciones.append(_accion_de_la_ficha("contacto", "Anotar un contacto", "fa-phone", tono))
+    if puede["puede_cerrar"]:
+        acciones.append(_accion_de_la_ficha("cerrar", "Cerrar sin alojar", "fa-lock", "tertiary"))
+    if puede["puede_cerrar_alojado"]:
+        acciones.append(_accion_de_la_ficha("cerrar_alojado", "Cerrar: la familia ya no está", "fa-lock", "tertiary"))
+    acciones.sort(key=lambda accion: _TONOS_DE_ACCION.index(accion["tono"]))
+
+    ayuda = ""
+    if puede["puede_tomar"]:
+        ayuda = "Nadie tomó este caso todavía. " + (
+            "Tomalo para hablar con la familia, derivarla o cerrar el caso."
+            if tomar_para_gestionar
+            else "Tomalo para hacerte cargo."
+        )
+    elif puede["solo_lectura"]:
+        ayuda = "Le toca a quien lo tiene tomado."
+    return {
+        "paso": paso["texto"],
+        # En un caso cerrado la ficha ya muestra el motivo en su aviso: no se repite.
+        "nota": "" if not caso.abierto else paso["nota"],
+        "ayuda": ayuda,
+        "urgente": paso["urgente"],
+        "acciones": acciones,
+    }
+
+
 def filas_de_bandeja(casos, usuario, sla, ahora):
     """Una fila por caso de la página, con estado, prioridad, semáforo y marcas ya resueltos.
 
@@ -422,6 +484,16 @@ def conteos_de_solapas(sla, ahora, *, semaforos=None, usuario_id=None):
 # ---------------------------------------------------------------------------
 # E3 · Ficha del caso
 # ---------------------------------------------------------------------------
+
+
+#: Las solapas de la ficha, en el orden de la pantalla. La primera es la que abre si la URL no pide otra.
+SOLAPAS_DE_LA_FICHA = ("familia", "personas", "contactos", "fotos", "historial")
+
+
+def solapa_de_la_ficha(pedida):
+    """La solapa que abre la ficha: la pedida con ``?tab=`` si existe, y si no, la primera. Sin consultas."""
+
+    return pedida if pedida in SOLAPAS_DE_LA_FICHA else SOLAPAS_DE_LA_FICHA[0]
 
 
 def casos_para_ficha():
@@ -841,6 +913,18 @@ def ficha_de_caso(caso, usuario, sla, ahora):
             "texto": "Solo quien lo tiene tomado, o quien supervisa la mesa, puede elegir el dispositivo.",
         }
 
+    personas = _personas_del_grupo(caso)
+    fotos = _fotos(caso)
+    contactos = _contactos(caso)
+    eventos = _traza(caso)
+    alojamiento = _alojamiento(caso)
+    puede_cancelar_ingreso = puede_cancelar_ingreso_por_la_mesa(
+        caso, es_supervisor=es_supervisor, confirmadas=integrantes["confirmadas"] if integrantes else 0
+    )
+    supervision = _acciones_de_supervision(caso, usuario)
+    # Tomar habilita derivar y cerrar solo en un caso nuevo; en los demás es hacerse cargo.
+    tomar_para_gestionar = caso.estado == Estado.NUEVO
+
     return {
         "caso": caso,
         "titulo": f"Caso {caso.numero} · Familia {caso.grupo.responsable.apellido}",
@@ -856,24 +940,35 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         "tomado": tomado,
         "datos": _datos_del_relevamiento(caso),
         "observaciones": caso.situacion.get("observaciones", ""),
-        "personas": _personas_del_grupo(caso),
-        "fotos": _fotos(caso),
-        "contactos": _contactos(caso),
-        "eventos": _traza(caso),
+        "personas": personas,
+        "fotos": fotos,
+        "contactos": contactos,
+        "eventos": eventos,
+        # El número de cada solapa: las listas ya están traídas, no cuesta una consulta.
+        "conteos": {
+            "personas": personas["total"],
+            "contactos": len(contactos),
+            "fotos": len(fotos),
+            "historial": len(eventos),
+        },
         "responsable_alojado": selectores.responsable_alojado(caso, usuario),
         "derivacion": derivacion,
         "motivo_cierre": caso.get_motivo_cierre_display() if caso.motivo_cierre else "",
         "integrantes": integrantes,
-        "alojamiento": _alojamiento(caso),
+        "alojamiento": alojamiento,
         "avisos": avisos_de_la_mesa(caso, sla, ahora),
         # Cambio 535: quien supervisa destraba un ingreso aceptado sin nadie confirmado.
-        "puede_cancelar_ingreso": puede_cancelar_ingreso_por_la_mesa(
-            caso, es_supervisor=es_supervisor, confirmadas=integrantes["confirmadas"] if integrantes else 0
-        ),
+        "puede_cancelar_ingreso": puede_cancelar_ingreso,
         # Cambio 588: la supervisión corrige la mesa (capacidad propia).
-        **_acciones_de_supervision(caso, usuario),
-        # Tomar habilita derivar y cerrar solo en un caso nuevo; en los demás es hacerse cargo.
-        "tomar_para_gestionar": caso.estado == Estado.NUEVO,
+        **supervision,
+        "tomar_para_gestionar": tomar_para_gestionar,
+        # Cambio 589: el paso que sigue y los botones que corresponden, con los mismos predicados de arriba.
+        "que_hacer": que_hacer_ahora(
+            caso,
+            {**acciones, **supervision, "puede_cancelar_ingreso": puede_cancelar_ingreso},
+            que_falta(caso, sla, ahora),
+            tomar_para_gestionar=tomar_para_gestionar,
+        ),
     }
 
 

@@ -123,11 +123,11 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Encabezado con más de una acción secundaria: el menú `texto="Más acciones"` (ver la «Variante de encabezado» de `componentes/tabla.md`).
 - Sin métricas: se omite la grilla de stat cards.
 - Secciones apiladas en vez de solapas cuando hay un área sola.
-- Apilado con panel lateral (`{# arquetipo: detalle + apilado #}`): las secciones van en la columna
-  `lg:col-span-2 min-w-0 space-y-5` de la grilla de «Formulario con asistencia lateral»
+- Detalle con solapas y panel lateral (sin declarar variante: lleva los siete marcadores): las solapas van en la columna
+  `lg:col-span-2 min-w-0` de la grilla de «Formulario con asistencia lateral»
   (`grid grid-cols-1 lg:grid-cols-3 gap-5`) y el panel que acompaña al registro en un `aside space-y-5 min-w-0`
   con `aria-label`; se apila en móvil. Evidencia: `programas/templates/programas/emergencia/casos/detail.html`
-  (la ficha del caso a la izquierda; a la derecha, «Derivar» o la derivación vigente). Arriba de la ficha, los avisos de la mesa (`avisos_de_la_mesa` de
+  (ficha del caso: ver «Ficha del caso de Emergencia» más abajo). Arriba de la ficha, los avisos de la mesa (`avisos_de_la_mesa` de
   `programas/selectors/emergencia_mesa.py`: «Rechazado por X: motivo», «Derivación vencida», «Derivación vencida
   sin marcar», «Dispositivo inactivo», «Llegaron N sobre M declaradas») van uno por `_alerta.html` con `tono`, `titulo` y `texto`, sin
   variantes nuevas; los mismos textos son las marcas de la fila en la bandeja. La tabla «Personas que ingresan
@@ -138,6 +138,24 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza; con una diferencia sin cerrar, una sección «Qué hacer ahora: cerrar la diferencia» con «Reponer lo que faltó» y «Aceptar la diferencia», este último un modal con el motivo obligatorio, Cambio 586). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.
+- **Ficha del caso de Emergencia (Cambio 589)**, `emergencia/casos/detail.html`: bajo el `page_header` va el bloque «Qué hacer
+  ahora» —una surface `border-brand` con caja de ícono `bg-brand-soft text-fg-brand`, `h2`, el paso en `text-sm font-semibold`,
+  la nota y la ayuda en `text-sm text-body`, y los botones `btn-nodo btn-sm btn-fit` (el primero `btn-brand`, los de apoyo
+  `btn-secondary`, los que cierran `btn-tertiary`)—; después los avisos de la mesa y la grilla de dos columnas: a la izquierda
+  UNA surface con la barra de cinco solapas (Familia, Personas, Contactos, Fotos, Historial; barra de 4 o más solapas de
+  `tabs.md`, `nodo-tabs.js` del shell) y a la derecha el `aside` «Derivar» o la derivación vigente, que no es una solapa y no
+  cambia con ella. Familia = lo relevado; Personas = lo declarado y los integrantes; Contactos = la línea de tiempo y el
+  formulario; Historial = la traza; los títulos internos son `h3 text-sm font-bold text-heading`. El `x-data` del contenedor
+  suma `tab: '{{ solapa }}'` a las variables de los modales: la vista resuelve `solapa` (`?tab=` validado contra
+  `SOLAPAS_DE_LA_FICHA`; un formulario de contacto que vuelve con errores deja `contactos`) y los modales viven fuera de las
+  solapas, así que un error de cierre, cancelación o derivación sigue abriendo su modal. El bloque sale de `que_hacer_ahora` y
+  `ficha_de_caso` (`programas/selectors/emergencia_mesa.py`): el paso es el de `que_falta` (la columna «Qué falta» de la
+  bandeja: una sola fuente) y cada botón es una acción que la ficha ya trae —tomar, «Elegir institución» (ancla al panel
+  «Derivar», `#caso-derivar-titulo`), anotar un contacto (abre la solapa Contactos), cancelar la derivación o el ingreso, cerrar,
+  cerrar la familia alojada y reabrir—, ofrecida solo si el predicado de la ficha (`puede_*`, los mismos que vuelve a exigir el
+  servicio y la capacidad `emergencia.cerrar_reabrir` donde corresponde) lo permite; sin acciones el bloque solo informa. Las
+  dos alertas «Nadie tomó este caso todavía» y el botón «Tomar» del encabezado pasaron al bloque. Los números de las solapas
+  salen de `conteos`, de listas ya traídas. Sin clases ni piezas nuevas.
 - Tablero de programa como Detalle apilado (`{# arquetipo: detalle + apilado #}`): `{% hero_inicio %}` ocupa el
   lugar del `page_header` (solo en las pantallas de `HERO_PANTALLAS`, ficha `componentes/hero_inicio.md`), una franja
   de `_stat_card` `variante="tablero"`, los avisos como lista de `_alerta.html` (ficha `componentes/alerta.md`) y
