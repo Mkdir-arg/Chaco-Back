@@ -63,6 +63,7 @@ from programas.services.equipo_dispositivo import (
 from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, CAP_VER_CIUDADANO, puede_ingresar_persona
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import edificios_para_asignar, inspecciones_visibles
+from programas.services.kits import aviso_de_kits_por_recibir
 from programas.services.ocupacion import ocupacion_de_plazas
 
 #: Las solapas de la página, en el orden en que se dibujan.
@@ -245,19 +246,11 @@ def _avisos(user, dispositivo, edificio, acciones):
         )
         if derivaciones:
             avisos.append(derivaciones)
-    cantidad = acciones["kits_por_recibir"]
-    if cantidad:
-        entregas = "1 entrega de kits por recibir" if cantidad == 1 else f"{cantidad} entregas de kits por recibir"
-        avisos.append(
-            {
-                "tono": "warning",
-                "icono": "box-open",
-                "titulo": f"{entregas} en este edificio",
-                "texto": "Hasta que se confirme la recepción, la mesa de Emergencia las ve en camino.",
-                "accion_url": acciones["url_recibir_kit"],
-                "accion_texto": "Recibir kit" if cantidad == 1 else "Ver entregas",
-            }
-        )
+    aviso_kits = aviso_de_kits_por_recibir(
+        acciones["kits_por_recibir"], acciones["url_recibir_kit"], en_este_edificio=True
+    )
+    if aviso_kits:
+        avisos.append(aviso_kits)
     return avisos
 
 

@@ -31,7 +31,10 @@ ENTREGAS_POR_PAGINA = 25
 
 
 def entregas_del_edificio(dispositivo, edificio, usuario):
-    """Las entregas de ``dispositivo`` a ``edificio``, de la más nueva a la más vieja. Queryset: 2 consultas al leerlo."""
+    """Las entregas de ``dispositivo`` a ``edificio``, de la más nueva a la más vieja. Queryset: 2 consultas al leerlo.
+
+    Es el orden base: la lista y la posición del detalle ponen primero las por recibir.
+    """
 
     return selectores.entregas_de(dispositivo, usuario).filter(edificio=edificio).select_related("recibida_por")
 
@@ -89,14 +92,17 @@ def _resumen(total, por_recibir):
 
 
 def contexto_de_la_lista(dispositivo, edificio, usuario, pagina, url_pagina):
-    """La tabla «Entregas a este edificio»: filas de la página pedida, su paginador y el resumen del encabezado."""
+    """La tabla «Entregas a este edificio»: filas de la página pedida, su paginador y el resumen del encabezado.
+
+    Van primero las por recibir (en camino o preparadas) y después el resto; en cada grupo, de la más nueva a la más vieja.
+    """
 
     entregas = entregas_del_edificio(dispositivo, edificio, usuario)
     # El total y las «por recibir» en una sola consulta; el paginador no vuelve a contar.
     cuentas = entregas.aggregate(
         total=Count("pk"), por_recibir=Count("pk", filter=Q(estado__in=EntregaKit.ESTADOS_ABIERTOS))
     )
-    # Las por recibir van primero (#1361: «Recibir kit (N)» lleva acá); dentro de cada grupo, de la más nueva a la más vieja.
+    # Las por recibir van primero (el ítem «Recibir kit (N)» lleva acá); dentro de cada grupo, de la más nueva a la más vieja.
     entregas = entregas.order_by(
         Case(When(estado__in=EntregaKit.ESTADOS_ABIERTOS, then=0), default=1, output_field=IntegerField()),
         "-creado",
@@ -122,11 +128,12 @@ def contexto_del_detalle(dispositivo, edificio, usuario, entrega_pk, url_pagina)
         return None
     lineas = list(entrega.lineas.all())
     texto, tono = servicio.estado_visible_de_entrega(entrega)
-    # Posición entre las del edificio, de la más nueva: las que se crearon después, más ella.
-    posicion = entregas.aggregate(
-        total=Count("pk"),
-        mas_nuevas=Count("pk", filter=Q(creado__gt=entrega.creado) | Q(creado=entrega.creado, pk__gt=entrega.pk)),
-    )
+    # Posición con el mismo orden que la lista: las por recibir primero y, dentro de cada grupo, de la más nueva.
+    # Si está abierta, antes van solo las abiertas más nuevas; si no, todas las abiertas y las cerradas más nuevas.
+    abierta = Q(estado__in=EntregaKit.ESTADOS_ABIERTOS)
+    mas_nueva = Q(creado__gt=entrega.creado) | Q(creado=entrega.creado, pk__gt=entrega.pk)
+    antes = (abierta & mas_nueva) if entrega.abierta else (abierta | (~abierta & mas_nueva))
+    posicion = entregas.aggregate(total=Count("pk"), antes=Count("pk", filter=antes))
     recibida = entrega.estado in EntregaKit.ESTADOS_RECIBIDOS
     if entrega.abierta:
         situacion = (
@@ -154,7 +161,7 @@ def contexto_del_detalle(dispositivo, edificio, usuario, entrega_pk, url_pagina)
         "estado_texto": texto,
         "estado_tono": tono,
         "detalle": detalle,
-        "posicion": f"Entrega {posicion['mas_nuevas'] + 1} de {posicion['total']} de este edificio",
+        "posicion": f"Entrega {posicion['antes'] + 1} de {posicion['total']} de este edificio",
         "url_lista": f"{url_pagina}?tab=kits",
         "recibe": entrega.abierta,
         "recibida_ok": recibida,

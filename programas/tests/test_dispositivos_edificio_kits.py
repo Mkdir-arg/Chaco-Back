@@ -25,6 +25,7 @@ from programas.tests.test_equipo_alcance_edificio import Alcance
 
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
 Estado = EntregaKit.Estado
+CLAVE_PRESUPUESTO_GUARDIA = "dispositivos_edificio_operativo_kits_guardia"
 
 
 class BaseKitsEdificio(BaseOperativo):
@@ -317,8 +318,8 @@ CLAVE_PRESUPUESTO = "dispositivos_edificio_operativo_kits"
 
 @tag("performance")
 class PresupuestoDeKitsTests(BaseKitsEdificio):
-    def _medir(self, **params):
-        self.client.force_login(self.recibe_inst)
+    def _medir(self, usuario=None, **params):
+        self.client.force_login(usuario or self.recibe_inst)
         url = self._url(self.edif_a)
         self.client.get(url, params)
         with CaptureQueriesContext(connection) as consultas:
@@ -338,6 +339,21 @@ class PresupuestoDeKitsTests(BaseKitsEdificio):
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
         self.assertLessEqual(max(lista_antes, detalle_antes), techo["consultas_fijas"])
 
+    def test_la_guardia_con_admitir_paga_su_propio_techo_y_no_crece(self):
+        """La guardia real (ver, admitir y recibir kit) suma el aviso de derivaciones de la página (#1362)."""
+        guardia = self._con("Guardia", "dispositivo.ver", "dispositivo.admitir", "emergencia.recibir_kit")
+        primera = self._entrega("2026-K-000511", self.edif_a)
+        lista_antes = self._medir(guardia, tab="kits")
+        detalle_antes = self._medir(guardia, tab="kits", entrega=primera.pk)
+        for numero in range(8):
+            self._entrega(f"2026-K-0007{numero:02d}", self.edif_a, estado=Estado.RECIBIDA, recibida_en=timezone.now())
+            self._entrega(f"2026-K-0008{numero:02d}", self.edif_a)
+
+        self.assertEqual(self._medir(guardia, tab="kits"), lista_antes)
+        self.assertEqual(self._medir(guardia, tab="kits", entrega=primera.pk), detalle_antes)
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO_GUARDIA]
+        self.assertLessEqual(max(lista_antes, detalle_antes), techo["consultas_fijas"])
+
     def test_con_otra_solapa_los_kits_no_se_arman_y_el_boton_navega(self):
         self._entrega("2026-K-000502", self.edif_a)
         self.client.force_login(self.recibe_inst)
@@ -348,3 +364,31 @@ class PresupuestoDeKitsTests(BaseKitsEdificio):
         self.assertContains(respuesta, 'id="tab-kits" aria-controls="panel-kits" data-solapa-navega')
         self.assertContains(respuesta, f"{self._url(self.edif_a)}?tab=kits")
         self.assertNotContains(respuesta, "2026-K-000502")
+
+
+class PosicionEnElDetalleTests(BaseKitsEdificio):
+    def test_la_posicion_sigue_el_orden_de_la_lista_con_las_por_recibir_primero(self):
+        ahora = timezone.now()
+        abierta_vieja = self._entrega("2026-K-000701", self.edif_a)
+        EntregaKit.objects.filter(pk=abierta_vieja.pk).update(creado=ahora - timedelta(days=3))
+        recibida_nueva = self._entrega("2026-K-000702", self.edif_a, estado=Estado.RECIBIDA, recibida_en=ahora)
+        abierta_nueva = self._entrega("2026-K-000703", self.edif_a)
+        EntregaKit.objects.filter(pk=abierta_nueva.pk).update(creado=ahora - timedelta(days=1))
+        EntregaKit.objects.filter(pk=recibida_nueva.pk).update(creado=ahora)
+
+        lista = self._get(self.recibe_inst, self.edif_a, tab="kits").context["kits"]["filas"]
+        orden = [fila["entrega"].pk for fila in lista]
+        self.assertEqual(orden, [abierta_nueva.pk, abierta_vieja.pk, recibida_nueva.pk])
+        for lugar, entrega in enumerate((abierta_nueva, abierta_vieja, recibida_nueva), start=1):
+            with self.subTest(entrega=entrega.numero):
+                detalle = self._detalle(self.recibe_inst, entrega)
+                self.assertEqual(detalle.context["kits"]["posicion"], f"Entrega {lugar} de 3 de este edificio")
+
+    def test_una_abierta_vieja_es_la_primera_aunque_haya_recibidas_mas_nuevas(self):
+        abierta = self._entrega("2026-K-000711", self.edif_a)
+        EntregaKit.objects.filter(pk=abierta.pk).update(creado=timezone.now() - timedelta(days=5))
+        self._entrega("2026-K-000712", self.edif_a, estado=Estado.RECIBIDA, recibida_en=timezone.now())
+
+        detalle = self._detalle(self.recibe_inst, abierta)
+
+        self.assertEqual(detalle.context["kits"]["posicion"], "Entrega 1 de 2 de este edificio")

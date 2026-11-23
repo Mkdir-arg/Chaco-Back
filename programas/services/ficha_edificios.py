@@ -36,28 +36,24 @@ _EDIFICIOS_CON_LUGAR_EN_EL_AVISO = 3
 
 
 def _kits_pendientes(dispositivo, edificio_ids):
-    """``{edificio_id: (en_camino, preparadas)}`` de las entregas abiertas de cada edificio. Una consulta."""
+    """``{edificio_id: por_recibir}`` de las entregas abiertas (en camino o preparadas) de cada edificio. Una consulta."""
 
     filas = (
         EntregaKit.objects.filter(
             dispositivo=dispositivo, edificio_id__in=edificio_ids, estado__in=EntregaKit.ESTADOS_ABIERTOS
         )
         .values("edificio_id")
-        .annotate(
-            en_camino=Count("pk", filter=Q(estado=EntregaKit.Estado.EN_CAMINO)),
-            preparadas=Count("pk", filter=Q(estado=EntregaKit.Estado.PREPARADA)),
-        )
+        .annotate(por_recibir=Count("pk"))
     )
-    return {fila["edificio_id"]: (fila["en_camino"], fila["preparadas"]) for fila in filas}
+    return {fila["edificio_id"]: fila["por_recibir"] for fila in filas}
 
 
-def _texto_de_kits(en_camino, preparadas):
-    """«0 por recibir» o «3 por recibir» (en camino y preparadas juntas), más su tono de texto.
+def _texto_de_kits(por_recibir):
+    """«0 por recibir» o «3 por recibir», más su tono de texto.
 
     Nunca un número suelto: el 0 de «por recibir» se leía como «no se recibió nada» (#1365).
     """
 
-    por_recibir = en_camino + preparadas
     return f"{por_recibir} por recibir", "text-fg-warning" if por_recibir else "text-heading"
 
 
@@ -137,7 +133,7 @@ def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede
             fila["tiene_plazas"] = False
             fila["movimientos"] = ""
         if pk in ids_con_kits:
-            texto, clase = _texto_de_kits(*kits.get(pk, (0, 0)))
+            texto, clase = _texto_de_kits(kits.get(pk, 0))
             fila["kits"] = {"texto": texto, "clase": clase}
         else:
             fila["kits"] = None

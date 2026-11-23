@@ -65,6 +65,7 @@ from programas.models import (
     TrazaEntrega,
 )
 from programas.services.bitacora import anotar_novedad_automatica
+from programas.services.bitacora_detalle import plural
 from programas.services.dispositivos import puede_operar_edificio
 from programas.services.emergencia import EstadoCambio, UuidEnUso, siguiente_correlativo
 from programas.services.emergencia_comun import _hora
@@ -645,3 +646,24 @@ def observar_recepcion(entrega, usuario, texto):
     bloqueada.save(update_fields=["observacion_mesa", "modificado"])
     _trazar(bloqueada, usuario, Accion.OBSERVADA, estado_anterior=bloqueada.estado, detalle=texto)
     return bloqueada
+
+
+def aviso_de_kits_por_recibir(cantidad, url, *, en_este_edificio=False):
+    """El aviso de entregas de kits por recibir (``components/_alerta.html``) o ``None`` si no hay ninguna. Sin consultas.
+
+    ``cantidad`` cuenta las entregas abiertas (en camino o preparadas) y ``url`` es la recepción de la única, o la
+    lista de varias. Con ``en_este_edificio`` el título dice «en este edificio»; sin él, «para esta institución».
+    La usa la página del edificio y es la misma que va a mostrar la ficha de la institución.
+    """
+
+    if not cantidad:
+        return None
+    donde = "en este edificio" if en_este_edificio else "para esta institución"
+    return {
+        "tono": "warning",
+        "icono": "boxes-stacked",
+        "titulo": f"{plural(cantidad, 'entrega de kits', 'entregas de kits')} por recibir {donde}",
+        "texto": "Hasta que se confirme la recepción, la mesa de Emergencia las sigue viendo abiertas.",
+        "accion_url": url,
+        "accion_texto": "Recibir kit" if cantidad == 1 else "Ver entregas",
+    }
