@@ -5,22 +5,19 @@
 {% block main-content %}
 <div class="space-y-6">
 
-  {% page_header titulo="Casos" eyebrow="Programa Emergencia" bajada="Las familias relevadas: tomá un caso, hablá con la familia y derivala a un dispositivo. Primero van los que están fuera de SLA." %}
+  {% page_header titulo="Casos" eyebrow="Programa Emergencia" bajada="Familias que piden alojamiento. Tomá un caso, hablá con la familia y derivalo a una institución con lugar. Primero van los que están fuera de plazo." %}
     <a href="{{ url_nuevo }}" class="btn-nodo btn-brand btn-base">
       <i class="fas fa-plus" aria-hidden="true"></i> Nuevo caso
     </a>
   {% endpage_header %}
 
-  {# Solapas: recargan con la URL que armó la vista y conservan los filtros. Van en dos filas porque la pieza admite hasta seis chips. #}
-  <div class="space-y-3">
-    {% include "components/_chips_enlace.html" with nombre="Casos por estado" chips=solapas_por_estado %}
-    {% include "components/_chips_enlace.html" with nombre="Otras vistas de la bandeja" chips=solapas_de_atencion %}
-  </div>
+  {# Una sola fila de chips: recargan con la URL que armó la vista y conservan los filtros. #}
+  {% include "components/_chips_enlace.html" with nombre="Filtrar los casos" chips=solapas %}
 
   {% comment %}Filtros: el <form> va sin class y cada control con aria-label (dynamic_list_filters.js vacía
   el form al montar). El oculto `solapa` se conserva: filtrar no cambia de solapa.{% endcomment %}
   <form method="get" data-dynamic-list-filters>
-    <input type="hidden" name="solapa" value="{{ solapa }}">
+    {% if solapa_explicita %}<input type="hidden" name="solapa" value="{{ solapa_explicita }}">{% endif %}
     <input type="search" name="texto" value="{{ filtro.texto }}" class="nodo-field max-w-xs" aria-label="N.° de caso, DNI o nombre de la familia" placeholder="Caso, DNI o nombre">
     <select name="estado" class="nodo-field max-w-xs" aria-label="Estado">
       <option value="">Todos</option>
@@ -52,9 +49,9 @@
         <thead>
           <tr class="nodo-thead-row">
             <th class="nodo-th">Familia</th>
-            <th class="nodo-th">Localidad</th>
             <th class="nodo-th">Prioridad</th>
             <th class="nodo-th">Estado</th>
+            <th class="nodo-th">Qué falta</th>
             <th class="nodo-th">Tomado por</th>
             <th class="nodo-th">Tiempo en estado</th>
             <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
@@ -65,15 +62,20 @@
           <tr class="hover:bg-secondary">
             <td class="nodo-td text-heading font-medium">
               {{ fila.familia }}
-              <span class="block text-xs text-body-subtle">{{ fila.detalle }}</span>
+              <span class="block text-xs text-body-subtle">{{ fila.detalle }}{% if fila.localidad %} · {{ fila.localidad }}{% endif %}</span>
             </td>
-            <td class="nodo-td text-body">{{ fila.localidad|default:"—" }}</td>
             <td class="nodo-td"><span class="badge badge-{{ fila.prioridad_tono }}">{{ fila.prioridad_texto }}</span></td>
             <td class="nodo-td">
               <span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>
               {% for marca in fila.marcas %}
                 <span class="badge badge-{{ marca.tono }} mt-1">{{ marca.texto }}</span>
               {% endfor %}
+            </td>
+            <td class="nodo-td text-body">
+              {{ fila.que_falta.texto }}
+              {% if fila.que_falta.nota %}
+                {% if fila.que_falta.urgente %}<span class="badge badge-warning mt-1">{{ fila.que_falta.nota }}</span>{% else %}<span class="block text-xs text-body-subtle">{{ fila.que_falta.nota }}</span>{% endif %}
+              {% endif %}
             </td>
             <td class="nodo-td text-body">{{ fila.tomado_por|default:"—" }}</td>
             <td class="nodo-td">{% include "components/_semaforo_sla.html" with estado=fila.sla.estado minutos=fila.sla.minutos tramo=fila.sla.tramo texto_tiempo=fila.sla.texto_tiempo only %}</td>
@@ -98,9 +100,9 @@
     </div>
     {% include "components/_paginacion.html" with page_obj=page_obj entidad="caso" %}
     {% elif request.GET|hay_filtros:"page,solapa" %}
-      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún caso coincide con los filtros" texto="Probá con otros filtros o cambiá de solapa." accion_url=url_sin_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún caso coincide con los filtros" texto="Probá con otros filtros o cambiá de vista." accion_url=url_sin_filtros %}
     {% elif hay_casos %}
-      {% include "components/_estado_vacio.html" with icono="fa-inbox" titulo="No hay casos en esta solapa" texto="Los casos aparecen acá cuando pasan a este estado." %}
+      {% include "components/_estado_vacio.html" with icono="fa-inbox" titulo="No hay casos en esta vista" texto="Los casos aparecen acá cuando les toca." %}
     {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-life-ring" titulo="Todavía no hay casos" texto="Aparecen acá cuando un agente releva una familia desde la app. Lo que llega por teléfono se carga con «Nuevo caso»." accion_url=url_nuevo accion_texto="Nuevo caso" accion_icono="fa-plus" %}
     {% endif %}

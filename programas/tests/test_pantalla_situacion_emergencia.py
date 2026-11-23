@@ -172,7 +172,9 @@ class TablaDePresionTests(SimpleTestCase):
 
     def test_la_bandeja_solo_con_supervisar(self):
         self.assertEqual({fila["url"] for fila in self._tabla()["filas"]}, {""})
-        self.assertEqual(self._tabla(supervisa=True)["filas"][0]["url"], "/emergencia/casos/?localidad=1")
+        self.assertEqual(
+            self._tabla(supervisa=True)["filas"][0]["url"], "/emergencia/casos/?solapa=abiertos&localidad=1"
+        )
 
 
 class AtencionTests(SimpleTestCase):

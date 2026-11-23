@@ -452,9 +452,24 @@ class PorLocalidadTests(EscenarioTablero):
 
     def test_hu_5_2_la_fila_lleva_a_la_bandeja_filtrada(self):
         filas = {fila["localidad"]: fila for fila in tablero.por_localidad(self.sla, T0)}
-        self.assertEqual(filas["Barranqueras"]["url"], f"/emergencia/casos/?localidad={self.barranqueras.pk}")
+        self.assertEqual(
+            filas["Barranqueras"]["url"], f"/emergencia/casos/?solapa=abiertos&localidad={self.barranqueras.pk}"
+        )
         self.client.force_login(self.supervisor)
         self.assertEqual(self.client.get(filas["Barranqueras"]["url"]).status_code, 200)
+
+    def test_la_fila_encuentra_los_casos_con_dueno_de_la_localidad(self):
+        """Sin la solapa en el enlace caía en «Sin tomar», que no trae lo que ya tiene dueño (Cambio 580)."""
+        filas = {fila["localidad"]: fila for fila in tablero.por_localidad(self.sla, T0)}
+        esperados = {
+            caso.pk
+            for caso in CasoEmergencia.objects.filter(localidad=self.barranqueras).exclude(estado=Estado.CERRADO)
+        }
+        CasoEmergencia.objects.filter(pk__in=esperados).update(tomado_por=self.supervisor)
+        self.client.force_login(self.supervisor)
+        respuesta = self.client.get(filas["Barranqueras"]["url"])
+        self.assertTrue(esperados)
+        self.assertEqual({fila["caso"].pk for fila in respuesta.context["filas"]}, esperados)
 
     def test_una_localidad_solo_con_dispositivos_aparece_sin_enlace(self):
         self._dispositivo("Polideportivo", camas=5, localidad="Fontana")
@@ -726,7 +741,7 @@ class TableroVistaTests(EscenarioTablero):
         self.assertIn(f'href="{URL_TABLERO}" class="nodo-hero__accion"', html)
         self.assertIn('aria-label="Avisos que piden acción"', html)
         self.assertIn("Familia en la puerta de Escuela 12", html)
-        self.assertIn(f'href="/emergencia/casos/?localidad={self.resistencia.pk}"', html)
+        self.assertIn(f'href="/emergencia/casos/?solapa=abiertos&amp;localidad={self.resistencia.pk}"', html)
         self.assertIn(self.en_camino_1.numero, html)
         self.assertEqual(html.count("nodo-stat-tablero "), 6)
 

@@ -46,7 +46,7 @@ class BaseMarcas(BaseAlojar):
         """Los textos de las marcas de la fila del caso en la bandeja (solapa «Abiertos»)."""
 
         self.client.force_login(self.operador)
-        respuesta = self.client.get(URL_BANDEJA, {"texto": caso.numero})
+        respuesta = self.client.get(URL_BANDEJA, {"texto": caso.numero, "solapa": "abiertos"})
         self.assertEqual(respuesta.status_code, 200)
         filas = [fila for fila in respuesta.context["filas"] if fila["caso"].pk == caso.pk]
         self.assertEqual(len(filas), 1, "el caso no está en la bandeja")
@@ -349,10 +349,10 @@ class PresupuestoConMarcasTests(tests_mesa.BaseMesa):
     def test_e2_con_500_casos_y_todas_las_marcas(self):
         self._con_todas_las_marcas(self._casos_en_lote(500))
         self.client.force_login(self.operador)
-        self.client.get(URL_BANDEJA)
+        self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
 
         with self.assertNumQueries(self.CONSULTAS_E2):
-            respuesta = self.client.get(URL_BANDEJA)
+            respuesta = self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
 
         self.assertEqual(respuesta.context["page_obj"].paginator.count, 500)
         en_la_pagina = {marca["texto"] for fila in respuesta.context["filas"] for marca in fila["marcas"]}

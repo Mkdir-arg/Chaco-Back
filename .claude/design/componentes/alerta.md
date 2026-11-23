@@ -100,6 +100,8 @@ condición de cada aviso es una sola y la comparten el tablero, la fila de la ba
 que sale de la subconsulta `derivacion_vencida_sin_marcar` de `con_avisos_de_la_mesa`; «Aceptado sin movimiento hace N h»,
 de `selectors.emergencia.horas_sin_movimiento` con las horas de E7; «Identidad a revisar», de
 `CasoEmergencia.identidad_pendiente`, sin consultas): el template no decide cuándo se muestra.
+La columna «Qué falta» de la bandeja (`que_falta`, `programas/selectors/emergencia_mesa.py`) no usa esta pieza: reutiliza las mismas
+condiciones y dibuja la nota como `badge badge-warning` cuando es urgente (la subconsulta `derivada_a` de `con_avisos_de_la_mesa` trae la institución).
 En el modal de confirmar «Derivar» de la misma ficha, las camas ya pedidas a esa institución (`ya_pedidas`, Cambio 535)
 van como un `_alerta` `info` más, debajo del aviso de plazas: dato, no advertencia.
 
