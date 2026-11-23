@@ -439,6 +439,61 @@ class SectoresSolapaTests(BaseOperativo):
         inactivos = self._get(self.de_inst, self.edif_b, inactivos=1)
         self.assertNotContains(inactivos, f"· {self.edif_b.nombre} ·")
 
+    def _bajas(self, sector, cantidad, prefijo):
+        for n in range(1, cantidad + 1):
+            Plaza.objects.create(sector=sector, codigo=f"{prefijo}-B{n:02d}", activa=False)
+
+    def test_las_plazas_dadas_de_baja_salen_agrupadas_tambien_en_la_pagina_del_edificio(self):
+        """El cuerpo es el mismo que el de la pantalla suelta (Cambio 582): el agrupado sale en los dos lugares."""
+
+        otro = Sector.objects.create(dispositivo=self.cis, edificio=self.edif_a, nombre="Anexo A", capacidad=2)
+        self._bajas(self.sector_a, 22, "A")
+        self._bajas(otro, 2, "N")
+        self._bajas(self.sector_b, 4, "B")  # de otro edificio: no entra
+        url_vuelta = f"{self._url(self.edif_a)}?tab=sectores"
+
+        respuesta = self._get(self.de_inst, self.edif_a, tab="sectores", inactivos=1)
+
+        bajas = respuesta.context["plazas_dadas_de_baja"]
+        self.assertEqual((bajas.total, bajas.cantidad_sectores), (24, 2))
+        self.assertContains(respuesta, "24 plazas dadas de baja en 2 sectores")
+        self.assertContains(respuesta, f"{self.sector_a.nombre} · 22 plazas dadas de baja")
+        self.assertContains(respuesta, "Ver las 2 restantes")
+        self.assertNotContains(respuesta, f"{self.sector_b.nombre} · 4 plazas dadas de baja")
+        # El select conserva la solapa y «Ver inactivos»; «Reactivar» vuelve a la solapa, con el grupo.
+        self.assertContains(respuesta, '<input type="hidden" name="tab" value="sectores">')
+        self.assertContains(respuesta, '<input type="hidden" name="inactivos" value="1">')
+        plaza = Plaza.todas.get(sector=otro, codigo="N-B01")
+        self.assertContains(
+            respuesta,
+            f"{reverse('dispositivos:plaza_reactivar', args=[self.cis.pk, plaza.pk])}"
+            f"?next={url_vuelta.replace('?', '%3F').replace('=', '%3D')}&amp;baja_abierto={otro.pk}",
+        )
+
+    def test_el_filtro_por_sector_y_la_vuelta_de_reactivar_tambien_valen_en_la_pagina_del_edificio(self):
+        otro = Sector.objects.create(dispositivo=self.cis, edificio=self.edif_a, nombre="Anexo A", capacidad=2)
+        self._bajas(self.sector_a, 3, "A")
+        self._bajas(otro, 2, "N")
+        self._bajas(self.sector_b, 2, "B")
+        ajeno = self.sector_b  # de otro edificio: se ignora
+
+        filtrada = self._get(self.de_inst, self.edif_a, tab="sectores", inactivos=1, baja_sector=otro.pk)
+        con_ajeno = self._get(self.de_inst, self.edif_a, tab="sectores", inactivos=1, baja_sector=ajeno.pk)
+
+        self.assertEqual([g.sector for g in filtrada.context["plazas_dadas_de_baja"].grupos], [otro])
+        self.assertEqual(len(con_ajeno.context["plazas_dadas_de_baja"].grupos), 2)
+        plaza = Plaza.todas.get(sector=otro, codigo="N-B01")
+        respuesta = self.client.post(
+            f"{reverse('dispositivos:plaza_reactivar', args=[self.cis.pk, plaza.pk])}"
+            f"?next={self._url(self.edif_a)}%3Ftab%3Dsectores&baja_sector={otro.pk}&baja_abierto={otro.pk}"
+        )
+
+        self.assertRedirects(
+            respuesta,
+            f"{self._url(self.edif_a)}?tab=sectores&inactivos=1&baja_sector={otro.pk}&baja_abierto={otro.pk}",
+            fetch_redirect_response=False,
+        )
+
     def test_editar_un_sector_de_otro_edificio_no_abre_el_modal(self):
         propio = self._get(self.de_inst, self.edif_a, editar_sector=self.sector_a.pk)
         for sector in (self.sector_b, self.sector_otra):
