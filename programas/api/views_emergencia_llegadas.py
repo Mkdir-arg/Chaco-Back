@@ -7,7 +7,7 @@ Paridad con la pantalla E6 del backoffice (RU-1): cada vista llama a la **misma*
 * ``ValidationError`` → 400 por campo (``code: VALIDACION``), con el mensaje del servicio.
 * :class:`EstadoCambio` → 409 ``{detail, estado_actual}``: otra guardia —desde su teléfono o
   desde el backoffice—, la mesa o el cron se adelantaron. ``detail`` es el del servicio
-  (``_por_que_ya_no``), el mismo en el GET que en el POST. La app recarga.
+  (``ingreso_sin_candado`` o ``exigir_pendiente``), el mismo en el GET que en el POST. La app recarga.
 * ``PermissionDenied`` → 404. No debería llegar: el alcance ya se resolvió acá. Si llega (lo
   sacaron del Equipo entre una línea y la otra), lo mismo que un id ajeno.
 
@@ -42,6 +42,7 @@ from programas.api.serializers_emergencia import (
     CompletarFichaEnvioSerializer,
     ConfirmacionSerializer,
     ConfirmarIntegranteEnvioSerializer,
+    DerivacionDetalleSerializer,
     DerivacionPorRecibirSerializer,
     EstadoCambioSerializer,
     FichaCompletadaSerializer,
@@ -115,13 +116,13 @@ class _VistaDeLlegadas(_VistaDeCampo):
         """El dispositivo, **si admite ahí**. El de otro es un 404."""
         return self._o_404(self._admitidos(request).select_related("tipo"), pk)
 
-    def _derivacion(self, request, pk):
+    def _derivacion(self, request, pk, relacionadas=()):
         """La derivación, **si es hacia un dispositivo donde admite**. La de otro es un 404 (C2)."""
         return self._o_404(
             Derivacion.objects.filter(
                 q_edificios_en_alcance(request.user, CAP_ADMITIR, "dispositivo_id", "edificio_id"),
                 dispositivo__in=self._admitidos(request),
-            ),
+            ).select_related(*relacionadas),
             pk,
         )
 
@@ -211,6 +212,27 @@ class DerivacionesPorRecibirView(_VistaDeLlegadas):
         pendientes = selectores_alojar.llegadas_del_dispositivo(dispositivo, request.user)["pendientes"]
         contexto = {"ahora": timezone.now()}
         return Response(DerivacionPorRecibirSerializer(pendientes, many=True, context=contexto).data)
+
+
+class DerivacionDetalleView(_VistaDeLlegadas):
+    @extend_schema(
+        responses={200: DerivacionDetalleSerializer, 401: _SIN_TOKEN, 403: _SIN_ADMITIR, 404: _AJENO, 409: _CAMBIO},
+        description=(
+            "Cambio 577: la tarjeta de una derivación **pendiente** para decidir (aceptar o rechazar), sin buscar el "
+            "DNI: lo que la web muestra al abrir una fila de «Derivaciones por recibir». Misma forma que "
+            "`derivacion` de `buscar`, salvo `responsable.identidad_a_revisar`, que viene siempre `null`. Mismo "
+            "alcance que `aceptar`/`rechazar`. Una derivación que ya no está pendiente (aceptada, rechazada, vencida o "
+            "cancelada) contesta el 409 de `aceptar`, con la misma función (`exigir_pendiente`)."
+        ),
+    )
+    def get(self, request, pk):
+        derivacion = self._derivacion(
+            request, pk, ("caso__grupo__responsable", "derivada_por", "edificio", "respondida_por")
+        )
+        _, respuesta = self._ejecutar(lambda: servicio_alojar.exigir_pendiente(derivacion.caso, derivacion))
+        if respuesta is not None:
+            return respuesta
+        return Response(DerivacionDetalleSerializer(derivacion).data)
 
 
 class AceptarDerivacionView(_VistaDeLlegadas):

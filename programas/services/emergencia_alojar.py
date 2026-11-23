@@ -184,6 +184,7 @@ from programas.services.emergencia_recepcion import (  # noqa: F401
     ResultadoBusqueda,
     aceptar_derivacion,
     buscar_por_dni,
+    exigir_pendiente,
     rechazar_derivacion,
 )
 from programas.services.emergencia_sin_derivacion import (  # noqa: F401

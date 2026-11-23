@@ -61,6 +61,7 @@ class AccesoALlegadasTests(BaseApiLlegadas):
             ("get", _url("dispositivo-buscar", centro) + "?dni=30111222"),
             ("get", _url("dispositivo-derivaciones", centro)),
             ("get", _url("dispositivo-plazas", centro) + f"?caso={caso}"),
+            ("get", _url("derivacion-detalle", self.pendiente.pk)),
             ("post", _url("derivacion-aceptar", self.pendiente.pk)),
             ("post", _url("derivacion-rechazar", self.pendiente.pk)),
             ("get", _url("caso-integrantes", caso)),
