@@ -25,6 +25,7 @@ con dos objetos viejos de la misma entrega.
 
 import shutil
 import tempfile
+import threading
 import uuid
 from datetime import datetime, time, timedelta
 from unittest import mock
@@ -33,7 +34,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, connection, connections, transaction
 from django.db.models import UniqueConstraint
 from django.test import TransactionTestCase, override_settings, tag
 from django.test.utils import CaptureQueriesContext
@@ -890,6 +891,10 @@ class ObservarRecepcionTests(BaseKits):
                 "cancelar_entrega",
                 "recibir_entrega",
                 "observar_recepcion",
+                # Cierra la diferencia sin tocar las cantidades recibidas (Cambio 586).
+                "aceptar_diferencia",
+                # Solo arma un enlace (la solapa Kits del edificio): no escribe nada.
+                "url_de_kits_del_edificio",
                 "validar_remito",
                 "mensaje_de_estado",
                 "puede_recibir",
@@ -1044,6 +1049,7 @@ class SelectoresDeKitsTests(BaseKits):
 
         esperado = {
             selectores.SOLAPA_ABIERTAS: {preparada, en_camino},
+            selectores.SOLAPA_DEMORADAS: set(),
             selectores.SOLAPA_CON_DIFERENCIAS: {con_faltante},
             selectores.SOLAPA_RECIBIDAS: {completa},
             selectores.SOLAPA_CANCELADAS: {cancelada},
@@ -1290,6 +1296,9 @@ class _BaseCarreraKits(MotorRealMixin, TransactionTestCase):
         self.club = Dispositivo.objects.create(
             tipo=tipo, codigo="EVA-K1", nombre="Club kits", estado=Dispositivo.Estado.ACTIVO
         )
+        self.gimnasio = Dispositivo.objects.create(
+            tipo=tipo, codigo="EVA-K2", nombre="Gimnasio kits", estado=Dispositivo.Estado.ACTIVO
+        )
         self.guardia = self._usuario("guardia_kits", [RECIBIR_KIT], self.dispositivos, equipo=self.club)
         self.otra_guardia = self._usuario("guardia_kits_2", [RECIBIR_KIT], self.dispositivos, equipo=self.club)
         self.colchon = TipoKit.objects.create(nombre="Colchón carrera", unidad="unidad")
@@ -1313,9 +1322,9 @@ class _BaseCarreraKits(MotorRealMixin, TransactionTestCase):
     def _en_pantalla(self):
         return EntregaKit.objects.get(pk=self.entrega.pk)
 
-    def _crear(self):
+    def _crear(self, destino=None):
         def operacion():
-            return servicio.crear_entrega(self._fresco(self.ana), self.club.pk, [(self.colchon.pk, 4)])
+            return servicio.crear_entrega(self._fresco(self.ana), (destino or self.club).pk, [(self.colchon.pk, 4)])
 
         return operacion
 
@@ -1346,7 +1355,41 @@ class _BaseCarreraKits(MotorRealMixin, TransactionTestCase):
 @tag("mysql")
 class CarreraDelNumeradorDeKitsTests(_BaseCarreraKits):
     def test_dos_entregas_a_la_vez_reciben_numeros_consecutivos(self):
-        resultados, errores = en_paralelo(self._crear(), self._crear(), punto_a=NUMERADOR_BLOQUEADO)
+        """A y B van a **dos dispositivos distintos**: así el candado del dispositivo no las serializa antes y las dos
+        llegan al numerador de la serie K, que es la carrera que se mide. (Al mismo dispositivo, B espera el candado del
+        dispositivo que tiene A y nunca llega al punto crítico: ver el test siguiente.)"""
+        resultados, errores = en_paralelo(
+            self._crear(self.club), self._crear(self.gimnasio), punto_a=NUMERADOR_BLOQUEADO
+        )
+
+        self.assertEqual(errores, [])
+        self.assertEqual(sorted(entrega.numero for entrega in resultados), ["2026-K-000002", "2026-K-000003"])
+        self.assertEqual(EntregaKit.objects.count(), 3)
+        self.assertEqual(NumeradorEmergencia.objects.get(serie="K", anio=2026).ultimo, 3)
+
+    def test_dos_entregas_al_mismo_dispositivo_quedan_serializadas_y_terminan_con_numeros_consecutivos(self):
+        """Mismo destino: la segunda espera el candado del dispositivo (que ``crear_entrega`` toma antes que el
+        numerador) y recién después numera. Las dos terminan bien, sin duplicados ni huecos; no se exige que la
+        segunda llegue al numerador mientras la primera lo sostiene."""
+        resultados, errores = [], []
+        cerrojo = threading.Lock()
+
+        def correr(operacion):
+            try:
+                entrega = operacion()
+                with cerrojo:
+                    resultados.append(entrega)
+            except Exception as exc:
+                with cerrojo:
+                    errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=correr, args=(self._crear(),)) for _ in range(2)]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(30)
 
         self.assertEqual(errores, [])
         self.assertEqual(sorted(entrega.numero for entrega in resultados), ["2026-K-000002", "2026-K-000003"])

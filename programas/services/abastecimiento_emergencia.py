@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 from typing import NamedTuple
 
 from programas.models import Dispositivo, EntregaKit, TipoKit
+from programas.selectors.emergencia_abastecimiento import DEMORADA
 from programas.selectors.emergencia_tablero import dia_operativo
 from programas.services.emergencia_ficha import sin_dosis
 from programas.services.ocupacion import NIVEL_CRITICA, NIVEL_EXIGIDA
@@ -296,6 +297,8 @@ class ItemDelDispositivo(NamedTuple):
     #: recibido con lactantes en el dispositivo (RN-009-20).
     critico: bool
     horas_para_ordenar: float | None
+    #: Lo que lleva más de 48 h en camino sin recibir: **no** resta del faltante (Cambio 586).
+    demoradas: int = 0
 
 
 class FilaDispositivo(NamedTuple):
@@ -322,6 +325,7 @@ class FilaItem(NamedTuple):
     en_camino: int = 0
     preparadas: int = 0
     faltan: int = 0
+    demoradas: int = 0
 
 
 @dataclass(frozen=True)
@@ -367,7 +371,7 @@ def tiene_regla(item) -> bool:
     return item.modo == Modo.DOTACION or bool(item.cada_dias)
 
 
-def _item_del_dispositivo(item, unidades, tramos, recibido, en_camino, preparadas, ahora):
+def _item_del_dispositivo(item, unidades, tramos, recibido, en_camino, preparadas, ahora, demoradas=0):
     cantidad_recibida = recibido.cantidad if recibido else 0
     u = unidades.de(item.por)
     if item.modo == Modo.DOTACION:
@@ -375,7 +379,7 @@ def _item_del_dispositivo(item, unidades, tramos, recibido, en_camino, preparada
         falta = faltan(necesario, en_camino, preparadas)
         horas = (NUNCA if recibido is None else 0.0) if falta else None
         return ItemDelDispositivo(
-            item, necesario, en_camino, preparadas, falta, recibido is None, None, bool(falta), horas
+            item, necesario, en_camino, preparadas, falta, recibido is None, None, bool(falta), horas, demoradas
         )
 
     diario = consumo_diario(u, item.cantidad, item.cada_dias)
@@ -402,6 +406,7 @@ def _item_del_dispositivo(item, unidades, tramos, recibido, en_camino, preparada
         cubre,
         cubre.estado == SIN_CUBRIR or lactantes_sin_su_item,
         horas,
+        demoradas,
     )
 
 
@@ -457,6 +462,22 @@ def _salud(total, sin, dispositivos, filas_por_id, items_de_lactantes):
     return Salud(total, por_dispositivo, tuple(lactantes), tuple(items_de_lactantes))
 
 
+def _item_de(lecturas, dispositivo_id, item, unidades, tramos, ahora):
+    """Un ítem de un dispositivo con lo recibido, lo en camino, lo preparado y lo demorado de ``lecturas``."""
+
+    estados = EntregaKit.Estado
+    return _item_del_dispositivo(
+        item,
+        unidades,
+        tramos,
+        lecturas.recibido.get((dispositivo_id, item.id)),
+        lecturas.abiertas.get((dispositivo_id, item.id, estados.EN_CAMINO), 0),
+        lecturas.abiertas.get((dispositivo_id, item.id, estados.PREPARADA), 0),
+        ahora,
+        lecturas.abiertas.get((dispositivo_id, item.id, DEMORADA), 0),
+    )
+
+
 def armar_abastecimiento(lecturas, foto, ahora: datetime) -> Abastecimiento:
     """Franja, tabla por ítem, dispositivos sin cobertura ordenados y salud. **0 consultas.**
 
@@ -471,22 +492,10 @@ def armar_abastecimiento(lecturas, foto, ahora: datetime) -> Abastecimiento:
     ultima = {dispositivo.id: dispositivo.ultima_recepcion for dispositivo in foto.con_gente}
     inicio_del_dia, _fin = dia_operativo(ahora)
     hoy = Counter(p.dispositivo_id for p in lecturas.personas if p.egresado_en is None and p.ingreso >= inicio_del_dia)
-    Est = EntregaKit.Estado
 
     filas = {}
     for pk, u in unidades.items():
-        items = tuple(
-            _item_del_dispositivo(
-                item,
-                u,
-                tramos[pk],
-                lecturas.recibido.get((pk, item.id)),
-                lecturas.abiertas.get((pk, item.id, Est.EN_CAMINO), 0),
-                lecturas.abiertas.get((pk, item.id, Est.PREPARADA), 0),
-                ahora,
-            )
-            for item in items_con_regla
-        )
+        items = tuple(_item_de(lecturas, pk, item, u, tramos[pk], ahora) for item in items_con_regla)
         fila = FilaDispositivo(dispositivos[pk], u, hoy.get(pk, 0), ultima.get(pk), items)
         filas[pk] = fila._replace(urgencia=urgencia(fila.nunca_recibio, items) if fila.sin_cobertura else "")
 
@@ -502,6 +511,7 @@ def armar_abastecimiento(lecturas, foto, ahora: datetime) -> Abastecimiento:
                 sum(i.en_camino for i in de_cada),
                 sum(i.preparadas for i in de_cada),
                 sum(i.faltan for i in de_cada),
+                sum(i.demoradas for i in de_cada),
             )
         )
     por_item.extend(FilaItem(item, False) for item in lecturas.items if not tiene_regla(item))
@@ -525,6 +535,27 @@ def armar_abastecimiento(lecturas, foto, ahora: datetime) -> Abastecimiento:
 # ---------------------------------------------------------------------------
 # Qué se muestra de la salud (RN-009-21)
 # ---------------------------------------------------------------------------
+
+
+def faltantes_de_un_dispositivo(lecturas, dispositivo_id, ahora: datetime) -> dict:
+    """``{item_id: ItemDelDispositivo}`` de **un** dispositivo, con las mismas reglas que la solapa (Cambio 586).
+
+    Para «Le falta (estimado)» de la entrega nueva. **0 consultas**: ``lecturas`` es la de
+    ``lecturas_de_un_dispositivo``. Solo entran los ítems con regla completa; si el dispositivo no tiene a nadie
+    alojado devuelve ``{}`` (no hay a quién estimarle nada). ``faltan`` ya descuenta lo preparado y lo en camino
+    **que no está demorado**; lo demorado (más de 48 h sin recibir) viene aparte en ``demoradas``.
+    """
+
+    unidades = unidades_de_hoy(lecturas.personas).get(dispositivo_id)
+    if unidades is None:
+        return {}
+    tramos = presencias(lecturas.personas, ahora)[dispositivo_id]
+    return {
+        item.id: _item_de(lecturas, dispositivo_id, item, unidades, tramos, ahora)
+        for item in lecturas.items
+        if tiene_regla(item)
+    }
+
 
 #: Desde cuántos lactantes un dispositivo se nombra con su número (RN-009-21 c).
 MINIMO_LACTANTES_CON_NUMERO = 5

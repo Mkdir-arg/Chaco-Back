@@ -4,15 +4,14 @@
 
 {% block main-content %}
 {% comment %}Recepción de una entrega de kits en el dispositivo (HU-4.3). Molde: golden de Formulario
-(becas/config/segmento_form.html). Las cantidades llegan precargadas con lo enviado: se corrige solo lo
-distinto. Toda regla —alcance, remito en JPEG, estado— la decide `recibir_entrega`, la misma función que usa la
+(becas/config/segmento_form.html). Las cantidades llegan vacías: quien recibe carga lo que contó. Toda regla —alcance, remito en JPEG, estado— la decide `recibir_entrega`, la misma función que usa la
 app; lo que rechace vuelve a su campo. «Confirmar recepción» no se corrige después: pide confirmación en un modal cuyo
 pie envía este mismo formulario (`form_id`). El submit del formulario (botón o Enter en una cantidad) no envía:
 abre el modal si el navegador valida (`@submit` + `modalConfirmar`); con el modal abierto, el pie sí envía.{% endcomment %}
 <div x-data="{ modalConfirmar: false }">
 <div class="space-y-5">
   {% page_header titulo="Recibir entrega "|add:entrega.numero eyebrow=dispositivo.nombre volver_url=url_pendientes volver_label="las entregas del dispositivo" estado_texto=estado_texto estado_variante=estado_tono %}
-    {% bajada %}Revisá cada cantidad contra el remito y cambiá solo las que llegaron distintas. Después de confirmar, la recepción no se corrige.{% endbajada %}
+    {% bajada %}Contá lo que llegó de cada ítem y cargalo, aunque sea cero. Después de confirmar, la recepción no se corrige.{% endbajada %}
   {% endpage_header %}
 
   {% if entrega.observacion_mesa %}

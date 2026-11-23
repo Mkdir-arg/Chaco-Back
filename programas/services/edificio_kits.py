@@ -80,7 +80,7 @@ def _fila(entrega, url_pagina):
         "recibio": selectores.nombre_de(entrega.recibida_por),
         "diferencia": _diferencia(entrega, lineas),
         "recibe": entrega.abierta,
-        "url": f"{url_pagina}?tab=kits&entrega={entrega.pk}",
+        "url": servicio.url_de_kits_del_edificio(url_pagina, entrega),
     }
 
 
@@ -162,7 +162,7 @@ def contexto_del_detalle(dispositivo, edificio, usuario, entrega_pk, url_pagina)
         "estado_tono": tono,
         "detalle": detalle,
         "posicion": f"Entrega {posicion['antes'] + 1} de {posicion['total']} de este edificio",
-        "url_lista": f"{url_pagina}?tab=kits",
+        "url_lista": servicio.url_de_kits_del_edificio(url_pagina),
         "recibe": entrega.abierta,
         "recibida_ok": recibida,
     }
