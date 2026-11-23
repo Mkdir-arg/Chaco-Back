@@ -572,8 +572,8 @@ def crear_caso(
     ``relevado_en`` es la hora del teléfono al tocar «Enviar» (la única hora del cliente
     que se guarda, RU-18); sin ella, la del servidor.
 
-    **Una familia, un caso abierto** (Cambio 579, decisión 5). Después de resolver al responsable y con el
-    candado del numerador puesto, busca el caso no cerrado de la familia
+    **Una familia, un caso abierto** (Cambio 579, decisión 5). Con el candado del numerador puesto
+    (antes de dar de alta al responsable) y el responsable resuelto, busca el caso no cerrado de la familia
     (:func:`~programas.services.emergencia_familia.caso_abierto_de_la_familia`). Si existe:
 
     * por defecto, :class:`CasoAbiertoDeLaFamilia` (nada se crea);
@@ -599,6 +599,18 @@ def crear_caso(
 
     limpio = _validar_formulario1(datos_formulario1)
     ahora = timezone.now()
+    # Una familia, un caso abierto. El candado del numerador serializa toda alta y va ANTES de dar de alta al
+    # responsable: quien llega segundo espera al commit del primero y lo ve (READ COMMITTED). Sin él, dos ingresos
+    # a la vez abrirían dos casos. Y antes del alta de la persona, porque el INSERT del legajo deja un candado S
+    # sobre el final del índice de ``dni`` (REPEATABLE READ en el motor real) que frena el INSERT de otra
+    # familia: dos familias distintas se esperaban ahí, no en el numerador.
+    numerador = serializar_altas(ahora)
+    if uuid_cliente is not None:
+        # El mismo envío llegó dos veces a la vez: la búsqueda de arriba no vio nada porque el otro no había
+        # commiteado. Con el candado puesto sí lo ve, y no se suma al caso que ese envío acaba de crear.
+        existente = _caso_de_ese_envio(uuid_cliente, usuario)
+        if existente is not None:
+            return existente
     try:
         responsable, identidad_declarada = _responsable(datos_formulario1, limpio)
     except DniRegistrado:
@@ -618,15 +630,6 @@ def crear_caso(
     )
     nace_tomado = origen == Origen.MESA
 
-    # Una familia, un caso abierto. El candado del numerador serializa toda alta: quien llega segundo espera al
-    # commit del primero y lo ve (READ COMMITTED). Sin él, dos ingresos a la vez abrirían dos casos.
-    numerador = serializar_altas(ahora)
-    if uuid_cliente is not None:
-        # El mismo envío llegó dos veces a la vez: la búsqueda de arriba no vio nada porque el otro no había
-        # commiteado. Con el candado puesto sí lo ve, y no se suma al caso que ese envío acaba de crear.
-        existente = _caso_de_ese_envio(uuid_cliente, usuario)
-        if existente is not None:
-            return existente
     abierto = caso_abierto_de_la_familia(responsable)
     if abierto is None and uuid_cliente is not None and devolver_existente:
         # El envío se sumó a un caso que después se cerró: su reenvío no abre otro caso.
