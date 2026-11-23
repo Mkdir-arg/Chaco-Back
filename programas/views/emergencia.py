@@ -278,15 +278,17 @@ def _panel_de_la_ficha(request, caso):
     return panel, confirmacion
 
 
-def contexto_de_ficha(request, caso, *, atados=None, modal=None):
+def contexto_de_ficha(request, caso, *, atados=None, modal=None, solapa=None):
     """El contexto de la ficha (E3): lo arman el GET y la vuelta de una acción que falló.
 
     ``atados`` pone formularios ya enlazados (con lo que se mandó y sus errores) en lugar de los
     vacíos y ``modal`` dice cuál modal abre la página, para no perder lo escrito cuando una acción
-    falla (Cambio 533).
+    falla (Cambio 533). ``solapa`` es la que tiene que quedar a la vista cuando el formulario que
+    falló vive en una (el de contactos); sin ella manda ``?tab=`` y, si no vino, la primera (Cambio 589).
     """
 
     contexto = mesa.ficha_de_caso(caso, request.user, sla_vigente(), timezone.now())
+    contexto["solapa"] = mesa.solapa_de_la_ficha(solapa or request.GET.get("tab"))
     contexto["url_ficha"] = _url_ficha(caso)
     if contexto["duplicado"]:
         contexto["duplicado"]["url"] = reverse("emergencia:caso_detalle", args=[contexto["duplicado"]["pk"]])
@@ -343,6 +345,8 @@ class _AccionDeCasoView(MesaPermissionMixin, View):
     clave_form = None
     auto_id = None
     modal = None
+    #: La solapa de la ficha donde vive el formulario, para que un error la deje a la vista (Cambio 589).
+    solapa = None
 
     def destino(self, caso):
         return _url_ficha(caso)
@@ -356,7 +360,9 @@ class _AccionDeCasoView(MesaPermissionMixin, View):
         """
 
         caso = get_object_or_404(mesa.casos_para_ficha(), pk=caso.pk)
-        contexto = contexto_de_ficha(request, caso, atados={self.clave_form: form}, modal=self.modal)
+        contexto = contexto_de_ficha(
+            request, caso, atados={self.clave_form: form}, modal=self.modal, solapa=self.solapa
+        )
         if self.clave_form not in contexto:
             messages.error(request, _errores_de(form))
             return redirect(_url_ficha(caso))
@@ -441,6 +447,10 @@ class ContactoCasoView(_AccionDeCasoView):
     form_class = ContactoCasoForm
     clave_form = "form_contacto"
     auto_id = "contacto_%s"
+    solapa = "contactos"
+
+    def destino(self, caso):
+        return _url_ficha(caso, tab=self.solapa)
 
     def ejecutar(self, request, caso, form):
         servicio.registrar_contacto(caso, request.user, **form.cleaned_data)
