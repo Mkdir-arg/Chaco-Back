@@ -156,6 +156,14 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+- **Marca «Emergencia · Caso N» (Cambio 575):** la persona alojada por un caso de Emergencia lleva `badge badge-brand`
+  «Emergencia» y el número de caso, dibujados por el parcial `_marca_emergencia.html` (de `dispositivos/`) (no es pieza del
+  inventario) en la solapa Personas alojadas de P4 (`legajo/detail.html`), en la solapa Estadías de la página del edificio
+  y en el encabezado de P7. La vista deja `estadia.marca_emergencia` (una consulta por lista, `selectors/estadia_origen_emergencia.py`):
+  el número enlaza al caso solo con `emergencia.operar` o `supervisar`, y «· Familia <apellido>» (también en el `title`)
+  solo con `ciudadano.ver`; sin esa capacidad el apellido no llega al HTML. Los filtros de esas solapas salen de
+  `pildoras_de_estadias` (`services/detalle_dispositivo.py`): «Origen: Emergencia / Todas» es opt-in (`origen`) y solo lo
+  pide la página del edificio.
   El menú «Más acciones» de P4 suma «Emergencia · Kits» (ítem con `url`) solo si la vista manda `url_kits_emergencia`: quien tiene `emergencia.recibir_kit` en el Equipo de ese dispositivo.
   Las acciones del encabezado de P4 salen de banderas que arma la vista, no de un `{% if %}` sobre el estado: «Editar» (`puede_editar`) y «Enviar a validación» (`puede_enviar_validacion`, desde borrador, observado o rechazado con `dispositivo.editar`).
   El menú «Más acciones» de P4 lleva además el ítem de navegación «Emergencia · Llegadas»: la vista manda `url_llegadas_emergencia` solo a quien tiene `dispositivo.admitir` con alcance —lo que exige esa pantalla— y sin la URL el ítem no se dibuja.

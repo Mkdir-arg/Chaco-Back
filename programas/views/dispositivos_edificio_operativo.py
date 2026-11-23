@@ -32,6 +32,7 @@ from programas.services.edificio_operativo import (
     q_estadias_del_edificio,
 )
 from programas.services.edificio_operativo_edilicio import contexto_edilicio
+from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ingreso import maneja_plazas
 
 
@@ -144,7 +145,13 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         request = self.request
         get = request.GET
         datos = estadias_del_edificio(
-            user, dispositivo, edificio, get.get("estado", ""), get.get("sector", ""), get.get("estadias_page")
+            user,
+            dispositivo,
+            edificio,
+            get.get("estado", ""),
+            get.get("sector", ""),
+            get.get("estadias_page"),
+            get.get("origen", ""),
         )
         estadias = datos["estadias"]
         mapa_de_ingreso = datos["mapa_de_ingreso"]
@@ -157,6 +164,7 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
             puede_egresar=datos["puede_egresar"],
             con_plazas=maneja_plazas(dispositivo),
             plazas_elegibles=lambda: mapa_de_ingreso()[1],
+            puede_abrir_caso=lambda: puede_operar_la_mesa(user),
         )
         contexto = {
             "estadias": estadias,

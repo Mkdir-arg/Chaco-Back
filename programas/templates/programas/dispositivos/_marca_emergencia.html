@@ -1,0 +1,7 @@
+{# Marca «Emergencia · Caso N» de una estadía que nació de un caso de Emergencia (Cambio 575). `marca` viene de `marca_emergencia`: el número enlaza al caso solo con `marca.url` y la familia solo llega con `ciudadano.ver`. #}
+{% if marca %}
+<span class="inline-flex items-center gap-1.5 flex-wrap" title="{{ marca.titulo }}">
+  <span class="badge badge-brand">Emergencia</span>
+  <span class="text-xs text-body-subtle">{% if marca.url %}<a href="{{ marca.url }}" class="text-fg-brand hover:underline">Caso {{ marca.numero }}</a>{% else %}Caso {{ marca.numero }}{% endif %}{% if marca.familia %} · {{ marca.familia }}{% endif %}</span>
+</span>
+{% endif %}
