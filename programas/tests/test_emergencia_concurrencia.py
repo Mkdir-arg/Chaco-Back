@@ -53,7 +53,7 @@ from programas.models import (
     TrazaCaso,
 )
 from programas.services import emergencia as servicio
-from programas.services.emergencia import CasoTomadoPorOtro, EstadoCambio
+from programas.services.emergencia import CasoAbiertoDeLaFamilia, CasoTomadoPorOtro, EstadoCambio
 from programas.tests.test_dispositivos_concurrencia import _permiso, en_paralelo, punto_critico
 from users.models import RolMeta
 
@@ -274,3 +274,35 @@ class CarreraDelNumeradorTests(_BaseCarreraEmergencia):
         self.assertEqual(CasoEmergencia.objects.count(), 2)
         self.assertEqual(GrupoFamiliar.objects.count(), 2)
         self.assertEqual(NumeradorEmergencia.objects.get(serie="C", anio=2026).ultimo, 2)
+
+
+@tag("mysql")
+class CarreraDeUnaFamiliaTests(_BaseCarreraEmergencia):
+    """Cambio 579: dos altas de la misma familia a la vez abren **un** caso y el otro recibe el error de dominio.
+
+    No hay ``UniqueConstraint`` condicional (MySQL y MariaDB lo ignoran): el que decide es el candado del
+    numerador, que ``crear_caso`` toma antes de buscar el caso abierto.
+    """
+
+    def _crear(self, datos, uuid_cliente=None):
+        def operacion():
+            return servicio.crear_caso(
+                usuario=self._fresco(self.agente),
+                origen=CasoEmergencia.Origen.TERRITORIO,
+                datos_formulario1=datos,
+                uuid_cliente=uuid_cliente,
+            )
+
+        return operacion
+
+    def test_dos_altas_de_la_misma_familia_a_la_vez_abren_un_solo_caso(self):
+        datos = self._datos()
+        Ciudadano.objects.create(dni=datos["dni"], nombre=datos["nombre"], apellido=datos["apellido"])
+
+        resultados, errores = en_paralelo(
+            self._crear(datos, uuid.uuid4()), self._crear(datos, uuid.uuid4()), punto_a=NUMERADOR_BLOQUEADO
+        )
+
+        self.assertEqual(len(resultados), 1, f"resultados={resultados!r} errores={errores!r}")
+        self._un_error(errores, CasoAbiertoDeLaFamilia)
+        self.assertEqual(CasoEmergencia.objects.count(), 2, "el caso de setUp y uno solo de la familia")

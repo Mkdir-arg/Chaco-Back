@@ -5837,8 +5837,15 @@ class CasoEmergencia(TimeStamped):
     SITUACION_ALOJAMIENTO = "alojamiento"  # sección 4 del Formulario 1 (M2-5)
     SITUACION_DIFERENCIA = "diferencia"  # motivo del cierre con diferencia (RN-3.9)
     SITUACION_EN_LA_PUERTA = "en_la_puerta_de"  # «Avisar a la mesa» (M2-6)
+    #: La familia llegó a un dispositivo y la guardia canceló la derivación pendiente a otro (Cambio 579): el caso
+    #: ya había sido derivado (``derivado_en`` no se borra), pero vuelve a estar «en la puerta» hasta que la mesa
+    #: lo derive de nuevo.
+    SITUACION_EN_LA_PUERTA_TRAS_DERIVAR = "en_la_puerta_tras_derivar"
     #: Lo que declaró quien cargó cuando el DNI ya era de otra persona registrada (Cambio 486).
     SITUACION_IDENTIDAD_A_REVISAR = "identidad_a_revisar"
+    #: Los ``uuid_cliente`` de los envíos que se **sumaron** a este caso en vez de abrir otro (Cambio 579): un
+    #: reenvío del mismo envío no vuelve a ejecutar nada. Lista de ``{"uuid": str, "usuario_id": int}``.
+    SITUACION_ENVIOS_SUMADOS = "envios_sumados"
     #: Quién, cuándo y con qué observación la mesa revisó esa identidad (Cambio 486).
     SITUACION_IDENTIDAD_REVISADA = "identidad_revisada"
 
@@ -5979,21 +5986,38 @@ class CasoEmergencia(TimeStamped):
 
         «Avisar a la mesa» deja ``en_la_puerta`` en ``situacion`` para siempre; la familia sigue
         en la puerta mientras el caso está abierto y la mesa **nunca** lo derivó: tomarlo no la
-        saca, derivarlo sí, y una derivación cancelada no la devuelve. Es la regla única de la
+        saca, derivarlo sí, y una derivación cancelada no la devuelve **salvo** la que la guardia canceló porque
+        la familia llegó a su dispositivo (``en_la_puerta_tras_derivar``, Cambio 579). Es la regla única de la
         marca de E2, el aviso de E3 y el del tablero E1; en SQL, :meth:`q_esperando_en_la_puerta`.
         """
 
         en_la_puerta = self.en_la_puerta
-        if not en_la_puerta or not self.abierto or self.derivado_en is not None:
+        if not en_la_puerta or not self.abierto:
+            return ""
+        if self.derivado_en is not None and not self._en_la_puerta_tras_derivar:
             return ""
         return en_la_puerta.get("dispositivo") or "un dispositivo"
+
+    @property
+    def _en_la_puerta_tras_derivar(self):
+        """La marca de Cambio 579: vale solo mientras el caso está en la mesa (``NUEVO`` o ``EN_GESTION``)."""
+
+        return bool((self.situacion or {}).get(self.SITUACION_EN_LA_PUERTA_TRAS_DERIVAR)) and self.estado in (
+            self.Estado.NUEVO,
+            self.Estado.EN_GESTION,
+        )
 
     @classmethod
     def q_esperando_en_la_puerta(cls):
         """El filtro de :attr:`esperando_en_la_puerta` en SQL (``has_key`` anda en SQLite, MySQL y MariaDB)."""
 
-        return ~models.Q(estado=cls.Estado.CERRADO) & models.Q(
-            derivado_en__isnull=True, situacion__has_key=cls.SITUACION_EN_LA_PUERTA
+        return ~models.Q(estado=cls.Estado.CERRADO) & (
+            models.Q(derivado_en__isnull=True, situacion__has_key=cls.SITUACION_EN_LA_PUERTA)
+            | models.Q(
+                estado__in=(cls.Estado.NUEVO, cls.Estado.EN_GESTION),
+                situacion__has_key=cls.SITUACION_EN_LA_PUERTA,
+            )
+            & models.Q(situacion__has_key=cls.SITUACION_EN_LA_PUERTA_TRAS_DERIVAR)
         )
 
     @property
@@ -6376,6 +6400,10 @@ class TrazaCaso(models.Model):
         AVISO_A_LA_MESA = "AVISO_A_LA_MESA", "Aviso a la mesa desde el dispositivo"
         INTEGRANTE_EGRESADO = "INTEGRANTE_EGRESADO", "Egreso de un integrante"
         CERRADO_POR_EGRESO = "CERRADO_POR_EGRESO", "Cerrado: todos egresados"
+        # Cambio 579 · una familia, un caso abierto: lo que se suma al caso en vez de abrir otro.
+        RELEVAMIENTO_REPETIDO = "RELEVAMIENTO_REPETIDO", "Familia relevada de nuevo en territorio"
+        PERSONAS_SUMADAS = "PERSONAS_SUMADAS", "Personas sumadas a la familia alojada"
+        CASO_NUEVO_DE_LA_FAMILIA = "CASO_NUEVO_DE_LA_FAMILIA", "La mesa abrió otro caso para la misma familia"
 
     caso = models.ForeignKey(
         CasoEmergencia,

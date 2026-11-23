@@ -240,18 +240,37 @@ class AlcancePorHttpTests(BaseLlegadas):
         self.assertEqual(self._estado(caso), Estado.INGRESO_EN_CURSO)
         self.assertFalse(Estadia.objects.exists())
 
-    def test_buscar_una_familia_derivada_a_otro_dispositivo_no_lo_nombra(self):
-        """RU §6 n.° 2, por pantalla."""
+    def test_buscar_una_familia_con_derivacion_pendiente_a_otro_dispositivo_abre_el_modal_del_caso(self):
+        """RU §6 n.° 2, por pantalla, tras el Cambio 579.
+
+        La búsqueda ya no calla que la familia tiene caso: el modal «Esta familia ya tiene un caso abierto» dice
+        que está en otra institución, **sin nombrarla** (decisión del PM, 23-nov: RU-9 vale también con la derivación pendiente). Lo que la
+        guardia nunca ve desde acá es la derivación para aceptarla.
+        """
 
         self._derivado(dispositivo=self.escuela)
 
         respuesta = self.client.get(self._url("llegadas"), {"dni": "30111222"})
 
-        self.assertContains(respuesta, "No hay una derivación para este DNI en tu dispositivo.")
-        self.assertNotContains(respuesta, "Escuela")
-        self.assertNotContains(respuesta, "Aceptar y reservar camas")
-        self.assertContains(respuesta, "Ingresar igual")
+        self.assertContains(respuesta, "Esta familia ya tiene un caso abierto")
+        self.assertContains(respuesta, "Ingresar con este caso")
         self.assertContains(respuesta, "Avisar a la mesa")
+        self.assertContains(respuesta, "Otra institución")
+        self.assertNotContains(respuesta, "Escuela 12")
+        self.assertNotContains(respuesta, "Aceptar y reservar camas")
+
+    def test_buscar_una_familia_ya_aceptada_por_otro_dispositivo_no_lo_nombra(self):
+        """RU §6 n.° 2: con la derivación aceptada, quien no es de esa institución no se entera de dónde está."""
+
+        _caso, de_la_escuela = self._derivado(dispositivo=self.escuela)
+        servicio.aceptar_derivacion(derivacion=de_la_escuela, usuario=self.guardia_escuela)
+
+        respuesta = self.client.get(self._url("llegadas"), {"dni": "30111222"})
+
+        self.assertContains(respuesta, "Desde acá no se puede ingresar ni avisar")
+        self.assertNotContains(respuesta, "Escuela 12")
+        self.assertNotContains(respuesta, "Ingresar con este caso")
+        self.assertNotContains(respuesta, "Aceptar y reservar camas")
 
     def test_la_lista_pide_ver_una_derivacion_de_otro_dispositivo_y_no_la_muestra(self):
         _caso, de_la_escuela = self._derivado(dispositivo=self.escuela)

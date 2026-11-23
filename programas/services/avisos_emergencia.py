@@ -378,13 +378,18 @@ def familias_en_la_puerta(sla, ahora, usuario=None, foto=None):
 
     La regla es ``CasoEmergencia.esperando_en_la_puerta`` —caso abierto y **nunca** derivado—,
     la misma de la marca de E2 y el aviso de E3: tomar el caso no apaga el aviso, derivarlo sí,
-    y cancelar esa derivación no lo vuelve a encender. **0 consultas** si en la foto no hay
-    ningún caso abierto sin derivar; si hay, 1 (``q_esperando_en_la_puerta``, que filtra la
+    y cancelar esa derivación no lo vuelve a encender, salvo la que se canceló porque la familia llegó a un
+    dispositivo (Cambio 579): ese caso ya fue derivado y está en la mesa otra vez, en la puerta. **0 consultas**
+    si en la foto no hay ningún caso abierto sin derivar ni en la mesa tras una derivación; si hay, 1 (``q_esperando_en_la_puerta``, que filtra la
     clave de ``situacion`` en la base y trae el JSON solo de esos casos).
     """
 
     foto = tablero.asegurar_foto(sla, ahora, foto)
-    sin_derivar = [caso for caso in foto.abiertos if caso.derivado_en is None]
+    # ``derivado_en`` no se borra al cancelar la derivación por la llegada: un caso en la mesa (NUEVO o
+    # EN_GESTION) puede estar «en la puerta» aunque ya lo hayan derivado una vez.
+    sin_derivar = [
+        caso for caso in foto.abiertos if caso.derivado_en is None or caso.estado in (Estado.NUEVO, Estado.EN_GESTION)
+    ]
     if not sin_derivar:
         return []
     donde = {

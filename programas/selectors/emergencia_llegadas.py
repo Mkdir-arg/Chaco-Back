@@ -222,3 +222,26 @@ def fotos_del_caso(caso):
         }
         for adjunto in AdjuntoCaso.objects.filter(caso=caso)
     ]
+
+
+def que_pasa_si_se_ingresa(caso_abierto):
+    """Las líneas de «Si la ingresás acá» del modal «Esta familia ya tiene un caso abierto» (Cambio 579).
+
+    ``caso_abierto`` es el resumen de :func:`~programas.services.emergencia_familia.resumen_del_caso_abierto`.
+    Es lo que el servicio hace de verdad con cada estado (``_ingresar_en_el_caso_abierto``): un texto que
+    prometa otra cosa engañaría a la guardia.
+    """
+
+    numero = caso_abierto["numero"]
+    if caso_abierto["estado"] == "ALOJADO":
+        return [
+            f"Las personas que llegaron se suman al mismo caso {numero}, sin abrir otro.",
+            "El ingreso vuelve a estar en curso para que confirmes a las que faltan.",
+        ]
+    lineas = [f"Se usa el mismo caso {numero}, con las personas ya cargadas."]
+    if caso_abierto["estado"] == "DERIVADO":
+        # Se decide por el estado, no por el nombre: si no se nombra a la institución (RU-9) el aviso igual va.
+        destino = caso_abierto["derivada_a"] or "otra institución"
+        lineas.append(f"La derivación a {destino} se cancela sola y no les quedan camas reservadas.")
+    lineas.append("La mesa recibe el aviso del cambio.")
+    return lineas

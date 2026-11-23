@@ -121,6 +121,24 @@ def emergencia():
                 reverse("emergencia_api:dispositivo-buscar", args=[grande.pk]) + f"?dni={estadia.ciudadano.dni}",
             )
         )
+    # Una persona del padrón que no está en ningún caso: la búsqueda recorre el camino de «una familia, un caso
+    # abierto» (Cambio 579) hasta el final y no encuentra nada. Es el costo que paga cada DNI que llega a la puerta.
+    from legajos.models import Ciudadano
+    from programas.models import GrupoFamiliar, IntegranteGrupo
+
+    for sin_caso in Ciudadano.objects.order_by("pk")[:300]:
+        if (
+            not GrupoFamiliar.objects.filter(responsable_id=sin_caso.pk).exists()
+            and not IntegranteGrupo.objects.filter(ciudadano_id=sin_caso.pk).exists()
+        ):
+            rutas.append(
+                _t(
+                    "E-api_dispositivo_buscar_padron_sin_caso",
+                    "guardia_api",
+                    reverse("emergencia_api:dispositivo-buscar", args=[grande.pk]) + f"?dni={sin_caso.dni}",
+                )
+            )
+            break
     entrega = EntregaKit.objects.filter(dispositivo=grande, estado="EN_CAMINO").order_by("pk").first()
     if entrega:
         rutas.append(

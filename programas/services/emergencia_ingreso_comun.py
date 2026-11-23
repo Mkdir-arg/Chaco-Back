@@ -27,8 +27,8 @@ from programas.models import (
 from programas.services.bitacora import anotar_novedad_automatica
 from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_edificio, puede_operar_institucion
 from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_comun import _bloquear_caso, _hora
-from programas.services.reservas_derivacion import reservar_plazas_de_derivacion
+from programas.services.emergencia_comun import _bloquear_caso, _hora, _trazar
+from programas.services.reservas_derivacion import liberar_reservas_de_derivacion, reservar_plazas_de_derivacion
 
 Estado = CasoEmergencia.Estado
 Origen = CasoEmergencia.Origen
@@ -380,3 +380,59 @@ def mensaje_otro_edificio(derivacion):
     edificio = derivacion.edificio
     donde = f"al edificio {edificio.nombre}" if edificio is not None else "a otro edificio"
     return f"La familia ya está derivada {donde} de este dispositivo. No la avises a la mesa."
+
+
+# ---------------------------------------------------------------------------
+# Una familia, un caso abierto (Cambio 579)
+# ---------------------------------------------------------------------------
+
+
+def cancelar_derivacion_por_llegada(*, caso, derivacion, dispositivo, usuario, en_la_puerta):
+    """Cancela la derivación **pendiente** a otra institución porque la familia llegó a ``dispositivo``.
+
+    Quien llama ya bloqueó el caso y la derivación (en ese orden). Una pendiente no reserva camas
+    —las reserva quien acepta—, pero se pide igual que se liberen las que hubiera: es idempotente y deja a
+    la familia sin camas a nombre de la institución a la que ya no va. La derivación queda ``CANCELADA``
+    con el motivo, el caso vuelve a la mesa (``EN_GESTION`` con su dueño, o ``NUEVO``) y el historial lo
+    dice. Con ``en_la_puerta`` (el aviso) el caso queda marcado «En la puerta de …» para que la mesa lo vea
+    en la bandeja y en el tablero, aunque ya se hubiera derivado. Devuelve cuántas reservas liberó.
+    """
+
+    motivo = f"La familia llegó a {dispositivo.nombre}"[:200]
+    liberadas = liberar_reservas_de_derivacion(
+        derivacion=derivacion,
+        usuario=usuario,
+        motivo="Emergencia: la familia llegó a otro dispositivo.",
+        verificar_alcance=False,
+    )
+    derivacion.estado = Derivacion.Estado.CANCELADA
+    derivacion.motivo = motivo
+    derivacion.respondida_por = usuario
+    derivacion.respondida_en = timezone.now()
+    derivacion.save(update_fields=["estado", "motivo", "respondida_por", "respondida_en", "modificado"])
+    estado_anterior = caso.estado
+    _devolver_a_la_mesa(caso)
+    if en_la_puerta:
+        marcar_en_la_puerta(caso, dispositivo)
+    _trazar(
+        caso,
+        usuario,
+        Accion.DERIVACION_CANCELADA,
+        estado_anterior=estado_anterior,
+        detalle=f"Derivación a {derivacion.dispositivo.nombre} cancelada: {motivo}",
+    )
+    return liberadas
+
+
+def marcar_en_la_puerta(caso, dispositivo):
+    """Deja el caso «En la puerta de X» (la marca del aviso a la mesa) y lo guarda."""
+
+    situacion = {
+        **caso.situacion,
+        CasoEmergencia.SITUACION_EN_LA_PUERTA: {"dispositivo_id": dispositivo.pk, "dispositivo": dispositivo.nombre},
+    }
+    if caso.estado in (Estado.NUEVO, Estado.EN_GESTION):
+        # Ya derivado alguna vez, o no: en la mesa, la familia está esperando en la puerta (modelo).
+        situacion[CasoEmergencia.SITUACION_EN_LA_PUERTA_TRAS_DERIVAR] = True
+    caso.situacion = situacion
+    caso.save(update_fields=["situacion", "modificado"])

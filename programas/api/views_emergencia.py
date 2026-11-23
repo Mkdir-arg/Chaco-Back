@@ -56,6 +56,7 @@ from programas.api.serializers import (
     SugerenciasPersonasSerializer,
 )
 from programas.api.serializers_emergencia import (
+    CasoAbiertoSerializer,
     CasoEmergenciaCreadoSerializer,
     CasoEmergenciaEnvioSerializer,
     LocalidadEmergenciaSerializer,
@@ -69,7 +70,7 @@ from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
 from programas.selectors.personas_sugeridas import sugerir_personas
 from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
-from programas.services.emergencia_alta import DniRegistrado
+from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegistrado
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     admite_familias,
@@ -217,6 +218,19 @@ def _respuesta_dni_registrado(error):
     return respuesta
 
 
+def _respuesta_caso_abierto(error):
+    """:class:`CasoAbiertoDeLaFamilia` → el 400 ``VALIDACION`` de siempre, más ``caso_abierto`` (Cambio 579).
+
+    La app en producción lo muestra como cualquier error de campo (``detail`` y ``dni`` dicen qué hacer); la
+    nueva lee ``caso_abierto`` para ofrecer «Ingresar con este caso» sin parsear el texto. Solo lleva lo que
+    el modal de la guardia muestra: número, familia, personas, estado y dónde está derivada.
+    """
+
+    respuesta = _respuesta_de_validacion(_errores(error))
+    respuesta.data["caso_abierto"] = CasoAbiertoSerializer(error.resumen).data
+    return respuesta
+
+
 def _creado_o_reenvio(repetido):
     return status.HTTP_200_OK if repetido else status.HTTP_201_CREATED
 
@@ -275,6 +289,8 @@ class _VistaDeCampo(APIView):
             return None, _respuesta_409(cambio)
         except UuidEnUso as error:
             return None, _respuesta_uuid_en_uso(error)
+        except CasoAbiertoDeLaFamilia as error:
+            return None, _respuesta_caso_abierto(error)
         except DniRegistrado as error:
             # El nombre de la persona sale de la cubeta de la consulta de identidad (SEC-25).
             espera = descontar_consulta_de_identidad(self.request)
@@ -421,7 +437,11 @@ class CasosEmergenciaView(_VistaDeCampo):
             201: CasoEmergenciaCreadoSerializer,
             200: OpenApiResponse(
                 response=CasoEmergenciaCreadoSerializer,
-                description="Reenvío: ese `uuid_cliente` ya había creado un caso y se devuelve el mismo.",
+                description=(
+                    "Reenvío: ese `uuid_cliente` ya había creado un caso y se devuelve el mismo. También cuando la "
+                    "familia ya tenía un caso abierto (Cambio 579): no se crea otro, vuelve el que estaba con "
+                    "`ya_tenia_caso: true` y el relevamiento queda en su historial."
+                ),
             ),
             400: OpenApiResponse(
                 description=(
@@ -457,6 +477,7 @@ class CasosEmergenciaView(_VistaDeCampo):
                 datos_formulario1=entrada.datos_formulario1(),
                 uuid_cliente=entrada.validated_data["uuid_cliente"],
                 relevado_en=entrada.validated_data["relevado_en"],
+                devolver_existente=True,
             ),
             # No debería llegar: el permiso de la vista pregunta lo mismo. Si llega, el
             # mismo cuerpo que da el permiso.
@@ -464,7 +485,11 @@ class CasosEmergenciaView(_VistaDeCampo):
         )
         if respuesta is not None:
             return respuesta
-        return Response(CasoEmergenciaCreadoSerializer(caso).data, status=_creado_o_reenvio(caso.ya_existia))
+        # La familia que ya tenía caso abierto se contesta como un reenvío: 200 con el caso que ya estaba.
+        return Response(
+            CasoEmergenciaCreadoSerializer(caso).data,
+            status=_creado_o_reenvio(caso.ya_existia or caso.familia_ya_tenia_caso),
+        )
 
 
 class MisCasosEmergenciaView(_VistaDeCampo):

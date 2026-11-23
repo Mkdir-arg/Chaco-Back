@@ -37,6 +37,12 @@ urlpatterns = [
     path(f"{CASO}diferencia/", llegadas.CerrarConDiferenciaView.as_view(), name="emergencia_diferencia"),
     path(f"{CASO}cancelar/", llegadas.CancelarIngresoView.as_view(), name="emergencia_cancelar"),
     path(f"{BASE}avisar/", llegadas.AvisarALaMesaView.as_view(), name="emergencia_avisar"),
+    path(
+        f"{BASE}ingresar-con-caso/",
+        llegadas.IngresarConCasoAbiertoView.as_view(),
+        name="emergencia_ingresar_con_caso",
+    ),
+    path(f"{BASE}avisar-con-caso/", llegadas.AvisarConCasoAbiertoView.as_view(), name="emergencia_avisar_con_caso"),
     # Ingreso directo (decisión 4 del PM): al final y en su propia vista, para poder sacarlo solo.
     path(f"{BASE}ingreso-directo/", llegadas.IngresoDirectoView.as_view(), name="emergencia_ingreso_directo"),
 ]

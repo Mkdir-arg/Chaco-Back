@@ -51,9 +51,11 @@ text-heading` (envuelto junto al subtítulo en `flex-1 min-w-0`) y la X
 | `accion_tono` | `brand` (por defecto) o `danger` |
 | `form_id` | Apunta con `form=` a un `<form>` de afuera del pie |
 | `secundario_texto`, `secundario_nombre`, `secundario_valor` | Segundo envío opcional (`btn-secondary`) antes de la acción, p. ej. «Guardar y cargar otro»; sin `secundario_texto` el pie no cambia |
+| `secundario_icono` · `secundario_form_id` | Ícono de esa segunda acción y el `<form>` de afuera del pie al que apunta con `form=` (si falta, usa `form_id`). Es lo que usa el modal con dos salidas (`Esta familia ya tiene un caso abierto`, `emergencia/dispositivo/llegadas.html`: «Avisar a la mesa» e «Ingresar con este caso») |
 
 Render: `flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary`, Cancelar
-`btn-nodo btn-tertiary btn-base` y acción `btn-nodo btn-brand btn-base` (o `btn-danger`).
+`btn-nodo btn-tertiary btn-base`, la secundaria opcional `btn-nodo btn-secondary btn-base` y la acción
+`btn-nodo btn-brand btn-base` (o `btn-danger`).
 
 ## `x-becas-modal` (comportamiento)
 

@@ -2,6 +2,7 @@
 
 from .ciudadanos import (  # noqa: F401
     build_ciudadano_detail_context,
+    get_ciudadano_unico_de_busqueda,
     get_ciudadanos_dashboard_metrics,
     get_ciudadanos_queryset,
 )
