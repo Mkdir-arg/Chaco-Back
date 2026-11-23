@@ -72,11 +72,11 @@ toast local por módulo (nada de `becasToast`), y los templates hijos **no** rep
 
 ```django
 {% include "components/_form_errores.html" %}
-{% include "components/_aviso_errores.html" %}
-{% include "components/_aviso_errores.html" with form=form_domicilio %}
+{% include "components/_aviso_errores.html" %}                              {# uno u otro: un solo include por página #}
+{% include "components/_aviso_errores.html" with form=form_domicilio %}  {# alternativa si el form no es el `form` del contexto #}
 ```
 
-- Va después de `_form_errores.html`. **Suma** al error debajo de cada campo y al bloque de arriba; no los
+- Los dos ejemplos son **alternativas**: un solo include por página (el id `aviso-errores` es fijo). Va después de `_form_errores.html`. **Suma** al error debajo de cada campo y al bloque de arriba; no los
   reemplaza. Sin JS, la pantalla queda como antes.
 - `form` por contexto. Sin errores (sin bindear, válido o ausente) no dibuja nada. Un ítem por mensaje:
   «Etiqueta: mensaje» enlazado a `#<id del control>`; el error del conjunto va solo con el mensaje y sin enlace.

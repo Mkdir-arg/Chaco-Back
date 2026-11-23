@@ -75,8 +75,10 @@ function __botones(t) { return t.children.filter(function (c) { return c.classLi
 """
 
 
-def _correr(cuerpo):
-    programa = _DOM + TOAST_JS.read_text(encoding="utf-8") + "\n" + cuerpo + "\nconsole.log(JSON.stringify(R));"
+def _correr(cuerpo, antes=""):
+    programa = (
+        _DOM + antes + "\n" + TOAST_JS.read_text(encoding="utf-8") + "\n" + cuerpo + "\nconsole.log(JSON.stringify(R));"
+    )
     p = subprocess.run([NODE, "-"], input=programa, capture_output=True, text=True, encoding="utf-8", timeout=30)
     if p.returncode != 0:
         raise AssertionError(f"node falló:\n{p.stderr}")
@@ -401,3 +403,92 @@ R.conModal = body.style.paddingBottom;"""
         )
         self.assertEqual(r["antes"], "74px")
         self.assertEqual(r["conModal"], "")
+
+
+@requiere_node
+class ToastConListaTest(SimpleTestCase):
+    """`opts.items` (aviso con la lista de errores de un form) sobre el nodo-toast.js real."""
+
+    ITEMS = "[{texto: 'Nombre: Falta.', href: '#id_nombre'}, {texto: 'Error del conjunto.', href: ''}]"
+
+    def test_el_aviso_con_lista_persiste_y_dibuja_la_lista(self):
+        r = _correr(
+            f"""
+var t = toast.error('', {{title: 'No se guardó: hay 2 cosas para corregir', items: {self.ITEMS}}});
+var lista = t.all().filter(function (e) {{ return e.classList.contains('toast__lista'); }})[0];
+var R = {{barra: t.querySelector('.toast__progress') !== null, hayLista: !!lista, tag: lista && lista.tag,
+         largos: __timers.filter(function (x) {{ return x.ms > 500; }}).length,
+         role: t.getAttribute('role'),
+         enlaces: t.all().filter(function (e) {{ return e.tag === 'a'; }}).map(function (a) {{ return a.getAttribute('href'); }}),
+         items: lista.children.map(function (li) {{ return li.children.length ? li.children[0].textContent : li.textContent; }})}};
+__terminarBarras(); __remover();
+R.vivos = __vivos().length;"""
+        )
+        self.assertFalse(r["barra"])
+        self.assertEqual((r["hayLista"], r["tag"], r["largos"], r["vivos"]), (True, "ul", 0, 1))
+        self.assertEqual(r["role"], "alert")
+        self.assertEqual(r["enlaces"], ["#id_nombre"])
+        self.assertEqual(r["items"], ["Nombre: Falta.", "Error del conjunto."])
+
+    def test_un_aviso_con_lista_persiste_aunque_no_sea_de_tipo_error(self):
+        r = _correr(
+            f"""
+var t = toast.warning('', {{title: 'Revisá', items: {self.ITEMS}}});
+var R = {{barra: t.querySelector('.toast__progress') !== null}};
+__terminarBarras(); __remover();
+R.vivos = __vivos().length;"""
+        )
+        self.assertEqual((r["barra"], r["vivos"]), (False, 1))
+
+    def test_un_href_que_no_es_un_ancla_se_dibuja_como_texto(self):
+        r = _correr(
+            """
+var t = toast.error('', {items: [{texto: 'Peligro', href: 'javascript:alert(1)'},
+                                 {texto: 'Otro', href: '#a b'}, {texto: 'Ok', href: '#id_ok'}]});
+var R = {enlaces: t.all().filter(function (e) { return e.tag === 'a'; }).map(function (a) { return a.getAttribute('href'); }),
+         textos: t.all().filter(function (e) { return e.tag === 'li'; }).map(function (li) {
+           return li.children.length ? li.children[0].textContent : li.textContent; })};"""
+        )
+        self.assertEqual(r["enlaces"], ["#id_ok"])
+        self.assertEqual(r["textos"], ["Peligro", "Otro", "Ok"])
+
+    def test_dos_avisos_iguales_no_se_apilan(self):
+        r = _correr(
+            f"""
+toast.error('', {{title: 'T', items: {self.ITEMS}}});
+toast.error('', {{title: 'T', items: {self.ITEMS}}});
+var R = {{vivos: __vivos().length}};
+toast.error('', {{title: 'T', items: [{{texto: 'Distinto', href: ''}}]}});
+R.conOtro = __vivos().length;"""
+        )
+        self.assertEqual((r["vivos"], r["conOtro"]), (1, 2))
+
+    def test_sin_mensaje_ni_lista_no_abre_nada(self):
+        r = _correr("var R = {t: toast.error('', {items: []}) === null};")
+        self.assertTrue(r["t"])
+
+    def test_el_json_script_abre_un_unico_aviso_al_cargar_y_enfoca_el_primer_control(self):
+        antes = """
+var nodo = new El('script'); nodo.id = 'aviso-errores';
+nodo.textContent = JSON.stringify({titulo: 'No se guardó: hay 2 cosas para corregir',
+  items: [{texto: 'Etiqueta: <b>x</b>', href: '#id_a'}, {texto: 'Otro', href: '#id_b'}]});
+body.appendChild(nodo);
+var a = new El('input'); a.id = 'id_a'; body.appendChild(a);
+var b = new El('input'); b.id = 'id_b'; body.appendChild(b);"""
+        r = _correr(
+            """
+var t = __vivos()[0];
+var R = {vivos: __vivos().length,
+         titulo: t.querySelector('.toast__title').textContent,
+         primero: t.all().filter(function (e) { return e.tag === 'a'; })[0].textContent,
+         foco: document.activeElement && document.activeElement.id};""",
+            antes,
+        )
+        self.assertEqual(r["vivos"], 1)
+        self.assertEqual(r["titulo"], "No se guardó: hay 2 cosas para corregir")
+        self.assertEqual(r["primero"], "Etiqueta: <b>x</b>")
+        self.assertEqual(r["foco"], "id_a")
+
+    def test_sin_json_script_no_hay_aviso(self):
+        r = _correr("var R = {hay: document.getElementById('toast-container') !== null};")
+        self.assertFalse(r["hay"])

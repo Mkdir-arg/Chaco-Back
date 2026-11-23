@@ -2528,7 +2528,6 @@ class IndiceSeccionesTest(SimpleTestCase):
 
 
 AVISO_ERRORES = "components/_aviso_errores.html"
-NODO_TOAST_JS = Path(__file__).resolve().parents[2] / "static/custom/js/nodo-toast.js"
 
 
 class AvisoErroresTest(SimpleTestCase):
@@ -2582,14 +2581,6 @@ class AvisoErroresTest(SimpleTestCase):
         self.assertNotIn("</script><img", html)
         self.assertNotIn("<img", html)
         self.assertEqual(aviso["items"][0]["texto"], "</script><img src=x onerror=alert(1)>")
-
-    def test_el_js_lee_el_mismo_id_y_pinta_con_textcontent(self):
-        js = NODO_TOAST_JS.read_text(encoding="utf-8")
-
-        self.assertIn("getElementById('aviso-errores')", js)
-        bloque = js[js.index("Lista opcional") : js.index("body.appendChild(lista)")]
-        self.assertIn("textContent", bloque)
-        self.assertNotIn("innerHTML", bloque)
 
     def test_un_campo_con_dos_errores_cuenta_dos_cosas_y_lista_dos_items(self):
         class DosReglas(forms.Form):

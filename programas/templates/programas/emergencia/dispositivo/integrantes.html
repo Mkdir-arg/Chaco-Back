@@ -53,7 +53,8 @@ cancelar el ingreso piden motivo y son el arquetipo Modal con POST clásico.{% e
                   data-confirm-url="{{ url_agregar }}"
                   data-confirm-title="¿Agregar una persona a la familia?"
                   data-confirm-text="Suma una fila que no estaba declarada. No tiene cama reservada: se elige entre las libres al confirmarla."
-                  data-confirm-ok="Sí, agregar"><i class="fas fa-user-plus" aria-hidden="true"></i> Agregar persona</button>
+                  data-confirm-ok="Sí, agregar"
+                  data-confirm-danger="false"><i class="fas fa-user-plus" aria-hidden="true"></i> Agregar persona</button>
           {% endif %}
           {% include "components/_contador_avance.html" with hechos=confirmadas total=total etiqueta="confirmadas" only %}
         </div>

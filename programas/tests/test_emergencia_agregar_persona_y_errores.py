@@ -55,6 +55,7 @@ class AgregarPersonaVisibleTests(vistas.BaseLlegadas):
         self.assertIn(f'data-confirm-url="{self._url("agregar", self.caso.pk)}"', boton.group(0))
         self.assertIn("btn-secondary", boton.group(0))
         self.assertIn('data-confirm-title="¿Agregar una persona a la familia?"', boton.group(0))
+        self.assertIn('data-confirm-danger="false"', boton.group(0))
         # En el encabezado de la sección Integrantes, antes del contador.
         self.assertLess(html.index("Agregar persona"), html.index("data-contador-avance"))
         self.assertGreater(html.index("Agregar persona"), html.index('id="ingreso-integrantes-titulo"'))
@@ -140,10 +141,12 @@ class AvisoDeErroresNuevoCasoTests(BaseMesa):
         self.assertIsNone(_aviso(self.client.get(URL_NUEVO)))
 
     def test_un_guardado_correcto_redirige_y_no_crea_aviso(self):
-        respuesta = self.client.post(URL_NUEVO, self._formulario1())
+        respuesta = self.client.post(URL_NUEVO, self._formulario1(), follow=True)
 
-        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(respuesta.redirect_chain[0][1], 302)
         self.assertEqual(CasoEmergencia.objects.count(), 1)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIsNone(_aviso(respuesta))
 
 
 class AvisoDeErroresPuertaTests(vistas.BaseLlegadas):
