@@ -23,12 +23,14 @@ Ingreso parcial sin revisar                    media      registrando un contact
                                                           después del ingreso (E3)
 Entrega con diferencias sin revisar            media      escribiendo la observación de la mesa
                                                           en E5
+Entrega demorada (más de 48 h en camino)       media      recibiéndola o cancelándola (no se
+                                                          cancela sola)
 =============================================  =========  =======================================
 
 Firma de cada regla: ``pendientes(sla, ahora, usuario=None, foto=None)``. ``ahora`` llega por
 parámetro (nada llama a ``now()``); ``foto`` es la de
 ``programas.selectors.emergencia_tablero.foto_del_tablero``, que la vista arma una vez para el
-tablero y sus avisos. Con la foto, las siete reglas suman **a lo sumo 1 consulta**: la de
+tablero y sus avisos. Con la foto, las ocho reglas suman **a lo sumo 1 consulta**: la de
 «en la puerta», solo si hay casos abiertos que nunca se derivaron (lee ``situacion`` para
 nombrar el dispositivo).
 
@@ -290,6 +292,41 @@ def entregas_con_diferencias_sin_revisar(sla, ahora, usuario=None, foto=None):
     )
 
 
+# --- Entrega demorada (más de 48 h en camino) ------------------------------------------
+
+
+def entregas_demoradas(sla, ahora, usuario=None, foto=None):
+    """En camino hace más de ``EntregaKit.HORAS_PARA_DEMORADA`` horas sin recibirse (Cambio 586).
+
+    Sin consultas con foto: ``entregas_demoradas`` sale de la misma consulta de entregas. No se cancelan solas: el
+    aviso se apaga cuando el dispositivo las recibe o la mesa las cancela.
+    """
+
+    entregas = tablero.asegurar_foto(sla, ahora, foto).entregas_demoradas
+    avisos = []
+    for entrega in entregas[:TOPE_POR_REGLA]:
+        enlace, accion = _enlace(usuario, _url_entrega(entrega.id), "Abrir la entrega")
+        horas = max(int((ahora - entrega.despachada_en).total_seconds() // 3600), 0)
+        avisos.append(
+            Aviso(
+                titulo=f"Entrega {entrega.numero} lleva más de 48 horas en camino sin recibirse",
+                texto=f"Salió hacia {entrega.dispositivo} hace {horas} h y nadie la recibió.",
+                origen=f"Entrega {entrega.numero}",
+                fecha=None,
+                enlace=enlace,
+                accion=accion,
+            )
+        )
+    return avisos + _y_mas(
+        len(entregas) - TOPE_POR_REGLA,
+        usuario,
+        singular="entrega demorada",
+        plural="entregas demoradas",
+        url=f"{reverse('emergencia:entregas')}?solapa=demoradas",
+        accion="Ver las entregas",
+    )
+
+
 # --- Dispositivo sin plazas con derivación pendiente -----------------------------------
 
 
@@ -424,6 +461,12 @@ REGLAS = (
         "Entrega recibida con diferencias sin observación de la mesa.",
         "media",
         entregas_con_diferencias_sin_revisar,
+    ),
+    (
+        "emergencia.entrega_demorada",
+        "Entrega en camino hace más de 48 horas sin recibirse.",
+        "media",
+        entregas_demoradas,
     ),
 )
 

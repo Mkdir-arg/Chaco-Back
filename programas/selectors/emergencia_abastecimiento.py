@@ -30,7 +30,7 @@ Ninguna consulta es por dispositivo ni por ítem: los cruces son diccionarios en
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import NamedTuple
 
@@ -38,6 +38,9 @@ from django.db.models import Min, Q, Sum
 
 from programas.models import Dispositivo, EntregaKit, IntegranteGrupo, LineaEntrega
 from programas.services.configuracion_emergencia import catalogo_kits
+
+#: La clave de «en camino hace más de 48 h»: va aparte de ``EN_CAMINO`` en ``LecturasAbastecimiento.abiertas``.
+DEMORADA = "DEMORADA"
 
 
 class ItemDelCatalogo(NamedTuple):
@@ -102,14 +105,16 @@ def _items():
     return tuple(ItemDelCatalogo(*fila) for fila in filas)
 
 
-def _recibido(inicio_evento):
+def _recibido(inicio_evento, dispositivo_id=None):
     """A2: ``Sum(cantidad_recibida)`` y ``Min(recibida_en)`` por dispositivo e ítem, desde el inicio."""
 
+    lineas = LineaEntrega.objects.filter(
+        entrega__estado__in=EntregaKit.ESTADOS_RECIBIDOS, entrega__recibida_en__gte=inicio_evento
+    )
+    if dispositivo_id is not None:
+        lineas = lineas.filter(entrega__dispositivo_id=dispositivo_id)
     filas = (
-        LineaEntrega.objects.filter(
-            entrega__estado__in=EntregaKit.ESTADOS_RECIBIDOS, entrega__recibida_en__gte=inicio_evento
-        )
-        .values("entrega__dispositivo_id", "item_id")
+        lineas.values("entrega__dispositivo_id", "item_id")
         .annotate(cantidad=Sum("cantidad_recibida"), primera=Min("entrega__recibida_en"))
         .order_by()
     )
@@ -119,22 +124,42 @@ def _recibido(inicio_evento):
     }
 
 
-def _abiertas(inicio_evento):
-    """A3: lo enviado de las entregas ``PREPARADA`` y ``EN_CAMINO`` creadas desde el inicio, por estado."""
+def _abiertas(inicio_evento, ahora, dispositivo_id=None):
+    """A3: lo enviado de las entregas ``PREPARADA`` y ``EN_CAMINO`` creadas desde el inicio, por estado.
 
+    Lo que lleva más de :attr:`EntregaKit.HORAS_PARA_DEMORADA` horas en camino sin recibir **no cuenta** como
+    ``EN_CAMINO``: va aparte, bajo la clave :data:`DEMORADA`, para que el faltante real se vea (Cambio 586). Sigue
+    siendo **una** consulta. Con ``dispositivo_id`` solo ese dispositivo.
+    """
+
+    corte = ahora - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
+    lineas = LineaEntrega.objects.filter(
+        entrega__estado__in=EntregaKit.ESTADOS_ABIERTOS, entrega__creado__gte=inicio_evento
+    )
+    if dispositivo_id is not None:
+        lineas = lineas.filter(entrega__dispositivo_id=dispositivo_id)
     filas = (
-        LineaEntrega.objects.filter(entrega__estado__in=EntregaKit.ESTADOS_ABIERTOS, entrega__creado__gte=inicio_evento)
-        .values("entrega__dispositivo_id", "item_id", "entrega__estado")
-        .annotate(cantidad=Sum("cantidad_enviada"))
+        lineas.values("entrega__dispositivo_id", "item_id", "entrega__estado")
+        .annotate(
+            cantidad=Sum("cantidad_enviada"),
+            demorada=Sum(
+                "cantidad_enviada",
+                filter=Q(entrega__estado=EntregaKit.Estado.EN_CAMINO, entrega__despachada_en__lt=corte),
+            ),
+        )
         .order_by()
     )
-    return {
-        (fila["entrega__dispositivo_id"], fila["item_id"], fila["entrega__estado"]): fila["cantidad"] or 0
-        for fila in filas
-    }
+    abiertas = {}
+    for fila in filas:
+        clave = (fila["entrega__dispositivo_id"], fila["item_id"])
+        demorada = fila["demorada"] or 0
+        abiertas[(*clave, fila["entrega__estado"])] = (fila["cantidad"] or 0) - demorada
+        if demorada:
+            abiertas[(*clave, DEMORADA)] = demorada
+    return abiertas
 
 
-def _personas(desde):
+def _personas(desde, dispositivo_id=None):
     """A4: los alojados ahora y, si ``desde`` no es ``None``, los egresados desde ahí.
 
     ``desde`` es ``max(inicio_evento, primera recepción más vieja de A2)``: antes de la primera
@@ -144,9 +169,14 @@ def _personas(desde):
     egreso = Q(egresado_en__isnull=True)
     if desde is not None:
         egreso |= Q(egresado_en__gte=desde)
+    integrantes = IntegranteGrupo.objects.filter(estadia__isnull=False)
+    if dispositivo_id is not None:
+        # Las familias de este dispositivo **enteras**: su dispositivo principal es el del integrante de menor
+        # `orden`, que puede estar en otro, y el cálculo tiene que decidirlo igual que la solapa.
+        de_este = IntegranteGrupo.objects.filter(estadia__dispositivo_id=dispositivo_id).values("grupo_id")
+        integrantes = integrantes.filter(grupo_id__in=de_este)
     filas = (
-        IntegranteGrupo.objects.filter(estadia__isnull=False)
-        .filter(egreso)
+        integrantes.filter(egreso)
         .order_by()  # sin el orden del modelo: el cruce es en Python y el ORDER BY costaba un filesort
         .values_list(
             "estadia__dispositivo_id", "estadia__fecha_ingreso", "egresado_en", "orden", "grupo_id", "grupo__lactantes"
@@ -184,7 +214,7 @@ def lecturas_de_abastecimiento(foto, inicio_evento: datetime) -> LecturasAbastec
         raise ValueError("Sin inicio del evento la solapa no calcula: la vista muestra el estado vacío.")
     items = _items()
     recibido = _recibido(inicio_evento)
-    abiertas = _abiertas(inicio_evento)
+    abiertas = _abiertas(inicio_evento, foto.ahora)
     primera = min((r.primera for r in recibido.values()), default=None)
     personas = _personas(max(inicio_evento, primera) if primera is not None else None)
     en_la_red = {dispositivo.id for dispositivo in foto.red.dispositivos}
@@ -196,4 +226,26 @@ def lecturas_de_abastecimiento(foto, inicio_evento: datetime) -> LecturasAbastec
         abiertas=abiertas,
         personas=personas,
         fuera_de_la_red=_fuera_de_la_red(sorted(con_gente - en_la_red)),
+    )
+
+
+def lecturas_de_un_dispositivo(dispositivo_id, inicio_evento: datetime, ahora: datetime) -> LecturasAbastecimiento:
+    """A1-A4 acotadas a **un** dispositivo, sin la foto de situación: lo que necesita «Le falta (estimado)» de
+    la entrega nueva (Cambio 586). **4 consultas fijas** (ítems, recibido, en camino y preparadas, personas).
+
+    Lo que se calcula con esto sale de las mismas reglas que la solapa Abastecimiento (``armar_abastecimiento``),
+    así que el faltante de acá coincide con el de Situación. ``fuera_de_la_red`` va vacío: no hace falta el nombre.
+    """
+
+    if inicio_evento is None:
+        raise ValueError("Sin inicio del evento no se estima: la pantalla lo dice.")
+    recibido = _recibido(inicio_evento, dispositivo_id)
+    primera = min((r.primera for r in recibido.values()), default=None)
+    return LecturasAbastecimiento(
+        inicio_evento=inicio_evento,
+        items=_items(),
+        recibido=recibido,
+        abiertas=_abiertas(inicio_evento, ahora, dispositivo_id),
+        personas=_personas(max(inicio_evento, primera) if primera is not None else None, dispositivo_id),
+        fuera_de_la_red={},
     )

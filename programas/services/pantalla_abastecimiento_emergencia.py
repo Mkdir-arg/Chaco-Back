@@ -187,6 +187,7 @@ def tabla_por_item(abastecimiento):
                 "necesario": numero(fila.necesario),
                 "en_camino": numero(fila.en_camino),
                 "preparadas": numero(fila.preparadas),
+                "demoradas": numero(fila.demoradas),
                 "faltan": numero(fila.faltan),
                 "falta": bool(fila.faltan),
             }
@@ -231,7 +232,7 @@ def lista_de_dispositivos(abastecimiento, ahora, *, opera):
                 "ultima": _ultima(fila, ahora),
                 "necesita": _que_necesita(fila),
                 "url_preparar": (
-                    reverse("emergencia:entrega_nueva_items", args=[dispositivo.id])
+                    f"{reverse('emergencia:entrega_nueva')}?dispositivo={dispositivo.id}"
                     if opera and dispositivo.activo
                     else ""
                 ),

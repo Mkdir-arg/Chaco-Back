@@ -12,14 +12,16 @@ from django import forms
 
 from programas.forms import INPUT_CLASS
 from programas.forms_emergencia import ErroresDelServicioMixin
-from programas.models import Edificio, EntregaKit
-from programas.selectors.kits import SOLAPA_ABIERTAS, SOLAPAS
+from programas.models import Dispositivo, Edificio, EntregaKit
+from programas.selectors.kits import SOLAPA_ABIERTAS, SOLAPAS, destinos_posibles
 from programas.services.kits import (
     CANTIDAD_INVALIDA,
     CANTIDAD_MAXIMA,
     FALTA_EL_MOTIVO,
+    FALTA_EL_MOTIVO_DE_LA_DIFERENCIA,
     FALTA_EL_REMITO,
     FALTA_LA_OBSERVACION,
+    MOTIVO_DE_LA_DIFERENCIA_LARGO,
     MOTIVO_LARGO,
     MOTIVO_MAXIMO,
     SIN_LINEAS,
@@ -71,18 +73,41 @@ class FiltrosEntregasForm(forms.Form):
         return filtros
 
 
-class BuscarDestinoForm(forms.Form):
-    """El buscador del paso 1 del asistente. Es un GET: no escribe nada."""
+class _DestinoModelChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"{obj.nombre} · {obj.localidad}" if obj.localidad else obj.nombre
 
-    q = forms.CharField(required=False, max_length=80)
 
-    def texto(self):
-        self.is_valid()
-        return self.cleaned_data.get("q") or ""
+class DestinoEntregaForm(forms.Form):
+    """A qué dispositivo va la entrega nueva. Es un GET: elegir un destino no escribe nada.
+
+    Los destinos posibles son los de ``selectors.kits.destinos_posibles`` (RN-4.2): un valor que no es uno de ellos
+    es un error del campo y la pantalla vuelve a pedirlo.
+    """
+
+    dispositivo = _DestinoModelChoiceField(
+        label="Destino",
+        queryset=Dispositivo.objects.none(),
+        required=False,
+        empty_label="Elegí el dispositivo",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"invalid_choice": "Ese destino no está disponible. Elegí otro de la lista."},
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["dispositivo"].queryset = destinos_posibles()
+
+    def destino(self):
+        """El dispositivo elegido, o ``None`` si no eligió ninguno o el valor no sirve."""
+
+        if not self.is_valid():
+            return None
+        return self.cleaned_data.get("dispositivo")
 
 
 class ItemsEntregaForm(forms.Form):
-    """Paso 2 del asistente: una cantidad por cada ítem del catálogo activo (RN-4.1).
+    """Las cantidades de la entrega: una por cada ítem del catálogo activo (RN-4.1).
 
     Un campo `cantidad_<id>` por ítem. Vacío es «este ítem no va»; un cero no es una
     cantidad. ``repone_a`` viaja oculto cuando la entrega repone a otra (HU-4.5).
@@ -130,6 +155,14 @@ class ItemsEntregaForm(forms.Form):
     def campos_de_cantidad(self):
         return [self[_campo_de(item.pk)] for item in self.catalogo]
 
+    def filas_de_cantidad(self, estimado):
+        """``[{"item", "campo", "estimado"}]`` para la tabla: ``estimado`` es ``{item_id: ItemDelDispositivo}``."""
+
+        return [
+            {"item": item, "campo": self[_campo_de(item.pk)], "estimado": estimado.get(item.pk)}
+            for item in self.catalogo
+        ]
+
     def lineas(self, datos=None):
         """``[(TipoKit, cantidad)]`` de los ítems con cantidad: lo que recibe ``crear_entrega``."""
 
@@ -159,15 +192,28 @@ class ItemsEntregaForm(forms.Form):
         return {**(iniciales or {}), "uuid_cliente": uuid.uuid4()}
 
 
-class ConfirmarEntregaForm(ItemsEntregaForm):
-    """Paso 3: lo que el paso 2 mostró viaja oculto, y acá se suma la nota para el dispositivo.
+class NuevaEntregaForm(ItemsEntregaForm):
+    """La entrega nueva en una sola pantalla (Cambio 586): destino, cantidades, salida y nota.
 
-    El asistente **no guarda nada en la sesión**: lo que se confirma es lo que esta pantalla
-    trae en sus ocultos, que es lo que mostró en el resumen.
+    El destino viaja oculto (``dispositivo``) y la vista lo vuelve a validar contra los destinos posibles. Las
+    cantidades son las del catálogo activo; ``salida`` dice si la entrega sale ya (se crea y se marca en camino en una
+    sola operación) o queda preparada. **No guarda nada en la sesión**: se crea lo que este envío trae.
     """
 
-    oculta_cantidades = True
+    SALE_AHORA = "ahora"
+    TODAVIA_NO = "despues"
 
+    dispositivo = forms.IntegerField(required=True, min_value=1, widget=forms.HiddenInput)
+    salida = forms.ChoiceField(
+        label="¿Sale ahora?",
+        choices=[
+            (SALE_AHORA, "Sale ahora: queda en camino"),
+            (TODAVIA_NO, "Todavía no sale: queda preparada"),
+        ],
+        initial=SALE_AHORA,
+        help_text="Con «Todavía no sale» la marcás en camino después, desde el detalle de la entrega.",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
     observacion = forms.CharField(
         label="Observación para el dispositivo",
         required=False,
@@ -193,7 +239,7 @@ class ConfirmarEntregaForm(ItemsEntregaForm):
             )
 
     def campos_visibles(self):
-        return [self[nombre] for nombre in ("edificio", "observacion") if nombre in self.fields]
+        return [self[nombre] for nombre in ("edificio", "salida", "observacion") if nombre in self.fields]
 
     def agregar_errores_del_servicio(self, error):
         """Lo que rechace ``crear_entrega`` va arriba del formulario: ninguno es de un campo visible."""
@@ -232,6 +278,23 @@ class CancelarEntregaForm(forms.Form):
     )
 
 
+class AceptarDiferenciaForm(forms.Form):
+    """«Aceptar la diferencia» (Cambio 586): cierra la diferencia sin reponerla; el motivo es obligatorio."""
+
+    _MAXIMO = EntregaKit._meta.get_field("cierre_diferencia_motivo").max_length
+
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=_MAXIMO,
+        help_text="Por qué no se repone lo que faltó. Queda en la traza de la entrega.",
+        error_messages={
+            "required": FALTA_EL_MOTIVO_DE_LA_DIFERENCIA,
+            "max_length": MOTIVO_DE_LA_DIFERENCIA_LARGO.format(maximo=_MAXIMO),
+        },
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
+    )
+
+
 class ObservarEntregaForm(forms.Form):
     """RN-4.5: la única corrección después de la recepción es esta observación de la mesa."""
 
@@ -246,8 +309,8 @@ class ObservarEntregaForm(forms.Form):
 class RecepcionKitForm(ErroresDelServicioMixin, forms.Form):
     """La recepción en el dispositivo: lo que llegó de cada ítem, el remito y una observación (HU-4.3).
 
-    Un campo `cantidad_<id del ítem>` por línea, precargado con lo enviado: se corrige solo
-    lo distinto. El remito en JPEG y de hasta 5 MB lo exige el servicio.
+    Un campo `cantidad_<id del ítem>` por línea, **vacío** (Cambio 586): quien recibe cuenta lo que llegó y lo carga,
+    aunque sea cero; no se confirma lo enviado por defecto. El remito en JPEG y de hasta 5 MB lo exige el servicio.
     """
 
     remito = forms.FileField(
@@ -272,7 +335,6 @@ class RecepcionKitForm(ErroresDelServicioMixin, forms.Form):
                 label=linea.nombre_visible,
                 min_value=0,
                 max_value=CANTIDAD_MAXIMA,
-                initial=linea.cantidad_enviada,
                 help_text=f"Se enviaron {linea.cantidad_enviada} · en {linea.unidad}.",
                 error_messages={
                     "required": CANTIDAD_RECIBIDA_REQUERIDA,

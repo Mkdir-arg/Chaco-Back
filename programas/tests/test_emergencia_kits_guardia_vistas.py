@@ -137,17 +137,33 @@ class RecepcionEnElDispositivoTests(BaseVistasKits):
             reverse("dispositivos:detalle", args=[self.club.pk]),
         )
 
-    def test_el_formulario_llega_precargado_con_lo_enviado(self):
+    def test_el_formulario_llega_con_las_cantidades_vacias(self):
+        """Cambio 586: quien recibe cuenta lo que llegó; el formulario no le sopla lo que se envió."""
         self.client.force_login(self.guardia)
 
         respuesta = self.client.get(self.url_recibir)
 
         self.assertTemplateUsed(respuesta, "programas/emergencia/kits/recibir.html")
-        self.assertContains(respuesta, f'name="cantidad_{self.colchon.pk}" value="10"')
-        self.assertContains(respuesta, f'name="cantidad_{self.alimentos.pk}" value="3"')
+        self.assertNotContains(respuesta, f'name="cantidad_{self.colchon.pk}" value=')
+        self.assertNotContains(respuesta, f'name="cantidad_{self.alimentos.pk}" value=')
         self.assertContains(respuesta, 'enctype="multipart/form-data"')
         self.assertContains(respuesta, "Entregar a la directora.")
         self.assertContains(respuesta, "Se enviaron 10 · en unidad.")
+
+    def test_una_entrega_con_edificio_se_recibe_en_la_solapa_kits_del_edificio(self):
+        from programas.models import Edificio
+        from programas.views.emergencia_kits import url_de_recepcion_en_el_edificio
+
+        edificio = Edificio.objects.create(codigo="EG-1", nombre="Edificio guardia")
+        edificio.dispositivos.add(self.club)
+        EntregaKit.objects.filter(pk=self.entrega.pk).update(edificio=edificio)
+        self.client.force_login(self.guardia)
+
+        respuesta = self.client.get(self.url_recibir)
+
+        destino = url_de_recepcion_en_el_edificio(EntregaKit.objects.get(pk=self.entrega.pk))
+        self.assertRedirects(respuesta, destino, fetch_redirect_response=False)
+        self.assertIn("tab=kits", destino)
 
     def test_hu_4_3_confirmar_sin_tocar_nada_la_deja_recibida(self):
         self.client.force_login(self.guardia)

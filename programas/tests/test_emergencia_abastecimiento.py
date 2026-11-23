@@ -538,6 +538,35 @@ class ArmadoTests(EscenarioAbastecimiento):
         )
         self.assertEqual((agua.necesario, agua.en_camino, agua.preparadas, agua.faltan), (31, 1, 10, 20))
 
+    def test_cambio_586_lo_en_camino_hace_mas_de_48_h_va_aparte_y_no_descuenta_el_faltante(self):
+        """Una entrega en camino hace 60 h no cuenta como «en camino»: se muestra «Demorado» y el faltante no baja."""
+        antes = self._item(self.gimnasio, self.agua)
+        entrega = EntregaKit.objects.create(
+            numero="2026-K-900001",
+            dispositivo=self.gimnasio,
+            estado=EstEntrega.EN_CAMINO,
+            armada_por=self.operador,
+            despachada_en=T0 - timedelta(hours=60),
+        )
+        LineaEntrega.objects.create(entrega=entrega, item=self.agua, unidad="unidad", cantidad_enviada=5)
+        reciente = EntregaKit.objects.create(
+            numero="2026-K-900002",
+            dispositivo=self.gimnasio,
+            estado=EstEntrega.EN_CAMINO,
+            armada_por=self.operador,
+            despachada_en=T0 - timedelta(hours=47),
+        )
+        LineaEntrega.objects.create(entrega=reciente, item=self.agua, unidad="unidad", cantidad_enviada=1)
+
+        armado, _foto = self._armar()
+        fila = next(f for f in armado.dispositivos if f.dispositivo.id == self.gimnasio.pk)
+        despues = next(i for i in fila.items if i.item.id == self.agua.pk)
+
+        self.assertEqual(despues.demoradas, 5)
+        # Solo la de 47 h suma a «en camino»; la de 60 h no descuenta nada.
+        self.assertEqual(despues.en_camino, antes.en_camino + 1)
+        self.assertEqual(despues.faltan, max(antes.faltan - 1, 0))
+
     def test_tc_1187_27_fuera_de_la_red_con_su_estado(self):
         suspendido = self.filas[self.suspendido.pk].dispositivo
         self.assertEqual((suspendido.estado, suspendido.activo), (Dispositivo.Estado.INACTIVO, False))
@@ -668,9 +697,9 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         self.assertNotIn("Preparar entrega", autoridad)
         for usuario in (self.mesa, self.supervisor):
             html = self._html(usuario)
-            self.assertIn(f"/emergencia/entregas/nueva/{self.salon.pk}/", html)
-            self.assertIn(f"/emergencia/entregas/nueva/{self.reservado.pk}/", html)
-            self.assertNotIn(f"/emergencia/entregas/nueva/{self.suspendido.pk}/", html)
+            self.assertIn(f"/emergencia/entregas/nueva/?dispositivo={self.salon.pk}", html)
+            self.assertIn(f"/emergencia/entregas/nueva/?dispositivo={self.reservado.pk}", html)
+            self.assertNotIn(f"/emergencia/entregas/nueva/?dispositivo={self.suspendido.pk}", html)
             inicio = html.index("Escuela Suspendida · Quitilipi")
             self.assertIn("Inactivo", html[inicio : html.index("</tr>", inicio)])
 

@@ -6473,9 +6473,18 @@ class EntregaKit(TimeStamped):
         RECIBIDA_CON_DIFERENCIAS = "RECIBIDA_CON_DIFERENCIAS", "Recibida con diferencias"
         CANCELADA = "CANCELADA", "Cancelada"
 
+    class CierreDiferencia(models.TextChoices):
+        """Cómo se cerró la diferencia de una recepción (Cambio 586). ``NULL`` = todavía sin cerrar."""
+
+        REPUESTA = "REPUESTA", "Repuesta"
+        ACEPTADA = "ACEPTADA", "Aceptada"
+
     #: Todavía la puede recibir el dispositivo o cancelar la mesa.
     ESTADOS_ABIERTOS = (Estado.PREPARADA, Estado.EN_CAMINO)
     ESTADOS_RECIBIDOS = (Estado.RECIBIDA, Estado.RECIBIDA_CON_DIFERENCIAS)
+    #: Desde cuántas horas en camino sin recibir una entrega se considera demorada (Cambio 586). Es la **única**
+    #: constante: el aviso a la mesa, el listado y el cálculo de faltante la leen de acá.
+    HORAS_PARA_DEMORADA = 48
 
     numero = models.CharField(max_length=20, unique=True, editable=False, verbose_name="N.° de entrega")
     dispositivo = models.ForeignKey(
@@ -6561,6 +6570,37 @@ class EntregaKit(TimeStamped):
         verbose_name="Identificador del armado (mesa)",
     )
 
+    # Cierre explícito de la diferencia de una recepción (Cambio 586): repuesta (se armó otra entrega con lo que faltó)
+    # o aceptada (con motivo). ``NULL`` mientras no se cierre y en toda entrega sin diferencia. Se escribe solo desde
+    # ``programas.services.kits`` con la fila bloqueada: reponer es una sola vez por entrega.
+    cierre_diferencia = models.CharField(
+        max_length=10,
+        choices=CierreDiferencia.choices,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Cierre de la diferencia",
+    )
+    cierre_diferencia_en = models.DateTimeField(
+        null=True, blank=True, editable=False, verbose_name="Diferencia cerrada"
+    )
+    cierre_diferencia_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="entregas_de_kits_con_diferencia_cerrada",
+        verbose_name="Diferencia cerrada por",
+    )
+    cierre_diferencia_motivo = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Motivo de la diferencia aceptada",
+    )
+
     class Meta:
         verbose_name = "Entrega de kits"
         verbose_name_plural = "Entregas de kits"
@@ -6593,6 +6633,12 @@ class EntregaKit(TimeStamped):
     @property
     def recibida(self):
         return self.estado in self.ESTADOS_RECIBIDOS
+
+    @property
+    def diferencia_sin_cerrar(self):
+        """Recibida con diferencias y todavía sin reponer ni aceptar."""
+
+        return self.estado == self.Estado.RECIBIDA_CON_DIFERENCIAS and self.cierre_diferencia is None
 
     @property
     def carpeta_media(self):
@@ -6696,6 +6742,9 @@ class TrazaEntrega(models.Model):
         CANCELADA = "CANCELADA", "Cancelada"
         RECIBIDA = "RECIBIDA", "Recibida"
         OBSERVADA = "OBSERVADA", "Observación de la mesa"
+        DIFERENCIA_REPUESTA = "DIFERENCIA_REPUESTA", "Diferencia repuesta"
+        DIFERENCIA_ACEPTADA = "DIFERENCIA_ACEPTADA", "Diferencia aceptada"
+        DIFERENCIA_REABIERTA = "DIFERENCIA_REABIERTA", "Diferencia reabierta"
 
     entrega = models.ForeignKey(
         EntregaKit,

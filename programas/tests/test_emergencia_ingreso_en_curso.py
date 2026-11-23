@@ -220,28 +220,25 @@ class ArmarEntregaIdempotenteTests(BaseVistasKits):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.operador)
-        self.url_items = self._url("entrega_nueva_items", self.club.pk)
-        self.url_confirmar = self._url("entrega_nueva_confirmar", self.club.pk)
+        self.url_nueva = f"{self._url('entrega_nueva')}?dispositivo={self.club.pk}"
+        self.url_crear = self._url("entrega_nueva")
 
-    def test_el_paso_2_hace_nacer_el_identificador_y_el_3_lo_lleva(self):
-        respuesta = self.client.get(self.url_items)
+    def test_abrir_la_pantalla_hace_nacer_el_identificador_y_viaja_en_el_formulario(self):
+        respuesta = self.client.get(self.url_nueva)
         armado = respuesta.context["form"].initial["uuid_cliente"]
         self.assertContains(respuesta, f'name="uuid_cliente" value="{armado}"')
 
-        resumen = self.client.post(
-            self.url_confirmar, {**self._cantidades(a=(self.colchon, 4)), "uuid_cliente": armado}
-        )
-        self.assertContains(resumen, f'name="uuid_cliente" value="{armado}"')
-
-        anterior = self.client.post(self.url_items, {**self._cantidades(a=(self.colchon, 4)), "uuid_cliente": armado})
-        self.assertContains(anterior, f'name="uuid_cliente" value="{armado}"')
-
     def test_volver_atras_y_reenviar_no_duplica_la_entrega(self):
-        armado = self.client.get(self.url_items).context["form"].initial["uuid_cliente"]
-        datos = {**self._cantidades(a=(self.colchon, 10)), "uuid_cliente": armado, "confirmar": "1"}
+        armado = self.client.get(self.url_nueva).context["form"].initial["uuid_cliente"]
+        datos = {
+            **self._cantidades(a=(self.colchon, 10)),
+            "uuid_cliente": armado,
+            "dispositivo": self.club.pk,
+            "salida": "despues",
+        }
 
-        primera = self.client.post(self.url_confirmar, datos)
-        segunda = self.client.post(self.url_confirmar, datos)
+        primera = self.client.post(self.url_crear, datos)
+        segunda = self.client.post(self.url_crear, datos)
 
         entrega = EntregaKit.objects.get()
         self.assertRedirects(primera, self._url("entrega_detalle", entrega.pk), fetch_redirect_response=False)

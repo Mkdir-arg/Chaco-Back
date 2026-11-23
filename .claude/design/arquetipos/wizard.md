@@ -120,9 +120,9 @@ orden son solapas de un Detalle, no un wizard.
   POST, donde el formulario lo lleva en ocultos y «Confirmar» escribe eso. «Anterior» del paso final es un
   `<button type="submit" formaction="<paso anterior>" formnovalidate class="btn-nodo btn-tertiary btn-base">`
   (un link perdería lo cargado) y en el indicador solo son links los pasos que no llevan datos. El GET del paso
-  final redirige al anterior. Evidencia: «Nueva entrega» de kits de Emergencia
-  (`programas/templates/programas/emergencia/kits/nueva_destino.html`, `nueva_items.html` y `nueva_confirmar.html`):
-  el paso 1 es una tabla densa con buscador en la que elegir es navegar, y el paso final revalida en el servicio.
+  final redirige al anterior. «Nueva entrega» de kits de Emergencia dejó de ser un wizard en el Cambio 586: hoy es una
+  sola pantalla de Formulario (`programas/templates/programas/emergencia/kits/nueva.html`) que conserva la regla de
+  no usar la sesión (destino en la URL y en un oculto, y el servicio revalida).
 - Pie que no cabe en móvil: `flex flex-wrap justify-between gap-3`; si agrupa acciones,
   el grupo también usa `flex flex-wrap gap-3`. Conserva los tamaños canónicos de botón
   y la fila de escritorio. Evidencia: `programas/templates/programas/dispositivos/ingreso/paso_plaza.html`.

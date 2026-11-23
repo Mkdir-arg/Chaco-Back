@@ -17,14 +17,12 @@ esa función contesta, igual que la mesa (``programas/views/emergencia.py``):
   ``emergencia.recibir_kit`` en ninguno, 403; con la capacidad pero sin alcance sobre **ese**
   dispositivo —o con una entrega de otro—, **404**, igual que un id inexistente (plan §2, C2).
 
-**El asistente «Nueva entrega» no usa la sesión.** La ficha del arquetipo Wizard avisa que la
-sesión la comparten todas las pestañas, y pide que cada paso lleve en ocultos lo que mostró
-para compararlo con ella. Acá no hay nada que comparar: el destino viaja en la URL y las
-cantidades en los ocultos del paso 3, así que «Crear entrega» escribe exactamente lo que esa
-pantalla mostró, haya las pestañas que haya. Es el mismo criterio con el que «Nuevo caso» se
-resolvió sin sesión (PR 3), con los tres pasos que pide el diseño.
+**«Nueva entrega» es una sola pantalla y no usa la sesión** (Cambio 586): el destino viaja en la URL (GET) y en
+un oculto del formulario, y «Crear y enviar» escribe exactamente lo que ese envío trae, haya las pestañas que haya.
+La columna «Le falta (estimado)» sale de las mismas reglas que la solapa Abastecimiento de Situación.
 """
 
+from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -34,23 +32,26 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 
 from programas.forms_emergencia_kits import (
-    BuscarDestinoForm,
+    AceptarDiferenciaForm,
     CancelarEntregaForm,
-    ConfirmarEntregaForm,
+    DestinoEntregaForm,
     EnCaminoForm,
     FiltrosEntregasForm,
-    ItemsEntregaForm,
+    NuevaEntregaForm,
     ObservarEntregaForm,
     RecepcionKitForm,
 )
 from programas.mixins_emergencia import MesaPermissionMixin
 from programas.models import EntregaKit
 from programas.selectors import kits as selectores
+from programas.selectors.emergencia_abastecimiento import lecturas_de_un_dispositivo
 from programas.services import kits as servicio
-from programas.services.configuracion_emergencia import catalogo_kits
+from programas.services.abastecimiento_emergencia import faltantes_de_un_dispositivo
+from programas.services.configuracion_emergencia import catalogo_kits, sla_vigente
 from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa, recibe_kits
@@ -58,22 +59,18 @@ from programas.urls_seguras import destino_seguro
 
 TEMPLATE_LISTADO = "programas/emergencia/kits/list.html"
 TEMPLATE_DETALLE = "programas/emergencia/kits/detail.html"
-TEMPLATE_DESTINO = "programas/emergencia/kits/nueva_destino.html"
-TEMPLATE_ITEMS = "programas/emergencia/kits/nueva_items.html"
-TEMPLATE_CONFIRMAR = "programas/emergencia/kits/nueva_confirmar.html"
+TEMPLATE_NUEVA = "programas/emergencia/kits/nueva.html"
 TEMPLATE_PENDIENTES = "programas/emergencia/kits/pendientes.html"
 TEMPLATE_RECIBIR = "programas/emergencia/kits/recibir.html"
 
 ENTREGAS_POR_PAGINA = 50
 #: Filas por página de «Emergencia · Kits» del dispositivo.
 PENDIENTES_POR_PAGINA = 25
-DESTINOS_POR_PAGINA = 20
 
 #: Parámetros del listado que no son un filtro que el usuario eligió: la página, la solapa
 #: y los dos que abren un modal por GET.
 NO_SON_FILTRO = ("page", "solapa", "en_camino", "cancelar")
 
-PASOS_DEL_ASISTENTE = ("Destino", "Ítems y cantidades", "Confirmar")
 VOLVER_AL_LISTADO = "listado"
 
 
@@ -94,6 +91,13 @@ def _errores_de(form):
 def _estado(entrega):
     texto, tono = servicio.estado_visible_de_entrega(entrega)
     return {"estado_texto": texto, "estado_tono": tono}
+
+
+def url_de_recepcion_en_el_edificio(entrega):
+    """La solapa Kits del edificio de la entrega, abierta en ella: el único lugar donde se recibe (Cambio 586)."""
+
+    pagina = reverse("dispositivos:edificio_operativo", args=[entrega.dispositivo_id, entrega.edificio_id])
+    return f"{pagina}?tab=kits&entrega={entrega.pk}"
 
 
 def _quien_y_cuando(usuario, momento):
@@ -124,8 +128,17 @@ class EntregasListView(MesaPermissionMixin, View):
             for solapa, texto in selectores.SOLAPAS
         ]
 
-    def _fila(self, entrega, conservados):
+    def _fila(self, entrega, conservados, corte_de_demora):
         acciones = []
+        sin_cerrar = entrega.diferencia_sin_cerrar
+        if sin_cerrar:
+            acciones.append(
+                {
+                    "texto": "Cerrar la diferencia",
+                    "icono": "fa-circle-check",
+                    "url": f"{reverse('emergencia:entrega_detalle', args=[entrega.pk])}#entrega-cerrar-titulo",
+                }
+            )
         if entrega.estado == EntregaKit.Estado.PREPARADA:
             acciones.append(
                 {
@@ -150,7 +163,31 @@ class EntregasListView(MesaPermissionMixin, View):
             "recibida": _quien_y_cuando(entrega.recibida_por, entrega.recibida_en),
             "url": reverse("emergencia:entrega_detalle", args=[entrega.pk]),
             "acciones": acciones,
+            "demorada": (
+                entrega.estado == EntregaKit.Estado.EN_CAMINO
+                and entrega.despachada_en is not None
+                and entrega.despachada_en < corte_de_demora
+            ),
+            "diferencia_sin_cerrar": sin_cerrar,
             **_estado(entrega),
+        }
+
+    def _alerta_de_demoradas(self, conteos, solapa):
+        """El aviso de arriba del listado: cuántas entregas llevan más de 48 h en camino sin recibirse."""
+
+        cantidad = conteos.get(selectores.SOLAPA_DEMORADAS, 0)
+        if not cantidad or solapa == selectores.SOLAPA_DEMORADAS:
+            return None
+        singular = cantidad == 1
+        horas = EntregaKit.HORAS_PARA_DEMORADA
+        return {
+            "titulo": (
+                f"{cantidad} entrega lleva más de {horas} horas en camino sin recibirse"
+                if singular
+                else f"{cantidad} entregas llevan más de {horas} horas en camino sin recibirse"
+            ),
+            "texto": "No se cancelan solas y no cuentan como «en camino» en lo que le falta a cada dispositivo.",
+            "url": _url("emergencia:entregas", solapa=selectores.SOLAPA_DEMORADAS),
         }
 
     def _modal(self, request, parametro, form_class, estados, nombre_url):
@@ -173,15 +210,18 @@ class EntregasListView(MesaPermissionMixin, View):
         filtros = form.filtros()
         solapa = filtros["solapa"]
         elegidos = {campo: valor for campo, valor in form.limpios().items() if campo not in NO_SON_FILTRO}
-        pagina = Paginator(selectores.listado_de_entregas(filtros), ENTREGAS_POR_PAGINA).get_page(
+        ahora = timezone.now()
+        pagina = Paginator(selectores.listado_de_entregas(filtros, ahora), ENTREGAS_POR_PAGINA).get_page(
             request.GET.get("page")
         )
         conservados = {"solapa": solapa, **elegidos, "page": pagina.number if pagina.number > 1 else None}
-        conteos = selectores.conteos_de_solapas()
+        conteos = selectores.conteos_de_solapas(ahora)
         dispositivos, localidades = selectores.destinos_con_entregas()
+        corte_de_demora = ahora - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
         contexto = {
             "page_obj": pagina,
-            "filas": [self._fila(entrega, conservados) for entrega in pagina.object_list],
+            "alerta_demoradas": self._alerta_de_demoradas(conteos, solapa),
+            "filas": [self._fila(entrega, conservados, corte_de_demora) for entrega in pagina.object_list],
             "solapa": solapa,
             "solapas": self._chips(solapa, conteos, elegidos),
             "filtro": elegidos,
@@ -203,23 +243,8 @@ class EntregasListView(MesaPermissionMixin, View):
 
 
 # ---------------------------------------------------------------------------
-# E4 · «Nueva entrega» (asistente de 3 pasos, sin sesión)
+# E4 · «Nueva entrega» (una sola pantalla, sin sesión)
 # ---------------------------------------------------------------------------
-
-
-def _pasos(paso_actual):
-    """El contexto del indicador de pasos. Solo el paso 1 es un link: al 2 se vuelve con «Anterior»,
-    que lleva las cantidades (un link las perdería)."""
-
-    pasos = [{"etiqueta": etiqueta} for etiqueta in PASOS_DEL_ASISTENTE]
-    if paso_actual > 1:
-        pasos[0]["url"] = reverse("emergencia:entrega_nueva")
-    return {
-        "pasos": pasos,
-        "paso_actual": paso_actual,
-        "total_pasos": len(PASOS_DEL_ASISTENTE),
-        "url_entregas": reverse("emergencia:entregas"),
-    }
 
 
 def _ultima_entrega(resumen):
@@ -233,141 +258,161 @@ def _ultima_entrega(resumen):
     }
 
 
-def _destino(dispositivo, resumen):
-    """Lo que el asistente muestra de un dispositivo: nada de su operación interna más que estas cifras."""
+def _resumen_del_destino(destino):
+    """Lo que la pantalla muestra del destino: nada de su operación interna más que estas cifras."""
 
+    resumen = selectores.resumen_destino(destino)
     return {
-        "pk": dispositivo.pk,
-        "nombre": dispositivo.nombre,
-        "localidad": dispositivo.localidad,
+        "nombre": destino.nombre,
+        "localidad": destino.localidad,
         "alojadas": resumen["alojadas"],
         "plazas": f"{resumen['plazas_ocupadas']} de {resumen['plazas_operativas']}",
         "ultima_entrega": _ultima_entrega(resumen),
-        "url": reverse("emergencia:entrega_nueva_items", args=[dispositivo.pk]),
     }
 
 
-class NuevaEntregaDestinoView(MesaPermissionMixin, View):
-    """Paso 1: a qué dispositivo. Un listado con buscador; elegir es navegar al paso 2."""
+def _texto_de_lo_que_no_se_repone(sin_item_activo):
+    """«Colchón (3), Frazada (1)»: lo que faltó y ya no está en el catálogo activo."""
 
-    def get(self, request):
-        buscador = BuscarDestinoForm(request.GET)
-        pagina = Paginator(selectores.destinos_posibles(buscador.texto()), DESTINOS_POR_PAGINA).get_page(
-            request.GET.get("page")
-        )
-        dispositivos = list(pagina.object_list)
-        resumenes = selectores.resumenes_de_destino(dispositivos)
-        contexto = {
-            **_pasos(1),
-            "page_obj": pagina,
-            "destinos": [_destino(dispositivo, resumenes[dispositivo.pk]) for dispositivo in dispositivos],
-            "q": buscador.texto(),
-            "url_sin_filtros": reverse("emergencia:entrega_nueva"),
-        }
-        return render(request, TEMPLATE_DESTINO, contexto)
+    return ", ".join(f"{nombre} ({cantidad})" for nombre, cantidad in sin_item_activo)
 
 
-class _PasoConDestino(MesaPermissionMixin, View):
-    """Los pasos 2 y 3: el destino viene en la URL y tiene que seguir activo (RN-4.2)."""
+class NuevaEntregaView(MesaPermissionMixin, View):
+    """«Nueva entrega»: destino, cantidades, salida y nota en una sola pantalla (Cambio 586).
 
-    def _destino(self, pk):
-        return get_object_or_404(selectores.destinos_posibles(), pk=pk)
+    * ``GET ?dispositivo=<id>`` elige el destino y muestra la columna «Le falta (estimado)», con las mismas reglas
+      que la solapa Abastecimiento de Situación (``armar_abastecimiento``).
+    * ``?estimado=1`` carga lo estimado como cantidades; ``?repone=<id>`` arranca con lo que faltó en esa entrega
+      (HU-4.5) y avisa de lo que ya no se puede reponer porque su ítem dejó de estar activo.
+    * ``POST`` crea la entrega con ``crear_entrega``: con «Sale ahora» la crea y la marca en camino en una sola
+      transacción. Lo que rechace el servicio vuelve a la pantalla.
+    """
 
-    def _original(self, pedido, dispositivo):
-        """La entrega que se repone, si la URL o el oculto la nombran y es de ese dispositivo."""
+    def _original(self, pedido, destino):
+        """La entrega que se repone, si la URL o el oculto la nombran, es de ese destino y su diferencia sigue abierta."""
 
         if not str(pedido or "").isdecimal():
             return None
         return (
             selectores.entregas_para_detalle()
-            .filter(pk=pedido, dispositivo=dispositivo, estado=EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS)
+            .filter(
+                pk=pedido,
+                dispositivo=destino,
+                estado=EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS,
+                cierre_diferencia__isnull=True,
+            )
             .first()
         )
 
-    def _contexto(self, paso, dispositivo, form, original):
-        return {
-            **_pasos(paso),
-            "destino": _destino(dispositivo, selectores.resumen_destino(dispositivo)),
-            "form": form,
+    def _estimado(self, destino):
+        """``({item_id: ItemDelDispositivo}, aviso)``: lo que le falta al destino y, si no se puede, por qué."""
+
+        sla = sla_vigente()
+        if sla.inicio_evento is None:
+            return (
+                {},
+                "El inicio del evento no está cargado: no se puede estimar lo que le falta. Cargá las cantidades a mano.",
+            )
+        ahora = timezone.now()
+        estimado = faltantes_de_un_dispositivo(
+            lecturas_de_un_dispositivo(destino.pk, sla.inicio_evento, ahora), destino.pk, ahora
+        )
+        if not estimado:
+            return (
+                {},
+                "Este destino no tiene personas alojadas: no hay faltante que estimar. Cargá las cantidades a mano.",
+            )
+        return estimado, ""
+
+    def _pantalla(
+        self,
+        request,
+        destino_form,
+        destino=None,
+        form=None,
+        original=None,
+        sin_item_activo=(),
+        status=200,
+        lectura=None,
+    ):
+        """``lectura`` es el ``(estimado, aviso)`` ya calculado, si la vista lo necesitó antes: se arma una sola vez."""
+
+        contexto = {
+            "destino_form": destino_form,
+            "destino": None,
+            "url_entregas": reverse("emergencia:entregas"),
+            "url_nueva": reverse("emergencia:entrega_nueva"),
+            "url_insumos": reverse("emergencia:insumos") if puede_supervisar_la_mesa(request.user) else "",
             "repone_a": original,
-            "url_items": reverse("emergencia:entrega_nueva_items", args=[dispositivo.pk]),
-            "url_confirmar": reverse("emergencia:entrega_nueva_confirmar", args=[dispositivo.pk]),
-            "url_insumos": reverse("emergencia:insumos") if puede_supervisar_la_mesa(self.request.user) else "",
+            "sin_item_activo_texto": _texto_de_lo_que_no_se_repone(sin_item_activo),
         }
+        if destino is not None:
+            estimado, aviso = lectura if lectura is not None else self._estimado(destino)
+            contexto.update(
+                destino=_resumen_del_destino(destino),
+                form=form,
+                filas=form.filas_de_cantidad(estimado),
+                aviso_estimado=aviso,
+                hay_estimado=bool(estimado),
+                url_estimado=_url(
+                    "emergencia:entrega_nueva",
+                    dispositivo=destino.pk,
+                    repone=original.pk if original is not None else None,
+                    estimado=1,
+                ),
+            )
+        return render(request, TEMPLATE_NUEVA, contexto, status=status)
 
-    def _paso_items(self, request, dispositivo, form, original, status=200):
-        return render(request, TEMPLATE_ITEMS, self._contexto(2, dispositivo, form, original), status=status)
+    def _form(self, destino, original, datos=None, iniciales=None):
+        catalogo = list(catalogo_kits(solo_activos=True))
+        edificios = selectores.edificios_a_elegir(destino, original)
+        if datos is not None:
+            return NuevaEntregaForm(datos, catalogo=catalogo, edificios=edificios)
+        return NuevaEntregaForm(
+            initial=NuevaEntregaForm.armado_nuevo({"dispositivo": destino.pk, **(iniciales or {})}),
+            catalogo=catalogo,
+            edificios=edificios,
+        )
 
-
-class NuevaEntregaItemsView(_PasoConDestino):
-    """Paso 2: qué y cuánto. No escribe nada: «Continuar» manda las cantidades al paso 3.
-
-    Con ``?repone=<id>`` (el botón «Reponer» de E5) arranca con las diferencias negativas de
-    esa entrega como cantidades (HU-4.5). El POST es el «Anterior» del paso 3: vuelve a
-    mostrar el formulario con lo que ya se había cargado.
-    """
-
-    def get(self, request, dispositivo):
-        destino = self._destino(dispositivo)
-        original = self._original(request.GET.get("repone"), destino)
-        iniciales = {}
+    def get(self, request):
+        destino_form = DestinoEntregaForm(request.GET)
+        destino = destino_form.destino()
+        if destino is None:
+            return self._pantalla(request, destino_form)
+        pedido = request.GET.get("repone")
+        original = self._original(pedido, destino)
+        iniciales, sin_item_activo, lectura = {}, (), None
         if original is not None:
-            iniciales = ItemsEntregaForm.iniciales_de(
-                selectores.faltantes_de(selectores.lineas_de(original)), repone_a=original
+            lineas = selectores.lineas_de(original)
+            iniciales = NuevaEntregaForm.iniciales_de(selectores.faltantes_de(lineas), repone_a=original)
+            sin_item_activo = selectores.faltantes_sin_item_activo(lineas)
+        elif pedido:
+            messages.warning(request, "Esa entrega ya no tiene una diferencia para reponer.")
+        elif request.GET.get("estimado"):
+            lectura = self._estimado(destino)
+            estimado = lectura[0]
+            catalogo = list(catalogo_kits(solo_activos=True))
+            iniciales = NuevaEntregaForm.iniciales_de(
+                [
+                    (item, estimado[item.pk].faltan)
+                    for item in catalogo
+                    if item.pk in estimado and estimado[item.pk].faltan > 0
+                ]
             )
-        form = ItemsEntregaForm(
-            initial=ItemsEntregaForm.armado_nuevo(iniciales), catalogo=catalogo_kits(solo_activos=True)
-        )
-        return self._paso_items(request, destino, form, original)
+        form = self._form(destino, original, iniciales=iniciales)
+        return self._pantalla(request, destino_form, destino, form, original, sin_item_activo, lectura=lectura)
 
-    def post(self, request, dispositivo):
-        destino = self._destino(dispositivo)
-        catalogo = list(catalogo_kits(solo_activos=True))
-        cargado = ItemsEntregaForm(request.POST, catalogo=catalogo)
-        # Lo que venía bien se conserva; lo que no, se vuelve a pedir en blanco.
-        iniciales = cargado.cantidades_cargadas() if cargado.is_valid() else {}
-        original = self._original(iniciales.get("repone_a"), destino)
-        return self._paso_items(request, destino, ItemsEntregaForm(initial=iniciales, catalogo=catalogo), original)
-
-
-class NuevaEntregaConfirmarView(_PasoConDestino):
-    """Paso 3: el resumen y «Crear entrega». Es el único paso que escribe.
-
-    Llega por POST desde el paso 2 (muestra el resumen) y por POST desde sí mismo con
-    ``confirmar`` (crea). Lo que crea es lo que traen sus ocultos: lo que la pantalla mostró.
-    """
-
-    def get(self, request, dispositivo):
-        return redirect("emergencia:entrega_nueva_items", dispositivo)
-
-    def _resumen(self, request, dispositivo, form, original, lineas, status=200):
-        contexto = self._contexto(3, dispositivo, form, original)
-        contexto["lineas"] = [
-            {"item": item.nombre, "cantidad": cantidad, "unidad": item.unidad} for item, cantidad in lineas
-        ]
-        return render(request, TEMPLATE_CONFIRMAR, contexto, status=status)
-
-    def post(self, request, dispositivo):
-        destino = self._destino(dispositivo)
-        catalogo = list(catalogo_kits(solo_activos=True))
-        if "confirmar" not in request.POST:
-            cargado = ItemsEntregaForm(request.POST, catalogo=catalogo)
-            original = self._original(request.POST.get("repone_a"), destino)
-            if not cargado.is_valid():
-                return self._paso_items(request, destino, cargado, original, status=400)
-            form = ConfirmarEntregaForm(
-                initial=cargado.cantidades_cargadas(),
-                catalogo=catalogo,
-                edificios=selectores.edificios_a_elegir(destino, original),
-            )
-            return self._resumen(request, destino, form, original, cargado.lineas())
-
+    def post(self, request):
+        pedido = request.POST.get("dispositivo", "")
+        if not pedido.isdecimal():
+            raise Http404("Destino inexistente.")
+        destino = get_object_or_404(selectores.destinos_posibles(), pk=pedido)
         original = self._original(request.POST.get("repone_a"), destino)
-        form = ConfirmarEntregaForm(
-            request.POST, catalogo=catalogo, edificios=selectores.edificios_a_elegir(destino, original)
-        )
+        destino_form = DestinoEntregaForm({"dispositivo": destino.pk})
+        form = self._form(destino, original, datos=request.POST)
         if not form.is_valid():
-            return self._resumen(request, destino, form, original, form.lineas(), status=400)
+            return self._pantalla(request, destino_form, destino, form, original, status=400)
+        enviar = form.cleaned_data["salida"] == NuevaEntregaForm.SALE_AHORA
         try:
             entrega = servicio.crear_entrega(
                 request.user,
@@ -377,16 +422,26 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
                 repone_a=form.cleaned_data["repone_a"],
                 edificio=form.cleaned_data.get("edificio"),
                 uuid_cliente=form.cleaned_data.get("uuid_cliente"),
+                enviar=enviar,
             )
         except ValidationError as error:
             form.agregar_errores_del_servicio(error)
-            return self._resumen(request, destino, form, original, form.lineas(), status=400)
+            return self._pantalla(request, destino_form, destino, form, original, status=400)
         if getattr(entrega, "ya_existia", False):
             # Cambio 535: el mismo armado otra vez (volver atrás y reenviar). No se creó otra.
             messages.info(request, f"La entrega {entrega.numero} ya estaba armada: no se creó otra.")
-            return redirect("emergencia:entrega_detalle", entrega.pk)
-        messages.success(request, f"Entrega {entrega.numero} armada para {destino.nombre}. Queda preparada.")
+        elif enviar:
+            messages.success(request, f"Entrega {entrega.numero} enviada a {destino.nombre}. Está en camino.")
+        else:
+            messages.success(request, f"Entrega {entrega.numero} armada para {destino.nombre}. Queda preparada.")
         return redirect("emergencia:entrega_detalle", entrega.pk)
+
+
+class NuevaEntregaItemsView(MesaPermissionMixin, View):
+    """La URL del paso 2 del asistente viejo: lleva a la pantalla única con el mismo destino (y ``?repone=``)."""
+
+    def get(self, request, dispositivo):
+        return redirect(_url("emergencia:entrega_nueva", dispositivo=dispositivo, repone=request.GET.get("repone")))
 
 
 # ---------------------------------------------------------------------------
@@ -397,6 +452,7 @@ class NuevaEntregaConfirmarView(_PasoConDestino):
 def _datos_de_cabecera(entrega):
     datos = [
         {"etiqueta": "Dispositivo destino", "valor": entrega.dispositivo.nombre},
+        {"etiqueta": "Edificio destino", "valor": entrega.edificio.nombre if entrega.edificio_id else ""},
         {"etiqueta": "Localidad", "valor": entrega.dispositivo.localidad},
         {"etiqueta": "Armada por", "valor": _quien_y_cuando(entrega.armada_por, entrega.creado)},
         {"etiqueta": "En camino desde", "valor": selectores.fecha_hora(entrega.despachada_en)},
@@ -405,7 +461,21 @@ def _datos_de_cabecera(entrega):
     ]
     if entrega.estado == EntregaKit.Estado.CANCELADA:
         datos.append({"etiqueta": "Motivo de la cancelación", "valor": entrega.motivo_cancelacion})
+    if entrega.estado == EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS:
+        datos.append({"etiqueta": "Diferencia", "valor": _como_esta_la_diferencia(entrega)})
     return datos
+
+
+def _como_esta_la_diferencia(entrega):
+    """«Sin cerrar», «Repuesta» o «Aceptada: <motivo>», con quién y cuándo la cerró."""
+
+    if entrega.cierre_diferencia is None:
+        return "Sin cerrar"
+    quien = _quien_y_cuando(entrega.cierre_diferencia_por, entrega.cierre_diferencia_en)
+    if entrega.cierre_diferencia == EntregaKit.CierreDiferencia.REPUESTA:
+        return f"Repuesta · {quien}" if quien else "Repuesta"
+    texto = f"Aceptada: {entrega.cierre_diferencia_motivo}" if entrega.cierre_diferencia_motivo else "Aceptada"
+    return f"{texto} · {quien}" if quien else texto
 
 
 def _enlace_a(entrega):
@@ -423,7 +493,7 @@ class EntregaDetalleView(MesaPermissionMixin, View):
         entrega = get_object_or_404(selectores.entregas_para_detalle(), pk=pk)
         lineas = selectores.lineas_de(entrega)
         recibida = entrega.recibida
-        faltantes = selectores.faltantes_de(lineas) if selectores.con_diferencias(entrega) else []
+        sin_cerrar = entrega.diferencia_sin_cerrar
         contexto = {
             "entrega": entrega,
             "titulo": f"Entrega {entrega.numero}",
@@ -450,11 +520,24 @@ class EntregaDetalleView(MesaPermissionMixin, View):
             "recibida": recibida,
             "puede_marcar_en_camino": entrega.estado == EntregaKit.Estado.PREPARADA,
             "puede_cancelar": entrega.abierta,
-            "url_reponer": (
-                _url("emergencia:entrega_nueva_items", entrega.dispositivo_id, repone=entrega.pk) if faltantes else ""
-            ),
             **_estado(entrega),
         }
+        if sin_cerrar:
+            sin_item_activo = selectores.faltantes_sin_item_activo(lineas)
+            contexto["cerrar_diferencia"] = {
+                # «Reponer» solo se ofrece si hay algo que reponer con ítems activos; se hace una sola vez.
+                "url_reponer": (
+                    _url("emergencia:entrega_nueva", dispositivo=entrega.dispositivo_id, repone=entrega.pk)
+                    if selectores.faltantes_de(lineas)
+                    else ""
+                ),
+                "sin_item_activo": sin_item_activo,
+                "sin_item_activo_texto": (
+                    "Ya no están en el catálogo activo y no se pueden cargar en una entrega nueva: "
+                    f"{_texto_de_lo_que_no_se_repone(sin_item_activo)}."
+                ),
+            }
+            contexto["form_aceptar"] = AceptarDiferenciaForm(auto_id="aceptar_%s")
         if contexto["puede_marcar_en_camino"]:
             contexto["form_en_camino"] = EnCaminoForm(auto_id="en_camino_%s")
         if contexto["puede_cancelar"]:
@@ -531,6 +614,14 @@ class ObservarEntregaView(_AccionDeEntregaView):
         return "Observación guardada. Las cantidades recibidas no cambiaron."
 
 
+class AceptarDiferenciaView(_AccionDeEntregaView):
+    form_class = AceptarDiferenciaForm
+
+    def ejecutar(self, request, entrega, form):
+        servicio.aceptar_diferencia(entrega, request.user, form.cleaned_data["motivo"])
+        return f"Diferencia de la entrega {entrega.numero} aceptada."
+
+
 # ---------------------------------------------------------------------------
 # La recepción, dentro del dispositivo
 # ---------------------------------------------------------------------------
@@ -585,7 +676,11 @@ class KitsDelDispositivoView(RecepcionKitsMixin, View):
                 "entrega": entrega,
                 "items": selectores.resumen_de_items(list(entrega.lineas.all())),
                 "en_camino_desde": selectores.fecha_hora(entrega.despachada_en),
-                "url": reverse("emergencia:dispositivo_kit_recibir", args=[self.dispositivo.pk, entrega.pk]),
+                "url": (
+                    url_de_recepcion_en_el_edificio(entrega)
+                    if entrega.edificio_id is not None
+                    else reverse("emergencia:dispositivo_kit_recibir", args=[self.dispositivo.pk, entrega.pk])
+                ),
                 **_estado(entrega),
             }
             for entrega in pagina
@@ -632,6 +727,10 @@ class RecibirKitView(RecepcionKitsMixin, View):
         entrega = self._entrega(pk)
         if not entrega.abierta:
             return self._ya_no_esta_abierta(request, entrega)
+        if entrega.edificio_id is not None:
+            # Cambio 586: la recepción se hace solo en la solapa Kits del edificio. Esta URL queda para el POST (que
+            # la solapa usa) y para las entregas anteriores al Cambio 523, que no tienen edificio.
+            return redirect(url_de_recepcion_en_el_edificio(entrega))
         return self._render(request, entrega, RecepcionKitForm(lineas=list(entrega.lineas.all())))
 
     def post(self, request, dispositivo, pk):

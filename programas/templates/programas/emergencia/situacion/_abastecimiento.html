@@ -61,6 +61,7 @@ la capacidad que los habilita.{% endcomment %}
           <th class="nodo-th text-right" scope="col">Necesario 48 h (estimado)</th>
           <th class="nodo-th text-right" scope="col">En camino</th>
           <th class="nodo-th text-right" scope="col">Preparadas</th>
+          <th class="nodo-th text-right" scope="col">Demorado (más de 48 h)</th>
           <th class="nodo-th text-right" scope="col">Faltan (estimado)</th>
         </tr>
       </thead>
@@ -73,9 +74,11 @@ la capacidad que los habilita.{% endcomment %}
           <td class="nodo-td text-right">{{ fila.necesario }}</td>
           <td class="nodo-td text-right">{{ fila.en_camino }}</td>
           <td class="nodo-td text-right">{{ fila.preparadas }}</td>
+          <td class="nodo-td text-right">{{ fila.demoradas }}</td>
           <td class="nodo-td text-right">{% if fila.falta %}<strong>{{ fila.faltan }}</strong>{% else %}{{ fila.faltan }}{% endif %}</td>
           {% else %}
           <td class="nodo-td">Sin regla de consumo{% if abastecimiento.url_insumos %} · <a href="{{ abastecimiento.url_insumos }}" class="text-fg-brand hover:underline">Configurar</a>{% endif %}</td>
+          <td class="nodo-td text-right">—</td>
           <td class="nodo-td text-right">—</td>
           <td class="nodo-td text-right">—</td>
           <td class="nodo-td text-right">—</td>

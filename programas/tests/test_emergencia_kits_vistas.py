@@ -16,9 +16,9 @@ punta.
   ``RecepcionKitsMixin`` reemplazado por «tiene la capacidad en algún lado»,
   ``test_la_guardia_de_otro_dispositivo_recibe_404`` falla con «200 != 404». El POST lo sigue
   frenando el servicio, que tiene su propia guarda y su propia mutación en ``test_emergencia_kits``.
-* **Punta a punta** — crear en tres pasos → en camino → recibir con diferencia desde el
-  dispositivo → E5 muestra la diferencia → reponer.
-* **El asistente no usa la sesión** — lo que se crea es lo que mostró el paso 3.
+* **Punta a punta** — crear en una pantalla → en camino → recibir con diferencia → E5 muestra la
+  diferencia → reponer (una sola vez) o aceptar con motivo.
+* **La pantalla de nueva entrega no usa la sesión** — se crea lo que trajo el envío.
 * **Presupuesto** — E4 con 200 entregas (``--tag performance``).
 """
 
@@ -26,6 +26,7 @@ import re
 import shutil
 import tempfile
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -49,6 +50,7 @@ ACCIONES = {
     "entrega_en_camino": {"transporte": "", "hora": ""},
     "entrega_cancelar": {"motivo": "Se suspendió el envío"},
     "entrega_observar": {"texto": "Se reclamó al proveedor"},
+    "entrega_aceptar_diferencia": {"motivo": "Lo cubre otro envío"},
 }
 
 
@@ -93,12 +95,9 @@ class AccesoDeLaMesaTests(BaseVistasKits):
         self.gets = [
             URL_ENTREGAS,
             URL_NUEVA,
-            self._url("entrega_nueva_items", self.club.pk),
             self._url("entrega_detalle", self.entrega.pk),
         ]
-        self.posts = [self._url(nombre, self.entrega.pk) for nombre in ACCIONES] + [
-            self._url("entrega_nueva_confirmar", self.club.pk)
-        ]
+        self.posts = [self._url(nombre, self.entrega.pk) for nombre in ACCIONES] + [URL_NUEVA]
 
     def test_las_urls_son_las_del_namespace_emergencia(self):
         self.assertEqual(reverse("emergencia:entregas"), URL_ENTREGAS)
@@ -109,7 +108,7 @@ class AccesoDeLaMesaTests(BaseVistasKits):
         urls = urls_de_emergencia()
         self.assertIn(URL_ENTREGAS, urls)
         self.assertIn(URL_NUEVA, urls)
-        for fragmento in ("/en-camino/", "/cancelar/", "/observar/", "/confirmar/", "/kits/", "/recibir/"):
+        for fragmento in ("/en-camino/", "/cancelar/", "/observar/", "/aceptar-diferencia/", "/kits/", "/recibir/"):
             with self.subTest(ruta=fragmento):
                 self.assertTrue([url for url in urls if url.endswith(fragmento)], fragmento)
 
@@ -152,15 +151,6 @@ class AccesoDeLaMesaTests(BaseVistasKits):
         self.assertEqual(
             self.client.post(self._url("entrega_cancelar", 999_999), ACCIONES["entrega_cancelar"]).status_code, 404
         )
-
-    def test_un_destino_que_no_esta_activo_es_un_404_en_el_asistente(self):
-        from programas.models import Dispositivo
-
-        cerrado = self._dispositivo("Parroquia cerrada", estado=Dispositivo.Estado.CERRADO)
-        self.client.force_login(self.operador)
-
-        self.assertEqual(self.client.get(self._url("entrega_nueva_items", cerrado.pk)).status_code, 404)
-        self.assertEqual(self.client.post(self._url("entrega_nueva_confirmar", cerrado.pk), {}).status_code, 404)
 
 
 class SidebarDeKitsTests(BaseVistasKits):
@@ -245,9 +235,15 @@ class ListadoDeEntregasTests(BaseVistasKits):
         chips = {chip["texto"]: chip for chip in respuesta.context["solapas"]}
         self.assertEqual(
             {texto: chip["n"] for texto, chip in chips.items()},
-            {"Abiertas": 1, "Con diferencias": 1, "Recibidas": 0, "Canceladas": 0},
+            {
+                "Abiertas": 1,
+                "Demoradas (más de 48 h)": 0,
+                "Con diferencia sin cerrar": 1,
+                "Recibidas": 0,
+                "Canceladas": 0,
+            },
         )
-        self.assertTrue(chips["Con diferencias"]["activo"])
+        self.assertTrue(chips["Con diferencia sin cerrar"]["activo"])
         self.assertEqual(chips["Abiertas"]["url"], f"{URL_ENTREGAS}?solapa=abiertas&dispositivo={self.club.pk}")
         self.assertContains(respuesta, "Recibida con diferencias")
 
@@ -372,96 +368,77 @@ class ListadoDeEntregasTests(BaseVistasKits):
 
 
 class NuevaEntregaTests(BaseVistasKits):
+    """La pantalla única (Cambio 586): destino, «Le falta (estimado)», cantidades, salida y nota."""
+
     def setUp(self):
         super().setUp()
         self.client.force_login(self.operador)
-        self.url_items = self._url("entrega_nueva_items", self.club.pk)
-        self.url_confirmar = self._url("entrega_nueva_confirmar", self.club.pk)
+        self.url_club = f"{URL_NUEVA}?dispositivo={self.club.pk}"
 
-    def test_paso_1_lista_los_dispositivos_activos_con_su_resumen(self):
-        from programas.models import Dispositivo
+    def _crear(self, destino=None, salida="despues", **cantidades):
+        datos = {
+            "dispositivo": (destino or self.club).pk,
+            "salida": salida,
+            "observacion": "",
+            **self._cantidades(**cantidades),
+        }
+        return self.client.post(URL_NUEVA, datos)
 
-        self._dispositivo("Parroquia cerrada", estado=Dispositivo.Estado.CERRADO)
-        self._ocupar(self.club, 3)
-        self._recibida_con_faltante()
-
+    def test_sin_destino_solo_pide_elegirlo(self):
         respuesta = self.client.get(URL_NUEVA)
 
-        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva_destino.html")
-        destinos = {destino["nombre"]: destino for destino in respuesta.context["destinos"]}
-        self.assertEqual(set(destinos), {"Club Sarmiento", "Escuela 12"})
-        self.assertEqual((destinos["Club Sarmiento"]["alojadas"], destinos["Club Sarmiento"]["plazas"]), (3, "3 de 4"))
-        self.assertTrue(destinos["Club Sarmiento"]["ultima_entrega"]["con_diferencias"])
-        self.assertIsNone(destinos["Escuela 12"]["ultima_entrega"])
-        self.assertContains(respuesta, f'href="{self.url_items}"')
-        self.assertContains(respuesta, "Paso 1 de 3")
-        self.assertContains(respuesta, "Con diferencias")
+        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva.html")
+        self.assertIsNone(respuesta.context["destino"])
+        self.assertContains(respuesta, "Elegir el destino")
+        self.assertNotContains(respuesta, "Crear y enviar")
 
-    def test_paso_1_busca_por_nombre_o_localidad(self):
-        por_nombre = self.client.get(URL_NUEVA, {"q": "sarmi"}).context["destinos"]
-        por_localidad = self.client.get(URL_NUEVA, {"q": "barranq"}).context["destinos"]
-        sin_nada = self.client.get(URL_NUEVA, {"q": "zzz"})
-
-        self.assertEqual([d["nombre"] for d in por_nombre], ["Club Sarmiento"])
-        self.assertEqual([d["nombre"] for d in por_localidad], ["Escuela 12"])
-        self.assertContains(sin_nada, "Ningún dispositivo coincide con la búsqueda")
-
-    def test_paso_2_ofrece_el_catalogo_activo(self):
+    def test_con_destino_muestra_la_columna_le_falta_y_el_formulario(self):
         TipoKit.objects.filter(pk=self.agua.pk).update(activo=False)
 
-        respuesta = self.client.get(self.url_items)
+        respuesta = self.client.get(self.url_club)
 
-        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva_items.html")
-        self.assertEqual(
-            [campo.label for campo in respuesta.context["form"].campos_de_cantidad()], ["Colchón", "Kit alimentario"]
-        )
-        self.assertContains(respuesta, "En unidad.")
-        self.assertContains(respuesta, f'action="{self.url_confirmar}"')
-        self.assertContains(respuesta, "Paso 2 de 3")
+        self.assertEqual(respuesta.context["destino"]["nombre"], "Club Sarmiento")
+        self.assertEqual([fila["item"].nombre for fila in respuesta.context["filas"]], ["Colchón", "Kit alimentario"])
+        texto = _texto(respuesta.content.decode())
+        self.assertIn("Le falta (estimado)", texto)
+        self.assertIn("Crear y enviar", texto)
+        self.assertIn("Sale ahora: queda en camino", texto)
+        self.assertIn("Todavía no sale: queda preparada", texto)
+        self.assertContains(respuesta, 'name="salida"')
 
-    def test_paso_2_sin_catalogo_lo_dice_y_no_ofrece_el_formulario(self):
+    def test_un_destino_que_no_esta_activo_muestra_el_error_del_campo_y_el_post_es_404(self):
+        from programas.models import Dispositivo
+
+        cerrado = self._dispositivo("Parroquia cerrada", estado=Dispositivo.Estado.CERRADO)
+
+        respuesta = self.client.get(f"{URL_NUEVA}?dispositivo={cerrado.pk}")
+
+        self.assertIsNone(respuesta.context["destino"])
+        self.assertNotContains(respuesta, "Crear y enviar")
+        self.assertEqual(self._crear(destino=cerrado, a=(self.colchon, 1)).status_code, 404)
+        self.assertFalse(EntregaKit.objects.exists())
+
+    def test_sin_catalogo_lo_dice_y_no_ofrece_el_formulario(self):
         TipoKit.objects.update(activo=False)
 
-        respuesta = self.client.get(self.url_items)
+        respuesta = self.client.get(self.url_club)
 
         self.assertContains(respuesta, "El catálogo de kits no tiene ítems activos")
-        self.assertNotContains(respuesta, "Continuar")
-        self.assertNotContains(respuesta, 'name="repone_a"')
-        self.assertNotContains(respuesta, reverse("emergencia:insumos") + '"')
+        self.assertNotContains(respuesta, "Crear y enviar")
 
-    def test_hu_4_1_una_cantidad_en_cero_no_avanza(self):
-        datos = self._cantidades(a=(self.colchon, 0), b=(self.alimentos, 3))
-
-        respuesta = self.client.post(self.url_confirmar, datos)
+    def test_una_cantidad_en_cero_no_crea(self):
+        respuesta = self._crear(a=(self.colchon, 0), b=(self.alimentos, 3))
 
         self.assertEqual(respuesta.status_code, 400)
-        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva_items.html")
+        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva.html")
         self.assertContains(respuesta, "Sacá el ítem o poné una cantidad", status_code=400)
         self.assertFalse(EntregaKit.objects.exists())
 
-    def test_hu_4_1_sin_ninguna_cantidad_no_avanza(self):
-        respuesta = self.client.post(self.url_confirmar, self._cantidades())
+    def test_sin_ninguna_cantidad_no_crea(self):
+        respuesta = self._crear()
 
         self.assertEqual(respuesta.status_code, 400)
         self.assertContains(respuesta, "La entrega necesita al menos un ítem con cantidad.", status_code=400)
-
-    def test_paso_3_muestra_el_resumen_y_todavia_no_escribe(self):
-        datos = self._cantidades(a=(self.colchon, 10), b=(self.alimentos, 3))
-
-        respuesta = self.client.post(self.url_confirmar, datos)
-
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva_confirmar.html")
-        self.assertEqual(
-            respuesta.context["lineas"],
-            [
-                {"item": "Colchón", "cantidad": 10, "unidad": "unidad"},
-                {"item": "Kit alimentario", "cantidad": 3, "unidad": "kit"},
-            ],
-        )
-        self.assertContains(respuesta, f'name="cantidad_{self.colchon.pk}" value="10"')
-        self.assertContains(respuesta, 'name="confirmar"')
-        self.assertContains(respuesta, "Paso 3 de 3")
         self.assertFalse(EntregaKit.objects.exists())
 
     def _edificios_del_club(self, cuantos):
@@ -472,32 +449,43 @@ class NuevaEntregaTests(BaseVistasKits):
             edificio.dispositivos.add(self.club)
         return edificios
 
-    def test_con_varios_edificios_el_paso_3_pide_elegir_y_la_entrega_sale_con_ese(self):
-        a, b = self._edificios_del_club(2)
-        datos = self._cantidades(a=(self.colchon, 2))
-        resumen = self.client.post(self.url_confirmar, datos)
-        self.assertContains(resumen, 'name="edificio"')
+    def test_con_varios_edificios_pide_elegir_y_la_entrega_sale_con_ese(self):
+        _a, b = self._edificios_del_club(2)
+        self.assertContains(self.client.get(self.url_club), 'name="edificio"')
 
-        sin_elegir = self.client.post(self.url_confirmar, {**datos, "confirmar": "1"})
+        sin_elegir = self._crear(a=(self.colchon, 2))
         self.assertEqual(sin_elegir.status_code, 400)
         self.assertContains(sin_elegir, "Elegí el edificio al que va la entrega.", status_code=400)
         self.assertFalse(EntregaKit.objects.exists())
 
-        self.client.post(self.url_confirmar, {**datos, "confirmar": "1", "edificio": b.pk})
+        self.client.post(
+            URL_NUEVA,
+            {
+                "dispositivo": self.club.pk,
+                "salida": "despues",
+                "edificio": b.pk,
+                **self._cantidades(a=(self.colchon, 2)),
+            },
+        )
         self.assertEqual(EntregaKit.objects.get().edificio_id, b.pk)
 
     def test_con_un_solo_edificio_no_se_pregunta_y_queda_fijo(self):
         (unico,) = self._edificios_del_club(1)
-        datos = self._cantidades(a=(self.colchon, 2))
-        self.assertNotContains(self.client.post(self.url_confirmar, datos), 'name="edificio"')
-        self.client.post(self.url_confirmar, {**datos, "confirmar": "1"})
+        self.assertNotContains(self.client.get(self.url_club), 'name="edificio"')
+
+        self._crear(a=(self.colchon, 2))
+
         self.assertEqual(EntregaKit.objects.get().edificio_id, unico.pk)
 
-    def test_hu_4_1_confirmar_crea_la_entrega_preparada(self):
-        datos = self._cantidades(a=(self.colchon, 10), b=(self.alimentos, 3))
-        datos.update(confirmar="1", observacion="Entregar a la directora.")
+    def test_todavia_no_sale_la_deja_preparada(self):
+        datos = {
+            "dispositivo": self.club.pk,
+            "salida": "despues",
+            "observacion": "Entregar a la directora.",
+            **self._cantidades(a=(self.colchon, 10), b=(self.alimentos, 3)),
+        }
 
-        respuesta = self.client.post(self.url_confirmar, datos)
+        respuesta = self.client.post(URL_NUEVA, datos)
 
         entrega = EntregaKit.objects.get()
         self.assertRedirects(respuesta, self._url("entrega_detalle", entrega.pk))
@@ -510,50 +498,110 @@ class NuevaEntregaTests(BaseVistasKits):
             [("Colchón", 10), ("Kit alimentario", 3)],
         )
         self.assertIn(f"Entrega {entrega.numero} armada para Club Sarmiento", self._avisos(respuesta)[0])
-        self.assertIn(entrega, [fila["entrega"] for fila in self.client.get(URL_ENTREGAS).context["filas"]])
+        self.assertEqual(
+            list(TrazaEntrega.objects.filter(entrega=entrega).values_list("accion", flat=True)), ["CREADA"]
+        )
 
-    def test_el_asistente_no_guarda_nada_en_la_sesion(self):
-        """Dos pestañas, dos destinos: cada «Crear entrega» escribe lo que mostró su pantalla."""
+    def test_sale_ahora_la_crea_y_la_marca_en_camino(self):
+        respuesta = self._crear(salida="ahora", a=(self.colchon, 10))
+
+        entrega = EntregaKit.objects.get()
+        self.assertRedirects(respuesta, self._url("entrega_detalle", entrega.pk))
+        self.assertEqual(entrega.estado, Estado.EN_CAMINO)
+        self.assertEqual(entrega.despachada_en, T0)
+        self.assertIn(f"Entrega {entrega.numero} enviada a Club Sarmiento. Está en camino.", self._avisos(respuesta)[0])
+        self.assertEqual(
+            list(TrazaEntrega.objects.filter(entrega=entrega).order_by("id").values_list("accion", flat=True)),
+            ["CREADA", "EN_CAMINO"],
+        )
+
+    def test_si_no_se_puede_marcar_en_camino_no_queda_ninguna_entrega(self):
+        """Crear y enviar es una sola transacción: si el segundo paso falla, el primero se deshace."""
+        from django.core.exceptions import ValidationError
+
+        with mock.patch("programas.services.kits.marcar_en_camino", side_effect=ValidationError("No se pudo.")):
+            respuesta = self._crear(salida="ahora", a=(self.colchon, 10))
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertContains(respuesta, "No se pudo.", status_code=400)
+        self.assertFalse(EntregaKit.objects.exists())
+        self.assertFalse(TrazaEntrega.objects.exists())
+
+    def test_no_guarda_nada_en_la_sesion(self):
+        """Dos pestañas, dos destinos: cada «Crear y enviar» escribe lo que trajo su formulario."""
         claves_antes = set(self.client.session.keys())
-        para_el_club = self._cantidades(a=(self.colchon, 10))
-        para_la_escuela = self._cantidades(a=(self.agua, 6))
-        # Las dos pestañas llegan al paso 3 antes de que ninguna confirme.
-        self.client.post(self.url_confirmar, para_el_club)
-        self.client.post(self._url("entrega_nueva_confirmar", self.escuela.pk), para_la_escuela)
+        self.client.get(self.url_club)
+        self.client.get(f"{URL_NUEVA}?dispositivo={self.escuela.pk}")
         self.assertEqual(set(self.client.session.keys()), claves_antes)
 
-        self.client.post(self.url_confirmar, {**para_el_club, "confirmar": "1"})
-        self.client.post(self._url("entrega_nueva_confirmar", self.escuela.pk), {**para_la_escuela, "confirmar": "1"})
+        self._crear(a=(self.colchon, 10))
+        self._crear(destino=self.escuela, a=(self.agua, 6))
 
         club = EntregaKit.objects.get(dispositivo=self.club)
         escuela = EntregaKit.objects.get(dispositivo=self.escuela)
         self.assertEqual(list(club.lineas.values_list("item__nombre", "cantidad_enviada")), [("Colchón", 10)])
         self.assertEqual(list(escuela.lineas.values_list("item__nombre", "cantidad_enviada")), [("Agua 6 l", 6)])
 
-    def test_un_item_que_se_desactivo_entre_el_paso_2_y_el_3_no_se_descarta_en_silencio(self):
-        datos = self._cantidades(a=(self.colchon, 10), b=(self.agua, 6))
-        datos["confirmar"] = "1"
+    def test_un_item_que_se_desactivo_mientras_se_armaba_no_se_descarta_en_silencio(self):
+        datos = {
+            "dispositivo": self.club.pk,
+            "salida": "despues",
+            **self._cantidades(a=(self.colchon, 10), b=(self.agua, 6)),
+        }
         TipoKit.objects.filter(pk=self.agua.pk).update(activo=False)
 
-        respuesta = self.client.post(self.url_confirmar, datos)
+        respuesta = self.client.post(URL_NUEVA, datos)
 
         self.assertEqual(respuesta.status_code, 400)
         self.assertContains(respuesta, "ya no está en el catálogo activo", status_code=400)
         self.assertFalse(EntregaKit.objects.exists())
 
-    def test_anterior_vuelve_al_paso_2_con_las_cantidades(self):
-        datos = self._cantidades(a=(self.colchon, 10), b=(self.alimentos, 3))
+    def test_cargar_lo_estimado_precarga_lo_que_le_falta(self):
+        """La cuenta del faltante se prueba en ``test_emergencia_abastecimiento``; acá, que la pantalla la cargue."""
+        from types import SimpleNamespace
 
-        respuesta = self.client.post(self.url_items, datos)
+        from programas.views.emergencia_kits import NuevaEntregaView
 
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/nueva_items.html")
-        self.assertContains(respuesta, f'name="cantidad_{self.colchon.pk}" value="10"')
-        self.assertFalse(respuesta.context["form"].is_bound)
+        estimado = {
+            self.colchon.pk: SimpleNamespace(faltan=5, demoradas=0),
+            self.alimentos.pk: SimpleNamespace(faltan=0, demoradas=2),
+        }
+        with mock.patch.object(NuevaEntregaView, "_estimado", return_value=(estimado, "")):
+            sin_cargar = self.client.get(self.url_club)
+            cargado = self.client.get(f"{self.url_club}&estimado=1")
+
+        self.assertContains(sin_cargar, "Cargar lo estimado")
+        self.assertNotContains(sin_cargar, f'name="cantidad_{self.colchon.pk}" value=')
+        self.assertContains(cargado, f'name="cantidad_{self.colchon.pk}" value="5"')
+        self.assertNotContains(cargado, f'name="cantidad_{self.alimentos.pk}" value=')
+        self.assertContains(cargado, "2 demorados (más de 48 h)")
+
+    def test_reponer_arranca_con_lo_que_falto(self):
+        recibida = self._recibir(self._en_camino(), {self.colchon.pk: 8, self.alimentos.pk: 4})
+
+        respuesta = self.client.get(f"{self.url_club}&repone={recibida.pk}")
+
+        self.assertContains(respuesta, f"Repone a la entrega {recibida.numero}")
+        self.assertContains(respuesta, f'name="cantidad_{self.colchon.pk}" value="2"')
+        self.assertContains(respuesta, f'name="repone_a" value="{recibida.pk}"')
+        self.assertEqual(respuesta.context["sin_item_activo_texto"], "")
+
+    def test_reponer_avisa_de_los_items_inactivos_con_faltante(self):
+        recibida = self._recibir(self._en_camino(), {self.colchon.pk: 8, self.alimentos.pk: 5})
+        TipoKit.objects.filter(pk=self.colchon.pk).update(activo=False)
+
+        respuesta = self.client.get(f"{self.url_club}&repone={recibida.pk}")
+
+        self.assertEqual(respuesta.context["sin_item_activo_texto"], "Colchón (2)")
+        self.assertContains(respuesta, "Hay ítems que no se pueden reponer")
+
+    def test_la_url_del_paso_2_viejo_redirige_a_la_pantalla_unica(self):
+        respuesta = self.client.get(f"{self._url('entrega_nueva_items', self.club.pk)}?repone=7")
+
+        self.assertRedirects(
+            respuesta, f"{URL_NUEVA}?dispositivo={self.club.pk}&repone=7", fetch_redirect_response=False
+        )
         self.assertFalse(EntregaKit.objects.exists())
-
-    def test_el_paso_3_no_se_abre_por_get(self):
-        self.assertRedirects(self.client.get(self.url_confirmar), self.url_items)
 
 
 # ---------------------------------------------------------------------------
@@ -575,7 +623,7 @@ class DetalleDeEntregaTests(BaseVistasKits):
         self.assertTemplateUsed(respuesta, "programas/emergencia/kits/detail.html")
         self.assertTrue(respuesta.context["puede_marcar_en_camino"])
         self.assertTrue(respuesta.context["puede_cancelar"])
-        self.assertEqual(respuesta.context["url_reponer"], "")
+        self.assertNotIn("cerrar_diferencia", respuesta.context)
         self.assertNotIn("form_observar", respuesta.context)
         texto = _texto(respuesta.content.decode())
         self.assertIn("Entregar a la directora.", texto)
@@ -599,21 +647,53 @@ class DetalleDeEntregaTests(BaseVistasKits):
         self.assertIn("Gabi Guardia_Club", texto)
         self.assertIn(f'href="/media/{recibida.remito.name}"', html)
         self.assertEqual(respuesta.context["remito"][0]["alt"], f"Remito de la entrega {recibida.numero}")
-        self.assertIn(f"{self._url('entrega_nueva_items', self.club.pk)}?repone={recibida.pk}", html)
+        self.assertEqual(
+            respuesta.context["cerrar_diferencia"]["url_reponer"],
+            f"{URL_NUEVA}?dispositivo={self.club.pk}&repone={recibida.pk}",
+        )
+        self.assertIn("Qué hacer ahora: cerrar la diferencia", texto)
+        self.assertIn("Reponer lo que faltó", texto)
+        self.assertIn("Aceptar la diferencia", texto)
+        self.assertIn("Sin cerrar", texto)
         self.assertFalse(respuesta.context["puede_cancelar"])
         self.assertIn("form_observar", respuesta.context)
 
-    def test_una_recibida_completa_no_ofrece_reponer(self):
+    def test_una_recibida_completa_no_ofrece_cerrar_nada(self):
         respuesta = self._detalle(self._recibir(self._en_camino()))
 
-        self.assertEqual(respuesta.context["url_reponer"], "")
+        self.assertNotIn("cerrar_diferencia", respuesta.context)
         self.assertIn("sin diferencia", _texto(respuesta.content.decode()))
 
-    def test_solo_de_mas_no_ofrece_reponer(self):
+    def test_solo_de_mas_no_ofrece_reponer_pero_si_aceptar(self):
         """Reponer precarga lo que faltó: si solo llegó de más, no hay nada que reponer."""
         recibida = self._recibir(self._en_camino(), {self.colchon.pk: 10, self.alimentos.pk: 5})
 
-        self.assertEqual(self._detalle(recibida).context["url_reponer"], "")
+        respuesta = self._detalle(recibida)
+
+        self.assertEqual(respuesta.context["cerrar_diferencia"]["url_reponer"], "")
+        self.assertIn("form_aceptar", respuesta.context)
+
+    def test_aceptar_la_diferencia_pide_el_motivo_y_la_cierra(self):
+        recibida = self._recibida_con_faltante()
+        url = self._url("entrega_aceptar_diferencia", recibida.pk)
+
+        sin_motivo = self.client.post(url, {"motivo": "  "})
+        self.assertRedirects(sin_motivo, self._url("entrega_detalle", recibida.pk))
+        self.assertIsNone(EntregaKit.objects.get(pk=recibida.pk).cierre_diferencia)
+
+        con_motivo = self.client.post(url, {"motivo": "Lo cubre otro envío"})
+        self.assertIn("aceptada", self._avisos(con_motivo)[0])
+        cerrada = EntregaKit.objects.get(pk=recibida.pk)
+        self.assertEqual(
+            (cerrada.cierre_diferencia, cerrada.cierre_diferencia_motivo, cerrada.cierre_diferencia_por),
+            (EntregaKit.CierreDiferencia.ACEPTADA, "Lo cubre otro envío", self.operador),
+        )
+        respuesta = self._detalle(recibida)
+        self.assertNotIn("cerrar_diferencia", respuesta.context)
+        self.assertIn("Aceptada: Lo cubre otro envío", _texto(respuesta.content.decode()))
+        # Ya cerrada, la pantalla de «Nueva entrega» no ofrece reponerla.
+        reponer = self.client.get(f"{URL_NUEVA}?dispositivo={self.club.pk}&repone={recibida.pk}")
+        self.assertIsNone(reponer.context["repone_a"])
 
     def test_marcar_en_camino_desde_el_detalle(self):
         self.reloj.ahora = T0 - timedelta(hours=2)
@@ -684,7 +764,7 @@ class DetalleDeEntregaTests(BaseVistasKits):
     def test_no_hay_ninguna_url_que_edite_la_recepcion(self):
         """RN-4.5: las únicas acciones de la mesa sobre una entrega son estas tres."""
         acciones = {url.rstrip("/").rsplit("/", 1)[-1] for url in urls_de_emergencia() if "/entregas/1/" in url}
-        self.assertEqual(acciones, {"1", "en-camino", "cancelar", "observar"})
+        self.assertEqual(acciones, {"1", "en-camino", "cancelar", "observar", "aceptar-diferencia"})
 
 
 class EntradaEnElDetalleDelDispositivoTests(BaseVistasKits):
@@ -744,13 +824,19 @@ class PuntaAPuntaTests(BaseVistasKits):
         mesa.force_login(self.operador)
         guardia.force_login(self.guardia)
 
-        # 1. La mesa arma la entrega en tres pasos.
+        # 1. La mesa arma la entrega en una sola pantalla y queda preparada.
         cliente = mesa
-        self.assertContains(cliente.get(URL_NUEVA), self._url("entrega_nueva_items", self.club.pk))
+        self.assertContains(cliente.get(f"{URL_NUEVA}?dispositivo={self.club.pk}"), "Le falta (estimado)")
         cantidades = self._cantidades(a=(self.colchon, 10), b=(self.alimentos, 3))
-        url_confirmar = self._url("entrega_nueva_confirmar", self.club.pk)
-        self.assertEqual(cliente.post(url_confirmar, cantidades).status_code, 200)
-        cliente.post(url_confirmar, {**cantidades, "confirmar": "1", "observacion": "Para la guardia de la tarde."})
+        cliente.post(
+            URL_NUEVA,
+            {
+                **cantidades,
+                "dispositivo": self.club.pk,
+                "salida": "despues",
+                "observacion": "Para la guardia de la tarde.",
+            },
+        )
         entrega = EntregaKit.objects.get()
         self.assertEqual(entrega.estado, Estado.PREPARADA)
 
@@ -783,6 +869,7 @@ class PuntaAPuntaTests(BaseVistasKits):
         # 4. La mesa la ve en «Con diferencias» y E5 muestra la diferencia.
         cliente = mesa
         con_diferencias = cliente.get(URL_ENTREGAS, {"solapa": "con_diferencias"})
+        self.assertContains(con_diferencias, "Con diferencia sin cerrar")
         self.assertEqual([fila["entrega"] for fila in con_diferencias.context["filas"]], [recibida])
         detalle = cliente.get(self._url("entrega_detalle", recibida.pk))
         texto = _texto(detalle.content.decode())
@@ -791,18 +878,23 @@ class PuntaAPuntaTests(BaseVistasKits):
         self.assertEqual(cliente.get(f"/media/{recibida.remito.name}").status_code, 200)
 
         # 5. Reponer: el paso 2 arranca con lo que faltó y la entrega nueva guarda a quién repone.
-        paso_2 = cliente.get(detalle.context["url_reponer"])
-        self.assertContains(paso_2, f'name="cantidad_{self.colchon.pk}" value="2"')
-        self.assertNotContains(paso_2, f'name="cantidad_{self.alimentos.pk}" value=')
-        self.assertContains(paso_2, f'name="repone_a" value="{recibida.pk}"')
-        self.assertContains(paso_2, f"Repone a la entrega {recibida.numero}")
-        reposicion_datos = {**self._cantidades(a=(self.colchon, 2)), "repone_a": str(recibida.pk)}
-        paso_3 = cliente.post(url_confirmar, reposicion_datos)
-        self.assertContains(paso_3, f"la entrega {recibida.numero}")
-        cliente.post(url_confirmar, {**reposicion_datos, "confirmar": "1"})
+        pantalla = cliente.get(detalle.context["cerrar_diferencia"]["url_reponer"])
+        self.assertContains(pantalla, f'name="cantidad_{self.colchon.pk}" value="2"')
+        self.assertNotContains(pantalla, f'name="cantidad_{self.alimentos.pk}" value=')
+        self.assertContains(pantalla, f'name="repone_a" value="{recibida.pk}"')
+        self.assertContains(pantalla, f"Repone a la entrega {recibida.numero}")
+        reposicion_datos = {
+            **self._cantidades(a=(self.colchon, 2)),
+            "repone_a": str(recibida.pk),
+            "dispositivo": self.club.pk,
+            "salida": "ahora",
+        }
+        cliente.post(URL_NUEVA, reposicion_datos)
 
         reposicion = EntregaKit.objects.exclude(pk=recibida.pk).get()
-        self.assertEqual(reposicion.repone_a, recibida)
+        self.assertEqual((reposicion.repone_a, reposicion.estado), (recibida, Estado.EN_CAMINO))
+        # Repuesta una sola vez: la original quedó cerrada y ya no ofrece reponer.
+        self.assertEqual(EntregaKit.objects.get(pk=recibida.pk).cierre_diferencia, EntregaKit.CierreDiferencia.REPUESTA)
         self.assertEqual(list(reposicion.lineas.values_list("item__nombre", "cantidad_enviada")), [("Colchón", 2)])
         # E5 lo muestra en los dos sentidos.
         self.assertContains(
@@ -814,5 +906,5 @@ class PuntaAPuntaTests(BaseVistasKits):
         # La traza cuenta toda la historia.
         self.assertEqual(
             list(TrazaEntrega.objects.filter(entrega=recibida).order_by("id").values_list("accion", flat=True)),
-            ["CREADA", "EN_CAMINO", "RECIBIDA"],
+            ["CREADA", "EN_CAMINO", "RECIBIDA", "DIFERENCIA_REPUESTA"],
         )

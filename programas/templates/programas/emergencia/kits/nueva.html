@@ -1,0 +1,98 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Emergencia · Nueva entrega{% endblock %}
+
+{% block main-content %}
+{% comment %}E4 · «Nueva entrega» en una sola pantalla (Cambio 586). Molde: golden de Formulario (becas/config/segmento_form.html).
+Primero el destino (un GET que no escribe nada) y, con el destino elegido, el formulario: una fila por ítem del
+catálogo activo con «Le falta (estimado)» —las mismas reglas que la solapa Abastecimiento de Situación— y la cantidad
+a enviar, la nota para el dispositivo y si sale ahora. «Crear y enviar» crea la entrega y la marca en camino en una sola
+operación. No usa la sesión: el destino viaja en un oculto y la vista lo vuelve a validar. Todo lo que rechace el
+servicio vuelve arriba del formulario.{% endcomment %}
+<div class="space-y-5">
+  {% page_header titulo="Nueva entrega" eyebrow="Programa Emergencia" volver_url=url_entregas volver_label="entregas de kits" %}
+    {% bajada %}Elegí a dónde va y cargá cuánto sale de cada ítem. Lo que dejes vacío no va en la entrega.{% endbajada %}
+  {% endpage_header %}
+
+  <form method="get" action="{{ url_nueva }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold mb-4">Destino</h2>
+    {% include "components/_field.html" with field=destino_form.dispositivo wrapper_class="" %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <button type="submit" class="btn-nodo btn-secondary btn-base">{% if destino %}Cambiar el destino{% else %}Elegir el destino{% endif %}</button>
+    </div>
+  </form>
+
+  {% if destino %}
+    {% if repone_a %}
+      {% include "components/_alerta.html" with tono="info" titulo="Repone a la entrega "|add:repone_a.numero texto="Las cantidades arrancan con lo que faltó en esa entrega. Las podés cambiar. Se repone una sola vez." role="status" %}
+    {% endif %}
+    {% if sin_item_activo_texto %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Hay ítems que no se pueden reponer" texto="Ya no están en el catálogo activo y no van en esta entrega: "|add:sin_item_activo_texto role="status" %}
+    {% endif %}
+
+    {% if form.catalogo %}
+    <form method="post" action="{{ url_nueva }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
+      {% csrf_token %}
+      {% include "components/_form_errores.html" %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+      <h2 class="text-heading font-bold">{{ destino.nombre }}{% if destino.localidad %} <span class="text-body-subtle font-normal">· {{ destino.localidad }}</span>{% endif %}</h2>
+      <p class="mt-1 text-xs text-body-subtle">
+        {{ destino.alojadas }} persona{{ destino.alojadas|pluralize }} alojada{{ destino.alojadas|pluralize }} hoy · Plazas ocupadas: {{ destino.plazas }} ·
+        {% if destino.ultima_entrega %}Última entrega: {{ destino.ultima_entrega.numero }} · {{ destino.ultima_entrega.fecha }}{% if destino.ultima_entrega.con_diferencias %} <span class="badge badge-warning">Con diferencias</span>{% endif %}{% else %}Sin entregas{% endif %}
+      </p>
+
+      {% if aviso_estimado %}
+        <div class="mt-4">{% include "components/_alerta.html" with tono="info" texto=aviso_estimado role="status" %}</div>
+      {% endif %}
+
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full border-collapse">
+          <caption class="sr-only">Ítems de la entrega: lo que le falta al destino (estimado) y la cantidad a enviar</caption>
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th" scope="col">Ítem</th>
+              <th class="nodo-th text-right" scope="col">Le falta (estimado)</th>
+              <th class="nodo-th text-right" scope="col">Cantidad a enviar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">
+                <label for="{{ fila.campo.id_for_label }}">{{ fila.item.nombre }}</label>
+                <span class="block text-xs text-body-subtle">{{ fila.item.unidad }}</span>
+              </td>
+              <td class="nodo-td text-right">
+                {% if fila.estimado %}{{ fila.estimado.faltan }}{% if fila.estimado.demoradas %}<span class="block text-xs text-body-subtle">{{ fila.estimado.demoradas }} demorado{{ fila.estimado.demoradas|pluralize }} (más de 48 h)</span>{% endif %}{% else %}—{% endif %}
+              </td>
+              <td class="nodo-td text-right">
+                {% campo_control fila.campo %}
+                <p id="{{ fila.campo.auto_id }}-error" class="mt-1 text-xs text-fg-danger{% if not fila.campo.errors %} hidden{% endif %}" data-error="{{ fila.campo.name }}">{{ fila.campo.errors|join:" " }}</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if hay_estimado %}
+      <div class="mt-3">
+        <a href="{{ url_estimado }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Cargar lo estimado</a>
+      </div>
+      {% endif %}
+
+      <div class="border-t border-light mt-6 pt-4">
+        {% for field in form.campos_visibles %}{% include "components/_field.html" %}{% endfor %}
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+        <a href="{{ url_entregas }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+        <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-truck" aria-hidden="true"></i> Crear y enviar</button>
+      </div>
+    </form>
+    {% else %}
+      {% include "components/_alerta.html" with tono="warning" titulo="El catálogo de kits no tiene ítems activos" texto="Sin ítems no se puede armar una entrega. El catálogo lo mantiene quien supervisa la mesa, en Insumos." accion_url=url_insumos accion_texto="Ir a Insumos" %}
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
