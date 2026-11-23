@@ -591,7 +591,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             estado = ESTADO_OCUPADA
             apellido, nombre, estadia_id, ciudadano_id = ocupadas[plaza.pk]
             detalle = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
-            ocupante = f"{apellido}, {nombre}".strip(", ") if puede_ver_personas else ""
+            ocupante = _nombre_completo_en_plaza(apellido, nombre) if puede_ver_personas else ""
         elif plaza.pk in reservas:
             tipo, apellido, nombre, hasta, derivacion_id = reservas[plaza.pk]
             prestada = tipo == ReservaPlaza.Tipo.PRESTAMO
@@ -621,6 +621,16 @@ def _nombre_en_plaza(apellido, nombre):
 
     inicial = nombre.strip()[:1]
     return f"{apellido}, {inicial}." if inicial else apellido
+
+
+def _nombre_completo_en_plaza(apellido, nombre):
+    """«Apellido, Nombre» a partir de los valores de la consulta (sin instancia del legajo).
+
+    Es el orden de ``Ciudadano.apellido_nombre``, que acá no se puede usar porque la consulta trae solo columnas;
+    sin apellido o sin nombre no deja la coma suelta.
+    """
+
+    return f"{apellido}, {nombre}".strip(", ")
 
 
 # ---------------------------------------------------------------------------------------

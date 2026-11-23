@@ -16,6 +16,7 @@ from django.urls import reverse
 
 from legajos.models import Ciudadano
 from programas.models import CasoEmergencia, Derivacion, EntregaKit, IntegranteGrupo, TrazaCaso
+from programas.selectors import emergencia_ficha as ficha
 from programas.selectors import emergencia_mesa as mesa
 from programas.selectors.emergencia_derivar import clave_de_grupo, pedidas_pendientes
 from programas.services import emergencia as servicio_mesa
@@ -139,7 +140,7 @@ class AceptadoSinMovimientoTests(BaseAlojar):
         self.caso, self.derivacion = self._aceptado(adultos_f=1, adultos_m=1, menores_f=0, menores_m=0)
 
     def _avisos(self):
-        caso = mesa.casos_para_ficha().get(pk=self.caso.pk)
+        caso = ficha.casos_para_ficha().get(pk=self.caso.pk)
         return [aviso["texto"] for aviso in mesa.avisos_de_la_mesa(caso, sla_vigente(), self.reloj())]
 
     def test_avisa_desde_las_horas_de_e7_sin_vencer_nada(self):

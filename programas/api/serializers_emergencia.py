@@ -427,7 +427,9 @@ class CasoAbiertoSerializer(serializers.Serializer):
     estado = serializers.CharField(help_text="Código del estado del caso (`NUEVO`, `EN_GESTION`, `DERIVADO`…).")
     estado_texto = serializers.CharField()
     derivada_a = serializers.CharField(
-        allow_null=True, help_text="La institución a la que la mesa derivó la familia, si la derivación sigue vigente."
+        allow_null=True,
+        help_text="La institución a la que la mesa derivó la familia, solo si la derivación vigente es de este "
+        "dispositivo o quien pregunta es la mesa; si no, `null` y `derivada_a_otra`.",
     )
     derivada_en = serializers.DateTimeField(allow_null=True, help_text="Cuándo se derivó.")
     derivada_a_otra = serializers.BooleanField(

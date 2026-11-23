@@ -99,6 +99,14 @@ class BaseAlojar(BaseCasos):
         resultado = servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
         return resultado.caso, resultado.derivacion
 
+    def _alojada(self, personas=2, **kwargs):
+        """Una familia de ``personas`` con todas confirmadas y alojada (el caso en ``ALOJADO``)."""
+
+        caso, derivacion = self._aceptado(menores_f=0, menores_m=0, adultos_f=1, adultos_m=personas - 1, **kwargs)
+        for orden, reserva in enumerate(self._reservas(derivacion), start=1):
+            self._confirmar(caso, orden, str(45_000_100 + orden), plaza=reserva.plaza)
+        return servicio.alojar_familia(caso=caso, usuario=self.guardia)
+
     def _reservas(self, derivacion, estado=ReservaPlaza.Estado.VIGENTE):
         return list(ReservaPlaza.objects.filter(derivacion=derivacion, estado=estado).order_by("plaza_id"))
 

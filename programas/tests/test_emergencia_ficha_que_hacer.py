@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import CasoEmergencia
+from programas.selectors import emergencia_ficha as ficha
 from programas.selectors import emergencia_mesa as mesa
 from programas.services import emergencia as servicio
 from programas.services import emergencia_alojar as alojar
@@ -48,7 +49,7 @@ class QueHacerAhoraPuraTests(SimpleTestCase):
 
     def _claves(self, estado=Estado.EN_GESTION, paso=None, caso=None, **encendidas):
         caso = caso or CasoEmergencia(estado=estado)
-        ahora = mesa.que_hacer_ahora(caso, {**APAGADAS, **encendidas}, paso or _paso())
+        ahora = ficha.que_hacer_ahora(caso, {**APAGADAS, **encendidas}, paso or _paso())
         return [accion["clave"] for accion in ahora["acciones"]]
 
     def test_sin_ningun_permiso_el_bloque_solo_informa(self):
@@ -74,49 +75,52 @@ class QueHacerAhoraPuraTests(SimpleTestCase):
         self.assertEqual(claves, ["derivar", "contacto", "cerrar"])
 
     def test_cancelar_la_derivacion_pasa_a_principal_solo_si_el_paso_es_urgente(self):
-        normal = mesa.que_hacer_ahora(
+        normal = ficha.que_hacer_ahora(
             CasoEmergencia(estado=Estado.DERIVADO), {**APAGADAS, "puede_cancelar_derivacion": True}, _paso(False)
         )
-        urgente = mesa.que_hacer_ahora(
+        urgente = ficha.que_hacer_ahora(
             CasoEmergencia(estado=Estado.DERIVADO), {**APAGADAS, "puede_cancelar_derivacion": True}, _paso(True)
         )
         self.assertEqual(normal["acciones"][0]["tono"], "secondary")
         self.assertEqual(urgente["acciones"][0]["tono"], "brand")
 
     def test_el_contacto_es_principal_en_un_ingreso_parcial_y_de_apoyo_en_el_resto(self):
-        # ``ingreso_parcial`` es una propiedad del modelo (sale de ``total_alojado`` y del grupo): se la simula.
-        parcial = SimpleNamespace(estado=Estado.ALOJADO, abierto=True, ingreso_parcial=True)
-        completo = SimpleNamespace(estado=Estado.ALOJADO, abierto=True, ingreso_parcial=False)
-        for caso, tono in ((parcial, "brand"), (completo, "secondary")):
-            ahora = mesa.que_hacer_ahora(
-                caso, {**APAGADAS, "puede_actuar": True, "puede_cerrar_alojado": True}, _paso()
+        # Lo urgente de un caso alojado es el ingreso parcial (``que_falta``): el tono sale del paso, sin recalcularlo.
+        alojado = SimpleNamespace(estado=Estado.ALOJADO, abierto=True)
+        for urgente, tono in ((True, "brand"), (False, "secondary")):
+            ahora = ficha.que_hacer_ahora(
+                alojado, {**APAGADAS, "puede_actuar": True, "puede_cerrar_alojado": True}, _paso(urgente)
             )
             contacto = next(accion for accion in ahora["acciones"] if accion["clave"] == "contacto")
             self.assertEqual(contacto["tono"], tono)
 
     def test_un_caso_cerrado_no_repite_el_motivo_que_ya_muestra_su_aviso(self):
         paso = _paso(nota="Otro motivo")
-        cerrado = mesa.que_hacer_ahora(CasoEmergencia(estado=Estado.CERRADO), dict(APAGADAS), paso)
-        abierto = mesa.que_hacer_ahora(CasoEmergencia(estado=Estado.EN_GESTION), dict(APAGADAS), paso)
+        cerrado = ficha.que_hacer_ahora(CasoEmergencia(estado=Estado.CERRADO), dict(APAGADAS), paso)
+        abierto = ficha.que_hacer_ahora(CasoEmergencia(estado=Estado.EN_GESTION), dict(APAGADAS), paso)
         self.assertEqual((cerrado["nota"], abierto["nota"]), ("", "Otro motivo"))
 
     def test_las_ayudas(self):
-        sin_dueno = mesa.que_hacer_ahora(
-            CasoEmergencia(estado=Estado.NUEVO), {**APAGADAS, "puede_tomar": True}, _paso(), tomar_para_gestionar=True
+        sin_dueno = ficha.que_hacer_ahora(
+            CasoEmergencia(estado=Estado.NUEVO), {**APAGADAS, "puede_tomar": True}, _paso()
         )
         self.assertIn("derivarla o cerrar el caso", sin_dueno["ayuda"])
-        derivado = mesa.que_hacer_ahora(
-            CasoEmergencia(estado=Estado.DERIVADO),
-            {**APAGADAS, "puede_tomar": True},
-            _paso(),
-            tomar_para_gestionar=False,
+        derivado = ficha.que_hacer_ahora(
+            CasoEmergencia(estado=Estado.DERIVADO), {**APAGADAS, "puede_tomar": True}, _paso()
         )
         self.assertIn("Tomalo para hacerte cargo", derivado["ayuda"])
         self.assertNotIn("derivarla o cerrar el caso", derivado["ayuda"])
-        ajeno = mesa.que_hacer_ahora(
+        ajeno = ficha.que_hacer_ahora(
             CasoEmergencia(estado=Estado.EN_GESTION), {**APAGADAS, "solo_lectura": True}, _paso()
         )
         self.assertIn("quien lo tiene tomado", ajeno["ayuda"])
+        # Con un botón a la vista (la supervisión cierra un caso ajeno) «le toca a otro» no se dice.
+        con_boton = ficha.que_hacer_ahora(
+            CasoEmergencia(estado=Estado.ALOJADO),
+            {**APAGADAS, "solo_lectura": True, "puede_cerrar_alojado": True},
+            _paso(),
+        )
+        self.assertEqual(con_boton["ayuda"], "")
 
 
 class _Base(BaseAlojar):
@@ -124,13 +128,7 @@ class _Base(BaseAlojar):
         super().setUp()
         self.jefe = self._usuario("jefe_mesa", [OPERAR, SUPERVISAR, CAP])
 
-    # Los casos, uno por estado.
-    def _alojada(self, **kwargs):
-        caso, derivacion = self._aceptado(menores_f=0, menores_m=0, adultos_f=1, adultos_m=1, **kwargs)
-        for orden, reserva in enumerate(self._reservas(derivacion), start=1):
-            self._confirmar(caso, orden, str(45_000_100 + orden), plaza=reserva.plaza)
-        return alojar.alojar_familia(caso=caso, usuario=self.guardia)
-
+    # Los casos, uno por estado (``_alojada`` es de ``BaseAlojar``).
     def _cerrado(self):
         return servicio.cerrar_sin_alojamiento(self._caso_tomado(dni="30222333"), self.operador, "NO_REQUIERE")
 
@@ -175,6 +173,16 @@ class QueHacerPorEstadoYPerfilTests(_Base):
         self.assertEqual(self._claves(caso, self.operador), ["contacto"])
         self.assertEqual(self._claves(caso, self.supervisor), ["cancelar_ingreso", "contacto"])
 
+    def test_la_ayuda_de_solo_lectura_no_sale_junto_a_un_boton(self):
+        """Quien tiene ``operar`` + ``cerrar_reabrir`` sobre un alojado de otro ve el botón y no «le toca a otro»."""
+
+        caso = self._alojada()
+        cerrador = self._usuario("cerrador_mesa", [OPERAR, CAP])
+        ahora = self._ficha(caso, cerrador).context["que_hacer"]
+        self.assertEqual([accion["clave"] for accion in ahora["acciones"]], ["cerrar_alojado"])
+        self.assertEqual(ahora["ayuda"], "")
+        self.assertNotContains(self._ficha(caso, cerrador), "Le toca a quien lo tiene tomado.")
+
     def test_un_caso_alojado_se_cierra_solo_con_la_capacidad(self):
         caso = self._alojada()
         self.assertEqual(self._claves(caso, self.operador), ["contacto"])
@@ -205,10 +213,10 @@ class QueHacerPorEstadoYPerfilTests(_Base):
         casos = [self._caso(), self._caso_tomado(dni="30555111"), self._derivado()[0], self._cerrado()]
         for caso in casos:
             with self.subTest(estado=caso.estado):
-                anotado = mesa.casos_para_ficha().get(pk=caso.pk)
+                anotado = ficha.casos_para_ficha().get(pk=caso.pk)
                 esperado = mesa.que_falta(anotado, sla_vigente(), timezone.now())
-                ficha = self._ficha(caso, self.jefe).context["que_hacer"]
-                self.assertEqual(ficha["paso"], esperado["texto"])
+                en_pantalla = self._ficha(caso, self.jefe).context["que_hacer"]
+                self.assertEqual(en_pantalla["paso"], esperado["texto"])
 
 
 class LoQueSeOfreceLoAceptaElServicioTests(_Base):
@@ -251,9 +259,9 @@ class LoQueSeOfreceLoAceptaElServicioTests(_Base):
         caso = self._caso_tomado()
         respuesta = self._ficha(caso, self.operador)
         bloque = self._bloque(respuesta)
-        for texto in ("Elegir institución", "Anotar un contacto", "Cerrar sin alojar"):
+        for texto in ("Elegir institución", "Anotar un contacto", "Cerrar sin alojamiento"):
             self.assertIn(texto, bloque)
-        for texto in ("Tomar el caso", "Cancelar la derivación", "Reabrir el caso", "la familia ya no está"):
+        for texto in ("Tomar el caso", "Cancelar derivación", "Reabrir caso", "la familia ya no está"):
             self.assertNotIn(texto, bloque)
         self.assertIn('href="#caso-derivar-titulo"', bloque)
         self.assertIn('id="caso-derivar-titulo"', respuesta.content.decode())
@@ -273,20 +281,18 @@ class LoQueSeOfreceLoAceptaElServicioTests(_Base):
 
     def test_lo_que_ofrece_el_bloque_el_servicio_lo_acepta(self):
         derivable = self._caso_tomado(dni="30888444")
-        self.client.force_login(User.objects.get(pk=self.operador.pk))
-        self.assertEqual(
-            self.client.post(
-                reverse("emergencia:caso_contacto", args=[derivable.pk]),
-                {"canal": "LLAMADA", "resultado": "ATENDIO", "observacion": ""},
-            ).status_code,
-            302,
-        )
-        self.assertEqual(
-            self.client.post(
-                reverse("emergencia:caso_cerrar", args=[derivable.pk]), {"motivo": "NO_REQUIERE", "observacion": ""}
-            ).status_code,
-            302,
-        )
+        ofrecido = [
+            accion["clave"] for accion in self._ficha(derivable, self.operador).context["que_hacer"]["acciones"]
+        ]
+        # Los dos que se mandan por POST con datos chicos: se postea solo lo que el bloque ofrece.
+        posts = {
+            "contacto": ("emergencia:caso_contacto", {"canal": "LLAMADA", "resultado": "ATENDIO", "observacion": ""}),
+            "cerrar": ("emergencia:caso_cerrar", {"motivo": "NO_REQUIERE", "observacion": ""}),
+        }
+        self.assertEqual(sorted(set(posts) & set(ofrecido)), ["cerrar", "contacto"])
+        for clave, (nombre, datos) in posts.items():
+            with self.subTest(clave):
+                self.assertEqual(self.client.post(reverse(nombre, args=[derivable.pk]), datos).status_code, 302)
         self.assertEqual(CasoEmergencia.objects.get(pk=derivable.pk).estado, Estado.CERRADO)
 
 
@@ -298,7 +304,7 @@ class SolapasDeLaFichaTests(_Base):
         caso = self._caso_tomado()
         html = self._ficha(caso, self.operador).content.decode()
         self.assertIn('role="tablist" aria-label="Secciones del caso"', html)
-        for clave in mesa.SOLAPAS_DE_LA_FICHA:
+        for clave in ficha.SOLAPAS_DE_LA_FICHA:
             with self.subTest(clave):
                 self.assertIn(f'id="tab-{clave}" aria-controls="panel-{clave}"', html)
                 self.assertIn(f'role="tabpanel" id="panel-{clave}" aria-labelledby="tab-{clave}"', html)
@@ -307,7 +313,7 @@ class SolapasDeLaFichaTests(_Base):
     def test_abre_en_familia_y_respeta_la_solapa_de_la_url(self):
         caso = self._caso_tomado()
         self.assertEqual(self._tab(self._ficha(caso, self.operador)), "familia")
-        for clave in mesa.SOLAPAS_DE_LA_FICHA:
+        for clave in ficha.SOLAPAS_DE_LA_FICHA:
             with self.subTest(clave):
                 respuesta = self._ficha(caso, self.operador, tab=clave)
                 self.assertEqual((respuesta.context["solapa"], self._tab(respuesta)), (clave, clave))
@@ -368,6 +374,37 @@ class SolapasDeLaFichaTests(_Base):
 
     def test_el_modal_de_derivar_por_url_sigue_abriendo(self):
         caso = self._caso_tomado()
-        respuesta = self._ficha(caso, self.operador, derivar=self.club.pk)
+        respuesta = self._ficha(caso, self.operador, grupo=f"d{self.club.pk}", derivar=self.club.pk)
         self.assertIn("panel", respuesta.context)
+        self.assertIsNotNone(respuesta.context["confirmar_derivar"])
+        self.assertContains(respuesta, "modalDerivar: true")
         self.assertEqual(self._tab(respuesta), "familia")
+
+    def test_solo_el_panel_de_la_solapa_activa_va_sin_x_cloak(self):
+        caso = self._caso_tomado()
+        for activa in ficha.SOLAPAS_DE_LA_FICHA:
+            html = self._ficha(caso, self.operador, tab=activa).content.decode()
+            for clave in ficha.SOLAPAS_DE_LA_FICHA:
+                with self.subTest(activa=activa, panel=clave):
+                    panel = re.search(rf"<div x-show=\"tab==='{clave}'\"([^>]*)role=\"tabpanel\"", html).group(1)
+                    self.assertEqual("x-cloak" in panel, clave != activa)
+
+    def test_los_paneles_van_en_el_orden_de_la_barra(self):
+        html = self._ficha(self._caso_tomado(), self.operador).content.decode()
+        paneles = [m.group(1) for m in re.finditer(r'role="tabpanel" id="panel-(\w+)"', html)]
+        barra = re.findall(r'role="tab" id="tab-(\w+)"', html)
+        self.assertEqual(len(barra), len(ficha.SOLAPAS_DE_LA_FICHA))
+        self.assertEqual(paneles, barra)
+
+    def test_actualizar_la_lista_de_derivar_conserva_la_solapa_a_la_vista(self):
+        caso = self._caso_tomado()
+        respuesta = self._ficha(caso, self.operador, tab="contactos", grupo=f"d{self.club.pk}")
+        self.assertContains(respuesta, '<input type="hidden" name="tab" value="contactos" :value="tab">')
+        self.assertIn("tab=contactos", respuesta.context["panel"]["url_volver"])
+        tarjetas = respuesta.context["panel"]["grupo"]["tarjetas"]
+        self.assertTrue(tarjetas)
+        for tarjeta in tarjetas:
+            self.assertIn("tab=contactos", tarjeta["accion_url"])
+        # Una solapa que no existe se ignora: no viaja en ningún enlace.
+        invalida = self._ficha(caso, self.operador, tab="'});alert(1)", grupo=f"d{self.club.pk}")
+        self.assertNotIn("alert", invalida.context["panel"]["url_volver"])
