@@ -1,6 +1,6 @@
-"""E7 · Regla de consumo por ítem y fecha de inicio del evento (análisis 009, E-7a, RN-009-15).
+"""Regla de consumo por ítem (en «Insumos») y fecha de inicio del evento (en «Plazos de atención»; RN-009-15).
 
-Lo que E8 «Abastecimiento» va a leer para estimar faltantes: la mesa lo carga en E7 antes de
+Lo que E8 «Abastecimiento» lee para estimar faltantes: la mesa lo carga acá antes de
 que exista la solapa. Acá se prueba la carga, la validación cruzada y la traza.
 """
 
@@ -10,36 +10,30 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from programas.forms_emergencia import PREFIJO_KITS
 from programas.models import SLAEmergencia, TipoKit, TrazaConfiguracion
 from programas.services import configuracion_emergencia as servicio
 from programas.tests.test_emergencia_base import SUPERVISAR, BaseE7, BaseEmergencia
+from programas.tests.test_emergencia_insumos import BaseInsumos
 
-K = PREFIJO_KITS
 
+class ReglaDeConsumoE7Tests(BaseInsumos):
+    """La regla de consumo se carga en el modal de «Insumos»: alta y edición del mismo insumo."""
 
-class ReglaDeConsumoE7Tests(BaseE7):
-    def setUp(self):
-        super().setUp()
-        self.client.force_login(self.supervisor)
-
-    def _trazas(self):
-        return {t.campo: (t.valor_anterior, t.valor_nuevo) for t in TrazaConfiguracion.objects.all()}
+    def _alta(self, **campos):
+        return self.client.post(self.url, {"regla_modo": "", **campos})
 
     def test_un_item_nuevo_con_regla_de_reposicion_traza_el_alta_y_la_regla(self):
-        datos = self._datos(
-            **self._fila_nueva(
-                nombre="Agua 6 l",
-                unidad="bidón",
-                regla_modo="REPOSICION",
-                regla_cantidad="0.5",
-                regla_por="PERSONA",
-                regla_cada_dias="1",
-            )
+        respuesta = self._alta(
+            nombre="Agua 10 l",
+            unidad="bidón",
+            regla_modo="REPOSICION",
+            regla_cantidad="0.5",
+            regla_por="PERSONA",
+            regla_cada_dias="1",
         )
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
+        self.assertEqual(respuesta.status_code, 302)
 
-        tipo = TipoKit.objects.get()
+        tipo = TipoKit.objects.get(nombre="Agua 10 l")
         self.assertEqual(
             (tipo.regla_modo, tipo.regla_cantidad, tipo.regla_por, tipo.regla_cada_dias),
             (TipoKit.ModoRegla.REPOSICION, Decimal("0.5"), TipoKit.PorRegla.PERSONA, 1),
@@ -47,7 +41,7 @@ class ReglaDeConsumoE7Tests(BaseE7):
         self.assertEqual(
             self._trazas(),
             {
-                servicio.CAMPO_ALTA: ("", "Agua 6 l (bidón)"),
+                servicio.CAMPO_ALTA: ("", "Agua 10 l (bidón)"),
                 "regla_modo": ("Sin regla", "Reposición (cada N días)"),
                 "regla_cantidad": ("", "0,5"),
                 "regla_por": ("", "Persona"),
@@ -56,19 +50,18 @@ class ReglaDeConsumoE7Tests(BaseE7):
         )
 
     def test_un_item_nuevo_sin_regla_solo_traza_el_alta(self):
-        datos = self._datos(**self._fila_nueva(nombre="Linterna", unidad="unidad"))
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-        self.assertEqual(TipoKit.objects.get().regla_modo, TipoKit.ModoRegla.SIN_REGLA)
+        self.assertEqual(self._alta(nombre="Linterna", unidad="unidad").status_code, 302)
+        self.assertEqual(TipoKit.objects.get(nombre="Linterna").regla_modo, TipoKit.ModoRegla.SIN_REGLA)
         self.assertEqual(list(self._trazas()), [servicio.CAMPO_ALTA])
 
     def test_a_un_item_existente_sin_regla_se_le_carga_una_dotacion(self):
-        tipo = TipoKit.objects.create(nombre="Colchón", unidad="unidad")
-        datos = self._datos(
-            **{f"{K}-0-regla_modo": "DOTACION", f"{K}-0-regla_cantidad": "1", f"{K}-0-regla_por": "PERSONA"}
+        datos = self._form_de(self.colchon, regla_modo="DOTACION", regla_cantidad="1", regla_por="PERSONA")
+        self.assertEqual(self.client.post(self.url, datos).status_code, 302)
+        self.colchon.refresh_from_db()
+        self.assertEqual(
+            (self.colchon.regla_modo, self.colchon.regla_cantidad, self.colchon.regla_cada_dias),
+            ("DOTACION", Decimal("1"), None),
         )
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-        tipo.refresh_from_db()
-        self.assertEqual((tipo.regla_modo, tipo.regla_cantidad, tipo.regla_cada_dias), ("DOTACION", Decimal("1"), None))
         self.assertEqual(
             self._trazas(),
             {
@@ -79,46 +72,40 @@ class ReglaDeConsumoE7Tests(BaseE7):
         )
 
     def test_editar_otro_dato_de_un_item_sin_regla_sigue_andando(self):
-        """Los ítems que ya existían nacen sin regla: E7 los tiene que poder seguir editando."""
-        tipo = TipoKit.objects.create(nombre="Frazada", unidad="unidad")
-        datos = self._datos(**{f"{K}-0-unidad": "pieza"})
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
-        tipo.refresh_from_db()
-        self.assertEqual((tipo.unidad, tipo.regla_modo), ("pieza", ""))
+        """Los ítems que ya existían nacen sin regla: se los tiene que poder seguir editando."""
+        datos = self._form_de(self.colchon, unidad="pieza")
+        self.assertEqual(self.client.post(self.url, datos).status_code, 302)
+        self.colchon.refresh_from_db()
+        self.assertEqual((self.colchon.unidad, self.colchon.regla_modo), ("pieza", ""))
         self.assertEqual(self._trazas(), {"unidad": ("unidad", "pieza")})
 
     def test_reposicion_sin_dias_se_rechaza_y_no_se_guarda_nada(self):
-        datos = self._datos(
-            objetivo_tomar_min=20,
-            **self._fila_nueva(
-                nombre="Pañales", unidad="paquete", regla_modo="REPOSICION", regla_cantidad="1", regla_por="LACTANTE"
-            ),
+        respuesta = self._alta(
+            nombre="Pañales", unidad="paquete", regla_modo="REPOSICION", regla_cantidad="1", regla_por="LACTANTE"
         )
-        respuesta = self.client.post(self.url, datos)
         self.assertEqual(respuesta.status_code, 400)
-        self.assertTrue(respuesta.context["kits"].filas_nuevas()[0].errors.get("regla_cada_dias"))
-        self.assertFalse(TipoKit.objects.exists())
-        self.assertEqual(SLAEmergencia.objects.get().objetivo_tomar_min, 15)
+        self.assertTrue(respuesta.context["form"].errors.get("regla_cada_dias"))
+        self.assertFalse(TipoKit.objects.filter(nombre="Pañales").exists())
         self.assertFalse(TrazaConfiguracion.objects.exists())
 
     def test_una_regla_sin_cantidad_o_sin_por_se_rechaza(self):
         for faltante in ("regla_cantidad", "regla_por"):
             with self.subTest(faltante=faltante):
-                fila = {"nombre": "Colchón", "unidad": "unidad", "regla_modo": "DOTACION"}
+                fila = {"nombre": "Frazada", "unidad": "unidad", "regla_modo": "DOTACION"}
                 fila |= {"regla_cantidad": "1", "regla_por": "PERSONA"}
                 fila[faltante] = ""
-                respuesta = self.client.post(self.url, self._datos(**self._fila_nueva(**fila)))
+                respuesta = self._alta(**fila)
                 self.assertEqual(respuesta.status_code, 400)
-                self.assertTrue(respuesta.context["kits"].filas_nuevas()[0].errors.get(faltante))
-                self.assertFalse(TipoKit.objects.exists())
+                self.assertTrue(respuesta.context["form"].errors.get(faltante))
+                self.assertFalse(TipoKit.objects.filter(nombre="Frazada").exists())
 
     def test_una_cantidad_cero_se_rechaza(self):
-        fila = {"nombre": "Agua", "unidad": "bidón", "regla_modo": "REPOSICION"}
+        fila = {"nombre": "Agua 10 l", "unidad": "bidón", "regla_modo": "REPOSICION"}
         fila |= {"regla_cantidad": "0", "regla_por": "PERSONA", "regla_cada_dias": "1"}
-        respuesta = self.client.post(self.url, self._datos(**self._fila_nueva(**fila)))
+        respuesta = self._alta(**fila)
         self.assertEqual(respuesta.status_code, 400)
-        self.assertTrue(respuesta.context["kits"].filas_nuevas()[0].errors.get("regla_cantidad"))
-        self.assertFalse(TipoKit.objects.exists())
+        self.assertTrue(respuesta.context["form"].errors.get("regla_cantidad"))
+        self.assertFalse(TipoKit.objects.filter(nombre="Agua 10 l").exists())
 
     def test_pasar_a_sin_regla_vacia_los_datos_de_la_regla(self):
         tipo = TipoKit.objects.create(
@@ -129,7 +116,7 @@ class ReglaDeConsumoE7Tests(BaseE7):
             regla_por="FAMILIA",
             regla_cada_dias=3,
         )
-        self.assertRedirects(self.client.post(self.url, self._datos(**{f"{K}-0-regla_modo": ""})), self.url)
+        self.assertEqual(self.client.post(self.url, self._form_de(tipo, regla_modo="")).status_code, 302)
         tipo.refresh_from_db()
         self.assertEqual(
             (tipo.regla_modo, tipo.regla_cantidad, tipo.regla_por, tipo.regla_cada_dias), ("", None, "", None)
@@ -149,19 +136,18 @@ class ReglaDeConsumoE7Tests(BaseE7):
         tipo = TipoKit.objects.create(nombre="Repelente", unidad="unidad")
         for campo, valor in (("regla_cantidad", "2"), ("regla_por", "PERSONA"), ("regla_cada_dias", "3")):
             with self.subTest(campo=campo):
-                respuesta = self.client.post(self.url, self._datos(**{f"{K}-0-{campo}": valor}))
+                respuesta = self.client.post(self.url, self._form_de(tipo, **{campo: valor}))
                 self.assertEqual(respuesta.status_code, 400)
-                self.assertTrue(respuesta.context["kits"].filas_existentes()[0].errors.get(campo))
+                self.assertTrue(respuesta.context["form"].errors.get(campo))
                 tipo.refresh_from_db()
                 self.assertEqual((tipo.regla_cantidad, tipo.regla_por, tipo.regla_cada_dias), (None, "", None))
                 self.assertFalse(TrazaConfiguracion.objects.exists())
 
-    def test_una_fila_nueva_sin_regla_con_cantidad_se_rechaza(self):
-        fila = {"nombre": "Repelente", "unidad": "unidad", "regla_modo": "", "regla_cantidad": "1"}
-        respuesta = self.client.post(self.url, self._datos(**self._fila_nueva(**fila)))
+    def test_un_alta_sin_regla_con_cantidad_se_rechaza(self):
+        respuesta = self._alta(nombre="Repelente", unidad="unidad", regla_cantidad="1")
         self.assertEqual(respuesta.status_code, 400)
-        self.assertTrue(respuesta.context["kits"].filas_nuevas()[0].errors.get("regla_cantidad"))
-        self.assertFalse(TipoKit.objects.exists())
+        self.assertTrue(respuesta.context["form"].errors.get("regla_cantidad"))
+        self.assertFalse(TipoKit.objects.filter(nombre="Repelente").exists())
 
     def test_pasar_a_dotacion_con_dias_se_rechaza(self):
         """TC-1186-08: la dotación no lleva período; los días no se borran en silencio."""
@@ -173,15 +159,15 @@ class ReglaDeConsumoE7Tests(BaseE7):
             regla_por="PERSONA",
             regla_cada_dias=7,
         )
-        respuesta = self.client.post(self.url, self._datos(**{f"{K}-0-regla_modo": "DOTACION"}))
+        respuesta = self.client.post(self.url, self._form_de(tipo, regla_modo="DOTACION"))
         self.assertEqual(respuesta.status_code, 400)
-        self.assertTrue(respuesta.context["kits"].filas_existentes()[0].errors.get("regla_cada_dias"))
+        self.assertTrue(respuesta.context["form"].errors.get("regla_cada_dias"))
         tipo.refresh_from_db()
         self.assertEqual((tipo.regla_modo, tipo.regla_cada_dias), ("REPOSICION", 7))
         self.assertFalse(TrazaConfiguracion.objects.exists())
 
-        datos = self._datos(**{f"{K}-0-regla_modo": "DOTACION", f"{K}-0-regla_cada_dias": ""})
-        self.assertRedirects(self.client.post(self.url, datos), self.url)
+        datos = self._form_de(tipo, regla_modo="DOTACION", regla_cada_dias="")
+        self.assertEqual(self.client.post(self.url, datos).status_code, 302)
         tipo.refresh_from_db()
         self.assertEqual((tipo.regla_modo, tipo.regla_cada_dias), ("DOTACION", None))
 

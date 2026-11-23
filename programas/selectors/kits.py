@@ -168,7 +168,7 @@ def destinos_con_entregas():
 def resumen_de_items(lineas):
     """«3 Kit alimentario, 10 Colchón…»: lo enviado, en una línea. Sin consultas (líneas ya leídas)."""
 
-    partes = [f"{linea.cantidad_enviada} {linea.item.nombre}" for linea in lineas[:ITEMS_EN_EL_RESUMEN]]
+    partes = [f"{linea.cantidad_enviada} {linea.nombre_visible}" for linea in lineas[:ITEMS_EN_EL_RESUMEN]]
     return ", ".join(partes) + ("…" if len(lineas) > ITEMS_EN_EL_RESUMEN else "")
 
 
@@ -216,7 +216,7 @@ def diferencias_de(lineas):
     return [
         {
             "item": linea.item_id,
-            "nombre": linea.item.nombre,
+            "nombre": linea.nombre_visible,
             "enviada": linea.cantidad_enviada,
             "recibida": linea.cantidad_recibida,
         }
