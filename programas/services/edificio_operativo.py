@@ -35,6 +35,7 @@ from programas.selectors.emergencia_alojar import pendientes_por_recibir
 from programas.selectors.emergencia_llegadas import aviso_de_pendientes
 from programas.services.bitacora import turno_vigente
 from programas.services.detalle_dispositivo import (
+    FILTRO_ORIGEN_EMERGENCIA,
     contar_alojadas,
     estadias_del_dispositivo,
     estado_edilicio,
@@ -387,7 +388,7 @@ def q_estadias_del_edificio(edificio):
     return Q(plaza__sector__edificio_id=edificio.pk)
 
 
-def estadias_del_edificio(user, dispositivo, edificio, estado, sector, pagina):
+def estadias_del_edificio(user, dispositivo, edificio, estado, sector, pagina, origen=""):
     """La solapa Estadías (Cambio 566): las personas alojadas **de esta institución en este edificio**.
 
     La estadía no guarda el edificio: se deriva de su plaza (``q_estadias_del_edificio``), el mismo criterio del
@@ -403,6 +404,7 @@ def estadias_del_edificio(user, dispositivo, edificio, estado, sector, pagina):
         .values("pk", "nombre")
     )
     estado, sector = normalizar_filtros(estado, sector, {s["pk"] for s in sectores})
+    origen = origen if origen == FILTRO_ORIGEN_EMERGENCIA else ""
     memo = []
 
     def mapa_de_ingreso():
@@ -412,10 +414,15 @@ def estadias_del_edificio(user, dispositivo, edificio, estado, sector, pagina):
 
     return {
         "estadias": estadias_del_dispositivo(
-            dispositivo, estado=estado, sector=sector, pagina=pagina, q_alcance=q_estadias_del_edificio(edificio)
+            dispositivo,
+            estado=estado,
+            sector=sector,
+            pagina=pagina,
+            q_alcance=q_estadias_del_edificio(edificio),
+            origen=origen,
         ),
-        "pildoras": pildoras_de_estadias(estado, sector, sectores),
-        "hay_filtros": bool(estado or sector),
+        "pildoras": pildoras_de_estadias(estado, sector, sectores, origen=origen),
+        "hay_filtros": bool(estado or sector or origen),
         "puede_cambiar": puede_operar_edificio(user, dispositivo, edificio.pk, CAP_ADMITIR),
         "puede_egresar": puede_operar_edificio(user, dispositivo, edificio.pk, CAP_EGRESAR),
         "puede_ver_ciudadano": puede(user, CAP_VER_CIUDADANO),

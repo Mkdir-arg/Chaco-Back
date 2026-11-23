@@ -40,6 +40,7 @@ from programas.mixins_dispositivos_estadias import (
     contexto_modales_de_estadia,
     formulario_de_egreso,
     preparar_filas_de_estadias,
+    preparar_marca_de_emergencia,
 )
 from programas.mixins_dispositivos_sectores import (
     AUTO_ID_CAMBIO,
@@ -102,7 +103,7 @@ from programas.services.dispositivos import (
     sincronizar_contacto,
     validar_dispositivo,
 )
-from programas.services.emergencia_programa import CAP_RECIBIR_KIT
+from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
 from programas.services.equipo_dispositivo import (
     edificios_donde_agregar_persona,
     sumar_responsables_al_crear,
@@ -480,6 +481,7 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
             puede_egresar=puede_egresar,
             con_plazas=con_plazas,
             plazas_elegibles=lambda: self._mapa_de_ingreso()[1],
+            puede_abrir_caso=lambda: puede_operar_la_mesa(user),
         )
 
         url_llegadas = reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk])
@@ -1237,6 +1239,11 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
             q_entradas=q_edificios_en_alcance(usuario, CAP_VER, "dispositivo_id", "edificio_id"),
         )
         context["tab"] = normalizar_solapa_estadia(self.request.GET.get("tab", ""))
+        # Marca «Emergencia · Caso N» (Cambio 575): la pantalla ya exige `ciudadano.ver`, así que la familia se ve.
+        preparar_marca_de_emergencia(
+            estadia, puede_ver_ciudadano=True, puede_abrir_caso=lambda: puede_operar_la_mesa(usuario)
+        )
+        context["marca_emergencia"] = estadia.marca_emergencia
         context["url_bitacora"] = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         url_volver = url_solapa_estadias(dispositivo.pk)
         context["url_volver"] = url_volver

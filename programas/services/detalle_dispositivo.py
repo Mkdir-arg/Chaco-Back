@@ -36,6 +36,7 @@ from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio, sectores_por_edificio
+from programas.selectors.estadia_origen_emergencia import q_estadias_de_emergencia
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.bitacora_detalle import plural as _plural
@@ -92,6 +93,7 @@ def normalizar_solapa(pedida):
 FILTRO_ALOJADAS = ""
 FILTRO_EGRESADAS = Estadia.Estado.EGRESADA
 FILTRO_TODAS = "TODAS"
+FILTRO_ORIGEN_EMERGENCIA = "emergencia"
 
 _TIPOS_DE_SECTOR = dict(Sector.Tipo.choices)
 
@@ -191,11 +193,11 @@ def normalizar_filtros(estado, sector, sector_ids):
     return estado, sector if sector in sector_ids else None
 
 
-def pildoras_de_estadias(estado, sector, sectores):
+def pildoras_de_estadias(estado, sector, sectores, origen=None):
     """Las píldoras de la fila de filtros, armadas acá porque el componente no decide nada.
 
     «Sector» solo aparece si el dispositivo tiene sectores: una píldora con «Todos» como única
-    opción no filtra nada.
+    opción no filtra nada. «Origen» solo se arma si la pantalla lo pide (``origen`` distinto de ``None``, Cambio 575).
     """
 
     pildoras = [
@@ -217,10 +219,20 @@ def pildoras_de_estadias(estado, sector, sectores):
                 "valor": sector or "",
             }
         )
+    if origen is not None:
+        pildoras.append(
+            {
+                "nombre": "origen",
+                "etiqueta": "Origen",
+                "todos": "Todas",
+                "opciones": [(FILTRO_ORIGEN_EMERGENCIA, "Emergencia")],
+                "valor": origen,
+            }
+        )
     return pildoras
 
 
-def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1, q_alcance=None):
+def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1, q_alcance=None, origen=""):
     """La página de estadías del dispositivo, lista para dibujar.
 
     Trae a la persona y a la plaza con su sector en la misma consulta y solo las columnas
@@ -254,6 +266,8 @@ def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None
         consulta = consulta.filter(estado=Estadia.Estado.ACTIVA)
     if sector:
         consulta = consulta.filter(plaza__sector_id=sector)
+    if origen == FILTRO_ORIGEN_EMERGENCIA:
+        consulta = consulta.filter(q_estadias_de_emergencia())
     pagina_de_estadias = Paginator(consulta, POR_PAGINA_ESTADIAS).get_page(pagina)
     # Recorrer el `Page` lo materializa en una lista, así que los atributos llegan al template.
     for estadia in pagina_de_estadias:

@@ -30,6 +30,9 @@ Riel de 2 px (`border-base`), punto de 10 px con borde tonal. El tono refuerza; 
 En P7 (`programas/templates/programas/dispositivos/estadia/detalle.html`), `cuando` llega como
 fecha · hora · turno · responsable. `programas/selectors/estadia_detalle.py` deriva el turno del
 momento sobre los turnos activos cargados una vez; si no hay turno vigente, omite ese tramo.
+En el encabezado de P7, junto a «Reingreso», una estadía que nació de un caso de Emergencia lleva la marca
+`badge badge-brand` «Emergencia» + «Caso N · Familia X» (parcial `_marca_emergencia.html`, Cambio 575; P7 ya exige
+`ciudadano.ver`, así que la familia siempre se ve).
 El Historial de P4 conserva su metadato sin turno. Un `CAMBIO_PLAZA` sin plaza de origen se
 dibuja como «Asignación de plaza» («Se asignó la plaza sector · código»). El modal «Cambiar de plaza»
 de P7 comparte su cuerpo (`dispositivos/_form_cambio_plaza.html`) con P4 y P5.
