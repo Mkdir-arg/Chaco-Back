@@ -15,6 +15,7 @@ from django.test import tag
 from django.test.utils import CaptureQueriesContext
 
 from programas.models import CasoEmergencia, Dispositivo
+from programas.selectors import emergencia_mesa as mesa_selector
 from programas.services import emergencia as mesa
 from programas.tests.test_emergencia_marcas import URL_BANDEJA, BaseMarcas
 
@@ -248,6 +249,19 @@ class FiltrarSinSolapaEnLaUrlTests(BaseMarcas):
         numeros, respuesta = self._numeros({"solapa": "sin_tomar", "texto": self.ajeno.numero})
         self.assertEqual(numeros, [])
         self.assertContains(respuesta, '<input type="hidden" name="solapa" value="sin_tomar">', html=True)
+
+    def test_el_chip_todos_los_abiertos_queda_activo_al_buscar_o_filtrar_por_operador(self):
+        for filtros in ({"texto": self.ajeno.numero}, {"operador": str(self.otro_operador.pk)}):
+            with self.subTest(filtros=filtros):
+                respuesta = self.client.get(URL_BANDEJA, filtros)
+                activos = [chip["texto"] for chip in respuesta.context["solapas"] if chip["activo"]]
+                self.assertEqual(activos, ["Todos los abiertos"])
+
+    def test_un_caso_en_gestion_de_otro_operador_esta_solo_en_todos_los_abiertos(self):
+        en_chips = {}
+        for solapa, texto in mesa_selector.SOLAPAS_DE_LA_BANDEJA:
+            en_chips[texto] = self.ajeno.numero in self._numeros({"solapa": solapa})[0]
+        self.assertEqual({texto for texto, esta in en_chips.items() if esta}, {"Todos los abiertos"})
 
     def test_sin_filtros_sigue_abriendo_sin_tomar(self):
         self._caso(dni="30800001", apellido="Libre")

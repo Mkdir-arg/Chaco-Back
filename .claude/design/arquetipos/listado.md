@@ -95,7 +95,7 @@ los objetos de `page_obj.object_list`, `estados` (choices), `estado_actual`, `pu
   alterna paneles sin recargar. Van como `components/_chips_enlace.html` con el conteo en `n`, entre el encabezado y
   los filtros, de a seis por fila como mucho; el form de filtros lleva `<input type="hidden" name="solapa">` (el JS
   conserva los ocultos), los chips conservan los filtros en su URL y `hay_filtros` excluye `solapa`. Evidencia:
-  `programas/templates/programas/emergencia/casos/list.html` (una sola fila de cinco: Mis casos, Sin tomar, Esperando a la institución, Alojados y Cerrados).
+  `programas/templates/programas/emergencia/casos/list.html` (una sola fila de seis: Mis casos, Sin tomar, Esperando a la institución, Alojados, Todos los abiertos y Cerrados).
 - Acción de fila que muta sin pedir datos ni destruir nada («Tomar» un caso): `<form method="post">` con
   `{% csrf_token %}` y un `btn-nodo btn-brand btn-sm btn-fit` con `aria-label` que nombra el registro, junto al
   `nodo-icon-btn` de abrir. Misma evidencia.

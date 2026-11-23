@@ -390,13 +390,14 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
     return filas
 
 
-#: Los chips de la bandeja, en una sola fila y en el orden de la pantalla (Cambio 580). «Sin tomar» y
+#: Los seis chips de la bandeja, en una sola fila y en el orden de la pantalla (Cambio 580). «Sin tomar» y
 #: «Esperando a la institución» se cruzan a propósito: un ingreso directo sin dueño está en las dos.
 SOLAPAS_DE_LA_BANDEJA = (
     (selectores.SOLAPA_MIS_CASOS, "Mis casos"),
     (selectores.SOLAPA_SIN_TOMAR, "Sin tomar"),
     (selectores.SOLAPA_ESPERANDO_INSTITUCION, "Esperando a la institución"),
     (selectores.SOLAPA_ALOJADOS, "Alojados"),
+    (selectores.SOLAPA_ABIERTOS, "Todos los abiertos"),
     (selectores.SOLAPA_CERRADOS, "Cerrados"),
 )
 

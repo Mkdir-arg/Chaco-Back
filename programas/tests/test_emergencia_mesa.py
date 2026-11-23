@@ -427,7 +427,7 @@ class BandejaTests(BaseMesa):
         self.assertContains(respuesta, "Todavía no hay casos")
         self.assertContains(respuesta, f'href="{URL_NUEVO}"')
 
-    def test_los_cinco_chips_llevan_su_conteo_en_una_sola_fila(self):
+    def test_los_seis_chips_llevan_su_conteo_en_una_sola_fila(self):
         nuevo = self._caso(apellido="Acosta")
         mio = self._caso_tomado(apellido="Benítez")
         derivado = self._caso_tomado(apellido="Cáceres")
@@ -441,9 +441,19 @@ class BandejaTests(BaseMesa):
         chips = self._chips(respuesta)
         self.assertEqual(
             {texto: chip["n"] for texto, chip in chips.items()},
-            {"Mis casos": 2, "Sin tomar": 1, "Esperando a la institución": 1, "Alojados": 0, "Cerrados": 1},
+            {
+                "Mis casos": 2,
+                "Sin tomar": 1,
+                "Esperando a la institución": 1,
+                "Alojados": 0,
+                "Todos los abiertos": 3,
+                "Cerrados": 1,
+            },
         )
-        self.assertEqual(list(chips), ["Mis casos", "Sin tomar", "Esperando a la institución", "Alojados", "Cerrados"])
+        self.assertEqual(
+            list(chips),
+            ["Mis casos", "Sin tomar", "Esperando a la institución", "Alojados", "Todos los abiertos", "Cerrados"],
+        )
         # Sin solapa en la URL se abre «Sin tomar»: lo que la mesa tiene que atender primero.
         self.assertEqual([texto for texto, chip in chips.items() if chip["activo"]], ["Sin tomar"])
         self.assertEqual(self._numeros(respuesta), [nuevo.numero])
@@ -558,7 +568,7 @@ class BandejaTests(BaseMesa):
         self._caso()
         con_filtro = self.client.get(URL_BANDEJA, {"texto": "zzz"})
         self.assertContains(con_filtro, "Ningún caso coincide con los filtros")
-        self.assertContains(con_filtro, f'href="{URL_BANDEJA}?solapa=sin_tomar"')
+        self.assertContains(con_filtro, f'href="{URL_BANDEJA}"')
         solapa_vacia = self.client.get(URL_BANDEJA, {"solapa": "cerrados"})
         self.assertContains(solapa_vacia, "No hay casos en esta vista")
         self.assertNotContains(solapa_vacia, "Ningún caso coincide")

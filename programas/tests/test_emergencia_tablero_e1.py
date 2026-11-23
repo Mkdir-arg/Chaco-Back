@@ -119,7 +119,7 @@ class EstadoVacioConRedTests(BaseDeudaE1):
         self._sembrar(Estado.NUEVO, localidad=localidad, creado=_hora(9, 55))
         respuesta = self.client.get(URL_TABLERO)
         self.assertNotContains(respuesta, "Todavía no hay casos")
-        self.assertContains(respuesta, f'href="/emergencia/casos/?localidad={localidad.pk}"')
+        self.assertContains(respuesta, f'href="/emergencia/casos/?solapa=abiertos&amp;localidad={localidad.pk}"')
 
 
 class IngresoDirectoUnicoTests(BaseDeudaE1):

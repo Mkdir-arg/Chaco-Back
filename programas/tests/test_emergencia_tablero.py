@@ -741,7 +741,7 @@ class TableroVistaTests(EscenarioTablero):
         self.assertIn(f'href="{URL_TABLERO}" class="nodo-hero__accion"', html)
         self.assertIn('aria-label="Avisos que piden acción"', html)
         self.assertIn("Familia en la puerta de Escuela 12", html)
-        self.assertIn(f'href="/emergencia/casos/?localidad={self.resistencia.pk}"', html)
+        self.assertIn(f'href="/emergencia/casos/?solapa=abiertos&amp;localidad={self.resistencia.pk}"', html)
         self.assertIn(self.en_camino_1.numero, html)
         self.assertEqual(html.count("nodo-stat-tablero "), 6)
 
