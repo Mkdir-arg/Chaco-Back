@@ -16,6 +16,7 @@ llamados a la vez.{% endcomment %}
   <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% include "components/_form_errores.html" %}
+    {% include "components/_aviso_errores.html" %}
     {% if caso_abierto %}<div class="mb-4"><a href="{{ url_caso_abierto }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-folder-open" aria-hidden="true"></i> Ver el caso {{ caso_abierto.numero }}</a></div>{% endif %}
     {% comment %}Los campos salen de `components/_field.html`, incluido por cada bloque de `_formulario1_bloques.html`.{% endcomment %}
     {% include "programas/emergencia/_formulario1_bloques.html" with ayuda_asistencia="Con esto el sistema sugiere la prioridad; después se puede cambiar desde la ficha." titulo_ubicacion="Ubicación y fotos" ayuda_ubicacion="Un caso cargado desde la mesa no tiene GPS: la dirección y la localidad son lo que ubica a la familia. Ubicala en el mapa y, al derivar, los dispositivos se ordenan por distancia. Las fotos son opcionales (JPG o PNG)." %}

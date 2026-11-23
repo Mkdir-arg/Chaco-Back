@@ -561,3 +561,31 @@ def google_maps_config():
         "idioma": "es",
         "region": "AR",
     }
+
+
+@register.simple_tag
+def resumen_errores(form):
+    """Los errores de un form como lista plana para el aviso flotante (`components/_aviso_errores.html`).
+
+    Devuelve ``{"titulo", "items"}`` o ``None`` si el form no trae errores (sin bindear, ausente o válido).
+    Cada ítem es ``{"texto", "href"}``: ``texto`` es «Etiqueta: mensaje» (solo el mensaje si el error es del
+    conjunto) y ``href`` es ``#<id del control>`` (vacío si no es de un campo). Un error por mensaje: «N» cuenta
+    mensajes, no campos. Nada se marca como seguro: el JS pinta con ``textContent``.
+    """
+    errores = getattr(form, "errors", None)
+    if not errores:
+        return None
+    items = []
+    for nombre, lista in errores.items():
+        campo = form[nombre] if nombre in form.fields else None
+        for mensaje in lista:
+            if campo is None:
+                items.append({"texto": str(mensaje), "href": ""})
+            else:
+                destino = campo.id_for_label
+                items.append({"texto": f"{campo.label}: {mensaje}", "href": f"#{destino}" if destino else ""})
+    if not items:
+        return None
+    total = len(items)
+    cosas = "cosa" if total == 1 else "cosas"
+    return {"titulo": f"No se guardó: hay {total} {cosas} para corregir", "items": items}
