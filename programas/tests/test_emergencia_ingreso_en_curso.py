@@ -171,7 +171,7 @@ class AceptadoSinMovimientoTests(BaseAlojar):
         self.reloj.avanzar(hours=8)
         self.client.force_login(self.operador)
 
-        self.assertContains(self.client.get(URL_BANDEJA, {"solapa": "todos"}), "Aceptado sin movimiento hace 8 h")
+        self.assertContains(self.client.get(URL_BANDEJA, {"solapa": "abiertos"}), "Aceptado sin movimiento hace 8 h")
         self.assertContains(self.client.get(_ficha(self.caso)), "Aceptado sin movimiento hace 8 h")
 
     def test_e7_trae_el_campo_con_6_horas_de_fabrica(self):

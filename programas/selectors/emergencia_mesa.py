@@ -281,6 +281,77 @@ def _marcas_de_fila(caso, duplicados, alojado, sla, ahora):
     return marcas
 
 
+def que_falta(caso, sla, ahora):
+    """El próximo paso de un caso para la columna «Qué falta» de la bandeja: ``{"texto", "nota", "urgente"}``.
+
+    **Pura, sin consultas**: sale de las marcas del propio caso y de lo que anota
+    ``selectors.emergencia.con_avisos_de_la_mesa`` (``derivada_a``, ``ultima_accion``, ``rechazada_*``…). No decide
+    nada ni cambia ningún estado: dice qué sigue según el estado del caso (y de su derivación). ``texto`` es el
+    paso; ``nota`` (puede ir vacía) dice por qué, y ``urgente`` la marca como algo que la mesa tiene que mirar.
+
+    * Nuevo: «Tomarlo» (nota si lo devolvió la inactividad o la familia espera en la puerta).
+    * En gestión: «Derivarlo a una institución»; «a otra» si la rechazó; «de nuevo» si venció.
+    * Derivado: «Esperar que X lo acepte»; «Confirmar con X» si pasó el plazo; «a otra» si X está inactiva.
+    * Ingreso en curso: «Esperar que X confirme a las personas»; «Contactar a X» si no se movió en horas.
+    * Alojado: «Nada: se cierra cuando egrese la familia»; «Contactar a la familia» si el ingreso fue parcial.
+    * Cerrado: «Nada: el caso está cerrado» y el motivo.
+    """
+
+    estado = caso.estado
+    institucion = caso.derivada_a or "la institución"
+    texto, nota, urgente = "", "", False
+    if estado == Estado.NUEVO:
+        texto = "Tomarlo"
+        if caso.ultima_accion == TrazaCaso.Accion.DEVUELTO_POR_INACTIVIDAD:
+            nota, urgente = "Volvió a la bandeja: nadie lo movió a tiempo", True
+        elif caso.esperando_en_la_puerta:
+            nota, urgente = f"La familia espera en la puerta de {caso.esperando_en_la_puerta}", True
+    elif estado == Estado.EN_GESTION:
+        if selectores.rechazo_sin_nueva_accion(caso) and caso.rechazada_por:
+            texto = "Derivarlo a otra institución"
+            motivo = (caso.rechazada_motivo or "sin motivo").lower()
+            nota, urgente = f"{caso.rechazada_por} no lo aceptó: {motivo}", True
+        elif caso.ultima_accion == TrazaCaso.Accion.DERIVACION_VENCIDA:
+            texto = "Derivarlo de nuevo"
+            nota, urgente = "La institución no respondió a tiempo", True
+        else:
+            texto = "Derivarlo a una institución"
+            if caso.esperando_en_la_puerta:
+                nota, urgente = f"La familia espera en la puerta de {caso.esperando_en_la_puerta}", True
+    elif estado == Estado.DERIVADO:
+        if caso.derivada_a_inactivo:
+            texto = "Cancelar la derivación y derivarlo a otra institución"
+            nota, urgente = f"{institucion} dejó de estar activa", True
+        elif caso.derivacion_vencida_sin_marcar:
+            texto = f"Confirmar con {institucion} si lo acepta"
+            nota, urgente = "Pasó el plazo para responder", True
+        else:
+            texto = f"Esperar que {institucion} lo acepte"
+    elif estado == Estado.INGRESO_EN_CURSO:
+        horas = selectores.horas_sin_movimiento(caso, sla, ahora)
+        if horas is not None:
+            texto = f"Contactar a {institucion}"
+            nota, urgente = f"Aceptado y sin movimiento hace {horas} h", True
+        else:
+            texto = f"Esperar que {institucion} confirme a las personas"
+            if caso.es_ingreso_directo:
+                nota = "Ingresó directo, sin pasar por la mesa"
+    elif estado == Estado.ALOJADO:
+        if caso.ingreso_parcial:
+            faltan = caso.grupo.total_declarado - caso.total_alojado
+            texto = "Contactar a la familia"
+            nota, urgente = (
+                f"{'Falta' if faltan == 1 else 'Faltan'} {_personas(faltan)} de las {caso.grupo.total_declarado} declaradas",
+                True,
+            )
+        else:
+            texto = "Nada: se cierra cuando egrese la familia"
+    else:
+        texto = "Nada: el caso está cerrado"
+        nota = caso.get_motivo_cierre_display() if caso.motivo_cierre else ""
+    return {"texto": texto, "nota": nota, "urgente": urgente}
+
+
 def filas_de_bandeja(casos, usuario, sla, ahora):
     """Una fila por caso de la página, con estado, prioridad, semáforo y marcas ya resueltos.
 
@@ -311,6 +382,7 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
                 "prioridad_tono": prioridad_tono,
                 "tomado_por": nombre_de(caso.tomado_por) if caso.tomado_por_id else "",
                 "sla": selectores.estado_sla(caso, sla, ahora),
+                "que_falta": que_falta(caso, sla, ahora),
                 "marcas": _marcas_de_fila(caso, duplicados.get(caso.pk), alojados.get(caso.pk), sla, ahora),
                 "puede_tomar": caso.estado in ESTADOS_PARA_TOMAR,
             }
@@ -318,26 +390,20 @@ def filas_de_bandeja(casos, usuario, sla, ahora):
     return filas
 
 
-#: Las solapas de E2, partidas en dos filas de chips: por estado del caso (de a seis, el
-#: tope de la pieza) y las otras vistas: las que cruzan los estados y los alojados, que ya no
-#: están en gestión.
-SOLAPAS_POR_ESTADO = (
-    (selectores.SOLAPA_ABIERTOS, "Abiertos"),
-    (selectores.SOLAPA_NUEVOS, "Nuevos"),
-    (selectores.SOLAPA_EN_GESTION, "En gestión"),
-    (selectores.SOLAPA_DERIVADOS, "Derivados"),
-    (selectores.SOLAPA_INGRESO_EN_CURSO, "Ingreso en curso"),
+#: Los seis chips de la bandeja, en una sola fila y en el orden de la pantalla (Cambio 580). «Sin tomar» y
+#: «Esperando a la institución» se cruzan a propósito: un ingreso directo sin dueño está en las dos.
+SOLAPAS_DE_LA_BANDEJA = (
+    (selectores.SOLAPA_MIS_CASOS, "Mis casos"),
+    (selectores.SOLAPA_SIN_TOMAR, "Sin tomar"),
+    (selectores.SOLAPA_ESPERANDO_INSTITUCION, "Esperando a la institución"),
+    (selectores.SOLAPA_ALOJADOS, "Alojados"),
+    (selectores.SOLAPA_ABIERTOS, "Todos los abiertos"),
     (selectores.SOLAPA_CERRADOS, "Cerrados"),
 )
-SOLAPAS_DE_ATENCION = (
-    (selectores.SOLAPA_FUERA_SLA, "Fuera de SLA"),
-    (selectores.SOLAPA_INGRESO_DIRECTO, "Ingreso directo"),
-    (selectores.SOLAPA_ALOJADOS, "Alojados"),
-)
 
 
-def conteos_de_solapas(sla, ahora, *, semaforos=None):
-    """``{solapa: cantidad}`` de las nueve solapas.
+def conteos_de_solapas(sla, ahora, *, semaforos=None, usuario_id=None):
+    """``{solapa: cantidad}`` de todas las solapas (``usuario_id`` es quien mira, para «Mis casos»).
 
     ``semaforos`` es lo que contestó ``selectors.emergencia.ids_por_estado_sla(sla, ahora)``:
     E2 ya lo calculó para ordenar la bandeja y los «Fuera de SLA» se cuentan de ahí. **1
@@ -346,7 +412,7 @@ def conteos_de_solapas(sla, ahora, *, semaforos=None):
 
     if semaforos is None:
         semaforos = selectores.ids_por_estado_sla(sla, ahora)
-    conteo = dict(selectores.conteo_por_solapa())
+    conteo = dict(selectores.conteo_por_solapa(usuario_id))
     conteo[selectores.SOLAPA_FUERA_SLA] = sum(1 for semaforo in semaforos.values() if semaforo.fuera)
     return conteo
 

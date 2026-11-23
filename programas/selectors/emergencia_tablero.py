@@ -50,6 +50,7 @@ from django.utils import timezone
 from programas.models import CasoEmergencia, ContactoCaso, Derivacion, EntregaKit, LineaEntrega
 from programas.selectors.emergencia import (
     SLA_FUERA,
+    SOLAPA_ABIERTOS,
     TRAMO_ALOJAR,
     TRAMOS,
     camas_de,
@@ -600,7 +601,11 @@ def por_localidad(sla, ahora, foto=None):
     url_bandeja = reverse("emergencia:bandeja")
     resultado = []
     for actual in filas.values():
-        actual["url"] = f"{url_bandeja}?localidad={actual['localidad_id']}" if actual["localidad_id"] else ""
+        actual["url"] = (
+            f"{url_bandeja}?solapa={SOLAPA_ABIERTOS}&localidad={actual['localidad_id']}"
+            if actual["localidad_id"]
+            else ""
+        )
         resultado.append(actual)
     resultado.sort(
         key=lambda f: (-f["fuera_de_sla"], -f["nuevos"], f["localidad"] == SIN_LOCALIDAD, f["localidad"].casefold())

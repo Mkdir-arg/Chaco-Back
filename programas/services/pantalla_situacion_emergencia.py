@@ -20,7 +20,7 @@ signo de una variación), se arma la bajada del hero y se decide qué enlace via
 from django.urls import reverse
 from django.utils.formats import number_format
 
-from programas.selectors.emergencia import texto_de_minutos
+from programas.selectors.emergencia import SOLAPA_ABIERTOS, texto_de_minutos
 from programas.selectors.emergencia_situacion import VENTANA_7D
 from programas.selectors.emergencia_tablero import ZONA_OPERATIVA
 from programas.services.alertas_situacion_emergencia import HORAS_DE_SATURACION, alertas_de_situacion
@@ -397,7 +397,9 @@ def tabla_de_presion(foto, *, supervisa, filas=None):
                 "localidad": fila["localidad"],
                 "departamento": fila["departamento"] or SIN_DATO,
                 "sin_ubicacion": not fila["con_ubicacion"],
-                "url": f"{url_bandeja}?localidad={fila['localidad_id']}" if url_bandeja else "",
+                "url": f"{url_bandeja}?solapa={SOLAPA_ABIERTOS}&localidad={fila['localidad_id']}"
+                if url_bandeja
+                else "",
                 "familias": numero(fila["familias"]),
                 "personas": numero(fila["personas"]),
                 "fuera_de_sla": numero(fila["fuera_de_sla"]),
@@ -729,7 +731,7 @@ def _panel_de_localidad(loc, *, url_bandeja, dispositivos_visibles):
     reservadas = loc["camas_reservadas"]
     url = ""
     if url_bandeja and loc["familias"]:
-        url = f"{url_bandeja}?localidad={loc['localidad_id']}"
+        url = f"{url_bandeja}?solapa={SOLAPA_ABIERTOS}&localidad={loc['localidad_id']}"
     return {
         "id": _id_localidad(loc["localidad_id"]),
         "titulo": loc["nombre"],

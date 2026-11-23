@@ -113,7 +113,7 @@ class SolapaMapaTests(BaseMapa):
         self.assertEqual([c["nombre"] for c in panel["cercanos"]], ["Club Sarmiento", "Escuela 12"])
         self.assertRegex(panel["cercanos"][0]["detalle"], r"^\d+,\d km · \d+ libres de 10$")
         self.assertEqual(panel["reservadas"], "Incluye 6 camas en dispositivos de ubicación reservada.")
-        self.assertEqual(panel["url"], f"/emergencia/casos/?localidad={self.res.pk}")
+        self.assertEqual(panel["url"], f"/emergencia/casos/?solapa=abiertos&localidad={self.res.pk}")
         self.assertEqual(panel["url_texto"], "Ver los 3 casos en la bandeja")
         html = respuesta.content.decode()
         self.assertIn(f"x-show=\"elegido === 'loc-{self.res.pk}'\"", html)
@@ -159,7 +159,7 @@ class SolapaMapaTests(BaseMapa):
     def test_tc_1185_17_la_bandeja_solo_con_supervisar(self):
         bandeja = reverse("emergencia:bandeja")
         self.assertNotIn(bandeja, self._html(self.autoridad))
-        self.assertIn(f'href="{bandeja}?localidad={self.bar.pk}"', self._html(self.supervisor))
+        self.assertIn(f'href="{bandeja}?solapa=abiertos&amp;localidad={self.bar.pk}"', self._html(self.supervisor))
 
     def test_c1_nada_de_terceros_en_la_pagina(self):
         html = self._html(self.supervisor)

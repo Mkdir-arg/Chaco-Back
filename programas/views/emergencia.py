@@ -118,14 +118,14 @@ class BandejaCasosView(MesaPermissionMixin, View):
             selectores.bandeja(filtros, sla=sla, ahora=ahora, semaforos=semaforos), CASOS_POR_PAGINA
         ).get_page(request.GET.get("page"))
         elegidos = {campo: valor for campo, valor in form.limpios().items() if campo not in NO_SON_FILTRO}
-        conteos = mesa.conteos_de_solapas(sla, ahora, semaforos=semaforos)
+        conteos = mesa.conteos_de_solapas(sla, ahora, semaforos=semaforos, usuario_id=request.user.pk)
         solapa = filtros["solapa"]
         contexto = {
             "page_obj": pagina,
             "filas": mesa.filas_de_bandeja(pagina.object_list, request.user, sla, ahora),
             "solapa": solapa,
-            "solapas_por_estado": self._chips(mesa.SOLAPAS_POR_ESTADO, solapa, conteos, elegidos),
-            "solapas_de_atencion": self._chips(mesa.SOLAPAS_DE_ATENCION, solapa, conteos, elegidos),
+            "solapa_explicita": form.solapa_explicita(),
+            "solapas": self._chips(mesa.SOLAPAS_DE_LA_BANDEJA, solapa, conteos, elegidos),
             "filtro": elegidos,
             "estados": CasoEmergencia.Estado.choices,
             "prioridades": CasoEmergencia.Prioridad.choices,
@@ -138,7 +138,7 @@ class BandejaCasosView(MesaPermissionMixin, View):
             "operadores": [(str(operador.pk), mesa.nombre_de(operador)) for operador in mesa.operadores_de_la_mesa()],
             "operador_mios": mesa.OPERADOR_MIOS,
             "hay_casos": conteos["total"] > 0,
-            "url_sin_filtros": _url("emergencia:bandeja", solapa=solapa),
+            "url_sin_filtros": _url("emergencia:bandeja", solapa=form.solapa_explicita()),
             "url_nuevo": reverse("emergencia:caso_nuevo"),
         }
         return render(request, TEMPLATE_BANDEJA, contexto)

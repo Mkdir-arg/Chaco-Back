@@ -34,7 +34,7 @@ from programas.models import (
     SLAEmergencia,
     TipoKit,
 )
-from programas.selectors.emergencia import ESTADOS_SLA, SOLAPA_ABIERTOS, SOLAPAS
+from programas.selectors.emergencia import ESTADOS_SLA, SOLAPA_ABIERTOS, SOLAPA_SIN_TOMAR, SOLAPAS
 from programas.selectors.emergencia_mesa import OPERADOR_MIOS, nombre_de, operadores_de_la_mesa
 from programas.services.configuracion_emergencia import (
     CAMPOS_SLA,
@@ -737,12 +737,22 @@ class FiltrosBandejaForm(forms.Form):
         self.is_valid()
         return {campo: valor for campo, valor in self.cleaned_data.items() if valor not in (None, "")}
 
+    def solapa_explicita(self):
+        """La solapa que vino en la URL, o ``""`` si es la implícita."""
+
+        return self.limpios().get("solapa", "")
+
     def filtros(self, usuario):
-        """El dict que recibe ``selectors.emergencia.bandeja``; por omisión, la solapa «Abiertos»."""
+        """El dict que recibe ``selectors.emergencia.bandeja``; por omisión, la solapa «Sin tomar»."""
 
         limpios = self.limpios()
         filtros = {campo: limpios[campo] for campo in self.CAMPOS_DEL_SELECTOR if campo in limpios}
-        filtros["solapa"] = limpios.get("solapa") or SOLAPA_ABIERTOS
+        # Sin solapa en la URL se abre «Sin tomar», salvo que se esté buscando o filtrando por quién lo tiene: «Sin tomar»
+        # nunca encuentra un caso con dueño, así que se filtra sobre «Abiertos» (que no es un chip). La solapa implícita
+        # no se vuelve explícita al filtrar: el formulario no manda `solapa` si la URL no la traía.
+        buscando = bool(limpios.get("texto") or limpios.get("operador"))
+        filtros["solapa"] = limpios.get("solapa") or (SOLAPA_ABIERTOS if buscando else SOLAPA_SIN_TOMAR)
+        filtros["usuario"] = usuario.pk
         operador = limpios.get("operador", "")
         if operador == OPERADOR_MIOS:
             filtros["tomado_por"] = usuario.pk
