@@ -75,7 +75,7 @@ class TarjetasTests(BaseFicha):
 
         self.assertIsNone(self._tarjetas(sin_kits)[self.edif_a.pk]["kits"])
         con_kits = self._con("Con kits", "dispositivo.ver", "emergencia.recibir_kit")
-        self.assertEqual(self._tarjetas(con_kits)[self.edif_a.pk]["kits"]["texto"], "Ninguno pendiente")
+        self.assertEqual(self._tarjetas(con_kits)[self.edif_a.pk]["kits"]["texto"], "0 por recibir")
 
     def test_los_kits_se_cortan_por_edificio_cuando_el_alcance_de_recibirlos_es_acotado(self):
         """Ve toda la institución, pero recibe kits solo en A: la fila Kits sale en la tarjeta de A y no en la de B."""
@@ -93,7 +93,7 @@ class TarjetasTests(BaseFicha):
         tarjetas = self._tarjetas(usuario)
 
         self.assertEqual(set(tarjetas), {self.edif_a.pk, self.edif_b.pk})
-        self.assertEqual(tarjetas[self.edif_a.pk]["kits"]["texto"], "Ninguno pendiente")
+        self.assertEqual(tarjetas[self.edif_a.pk]["kits"]["texto"], "0 por recibir")
         self.assertIsNone(tarjetas[self.edif_b.pk]["kits"])
 
     def test_sin_dispositivo_editar_la_seccion_no_ofrece_editar_desvincular_ni_agregar(self):

@@ -895,6 +895,8 @@ class ObservarRecepcionTests(BaseKits):
                 "puede_recibir",
                 "estado_visible_de_entrega",
                 "siguiente_numero_de_entrega",
+                # Arma el aviso de la pantalla; no lee ni escribe cantidades.
+                "aviso_de_kits_por_recibir",
             },
         )
 

@@ -5468,8 +5468,8 @@ class TipoKit(TimeStamped):
         null=True,
         blank=True,
         validators=[MinValueValidator(decimal.Decimal("0.01"))],
-        verbose_name="Cantidad",
-        help_text="Cuántas unidades por persona, familia o lactante. Ej.: 0,5 bidón por persona.",
+        verbose_name="Consumo por unidad",
+        help_text="Cuánto consume cada persona, familia o lactante. No es stock. Ej.: 3 raciones por persona cada 1 día.",
     )
     regla_por = models.CharField(
         max_length=10,

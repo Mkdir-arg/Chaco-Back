@@ -40,12 +40,13 @@ def pasos(paso_actual, url_llegadas, url_integrantes=None):
     }
 
 
-def aviso_de_pendientes(pendientes, url_llegadas, ahora):
+def aviso_de_pendientes(pendientes, url_llegadas, ahora, *, en_este_edificio=False):
     """El aviso de la ficha de la institución (``components/_alerta.html``) o ``None`` si no hay pendientes.
 
     ``pendientes`` es lo que contesta ``emergencia_alojar.pendientes_por_recibir``. Tono ``warning``;
     ``danger`` cuando la más próxima vence en menos de ``POR_VENCER_MIN`` minutos (el umbral de
-    «Derivación por vencer» de la mesa) o ya pasó su vencimiento. Sin consultas.
+    «Derivación por vencer» de la mesa) o ya pasó su vencimiento. Con ``en_este_edificio`` el título aclara que son las
+    derivadas a ese edificio (página del edificio, #1362). Sin consultas.
     """
 
     if not pendientes:
@@ -56,7 +57,7 @@ def aviso_de_pendientes(pendientes, url_llegadas, ahora):
     return {
         "tono": "danger" if por_vencer(vence, ahora) else "warning",
         "icono": "triangle-exclamation",
-        "titulo": f"{familias} por Emergencia esperando respuesta",
+        "titulo": f"{familias} por Emergencia {'a este edificio ' if en_este_edificio else ''}esperando respuesta",
         "texto": f"{'La primera venció' if vence < ahora else 'La primera vence'} el {_dia_hora(vence)}.",
         "accion_url": url_llegadas,
         "accion_texto": "Ir a Llegadas",
