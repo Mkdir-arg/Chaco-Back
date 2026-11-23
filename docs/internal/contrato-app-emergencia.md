@@ -278,6 +278,12 @@ Respuesta **201** (creado) o **200** (ya existía), con el mismo cuerpo:
 
 `prioridad` es `ALTA`, `MEDIA` o `BAJA`. El caso nace `NUEVO`, sin tomar.
 
+**Una familia, un caso abierto** (Cambio 579, **aditivo**): la respuesta suma `"ya_tenia_caso": false`. Si la
+familia (el DNI del responsable, o el de un integrante ya confirmado) **ya tiene un caso abierto**, el servidor
+**no abre otro**: contesta **200** con ese caso (`id`, `numero`, `prioridad`, `total_declarado`) y
+`"ya_tenia_caso": true`, y deja en el historial del caso que se volvió a relevar. Para la app en producción es un
+reenvío más (ya trata el 200 como enviado); la nueva puede avisar «esta familia ya estaba cargada».
+
 ### Idempotencia
 
 - El mismo `uuid_cliente` enviado otra vez por el mismo usuario devuelve **200** con el caso que ya
@@ -616,6 +622,16 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
   el texto («La familia ya está derivada al edificio X de este dispositivo. No la avises a la mesa.») y
   `puede_avisar_a_la_mesa` / `puede_ingresar_igual` vienen en `false`: la app muestra `mensaje` y no ofrece
   ningún botón. Solo se nombra el edificio destino.
+- `caso_abierto` y `puede_ingresar_con_caso` (Cambio 579, **aditivas**): con `SIN_DERIVACION`, si la familia ya
+  tiene un caso abierto en cualquier estado (derivado a otra institución, sin tomar, alojado…), `caso_abierto`
+  trae **solo** `{id, numero, familia, personas, estado, estado_texto, derivada_a, derivada_en,
+  en_este_dispositivo}` —`familia` es el apellido del responsable; `derivada_a` es la institución, si la
+  derivación sigue vigente— y nada de la ficha, los contactos ni las fotos; si no, `null`. `derivacion` sigue en
+  `null`. `puede_ingresar_con_caso` dice si «Ingresar» sobre ese caso está permitido desde este dispositivo
+  (alcance a toda la institución y camas libres; no lo está si el caso es de otra institución y ya está
+  ingresado o alojado). La app nueva ofrece «Ingresar con este caso» (`ingreso-directo` con el mismo DNI) o
+  «Avisar a la mesa» en vez de cargar el Formulario 1 de nuevo; la anterior no lee estas claves y sigue andando
+  (§13.10).
 - `plazas_libres` cuenta las camas libres de **todo el dispositivo** que el usuario alcanza (con alcance
   Edificios, las de sus edificios), **no** las del edificio de la derivación. Sirve para decidir el botón de
   M2-6 y como referencia; no anticipa cuántas reserva «Aceptar», que toma solo del edificio derivado
@@ -1035,6 +1051,23 @@ derivación `PENDIENTE` o `ACEPTADA` hacia este mismo dispositivo, de cualquier 
 `{"detail": "La familia ya está derivada al edificio X de este dispositivo. No la avises a la mesa.", "code":
 "VALIDACION", "non_field_errors": [...]}` y **no crea el caso**. Es el mismo texto de `mensaje` de §13.2. Un
 reintento con el mismo `uuid_cliente` de un aviso ya creado no pasa por esta guarda.
+
+**Una familia, un caso abierto** (Cambio 579, **aditivo**): `ingreso-directo` y `avisar-mesa` no abren un caso
+si la familia ya tiene uno abierto; lo **suman** y la respuesta trae el mismo cuerpo de siempre más
+`"ya_tenia_caso": true` (**201**, o **200** en el reenvío):
+
+- `ingreso-directo`: el ingreso se hace sobre el caso existente. Con una derivación **pendiente a otra
+  institución**, se cancela sola (se liberan las camas que tuviera, queda en el historial y la mesa lo ve). Con
+  el caso **alojado en este dispositivo**, las personas que llegan después se suman a ese caso y el ingreso vuelve
+  a estar en curso para confirmarlas (decisión 8).
+- `avisar-mesa`: el aviso se suma al caso (marca «En la puerta de …»; con una derivación pendiente a otra
+  institución, la cancela y la mesa ve a la familia esperando en la puerta).
+- **400** (`code: "VALIDACION"`, con `detail` legible, como cualquier error de campo) cuando **no** se puede sumar
+  desde este dispositivo. Si el caso está ingresado o alojado en **otra institución** (no se ingresa acá:
+  «Avisá a la mesa»), el cuerpo trae además `caso_abierto` (las mismas claves de §13.2). Si la derivación
+  pendiente es a este mismo dispositivo (se acepta en vez de ingresar igual) o a otro edificio de él, solo el
+  `detail`. La app anterior muestra el `detail`; la nueva puede leer `caso_abierto`. `POST /casos/` (§6) devuelve 200 en vez de 400 (la mesa, desde la web, es la única que abre un
+  caso nuevo para una familia que ya tiene uno, con un motivo).
 
 ### 13.11 La ficha individual (Formulario 2)
 

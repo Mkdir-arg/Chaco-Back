@@ -57,7 +57,7 @@ Prioridad = CasoEmergencia.Prioridad
 
 
 class EnviarCasoTests(BaseApiEmergencia):
-    def test_crea_el_caso_y_devuelve_las_cuatro_claves(self):
+    def test_crea_el_caso_y_devuelve_sus_claves(self):
         respuesta = self._enviar(menores_f=2, mayores_m=1, telefono="3624111222", observaciones="Frente a la capilla")
 
         self.assertEqual(respuesta.status_code, 201, respuesta.content)
@@ -65,7 +65,7 @@ class EnviarCasoTests(BaseApiEmergencia):
         self.assertEqual(sorted(respuesta.json()), CLAVES_CASO_CREADO)
         self.assertEqual(
             respuesta.json(),
-            {"id": caso.pk, "numero": caso.numero, "prioridad": "MEDIA", "total_declarado": 5},
+            {"id": caso.pk, "numero": caso.numero, "prioridad": "MEDIA", "total_declarado": 5, "ya_tenia_caso": False},
         )
         # RN-1.10: nace NUEVO, sin tomar, de territorio, a nombre del agente.
         self.assertEqual(

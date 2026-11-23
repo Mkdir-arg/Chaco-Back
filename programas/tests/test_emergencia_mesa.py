@@ -302,6 +302,39 @@ class NuevoCasoTests(BaseMesa):
         self.assertEqual([t.accion for t in self._trazas(caso)], [Accion.CREADO])
         self.assertIn(f"Caso {caso.numero} cargado", self._avisos(respuesta)[0])
 
+    def test_la_familia_con_un_caso_abierto_no_abre_otro_y_ofrece_ver_el_caso_y_abrir_uno_nuevo(self):
+        """Cambio 579: el formulario de la mesa frena el duplicado y muestra cómo seguir."""
+        existente = self._caso(dni="31555666", origen=Origen.MESA)
+
+        respuesta = self.client.post(URL_NUEVO, self._formulario1(dni="31555666"))
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+        self.assertContains(respuesta, "Ver el caso", status_code=400)
+        self.assertContains(respuesta, existente.numero, status_code=400)
+        self.assertContains(respuesta, 'name="forzar_nuevo_motivo"', status_code=400)
+
+    def test_la_mesa_abre_un_caso_nuevo_con_motivo_aunque_la_familia_tenga_uno(self):
+        existente = self._caso(dni="31555666", origen=Origen.MESA)
+
+        respuesta = self.client.post(
+            URL_NUEVO,
+            self._formulario1(dni="31555666", forzar_nuevo="on", forzar_nuevo_motivo="La familia se separó"),
+        )
+
+        self.assertEqual(CasoEmergencia.objects.count(), 2, respuesta.content[:300])
+        nuevo = CasoEmergencia.objects.exclude(pk=existente.pk).get()
+        self.assertRedirects(respuesta, self._url("caso_detalle", nuevo))
+        self.assertIn("La familia se separó", self._trazas(nuevo)[0].detalle)
+
+    def test_forzar_un_caso_nuevo_sin_motivo_se_rechaza(self):
+        self._caso(dni="31555666", origen=Origen.MESA)
+
+        respuesta = self.client.post(URL_NUEVO, self._formulario1(dni="31555666", forzar_nuevo="on"))
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
     def test_un_total_o_una_prioridad_que_mande_el_cliente_no_cuentan(self):
         self.client.post(URL_NUEVO, self._formulario1(total_declarado="40", prioridad="ALTA", estado="CERRADO"))
         caso = CasoEmergencia.objects.get()
@@ -483,7 +516,7 @@ class BandejaTests(BaseMesa):
 
     def test_las_marcas_de_la_fila_van_en_texto(self):
         aproximado = self._caso(latitud="-27.451", longitud="-58.986", precision_m=250)
-        self._caso(dni=aproximado.grupo.responsable.dni)  # la misma persona, otra vez
+        self._caso_forzado(dni=aproximado.grupo.responsable.dni)  # la misma persona, otra vez (la mesa lo fuerza)
         self.reloj.avanzar(minutes=1)
         demorado = self._caso(relevado_en=T0 - timedelta(minutes=105))
         alojado = self._caso()
@@ -863,7 +896,7 @@ class FichaTests(BaseMesa):
 
     def test_las_marcas_del_caso_van_como_avisos(self):
         caso = self._caso_tomado()
-        otro = self._caso(dni=caso.grupo.responsable.dni)
+        otro = self._caso_forzado(dni=caso.grupo.responsable.dni)
         self._ocupar(self.club, 1)
         estadia = self.club.estadias.get()
         estadia.ciudadano = caso.grupo.responsable

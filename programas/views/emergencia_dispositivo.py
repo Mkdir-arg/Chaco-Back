@@ -60,7 +60,7 @@ from programas.selectors import emergencia_alojar as selectores
 from programas.selectors import emergencia_llegadas as pantalla
 from programas.services import emergencia_alojar as servicio
 from programas.services.dispositivos import puede_en_programa_dispositivos, q_edificios_en_alcance
-from programas.services.emergencia import EstadoCambio
+from programas.services.emergencia import CasoAbiertoDeLaFamilia, EstadoCambio
 
 CAP_ADMITIR = "dispositivo.admitir"
 CAP_VER_CIUDADANO = "ciudadano.ver"
@@ -190,6 +190,7 @@ class LlegadasView(GuardiaView):
         pendientes = Paginator(llegadas["pendientes"], LLEGADAS_POR_PAGINA).get_page(request.GET.get("pendientes_pag"))
         en_curso = Paginator(llegadas["en_curso"], LLEGADAS_POR_PAGINA).get_page(request.GET.get("en_curso_pag"))
         sin_derivacion = resultado is not None and resultado.resultado == servicio.BUSQUEDA_SIN_DERIVACION
+        caso_abierto = resultado.caso_abierto if sin_derivacion else None
         contexto = self.contexto(
             1,
             form=form,
@@ -204,6 +205,13 @@ class LlegadasView(GuardiaView):
             puede_avisar=sin_derivacion and resultado.puede_avisar_a_la_mesa,
             url_ingreso_directo=self.url("ingreso_directo", dni=resultado.dni) if sin_derivacion else "",
             url_avisar=self.url("avisar", dni=resultado.dni) if sin_derivacion else "",
+            # Cambio 579: la familia ya tiene un caso abierto. El modal se abre solo si hay algo que hacer.
+            caso_abierto=caso_abierto,
+            que_pasa_si_se_ingresa=pantalla.que_pasa_si_se_ingresa(caso_abierto) if caso_abierto else [],
+            puede_ingresar_con_caso=sin_derivacion and resultado.puede_ingresar_con_caso,
+            puede_avisar_con_caso=sin_derivacion and resultado.puede_avisar_a_la_mesa and caso_abierto is not None,
+            url_ingresar_con_caso=self.url("ingresar_con_caso"),
+            url_avisar_con_caso=self.url("avisar_con_caso"),
             pendientes=pantalla.filas_de_llegadas(
                 pendientes,
                 ahora,
@@ -763,6 +771,10 @@ class CancelarIngresoView(_IngresoView):
 
 
 YA_SE_HABIA_ENVIADO = "Ese formulario ya se había enviado: es el caso {numero}."
+INGRESO_SUMADO_AL_CASO = (
+    "La familia ya tenía el caso {numero} abierto: el ingreso se sumó a ese caso. Seguí con las fichas."
+)
+AVISO_SUMADO_AL_CASO = "La familia ya tenía el caso {numero} abierto: el aviso se sumó a ese caso y la mesa lo ve."
 
 
 def _ya_se_habia_enviado(request, caso):
@@ -804,6 +816,11 @@ class _Formulario1View(GuardiaView):
             # Formulario 1 no se pierde; queda en pantalla con el motivo.
             form.add_error(None, self.sin_alcance)
             return self._render(request, form, status=403)
+        except CasoAbiertoDeLaFamilia as error:
+            # La familia ya tiene un caso abierto (Cambio 579): se vuelve a la búsqueda, que abre el modal con
+            # sus salidas, en vez de dejar un error en el formulario.
+            messages.warning(request, _mensajes(error))
+            return redirect(self.url("llegadas", dni=form.cleaned_data.get("dni")))
         except ValidationError as error:
             form.agregar_errores_del_servicio(rechazo_para_mostrar(request, error))
             return self._render(request, form, status=400)
@@ -826,6 +843,9 @@ class AvisarALaMesaView(_Formulario1View):
 
     def despues(self, request, caso):
         if _ya_se_habia_enviado(request, caso):
+            return redirect(self.url("llegadas"))
+        if getattr(caso, "familia_ya_tenia_caso", False):
+            messages.success(request, AVISO_SUMADO_AL_CASO.format(numero=caso.numero))
             return redirect(self.url("llegadas"))
         messages.success(
             request,
@@ -860,6 +880,9 @@ class IngresoDirectoView(_Formulario1View):
     def despues(self, request, caso):
         if _ya_se_habia_enviado(request, caso):
             return redirect(self.url("integrantes", caso.pk))
+        if getattr(caso, "familia_ya_tenia_caso", False):
+            messages.success(request, INGRESO_SUMADO_AL_CASO.format(numero=caso.numero))
+            return redirect(self.url("integrantes", caso.pk))
         if caso.faltantes:
             messages.warning(
                 request,
@@ -874,3 +897,54 @@ class IngresoDirectoView(_Formulario1View):
                 f"{aviso_identidad_a_revisar(caso)}",
             )
         return redirect(self.url("integrantes", caso.pk))
+
+
+class _ConCasoAbiertoView(GuardiaView):
+    """Las salidas del modal «Esta familia ya tiene un caso abierto» (Cambio 579). Reciben el DNI, no el caso.
+
+    El caso lo resuelve el servicio por el DNI de la familia: un id armado a mano no puede sumar a la guardia
+    a un caso ajeno. Cualquier rechazo vuelve a la búsqueda del mismo DNI, que muestra cómo está la familia hoy.
+    """
+
+    def ejecutar(self, request, dni):
+        raise NotImplementedError
+
+    def despues(self, request, caso):
+        raise NotImplementedError
+
+    def post(self, request, pk):
+        dni = request.POST.get("dni", "")
+        try:
+            caso = self.ejecutar(request, dni)
+        except PermissionDenied:
+            messages.error(request, SIN_ALCANCE_PARA_INGRESAR_IGUAL)
+            return redirect(self.url("llegadas"))
+        except EstadoCambio as cambio:
+            messages.warning(request, cambio.mensaje)
+            return redirect(self.url("llegadas", dni=dni))
+        except ValidationError as error:
+            messages.warning(request, _mensajes(error))
+            return redirect(self.url("llegadas", dni=dni))
+        return self.despues(request, caso)
+
+
+class IngresarConCasoAbiertoView(_ConCasoAbiertoView):
+    """«Ingresar con este caso»: el ingreso se suma al caso que la familia ya tenía."""
+
+    def ejecutar(self, request, dni):
+        return servicio.ingresar_con_caso_abierto(dispositivo=self.dispositivo, usuario=request.user, dni=dni)
+
+    def despues(self, request, caso):
+        messages.success(request, INGRESO_SUMADO_AL_CASO.format(numero=caso.numero))
+        return redirect(self.url("integrantes", caso.pk))
+
+
+class AvisarConCasoAbiertoView(_ConCasoAbiertoView):
+    """«Avisar a la mesa» sobre el caso que la familia ya tenía: no se carga otro Formulario 1."""
+
+    def ejecutar(self, request, dni):
+        return servicio.avisar_con_caso_abierto(dispositivo=self.dispositivo, usuario=request.user, dni=dni)
+
+    def despues(self, request, caso):
+        messages.success(request, AVISO_SUMADO_AL_CASO.format(numero=caso.numero))
+        return redirect(self.url("llegadas"))

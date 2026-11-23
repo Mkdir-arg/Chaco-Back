@@ -187,9 +187,18 @@ class AceptadoSinMovimientoTests(BaseAlojar):
 
 class CamasYaPedidasTests(BaseAlojar):
     def test_cuenta_las_pendientes_de_ese_lugar_y_no_las_descuenta_de_las_libres(self):
-        self._derivado(plazas=3, adultos_f=1, adultos_m=2, menores_f=0, menores_m=0)
-        self._derivado(plazas=2, adultos_f=1, adultos_m=1, menores_f=0, menores_m=0)
-        self._derivado(dispositivo=self.escuela, plazas=2, adultos_f=1, adultos_m=1, menores_f=0, menores_m=0)
+        # Cada derivación es de una familia distinta: una familia no tiene dos casos abiertos (Cambio 579).
+        self._derivado(plazas=3, adultos_f=1, adultos_m=2, menores_f=0, menores_m=0, dni=str(next(self._dnis)))
+        self._derivado(plazas=2, adultos_f=1, adultos_m=1, menores_f=0, menores_m=0, dni=str(next(self._dnis)))
+        self._derivado(
+            dispositivo=self.escuela,
+            plazas=2,
+            adultos_f=1,
+            adultos_m=1,
+            menores_f=0,
+            menores_m=0,
+            dni=str(next(self._dnis)),
+        )
         self.assertEqual(pedidas_pendientes(self.club.pk, None), (5, 2))
 
         caso = self._caso_tomado(adultos_f=1, adultos_m=1)

@@ -72,8 +72,11 @@ class BuscarPorDniTests(BaseAlojar):
         self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
         self.assertIsNone(resultado.derivacion)
         self.assertIsNone(resultado.caso)
-        self.assertNotIn("Escuela", repr(resultado))
-        self.assertEqual(resultado.mensaje, servicio.SIN_DERIVACION)
+        # Cambio 579: el modal «Esta familia ya tiene un caso abierto» sí dice dónde está derivada (la maqueta
+        # lo pide); el mensaje y el resto del resultado siguen sin nombrarla.
+        self.assertEqual(resultado.caso_abierto["derivada_a"], "Escuela 12")
+        self.assertNotIn("Escuela", resultado.mensaje)
+        self.assertNotIn("Escuela", repr({**vars(resultado), "caso_abierto": None}))
 
     def test_sin_alcance_sobre_el_dispositivo_no_se_busca(self):
         self._derivado()

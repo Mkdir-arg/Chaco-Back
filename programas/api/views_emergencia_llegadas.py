@@ -177,7 +177,8 @@ class BuscarFamiliaView(_VistaDeLlegadas):
             "M2-1: busca a la familia por el DNI del responsable o de una persona ya confirmada. `DERIVACION`: hay "
             "una derivación pendiente o aceptada **hacia este dispositivo**. `ALOJADA`: la persona tiene una "
             "estadía abierta (dónde, solo si el usuario lo puede ver). `SIN_DERIVACION`: todo lo demás, incluida "
-            "una derivación a otro dispositivo, que no se nombra."
+            "una derivación a otro dispositivo, que no se nombra. Con `SIN_DERIVACION`, `caso_abierto` trae el caso "
+            "que la familia ya tiene abierto (Cambio 579) para no cargarla de nuevo."
         ),
     )
     def get(self, request, dispositivo_id):

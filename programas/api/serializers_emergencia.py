@@ -191,10 +191,19 @@ class CasoEmergenciaCreadoSerializer(serializers.ModelSerializer):
     """Lo que la app necesita para mostrar «Enviado · 7 personas · Caso N.° 2026-C-000184»."""
 
     total_declarado = serializers.IntegerField(source="grupo.total_declarado", read_only=True)
+    ya_tenia_caso = serializers.SerializerMethodField(
+        help_text=(
+            "Aditiva (Cambio 579). `true` si la familia ya tenía un caso abierto: no se creó otro, `numero` es el "
+            "del caso que ya estaba y la respuesta es 200. La app puede ignorarla: tratarlo como un reenvío es correcto."
+        )
+    )
+
+    def get_ya_tenia_caso(self, caso) -> bool:
+        return bool(getattr(caso, "familia_ya_tenia_caso", False))
 
     class Meta:
         model = CasoEmergencia
-        fields = ["id", "numero", "prioridad", "total_declarado"]
+        fields = ["id", "numero", "prioridad", "total_declarado", "ya_tenia_caso"]
         read_only_fields = fields
 
 
@@ -406,6 +415,22 @@ class CasoResumenSerializer(serializers.ModelSerializer):
 class EdificioSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     nombre = serializers.CharField()
+
+
+class CasoAbiertoSerializer(serializers.Serializer):
+    """El caso abierto de la familia: lo único que la guardia ve de él (Cambio 579). Sin ficha, contactos ni fotos."""
+
+    id = serializers.IntegerField()
+    numero = serializers.CharField()
+    familia = serializers.CharField(help_text="El apellido del responsable.")
+    personas = serializers.IntegerField(help_text="Personas declaradas del caso.")
+    estado = serializers.CharField(help_text="Código del estado del caso (`NUEVO`, `EN_GESTION`, `DERIVADO`…).")
+    estado_texto = serializers.CharField()
+    derivada_a = serializers.CharField(
+        allow_null=True, help_text="La institución a la que la mesa derivó la familia, si la derivación sigue vigente."
+    )
+    derivada_en = serializers.DateTimeField(allow_null=True, help_text="Cuándo se derivó.")
+    en_este_dispositivo = serializers.BooleanField(help_text="`true` si el caso ya está derivado o ingresado acá.")
 
 
 class PersonaDelIntegranteSerializer(serializers.Serializer):
@@ -695,6 +720,21 @@ class BusquedaPorDniSerializer(serializers.Serializer):
         allow_null=True,
         help_text="Aditiva. Solo con `derivada_a_otro_edificio`: el edificio destino (`{id, nombre}`); si no, `null`.",
     )
+    caso_abierto = CasoAbiertoSerializer(
+        allow_null=True,
+        help_text=(
+            "Aditiva (Cambio 579). Con `SIN_DERIVACION`, si la familia ya tiene un caso abierto: ofrecer "
+            "«Ingresar con este caso» (si `puede_ingresar_con_caso`) o «Avisar a la mesa» en vez de cargar el "
+            "Formulario 1. La app que no la lee sigue andando: «Ingresar igual» y «Avisar a la mesa» se suman al "
+            "caso abierto en el servidor. Si no, `null`."
+        ),
+    )
+    puede_ingresar_con_caso = serializers.BooleanField(
+        help_text=(
+            "Aditiva (Cambio 579). Con `caso_abierto`: el usuario puede ingresar a la familia sobre ese caso "
+            "(alcance sobre toda la institución, camas libres y un estado que lo permite). Si no, `false`."
+        )
+    )
 
 
 class AceptarDerivacionEnvioSerializer(serializers.Serializer):
@@ -895,7 +935,21 @@ class IngresoDirectoSerializer(serializers.Serializer):
     reservadas = serializers.IntegerField()
     faltantes = serializers.IntegerField()
     integrantes = IntegranteSerializer(many=True)
+    ya_tenia_caso = serializers.BooleanField(
+        default=False,
+        help_text=(
+            "Aditiva (Cambio 579). `true` si la familia ya tenía un caso abierto y el ingreso se sumó a él en vez "
+            "de abrir otro. La app que no la lee sigue andando."
+        ),
+    )
 
 
 class AvisoALaMesaSerializer(serializers.Serializer):
     caso = CasoResumenSerializer()
+    ya_tenia_caso = serializers.BooleanField(
+        default=False,
+        help_text=(
+            "Aditiva (Cambio 579). `true` si la familia ya tenía un caso abierto y el aviso se sumó a él en vez de "
+            "abrir otro (con una derivación pendiente a otra institución, se cancela)."
+        ),
+    )

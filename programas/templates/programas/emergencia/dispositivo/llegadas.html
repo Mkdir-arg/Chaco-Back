@@ -8,7 +8,7 @@
 dispositivo tiene por recibir. El resultado de la búsqueda lo arma el servidor: la tarjeta de la derivación
 (Aceptar es un POST directo; Rechazar pide motivo y es el arquetipo Modal), «sin derivación» (Ingresar igual /
 Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el servicio, no este template.{% endcomment %}
-<div x-data="{ modalRechazar: false }">
+<div x-data="{ modalRechazar: false, modalCaso: {% if puede_ingresar_con_caso or puede_avisar_con_caso %}true{% else %}false{% endif %} }">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
   <div class="space-y-5">
@@ -137,7 +137,12 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
         <h2 id="llegadas-sin-derivacion-titulo" class="text-heading font-bold">Sin derivación para el DNI {{ resultado.dni|dni }}</h2>
       </div>
       <div class="p-5 space-y-4">
-        {% if resultado.derivada_a_otro_edificio %}
+        {% if caso_abierto %}
+        {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Es el caso "|add:caso_abierto.numero|add:" de la familia "|add:caso_abierto.familia|add:" · "|add:caso_abierto.estado_texto|add:"." %}
+        {% if not puede_ingresar_con_caso and not puede_avisar_con_caso %}
+        {% include "components/_alerta.html" with tono="warning" titulo="Desde acá no se puede ingresar ni avisar" texto="El caso está en manos de otra institución o ya tiene su ingreso en curso. Si la familia está en la puerta, hablá con la mesa." %}
+        {% endif %}
+        {% elif resultado.derivada_a_otro_edificio %}
         {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Ya está derivada a ese edificio: la guardia de ese edificio sigue con el ingreso." %}
         {% elif alcance_para_ingresar %}
         {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Si la familia está en la puerta, la podés ingresar igual mientras haya camas libres, o avisarle a la mesa para que la derive." %}
@@ -148,11 +153,17 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
         {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Si la familia está en la puerta, avisale a la mesa para que la derive. Ingresarla sin derivación lo puede hacer quien tiene a cargo toda la institución." %}
         {% endif %}
         <div class="flex flex-wrap justify-end gap-3">
+          {% if caso_abierto %}
+          {% if puede_ingresar_con_caso or puede_avisar_con_caso %}
+          <button type="button" @click="modalCaso=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-folder-open" aria-hidden="true"></i> Ver el caso abierto</button>
+          {% endif %}
+          {% else %}
           {% if puede_avisar %}
           <a href="{{ url_avisar }}" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-bullhorn" aria-hidden="true"></i> Avisar a la mesa</a>
           {% endif %}
           {% if puede_ingresar_igual %}
           <a href="{{ url_ingreso_directo }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Ingresar igual</a>
+          {% endif %}
           {% endif %}
         </div>
       </div>
@@ -254,6 +265,56 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
       {% endif %}
     </section>
   </div>
+
+  {% if caso_abierto and puede_ingresar_con_caso or caso_abierto and puede_avisar_con_caso %}
+  {# Modal: «Esta familia ya tiene un caso abierto» (Cambio 579) — dos salidas sobre el mismo caso (arquetipo Modal) #}
+  <div x-show="modalCaso" x-cloak x-becas-modal="modalCaso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCaso=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-caso-abierto-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Esta familia ya tiene un caso abierto" titulo_id="modal-caso-abierto-titulo" subtitulo="No hace falta cargarla de nuevo." icono="fa-folder-open" tono="warning" cerrar="modalCaso=false" %}
+      <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        <dl class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Caso</dt>
+            <dd class="mt-1 text-sm text-heading">{{ caso_abierto.numero }} · {{ caso_abierto.familia }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Personas</dt>
+            <dd class="mt-1 text-sm text-heading">{{ caso_abierto.personas }} persona{{ caso_abierto.personas|pluralize }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">Estado</dt>
+            <dd class="mt-1 text-sm text-heading">{{ caso_abierto.estado_texto }}</dd>
+          </div>
+          {% if caso_abierto.derivada_a %}
+          <div>
+            <dt class="text-xs font-semibold uppercase text-body-subtle">La mesa la derivó a</dt>
+            <dd class="mt-1 text-sm text-heading">{{ caso_abierto.derivada_a }}{% if caso_abierto.derivada_en %} · hace {{ caso_abierto.derivada_en|timesince }}{% endif %}</dd>
+          </div>
+          {% endif %}
+        </dl>
+        {% if puede_ingresar_con_caso %}
+        <div>
+          <h4 class="text-sm font-bold text-heading">Si la ingresás acá</h4>
+          <ul class="mt-2 space-y-1 text-sm text-body list-disc pl-5">
+            {% for linea in que_pasa_si_se_ingresa %}<li>{{ linea }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+        <form id="form-ingresar-con-caso" method="post" action="{{ url_ingresar_con_caso }}">{% csrf_token %}<input type="hidden" name="dni" value="{{ resultado.dni }}"></form>
+        <form id="form-avisar-con-caso" method="post" action="{{ url_avisar_con_caso }}">{% csrf_token %}<input type="hidden" name="dni" value="{{ resultado.dni }}"></form>
+      </div>
+      {% if puede_ingresar_con_caso and puede_avisar_con_caso %}
+      {% include "programas/becas/_modal_footer.html" with cancelar="modalCaso=false" accion_texto="Ingresar con este caso" accion_icono="fa-right-to-bracket" form_id="form-ingresar-con-caso" secundaria_texto="Avisar a la mesa" secundaria_icono="fa-bullhorn" secundaria_form_id="form-avisar-con-caso" %}
+      {% elif puede_ingresar_con_caso %}
+      {% include "programas/becas/_modal_footer.html" with cancelar="modalCaso=false" accion_texto="Ingresar con este caso" accion_icono="fa-right-to-bracket" form_id="form-ingresar-con-caso" %}
+      {% else %}
+      {% include "programas/becas/_modal_footer.html" with cancelar="modalCaso=false" accion_texto="Avisar a la mesa" accion_icono="fa-bullhorn" form_id="form-avisar-con-caso" %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
   {% if form_rechazo %}
   {# Modal: Rechazar la derivación — confirmación con motivo (arquetipo Modal) #}

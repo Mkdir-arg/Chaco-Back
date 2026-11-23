@@ -22,6 +22,7 @@ from programas.selectors.emergencia_alojar import camas_libres
 from programas.services.dispositivos import q_edificios_en_alcance
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _hora, _nombre_de, _trazar
+from programas.services.emergencia_familia import caso_abierto_de_la_familia, resumen_del_caso_abierto
 from programas.services.emergencia_ingreso_comun import (
     CAP_ADMITIR,
     SIN_ALCANCE,
@@ -60,6 +61,8 @@ BUSQUEDA_ALOJADA = "ALOJADA"
 
 SIN_DERIVACION = "No hay una derivación para este DNI en tu dispositivo."
 
+CASO_ABIERTO_DE_LA_FAMILIA = "Esta familia ya tiene un caso abierto. No hace falta cargarla de nuevo."
+
 
 class MotivoRechazo(models.TextChoices):
     """Por qué el dispositivo rechaza una derivación (M2-2, RN-3.13)."""
@@ -92,6 +95,9 @@ class ResultadoBusqueda:
       otros, ``False``): si quien busca tiene el alcance para cada botón (:func:`puede_ingresar_igual`
       exige la institución entera; :func:`puede_avisar_a_la_mesa`, admitir con cualquier alcance).
       «Ingresar igual» además necesita ``plazas_libres ≥ 1``: eso no lo mira la bandera.
+    * ``caso_abierto`` — con ``SIN_DERIVACION``, si la familia ya tiene un caso abierto (Cambio 579): lo único que
+      la guardia ve de él (:func:`~programas.services.emergencia_familia.resumen_del_caso_abierto`).
+      ``puede_ingresar_con_caso`` dice si «Ingresar con este caso» se ofrece (alcance, camas y estado del caso).
     """
 
     resultado: str
@@ -107,6 +113,8 @@ class ResultadoBusqueda:
     puede_avisar_a_la_mesa: bool = False
     derivada_a_otro_edificio: bool = False
     edificio_derivado: Edificio | None = None
+    caso_abierto: dict | None = None
+    puede_ingresar_con_caso: bool = False
 
 
 @dataclass(frozen=True)
@@ -221,7 +229,44 @@ def buscar_por_dni(*, dispositivo, dni, usuario):
         .first()
     )
     mensaje = mensaje_vencida(vencida) if vencida is not None else SIN_DERIVACION
+
+    # Cambio 579: la familia ya tiene un caso abierto (derivado a otro lado, sin tomar, alojado…): no se abre otro.
+    abierto = caso_abierto_de_la_familia(ciudadano)
+    if abierto is not None:
+        return _con_caso_abierto(
+            usuario, dispositivo, dni, libres, abierto, puede_avisar, mensaje if vencida is not None else ""
+        )
     return _sin_derivacion(usuario, dispositivo, dni, libres, mensaje, puede_avisar)
+
+
+def _con_caso_abierto(usuario, dispositivo, dni, libres, caso, puede_avisar, mensaje=""):
+    """``SIN_DERIVACION`` con el caso abierto de la familia, para el modal «Esta familia ya tiene un caso abierto».
+
+    «Ingresar con este caso» se ofrece con el alcance de «Ingresar igual» y, según el estado: sin tomar o derivado a
+    otra institución, hace falta una cama libre; ya alojado **acá**, se suman las personas (decisión 8); en
+    otros casos —el ingreso o el alojamiento están en otra institución— no se ofrece. «Avisar a la mesa» sigue
+    disponible, salvo sobre un caso que ya está alojado o ingresado: ahí no hay nada que avisar.
+    """
+
+    resumen = resumen_del_caso_abierto(caso, dispositivo)
+    alcance = puede_ingresar_igual(usuario, dispositivo)
+    if caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO):
+        puede_ingresar = alcance and libres > 0
+    elif caso.estado == Estado.ALOJADO:
+        puede_ingresar = alcance and resumen["en_este_dispositivo"]
+    else:
+        puede_ingresar = False
+    avisar = puede_avisar and caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO)
+    return ResultadoBusqueda(
+        BUSQUEDA_SIN_DERIVACION,
+        dni,
+        plazas_libres=libres,
+        mensaje=mensaje or CASO_ABIERTO_DE_LA_FAMILIA,
+        puede_ingresar_igual=alcance,
+        puede_avisar_a_la_mesa=avisar,
+        caso_abierto=resumen,
+        puede_ingresar_con_caso=puede_ingresar,
+    )
 
 
 def _sin_derivacion(usuario, dispositivo, dni, libres, mensaje, puede_avisar):

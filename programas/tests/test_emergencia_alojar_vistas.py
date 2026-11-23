@@ -247,11 +247,12 @@ class AlcancePorHttpTests(BaseLlegadas):
 
         respuesta = self.client.get(self._url("llegadas"), {"dni": "30111222"})
 
-        self.assertContains(respuesta, "No hay una derivación para este DNI en tu dispositivo.")
-        self.assertNotContains(respuesta, "Escuela")
-        self.assertNotContains(respuesta, "Aceptar y reservar camas")
-        self.assertContains(respuesta, "Ingresar igual")
+        # Cambio 579: la familia ya tiene su caso abierto. El modal dice dónde está derivada (la maqueta lo pide);
+        # la guardia no ve la derivación ni puede aceptarla desde acá.
+        self.assertContains(respuesta, "Esta familia ya tiene un caso abierto")
+        self.assertContains(respuesta, "Ingresar con este caso")
         self.assertContains(respuesta, "Avisar a la mesa")
+        self.assertNotContains(respuesta, "Aceptar y reservar camas")
 
     def test_la_lista_pide_ver_una_derivacion_de_otro_dispositivo_y_no_la_muestra(self):
         _caso, de_la_escuela = self._derivado(dispositivo=self.escuela)
