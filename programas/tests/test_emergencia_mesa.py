@@ -1128,7 +1128,10 @@ class FlujoDePuntaAPuntaTests(BaseMesa):
         respuesta = self._post(
             "caso_contacto", caso, {"canal": "LLAMADA", "resultado": "ATENDIO", "observacion": "Esperan en la esquina"}
         )
-        self.assertRedirects(respuesta, self._url("caso_detalle", caso), fetch_redirect_response=False)
+        # Cambio 589: el contacto recién anotado se ve en su solapa.
+        self.assertRedirects(
+            respuesta, self._url("caso_detalle", caso) + "?tab=contactos", fetch_redirect_response=False
+        )
         self.assertEqual(self._avisos(respuesta), ["Contacto registrado."])
         ficha = self._ficha(caso)
         self.assertEqual([c["titulo"] for c in ficha.context["contactos"]], ["Llamada · Atendió"])
