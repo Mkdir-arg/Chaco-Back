@@ -1,5 +1,4 @@
 from django.urls import path
-from django.views.generic import RedirectView
 
 from programas.views import emergencia as mesa
 from programas.views import emergencia_config as config
@@ -16,7 +15,7 @@ app_name = "emergencia"
 # con cualquier ruta que contenga esa palabra.
 urlpatterns = [
     # La pantalla única de antes: quien la tenga guardada llega a Insumos. El nombre se conserva.
-    path("config/", RedirectView.as_view(pattern_name="emergencia:insumos", permanent=False), name="configuracion"),
+    path("config/", config.ConfiguracionVieja.as_view(), name="configuracion"),
     path("config/insumos/", config.InsumosEmergenciaView.as_view(), name="insumos"),
     path(
         "config/insumos/<int:pk>/desactivar/",

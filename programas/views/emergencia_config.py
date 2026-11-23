@@ -15,6 +15,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views import View
+from django.views.generic import RedirectView
 
 from programas.forms_emergencia import InsumoForm, SLAEmergenciaForm
 from programas.mixins_emergencia import EmergenciaPermissionMixin
@@ -70,6 +71,14 @@ def _url_insumos(estado, **parametros):
     """La lista en el chip ``estado``, con ``parametros`` extra (``nuevo``, ``editar``)."""
     consulta = {"estado": estado, **parametros}
     return f"{reverse('emergencia:insumos')}?{urlencode(consulta)}"
+
+
+class ConfiguracionVieja(EmergenciaPermissionMixin, RedirectView):
+    """La URL de la pantalla única de antes: con sesión y ``supervisar`` lleva a Insumos; sin sesión, al login."""
+
+    capacidad_requerida = CAP_SUPERVISAR
+    pattern_name = "emergencia:insumos"
+    permanent = False
 
 
 def _url_accion(nombre, pk, estado):

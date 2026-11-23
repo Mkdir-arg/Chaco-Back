@@ -92,6 +92,14 @@ class AccesoInsumosTests(BaseInsumos):
         self.assertRedirects(respuesta, self.url, fetch_redirect_response=False)
         self.assertEqual(reverse("emergencia:configuracion"), "/emergencia/config/")
 
+    def test_la_url_vieja_exige_sesion_y_supervisar(self):
+        self.client.logout()
+        anonimo = self.client.get("/emergencia/config/")
+        self.assertEqual(anonimo.status_code, 302)
+        self.assertIn("next=/emergencia/config/", anonimo.url)
+        self.client.force_login(self.operador)
+        self.assertEqual(self.client.get("/emergencia/config/").status_code, 403)
+
     def test_el_menu_tiene_las_dos_entradas_y_marca_la_actual(self):
         html = self.client.get(self.url).content.decode()
         self.assertIn('href="/emergencia/config/insumos/"', html)
