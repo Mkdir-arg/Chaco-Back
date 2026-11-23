@@ -1,0 +1,22 @@
+{% comment %}Una fila de «Plazas dadas de baja» (Cambio 582): código, tipo y «Reactivar» con su confirmación. Se incluye desde
+`_cuerpo.html`, dentro de cada grupo (`grupo`) y para cada plaza (`baja`), tanto en las visibles como en las plegadas.
+La URL de «Reactivar» lleva a dónde vuelve la pantalla: el filtro «Edificio» (o la solapa de la página del edificio), el
+filtro por sector si lo hay (`baja_sector`) y el grupo de esta plaza (`baja_abierto`), así queda abierto.{% endcomment %}
+<li class="py-3 flex items-center justify-between gap-3 flex-wrap">
+  <div class="min-w-0">
+    <p class="text-sm font-semibold text-heading">{{ baja.codigo }}</p>
+    <p class="text-xs text-body-subtle mt-1">{{ baja.get_tipo_display }}</p>
+  </div>
+  {% if puede_configurar_plazas %}
+  <button type="button"
+          class="btn-nodo btn-secondary btn-sm btn-fit"
+          data-confirm-url="{% url 'dispositivos:plaza_reactivar' dispositivo.pk baja.pk %}?{% if edificio_filtrado %}sectores_edificio={{ edificio_filtrado }}&amp;{% elif vuelta_a %}next={{ vuelta_a|urlencode }}&amp;{% endif %}{% if plazas_dadas_de_baja.filtro %}baja_sector={{ plazas_dadas_de_baja.filtro }}&amp;{% endif %}baja_abierto={{ grupo.sector.pk }}"
+          data-confirm-title="Reactivar plaza"
+          data-confirm-text="La plaza {{ baja.codigo }} vuelve al mapa de «{{ grupo.sector.nombre }}»."
+          data-confirm-ok="Sí, reactivar"
+          data-confirm-danger="false"
+          aria-label="Reactivar la plaza {{ baja.codigo }} de {{ grupo.sector.nombre }}">
+    <i class="fas fa-rotate-left" aria-hidden="true"></i> Reactivar
+  </button>
+  {% endif %}
+</li>
