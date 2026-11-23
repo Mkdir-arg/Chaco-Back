@@ -10,7 +10,8 @@ en el cuerpo, fuera de las solapas). Solo usa clases y tokens que ya existen. Lo
 «Agregar edificio» los dibuja la sección, no la tarjeta. Los datos extra de la tarjeta (ocupación, disponibles, kits,
 equipo, movimientos de hoy) los suma `programas/services/ficha_edificios.py` (`completar_tarjetas`) con costo constante en la
 cantidad de edificios. La fila Kits nunca lleva un número suelto: dice «0 por recibir» o «N por recibir» (en camino y
-preparadas juntas), igual que el badge de la solapa Kits de la página del edificio.
+preparadas juntas), igual que el badge de la solapa Kits de la página del edificio. El alcance de kits lo calcula la vista una sola vez
+(también lo usa el aviso de kits de la ficha, Cambio 581) y entra a `completar_tarjetas` como `alcance_kits`.
 
 ## Por qué no es `_lista_tarjetas`
 

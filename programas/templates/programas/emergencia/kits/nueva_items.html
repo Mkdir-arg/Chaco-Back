@@ -56,7 +56,7 @@ lleva en ocultos (el asistente no usa la sesión). El resumen del destino lo arm
     </div>
   </form>
   {% else %}
-    {% include "components/_alerta.html" with tono="warning" titulo="El catálogo de kits no tiene ítems activos" texto="Sin ítems no se puede armar una entrega. El catálogo lo mantiene quien supervisa la mesa, en la configuración de Emergencia." accion_url=url_configuracion accion_texto="Ir a la configuración" %}
+    {% include "components/_alerta.html" with tono="warning" titulo="El catálogo de kits no tiene ítems activos" texto="Sin ítems no se puede armar una entrega. El catálogo lo mantiene quien supervisa la mesa, en Insumos." accion_url=url_insumos accion_texto="Ir a Insumos" %}
   {% endif %}
 </div>
 {% endblock %}

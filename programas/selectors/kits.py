@@ -29,7 +29,7 @@ base de ECOM no tiene tablas de zona horaria y un ``Trunc*`` rompería solo en p
 
 from datetime import datetime, time, timedelta
 
-from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
+from django.db.models import Count, Exists, Max, Min, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, Edificio, EntregaKit, Estadia, LineaEntrega, TrazaEntrega
@@ -168,7 +168,7 @@ def destinos_con_entregas():
 def resumen_de_items(lineas):
     """«3 Kit alimentario, 10 Colchón…»: lo enviado, en una línea. Sin consultas (líneas ya leídas)."""
 
-    partes = [f"{linea.cantidad_enviada} {linea.item.nombre}" for linea in lineas[:ITEMS_EN_EL_RESUMEN]]
+    partes = [f"{linea.cantidad_enviada} {linea.nombre_visible}" for linea in lineas[:ITEMS_EN_EL_RESUMEN]]
     return ", ".join(partes) + ("…" if len(lineas) > ITEMS_EN_EL_RESUMEN else "")
 
 
@@ -216,7 +216,7 @@ def diferencias_de(lineas):
     return [
         {
             "item": linea.item_id,
-            "nombre": linea.item.nombre,
+            "nombre": linea.nombre_visible,
             "enviada": linea.cantidad_enviada,
             "recibida": linea.cantidad_recibida,
         }
@@ -294,6 +294,23 @@ def entregas_pendientes_de(dispositivo, usuario):
         .prefetch_related(_lineas_ordenadas())
         .order_by("creado", "id")
     )
+
+
+def entregas_por_recibir_de(dispositivo, edificio=None):
+    """``(cantidad, pk de la más vieja, número de la más vieja)`` de las entregas por recibir, en UNA consulta.
+
+    «Por recibir» es ``EntregaKit.ESTADOS_ABIERTOS``. Sin ``edificio`` cuenta TODA la institución, con o sin edificio
+    (el aviso de la ficha); con ``edificio`` solo las de ese edificio exacto: la de otro edificio o sin edificio no
+    cuenta (el aviso y el «Recibir kit» de su página). **No comprueba permisos**: la llama quien ya resolvió que el
+    usuario recibe kits con alcance sobre lo que cuenta. La más vieja es la de menor número: ``2026-K-000031`` lleva el
+    correlativo con seis dígitos y crece con el tiempo, igual que el id. Sin entregas, ``(0, None, None)``.
+    """
+
+    entregas = EntregaKit.objects.filter(dispositivo=dispositivo, estado__in=EntregaKit.ESTADOS_ABIERTOS)
+    if edificio is not None:
+        entregas = entregas.filter(edificio=edificio)
+    resumen = entregas.aggregate(cantidad=Count("pk"), primera=Min("pk"), numero=Min("numero"))
+    return resumen["cantidad"], resumen["primera"], resumen["numero"]
 
 
 def entregas_de(dispositivo, usuario=None):

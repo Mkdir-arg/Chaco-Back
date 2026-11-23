@@ -59,10 +59,10 @@ def emergencia():
     Estado = CasoEmergencia.Estado
     casos = CasoEmergencia.objects.filter(numero__startswith="BENCH-C-")
     rutas = [
-        _t("E-bandeja_abiertos", "mesa", reverse("emergencia:bandeja")),
+        _t("E-bandeja_abiertos", "mesa", reverse("emergencia:bandeja") + "?solapa=abiertos"),
         _t("E-bandeja_cerrados", "mesa", reverse("emergencia:bandeja") + "?solapa=cerrados"),
         _t("E-bandeja_cerrados_pag_90", "mesa", reverse("emergencia:bandeja") + "?solapa=cerrados&page=90"),
-        _t("E-bandeja_texto", "mesa", reverse("emergencia:bandeja") + "?texto=BENCH0001"),
+        _t("E-bandeja_texto", "mesa", reverse("emergencia:bandeja") + "?solapa=abiertos&texto=BENCH0001"),
         _t("E-bandeja_fuera_sla", "mesa", reverse("emergencia:bandeja") + "?solapa=fuera_sla"),
         _t("E-caso_nuevo_form", "mesa", reverse("emergencia:caso_nuevo")),
         _t("E-tablero", "supervisor", reverse("emergencia:tablero")),

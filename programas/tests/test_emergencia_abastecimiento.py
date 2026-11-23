@@ -20,6 +20,7 @@ from decimal import Decimal
 from django.db import connection, reset_queries
 from django.test import SimpleTestCase, tag
 from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -595,7 +596,8 @@ def _panel(html):
     return html[inicio : html.index("</details>", inicio)]
 
 
-IR_A_E7 = "Ir a Configuración de la mesa"
+IR_A_PLAZOS = "Ir a Plazos de atención"
+IR_A_INSUMOS = "Ir a Insumos"
 
 
 class VistaAbastecimientoTests(EscenarioAbastecimiento):
@@ -621,15 +623,17 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         autoridad, supervisor = self._html(self.autoridad), self._html(self.supervisor)
         for html in (autoridad, supervisor):
             self.assertIn("Para estimar el abastecimiento falta la fecha de inicio del evento", html)
-        self.assertNotIn(IR_A_E7, autoridad)
-        self.assertIn(IR_A_E7, supervisor)
+        self.assertNotIn(IR_A_PLAZOS, autoridad)
+        self.assertIn(IR_A_PLAZOS, supervisor)
+        self.assertIn(reverse("emergencia:plazos"), supervisor)
 
     def test_tc_1187_03_sin_reglas_y_sin_alojados(self):
         TipoKit.objects.update(regla_modo="", regla_cantidad=None, regla_por="", regla_cada_dias=None)
         html = self._html(self.supervisor)
-        self.assertIn("Ningún ítem tiene regla de consumo: se configuran en Configuración de la mesa", html)
-        self.assertIn(IR_A_E7, html)
-        self.assertNotIn(IR_A_E7, self._html(self.autoridad))
+        self.assertIn("Ningún ítem tiene regla de consumo: se configuran en Insumos", html)
+        self.assertIn(IR_A_INSUMOS, html)
+        self.assertIn(reverse("emergencia:insumos"), html)
+        self.assertNotIn(IR_A_INSUMOS, self._html(self.autoridad))
         TipoKit.objects.filter(pk=self.colchon.pk).update(
             regla_modo=Modo.DOTACION, regla_cantidad=1, regla_por=Por.PERSONA
         )

@@ -392,7 +392,7 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
         return existente
     LineaEntrega.objects.bulk_create(
         [
-            LineaEntrega(entrega=entrega, item=item, unidad=item.unidad, cantidad_enviada=cantidad)
+            LineaEntrega(entrega=entrega, item=item, nombre=item.nombre, unidad=item.unidad, cantidad_enviada=cantidad)
             for item, cantidad in validas
         ]
     )
@@ -501,7 +501,7 @@ def _validar_cantidades(lineas, cantidades):
     de_la_entrega = {linea.item_id: linea for linea in lineas}
     if set(recibidas) - set(de_la_entrega):
         raise ValidationError({"cantidades": ITEM_AJENO})
-    faltan = [linea.item.nombre for linea in lineas if recibidas.get(linea.item_id) in (None, "")]
+    faltan = [linea.nombre_visible for linea in lineas if recibidas.get(linea.item_id) in (None, "")]
     if faltan:
         raise ValidationError({"cantidades": FALTAN_CANTIDADES.format(items=", ".join(faltan))})
     limpias = {}
@@ -509,7 +509,7 @@ def _validar_cantidades(lineas, cantidades):
         entero = _entero(cantidad)
         if entero is None or not 0 <= entero <= CANTIDAD_MAXIMA:
             raise ValidationError(
-                {"cantidades": CANTIDAD_RECIBIDA_INVALIDA.format(item=de_la_entrega[item_id].item.nombre)}
+                {"cantidades": CANTIDAD_RECIBIDA_INVALIDA.format(item=de_la_entrega[item_id].nombre_visible)}
             )
         limpias[item_id] = entero
     return limpias
@@ -648,22 +648,30 @@ def observar_recepcion(entrega, usuario, texto):
     return bloqueada
 
 
-def aviso_de_kits_por_recibir(cantidad, url, *, en_este_edificio=False):
+def aviso_de_kits_por_recibir(cantidad, url, *, en_este_edificio=False, mas_vieja=None):
     """El aviso de entregas de kits por recibir (``components/_alerta.html``) o ``None`` si no hay ninguna. Sin consultas.
 
     ``cantidad`` cuenta las entregas abiertas (en camino o preparadas) y ``url`` es la recepción de la única, o la
-    lista de varias. Con ``en_este_edificio`` el título dice «en este edificio»; sin él, «para esta institución».
-    La usa la página del edificio y es la misma que va a mostrar la ficha de la institución.
+    lista de varias. Con ``en_este_edificio`` el título dice «en este edificio»; sin él, «para esta institución» (la
+    ficha de la institución, cuyo enlace es siempre la lista de entregas: el botón dice «Recibir kits»).
+    ``mas_vieja`` es el número de la entrega que lleva más tiempo abierta (``2026-K-000031``); si viene, el texto lo
+    nombra. La salida de la página del edificio, que no lo pasa, no cambia.
     """
 
     if not cantidad:
         return None
-    donde = "en este edificio" if en_este_edificio else "para esta institución"
+    texto = "Hasta que se confirme la recepción, la mesa de Emergencia las sigue viendo abiertas."
+    if mas_vieja:
+        texto = f"La más vieja es la entrega {mas_vieja}. {texto}"
+    if en_este_edificio:
+        donde, accion = "en este edificio", "Recibir kit" if cantidad == 1 else "Ver entregas"
+    else:
+        donde, accion = "para esta institución", "Recibir kits"
     return {
         "tono": "warning",
         "icono": "boxes-stacked",
         "titulo": f"{plural(cantidad, 'entrega de kits', 'entregas de kits')} por recibir {donde}",
-        "texto": "Hasta que se confirme la recepción, la mesa de Emergencia las sigue viendo abiertas.",
+        "texto": texto,
         "accion_url": url,
-        "accion_texto": "Recibir kit" if cantidad == 1 else "Ver entregas",
+        "accion_texto": accion,
     }

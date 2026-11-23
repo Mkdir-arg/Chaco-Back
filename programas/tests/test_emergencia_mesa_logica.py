@@ -163,7 +163,7 @@ class BuscadorDeLaBandejaTests(BaseMesa):
         self.client.force_login(self.operador)
 
     def _numeros(self, texto):
-        respuesta = self.client.get(URL_BANDEJA, {"texto": texto})
+        respuesta = self.client.get(URL_BANDEJA, {"texto": texto, "solapa": "abiertos"})
         return [fila["caso"].numero for fila in respuesta.context["filas"]]
 
     def test_encuentra_por_dni_de_un_integrante(self):
@@ -257,15 +257,17 @@ class SolapaAlojadosTests(BaseMesa):
     def test_los_alojados_tienen_su_solapa(self):
         self.assertEqual(self._numeros("alojados"), {self.completo.numero, self.parcial.numero})
 
-    def test_abiertos_no_se_llena_de_alojados_completos_pero_conserva_el_ingreso_parcial(self):
-        self.assertEqual(self._numeros("abiertos"), {self.abierto.numero, self.parcial.numero})
+    def test_abiertos_coincide_con_caso_abierto_tambien_para_un_alojado_completo(self):
+        """Un alojado sigue abierto hasta que egresa la familia: la solapa no lo esconde (Cambio 580)."""
+        self.assertTrue(self.completo.abierto)
+        self.assertEqual(self._numeros("abiertos"), {self.abierto.numero, self.completo.numero, self.parcial.numero})
 
     def test_el_chip_cuenta_y_el_conteo_cierra(self):
         respuesta = self.client.get(URL_BANDEJA)
-        chips = {c["texto"]: c["n"] for c in respuesta.context["solapas_de_atencion"]}
+        chips = {c["texto"]: c["n"] for c in respuesta.context["solapas"]}
         self.assertEqual(chips["Alojados"], 2)
         conteo = mesa.conteos_de_solapas(None, None, semaforos={})
-        self.assertEqual((conteo["alojados"], conteo["abiertos"]), (2, 2))
+        self.assertEqual((conteo["alojados"], conteo["abiertos"]), (2, 3))
 
     def test_un_caso_alojado_no_lleva_la_marca_de_responsable_alojado(self):
         alojado = ResponsableAlojado(1, self.club.pk, "Club Sarmiento", T0)
@@ -290,7 +292,7 @@ class DerivacionVencidaSinMarcarTests(BaseMesa):
         self.client.force_login(self.operador)
 
     def _marcas(self):
-        fila = self.client.get(URL_BANDEJA).context["filas"][0]
+        fila = self.client.get(URL_BANDEJA, {"solapa": "abiertos"}).context["filas"][0]
         return [m["texto"] for m in fila["marcas"]]
 
     def test_dentro_del_plazo_no_se_ve_vencida(self):

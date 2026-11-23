@@ -1973,6 +1973,9 @@ class BandejaTests(BaseCasos):
             conteo,
             {
                 "total": 5,
+                "mis_casos": 0,
+                "sin_tomar": 2,
+                "esperando_institucion": 1,
                 "abiertos": 4,
                 "nuevos": 2,
                 "en_gestion": 1,
@@ -1988,6 +1991,8 @@ class BandejaTests(BaseCasos):
     def test_cada_solapa_trae_lo_suyo(self):
         esperado = {
             "abiertos": {self.viejo, self.alta, self.en_gestion, self.derivado},
+            "sin_tomar": {self.viejo, self.alta},
+            "esperando_institucion": {self.derivado},
             "nuevos": {self.viejo, self.alta},
             "en_gestion": {self.en_gestion},
             "derivados": {self.derivado},
@@ -1998,6 +2003,39 @@ class BandejaTests(BaseCasos):
         for solapa, casos in esperado.items():
             with self.subTest(solapa=solapa):
                 self.assertEqual(set(self._numeros({"solapa": solapa})), {caso.numero for caso in casos})
+
+    def test_mis_casos_son_los_abiertos_que_tiene_tomados_quien_mira(self):
+        self.assertEqual(self._numeros({"solapa": "mis_casos", "usuario": self.operador.pk}), [self.en_gestion.numero])
+        self.assertEqual(
+            self._numeros({"solapa": "mis_casos", "usuario": self.otro_operador.pk}), [self.derivado.numero]
+        )
+        # El cerrado lo cerró self.operador y sigue figurando a su nombre, pero ya no es un caso abierto.
+        self.assertNotIn(self.cerrado.numero, self._numeros({"solapa": "mis_casos", "usuario": self.operador.pk}))
+        # Sin saber quién mira no hay «mis casos».
+        self.assertEqual(self._numeros({"solapa": "mis_casos"}), [])
+        self.assertEqual(selectores.conteo_por_solapa(self.operador.pk)["mis_casos"], 1)
+        self.assertEqual(selectores.conteo_por_solapa()["mis_casos"], 0)
+
+    def test_la_solapa_abiertos_coincide_con_la_propiedad_abierto_en_cada_estado(self):
+        """«Abiertos» y ``CasoEmergencia.abierto`` son la misma regla: ninguna de las dos puede moverse sola."""
+        casos = {
+            estado: self._caso(dni=str(30600000 + n), apellido=f"Estado{n}") for n, estado in enumerate(Estado.values)
+        }
+        for estado, caso in casos.items():
+            CasoEmergencia.objects.filter(pk=caso.pk).update(
+                estado=estado, cerrado_en=T0 if estado == Estado.CERRADO else None
+            )
+        en_la_solapa = set(self._numeros({"solapa": "abiertos"}))
+        for estado, caso in casos.items():
+            caso.refresh_from_db()
+            with self.subTest(estado=estado):
+                self.assertEqual(caso.numero in en_la_solapa, caso.abierto)
+
+    def test_sin_tomar_son_los_abiertos_sin_dueno_y_no_alojados(self):
+        sin_dueno_alojado = self._caso(dni="30600101", apellido="Alojada")
+        CasoEmergencia.objects.filter(pk=sin_dueno_alojado.pk).update(estado=Estado.ALOJADO)
+        self.assertEqual(set(self._numeros({"solapa": "sin_tomar"})), {self.viejo.numero, self.alta.numero})
+        self.assertNotIn(sin_dueno_alojado.numero, self._numeros({"solapa": "sin_tomar"}))
 
     def test_fuera_de_sla_se_calcula_sobre_los_abiertos(self):
         """A T0+20: los dos nuevos pasaron sus 15 min (el segundo, justo: 15 no es «fuera»)."""

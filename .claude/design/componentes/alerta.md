@@ -85,14 +85,15 @@ En la ficha de la institución, antes de las alertas del dispositivo, un aviso d
 `aviso_de_pendientes` de `programas/selectors/emergencia_llegadas.py`): las derivaciones de Emergencia por recibir, con el vencimiento
 más próximo y «Ir a Llegadas» como acción. Tono `warning`, y `danger` si vence en menos de `POR_VENCER_MIN` o ya venció; solo lo
 ven `dispositivo.admitir` con alcance, el admin del programa y el superusuario. Un include de `_alerta.html` con `role="status"`.
+Justo debajo, el aviso de kits (`aviso_kits`, `aviso_de_kits_por_recibir` de `programas/services/kits.py` en su rama «para esta institución»): las entregas por recibir de toda la institución, con el número de la más vieja y «Recibir kits» hacia `/emergencia/dispositivos/<id>/kits/`. Tono `warning`, ícono `boxes-stacked`; lo ven `emergencia.recibir_kit` con alcance sobre **toda** la institución (no con alcance solo Edificios), el admin del programa y el superusuario. Si hay derivaciones y kits, son dos includes de `_alerta.html` uno debajo del otro (derivaciones primero), cada uno con su enlace; no hay pieza nueva.
+La página operativa del edificio (`edificios/operativo.html`) repite ese aviso acotado a **ese** edificio (`pendientes_por_recibir(..., edificio)` y `aviso_de_pendientes(..., en_este_edificio=True)`) y suma el de kits por recibir (`warning`, ícono `boxes-stacked`, acción «Recibir kit» o «Ver entregas»), armado por `aviso_de_kits_por_recibir` de `programas/services/kits.py` (función pura que usa también la ficha de la institución) y juntado por `_avisos` de `programas/services/edificio_operativo.py` y dibujados en un `{% for aviso in avisos %}` con `role="status"`; cada uno solo con su capacidad (`dispositivo.admitir`, `emergencia.recibir_kit`) con alcance sobre ese edificio.
 En la búsqueda de Llegadas (`emergencia/dispositivo/llegadas.html`), cuando la familia ya tiene un caso abierto (Cambio 579), un `_alerta.html` en tono `info` con el número, la familia y el estado del caso reemplaza al de «sin derivación»; con el caso en manos de otra institución y nada que hacer desde ese dispositivo, suma uno `warning`. Las salidas viven en el modal «Esta familia ya tiene un caso abierto» (`programas/selectors/emergencia_llegadas.py`: `que_pasa_si_se_ingresa` arma las líneas de «Si la ingresás acá»).
-La página operativa del edificio (`edificios/operativo.html`) repite ese aviso acotado a **ese** edificio (`pendientes_por_recibir(..., edificio)` y `aviso_de_pendientes(..., en_este_edificio=True)`) y suma el de kits por recibir (`warning`, ícono `boxes-stacked`, acción «Recibir kit» o «Ver entregas»), armado por `aviso_de_kits_por_recibir` de `programas/services/kits.py` (función pura que reusará la ficha de la institución) y juntado por `_avisos` de `programas/services/edificio_operativo.py` y dibujados en un `{% for aviso in avisos %}` con `role="status"`; cada uno solo con su capacidad (`dispositivo.admitir`, `emergencia.recibir_kit`) con alcance sobre ese edificio.
 Las filas de «Derivaciones por recibir» de Llegadas (`filas_de_llegadas`) suman `url_aceptar` para aceptar desde la fila con `data-confirm-url`.
 Las alertas estratégicas nombran el dato y no enlazan a casos; la única con acción es la que lleva a otra parte de la
 misma pantalla (`ACCIONES_DE_ALERTA` en `pantalla_situacion_emergencia.py`: AE-6 → «Ver el abastecimiento», con los
 filtros), con `accion_url` y `accion_texto` del contrato. La solapa Abastecimiento
 (`programas/templates/programas/emergencia/situacion/_abastecimiento.html`) repite la composición para AE-8 a AE-10,
-sin acción.
+sin acción; el estado «sin regla de consumo» enlaza a «Insumos» y el de «sin inicio del evento» a «Plazos de atención».
 Los avisos de la mesa arriba de la ficha del caso (`programas/templates/programas/emergencia/casos/detail.html`,
 armados por `avisos_de_la_mesa` de `programas/selectors/emergencia_mesa.py`) van uno por include con `only`. La
 condición de cada aviso es una sola y la comparten el tablero, la fila de la bandeja y la ficha
@@ -100,6 +101,8 @@ condición de cada aviso es una sola y la comparten el tablero, la fila de la ba
 que sale de la subconsulta `derivacion_vencida_sin_marcar` de `con_avisos_de_la_mesa`; «Aceptado sin movimiento hace N h»,
 de `selectors.emergencia.horas_sin_movimiento` con las horas de E7; «Identidad a revisar», de
 `CasoEmergencia.identidad_pendiente`, sin consultas): el template no decide cuándo se muestra.
+La columna «Qué falta» de la bandeja (`que_falta`, `programas/selectors/emergencia_mesa.py`) no usa esta pieza: reutiliza las mismas
+condiciones y dibuja la nota como `badge badge-warning` cuando es urgente (la subconsulta `derivada_a` de `con_avisos_de_la_mesa` trae la institución).
 En el modal de confirmar «Derivar» de la misma ficha, las camas ya pedidas a esa institución (`ya_pedidas`, Cambio 535)
 van como un `_alerta` `info` más, debajo del aviso de plazas: dato, no advertencia.
 

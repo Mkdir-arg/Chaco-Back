@@ -23,16 +23,17 @@ Constante: no hay consultas por sector, por estadía, por miembro ni por kit. El
 contador, una.
 """
 
-from django.db.models import Count, Exists, Min, OuterRef, Q
+from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlencode
 from django.utils.text import Truncator
 
 from core.rbac import puede
-from programas.models import Edificio, EntregaKit, InspeccionEdificio, Sector
+from programas.models import Edificio, InspeccionEdificio, Sector
 from programas.selectors.emergencia_alojar import pendientes_por_recibir
 from programas.selectors.emergencia_llegadas import aviso_de_pendientes
+from programas.selectors.kits import entregas_por_recibir_de
 from programas.services.bitacora import turno_vigente
 from programas.services.detalle_dispositivo import (
     FILTRO_ORIGEN_EMERGENCIA,
@@ -208,10 +209,8 @@ def _kits_por_recibir(dispositivo, edificio):
     consulta. Con una sola entrega, ``primera`` es esa entrega.
     """
 
-    resumen = EntregaKit.objects.filter(
-        dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
-    ).aggregate(cantidad=Count("pk"), primera=Min("pk"))
-    return resumen["cantidad"], resumen["primera"]
+    cantidad, primera, _numero = entregas_por_recibir_de(dispositivo, edificio)
+    return cantidad, primera
 
 
 def _recibir_kit(url_pagina, cantidad, primera):

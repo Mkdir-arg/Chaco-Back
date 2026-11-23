@@ -306,7 +306,7 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
         <form id="form-avisar-con-caso" method="post" action="{{ url_avisar_con_caso }}">{% csrf_token %}<input type="hidden" name="dni" value="{{ resultado.dni }}"></form>
       </div>
       {% if puede_ingresar_con_caso and puede_avisar_con_caso %}
-      {% include "programas/becas/_modal_footer.html" with cancelar="modalCaso=false" accion_texto="Ingresar con este caso" accion_icono="fa-right-to-bracket" form_id="form-ingresar-con-caso" secundaria_texto="Avisar a la mesa" secundaria_icono="fa-bullhorn" secundaria_form_id="form-avisar-con-caso" %}
+      {% include "programas/becas/_modal_footer.html" with cancelar="modalCaso=false" accion_texto="Ingresar con este caso" accion_icono="fa-right-to-bracket" form_id="form-ingresar-con-caso" secundario_texto="Avisar a la mesa" secundario_icono="fa-bullhorn" secundario_form_id="form-avisar-con-caso" %}
       {% elif puede_ingresar_con_caso %}
       {% include "programas/becas/_modal_footer.html" with cancelar="modalCaso=false" accion_texto="Ingresar con este caso" accion_icono="fa-right-to-bracket" form_id="form-ingresar-con-caso" %}
       {% else %}
