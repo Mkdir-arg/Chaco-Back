@@ -147,8 +147,8 @@ class FotosDetrasDeLoginTests(BaseInfraestructura):
         for url in self._urls(admin, self.predio):
             self.assertEqual(self._estado(admin, url), 200)
 
-    def test_otra_institucion_recibe_403(self):
-        """Ve su propio dispositivo con todas las capacidades, salvo el alcance de admin."""
+    def test_otra_institucion_recibe_404(self):
+        """Ve su propio dispositivo con todas las capacidades, salvo el alcance de admin; lo ajeno es 404 (#1069)."""
 
         sin_admin = tuple(c for c in TODAS_DE_DISPOSITIVOS if c not in ("programa.configurar", "inspeccion.asignar"))
         operador_cis = self._usuario("operador_cis", sin_admin, [self.cis])
@@ -160,7 +160,7 @@ class FotosDetrasDeLoginTests(BaseInfraestructura):
         self.assertEqual(self._detalle(operador_cis, self.cis).status_code, 200)
         for url in urls:
             with self.subTest(url=url):
-                self.assertEqual(self._estado(operador_cis, url), 403)
+                self.assertEqual(self._estado(operador_cis, url), 404)
 
 
 class SemaforoTests(BaseInfraestructura):
