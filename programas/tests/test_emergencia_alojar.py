@@ -172,8 +172,8 @@ class OrdenDeLosCandadosDeAlojarTests(BaseAlojar):
         datos = self._datos(dni="33444555", nombre="Marta", apellido="Ríos")
         with self._orden() as orden:
             servicio.ingreso_directo(dispositivo=self.club, usuario=self.guardia, datos_formulario1=datos)
-        # El numerador se pide dos veces (Cambio 579: `serializar_altas` antes de buscar el caso abierto y
-        # `siguiente_numero` al numerar), pero siempre primero: el orden entre tipos es el mismo.
+        # El numerador se bloquea primero (Cambio 579: `serializar_altas` antes de buscar el caso abierto; el
+        # número se toma sobre esa misma fila): el orden entre tipos es el mismo.
         self.assertEqual(self._sin_repetir(orden), ["numerador", "caso", "plaza"])
 
     def test_el_egreso_bloquea_la_estadia_y_despues_el_caso(self):

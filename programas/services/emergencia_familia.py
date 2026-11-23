@@ -5,8 +5,8 @@ crean casos —``crear_caso`` (la mesa y el territorio), «Ingresar igual» y «
 la búsqueda por DNI de la guardia, para que el criterio sea uno solo: el caso **no cerrado**
 cuyo responsable, o cuyo integrante que no egresó, es esa persona.
 
-Es una hoja de las dependencias: importa modelos y nada de los otros módulos de Emergencia, para
-que ``emergencia_alta`` pueda usarla sin ciclos.
+Es casi una hoja de las dependencias: importa modelos y el candado del numerador de ``emergencia_comun``
+(que no importa nada de esto), para que ``emergencia_alta`` pueda usarla sin ciclos.
 
 La carrera de dos altas simultáneas de la misma familia se resuelve en ``crear_caso``: busca acá
 **después** de tomar el candado del numerador de casos, que ya serializa toda alta. No se usa un
@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from core.dni import normalizar_dni
 from programas.models import CasoEmergencia, Derivacion, GrupoFamiliar, IntegranteGrupo, NumeradorEmergencia
+from programas.services.emergencia_comun import _bloquear_numerador
 
 Estado = CasoEmergencia.Estado
 
@@ -67,14 +68,16 @@ def _ultimo_caso(ciudadano, *, abierto):
 def serializar_altas(momento=None):
     """Toma el candado del numerador de casos **sin numerar**: quien llega después espera al commit del anterior.
 
-    Es el mismo candado que ``siguiente_numero`` vuelve a tomar al numerar. Con él puesto, la lectura de
-    :func:`caso_abierto_de_la_familia` ve lo que commiteó el alta que ganó (``READ COMMITTED``), y dos
-    ingresos de la misma familia a la vez no abren dos casos. Tiene que correr dentro de una transacción.
+    Es **el** candado del numerador (``_bloquear_numerador`` de ``emergencia_comun``, el que busca por nombre el
+    arnés de concurrencia): devuelve la fila bloqueada para que ``siguiente_numero`` numere sobre ella
+    (``numerador=``) sin volver a bloquear. Con él puesto, la lectura de :func:`caso_abierto_de_la_familia` ve lo
+    que commiteó el alta que ganó (``READ COMMITTED``), y dos ingresos de la misma familia a la vez no abren dos
+    casos. Tiene que correr dentro de una transacción.
     """
 
     anio = timezone.localtime(momento or timezone.now()).year
     NumeradorEmergencia.objects.get_or_create(serie=NumeradorEmergencia.Serie.CASOS, anio=anio)
-    return NumeradorEmergencia.objects.select_for_update().get(serie=NumeradorEmergencia.Serie.CASOS, anio=anio)
+    return _bloquear_numerador(NumeradorEmergencia.Serie.CASOS, anio)
 
 
 def envio_sumado(caso, uuid_cliente, usuario):

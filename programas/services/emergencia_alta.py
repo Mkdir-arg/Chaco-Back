@@ -620,7 +620,7 @@ def crear_caso(
 
     # Una familia, un caso abierto. El candado del numerador serializa toda alta: quien llega segundo espera al
     # commit del primero y lo ve (READ COMMITTED). Sin él, dos ingresos a la vez abrirían dos casos.
-    serializar_altas(ahora)
+    numerador = serializar_altas(ahora)
     if uuid_cliente is not None:
         # El mismo envío llegó dos veces a la vez: la búsqueda de arriba no vio nada porque el otro no había
         # commiteado. Con el candado puesto sí lo ve, y no se suma al caso que ese envío acaba de crear.
@@ -676,7 +676,7 @@ def crear_caso(
             grupo.full_clean()
             grupo.save()
             caso = CasoEmergencia(
-                numero=siguiente_numero(NumeradorEmergencia.Serie.CASOS, ahora),
+                numero=siguiente_numero(NumeradorEmergencia.Serie.CASOS, ahora, numerador),
                 grupo=grupo,
                 origen=origen,
                 estado=Estado.EN_GESTION if nace_tomado else Estado.NUEVO,

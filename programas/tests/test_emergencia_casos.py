@@ -1786,7 +1786,7 @@ class OrdenDeLosCandadosEmergenciaTests(BaseCasos):
     def test_crear_un_caso_solo_bloquea_el_numerador(self):
         with self._orden() as orden:
             self._caso()
-        # Dos tomas del mismo candado: la de ``serializar_altas`` y la del número (Cambio 579).
+        # Una sola toma: la de ``serializar_altas``, sobre la que se numera (Cambio 579).
         self.assertEqual(set(orden), {"numerador"})
 
 
