@@ -164,6 +164,27 @@ PLAZA_BLOQUEADA = punto_critico(Plaza, "_bloquear_plaza")
 INSPECCION_BLOQUEADA = punto_critico(InspeccionEdificio, "_bloquear")
 
 
+def _estado_de_los_candados():
+    """Quién espera a quién en el motor, para el mensaje de un fallo de coordinación (solo diagnóstico)."""
+
+    consultas = (
+        "SELECT ID, TIME, STATE, LEFT(INFO, 200) FROM information_schema.PROCESSLIST WHERE INFO IS NOT NULL",
+        "SELECT trx_mysql_thread_id, trx_state, trx_rows_locked, LEFT(trx_query, 200) "
+        "FROM information_schema.INNODB_TRX",
+        "SELECT lock_trx_id, lock_mode, lock_table, lock_index, lock_data FROM information_schema.INNODB_LOCKS",
+        "SELECT * FROM information_schema.INNODB_LOCK_WAITS",
+    )
+    partes = []
+    for sql in consultas:
+        try:
+            with connections["default"].cursor() as cursor:
+                cursor.execute(sql)
+                partes.append(f"{sql[:60]}... -> {cursor.fetchall()!r}")
+        except Exception as exc:  # noqa: BLE001 - el diagnóstico nunca tapa el fallo original
+            partes.append(f"{sql[:60]}... -> {exc!r}")
+    return "\n" + "\n".join(partes)
+
+
 def en_paralelo(primera, segunda, *, punto_a, punto_b=None, timeout=8):
     """A mantiene su transacción abierta en el punto crítico y B compite por su lock.
 
@@ -234,7 +255,7 @@ def en_paralelo(primera, segunda, *, punto_a, punto_b=None, timeout=8):
             raise AssertionError(f"A no alcanzó el punto crítico: {errores!r}")
         hilos[1].start()
         if not b_intenta.wait(timeout) or not observados[1]:
-            raise AssertionError(f"B no intentó el punto crítico: {errores!r}")
+            raise AssertionError(f"B no intentó el punto crítico: {errores!r}{_estado_de_los_candados()}")
         limite = reloj_monotonico.monotonic() + timeout
         while True:
             if b_atraviesa.is_set() or b_termina.is_set():
