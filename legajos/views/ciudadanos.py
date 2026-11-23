@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from core.dni import dni_valido
@@ -22,6 +22,7 @@ from ..forms import (
 from ..models import Ciudadano
 from ..selectors import (
     build_ciudadano_detail_context,
+    get_ciudadano_unico_de_busqueda,
     get_ciudadanos_dashboard_metrics,
     get_ciudadanos_queryset,
 )
@@ -39,6 +40,14 @@ class CiudadanoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     template_name = "legajos/ciudadano_list.html"
     context_object_name = "ciudadanos"
     paginate_by = 20
+
+    def get(self, request, *args, **kwargs):
+        # Un único resultado abre el legajo (#1031). Vale para el buscador del header y el del
+        # propio listado: los dos llegan acá con ``?search=``. El selector decide si hay uno solo.
+        unico = get_ciudadano_unico_de_busqueda(request.GET.get("search", ""))
+        if unico is not None:
+            return redirect(reverse("legajos:ciudadano_detalle", kwargs={"pk": unico}))
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         return get_ciudadanos_queryset(self.request.GET.get("search", ""))

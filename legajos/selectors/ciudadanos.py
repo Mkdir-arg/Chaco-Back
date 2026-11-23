@@ -56,6 +56,18 @@ def get_ciudadanos_queryset(search=""):
     return queryset.only("id", "nombre", "apellido", "dni", "genero", "creado").order_by("apellido", "nombre")
 
 
+def get_ciudadano_unico_de_busqueda(search=""):
+    """El id del único ciudadano activo que responde a la búsqueda, o ``None``.
+
+    Sin texto, con 0 o con 2 o más coincidencias no hay «único». Se lee con ``[:2]``: alcanza
+    para distinguir 1 de varios sin contar el padrón entero.
+    """
+    if not (search or "").strip():
+        return None
+    ids = list(get_ciudadanos_queryset(search).values_list("pk", flat=True)[:2])
+    return ids[0] if len(ids) == 1 else None
+
+
 def _build_ciudadanos_dashboard_metrics(total_ciudadanos=None):
     totales_inscripciones = InscripcionPrograma.objects.aggregate(
         total=Count("id"),
