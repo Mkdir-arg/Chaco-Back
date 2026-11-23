@@ -2525,3 +2525,83 @@ class IndiceSeccionesTest(SimpleTestCase):
 
         self.assertNotIn("style=", html)
         self.assertNotIn("<style", html)
+
+
+AVISO_ERRORES = "components/_aviso_errores.html"
+NODO_TOAST_JS = Path(__file__).resolve().parents[2] / "static/custom/js/nodo-toast.js"
+
+
+class AvisoErroresTest(SimpleTestCase):
+    """El aviso flotante con la lista de errores de un form (extensión de `window.toast`, issue #1259)."""
+
+    class _Persona(forms.Form):
+        nombre = forms.CharField(label="Nombre")
+        lactantes = forms.IntegerField(label="Lactantes")
+
+        def clean(self):
+            data = super().clean()
+            if data.get("lactantes") == 9:
+                raise forms.ValidationError("No hay lugar.")
+            return data
+
+    def _aviso(self, form):
+        html = render_to_string(AVISO_ERRORES, {"form": form})
+        hallado = re.search(r'<script id="aviso-errores" type="application/json">(.*?)</script>', html, re.S)
+        return html, (json.loads(hallado.group(1)) if hallado else None)
+
+    def test_sin_errores_sin_bindear_o_sin_form_no_dibuja_nada(self):
+        self.assertEqual(self._aviso(self._Persona())[0].strip(), "")
+        self.assertEqual(self._aviso(self._Persona({"nombre": "Ana", "lactantes": "1"}))[0].strip(), "")
+        self.assertEqual(self._aviso(None)[0].strip(), "")
+
+    def test_cuenta_mensajes_y_nombra_cada_campo_con_su_etiqueta_y_su_control(self):
+        _html, aviso = self._aviso(self._Persona({"nombre": "", "lactantes": ""}))
+
+        self.assertEqual(aviso["titulo"], "No se guardó: hay 2 cosas para corregir")
+        self.assertEqual([i["href"] for i in aviso["items"]], ["#id_nombre", "#id_lactantes"])
+        self.assertTrue(aviso["items"][0]["texto"].startswith("Nombre: "))
+        self.assertTrue(aviso["items"][1]["texto"].startswith("Lactantes: "))
+
+    def test_una_sola_cosa_va_en_singular(self):
+        _html, aviso = self._aviso(self._Persona({"nombre": "", "lactantes": "1"}))
+
+        self.assertEqual(aviso["titulo"], "No se guardó: hay 1 cosa para corregir")
+
+    def test_el_error_del_conjunto_va_sin_etiqueta_y_sin_enlace(self):
+        _html, aviso = self._aviso(self._Persona({"nombre": "Ana", "lactantes": "9"}))
+
+        self.assertEqual(aviso["items"], [{"texto": "No hay lugar.", "href": ""}])
+
+    def test_el_texto_va_escapado_dentro_del_script(self):
+        class Hostil(forms.Form):
+            def clean(self):
+                raise forms.ValidationError("</script><img src=x onerror=alert(1)>")
+
+        html, aviso = self._aviso(Hostil({}))
+
+        self.assertNotIn("</script><img", html)
+        self.assertNotIn("<img", html)
+        self.assertEqual(aviso["items"][0]["texto"], "</script><img src=x onerror=alert(1)>")
+
+    def test_el_js_lee_el_mismo_id_y_pinta_con_textcontent(self):
+        js = NODO_TOAST_JS.read_text(encoding="utf-8")
+
+        self.assertIn("getElementById('aviso-errores')", js)
+        bloque = js[js.index("Lista opcional") : js.index("body.appendChild(lista)")]
+        self.assertIn("textContent", bloque)
+        self.assertNotIn("innerHTML", bloque)
+
+    def test_un_campo_con_dos_errores_cuenta_dos_cosas_y_lista_dos_items(self):
+        class DosReglas(forms.Form):
+            clave = forms.CharField(
+                label="Clave",
+                validators=[
+                    lambda v: (_ for _ in ()).throw(forms.ValidationError("Muy corta.")),
+                    lambda v: (_ for _ in ()).throw(forms.ValidationError("Sin número.")),
+                ],
+            )
+
+        _html, aviso = self._aviso(DosReglas({"clave": "ab"}))
+
+        self.assertEqual(aviso["titulo"], "No se guardó: hay 2 cosas para corregir")
+        self.assertEqual([i["texto"] for i in aviso["items"]], ["Clave: Muy corta.", "Clave: Sin número."])

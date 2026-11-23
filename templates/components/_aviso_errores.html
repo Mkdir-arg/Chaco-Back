@@ -1,0 +1,12 @@
+{% load nodo_ui %}{% comment %}
+Aviso flotante con la lista de errores de un form («No se guardó: hay N cosas para corregir»).
+  {% include "components/_aviso_errores.html" %}
+  {% include "components/_aviso_errores.html" with form=form_domicilio %}
+Contexto:
+  form  el Django Form. Si no se pasa, toma el `form` del contexto. Sin errores (o sin bindear) no dibuja nada.
+Va después de `components/_form_errores.html`. No reemplaza ni esconde los errores de cada campo ni el bloque de
+arriba: los suma. No lleva JS propio: deja la lista en un `<script type="application/json" id="aviso-errores">`
+(`json_script`, escapado) y `static/custom/js/nodo-toast.js`, que ya carga el shell, la abre con
+`window.toast.error('', {title, items})`: queda hasta que se cierra a mano, cada ítem enlaza a su control y la
+pantalla baja al primero. Sin JS la pantalla sigue como siempre.
+{% endcomment %}{% resumen_errores form as resumen %}{% if resumen %}{{ resumen|json_script:"aviso-errores" }}{% endif %}
