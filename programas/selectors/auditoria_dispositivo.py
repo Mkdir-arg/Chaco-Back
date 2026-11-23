@@ -86,6 +86,8 @@ TITULOS_TRAZA = {
     "EDIFICIO_EDITADO": "Cambio en los datos del edificio",
     "EDIFICIO_VINCULADO": "Edificio vinculado al dispositivo",
     "EDIFICIO_DESVINCULADO": "Edificio desvinculado del dispositivo",
+    "EDIFICIO_INACTIVADO": "Edificio inactivado",
+    "EDIFICIO_REACTIVADO": "Edificio reactivado",
 }
 
 #: Las acciones que mueven el estado del legajo: el detalle es «antes → después».
@@ -106,6 +108,8 @@ _TONOS_TRAZA = {
     "PLAZA_BAJA": "warning",
     "PLAZA_REACTIVADA": "success",
     "EDIFICIO_DESVINCULADO": "warning",
+    "EDIFICIO_INACTIVADO": "warning",
+    "EDIFICIO_REACTIVADO": "success",
 }
 
 #: El id del ciudadano que `reservar_plaza` escribe en la traza: no va a la pantalla.

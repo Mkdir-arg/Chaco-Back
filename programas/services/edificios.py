@@ -32,9 +32,9 @@ from contextlib import contextmanager
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 
-from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector, TrazaDispositivo
+from programas.models import Dispositivo, Edificio, EntregaKit, InspeccionEdificio, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
-from programas.services.dispositivos import puede_editar_legajo
+from programas.services.dispositivos import puede_configurar_dispositivos, puede_editar_legajo
 from programas.services.equipo_dispositivo import soltar_edificio_del_equipo
 
 #: La misma capacidad con la que se edita el legajo: el edificio es dato del legajo.
@@ -64,10 +64,16 @@ SECTORES_ACTIVOS_EN_EL_EDIFICIO = (
 )
 
 
-def _trazar(dispositivo, usuario, accion, *, detalle=""):
+# Textos de las confirmaciones de inactivar y reactivar: los comparten la ficha y la página operativa del edificio.
+TEXTO_INACTIVAR = "El edificio deja de ofrecerse para relevamientos, sectores y vínculos. No se borra nada y se puede volver a activar."
+TEXTO_ACTIVAR = "El edificio vuelve a ofrecerse para relevamientos, sectores y vínculos, con sus datos, relevamientos y equipo como estaban."
+EDIFICIO_INACTIVO = "El edificio está inactivo: reactivalo antes de cambiarlo."
+
+
+def _trazar(dispositivo, usuario, accion, *, detalle="", edificio_id=None):
     """Traza aditiva del legajo institucional, igual que la de sectores y plazas."""
 
-    TrazaDispositivo.objects.registrar(dispositivo, usuario, accion, detalle=detalle)
+    TrazaDispositivo.objects.registrar(dispositivo, usuario, accion, detalle=detalle, edificio_id=edificio_id)
 
 
 def admite_editar_edificio(estado):
@@ -172,6 +178,8 @@ def editar_edificio(*, edificio, dispositivo, usuario, codigo, **datos):
     _exigir_codigo_libre(codigo, excepto=edificio)
 
     edificio = Edificio.objects.select_for_update().get(pk=edificio.pk)
+    if not edificio.activo:
+        raise ValidationError({"__all__": EDIFICIO_INACTIVO})
     edificio.codigo = codigo
     for campo in CAMPOS:
         setattr(edificio, campo, _normalizar(datos.get(campo)))
@@ -202,6 +210,11 @@ def vincular_edificio(*, edificio, dispositivo, usuario):
         # El ajeno y el inexistente, lo mismo: el alcance ya los excluyó a los dos.
         raise PermissionDenied("Ese edificio no está en tu alcance.")
 
+    # Mismo orden de candados que `desvincular_edificio` y `_bloquear_predio` (institución y después edificio): un
+    # edificio que se está inactivando no se vincula, o quedaría una institución con uno inactivo que no puede soltar.
+    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
+    if not Edificio.objects.select_for_update().filter(pk=edificio.pk, activo=True).exists():
+        raise ValidationError({"__all__": EDIFICIO_INACTIVO})
     dispositivo.edificios.add(edificio)
     _trazar(dispositivo, usuario, "EDIFICIO_VINCULADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
     return edificio
@@ -229,6 +242,8 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
     edificio = Edificio.objects.select_for_update().get(pk=edificio.pk)
     if not edificio.dispositivos.filter(pk=dispositivo.pk).exists():
         raise PermissionDenied("Ese edificio no es de este dispositivo.")
+    if not edificio.activo:
+        raise ValidationError({"__all__": EDIFICIO_INACTIVO})
 
     sectores_activos = Sector.objects.filter(dispositivo=dispositivo, edificio=edificio, activo=True).count()
     if sectores_activos:
@@ -255,4 +270,123 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
 
     dispositivo.edificios.remove(edificio)
     _trazar(dispositivo, usuario, "EDIFICIO_DESVINCULADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
+    return edificio
+
+
+# --------------------------------------------------------------------------- #
+# Inactivar y reactivar (Cambio 583)
+# --------------------------------------------------------------------------- #
+
+
+def _plural(cuantos, singular, plural):
+    return f"{cuantos} {singular if cuantos == 1 else plural}"
+
+
+def _motivos_de_bloqueo(edificio):
+    """``[(que_tiene, que_hacer)]`` de lo que impide inactivar ``edificio``; vacío si nada lo impide.
+
+    Tres cosas, de cualquier institución del predio: sectores activos ubicados en el edificio, un relevamiento en
+    curso y entregas de kits por recibir hacia él (``EntregaKit.ESTADOS_ABIERTOS``: las mismas que cuenta el
+    «N por recibir» de la página del edificio). El **Equipo no bloquea**: queda asignado y vuelve al reactivar.
+    """
+
+    motivos = []
+    sectores = Sector.objects.filter(edificio=edificio, activo=True).count()
+    if sectores:
+        motivos.append(
+            (
+                _plural(sectores, "sector activo", "sectores activos"),
+                "dalo de baja" if sectores == 1 else "dalos de baja",
+            )
+        )
+    if InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists():
+        motivos.append(("un relevamiento en curso", "cerrá o cancelá el relevamiento"))
+    entregas = EntregaKit.objects.filter(edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS).count()
+    if entregas:
+        motivos.append(
+            (
+                _plural(entregas, "entrega de kits por recibir", "entregas de kits por recibir"),
+                "recibí la entrega" if entregas == 1 else "recibí las entregas",
+            )
+        )
+    return motivos
+
+
+def _unir(partes, conjuncion):
+    return partes[0] if len(partes) == 1 else f"{', '.join(partes[:-1])} {conjuncion} {partes[-1]}"
+
+
+def _mensaje_de_bloqueo(edificio, motivos):
+    que_tiene = _unir([tiene for tiene, _hacer in motivos], "y")
+    que_hacer = _unir([hacer for _tiene, hacer in motivos], "o")
+    return f"No se puede inactivar {edificio.nombre}: tiene {que_tiene}. {que_hacer[0].upper()}{que_hacer[1:]} antes."
+
+
+def _exigir_admin_del_programa(usuario):
+    # El edificio no es de una institución sola: inactivarlo es del administrador del programa Dispositivos.
+    if not puede_configurar_dispositivos(usuario):
+        raise PermissionDenied("Solo el administrador del programa puede inactivar o reactivar un edificio.")
+
+
+def _bloquear_predio(edificio):
+    """Toma los candados en el orden de `desvincular_edificio` y de `plazas`: las instituciones del predio y después el edificio.
+
+    Las instituciones van por pk ascendente, para que dos operaciones sobre el mismo predio no se crucen. Devuelve
+    las instituciones y el edificio ya bloqueado.
+    """
+
+    vinculos = Edificio.dispositivos.through.objects.filter(edificio_id=edificio.pk).values("dispositivo_id")
+    dispositivos = list(Dispositivo.objects.select_for_update().filter(pk__in=vinculos).order_by("pk"))
+    return dispositivos, Edificio.objects.select_for_update().get(pk=edificio.pk)
+
+
+@transaction.atomic
+def inactivar_edificio(*, edificio, usuario):
+    """Saca el inmueble de circulación: deja de ofrecerse para relevamientos, sectores y vínculos. No borra nada.
+
+    Solo el administrador del programa. Se rechaza si hay sectores activos, un relevamiento en curso o entregas de
+    kits por recibir (el mensaje junta lo que haya). El Equipo asignado al edificio no cuenta: queda como está y
+    vuelve tal cual al reactivar. La traza queda en **cada** institución vinculada.
+    """
+
+    _exigir_admin_del_programa(usuario)
+    dispositivos, edificio = _bloquear_predio(edificio)
+    if not edificio.activo:
+        raise ValidationError({"__all__": f"{edificio.nombre} ya está inactivo."})
+    motivos = _motivos_de_bloqueo(edificio)
+    if motivos:
+        raise ValidationError({"__all__": _mensaje_de_bloqueo(edificio, motivos)})
+
+    edificio.activo = False
+    edificio.save(update_fields=["activo", "modificado"])
+    for dispositivo in dispositivos:
+        _trazar(
+            dispositivo,
+            usuario,
+            "EDIFICIO_INACTIVADO",
+            detalle=f"Edificio {edificio.codigo} · {edificio.nombre}",
+            edificio_id=edificio.pk,
+        )
+    return edificio
+
+
+@transaction.atomic
+def reactivar_edificio(*, edificio, usuario):
+    """Vuelve a poner el inmueble en circulación, con sus vínculos, relevamientos y Equipo como estaban."""
+
+    _exigir_admin_del_programa(usuario)
+    dispositivos, edificio = _bloquear_predio(edificio)
+    if edificio.activo:
+        raise ValidationError({"__all__": f"{edificio.nombre} ya está activo."})
+
+    edificio.activo = True
+    edificio.save(update_fields=["activo", "modificado"])
+    for dispositivo in dispositivos:
+        _trazar(
+            dispositivo,
+            usuario,
+            "EDIFICIO_REACTIVADO",
+            detalle=f"Edificio {edificio.codigo} · {edificio.nombre}",
+            edificio_id=edificio.pk,
+        )
     return edificio
