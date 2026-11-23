@@ -1,16 +1,17 @@
-{# arquetipo: detalle + apilado #}{# un área sola (el caso): secciones apiladas en surfaces; el split usa la grilla de «Formulario con asistencia lateral» #}
 {% extends "includes/base.html" %}
 {% load static nodo_ui %}
 {% block title %}Emergencia · Caso {{ caso.numero }}{% endblock %}
 
 {% block main-content %}
-{% comment %}E3 · Ficha del caso. Izquierda: lo relevado, personas, integrantes, fotos, contactos y traza.
-Derecha: el panel «Derivar» (solo en gestión y para quien lo tiene tomado o supervisa) o la derivación vigente.
+{% comment %}E3 · Ficha del caso. Arriba, «Qué hacer ahora» (el paso que sigue y sus botones, de `que_hacer`). Izquierda, cinco
+solapas: Familia (lo relevado), Personas (lo declarado e integrantes), Contactos, Fotos e Historial. La solapa inicial la
+resuelve la vista (`solapa`, con `?tab=`). Derecha: el panel «Derivar» (solo en gestión y para quien lo tiene tomado o
+supervisa) o la derivación vigente.
 Qué botón se ofrece lo decide la vista (`puede_*`); el servicio lo vuelve a exigir en cada POST.
 Las acciones con datos (cerrar, cancelar, reasignar, prioridad, derivar) son el arquetipo Modal con POST clásico;
 «Soltar» es una confirmación sí/no (`data-confirm-url` → ModernModal). El modal de derivar lo arma el servidor
 cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la tarjeta del dispositivo solo navega.{% endcomment %}
-<div x-data="{ modalCerrar: {% if modal_abierto == 'cerrar' %}true{% else %}false{% endif %}, modalCancelar: {% if modal_abierto == 'cancelar' %}true{% else %}false{% endif %},
+<div x-data="{ tab: '{{ solapa }}', modalCerrar: {% if modal_abierto == 'cerrar' %}true{% else %}false{% endif %}, modalCancelar: {% if modal_abierto == 'cancelar' %}true{% else %}false{% endif %},
                modalPrioridad: {% if modal_abierto == 'prioridad' %}true{% else %}false{% endif %}, modalReasignar: {% if modal_abierto == 'reasignar' %}true{% else %}false{% endif %},
                modalCancelarIngreso: {% if modal_abierto == 'cancelar_ingreso' %}true{% else %}false{% endif %},
                modalCerrarAlojado: {% if modal_abierto == 'cerrar_alojado' %}true{% else %}false{% endif %},
@@ -26,12 +27,6 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
       {% bajada %}{{ bajada }}{% if tomado %} · {{ tomado }}{% endif %}{% endbajada %}
       <span class="badge badge-{{ prioridad_tono }}">Prioridad {{ prioridad_texto|lower }}</span>
       {% if sla %}{% include "components/_semaforo_sla.html" with estado=sla.estado minutos=sla.minutos tramo=sla.tramo texto_tiempo=sla.texto_tiempo variante="reloj" only %}{% endif %}
-      {% if puede_tomar %}
-      <form method="post" action="{% url 'emergencia:caso_tomar' caso.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="btn-nodo btn-brand btn-sm btn-fit"><i class="fas fa-hand" aria-hidden="true"></i> Tomar</button>
-      </form>
-      {% endif %}
       {# Las acciones secundarias van al menú; si ninguna corresponde al estado o a quien mira, el menú no se dibuja #}
       {% menu_fila id="acciones-caso" etiqueta="Más acciones del caso "|add:caso.numero texto="Más acciones" %}
         {% if puede_actuar %}
@@ -57,14 +52,47 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
 
     {% comment %}Los mensajes de Django se muestran como toast global (ver includes/base.html + nodo-toast.js).{% endcomment %}
 
+    {# ===== Qué hacer ahora: el paso que sigue y solo los botones que quien mira puede usar (`que_hacer`, de la vista) ===== #}
+    <section class="bg-white rounded-xl border border-brand shadow-sm overflow-hidden" aria-labelledby="caso-ahora-titulo">
+      <div class="p-5 flex items-start gap-4 flex-wrap">
+        <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 text-lg bg-brand-soft text-fg-brand"><i class="fas fa-arrow-right" aria-hidden="true"></i></div>
+        <div class="flex-1 min-w-0">
+          <h2 id="caso-ahora-titulo" class="text-heading font-bold">Qué hacer ahora</h2>
+          <p class="mt-1 text-sm font-semibold text-heading">{{ que_hacer.paso }}{% if que_hacer.urgente %} <span class="badge badge-warning badge-dot">Requiere atención</span>{% endif %}</p>
+          {% if que_hacer.nota %}<p class="mt-1 text-sm text-body">{{ que_hacer.nota }}</p>{% endif %}
+          {% if que_hacer.ayuda %}<p class="mt-1 text-sm text-body">{{ que_hacer.ayuda }}</p>{% endif %}
+          {% if que_hacer.acciones %}
+          <div class="flex items-center gap-2 flex-wrap mt-4">
+            {% for accion in que_hacer.acciones %}
+            {% if accion.clave == "tomar" %}
+            <form method="post" action="{% url 'emergencia:caso_tomar' caso.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            </form>
+            {% elif accion.clave == "derivar" %}
+            <a href="#caso-derivar-titulo" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</a>
+            {% elif accion.clave == "contacto" %}
+            <button type="button" @click="tab='contactos'" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            {% elif accion.clave == "cancelar_derivacion" %}
+            <button type="button" @click="modalCancelar=true" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            {% elif accion.clave == "cancelar_ingreso" %}
+            <button type="button" @click="modalCancelarIngreso=true" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            {% elif accion.clave == "cerrar" %}
+            <button type="button" @click="modalCerrar=true" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            {% elif accion.clave == "cerrar_alojado" %}
+            <button type="button" @click="modalCerrarAlojado=true" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            {% elif accion.clave == "reabrir" %}
+            <button type="button" class="btn-nodo btn-{{ accion.tono }} btn-sm btn-fit" data-confirm-url="{{ url_reabrir }}" data-confirm-title="¿Reabrir el caso?" data-confirm-text="Vuelve al estado en que estaba antes de cerrarse y queda anotado en la traza. Si la familia ya tiene otro caso abierto, no se puede reabrir." data-confirm-ok="Sí, reabrir" data-confirm-danger="false"><i class="fas {{ accion.icono }}" aria-hidden="true"></i> {{ accion.texto }}</button>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
     {% if solo_lectura %}
       {% include "components/_alerta.html" with tono="info" titulo=tomado texto="Lo ves en solo lectura: solo quien lo tiene tomado, o quien supervisa la mesa, puede derivarlo, cerrarlo o registrar contactos." %}
-    {% elif puede_tomar and not es_supervisor %}
-      {% if tomar_para_gestionar %}
-      {% include "components/_alerta.html" with tono="info" titulo="Nadie tomó este caso todavía" texto="Tomalo para hablar con la familia, derivarla o cerrar el caso." %}
-      {% else %}
-      {% include "components/_alerta.html" with tono="info" titulo="Nadie tomó este caso todavía" texto="Tomalo para hacerte cargo." %}
-      {% endif %}
     {% endif %}
     {% if motivo_cierre %}
       {% include "components/_alerta.html" with tono="info" titulo="Caso cerrado: "|add:motivo_cierre texto=caso.observacion_cierre %}
@@ -88,13 +116,50 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
     {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <div class="lg:col-span-2 min-w-0 space-y-5">
+      <div class="lg:col-span-2 min-w-0">
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
 
-        {# ===== 1. Lo que cargó quien relevó ===== #}
-        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-relevamiento-titulo">
-          <div class="px-5 py-4 border-b border-light">
-            <h2 id="caso-relevamiento-titulo" class="text-heading font-bold">Lo que se relevó</h2>
-          </div>
+        <div class="border-b border-base">
+        <div class="flex gap-1 px-2 overflow-x-auto -mb-px" role="tablist" aria-label="Secciones del caso">
+          <button @click="tab='familia'" type="button" role="tab" id="tab-familia" aria-controls="panel-familia"
+                  :aria-selected="tab==='familia'"
+                  class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  :class="tab==='familia' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+            <i class="fas fa-people-roof" aria-hidden="true"></i> Familia
+          </button>
+          <button @click="tab='personas'" type="button" role="tab" id="tab-personas" aria-controls="panel-personas"
+                  :aria-selected="tab==='personas'"
+                  class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  :class="tab==='personas' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+            <i class="fas fa-users" aria-hidden="true"></i> Personas
+            <span class="badge" :class="tab==='personas' ? 'badge-info' : 'badge-gray'">{{ conteos.personas }}</span>
+          </button>
+          <button @click="tab='contactos'" type="button" role="tab" id="tab-contactos" aria-controls="panel-contactos"
+                  :aria-selected="tab==='contactos'"
+                  class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  :class="tab==='contactos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+            <i class="fas fa-phone" aria-hidden="true"></i> Contactos
+            <span class="badge" :class="tab==='contactos' ? 'badge-info' : 'badge-gray'">{{ conteos.contactos }}</span>
+          </button>
+          <button @click="tab='fotos'" type="button" role="tab" id="tab-fotos" aria-controls="panel-fotos"
+                  :aria-selected="tab==='fotos'"
+                  class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  :class="tab==='fotos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+            <i class="fas fa-camera" aria-hidden="true"></i> Fotos
+            <span class="badge" :class="tab==='fotos' ? 'badge-info' : 'badge-gray'">{{ conteos.fotos }}</span>
+          </button>
+          <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
+                  :aria-selected="tab==='historial'"
+                  class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+            <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial
+            <span class="badge" :class="tab==='historial' ? 'badge-info' : 'badge-gray'">{{ conteos.historial }}</span>
+          </button>
+        </div>
+        </div>
+
+        {# ===== Familia: lo que cargó quien relevó ===== #}
+        <div x-show="tab==='familia'" x-cloak role="tabpanel" id="panel-familia" aria-labelledby="tab-familia">
           <div class="p-5 space-y-5">
             <dl class="grid gap-5 sm:grid-cols-2">
               {% for dato in datos %}
@@ -120,12 +185,12 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
               {% endif %}
             </div>
           </div>
-        </section>
+        </div>
 
-        {# ===== 2. Personas declaradas ===== #}
-        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-personas-titulo">
+        {# ===== Personas: lo declarado al relevar y los integrantes que confirma el dispositivo ===== #}
+        <div x-show="tab==='personas'" x-cloak role="tabpanel" id="panel-personas" aria-labelledby="tab-personas">
           <div class="px-5 py-4 border-b border-light">
-            <h2 id="caso-personas-titulo" class="text-heading font-bold">Personas que ingresan juntas</h2>
+            <h3 class="text-sm font-bold text-heading">Personas que ingresan juntas</h3>
             <p class="mt-1 text-xs text-body-subtle">Lo declarado al relevar. {% if personas.responsable_aparte %}Las franjas son los acompañantes; el responsable suma aparte al total.{% else %}El responsable está incluido en las franjas.{% endif %}</p>
           </div>
           <div class="overflow-x-auto">
@@ -169,13 +234,11 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
               {% for necesidad in personas.necesidades %}<span class="badge badge-warning">{{ necesidad }}</span> {% empty %}<span class="text-body-subtle">Sin embarazo, electrodependencia, medicación crítica ni mascotas declaradas.</span>{% endfor %}
             </p>
           </div>
-        </section>
 
-        {# ===== 3. Integrantes: los confirma el dispositivo (etapa 3); la mesa los ve en solo lectura ===== #}
-        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-integrantes-titulo">
-          <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+          {# Integrantes: los confirma el dispositivo (etapa 3); la mesa los ve en solo lectura #}
+          <div class="px-5 py-4 border-t border-b border-light flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 id="caso-integrantes-titulo" class="text-heading font-bold">Integrantes</h2>
+              <h3 class="text-sm font-bold text-heading">Integrantes</h3>
               {% if integrantes.crecio %}<p class="mt-1 text-xs text-body-subtle">Llegaron {{ integrantes.total }} sobre {{ integrantes.declaradas }} declaradas: el dispositivo agregó personas.</p>{% endif %}
             </div>
             {% if integrantes %}{% include "components/_contador_avance.html" with hechos=integrantes.confirmadas total=integrantes.total etiqueta="confirmadas" only %}{% endif %}
@@ -218,25 +281,19 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
           {% else %}
           {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Todavía no hay fichas confirmadas" texto="Se completa cuando el dispositivo confirma las fichas de cada persona." %}
           {% endif %}
-        </section>
+        </div>
 
-        {# ===== 4. Fotos (media/ va detrás de login y solo para la mesa) ===== #}
-        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-fotos-titulo">
-          <div class="px-5 py-4 border-b border-light">
-            <h2 id="caso-fotos-titulo" class="text-heading font-bold">Fotos</h2>
-          </div>
+        {# ===== Fotos (media/ va detrás de login y solo para la mesa) ===== #}
+        <div x-show="tab==='fotos'" x-cloak role="tabpanel" id="panel-fotos" aria-labelledby="tab-fotos">
           <div class="p-5">
             {% include "components/_galeria_fotos.html" with fotos=fotos %}
           </div>
-        </section>
+        </div>
 
-        {# ===== 5. Contactos con la familia ===== #}
-        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-contactos-titulo">
-          <div class="px-5 py-4 border-b border-light">
-            <h2 id="caso-contactos-titulo" class="text-heading font-bold">Contactos con la familia</h2>
-            <p class="mt-1 text-xs text-body-subtle">Es un registro: el sistema no llama ni envía mensajes.</p>
-          </div>
+        {# ===== Contactos con la familia ===== #}
+        <div x-show="tab==='contactos'" x-cloak role="tabpanel" id="panel-contactos" aria-labelledby="tab-contactos">
           <div class="p-5">
+            <p class="mb-4 text-xs text-body-subtle">Es un registro: el sistema no llama ni envía mensajes.</p>
             {% include "components/_linea_tiempo.html" with eventos=contactos vacio_titulo="Sin contactos registrados" vacio_texto="Cada llamada o mensaje a la familia se anota acá." %}
             {% if form_contacto %}
             <form method="post" action="{% url 'emergencia:caso_contacto' caso.pk %}" class="border-t border-light mt-5 pt-4">
@@ -254,18 +311,16 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
             </form>
             {% endif %}
           </div>
-        </section>
+        </div>
 
-        {# ===== 6. Traza ===== #}
-        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="caso-traza-titulo">
-          <div class="px-5 py-4 border-b border-light">
-            <h2 id="caso-traza-titulo" class="text-heading font-bold">Traza</h2>
-            <p class="mt-1 text-xs text-body-subtle">Todo lo que pasó con el caso, lo más reciente arriba.</p>
-          </div>
+        {# ===== Historial: la traza ===== #}
+        <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial">
           <div class="p-5">
+            <p class="mb-4 text-xs text-body-subtle">Todo lo que pasó con el caso, lo más reciente arriba.</p>
             {% include "components/_linea_tiempo.html" with eventos=eventos %}
           </div>
-        </section>
+        </div>
+      </div>
       </div>
 
       <aside class="space-y-5 min-w-0" aria-label="Derivación del caso">

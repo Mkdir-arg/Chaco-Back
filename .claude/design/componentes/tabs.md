@@ -74,6 +74,9 @@ declarar el ARIA del contrato de arriba.
   `window.location.href='<url con ?tab=>'`; el atributo evita que pasar por ella con las flechas recargue la página.
   Ver `arquetipos/detalle.md`.
 - Solapa condicionada por permiso: el mismo `{% if %}` envuelve **el botón y el panel**.
+- Una acción de la pantalla que lleva a una solapa (un botón de «Qué hacer ahora» que dice «Anotar un contacto») solo cambia
+  el estado del `x-data` (`@click="tab='contactos'"`), que el contenedor comparte con los modales; no escribe su propio manejo
+  de solapas. Consumidor: la ficha del caso de Emergencia (`emergencia/casos/detail.html`, `tab: '{{ solapa }}'`).
 - Si una solapa tiene listado paginado, ver la limitación de `components/_paginacion.html` en su
   ficha: una sola lista paginada por pantalla.
 - Un `<form method="get">` dentro de una solapa —filtros en píldora, un buscador— lleva **su**
