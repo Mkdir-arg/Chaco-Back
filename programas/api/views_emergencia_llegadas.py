@@ -7,7 +7,7 @@ Paridad con la pantalla E6 del backoffice (RU-1): cada vista llama a la **misma*
 * ``ValidationError`` → 400 por campo (``code: VALIDACION``), con el mensaje del servicio.
 * :class:`EstadoCambio` → 409 ``{detail, estado_actual}``: otra guardia —desde su teléfono o
   desde el backoffice—, la mesa o el cron se adelantaron. ``detail`` es el del servicio
-  (``_por_que_ya_no``), el mismo en el GET que en el POST. La app recarga.
+  (``ingreso_sin_candado`` o ``exigir_pendiente``), el mismo en el GET que en el POST. La app recarga.
 * ``PermissionDenied`` → 404. No debería llegar: el alcance ya se resolvió acá. Si llega (lo
   sacaron del Equipo entre una línea y la otra), lo mismo que un id ajeno.
 
@@ -61,7 +61,6 @@ from programas.api.views_emergencia import (
     EmergenciaModuloPermission,
     _400,
     _creado_o_reenvio,
-    _respuesta_409,
     _VistaDeCampo,
 )
 from programas.models import CasoEmergencia, Derivacion
@@ -69,8 +68,6 @@ from programas.selectors import emergencia_alojar as selectores_alojar
 from programas.selectors.emergencia_mesa import ESTADOS_CON_INTEGRANTES
 from programas.services import emergencia_alojar as servicio_alojar
 from programas.services.dispositivos import dispositivos_en_alcance, q_edificios_en_alcance
-from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_ingreso_comun import _por_que_ya_no
 from programas.services.emergencia_programa import CAP_ADMITIR
 
 CAP_VER_CIUDADANO = "ciudadano.ver"
@@ -225,14 +222,16 @@ class DerivacionDetalleView(_VistaDeLlegadas):
             "DNI: lo que la web muestra al abrir una fila de «Derivaciones por recibir». Misma forma que "
             "`derivacion` de `buscar`, salvo `responsable.identidad_a_revisar`, que viene siempre `null`. Mismo "
             "alcance que `aceptar`/`rechazar`. Una derivación que ya no está pendiente (aceptada, rechazada, vencida o "
-            "cancelada) contesta el 409 de `aceptar`."
+            "cancelada) contesta el 409 de `aceptar`, con la misma función (`exigir_pendiente`)."
         ),
     )
     def get(self, request, pk):
-        derivacion = self._derivacion(request, pk, ("caso__grupo__responsable", "derivada_por", "edificio"))
-        caso = derivacion.caso
-        if derivacion.estado != Derivacion.Estado.PENDIENTE or caso.estado != CasoEmergencia.Estado.DERIVADO:
-            return _respuesta_409(EstadoCambio(_por_que_ya_no(caso, derivacion), estado_actual=caso.estado, caso=caso))
+        derivacion = self._derivacion(
+            request, pk, ("caso__grupo__responsable", "derivada_por", "edificio", "respondida_por")
+        )
+        _, respuesta = self._ejecutar(lambda: servicio_alojar.exigir_pendiente(derivacion.caso, derivacion))
+        if respuesta is not None:
+            return respuesta
         return Response(DerivacionDetalleSerializer(derivacion).data)
 
 

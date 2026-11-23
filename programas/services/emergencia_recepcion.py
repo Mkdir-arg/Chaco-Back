@@ -242,7 +242,7 @@ def _sin_derivacion(usuario, dispositivo, dni, libres, mensaje, puede_avisar):
 # ---------------------------------------------------------------------------
 
 
-def _exigir_pendiente(caso, derivacion):
+def exigir_pendiente(caso, derivacion):
     if derivacion.estado == Derivacion.Estado.PENDIENTE and caso.estado == Estado.DERIVADO:
         return
     if derivacion.estado == Derivacion.Estado.ACEPTADA:
@@ -284,7 +284,7 @@ def aceptar_derivacion(*, derivacion, usuario):
     dispositivo = _dispositivo_de(derivacion, usuario)
     caso = _bloquear_caso(derivacion.caso_id)
     derivacion = _bloquear_derivacion(derivacion.pk, caso, dispositivo)
-    _exigir_pendiente(caso, derivacion)
+    exigir_pendiente(caso, derivacion)
 
     # Solo camas del edificio derivado: la guardia de ese edificio tiene que poder seguir el ingreso.
     # Si no alcanzan, no se completa con otro edificio: faltan.
@@ -359,7 +359,7 @@ def rechazar_derivacion(*, derivacion, usuario, motivo, observacion=""):
     dispositivo = _dispositivo_de(derivacion, usuario)
     caso = _bloquear_caso(derivacion.caso_id)
     derivacion = _bloquear_derivacion(derivacion.pk, caso, dispositivo)
-    _exigir_pendiente(caso, derivacion)
+    exigir_pendiente(caso, derivacion)
 
     rotulo = MotivoRechazo(motivo).label
     derivacion.estado = Derivacion.Estado.RECHAZADA

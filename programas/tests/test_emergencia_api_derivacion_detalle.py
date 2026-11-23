@@ -5,11 +5,13 @@ La app abre una fila de la lista (Cambio 576) sin conocer el DNI. La forma es la
 ``responsable.identidad_a_revisar``: la tarjeta de la web no lo muestra, así que viene ``null``.
 """
 
+from datetime import UTC, datetime
+
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 
-from programas.models import Derivacion
+from programas.models import CasoEmergencia, Derivacion
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
 from programas.tests.base_emergencia_api import (
@@ -94,20 +96,37 @@ class DerivacionDetalleApiTests(BaseApiLlegadas):
 
         self.assertEqual(self._anonimo().get(_url("derivacion-detalle", derivacion.pk)).status_code, 401)
 
-    def test_una_derivacion_que_ya_no_esta_pendiente_da_el_409_de_aceptar(self):
-        _, aceptada = self._aceptado(dni="30222333", apellido="Aceptada")
-        _, rechazada = self._derivado(dni="30333444", apellido="Rechazada")
+    def _por_estado(self):
+        """Una derivación en cada estado en que ``aceptar`` contesta 409: ``{nombre: derivacion}``."""
+        _, en_curso = self._aceptado(dni="30222333", apellido="EnCurso", plazas=1)
+        caso_alojado, alojado = self._aceptado(dni="30333444", apellido="Alojada", plazas=1)
+        CasoEmergencia.objects.filter(pk=caso_alojado.pk).update(estado=CasoEmergencia.Estado.ALOJADO)
+        _, rechazada = self._derivado(dni="30444555", apellido="Rechazada", plazas=1)
         servicio.rechazar_derivacion(derivacion=rechazada, usuario=self.guardia_centro, motivo="SIN_PLAZAS")
+        _, vencida = self._derivado(dni="30555666", apellido="Vencida", plazas=1)
+        Derivacion.objects.filter(pk=vencida.pk).update(vence_en=datetime(2026, 11, 1, tzinfo=UTC))
+        mesa.vencer_derivacion(vencida)
+        _, cancelada = self._derivado(dni="30666777", apellido="Cancelada", plazas=1)
+        mesa.cancelar_derivacion(cancelada, self.operador, "La familia se fue con parientes.")
+        return {
+            "aceptada con ingreso en curso": en_curso,
+            "aceptada y ya alojada": alojado,
+            "rechazada": rechazada,
+            "vencida": vencida,
+            "cancelada": cancelada,
+        }
 
-        for derivacion in (aceptada, rechazada):
-            with self.subTest(estado=Derivacion.objects.get(pk=derivacion.pk).estado):
+    def test_una_derivacion_que_ya_no_esta_pendiente_da_el_mismo_409_que_aceptar(self):
+        """El JSON entero (``detail`` incluido) es el del ``POST aceptar`` sobre la misma derivación."""
+        for nombre, derivacion in self._por_estado().items():
+            with self.subTest(estado=nombre):
                 respuesta = self._detalle(derivacion)
                 esperado = self._como(self.guardia_centro).post(
                     _url("derivacion-aceptar", derivacion.pk), {}, format="json"
                 )
-                self.assertEqual(respuesta.status_code, 409)
+                self.assertEqual(esperado.status_code, 409, nombre)
+                self.assertEqual((respuesta.status_code, respuesta.json()), (409, esperado.json()))
                 self.assertEqual(sorted(respuesta.json()), CLAVES_ESTADO_CAMBIO)
-                self.assertEqual(respuesta.json()["estado_actual"], esperado.json()["estado_actual"])
 
     def test_la_vencida_por_el_cron_da_409(self):
         _, derivacion = self._derivado()
@@ -132,7 +151,7 @@ class DerivacionDetalleApiTests(BaseApiLlegadas):
             cliente.get(_url("derivacion-detalle", otra.pk))
 
         self.assertEqual(len(primera), len(segunda))
-        self.assertLessEqual(len(primera), 8)
+        self.assertEqual(len(primera), 5, [q["sql"][:80] for q in primera.captured_queries])
 
 
 class DerivacionDetalleAlcanceEdificioTests(BaseApiLlegadas):
