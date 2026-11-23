@@ -119,6 +119,17 @@ CLAVES_INTEGRANTES = [
     "total_declarado",
 ]
 CLAVES_DERIVACION_DEL_INGRESO = ["id"]
+#: La fila de «derivaciones por recibir» (Cambio 576). Sin DNI, sin integrantes, sin domicilio ni teléfono.
+CLAVES_DERIVACION_POR_RECIBIR = [
+    "apellido",
+    "caso_numero",
+    "edificio",
+    "id",
+    "personas",
+    "por_vencer",
+    "prioridad",
+    "vence_en",
+]
 CLAVES_BUSQUEDA = [
     "alojada_aca",
     "alojada_desde",
@@ -212,6 +223,7 @@ URLS_DE_LLEGADAS_DEL_BARRIDO = [
     "/api/emergencia/derivaciones/1/rechazar/",
     "/api/emergencia/dispositivos/1/avisar-mesa/",
     "/api/emergencia/dispositivos/1/buscar/",
+    "/api/emergencia/dispositivos/1/derivaciones/",
     "/api/emergencia/dispositivos/1/ingreso-directo/",
     "/api/emergencia/dispositivos/1/plazas/",
 ]
