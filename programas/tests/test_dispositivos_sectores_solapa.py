@@ -362,8 +362,11 @@ class FiltroDeEdificioAlActuarTests(BaseAlcance):
             ("dispositivos:plaza_reactivar", [self.cis.pk, self.plaza_baja.pk]),
         ):
             url = reverse(nombre, args=args)
-            self.assertContains(con, f'data-confirm-url="{url}?{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}"')
-            self.assertContains(sin, f'data-confirm-url="{url}"')
+            # La plaza lleva además el grupo de su sector (`baja_abierto`, Cambio 582): vuelve con ese grupo abierto.
+            abierto = f"&amp;baja_abierto={self.sector_b.pk}" if "plaza" in nombre else ""
+            sin_filtro = f"?baja_abierto={self.sector_b.pk}" if "plaza" in nombre else ""
+            self.assertContains(con, f'data-confirm-url="{url}?{PARAM_EDIFICIO_SECTORES}={self.edif_b.pk}{abierto}"')
+            self.assertContains(sin, f'data-confirm-url="{url}{sin_filtro}"')
 
     def test_editar_un_sector_con_filtro_vuelve_con_el_filtro(self):
         respuesta = self.client.post(

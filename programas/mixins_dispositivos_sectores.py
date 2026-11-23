@@ -52,6 +52,8 @@ from programas.services.sectores_plazas import (
     ACCION_REUBICAR,
     ACCION_VOLVER,
     MOTIVO_PLAZA_OCUPADA,
+    PARAM_BAJA_ABIERTO,
+    PARAM_BAJA_SECTOR,
     PARAM_EDIFICIO_SECTORES,
     bloqueo_de_plaza,
     datos_para_el_modal,
@@ -277,7 +279,14 @@ class SectoresPlazasMixin:
                 q_sectores &= Q(edificio_id=acote_id)
                 q_plazas &= Q(sector__edificio_id=acote_id)
             context["sectores_inactivos"] = sectores_inactivos(dispositivo, q_alcance=q_sectores)
-            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(dispositivo, q_alcance=q_plazas)
+            # El filtro por sector y el grupo abierto vienen por querystring: el selector los valida contra los
+            # sectores que tienen bajas (uno ajeno, inexistente o sin bajas se ignora).
+            context["plazas_dadas_de_baja"] = plazas_dadas_de_baja(
+                dispositivo,
+                q_alcance=q_plazas,
+                sector_id=_entero(self.request.GET.get(PARAM_BAJA_SECTOR, "")),
+                abierto_id=_entero(self.request.GET.get(PARAM_BAJA_ABIERTO, "")),
+            )
         context["puede_configurar_plazas"] = configura_plazas
         # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
         context["puede_ampliar_capacidad"] = configura_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
@@ -427,6 +436,8 @@ class SectoresPlazasMixin:
         if abre_reubicar or ACCION_REUBICAR not in accion["acciones"]:
             context["plaza_accion"] = accion
         if abre_reubicar:
+            # La primera de la plaza ocupada ya no es reubicar (Cambio 582): lo que se abre es el formulario de reubicar.
+            accion["accion"] = ACCION_REUBICAR
             # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
             if not self._preparar_reubicar(context, dispositivo, accion):
                 context.pop("plaza_accion")
@@ -442,6 +453,7 @@ class SectoresPlazasMixin:
                 accion["bloqueo"],
                 accion["enlaces"],
                 con_reserva_abierta=accion["reserva"] is not None,
+                sector_nombre=plaza.sector.nombre,
             ),
         )
         context["plaza_inicial"] = plaza.pk

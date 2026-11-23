@@ -44,6 +44,7 @@ from programas.services.sectores_plazas import (
     ACCION_VOLVER,
     MOTIVO_PLAZA_OCUPADA,
     MOTIVO_SIN_PLAZAS_LIBRES,
+    plaza_para_accion,
     sectores_con_plazas,
     url_solapa_sectores,
 )
@@ -326,17 +327,64 @@ class MenuDePlazaOcupadaTests(BaseMapa):
         return respuesta, respuesta.context["plazas_modal"].get(self.plaza.pk)
 
     def test_con_todas_las_capacidades_ofrece_las_cinco_acciones_en_orden(self):
+        """El orden de la plaza ocupada (Cambio 582): egreso, cambiar de plaza, sacar de servicio, estadía y legajo."""
+
         respuesta, modal = self._modal(self.con_personas)
 
         self.assertEqual(
             modal["acciones"],
-            [ACCION_REUBICAR, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO, ACCION_EGRESAR, ACCION_FUERA_SERVICIO],
+            [ACCION_EGRESAR, ACCION_REUBICAR, ACCION_FUERA_SERVICIO, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO],
         )
         self.assertEqual(
             modal["enlaces"],
             {ACCION_VER_ESTADIA: self.url_estadia, ACCION_VER_LEGAJO: self.url_legajo, ACCION_EGRESAR: self.url_egreso},
         )
         self.assertEqual(self._celdas(respuesta)["P1"]["click"], f"abrirPlaza({self.plaza.pk})")
+
+    def test_el_menu_dibuja_las_acciones_en_el_orden_pedido(self):
+        """Lo que se ve es el orden del HTML, no el de la lista: cada marca va después de la anterior (Cambio 582)."""
+
+        html = self._pantalla(self.con_personas).content.decode()
+        marcas = (
+            "acciones.includes('egresar')",
+            '@click="reubicarDesdeMenu()"',
+            'aria-describedby="motivo-sacar-ocupada"',
+            "acciones.includes('ver_estadia')",
+            "acciones.includes('ver_legajo')",
+        )
+
+        posiciones = [html.index(marca) for marca in marcas]
+
+        self.assertEqual(posiciones, sorted(posiciones))
+        self.assertEqual(len(set(posiciones)), 5)
+
+    def test_la_plaza_ocupada_no_ofrece_reservar_ni_prestar(self):
+        _, modal = self._modal(self.con_personas)
+
+        self.assertNotIn(ACCION_RESERVAR, modal["acciones"])
+        self.assertNotIn(ACCION_PRESTAR, modal["acciones"])
+
+    def test_el_modal_trae_el_sector_y_quien_la_ocupa_solo_con_ciudadano_ver(self):
+        respuesta, con = self._modal(self.con_personas)
+        _, sin = self._modal(self.operador_cis)
+
+        self.assertTrue(con["ocupada"])
+        self.assertEqual(con["sector"], self.sector.nombre)
+        self.assertEqual(con["ocupante"], "Gómez, Ana")
+        self.assertTrue(sin["ocupada"])
+        self.assertEqual(sin["sector"], self.sector.nombre)
+        self.assertEqual(sin["ocupante"], "")
+        self.assertContains(respuesta, '· Ocupada<span x-show="plazasModal[plazaSel]?.ocupante">')
+
+    def test_la_plaza_pedida_por_url_trae_tambien_a_quien_la_ocupa(self):
+        con = plaza_para_accion(
+            self.cis, self.plaza.pk, puede_liberar=True, puede_ver_personas=True, puede_egresar=True
+        )
+        sin = plaza_para_accion(self.cis, self.plaza.pk, puede_liberar=True, puede_egresar=True)
+
+        self.assertEqual(con["estado"].ocupante, "Gómez, Ana")
+        self.assertEqual(sin["estado"].ocupante, "")
+        self.assertEqual(con["acciones"][0], ACCION_EGRESAR)
 
     def test_sacar_de_servicio_llega_deshabilitada_y_con_el_motivo_pedido(self):
         respuesta, modal = self._modal(self.con_personas)
@@ -348,7 +396,7 @@ class MenuDePlazaOcupadaTests(BaseMapa):
     def test_sin_ciudadano_ver_no_se_ofrece_ver_estadia_ni_ver_legajo(self):
         _, modal = self._modal(self.operador_cis)
 
-        self.assertEqual(modal["acciones"], [ACCION_REUBICAR, ACCION_EGRESAR, ACCION_FUERA_SERVICIO])
+        self.assertEqual(modal["acciones"], [ACCION_EGRESAR, ACCION_REUBICAR, ACCION_FUERA_SERVICIO])
         self.assertEqual(set(modal["enlaces"]), {ACCION_EGRESAR})
 
     def test_sin_egresar_no_se_ofrece_registrar_egreso(self):
@@ -360,7 +408,7 @@ class MenuDePlazaOcupadaTests(BaseMapa):
         _, modal = self._modal(usuario)
 
         self.assertEqual(
-            modal["acciones"], [ACCION_REUBICAR, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO, ACCION_FUERA_SERVICIO]
+            modal["acciones"], [ACCION_REUBICAR, ACCION_FUERA_SERVICIO, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO]
         )
         self.assertNotIn(ACCION_EGRESAR, modal["enlaces"])
 
@@ -373,7 +421,9 @@ class MenuDePlazaOcupadaTests(BaseMapa):
         _, modal = self._modal(usuario)
 
         self.assertNotIn(ACCION_REUBICAR, modal["acciones"])
-        self.assertEqual(modal["acciones"][0], ACCION_VER_ESTADIA)
+        self.assertEqual(
+            modal["acciones"], [ACCION_EGRESAR, ACCION_FUERA_SERVICIO, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO]
+        )
 
     def test_sin_editar_no_se_ofrece_sacar_de_servicio(self):
         _, modal = self._modal(self.sin_editar_con_personas)
@@ -450,7 +500,7 @@ class MenuDePlazaOcupadaTests(BaseMapa):
         self.assertEqual(respuesta.context["plaza_inicial"], self.plaza.pk)
         self.assertEqual(
             respuesta.context["plazas_modal"][self.plaza.pk]["acciones"],
-            [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO, ACCION_EGRESAR],
+            [ACCION_EGRESAR, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO],
         )
 
 
