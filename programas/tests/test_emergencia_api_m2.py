@@ -59,6 +59,7 @@ class AccesoALlegadasTests(BaseApiLlegadas):
         caso, centro = self.caso.pk, self.centro.pk
         return [
             ("get", _url("dispositivo-buscar", centro) + "?dni=30111222"),
+            ("get", _url("dispositivo-derivaciones", centro)),
             ("get", _url("dispositivo-plazas", centro) + f"?caso={caso}"),
             ("post", _url("derivacion-aceptar", self.pendiente.pk)),
             ("post", _url("derivacion-rechazar", self.pendiente.pk)),

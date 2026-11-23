@@ -27,6 +27,7 @@ from rest_framework.utils import html
 from core.validators import ADJUNTO_MAX_BYTES, MENSAJE_ADJUNTO_TAMANIO, firma_coincide
 from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion, EntregaKit, GrupoFamiliar, LineaEntrega
 from programas.selectors.emergencia_mesa import nombre_de
+from programas.services.avisos_emergencia import por_vencer
 from programas.services.emergencia import NECESIDADES
 from programas.services.emergencia_campo import acotar_relevado_en
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
@@ -608,6 +609,33 @@ class DerivacionLlegadaSerializer(serializers.ModelSerializer):
 
     def get_observaciones(self, derivacion) -> str:
         return derivacion.caso.situacion.get("observaciones", "")
+
+
+class DerivacionPorRecibirSerializer(serializers.ModelSerializer):
+    """Una fila de la lista de la sede (Cambio 576): lo justo para listar, sin datos personales de más.
+
+    Es la fila de «Derivaciones por recibir» de la web. ``id`` es el de la derivación: el mismo que
+    ``derivacion.id`` de ``buscar`` y el que llevan ``aceptar`` y ``rechazar``. Sin DNI, sin
+    integrantes, sin domicilio ni teléfono. Espera ``caso__grupo__responsable`` y ``edificio``
+    cargados y ``ahora`` en el contexto: sin consultas por fila.
+    """
+
+    apellido = serializers.CharField(source="caso.grupo.responsable.apellido", read_only=True)
+    personas = serializers.IntegerField(source="caso.grupo.total_declarado", read_only=True)
+    caso_numero = serializers.CharField(source="caso.numero", read_only=True)
+    prioridad = serializers.CharField(source="caso.prioridad", read_only=True)
+    por_vencer = serializers.SerializerMethodField(
+        help_text="Faltan menos de 60 minutos para `vence_en`, o ya pasó (se acepta igual): destacarla."
+    )
+    edificio = EdificioSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = Derivacion
+        fields = ["id", "apellido", "personas", "caso_numero", "prioridad", "vence_en", "por_vencer", "edificio"]
+        read_only_fields = fields
+
+    def get_por_vencer(self, derivacion) -> bool:
+        return por_vencer(derivacion.vence_en, self.context["ahora"])
 
 
 class BusquedaPorDniSerializer(serializers.Serializer):
