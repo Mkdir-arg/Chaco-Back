@@ -219,6 +219,7 @@ URLS_DE_LLEGADAS_DEL_BARRIDO = [
     "/api/emergencia/casos/1/integrantes/1/",
     "/api/emergencia/casos/1/integrantes/1/confirmar/",
     "/api/emergencia/casos/1/integrantes/1/quitar/",
+    "/api/emergencia/derivaciones/1/",
     "/api/emergencia/derivaciones/1/aceptar/",
     "/api/emergencia/derivaciones/1/rechazar/",
     "/api/emergencia/dispositivos/1/avisar-mesa/",
