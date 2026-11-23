@@ -287,7 +287,14 @@ class LegibleTests(BaseAuditoria):
             "PLAZA_BAJA",
             "PLAZA_REACTIVADA",
         }
-        acciones |= {"EDIFICIO_CREADO", "EDIFICIO_EDITADO", "EDIFICIO_VINCULADO", "EDIFICIO_DESVINCULADO"}
+        acciones |= {
+            "EDIFICIO_CREADO",
+            "EDIFICIO_EDITADO",
+            "EDIFICIO_VINCULADO",
+            "EDIFICIO_DESVINCULADO",
+            "EDIFICIO_INACTIVADO",
+            "EDIFICIO_REACTIVADO",
+        }
         self.assertEqual(set(TITULOS_TRAZA), acciones)
 
     def test_un_valor_cero_no_se_dibuja_como_un_campo_vacio(self):

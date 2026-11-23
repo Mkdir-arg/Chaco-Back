@@ -1,0 +1,11 @@
+{% comment %}«Activar edificio» (Cambio 583): botón primario con confirmación normal (ModernModal vía data-confirm-url).
+   Lo usan la ficha y la página operativa del edificio, para que el texto viva en un solo lugar.
+   Contrato: `url` (POST de reactivar), `nombre` (del edificio), `texto` (el de la confirmación), `fit` (opcional: `btn-fit`).{% endcomment %}
+<button type="button" class="btn-nodo btn-brand btn-sm{% if fit %} btn-fit{% endif %}"
+        data-confirm-url="{{ url }}"
+        data-confirm-title="¿Activar {{ nombre }}?"
+        data-confirm-text="{{ texto }}"
+        data-confirm-ok="Sí, activar"
+        data-confirm-danger="false">
+  <i class="fas fa-circle-check" aria-hidden="true"></i> Activar edificio
+</button>

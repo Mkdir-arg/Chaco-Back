@@ -52,8 +52,13 @@ def instituciones_del_predio(usuario, edificios_ids, tambien=None):
 
 
 def edificios_vinculables(usuario, dispositivo):
+    """Los edificios activos del alcance de ``usuario`` que ``dispositivo`` todavía no ocupa (el inactivo no se vincula)."""
+
     return (
-        edificios_en_alcance(usuario, "dispositivo.editar").exclude(dispositivos=dispositivo).order_by("nombre", "pk")
+        edificios_en_alcance(usuario, "dispositivo.editar")
+        .filter(activo=True)
+        .exclude(dispositivos=dispositivo)
+        .order_by("nombre", "pk")
     )
 
 

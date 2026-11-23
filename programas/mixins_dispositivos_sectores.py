@@ -289,7 +289,13 @@ class SectoresPlazasMixin:
             )
         context["puede_configurar_plazas"] = configura_plazas
         # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
-        context["puede_ampliar_capacidad"] = configura_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
+        # Un edificio inactivo no se ofrece para sectores (Cambio 583): ni «Nuevo sector», ni «+ Agregar plazas»
+        # ni «Reactivar». Sin esto el alta arrancaba con los OTROS edificios y el sector caía en el equivocado.
+        edificio_en_circulacion = self.edificio_fijo is None or self.edificio_fijo.activo
+        context["puede_ampliar_capacidad"] = (
+            configura_plazas and edificio_en_circulacion and not motivo_sin_ampliar_capacidad(dispositivo)
+        )
+        context["puede_reactivar_sector"] = configura_plazas and edificio_en_circulacion
         self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, configura_plazas)
         self._preparar_modal(context, dispositivo, puede_liberar, configura_plazas)
         self._preparar_modales_de_configuracion(context, dispositivo, configura_plazas)

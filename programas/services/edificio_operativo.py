@@ -51,11 +51,12 @@ from programas.services.dispositivos import (
     fecha_corta,
     miembros_del_edificio,
     nombre_de_persona,
+    puede_configurar_dispositivos,
     puede_editar_legajo,
     puede_operar_edificio,
 )
 from programas.services.edificio_historial import contar_eventos_del_edificio, rotulo_del_turno
-from programas.services.edificios import admite_editar_edificio
+from programas.services.edificios import TEXTO_ACTIVAR, TEXTO_INACTIVAR, admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.equipo_dispositivo import (
     edificios_donde_agregar_persona,
@@ -237,6 +238,16 @@ def _avisos(user, dispositivo, edificio, acciones):
     """
 
     avisos = []
+    if not edificio.activo:
+        # Cambio 583: lo primero que se lee de un edificio inactivo; no consulta nada.
+        avisos.append(
+            {
+                "tono": "info",
+                "titulo": "Este edificio está inactivo.",
+                "texto": "No se ofrece para relevamientos, sectores ni vínculos. "
+                "Sus datos, relevamientos y equipo se conservan.",
+            }
+        )
     if acciones["url_llegadas"]:
         derivaciones = aviso_de_pendientes(
             pendientes_por_recibir(dispositivo, user, edificio),
@@ -266,20 +277,37 @@ def _acciones(user, dispositivo, edificio):
     puede_admitir = puede_operar_edificio(user, dispositivo, pk, CAP_ADMITIR)
     puede_kits = puede_operar_edificio(user, dispositivo, pk, CAP_RECIBIR_KIT)
     # Editar y desvincular son del legajo (RN5): alcance institución, y un dispositivo cerrado no cambia su edificio.
-    puede_editar = puede_editar_legajo(user, dispositivo, CAP_EDITAR) and admite_editar_edificio(dispositivo.estado)
+    # Un edificio inactivo (Cambio 583) no se edita ni se desvincula: primero se reactiva.
+    puede_editar = (
+        edificio.activo
+        and puede_editar_legajo(user, dispositivo, CAP_EDITAR)
+        and admite_editar_edificio(dispositivo.estado)
+    )
+    # Inactivar y reactivar son del administrador del programa, no de una institución: el servicio lo vuelve a exigir.
+    es_admin = puede_configurar_dispositivos(user)
     url_pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, pk])
     kits_por_recibir, primera_entrega = _kits_por_recibir(dispositivo, edificio) if puede_kits else (0, None)
     url_recibir_kit, texto_recibir_kit = _recibir_kit(url_pagina, kits_por_recibir, primera_entrega)
     acciones = {
         "puede_kits": puede_kits,
         "kits_por_recibir": kits_por_recibir,
+        # Un edificio inactivo no ofrece las acciones operativas (ingresar, bitácora): ofrece «Activar edificio».
         "url_ingreso": (
             reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]) + como_param
-            if dispositivo.estado == dispositivo.Estado.ACTIVO
+            if edificio.activo
+            and dispositivo.estado == dispositivo.Estado.ACTIVO
             and puede_ingresar_persona(user, dispositivo, puede_admitir=puede_admitir)
             else ""
         ),
-        "url_bitacora": reverse("dispositivos:bitacora", args=[dispositivo.pk]) + como_param,
+        "url_bitacora": reverse("dispositivos:bitacora", args=[dispositivo.pk]) + como_param if edificio.activo else "",
+        "url_inactivar": _url_cambiar_situacion("edificio_inactivar", edificio, url_pagina)
+        if es_admin and edificio.activo
+        else "",
+        "url_reactivar": (
+            _url_cambiar_situacion("edificio_reactivar", edificio, url_pagina)
+            if es_admin and not edificio.activo
+            else ""
+        ),
         "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={pk}" if puede_editar else "",
         "url_llegadas": reverse("dispositivos:emergencia_llegadas", args=[dispositivo.pk]) + como_param
         if puede_admitir
@@ -307,9 +335,16 @@ def _acciones(user, dispositivo, edificio):
             "url_recibir_kit",
             "url_relevamiento",
             "url_desvincular",
+            "url_inactivar",
         )
     )
     return acciones
+
+
+def _url_cambiar_situacion(nombre_de_ruta, edificio, url_pagina):
+    """La ruta de inactivar o reactivar, con vuelta a esta página (``?next=``; la vista descarta lo que no sea del sitio)."""
+
+    return f"{reverse(f'dispositivos:{nombre_de_ruta}', args=[edificio.pk])}?{urlencode({'next': url_pagina})}"
 
 
 def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
@@ -352,6 +387,10 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         "solapas": disponibles,
         "avisos": _avisos(user, dispositivo, edificio, acciones),
         "url_institucion": url_institucion,
+        "texto_inactivar": TEXTO_INACTIVAR,
+        "texto_activar": TEXTO_ACTIVAR,
+        # La insignia «Inactivo» junto al título (`page_header`); vacía con el edificio activo.
+        "estado_header": {"texto": "" if edificio.activo else "Inactivo", "tono": "gray"},
         "migas": [
             {"label": "Dispositivos", "url": ""},
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},

@@ -47,7 +47,7 @@ abre a una ficha usa ésta.
 | `url_agregar_persona` | Opcional (vacía = sin «Agregar persona al edificio»). Abre el alta del Equipo con este edificio fijo; el servicio la manda solo donde el servidor acepta el alta (Cambio 556) |
 
 Claves de `edificio`: `pk`, `nombre`, `codigo`, `domicilio`, `estado` (estado edilicio: `texto`, `tono`), `aviso`
-(`texto`, `tono` o `None`), `predio_compartido`, `ocupacion` (`valor`, `maximo`, `porcentaje`, `tono`, `etiqueta`, `texto`,
+(`texto`, `tono` o `None`; con el edificio inactivo es «Inactivo» en gris y la fila sale sin `url_editar` ni `url_desvincular`, Cambio 583), `predio_compartido`, `ocupacion` (`valor`, `maximo`, `porcentaje`, `tono`, `etiqueta`, `texto`,
 `nombre`; `None` si el tipo no maneja plazas: sin barra ni «Disponibles»), `disponibles`, `kits` (`texto`, `clase`; `None`
 si quien mira no recibe kits: sin fila), `equipo` (`texto`, `clase`) y `movimientos` (texto del pie). El servicio también
 deja en la fila `url_abrir`, `url_editar`, `url_desvincular` y `url_agregar_persona`: el template del consumidor no

@@ -26,7 +26,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
 - plazas dadas de baja (Cambio 582): `plazas_dadas_de_baja` ya agrupado por el selector (`total`, `cantidad_sectores`, `opciones`
   del select, `filtro` validado y `grupos` con sus `visibles` y `restantes`). `?baja_sector=<id>` deja solo ese grupo, abierto;
   `?baja_abierto=<id>` abre uno sin filtrar (la vuelta de «Reactivar»).
-- capacidades: `puede_configurar_plazas`, `puede_ampliar_capacidad`, `puede_reubicar`.
+- capacidades: `puede_configurar_plazas`, `puede_ampliar_capacidad`, `puede_reactivar_sector`, `puede_reubicar`.
 - formularios (solo con `puede_configurar_plazas` o la acción habilitada): `form_sector_nuevo` / `url_sector_nuevo`,
   `form_sector` / `url_sector` / `sector_en_edicion`, `form_plazas` / `url_plazas`, `form_editar_plaza` /
   `url_editar_plaza`, `form_reservar`, `form_prestar`, `form_sacar`, `form_liberar`, `form_volver`, `form_baja`.{% endcomment %}
@@ -186,6 +186,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
             <a href="?{{ qs_sectores }}inactivos=1&amp;{{ param_editar_sector }}={{ inactivo.pk }}" class="btn-nodo btn-secondary btn-sm btn-fit">
               <i class="fas fa-pen" aria-hidden="true"></i> Editar
             </a>
+            {% if puede_reactivar_sector %}
             <button type="button"
                     class="btn-nodo btn-secondary btn-sm btn-fit"
                     data-confirm-url="{% url 'dispositivos:sector_reactivar' dispositivo.pk inactivo.pk %}{% if edificio_filtrado %}?sectores_edificio={{ edificio_filtrado }}{% elif vuelta_a %}?next={{ vuelta_a|urlencode }}{% endif %}"
@@ -195,6 +196,7 @@ Contexto (lo arma `SectoresPlazasMixin._preparar_sectores_y_plazas`):
                     data-confirm-danger="false">
               <i class="fas fa-rotate-left" aria-hidden="true"></i> Reactivar
             </button>
+            {% endif %}
           </div>
           {% endif %}
         </li>
