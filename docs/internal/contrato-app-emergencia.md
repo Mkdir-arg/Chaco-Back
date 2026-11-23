@@ -628,10 +628,11 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
 - `caso_abierto` y `puede_ingresar_con_caso` (Cambio 579, **aditivas**): con `SIN_DERIVACION`, si la familia ya
   tiene un caso abierto en cualquier estado (derivado a otra institución, sin tomar, alojado…), `caso_abierto`
   trae **solo** `{id, numero, familia, personas, estado, estado_texto, derivada_a, derivada_en,
-  en_este_dispositivo}` —`familia` es el apellido del responsable; `derivada_a` y `derivada_en` vienen **solo**
-  si la derivación es **pendiente** o es de **este** dispositivo: con el ingreso en curso o el alojamiento en
-  **otra institución** (derivación aceptada) vienen en `null`, para que quien no tiene alcance sobre ella no se
-  entere dónde está la familia (RU-9)— y nada de la ficha, los contactos ni las fotos; si no, `null`. `derivacion` sigue en
+  derivada_a_otra, en_este_dispositivo}` —`familia` es el apellido del responsable; `derivada_a` y `derivada_en`
+  vienen **solo** si la derivación vigente es de **este** dispositivo: con la derivación (pendiente o aceptada),
+  el ingreso en curso o el alojamiento en **otra institución** vienen en `null`, para que quien no tiene alcance
+  sobre ella no se entere dónde está la familia (RU-9, decisión del PM del 23-nov-2026). `derivada_a_otra`
+  (**aditiva**, booleano) es `true` en ese caso: la pantalla dice «derivada a otra institución» sin el nombre— y nada de la ficha, los contactos ni las fotos; si no, `null`. `derivacion` sigue en
   `null`. `puede_ingresar_con_caso` dice si «Ingresar» sobre ese caso está permitido desde este dispositivo
   (alcance a toda la institución y camas libres; no lo está si el caso es de otra institución y ya está
   ingresado o alojado). La app nueva ofrece «Ingresar con este caso» (`ingreso-directo` con el mismo DNI) o
@@ -1074,7 +1075,7 @@ mientras tanto, no suma las personas dos veces, no mira las camas):
 - **400** (`code: "VALIDACION"`, con `detail` legible, como cualquier error de campo) cuando **no** se puede sumar
   desde este dispositivo. Si el caso está ingresado o alojado en **otra institución** (no se ingresa acá, y
   tampoco se avisa: no hay nada que avisar), el cuerpo trae además `caso_abierto` (las mismas claves de §13.2,
-  con `derivada_a` y `derivada_en` en `null`). Con el caso **alojado en este dispositivo**, `avisar-mesa` rechaza:
+  con `derivada_a` y `derivada_en` en `null` y `derivada_a_otra` en `true`). Con el caso **alojado en este dispositivo**, `avisar-mesa` rechaza:
   la familia ya está alojada. Si la derivación
   pendiente es a este mismo dispositivo (se acepta en vez de ingresar igual) o a otro edificio de él, solo el
   `detail`. La app anterior muestra el `detail`; la nueva puede leer `caso_abierto`. `POST /casos/` (§6) devuelve 200 en vez de 400 (la mesa, desde la web, es la única que abre un

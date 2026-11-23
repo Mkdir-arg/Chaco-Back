@@ -3,7 +3,7 @@
 Una familia tiene a lo sumo un caso de Emergencia abierto. Lo usan los tres caminos que
 crean casos —``crear_caso`` (la mesa y el territorio), «Ingresar igual» y «Avisar a la mesa»— y
 la búsqueda por DNI de la guardia, para que el criterio sea uno solo: el caso **no cerrado**
-cuyo responsable, o cuyo integrante ya confirmado, es esa persona.
+cuyo responsable, o cuyo integrante que no egresó, es esa persona.
 
 Es una hoja de las dependencias: importa modelos y nada de los otros módulos de Emergencia, para
 que ``emergencia_alta`` pueda usarla sin ciclos.
@@ -34,6 +34,20 @@ def caso_abierto_de_la_familia(ciudadano):
     un ``OR`` entre responsable e integrante recorre todos los casos no cerrados con cada alta de la provincia.
     """
 
+    return _ultimo_caso(ciudadano, abierto=True)
+
+
+def ultimo_caso_de_la_familia(ciudadano):
+    """El caso más reciente de la familia de ``ciudadano``, **cerrado o no**, o ``None``.
+
+    Solo para reconocer el reenvío de un envío que se sumó a un caso que después se cerró: lo que se decide con
+    la familia es siempre :func:`caso_abierto_de_la_familia`.
+    """
+
+    return _ultimo_caso(ciudadano, abierto=False)
+
+
+def _ultimo_caso(ciudadano, *, abierto):
     if ciudadano is None:
         return None
     grupos = set(GrupoFamiliar.objects.filter(responsable_id=ciudadano.pk).values_list("pk", flat=True))
@@ -44,13 +58,10 @@ def caso_abierto_de_la_familia(ciudadano):
     )
     if not grupos:
         return None
-    return (
-        CasoEmergencia.objects.exclude(estado=Estado.CERRADO)
-        .filter(grupo_id__in=grupos)
-        .select_related("grupo__responsable")
-        .order_by("-id")
-        .first()
-    )
+    casos = CasoEmergencia.objects.filter(grupo_id__in=grupos).select_related("grupo__responsable")
+    if abierto:
+        casos = casos.exclude(estado=Estado.CERRADO)
+    return casos.order_by("-id").first()
 
 
 def serializar_altas(momento=None):
@@ -66,29 +77,56 @@ def serializar_altas(momento=None):
     return NumeradorEmergencia.objects.select_for_update().get(serie=NumeradorEmergencia.Serie.CASOS, anio=anio)
 
 
-def envio_ya_sumado(caso, uuid_cliente, usuario):
-    """¿Ese ``uuid_cliente`` ya se sumó a ``caso``, enviado por ``usuario``? Es el reenvío de un envío que no creó caso."""
+def envio_sumado(caso, uuid_cliente, usuario):
+    """La anotación del envío de ``usuario`` con ese ``uuid_cliente`` en ``caso``, o ``None``.
 
-    return any(
-        envio.get("uuid") == str(uuid_cliente) and envio.get("usuario_id") == usuario.pk
-        for envio in (caso.situacion or {}).get(CasoEmergencia.SITUACION_ENVIOS_SUMADOS) or []
-    )
+    Es el reenvío de un envío que no creó caso. La anotación es ``{"uuid", "usuario_id"}`` y, si el envío fue un
+    ingreso directo, ``reservadas`` y ``faltantes``: lo que contestó, para contestar lo mismo al reenvío.
+    """
+
+    for envio in (caso.situacion or {}).get(CasoEmergencia.SITUACION_ENVIOS_SUMADOS) or []:
+        if envio.get("uuid") == str(uuid_cliente) and envio.get("usuario_id") == usuario.pk:
+            return envio
+    return None
+
+
+def envio_ya_sumado(caso, uuid_cliente, usuario):
+    """¿Ese ``uuid_cliente`` ya se sumó a ``caso``, enviado por ``usuario``?"""
+
+    return envio_sumado(caso, uuid_cliente, usuario) is not None
 
 
 def anotar_envio_sumado(caso, uuid_cliente, usuario):
     """Anota en ``caso.situacion`` que ese envío se sumó a él, para que su reenvío no ejecute nada de nuevo.
 
+    Relee ``situacion`` **con candado** y le agrega la anotación: ``caso`` se leyó antes, sin candado, y escribir
+    el JSON entero desde esa lectura pisaría lo que la mesa o la guardia confirmaron en el medio
+    (``identidad_revisada``, ``en_la_puerta_de``). El orden de candados es numerador y después caso, el de todo alta.
     Corre dentro de la transacción del envío: si esta vuelve atrás, la anotación también.
     """
 
     if uuid_cliente is None:
         return
-    situacion = dict(caso.situacion or {})
+    actual = CasoEmergencia.objects.select_for_update().filter(pk=caso.pk).values_list("situacion", flat=True).first()
+    situacion = dict(actual or {})
     situacion[CasoEmergencia.SITUACION_ENVIOS_SUMADOS] = [
         *(situacion.get(CasoEmergencia.SITUACION_ENVIOS_SUMADOS) or []),
         {"uuid": str(uuid_cliente), "usuario_id": usuario.pk},
     ]
     caso.situacion = situacion
+    caso.save(update_fields=["situacion", "modificado"])
+
+
+def anotar_resultado_del_envio(caso, uuid_cliente, usuario):
+    """Guarda en la anotación del envío lo que contestó (``caso.reservadas`` y ``caso.faltantes``).
+
+    ``caso`` es el que devolvió el servicio, leído con candado, así que su ``situacion`` es la vigente.
+    """
+
+    envio = envio_sumado(caso, uuid_cliente, usuario) if uuid_cliente is not None else None
+    if envio is None:
+        return
+    envio["reservadas"], envio["faltantes"] = caso.reservadas, caso.faltantes
     caso.save(update_fields=["situacion", "modificado"])
 
 
@@ -103,7 +141,10 @@ def caso_del_envio_sumado(dni, uuid_cliente, usuario):
 
     if uuid_cliente is None:
         return None
-    caso = caso_abierto_de_la_familia(buscar_ciudadano_por_dni(normalizar_dni(dni or "")))
+    ciudadano = buscar_ciudadano_por_dni(normalizar_dni(dni or ""))
+    caso = caso_abierto_de_la_familia(ciudadano)
+    if caso is None:
+        caso = ultimo_caso_de_la_familia(ciudadano)  # el caso se pudo cerrar entre el envío y su reenvío
     if caso is not None and envio_ya_sumado(caso, uuid_cliente, usuario):
         return caso
     return None
@@ -118,23 +159,23 @@ def ultima_derivacion(caso):
 def nombra_la_institucion(derivacion, dispositivo):
     """¿Se le dice a quien opera ``dispositivo`` en qué institución está la familia? **La única decisión de eso.**
 
-    Sí a la mesa (sin ``dispositivo``), sí si la derivación es de **este** dispositivo y sí si la derivación
-    sigue **pendiente** (lo pide la maqueta). No si ya está aceptada hacia otra institución: quien no tiene
-    alcance sobre ella no se entera, con solo el DNI, dónde está ingresando o alojada la familia (RU-9).
+    Sí a la mesa (sin ``dispositivo``) y sí si la derivación es de **este** dispositivo. No hacia otra
+    institución, esté pendiente o aceptada (decisión del PM, 23-nov-2026): quien no tiene alcance sobre ella no se
+    entera, con solo el DNI, dónde está derivando, ingresando o alojada la familia (RU-9). Se le dice «otra
+    institución» (``derivada_a_otra`` de :func:`resumen_del_caso_abierto`).
     """
 
     if derivacion is None or not derivacion.vigente:
         return False
-    if dispositivo is None or derivacion.dispositivo_id == dispositivo.pk:
-        return True
-    return derivacion.estado == Derivacion.Estado.PENDIENTE
+    return dispositivo is None or derivacion.dispositivo_id == dispositivo.pk
 
 
 def resumen_del_caso_abierto(caso, dispositivo=None):
     """Lo que la guardia puede ver de un caso abierto de la familia: nada más que esto.
 
     ``numero``, ``familia`` (el apellido del responsable), ``personas``, ``estado`` y, si
-    :func:`nombra_la_institucion`, ``derivada_a`` (la institución) y ``derivada_en``. Nada de la ficha, de los
+    :func:`nombra_la_institucion`, ``derivada_a`` (la institución) y ``derivada_en``; si la derivación vigente es de
+    otra institución y no se nombra, ``derivada_a_otra`` es ``True``. Nada de la ficha, de los
     contactos ni de las fotos. ``en_este_dispositivo`` dice si el caso ya está derivado, o ingresado, acá.
     """
 
@@ -150,6 +191,7 @@ def resumen_del_caso_abierto(caso, dispositivo=None):
         "estado_texto": caso.get_estado_display(),
         "derivada_a": derivacion.dispositivo.nombre if nombra else None,
         "derivada_en": derivacion.creado if nombra else None,
+        "derivada_a_otra": vigente and not nombra,
         "en_este_dispositivo": bool(
             dispositivo is not None
             and derivacion is not None

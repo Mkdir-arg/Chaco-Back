@@ -13,12 +13,17 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion, IntegranteGrupo, ReservaPlaza, TrazaCaso
-from programas.services import avisos_emergencia
+from programas.selectors.emergencia_llegadas import que_pasa_si_se_ingresa
+from programas.services import avisos_emergencia, emergencia_alta
 from programas.services import emergencia as mesa
 from programas.services import emergencia_alojar as servicio
 from programas.services import emergencia_sin_derivacion as sin_derivacion
 from programas.services.configuracion_emergencia import sla_vigente
-from programas.services.emergencia_familia import caso_abierto_de_la_familia, resumen_del_caso_abierto
+from programas.services.emergencia_familia import (
+    anotar_envio_sumado,
+    caso_abierto_de_la_familia,
+    resumen_del_caso_abierto,
+)
 from programas.tests.base_emergencia_api import BaseApiLlegadas, _url
 from programas.tests.test_emergencia_alojar_base import BaseAlojar
 from programas.tests.test_emergencia_casos import Origen
@@ -124,10 +129,13 @@ class DeteccionTests(BaseFamiliaAbierta):
                 "estado_texto",
                 "derivada_a",
                 "derivada_en",
+                "derivada_a_otra",
                 "en_este_dispositivo",
             },
         )
-        self.assertEqual((resumen["derivada_a"], resumen["en_este_dispositivo"]), ("Escuela 12", False))
+        # RU-9 (decisión del PM, 23-nov): con la derivación a otra institución, pendiente o no, no se la nombra.
+        self.assertEqual((resumen["derivada_a"], resumen["en_este_dispositivo"]), (None, False))
+        self.assertIs(resumen["derivada_a_otra"], True)
         self.assertEqual(resumen["personas"], caso.grupo.total_declarado)
 
 
@@ -336,9 +344,12 @@ class AvisoALaMesaConCasoAbiertoTests(BaseFamiliaAbierta):
         alojado = self._alojado_en(self.escuela)
         antes = len(self._trazas(alojado))
 
-        with self.assertRaises(servicio.CasoAbiertoEnOtraInstitucion):
+        with self.assertRaises(servicio.CasoAbiertoEnOtraInstitucion) as error:
             self._aviso()
 
+        # Al avisar no se manda «a avisar a la mesa»: no hay nada que avisar.
+        self.assertIn("no hay nada que avisar", str(error.exception))
+        self.assertNotIn("Avisá a la mesa", str(error.exception))
         self.assertEqual((self._estado(alojado), len(self._trazas(alojado))), (Estado.ALOJADO, antes))
         self.assertIsNone(CasoEmergencia.objects.get(pk=alojado.pk).en_la_puerta)
         ingresando = self._ingreso(self.escuela, dni="30999888")
@@ -372,6 +383,7 @@ class AvisoALaMesaConCasoAbiertoTests(BaseFamiliaAbierta):
 
 CLAVES_CASO_ABIERTO = [
     "derivada_a",
+    "derivada_a_otra",
     "derivada_en",
     "en_este_dispositivo",
     "estado",
@@ -404,7 +416,9 @@ class ApiFamiliaAbiertaTests(BaseApiLlegadas):
         self.assertEqual(cuerpo["resultado"], "SIN_DERIVACION")  # la app en producción sigue entendiendo el resultado
         self.assertEqual(sorted(cuerpo["caso_abierto"]), CLAVES_CASO_ABIERTO)
         self.assertEqual(cuerpo["caso_abierto"]["id"], caso.pk)
-        self.assertEqual(cuerpo["caso_abierto"]["derivada_a"], "Escuela 12")
+        self.assertIsNone(cuerpo["caso_abierto"]["derivada_a"])
+        self.assertIs(cuerpo["caso_abierto"]["derivada_a_otra"], True)
+        self.assertNotIn("Escuela 12", respuesta.content.decode())
         self.assertIs(cuerpo["puede_ingresar_con_caso"], True)
         self.assertIsNone(cuerpo["derivacion"], "no se filtra la derivación de otra institución")
 
@@ -506,12 +520,14 @@ class ModalDeLlegadasTests(BaseFamiliaAbierta):
 
         self.assertNotContains(respuesta, "Esta familia ya tiene un caso abierto")
 
-    def test_el_modal_dice_donde_esta_derivada_pero_no_muestra_nada_de_la_ficha(self):
+    def test_el_modal_dice_otra_institucion_sin_nombrarla_ni_mostrar_la_ficha(self):
         self._derivado(self.escuela, dni=DNI, telefono="3624999999")
 
         respuesta = self._buscar()
 
-        self.assertContains(respuesta, "Escuela 12")
+        self.assertNotContains(respuesta, "Escuela 12")
+        self.assertContains(respuesta, "Otra institución")
+        self.assertContains(respuesta, "La derivación a otra institución se cancela sola")
         self.assertNotContains(respuesta, "3624999999")
 
     def test_ingresar_con_este_caso_ingresa_a_la_familia_y_lleva_a_las_fichas(self):
@@ -637,13 +653,19 @@ class QuienSabeDondeEstaTests(BaseFamiliaAbierta):
         self.assertEqual(resumen["derivada_a"], "Escuela 12")
         self.assertIsNotNone(resumen["derivada_en"])
 
-    def test_con_la_derivacion_pendiente_a_otra_institucion_si_se_dice(self):
+    def test_con_la_derivacion_pendiente_a_otra_institucion_tampoco_se_dice(self):
         caso, _ = self._derivado(self.escuela, dni=DNI)
 
-        resumen = self._resumen(caso, self.club)
+        self._sin_nombre(caso, self.club)
+        self.assertIs(self._resumen(caso, self.club)["derivada_a_otra"], True)
+
+    def test_el_propio_dispositivo_ve_su_derivacion_pendiente_con_nombre(self):
+        caso, _ = self._derivado(self.escuela, dni=DNI)
+
+        resumen = self._resumen(caso, self.escuela)
 
         self.assertEqual(resumen["derivada_a"], "Escuela 12")
-        self.assertIsNotNone(resumen["derivada_en"])
+        self.assertIs(resumen["derivada_a_otra"], False)
 
     def test_la_institucion_propia_se_nombra_aunque_este_aceptada(self):
         caso = self._ingreso(self.club)
@@ -718,13 +740,16 @@ class QuienSabeDondeEstaApiTests(BaseApiLlegadas):
         self.assertEqual(respuesta.status_code, 400, respuesta.content)
         self._sin_nombre(respuesta.json(), respuesta.content.decode())
 
-    def test_con_la_derivacion_pendiente_la_busqueda_si_la_nombra(self):
+    def test_con_la_derivacion_pendiente_la_busqueda_no_la_nombra(self):
         self._derivado(self.escuela, dni=DNI)
 
-        cuerpo = self._buscar().json()
+        respuesta = self._buscar()
 
-        self.assertEqual(cuerpo["caso_abierto"]["derivada_a"], "Escuela 12")
-        self.assertIsNotNone(cuerpo["caso_abierto"]["derivada_en"])
+        cuerpo = respuesta.json()
+        self.assertIsNone(cuerpo["caso_abierto"]["derivada_a"])
+        self.assertIsNone(cuerpo["caso_abierto"]["derivada_en"])
+        self.assertIs(cuerpo["caso_abierto"]["derivada_a_otra"], True)
+        self.assertNotIn("Escuela 12", respuesta.content.decode())
 
 
 # ---------------------------------------------------------------------------
@@ -764,13 +789,16 @@ class ReenvioDeUnEnvioSumadoTests(BaseFamiliaAbierta):
     def test_ingresar_igual_sobre_un_alojado_reenviado_no_suma_las_personas_dos_veces(self):
         caso = self._alojado_en(self.club)
         envio = uuid.uuid4()
-        self._ingreso(uuid_cliente=envio, adultos_f=1, adultos_m=2, menores_f=0)
+        primero = self._ingreso(uuid_cliente=envio, adultos_f=1, adultos_m=2, menores_f=0)
         antes = self._movimiento(caso)
 
         reenvio = self._ingreso(uuid_cliente=envio, adultos_f=1, adultos_m=2, menores_f=0)
 
         self.assertTrue(reenvio.ya_existia)
         self.assertEqual(self._movimiento(caso), antes)
+        # Contesta lo mismo que el primero (todas las sumadas faltan), no lo que cuenta hoy la última derivación.
+        self.assertGreater(primero.faltantes, 0)
+        self.assertEqual((reenvio.reservadas, reenvio.faltantes), (primero.reservadas, primero.faltantes))
 
     def test_ingresar_igual_reenviado_despues_de_que_el_caso_cambio_de_estado_tampoco_repite(self):
         caso = self._caso(dni=DNI, origen=Origen.MESA)
@@ -938,3 +966,95 @@ class FamiliaEnLaPuertaTrasDerivarTests(BaseFamiliaAbierta):
         avisos = avisos_emergencia.familias_en_la_puerta(sla_vigente(), timezone.now(), usuario=self.operador)
 
         self.assertEqual(avisos, [])
+
+
+class RondaDosTests(BaseFamiliaAbierta):
+    """Cambio 579, ronda 2: el mismo envío a la vez, la anotación sin pisar, el reenvío tras el cierre."""
+
+    def test_el_mismo_envio_a_la_vez_no_se_suma_al_caso_que_acaba_de_crear_el_otro(self):
+        envio = uuid.uuid4()
+        primero = self._aviso(uuid_cliente=envio)
+        antes = len(self._trazas(primero))
+        real = emergencia_alta._caso_de_ese_envio
+        llamadas = []
+
+        def ciega_la_primera_vez(uuid_cliente, usuario):
+            # La búsqueda de antes del candado no ve al otro envío: todavía no había commiteado.
+            llamadas.append(uuid_cliente)
+            return None if len(llamadas) == 1 else real(uuid_cliente, usuario)
+
+        with mock.patch.object(emergencia_alta, "_caso_de_ese_envio", side_effect=ciega_la_primera_vez):
+            segundo = self._aviso(uuid_cliente=envio)
+
+        self.assertEqual(segundo.pk, primero.pk)
+        self.assertTrue(segundo.ya_existia)
+        self.assertFalse(segundo.familia_ya_tenia_caso)
+        self.assertEqual(len(self._trazas(primero)), antes)  # ni AVISO_A_LA_MESA ni RELEVAMIENTO_REPETIDO falsos
+        self.assertEqual(self._casos(), 1)
+
+    def test_anotar_un_envio_sumado_no_pisa_lo_que_se_confirmo_en_el_medio(self):
+        caso = self._caso(dni=DNI)
+        leido_antes = CasoEmergencia.objects.get(pk=caso.pk)
+        # Entre la lectura y la anotación la mesa dejó su marca.
+        CasoEmergencia.objects.filter(pk=caso.pk).update(situacion={"identidad_revisada": {"por": 7}})
+
+        anotar_envio_sumado(leido_antes, uuid.uuid4(), self.guardia)
+
+        situacion = CasoEmergencia.objects.get(pk=caso.pk).situacion
+        self.assertEqual(situacion["identidad_revisada"], {"por": 7})
+        self.assertEqual(len(situacion["envios_sumados"]), 1)
+
+    def test_el_reenvio_de_un_ingreso_sumado_a_un_caso_cerrado_no_abre_otro(self):
+        caso = self._caso(dni=DNI, origen=Origen.MESA)
+        envio = uuid.uuid4()
+        primero = self._ingreso(uuid_cliente=envio)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.CERRADO, cerrado_en=timezone.now())
+
+        reenvio = self._ingreso(uuid_cliente=envio)
+
+        self.assertEqual((reenvio.pk, self._casos()), (caso.pk, 1))
+        self.assertTrue(reenvio.ya_existia)
+        self.assertEqual((reenvio.reservadas, reenvio.faltantes), (primero.reservadas, primero.faltantes))
+
+    def test_el_reenvio_de_un_aviso_sumado_a_un_caso_cerrado_no_abre_otro(self):
+        caso, _ = self._derivado(self.escuela, dni=DNI)
+        envio = uuid.uuid4()
+        self._aviso(uuid_cliente=envio)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.CERRADO, cerrado_en=timezone.now())
+
+        reenvio = self._aviso(uuid_cliente=envio)
+
+        self.assertEqual((reenvio.pk, self._casos()), (caso.pk, 1))
+        self.assertTrue(reenvio.ya_existia)
+
+    def test_sin_el_uuid_de_ese_envio_la_familia_con_caso_cerrado_si_abre_uno_nuevo(self):
+        caso = self._caso(dni=DNI, origen=Origen.MESA)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.CERRADO, cerrado_en=timezone.now())
+
+        nuevo = self._ingreso(uuid_cliente=uuid.uuid4())
+
+        self.assertNotEqual(nuevo.pk, caso.pk)
+        self.assertEqual(self._casos(), 2)
+
+    def test_la_linea_de_la_derivacion_se_decide_por_el_estado_no_por_el_nombre(self):
+        con_nombre = {"numero": "C-1", "estado": "DERIVADO", "derivada_a": "Escuela 12"}
+        sin_nombre = {**con_nombre, "derivada_a": None}
+
+        lineas_con = " ".join(que_pasa_si_se_ingresa(con_nombre))
+        lineas_sin = " ".join(que_pasa_si_se_ingresa(sin_nombre))
+
+        self.assertIn("derivación a Escuela 12 se cancela sola", lineas_con)
+        self.assertIn("derivación a otra institución se cancela sola", lineas_sin)
+        self.assertNotIn("se cancela", " ".join(que_pasa_si_se_ingresa({**con_nombre, "estado": "NUEVO"})))
+
+    def test_el_reenvio_a_un_caso_cerrado_contesta_lo_mismo_aunque_hoy_no_haya_camas(self):
+        caso = self._caso(dni=DNI, origen=Origen.MESA)
+        envio = uuid.uuid4()
+        primero = self._ingreso(uuid_cliente=envio)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.CERRADO, cerrado_en=timezone.now())
+
+        with mock.patch.object(sin_derivacion, "camas_libres", return_value=[]):
+            reenvio = self._ingreso(uuid_cliente=envio)
+
+        self.assertEqual((reenvio.pk, reenvio.ya_existia), (caso.pk, True))
+        self.assertEqual((reenvio.reservadas, reenvio.faltantes), (primero.reservadas, primero.faltantes))

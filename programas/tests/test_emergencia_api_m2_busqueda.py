@@ -82,11 +82,11 @@ class BuscarFamiliaApiTests(BaseApiLlegadas):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.json()["resultado"], "SIN_DERIVACION")
         self.assertIsNone(respuesta.json()["derivacion"])
-        # Cambio 579: solo `caso_abierto` dice dónde está derivada (la maqueta del modal lo pide).
+        # Cambio 579 (decisión del PM, 23-nov): ni `caso_abierto` nombra a la otra institución.
         cuerpo = respuesta.json()
-        self.assertEqual(cuerpo["caso_abierto"]["derivada_a"], "Escuela 12")
-        self.assertNotIn("Escuela", cuerpo["mensaje"])
-        self.assertNotIn("Escuela", str({**cuerpo, "caso_abierto": None}))
+        self.assertIsNone(cuerpo["caso_abierto"]["derivada_a"])
+        self.assertIs(cuerpo["caso_abierto"]["derivada_a_otra"], True)
+        self.assertNotIn("Escuela", respuesta.content.decode())
 
     def test_alojada_aca(self):
         caso, _derivacion = self._aceptado()

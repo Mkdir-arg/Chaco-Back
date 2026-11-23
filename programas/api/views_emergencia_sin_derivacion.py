@@ -33,7 +33,7 @@ from programas.services import emergencia_alojar as servicio_alojar
 _CASO_ABIERTO = (
     " Si la familia ya tiene un caso abierto en otra institución, o ya alojado o ingresado donde no se puede "
     "sumar, trae además `caso_abierto` (`{id, numero, familia, personas, estado, estado_texto, derivada_a, "
-    "derivada_en, en_este_dispositivo}`) y no se crea nada (Cambio 579)."
+    "derivada_en, derivada_a_otra, en_este_dispositivo}`) y no se crea nada (Cambio 579)."
 )
 
 

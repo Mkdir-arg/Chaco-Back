@@ -287,10 +287,10 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
             <dt class="text-xs font-semibold uppercase text-body-subtle">Estado</dt>
             <dd class="mt-1 text-sm text-heading">{{ caso_abierto.estado_texto }}</dd>
           </div>
-          {% if caso_abierto.derivada_a %}
+          {% if caso_abierto.derivada_a or caso_abierto.derivada_a_otra %}
           <div>
             <dt class="text-xs font-semibold uppercase text-body-subtle">La mesa la derivó a</dt>
-            <dd class="mt-1 text-sm text-heading">{{ caso_abierto.derivada_a }}{% if caso_abierto.derivada_en %} · hace {{ caso_abierto.derivada_en|timesince }}{% endif %}</dd>
+            <dd class="mt-1 text-sm text-heading">{% firstof caso_abierto.derivada_a "Otra institución" %}{% if caso_abierto.derivada_en %} · hace {{ caso_abierto.derivada_en|timesince }}{% endif %}</dd>
           </div>
           {% endif %}
         </dl>

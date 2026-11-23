@@ -430,6 +430,11 @@ class CasoAbiertoSerializer(serializers.Serializer):
         allow_null=True, help_text="La institución a la que la mesa derivó la familia, si la derivación sigue vigente."
     )
     derivada_en = serializers.DateTimeField(allow_null=True, help_text="Cuándo se derivó.")
+    derivada_a_otra = serializers.BooleanField(
+        default=False,
+        help_text="Aditiva (Cambio 579). `true` si la derivación vigente es de otra institución: `derivada_a` y "
+        "`derivada_en` van en `null` y la pantalla dice «otra institución».",
+    )
     en_este_dispositivo = serializers.BooleanField(help_text="`true` si el caso ya está derivado o ingresado acá.")
 
 

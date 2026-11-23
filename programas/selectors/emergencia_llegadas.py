@@ -239,7 +239,9 @@ def que_pasa_si_se_ingresa(caso_abierto):
             "El ingreso vuelve a estar en curso para que confirmes a las que faltan.",
         ]
     lineas = [f"Se usa el mismo caso {numero}, con las personas ya cargadas."]
-    if caso_abierto["derivada_a"]:
-        lineas.append(f"La derivación a {caso_abierto['derivada_a']} se cancela sola y no les quedan camas reservadas.")
+    if caso_abierto["estado"] == "DERIVADO":
+        # Se decide por el estado, no por el nombre: si no se nombra a la institución (RU-9) el aviso igual va.
+        destino = caso_abierto["derivada_a"] or "otra institución"
+        lineas.append(f"La derivación a {destino} se cancela sola y no les quedan camas reservadas.")
     lineas.append("La mesa recibe el aviso del cambio.")
     return lineas

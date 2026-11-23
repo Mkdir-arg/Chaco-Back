@@ -244,7 +244,7 @@ class AlcancePorHttpTests(BaseLlegadas):
         """RU §6 n.° 2, por pantalla, tras el Cambio 579.
 
         La búsqueda ya no calla que la familia tiene caso: el modal «Esta familia ya tiene un caso abierto» dice
-        dónde está **mientras la derivación sea solo una propuesta pendiente** (lo pide la maqueta). Lo que la
+        que está en otra institución, **sin nombrarla** (decisión del PM, 23-nov: RU-9 vale también con la derivación pendiente). Lo que la
         guardia nunca ve desde acá es la derivación para aceptarla.
         """
 
@@ -255,7 +255,8 @@ class AlcancePorHttpTests(BaseLlegadas):
         self.assertContains(respuesta, "Esta familia ya tiene un caso abierto")
         self.assertContains(respuesta, "Ingresar con este caso")
         self.assertContains(respuesta, "Avisar a la mesa")
-        self.assertContains(respuesta, "Escuela 12")
+        self.assertContains(respuesta, "Otra institución")
+        self.assertNotContains(respuesta, "Escuela 12")
         self.assertNotContains(respuesta, "Aceptar y reservar camas")
 
     def test_buscar_una_familia_ya_aceptada_por_otro_dispositivo_no_lo_nombra(self):

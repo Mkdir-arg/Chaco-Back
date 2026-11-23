@@ -48,6 +48,7 @@ from programas.services.emergencia_familia import (
     envio_ya_sumado,
     resumen_del_caso_abierto,
     serializar_altas,
+    ultimo_caso_de_la_familia,
 )
 from programas.services.emergencia_programa import CAP_EMERGENCIA_RELEVAR, puede_en_programa_emergencia
 from programas.services.identidad import texto_comparable
@@ -620,7 +621,21 @@ def crear_caso(
     # Una familia, un caso abierto. El candado del numerador serializa toda alta: quien llega segundo espera al
     # commit del primero y lo ve (READ COMMITTED). Sin él, dos ingresos a la vez abrirían dos casos.
     serializar_altas(ahora)
+    if uuid_cliente is not None:
+        # El mismo envío llegó dos veces a la vez: la búsqueda de arriba no vio nada porque el otro no había
+        # commiteado. Con el candado puesto sí lo ve, y no se suma al caso que ese envío acaba de crear.
+        existente = _caso_de_ese_envio(uuid_cliente, usuario)
+        if existente is not None:
+            return existente
     abierto = caso_abierto_de_la_familia(responsable)
+    if abierto is None and uuid_cliente is not None and devolver_existente:
+        # El envío se sumó a un caso que después se cerró: su reenvío no abre otro caso.
+        cerrado = ultimo_caso_de_la_familia(responsable)
+        if cerrado is not None and envio_ya_sumado(cerrado, uuid_cliente, usuario):
+            cerrado.personas_declaradas_ahora = limpio["total_declarado"]
+            cerrado.familia_ya_tenia_caso = True
+            cerrado.ya_existia = True
+            return cerrado
     anterior_forzado = None
     if abierto is not None:
         if forzar_nuevo_motivo is not None:

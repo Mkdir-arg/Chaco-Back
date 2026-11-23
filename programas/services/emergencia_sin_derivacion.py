@@ -29,7 +29,12 @@ from programas.services.emergencia import (
 )
 from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia
 from programas.services.emergencia_comun import _bloquear_caso, _trazar
-from programas.services.emergencia_familia import caso_abierto_de_la_familia, caso_del_envio_sumado
+from programas.services.emergencia_familia import (
+    anotar_resultado_del_envio,
+    caso_abierto_de_la_familia,
+    caso_del_envio_sumado,
+    envio_sumado,
+)
 from programas.services.emergencia_ingreso_comun import (
     SIN_ALCANCE,
     Accion,
@@ -49,13 +54,18 @@ from programas.services.emergencia_ingreso_comun import (
 
 
 class CasoAbiertoEnOtraInstitucion(CasoAbiertoDeLaFamilia):
-    """El caso de la familia está en manos de otra institución: acá no se ingresa, solo se avisa a la mesa."""
+    """El caso de la familia está en manos de otra institución.
 
-    def __init__(self, caso, dispositivo=None):
+    Al ingresar, no se ingresa acá y se ofrece avisar a la mesa. Al avisar, no hay nada que avisar: el texto lo
+    pasa quien la levanta (``mensaje``), porque «Avisá a la mesa» al rechazar «Avisar a la mesa» no dice nada.
+    """
+
+    def __init__(self, caso, dispositivo=None, mensaje=None):
         super().__init__(
             caso,
             dispositivo,
-            mensaje=(
+            mensaje=mensaje
+            or (
                 f"La familia ya tiene el caso {caso.numero} en curso en otra institución: no se la puede ingresar "
                 "acá. Avisá a la mesa."
             ),
@@ -109,10 +119,11 @@ def _camas_de_un_edificio(libres, cuantas):
 
 
 def _con_sus_reservas(caso):
-    """Le cuelga ``reservadas`` y ``faltantes`` a un caso que ya existía (el reenvío de un ingreso directo).
+    """Le cuelga ``reservadas`` y ``faltantes`` a un caso **creado** por un ingreso directo (su reenvío).
 
     Son las camas que el ingreso reservó **al crearse** —vigentes, consumidas o liberadas
-    después— contra las que pidió: lo mismo que contestó el primer envío.
+    después— contra las que pidió: lo mismo que contestó el primer envío. No sirve para un envío que se sumó a un
+    caso que ya existía: ese guarda lo que contestó en su anotación (:func:`_con_lo_que_contesto`).
     """
 
     derivacion = Derivacion.objects.filter(caso_id=caso.pk).order_by("-id").first()
@@ -120,6 +131,20 @@ def _con_sus_reservas(caso):
     reservadas = ReservaPlaza.objects.filter(derivacion=derivacion).count() if derivacion is not None else 0
     caso.reservadas, caso.faltantes = reservadas, max(pedidas - reservadas, 0)
     return caso
+
+
+def _con_lo_que_contesto(caso, uuid_cliente, usuario):
+    """El reenvío de un envío que se sumó a un caso existente contesta lo mismo que el primero.
+
+    ``reservadas`` y ``faltantes`` salen de la anotación del envío (:func:`anotar_resultado_del_envio`): contarlas
+    de nuevo da otra cosa si el caso cambió. Sin ellas (anotación de antes), se cuentan.
+    """
+
+    envio = envio_sumado(caso, uuid_cliente, usuario)
+    if envio is not None and "reservadas" in envio:
+        caso.reservadas, caso.faltantes = envio["reservadas"], envio["faltantes"]
+        return caso
+    return _con_sus_reservas(caso)
 
 
 def _exigir_reenvio_de_este_ingreso(caso, dispositivo):
@@ -243,7 +268,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         if sumado is not None:
             sumado.ya_existia = True
             sumado.familia_ya_tenia_caso = True
-            return _con_sus_reservas(sumado)
+            return _con_lo_que_contesto(sumado, uuid_cliente, usuario)
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
     libres = camas_libres(dispositivo, usuario=usuario)
@@ -257,10 +282,14 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         uuid_cliente=uuid_cliente,
         devolver_existente=True,
     )
-    if caso.ya_existia:  # el mismo envío llegó dos veces a la vez: lo creó el otro
+    if caso.ya_existia:  # el mismo envío llegó dos veces a la vez, o se sumó a un caso que se cerró después
+        if caso.familia_ya_tenia_caso:
+            return _con_lo_que_contesto(caso, uuid_cliente, usuario)
         return _con_sus_reservas(caso)
     if caso.familia_ya_tenia_caso:
-        return _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, personas=caso.personas_declaradas_ahora)
+        caso = _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, personas=caso.personas_declaradas_ahora)
+        anotar_resultado_del_envio(caso, uuid_cliente, usuario)
+        return caso
     caso = _bloquear_caso(caso)
     caso = _abrir_el_ingreso(
         caso=caso,
@@ -480,7 +509,14 @@ def _avisar_sobre_el_caso_abierto(caso, dispositivo, usuario):
     # La misma regla que ofrece la búsqueda (``_con_caso_abierto``): con el ingreso o el alojamiento ya en
     # marcha no hay nada que avisar. En otra institución se dice que la familia está en curso; acá, qué sigue.
     if caso.estado in (Estado.INGRESO_EN_CURSO, Estado.ALOJADO) and not en_este:
-        raise CasoAbiertoEnOtraInstitucion(caso, dispositivo)
+        raise CasoAbiertoEnOtraInstitucion(
+            caso,
+            dispositivo,
+            mensaje=(
+                f"La familia ya tiene el caso {caso.numero} en curso en otra institución: no hay nada que avisar "
+                "a la mesa."
+            ),
+        )
     if en_este and caso.estado == Estado.ALOJADO:
         raise ValidationError({"dni": YA_ALOJADA_NADA_QUE_AVISAR})
     if en_este and caso.estado in (Estado.DERIVADO, Estado.INGRESO_EN_CURSO):
