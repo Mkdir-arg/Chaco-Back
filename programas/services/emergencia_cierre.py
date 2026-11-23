@@ -19,7 +19,7 @@ from programas.models import (
 )
 from programas.senales import estadia_egresada
 from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_comun import _bloquear_caso, _nombre_de, _trazar
+from programas.services.emergencia_comun import _bloquear_caso, _cerrar, _nombre_de, _trazar
 from programas.services.emergencia_ingreso_comun import (
     MENSAJE_OTRA_DERIVACION,
     Accion,
@@ -60,10 +60,7 @@ def _cerrar_si_no_queda_nadie(caso, usuario, momento):
     quedan = IntegranteGrupo.objects.filter(grupo_id=caso.grupo_id, estadia__estado=Estadia.Estado.ACTIVA).exists()
     if quedan:
         return False
-    caso.estado = Estado.CERRADO
-    caso.marcar("cerrado_en", momento)
-    caso.motivo_cierre = CasoEmergencia.MotivoCierre.TODOS_EGRESADOS
-    caso.save(update_fields=["estado", "cerrado_en", "motivo_cierre", "modificado"])
+    _cerrar(caso, CasoEmergencia.MotivoCierre.TODOS_EGRESADOS, momento=momento)
     _trazar(
         caso,
         usuario,
@@ -467,8 +464,8 @@ def al_egresar_estadia(sender, estadia, usuario=None, **_kwargs):
     # `filter().first()` y no `get()`: el cierre de la mesa egresa a toda la familia en un pedido (Cambio 588) y
     # `zeal` lee esos `get()` de la misma línea como un N+1.
     caso = CasoEmergencia.objects.select_for_update().filter(grupo_id=grupo_id).first()
-    if caso is None:
-        return
+    if caso is None:  # el grupo de un integrante siempre tiene su caso (OneToOne): si no, el egreso se deshace
+        raise CasoEmergencia.DoesNotExist(f"El grupo {grupo_id} no tiene caso.")
     momento = estadia.fecha_egreso or timezone.now()
     IntegranteGrupo.objects.filter(pk=integrante_pk).update(egresado_en=momento, modificado=timezone.now())
     _trazar(

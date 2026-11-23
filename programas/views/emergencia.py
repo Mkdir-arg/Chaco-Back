@@ -57,10 +57,9 @@ from programas.services import emergencia as servicio
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.emergencia import CasoDeOtroOperador, EstadoCambio, FaltanPlazas
 from programas.services.emergencia_cierre import cancelar_ingreso_por_la_mesa
-from programas.services.emergencia_cierre_mesa import cerrar_alojado_por_la_mesa, reabrir_caso
+from programas.services.emergencia_cierre_mesa import cerrar_alojado_por_la_mesa, personas_egresadas, reabrir_caso
 from programas.services.emergencia_programa import puede_cerrar_y_reabrir, puede_supervisar_la_mesa
 from programas.services.estadias import CAP_VER_CIUDADANO
-from programas.urls_seguras import destino_seguro
 
 TEMPLATE_BANDEJA = "programas/emergencia/casos/list.html"
 TEMPLATE_FICHA = "programas/emergencia/casos/detail.html"
@@ -545,16 +544,10 @@ class CancelarIngresoMesaView(_AccionDeCasoView):
 
 
 class _SupervisionDeCasoView(_AccionDeCasoView):
-    """Las acciones de ``emergencia.cerrar_reabrir`` (Cambio 588): la vista lo decide y el servicio lo vuelve a exigir.
-
-    Vuelven a donde pida ``next`` si es de este sitio (``destino_seguro``) y, si no, a la ficha.
-    """
+    """Las acciones de ``emergencia.cerrar_reabrir`` (Cambio 588): la vista lo decide y el servicio lo vuelve a exigir."""
 
     def tiene_permiso(self, user):
         return puede_cerrar_y_reabrir(user)
-
-    def destino(self, caso):
-        return destino_seguro(self.request, _url_ficha(caso))
 
 
 class CerrarAlojadoMesaView(_SupervisionDeCasoView):
@@ -570,7 +563,7 @@ class CerrarAlojadoMesaView(_SupervisionDeCasoView):
         egresadas = cerrado.estadias_egresadas
         if not egresadas:
             return f"Caso {caso.numero} cerrado."
-        personas = "1 persona egresada" if egresadas == 1 else f"{egresadas} personas egresadas"
+        personas = personas_egresadas(egresadas)
         return f"Caso {caso.numero} cerrado ({personas} del dispositivo)."
 
 

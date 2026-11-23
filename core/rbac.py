@@ -121,7 +121,7 @@ CATALOGO = [
         ],
     },
     {
-        # Mesa de Emergencia. Las cuatro se evalúan con alcance sobre el programa EMERGENCIA
+        # Mesa de Emergencia. Las cinco se evalúan con alcance sobre el programa EMERGENCIA
         # (``programas.services.emergencia_programa.puede_en_programa_emergencia``) y solo
         # se pueden tildar en un rol de ese programa.
         "modulo": "emergencia",

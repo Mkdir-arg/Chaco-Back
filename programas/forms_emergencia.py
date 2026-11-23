@@ -44,6 +44,7 @@ from programas.services.configuracion_emergencia import (
 )
 from programas.services.emergencia import MOTIVOS_DE_CIERRE_MANUAL, NECESIDADES
 from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegistrado
+from programas.services.emergencia_cierre_mesa import MOTIVO_LARGO, MOTIVO_OBLIGATORIO
 
 #: Tope de plazas que acepta el panel «Derivar»: el del campo `plazas_pedidas` (smallint).
 PLAZAS_MAXIMAS = 32767
@@ -626,10 +627,7 @@ class CerrarAlojadoMesaForm(forms.Form):
         label="Motivo",
         max_length=200,
         help_text="Queda en la traza del caso y como observación del cierre.",
-        error_messages={
-            "required": "Indicá por qué se cierra el caso desde la mesa.",
-            "max_length": "El motivo no puede tener más de 200 caracteres.",
-        },
+        error_messages={"required": MOTIVO_OBLIGATORIO, "max_length": MOTIVO_LARGO},
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "maxlength": 200}),
     )
 

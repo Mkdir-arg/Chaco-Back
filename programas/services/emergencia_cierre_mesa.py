@@ -44,13 +44,12 @@ candado del numerador puesto (``serializar_altas``), que es el que serializa tod
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import CasoEmergencia, Estadia, GrupoFamiliar, IntegranteGrupo, MotivoEgreso, TrazaCaso
 from programas.services.dispositivos import bloquear_instituciones
 from programas.services.emergencia import EstadoCambio
-from programas.services.emergencia_comun import _bloquear_caso, _trazar
+from programas.services.emergencia_comun import _bloquear_caso, _cerrar, _trazar
 from programas.services.emergencia_familia import caso_abierto_de_la_familia, serializar_altas
 from programas.services.emergencia_programa import puede_cerrar_y_reabrir
 from programas.services.estadias import egresar_persona
@@ -96,6 +95,12 @@ def puede_reabrir_el_caso(caso):
     """¿Se ofrece «Reabrir» en la ficha? **Pura, sin consultas:** el caso está ``CERRADO``."""
 
     return caso.estado == Estado.CERRADO
+
+
+def personas_egresadas(cantidad):
+    """«1 persona egresada» / «N personas egresadas»: el único plural, para la traza y para el aviso."""
+
+    return "1 persona egresada" if cantidad == 1 else f"{cantidad} personas egresadas"
 
 
 def _exigir_supervision(usuario):
@@ -154,7 +159,7 @@ def cerrar_alojado_por_la_mesa(caso, usuario, motivo):
         bloquear_instituciones(sorted(set(previas.values())))
         bloqueadas = list(Estadia.objects.select_for_update().filter(pk__in=previas).order_by("pk"))
     caso = _bloquear_caso(pk)
-    if caso.estado != Estado.ALOJADO:
+    if not puede_cerrar_alojado_por_la_mesa(caso):
         mensaje = (
             f"El caso {caso.numero} ya está cerrado. Recargá la ficha."
             if caso.estado == Estado.CERRADO
@@ -171,12 +176,8 @@ def cerrar_alojado_por_la_mesa(caso, usuario, motivo):
     motivo_egreso = _motivo_de_egreso() if por_egresar else None
 
     parcial = f"ingreso parcial, {caso.total_alojado} de {caso.grupo.total_declarado}" if caso.ingreso_parcial else ""
-    caso.estado = Estado.CERRADO
-    caso.marcar("cerrado_en", timezone.now())
-    caso.motivo_cierre = CasoEmergencia.MotivoCierre.OTRO
-    caso.observacion_cierre = motivo
-    caso.save(update_fields=["estado", "cerrado_en", "motivo_cierre", "observacion_cierre", "modificado"])
-    personas = f"{len(por_egresar)} persona{'s' if len(por_egresar) != 1 else ''} egresada{'s' if len(por_egresar) != 1 else ''}"
+    _cerrar(caso, CasoEmergencia.MotivoCierre.OTRO, motivo)
+    personas = personas_egresadas(len(por_egresar))
     _trazar(
         caso,
         usuario,
@@ -263,7 +264,7 @@ def reabrir_caso(caso, usuario):
     pk = getattr(caso, "pk", caso)
     serializar_altas()
     caso = _bloquear_caso(pk)
-    if caso.estado != Estado.CERRADO:
+    if not puede_reabrir_el_caso(caso):
         raise EstadoCambio(
             f"El caso {caso.numero} no está cerrado. Recargá la ficha.", estado_actual=caso.estado, caso=caso
         )

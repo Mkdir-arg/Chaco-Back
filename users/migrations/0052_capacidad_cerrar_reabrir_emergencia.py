@@ -5,7 +5,7 @@
 #
 # - `emergencia.cerrar_reabrir`: cerrar desde la mesa, con motivo, una familia alojada o un ingreso
 #   parcial, y reabrir un caso cerrado. No la implica `emergencia.supervisar` ni la implica ella: la
-#   tilda el PM en el rol de supervisión desde el ABM de Roles, así que nadie gana ni pierde nada solo.
+#   recibe solo el rol protegido «Administrador» (paso 2) y el PM la tilda en otros roles desde el ABM.
 #
 # Dos pasos, el mismo patrón que `users.0051`:
 #

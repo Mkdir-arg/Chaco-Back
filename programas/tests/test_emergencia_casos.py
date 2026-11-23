@@ -1594,7 +1594,8 @@ class AccionesPosiblesTests(BaseCasos):
     ``EstadoCambio``; lo no ofrecido, sí. Cada llamada corre en un savepoint que se deshace.
 
     La única celda que no ofrece y tampoco falla es la que el servicio define así a propósito:
-    el dueño que vuelve a tomar lo que ya tiene (doble clic, segunda pestaña) no cambia nada.
+    el dueño que vuelve a tomar lo que ya tiene, en cualquier estado abierto (doble clic, segunda
+    pestaña), no cambia nada.
     """
 
     ACCIONES = (

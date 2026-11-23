@@ -4,7 +4,7 @@
 estado anterior al cierre, salvo que la familia ya tenga otro caso abierto (Cambio 579).
 """
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import SimpleTestCase
 from django.urls import reverse
@@ -22,8 +22,10 @@ from programas.services.emergencia_cierre_mesa import (
     puede_reabrir_el_caso,
     reabrir_caso,
 )
+from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.tests.test_emergencia_alojar_base import GUARDIA, BaseAlojar
-from programas.tests.test_emergencia_base import OPERAR, SUPERVISAR
+from programas.tests.test_emergencia_base import OPERAR, SUPERVISAR, _permiso
+from users.models import RolMeta
 
 Estado = CasoEmergencia.Estado
 Accion = TrazaCaso.Accion
@@ -49,6 +51,7 @@ class _Base(BaseAlojar):
 class CapacidadTests(SimpleTestCase):
     def test_esta_en_el_catalogo_y_es_de_programa(self):
         self.assertIn(CAP, rbac.codigos_de_capacidad())
+        self.assertIn(CAP, rbac.codigos_de_programa())
 
 
 class PermisoTests(_Base):
@@ -71,12 +74,24 @@ class PermisoTests(_Base):
     def test_la_guardia_sin_la_capacidad_no_puede(self):
         self._intentos(self.guardia)
 
+    def _opera_en_emergencia_y_tiene_la_capacidad_en(self, nombre, programa, capacidades=(CAP,)):
+        """Opera la mesa (rol de EMERGENCIA con OPERAR) y la capacidad la trae **solo** un rol de otro programa."""
+
+        usuario = self._usuario(nombre, [OPERAR])
+        rol = Group.objects.create(name=f"Rol {nombre} en otro programa")
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=programa, activo=True)
+        rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
+        usuario.groups.add(rol)
+        usuario = User.objects.get(pk=usuario.pk)
+        self.assertTrue(puede_operar_la_mesa(usuario), "el usuario del test tiene que poder operar la mesa")
+        return usuario
+
     def test_la_guardia_no_puede_aunque_tenga_la_capacidad_en_dispositivos(self):
-        guardia = self._usuario("g_con_cap", [*GUARDIA, CAP], programa=self.dispositivos)
+        guardia = self._opera_en_emergencia_y_tiene_la_capacidad_en("g_con_cap", self.dispositivos, (*GUARDIA, CAP))
         self._intentos(guardia)
 
     def test_la_capacidad_en_otro_programa_no_alcanza(self):
-        self._intentos(self._usuario("de_becas", [CAP], programa=self.becas))
+        self._intentos(self._opera_en_emergencia_y_tiene_la_capacidad_en("de_becas", self.becas))
 
     def test_quien_la_tiene_en_emergencia_si_puede(self):
         caso = self._alojada()
@@ -322,17 +337,6 @@ class VistasTests(_Base):
         self.assertEqual(respuesta.status_code, 302)
         self.assertEqual(self._estado(caso), Estado.CERRADO)
 
-    def test_next_externo_se_ignora(self):
-        caso = mesa.cerrar_sin_alojamiento(self._caso_tomado(), self.operador, "NO_REQUIERE")
-        self.client.force_login(User.objects.get(pk=self.jefe.pk))
-
-        respuesta = self.client.post(
-            reverse("emergencia:caso_reabrir", args=[caso.pk]) + "?next=https://malo.example/", {}
-        )
-
-        self.assertEqual(respuesta.status_code, 302)
-        self.assertNotIn("malo.example", respuesta["Location"])
-
     def test_los_items_del_menu_solo_los_ve_quien_tiene_la_capacidad(self):
         alojado = self._alojada()
         cerrado = mesa.cerrar_sin_alojamiento(self._caso_tomado(dni="30222333"), self.operador, "NO_REQUIERE")
@@ -342,3 +346,16 @@ class VistasTests(_Base):
             html_cerrado = self.client.get(reverse("emergencia:caso_detalle", args=[cerrado.pk])).content.decode()
             self.assertEqual("Cerrar: la familia ya no está" in html_alojado, ve)
             self.assertEqual("Reabrir caso" in html_cerrado, ve)
+
+    def test_el_aviso_de_tomar_solo_promete_derivar_y_cerrar_en_un_caso_nuevo(self):
+        nuevo = self._caso()
+        derivado, _ = self._derivado()
+        CasoEmergencia.objects.filter(pk=derivado.pk).update(tomado_por=None)
+        self.client.force_login(User.objects.get(pk=self.otro_operador.pk))
+
+        en_nuevo = self.client.get(reverse("emergencia:caso_detalle", args=[nuevo.pk])).content.decode()
+        en_derivado = self.client.get(reverse("emergencia:caso_detalle", args=[derivado.pk])).content.decode()
+
+        self.assertIn("derivarla o cerrar el caso", en_nuevo)
+        self.assertNotIn("derivarla o cerrar el caso", en_derivado)
+        self.assertIn("Tomalo para hacerte cargo", en_derivado)

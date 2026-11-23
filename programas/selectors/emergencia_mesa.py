@@ -833,7 +833,7 @@ def ficha_de_caso(caso, usuario, sla, ahora):
     elif not caso.abierto:
         sin_panel = {
             "titulo": "Caso cerrado",
-            "texto": "Un caso cerrado no se deriva. Quien supervisa la mesa lo puede reabrir.",
+            "texto": "Un caso cerrado no se deriva. Quien tiene permiso para reabrir casos lo puede reabrir.",
         }
     else:
         sin_panel = {
@@ -872,6 +872,8 @@ def ficha_de_caso(caso, usuario, sla, ahora):
         ),
         # Cambio 588: la supervisión corrige la mesa (capacidad propia).
         **_acciones_de_supervision(caso, usuario),
+        # Tomar habilita derivar y cerrar solo en un caso nuevo; en los demás es hacerse cargo.
+        "tomar_para_gestionar": caso.estado == Estado.NUEVO,
     }
 
 

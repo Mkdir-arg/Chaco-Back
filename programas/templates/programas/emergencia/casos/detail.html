@@ -60,7 +60,11 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
     {% if solo_lectura %}
       {% include "components/_alerta.html" with tono="info" titulo=tomado texto="Lo ves en solo lectura: solo quien lo tiene tomado, o quien supervisa la mesa, puede derivarlo, cerrarlo o registrar contactos." %}
     {% elif puede_tomar and not es_supervisor %}
+      {% if tomar_para_gestionar %}
       {% include "components/_alerta.html" with tono="info" titulo="Nadie tomó este caso todavía" texto="Tomalo para hablar con la familia, derivarla o cerrar el caso." %}
+      {% else %}
+      {% include "components/_alerta.html" with tono="info" titulo="Nadie tomó este caso todavía" texto="Tomalo para hacerte cargo." %}
+      {% endif %}
     {% endif %}
     {% if motivo_cierre %}
       {% include "components/_alerta.html" with tono="info" titulo="Caso cerrado: "|add:motivo_cierre texto=caso.observacion_cierre %}
@@ -408,7 +412,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           {% for error in form_cierre.non_field_errors %}{% include "components/_alerta.html" with tono="danger" texto=error %}{% endfor %}
           {% for field in form_cierre %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
-          {% include "components/_alerta.html" with tono="warning" texto="El caso queda cerrado. Si lo cerrás por error, quien supervisa la mesa lo puede reabrir; si la familia vuelve a necesitar alojamiento, se carga un caso nuevo." %}
+          {% include "components/_alerta.html" with tono="warning" texto="El caso queda cerrado. Si lo cerrás por error, quien tiene permiso para reabrir casos lo puede reabrir; si la familia vuelve a necesitar alojamiento, se carga un caso nuevo." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCerrar=false" accion_texto="Sí, cerrar el caso" accion_tono="danger" %}
       </form>
@@ -428,7 +432,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           {% for error in form_cerrar_alojado.non_field_errors %}{% include "components/_alerta.html" with tono="danger" texto=error %}{% endfor %}
           {% with field=form_cerrar_alojado.motivo %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
-          {% include "components/_alerta.html" with tono="warning" texto="Las personas que sigan con la estadía abierta se egresan del dispositivo y se liberan sus camas. El caso queda cerrado; quien supervisa lo puede reabrir, pero los egresos no se deshacen." %}
+          {% include "components/_alerta.html" with tono="warning" texto="Las personas que sigan con la estadía abierta se egresan del dispositivo y se liberan sus camas. El caso queda cerrado; quien tiene permiso para reabrir casos lo puede reabrir, pero los egresos no se deshacen." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCerrarAlojado=false" cancelar_texto="Volver" accion_texto="Sí, cerrar el caso" accion_tono="danger" %}
       </form>

@@ -108,6 +108,7 @@ from programas.services.emergencia_comun import (  # noqa: F401
     SIN_PERMISO_DE_MESA,
     _bloquear_caso,
     _bloquear_numerador,
+    _cerrar,
     _exigir_mesa,
     _hora,
     _nombre_de,
@@ -176,7 +177,7 @@ ESTADOS_PARA_CANCELAR_DERIVACION = (Estado.DERIVADO,)
 
 SIN_PERMISO_DE_SUPERVISAR = "Solo quien supervisa la mesa puede reasignar un caso."
 NO_ES_EL_DUENIO = "Solo quien tiene tomado el caso, o quien supervisa la mesa, puede hacer esto."
-CASO_CERRADO = "El caso está cerrado. Quien supervisa la mesa lo puede reabrir; si no, cargá uno nuevo."
+CASO_CERRADO = "El caso está cerrado. Quien tiene permiso para reabrir casos lo puede reabrir; si no, cargá uno nuevo."
 SIN_PLAZAS = "El dispositivo no tiene plazas libres. Elegí otro."
 DISPOSITIVO_NO_ELEGIBLE = "A ese dispositivo no se le pueden derivar familias: no está activo o no maneja camas."
 EDIFICIO_AJENO = "Esa institución no tiene camas en ese edificio. Elegí el edificio de nuevo."
@@ -368,9 +369,9 @@ def tomar_caso(caso, usuario):
     _exigir_mesa(usuario)
     caso = _bloquear_caso(caso)
     _exigir_abierto(caso)
-    if caso.tomado_por_id == usuario.pk:
-        return caso
-    if caso.tomado_por_id is not None:
+    if not puede_tomar_el_caso(caso):
+        if _es_duenio(caso, usuario):
+            return caso
         raise CasoTomadoPorOtro(caso)
     anterior = caso.estado
     campos = ["tomado_por", "tomado_en", "modificado"]
@@ -803,7 +804,7 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
     """Cierra un caso ``EN_GESTION`` que no necesita alojamiento (HU-2.7, RN-2.13).
 
     El dueño o quien supervisa. El motivo sale de :data:`MOTIVOS_DE_CIERRE_MANUAL`; con
-    «Otro» la observación es obligatoria. ``CERRADO`` es terminal: no se reabre.
+    «Otro» la observación es obligatoria. Un caso cerrado solo lo reabre quien tiene ``emergencia.cerrar_reabrir``.
 
     Un caso ``DERIVADO`` no se cierra: primero se cancela la derivación (RN-2.6). Eso, y
     cualquier otro estado, es un :class:`EstadoCambio`.
@@ -823,11 +824,7 @@ def cerrar_sin_alojamiento(caso, usuario, motivo, observacion=""):
     _exigir_estado(caso, *ESTADOS_PARA_CERRAR, mensaje=mensaje)
     por_supervisor = _exigir_duenio_o_supervisor(caso, usuario)
 
-    caso.estado = Estado.CERRADO
-    caso.marcar("cerrado_en", timezone.now())
-    caso.motivo_cierre = motivo
-    caso.observacion_cierre = observacion
-    caso.save(update_fields=["estado", "cerrado_en", "motivo_cierre", "observacion_cierre", "modificado"])
+    _cerrar(caso, motivo, observacion)
     _trazar(
         caso,
         usuario,
