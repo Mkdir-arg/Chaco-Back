@@ -9,7 +9,8 @@ página operativa (`dispositivos:edificio_operativo`).
 en el cuerpo, fuera de las solapas). Solo usa clases y tokens que ya existen. Los botones «Vincular edificio» y
 «Agregar edificio» los dibuja la sección, no la tarjeta. Los datos extra de la tarjeta (ocupación, disponibles, kits,
 equipo, movimientos de hoy) los suma `programas/services/ficha_edificios.py` (`completar_tarjetas`) con costo constante en la
-cantidad de edificios.
+cantidad de edificios. La fila Kits nunca lleva un número suelto: dice «0 por recibir» o «N por recibir» (en camino y
+preparadas juntas), igual que el badge de la solapa Kits de la página del edificio.
 
 ## Por qué no es `_lista_tarjetas`
 

@@ -24,7 +24,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from legajos.models import Ciudadano
-from programas.models import Dispositivo, Edificio, Plaza, Sector
+from programas.models import Dispositivo, Edificio, EntregaKit, Plaza, Sector
 from programas.services.sectores_plazas import url_solapa_sectores
 from programas.tests.test_dispositivos_bitacora_pantalla import MARTES, _local
 from programas.tests.test_equipo_alcance_edificio import Alcance, BaseAlcance
@@ -145,6 +145,17 @@ class PredioCompartidoTests(BaseOperativo):
 
 
 class CapacidadesTests(BaseOperativo):
+    def setUp(self):
+        super().setUp()
+        # «Recibir kit» solo existe con algo por recibir en el edificio (#1361).
+        EntregaKit.objects.create(
+            numero="2026-K-000900",
+            dispositivo=self.cis,
+            edificio=self.edif_a,
+            estado=EntregaKit.Estado.EN_CAMINO,
+            armada_por=self.operador,
+        )
+
     def _contexto(self, usuario):
         return self._get(usuario, self.edif_a).context
 

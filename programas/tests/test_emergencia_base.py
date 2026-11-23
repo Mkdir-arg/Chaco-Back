@@ -350,6 +350,15 @@ class AccesoE7Tests(BaseE7):
         self.assertContains(respuesta, "Catálogo de kits")
         self.assertContains(respuesta, "csrfmiddlewaretoken")
 
+    def test_la_regla_de_consumo_dice_que_no_es_stock_y_da_un_ejemplo(self):
+        """#1365: «Cantidad» se leyó como raciones disponibles; el campo es el consumo de cada persona, familia o lactante."""
+        self.client.force_login(self.supervisor)
+        respuesta = self.client.get(self.url)
+        self.assertContains(respuesta, "Consumo por unidad")
+        self.assertNotContains(respuesta, ">Cantidad<")
+        self.assertContains(respuesta, "No es stock: el sistema no lleva inventario ni descuenta al enviar.")
+        self.assertContains(respuesta, "Ej.: 3 raciones por persona cada 1 día")
+
     def test_el_superusuario_abre(self):
         self.client.force_login(User.objects.create_superuser("root", "root@example.com", "x"))
         self.assertEqual(self.client.get(self.url).status_code, 200)

@@ -565,8 +565,11 @@ def _derivaciones_en_alcance(dispositivo, usuario):
     )
 
 
-def pendientes_por_recibir(dispositivo, usuario):
+def pendientes_por_recibir(dispositivo, usuario, edificio=None):
     """``{"cantidad", "primera_vence"}`` de las derivaciones pendientes de ``dispositivo`` a la vista de ``usuario``.
+
+    Con ``edificio`` cuenta solo las derivadas a **ese** edificio (página del edificio, #1362); una derivación sin
+    edificio no es de ninguno. Sin él, todas las del alcance (ficha de la institución).
 
     Son las mismas que lista :func:`llegadas_del_dispositivo` como pendientes (``PENDIENTE`` de un caso
     ``DERIVADO``, dentro del alcance por edificio), contadas en la base. ``primera_vence`` es el
@@ -577,11 +580,12 @@ def pendientes_por_recibir(dispositivo, usuario):
     **Presupuesto: 1 consulta** (más las del alcance, que son subconsultas).
     """
 
-    resumen = (
-        _derivaciones_en_alcance(dispositivo, usuario)
-        .filter(estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO)
-        .aggregate(cantidad=Count("id"), primera_vence=Min("vence_en"))
-    )
+    derivaciones = _derivaciones_en_alcance(dispositivo, usuario)
+    if edificio is not None:
+        derivaciones = derivaciones.filter(edificio=edificio)
+    resumen = derivaciones.filter(
+        estado=Derivacion.Estado.PENDIENTE, caso__estado=CasoEmergencia.Estado.DERIVADO
+    ).aggregate(cantidad=Count("id"), primera_vence=Min("vence_en"))
     return resumen if resumen["cantidad"] else None
 
 

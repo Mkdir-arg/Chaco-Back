@@ -117,7 +117,13 @@ class TipoKitForm(forms.ModelForm):
             "activo": SwitchInput(),
             "regla_modo": forms.Select(attrs={"class": INPUT_CLASS}),
             "regla_cantidad": forms.NumberInput(
-                attrs={"class": INPUT_CLASS, "min": "0.01", "step": "0.01", "inputmode": "decimal"}
+                attrs={
+                    "class": INPUT_CLASS,
+                    "min": "0.01",
+                    "step": "0.01",
+                    "inputmode": "decimal",
+                    "placeholder": "Ej.: 3",
+                }
             ),
             "regla_por": forms.Select(attrs={"class": INPUT_CLASS}),
             "regla_cada_dias": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "inputmode": "numeric"}),
