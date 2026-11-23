@@ -148,6 +148,9 @@ urlpatterns = [
     # Sección «Edificios» (análisis #1164): los edificios del alcance, en solo lectura.
     path("edificios/", edificios.EdificioListView.as_view(), name="edificios"),
     path("edificios/<int:pk>/", edificios.EdificioDetailView.as_view(), name="edificio_detalle"),
+    # Inactivar y reactivar un edificio (Cambio 583): solo POST, solo el administrador del programa.
+    path("edificios/<int:pk>/inactivar/", edificios.EdificioInactivarView.as_view(), name="edificio_inactivar"),
+    path("edificios/<int:pk>/reactivar/", edificios.EdificioReactivarView.as_view(), name="edificio_reactivar"),
     # Relevamientos edilicios del coordinador (P21 · #701): en el código, `InspeccionEdificio`.
     path("relevamientos/", relevamientos.RelevamientoListView.as_view(), name="relevamientos"),
     path(

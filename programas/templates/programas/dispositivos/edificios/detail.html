@@ -22,6 +22,27 @@
       <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
     </a>
     {% endif %}
+    {# Solo el administrador del programa (la vista manda la URL); el servidor vuelve a exigirlo #}
+    {% if ficha.url_inactivar %}
+    <button type="button" class="btn-nodo btn-secondary btn-sm"
+            data-confirm-url="{{ ficha.url_inactivar }}"
+            data-confirm-title="¿Inactivar {{ ficha.nombre }}?"
+            data-confirm-text="El edificio deja de ofrecerse para relevamientos, sectores y vínculos. No se borra nada y se puede volver a activar."
+            data-confirm-ok="Sí, inactivar"
+            data-confirm-danger="true">
+      <i class="fas fa-ban" aria-hidden="true"></i> Inactivar edificio
+    </button>
+    {% endif %}
+    {% if ficha.url_reactivar %}
+    <button type="button" class="btn-nodo btn-brand btn-sm"
+            data-confirm-url="{{ ficha.url_reactivar }}"
+            data-confirm-title="¿Activar {{ ficha.nombre }}?"
+            data-confirm-text="El edificio vuelve a ofrecerse para relevamientos, sectores y vínculos, con sus datos, relevamientos y equipo como estaban."
+            data-confirm-ok="Sí, activar"
+            data-confirm-danger="false">
+      <i class="fas fa-circle-check" aria-hidden="true"></i> Activar edificio
+    </button>
+    {% endif %}
   {% endpage_header %}
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="datos-titulo">
@@ -145,3 +166,5 @@
   </section>
 </div>
 {% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}

@@ -1,7 +1,8 @@
 """Los edificios que un usuario puede ver, para la sección «Edificios» de Dispositivos (#1166).
 
-Es la base del listado (#1167) y de la ficha (#1168), y es solo lectura: alta, edición, vínculo e
-inactivación siguen en la sección «Edificios» de cada institución (`services/edificios.py`).
+Es la base del listado (#1167) y de la ficha (#1168), y es solo lectura: alta, edición y vínculo son de la
+solapa Infraestructura de cada institución, e inactivar y reactivar (solo el administrador del programa) son
+acciones de la página del edificio y de esta ficha; todas las escribe `services/edificios.py`.
 
 Alcance (análisis #1164, R2 y R3)
 ---------------------------------
@@ -310,7 +311,8 @@ def ficha_de_edificio(user, edificio, pagina=1):
     ve_detalle = ultima is not None and ultima.con_detalle
     instituciones = _instituciones_por_edificio(user, [edificio.pk]).get(edificio.pk, [])
     asignable = edificios_para_asignar(user).filter(pk=edificio.pk).exists()
-    url_editar = _url_editar(user, edificio, instituciones)
+    # Un edificio inactivo no se edita (Cambio 583): primero se reactiva.
+    url_editar = _url_editar(user, edificio, instituciones) if edificio.activo else ""
 
     nombres = {institucion["pk"]: institucion["nombre"] for institucion in instituciones}
     sectores_por_institucion = {}
@@ -357,4 +359,15 @@ def ficha_de_edificio(user, edificio, pagina=1):
         "relevamientos": relevamientos,
         "url_listado": reverse("dispositivos:edificios"),
         "url_editar": url_editar,
+        # Inactivar y reactivar: solo el administrador del programa (el servidor lo vuelve a exigir).
+        "url_inactivar": (
+            reverse("dispositivos:edificio_inactivar", args=[edificio.pk])
+            if edificio.activo and ve_situaciones(user)
+            else ""
+        ),
+        "url_reactivar": (
+            reverse("dispositivos:edificio_reactivar", args=[edificio.pk])
+            if not edificio.activo and ve_situaciones(user)
+            else ""
+        ),
     }

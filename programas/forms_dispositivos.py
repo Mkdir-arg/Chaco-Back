@@ -6,6 +6,7 @@ Aparte de `programas/forms.py` a propósito: ese archivo es evidencia del campo 
 
 from django import forms
 from django.core.validators import MaxValueValidator
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -573,7 +574,11 @@ class SectorForm(forms.Form):
             campo.max_value = None
             campo.validators = [v for v in campo.validators if not isinstance(v, MaxValueValidator)]
             campo.widget.attrs.pop("max", None)
-        self.fields["edificio"].queryset = Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "pk")
+        # Los inactivos no se ofrecen (Cambio 583); el propio del sector en edición queda, para poder guardarlo de baja.
+        elegibles = Q(activo=True) | Q(pk=sector.edificio_id) if sector is not None else Q(activo=True)
+        self.fields["edificio"].queryset = (
+            Edificio.objects.filter(dispositivos=dispositivo).filter(elegibles).order_by("nombre", "pk")
+        )
         if not self.fields["edificio"].queryset.exists():
             self.fields[
                 "edificio"
