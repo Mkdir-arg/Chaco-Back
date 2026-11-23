@@ -281,8 +281,11 @@ Respuesta **201** (creado) o **200** (ya existía), con el mismo cuerpo:
 **Una familia, un caso abierto** (Cambio 579, **aditivo**): la respuesta suma `"ya_tenia_caso": false`. Si la
 familia (el DNI del responsable, o el de un integrante ya confirmado) **ya tiene un caso abierto**, el servidor
 **no abre otro**: contesta **200** con ese caso (`id`, `numero`, `prioridad`, `total_declarado`) y
-`"ya_tenia_caso": true`, y deja en el historial del caso que se volvió a relevar. Para la app en producción es un
-reenvío más (ya trata el 200 como enviado); la nueva puede avisar «esta familia ya estaba cargada».
+`"ya_tenia_caso": true`, y deja en el historial del caso que se volvió a relevar: el detalle de esa entrada
+trae lo declarado (necesidades, observaciones, teléfono, ubicación) y las fotos que faltaban se agregan al caso;
+**no se pisa** nada de lo que el caso ya tenía. Para la app en producción es un reenvío más (ya trata el 200 como
+enviado); la nueva puede avisar «esta familia ya estaba cargada». Ese envío también es idempotente: el mismo
+`uuid_cliente` otra vez devuelve **200** con el mismo caso y no repite nada.
 
 ### Idempotencia
 
@@ -625,8 +628,10 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
 - `caso_abierto` y `puede_ingresar_con_caso` (Cambio 579, **aditivas**): con `SIN_DERIVACION`, si la familia ya
   tiene un caso abierto en cualquier estado (derivado a otra institución, sin tomar, alojado…), `caso_abierto`
   trae **solo** `{id, numero, familia, personas, estado, estado_texto, derivada_a, derivada_en,
-  en_este_dispositivo}` —`familia` es el apellido del responsable; `derivada_a` es la institución, si la
-  derivación sigue vigente— y nada de la ficha, los contactos ni las fotos; si no, `null`. `derivacion` sigue en
+  en_este_dispositivo}` —`familia` es el apellido del responsable; `derivada_a` y `derivada_en` vienen **solo**
+  si la derivación es **pendiente** o es de **este** dispositivo: con el ingreso en curso o el alojamiento en
+  **otra institución** (derivación aceptada) vienen en `null`, para que quien no tiene alcance sobre ella no se
+  entere dónde está la familia (RU-9)— y nada de la ficha, los contactos ni las fotos; si no, `null`. `derivacion` sigue en
   `null`. `puede_ingresar_con_caso` dice si «Ingresar» sobre ese caso está permitido desde este dispositivo
   (alcance a toda la institución y camas libres; no lo está si el caso es de otra institución y ya está
   ingresado o alojado). La app nueva ofrece «Ingresar con este caso» (`ingreso-directo` con el mismo DNI) o
@@ -1054,17 +1059,23 @@ reintento con el mismo `uuid_cliente` de un aviso ya creado no pasa por esta gua
 
 **Una familia, un caso abierto** (Cambio 579, **aditivo**): `ingreso-directo` y `avisar-mesa` no abren un caso
 si la familia ya tiene uno abierto; lo **suman** y la respuesta trae el mismo cuerpo de siempre más
-`"ya_tenia_caso": true` (**201**, o **200** en el reenvío):
+`"ya_tenia_caso": true` (**201**, o **200** en el reenvío). El envío que **se sumó** a un caso existente no deja
+un caso con su `uuid_cliente`, así que el servidor lo anota en el caso: el reenvío del mismo `uuid_cliente`
+devuelve **200** con ese caso y **no ejecuta nada de nuevo** (no cancela otra derivación que la mesa haya hecho
+mientras tanto, no suma las personas dos veces, no mira las camas):
 
 - `ingreso-directo`: el ingreso se hace sobre el caso existente. Con una derivación **pendiente a otra
   institución**, se cancela sola (se liberan las camas que tuviera, queda en el historial y la mesa lo ve). Con
   el caso **alojado en este dispositivo**, las personas que llegan después se suman a ese caso y el ingreso vuelve
-  a estar en curso para confirmarlas (decisión 8).
+  a estar en curso para confirmarlas (decisión 8): la respuesta trae `reservadas: 0` y `faltantes` = las personas
+  sumadas, porque para ellas todavía no se reservó nada.
 - `avisar-mesa`: el aviso se suma al caso (marca «En la puerta de …»; con una derivación pendiente a otra
   institución, la cancela y la mesa ve a la familia esperando en la puerta).
 - **400** (`code: "VALIDACION"`, con `detail` legible, como cualquier error de campo) cuando **no** se puede sumar
-  desde este dispositivo. Si el caso está ingresado o alojado en **otra institución** (no se ingresa acá:
-  «Avisá a la mesa»), el cuerpo trae además `caso_abierto` (las mismas claves de §13.2). Si la derivación
+  desde este dispositivo. Si el caso está ingresado o alojado en **otra institución** (no se ingresa acá, y
+  tampoco se avisa: no hay nada que avisar), el cuerpo trae además `caso_abierto` (las mismas claves de §13.2,
+  con `derivada_a` y `derivada_en` en `null`). Con el caso **alojado en este dispositivo**, `avisar-mesa` rechaza:
+  la familia ya está alojada. Si la derivación
   pendiente es a este mismo dispositivo (se acepta en vez de ingresar igual) o a otro edificio de él, solo el
   `detail`. La app anterior muestra el `detail`; la nueva puede leer `caso_abierto`. `POST /casos/` (§6) devuelve 200 en vez de 400 (la mesa, desde la web, es la única que abre un
   caso nuevo para una familia que ya tiene uno, con un motivo).

@@ -210,6 +210,8 @@ class LlegadasView(GuardiaView):
             que_pasa_si_se_ingresa=pantalla.que_pasa_si_se_ingresa(caso_abierto) if caso_abierto else [],
             puede_ingresar_con_caso=sin_derivacion and resultado.puede_ingresar_con_caso,
             puede_avisar_con_caso=sin_derivacion and resultado.puede_avisar_a_la_mesa and caso_abierto is not None,
+            modal_caso_abierto=caso_abierto is not None
+            and (resultado.puede_ingresar_con_caso or resultado.puede_avisar_a_la_mesa),
             url_ingresar_con_caso=self.url("ingresar_con_caso"),
             url_avisar_con_caso=self.url("avisar_con_caso"),
             pendientes=pantalla.filas_de_llegadas(
@@ -780,7 +782,7 @@ AVISO_SUMADO_AL_CASO = "La familia ya tenía el caso {numero} abierto: el aviso 
 def _ya_se_habia_enviado(request, caso):
     """El mismo Formulario 1 llegó dos veces (doble clic, volver atrás y reenviar): no se creó nada nuevo,
     y decirle «Caso N creado» otra vez haría creer que hay dos."""
-    if not getattr(caso, "ya_existia", False):
+    if not caso.ya_existia:
         return False
     messages.info(request, YA_SE_HABIA_ENVIADO.format(numero=caso.numero))
     return True
@@ -821,6 +823,11 @@ class _Formulario1View(GuardiaView):
             # sus salidas, en vez de dejar un error en el formulario.
             messages.warning(request, _mensajes(error))
             return redirect(self.url("llegadas", dni=form.cleaned_data.get("dni")))
+        except EstadoCambio as cambio:
+            # El caso cambió mientras se cargaba el formulario (p. ej. la familia se cerró o la mesa la derivó):
+            # la búsqueda vuelve a mostrar cómo está hoy.
+            messages.warning(request, cambio.mensaje)
+            return redirect(self.url("llegadas", dni=form.cleaned_data.get("dni")))
         except ValidationError as error:
             form.agregar_errores_del_servicio(rechazo_para_mostrar(request, error))
             return self._render(request, form, status=400)
@@ -844,7 +851,7 @@ class AvisarALaMesaView(_Formulario1View):
     def despues(self, request, caso):
         if _ya_se_habia_enviado(request, caso):
             return redirect(self.url("llegadas"))
-        if getattr(caso, "familia_ya_tenia_caso", False):
+        if caso.familia_ya_tenia_caso:
             messages.success(request, AVISO_SUMADO_AL_CASO.format(numero=caso.numero))
             return redirect(self.url("llegadas"))
         messages.success(
@@ -880,7 +887,7 @@ class IngresoDirectoView(_Formulario1View):
     def despues(self, request, caso):
         if _ya_se_habia_enviado(request, caso):
             return redirect(self.url("integrantes", caso.pk))
-        if getattr(caso, "familia_ya_tenia_caso", False):
+        if caso.familia_ya_tenia_caso:
             messages.success(request, INGRESO_SUMADO_AL_CASO.format(numero=caso.numero))
             return redirect(self.url("integrantes", caso.pk))
         if caso.faltantes:
@@ -906,6 +913,8 @@ class _ConCasoAbiertoView(GuardiaView):
     a un caso ajeno. Cualquier rechazo vuelve a la búsqueda del mismo DNI, que muestra cómo está la familia hoy.
     """
 
+    sin_alcance = servicio.SIN_ALCANCE
+
     def ejecutar(self, request, dni):
         raise NotImplementedError
 
@@ -917,7 +926,7 @@ class _ConCasoAbiertoView(GuardiaView):
         try:
             caso = self.ejecutar(request, dni)
         except PermissionDenied:
-            messages.error(request, SIN_ALCANCE_PARA_INGRESAR_IGUAL)
+            messages.error(request, self.sin_alcance)
             return redirect(self.url("llegadas"))
         except EstadoCambio as cambio:
             messages.warning(request, cambio.mensaje)
@@ -930,6 +939,8 @@ class _ConCasoAbiertoView(GuardiaView):
 
 class IngresarConCasoAbiertoView(_ConCasoAbiertoView):
     """«Ingresar con este caso»: el ingreso se suma al caso que la familia ya tenía."""
+
+    sin_alcance = SIN_ALCANCE_PARA_INGRESAR_IGUAL
 
     def ejecutar(self, request, dni):
         return servicio.ingresar_con_caso_abierto(dispositivo=self.dispositivo, usuario=request.user, dni=dni)

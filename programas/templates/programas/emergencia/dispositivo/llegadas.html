@@ -8,7 +8,7 @@
 dispositivo tiene por recibir. El resultado de la búsqueda lo arma el servidor: la tarjeta de la derivación
 (Aceptar es un POST directo; Rechazar pide motivo y es el arquetipo Modal), «sin derivación» (Ingresar igual /
 Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el servicio, no este template.{% endcomment %}
-<div x-data="{ modalRechazar: false, modalCaso: {% if puede_ingresar_con_caso or puede_avisar_con_caso %}true{% else %}false{% endif %} }">
+<div x-data="{ modalRechazar: false, modalCaso: {% if modal_caso_abierto %}true{% else %}false{% endif %} }">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
   <div class="space-y-5">
@@ -139,7 +139,7 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
       <div class="p-5 space-y-4">
         {% if caso_abierto %}
         {% include "components/_alerta.html" with tono="info" titulo=resultado.mensaje texto="Es el caso "|add:caso_abierto.numero|add:" de la familia "|add:caso_abierto.familia|add:" · "|add:caso_abierto.estado_texto|add:"." %}
-        {% if not puede_ingresar_con_caso and not puede_avisar_con_caso %}
+        {% if not modal_caso_abierto %}
         {% include "components/_alerta.html" with tono="warning" titulo="Desde acá no se puede ingresar ni avisar" texto="El caso está en manos de otra institución o ya tiene su ingreso en curso. Si la familia está en la puerta, hablá con la mesa." %}
         {% endif %}
         {% elif resultado.derivada_a_otro_edificio %}
@@ -154,7 +154,7 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
         {% endif %}
         <div class="flex flex-wrap justify-end gap-3">
           {% if caso_abierto %}
-          {% if puede_ingresar_con_caso or puede_avisar_con_caso %}
+          {% if modal_caso_abierto %}
           <button type="button" @click="modalCaso=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-folder-open" aria-hidden="true"></i> Ver el caso abierto</button>
           {% endif %}
           {% else %}
@@ -266,7 +266,7 @@ Avisar a la mesa) o «alojada». Nunca se nombra otro dispositivo: lo decide el 
     </section>
   </div>
 
-  {% if caso_abierto and puede_ingresar_con_caso or caso_abierto and puede_avisar_con_caso %}
+  {% if modal_caso_abierto %}
   {# Modal: «Esta familia ya tiene un caso abierto» (Cambio 579) — dos salidas sobre el mismo caso (arquetipo Modal) #}
   <div x-show="modalCaso" x-cloak x-becas-modal="modalCaso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCaso=false"></div>

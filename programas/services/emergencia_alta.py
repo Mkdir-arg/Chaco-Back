@@ -43,7 +43,9 @@ from programas.models import (
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia_comun import _exigir_mesa, _trazar, siguiente_numero
 from programas.services.emergencia_familia import (
+    anotar_envio_sumado,
     caso_abierto_de_la_familia,
+    envio_ya_sumado,
     resumen_del_caso_abierto,
     serializar_altas,
 )
@@ -144,21 +146,48 @@ class CasoAbiertoDeLaFamilia(ValidationError):
         super().__init__({"dni": mensaje or mensaje_caso_abierto(caso)})
 
 
-def registrar_relevamiento_repetido(caso, usuario, personas):
-    """El territorio relevó de nuevo a una familia que ya tenía caso abierto: queda en el historial (Cambio 579).
+_NECESIDAD_TEXTO = {
+    "embarazo": "embarazo",
+    "electrodependiente": "electrodependencia",
+    "medicacion_critica": "medicación crítica",
+    "mascotas": "mascotas",
+}
 
-    No se abre otro caso ni se pisan los datos del que está: la mesa ve en la traza que el agente volvió a
-    relevarla, con cuántas personas declaró. La app recibe el caso existente como si fuera un reenvío.
+
+def _sumar_relevamiento_repetido(caso, usuario, limpio):
+    """El territorio relevó de nuevo a una familia que ya tenía caso abierto: lo declarado queda en el historial.
+
+    No se abre otro caso ni se pisan los datos del que está (necesidades, ubicación, teléfono, fotos): lo nuevo
+    va en el detalle de la traza ``RELEVAMIENTO_REPETIDO`` —necesidades críticas, observaciones, teléfono y
+    ubicación declarada— y las fotos se agregan al caso **solo** si no tenía la de ese tipo. Corre dentro de la
+    transacción de ``crear_caso``.
     """
 
-    with transaction.atomic():
-        _trazar(
-            caso,
-            usuario,
-            Accion.RELEVAMIENTO_REPETIDO,
-            estado_anterior=caso.estado,
-            detalle=f"Relevada de nuevo en territorio ({personas} persona{'s' if personas != 1 else ''}): sin caso nuevo",
-        )
+    personas = limpio["total_declarado"]
+    partes = [f"Relevada de nuevo en territorio ({personas} persona{'s' if personas != 1 else ''}): sin caso nuevo"]
+    necesidades = [_NECESIDAD_TEXTO[clave] for clave in NECESIDADES if limpio["necesidades"].get(clave)]
+    if necesidades:
+        partes.append("Necesidades declaradas: " + ", ".join(necesidades))
+    ubicacion = limpio["direccion"]
+    if limpio["latitud"] is not None:
+        ubicacion += f" (GPS {limpio['latitud']}, {limpio['longitud']})"
+    partes.append(f"Ubicación declarada: {ubicacion}")
+    if limpio["situacion"].get("telefono"):
+        partes.append(f"Teléfono: {limpio['situacion']['telefono']}")
+    if limpio["situacion"].get("observaciones"):
+        partes.append(f"Observaciones: {limpio['situacion']['observaciones']}")
+    agregadas = []
+    for tipo, archivo in limpio["fotos"].items():
+        if AdjuntoCaso.objects.filter(caso=caso, tipo=tipo).exists():
+            continue
+        adjunto = AdjuntoCaso(caso=caso, archivo=archivo, tipo=tipo, cargado_por=usuario)
+        adjunto.full_clean()
+        adjunto.save()
+        anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
+        agregadas.append(adjunto.get_tipo_display().lower())
+    if agregadas:
+        partes.append("Fotos agregadas: " + ", ".join(agregadas))
+    _trazar(caso, usuario, Accion.RELEVAMIENTO_REPETIDO, estado_anterior=caso.estado, detalle=" · ".join(partes))
 
 
 def mensaje_caso_abierto(caso):
@@ -446,6 +475,7 @@ def _caso_de_ese_envio(uuid_cliente, usuario):
         # El mismo identificador en manos de otro no es un reenvío: no se le devuelve un caso ajeno.
         raise UuidEnUso()
     existente.ya_existia = True
+    existente.familia_ya_tenia_caso = False
     return existente
 
 
@@ -547,7 +577,9 @@ def crear_caso(
 
     * por defecto, :class:`CasoAbiertoDeLaFamilia` (nada se crea);
     * con ``devolver_existente=True`` devuelve **ese** caso, con ``caso.familia_ya_tenia_caso = True``: quien
-      llama lo suma (el aviso, el ingreso, el relevamiento repetido);
+      llama lo suma (el aviso, el ingreso). Si el envío es del territorio, el relevamiento repetido queda
+      en su historial (:func:`_sumar_relevamiento_repetido`). El ``uuid_cliente`` queda anotado en el caso:
+      su reenvío devuelve el mismo caso con ``ya_existia = True`` sin ejecutar nada;
     * con ``forzar_nuevo_motivo`` —solo la mesa, motivo obligatorio— abre uno nuevo igual y deja el motivo
       y el caso anterior en la primera traza.
     """
@@ -597,10 +629,16 @@ def crear_caso(
                 raise ValidationError({"forzar_nuevo_motivo": MOTIVO_NUEVO_OBLIGATORIO})
             anterior_forzado = abierto
         elif devolver_existente:
-            abierto.ya_existia = False
-            abierto.familia_ya_tenia_caso = True
             # Lo que declaró quien llegó ahora: el ingreso sobre un caso alojado suma las personas que faltan.
             abierto.personas_declaradas_ahora = limpio["total_declarado"]
+            abierto.familia_ya_tenia_caso = True
+            # Un envío que se sumó no deja caso con su ``uuid_cliente``: se reconoce por la anotación del caso, y
+            # el reenvío no vuelve a ejecutar nada aunque el caso haya cambiado de estado o de institución.
+            abierto.ya_existia = uuid_cliente is not None and envio_ya_sumado(abierto, uuid_cliente, usuario)
+            if not abierto.ya_existia:
+                if origen == Origen.TERRITORIO:
+                    _sumar_relevamiento_repetido(abierto, usuario, limpio)
+                anotar_envio_sumado(abierto, uuid_cliente, usuario)
             return abierto
         else:
             raise CasoAbiertoDeLaFamilia(abierto)
@@ -648,7 +686,7 @@ def crear_caso(
         existente = _caso_de_ese_envio(uuid_cliente, usuario) if uuid_cliente is not None else None
         if existente is None:
             raise
-        return existente
+        return existente  # ya trae ``ya_existia`` y ``familia_ya_tenia_caso`` (``_caso_de_ese_envio``)
 
     for tipo, archivo in limpio["fotos"].items():
         adjunto = AdjuntoCaso(caso=caso, archivo=archivo, tipo=tipo, cargado_por=usuario)

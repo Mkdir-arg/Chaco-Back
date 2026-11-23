@@ -5843,6 +5843,9 @@ class CasoEmergencia(TimeStamped):
     SITUACION_EN_LA_PUERTA_TRAS_DERIVAR = "en_la_puerta_tras_derivar"
     #: Lo que declaró quien cargó cuando el DNI ya era de otra persona registrada (Cambio 486).
     SITUACION_IDENTIDAD_A_REVISAR = "identidad_a_revisar"
+    #: Los ``uuid_cliente`` de los envíos que se **sumaron** a este caso en vez de abrir otro (Cambio 579): un
+    #: reenvío del mismo envío no vuelve a ejecutar nada. Lista de ``{"uuid": str, "usuario_id": int}``.
+    SITUACION_ENVIOS_SUMADOS = "envios_sumados"
     #: Quién, cuándo y con qué observación la mesa revisó esa identidad (Cambio 486).
     SITUACION_IDENTIDAD_REVISADA = "identidad_revisada"
 
@@ -5983,7 +5986,8 @@ class CasoEmergencia(TimeStamped):
 
         «Avisar a la mesa» deja ``en_la_puerta`` en ``situacion`` para siempre; la familia sigue
         en la puerta mientras el caso está abierto y la mesa **nunca** lo derivó: tomarlo no la
-        saca, derivarlo sí, y una derivación cancelada no la devuelve. Es la regla única de la
+        saca, derivarlo sí, y una derivación cancelada no la devuelve **salvo** la que la guardia canceló porque
+        la familia llegó a su dispositivo (``en_la_puerta_tras_derivar``, Cambio 579). Es la regla única de la
         marca de E2, el aviso de E3 y el del tablero E1; en SQL, :meth:`q_esperando_en_la_puerta`.
         """
 

@@ -70,7 +70,7 @@ from programas.models import CasoEmergencia
 from programas.selectors.emergencia_campo import casos_relevados_por, localidades_para_relevar
 from programas.selectors.personas_sugeridas import sugerir_personas
 from programas.services.emergencia import EstadoCambio, UuidEnUso, crear_caso
-from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegistrado, registrar_relevamiento_repetido
+from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegistrado
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     admite_familias,
@@ -485,11 +485,10 @@ class CasosEmergenciaView(_VistaDeCampo):
         )
         if respuesta is not None:
             return respuesta
-        familia_repetida = bool(getattr(caso, "familia_ya_tenia_caso", False))
-        if familia_repetida:
-            registrar_relevamiento_repetido(caso, request.user, caso.personas_declaradas_ahora)
+        # La familia que ya tenía caso abierto se contesta como un reenvío: 200 con el caso que ya estaba.
         return Response(
-            CasoEmergenciaCreadoSerializer(caso).data, status=_creado_o_reenvio(caso.ya_existia or familia_repetida)
+            CasoEmergenciaCreadoSerializer(caso).data,
+            status=_creado_o_reenvio(caso.ya_existia or caso.familia_ya_tenia_caso),
         )
 
 

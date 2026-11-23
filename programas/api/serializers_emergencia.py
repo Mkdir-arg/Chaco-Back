@@ -199,7 +199,7 @@ class CasoEmergenciaCreadoSerializer(serializers.ModelSerializer):
     )
 
     def get_ya_tenia_caso(self, caso) -> bool:
-        return bool(getattr(caso, "familia_ya_tenia_caso", False))
+        return caso.familia_ya_tenia_caso
 
     class Meta:
         model = CasoEmergencia

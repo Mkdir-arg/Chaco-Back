@@ -93,7 +93,7 @@ class IngresoDirectoView(_VistaDeLlegadas):
             "reservadas": caso.reservadas,
             "faltantes": caso.faltantes,
             "integrantes": integrantes,
-            "ya_tenia_caso": bool(getattr(caso, "familia_ya_tenia_caso", False)),
+            "ya_tenia_caso": caso.familia_ya_tenia_caso,
         }
         return Response(IngresoDirectoSerializer(cuerpo).data, status=_creado_o_reenvio(caso.ya_existia))
 
@@ -156,5 +156,5 @@ class AvisarALaMesaView(_VistaDeLlegadas):
         if respuesta is not None:
             return respuesta
         caso_leido = CasoEmergencia.objects.select_related("grupo").get(pk=caso.pk)
-        cuerpo = {"caso": caso_leido, "ya_tenia_caso": bool(getattr(caso, "familia_ya_tenia_caso", False))}
+        cuerpo = {"caso": caso_leido, "ya_tenia_caso": caso.familia_ya_tenia_caso}
         return Response(AvisoALaMesaSerializer(cuerpo).data, status=_creado_o_reenvio(caso.ya_existia))

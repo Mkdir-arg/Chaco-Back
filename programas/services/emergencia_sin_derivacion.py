@@ -29,7 +29,7 @@ from programas.services.emergencia import (
 )
 from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia
 from programas.services.emergencia_comun import _bloquear_caso, _trazar
-from programas.services.emergencia_familia import caso_abierto_de_la_familia
+from programas.services.emergencia_familia import caso_abierto_de_la_familia, caso_del_envio_sumado
 from programas.services.emergencia_ingreso_comun import (
     SIN_ALCANCE,
     Accion,
@@ -64,6 +64,7 @@ class CasoAbiertoEnOtraInstitucion(CasoAbiertoDeLaFamilia):
 
 SIN_CASO_ABIERTO = "La familia ya no tiene un caso abierto. Buscala de nuevo."
 CASO_YA_CERRADO = "El caso {numero} de la familia se cerró mientras tanto. Buscala de nuevo."
+YA_ALOJADA_NADA_QUE_AVISAR = "La familia ya está alojada en este dispositivo: no hay nada que avisar a la mesa."
 A_RECIBIR_NO_SE_INGRESA_IGUAL = (
     "La derivación a este dispositivo está por recibir: aceptala en vez de ingresar a la familia igual."
 )
@@ -236,6 +237,13 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         if existente is not None:
             _exigir_reenvio_de_este_ingreso(existente, dispositivo)
             return _con_sus_reservas(existente)
+        # El envío que se sumó a un caso que ya existía no dejó un caso con su ``uuid_cliente``: se reconoce por
+        # la anotación del caso y se contesta antes de mirar las camas, como el primer envío.
+        sumado = caso_del_envio_sumado(datos_formulario1.get("dni"), uuid_cliente, usuario)
+        if sumado is not None:
+            sumado.ya_existia = True
+            sumado.familia_ya_tenia_caso = True
+            return _con_sus_reservas(sumado)
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
     libres = camas_libres(dispositivo, usuario=usuario)
@@ -262,7 +270,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         momento=caso.creado,
         detalle=f"Ingreso directo en {dispositivo.nombre}, sin pasar por la mesa",
     )
-    caso.familia_ya_tenia_caso = False
+    caso.familia_ya_tenia_caso = False  # ``_bloquear_caso`` volvió a leer el caso: no trae las marcas del alta
     return caso
 
 
@@ -389,7 +397,9 @@ def _sumar_personas_al_alojado(caso, dispositivo, usuario, personas):
         timezone.now(),
     )
     caso.ya_existia = False
-    return _con_sus_reservas(caso)
+    # No se reservó nada para ellas: las camas se piden al confirmarlas. Todas las sumadas faltan.
+    caso.reservadas, caso.faltantes = 0, sumar
+    return caso
 
 
 @archivos_atomicos
@@ -423,10 +433,11 @@ def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=No
         devolver_existente=True,
     )
     if caso.ya_existia:
+        if caso.familia_ya_tenia_caso:  # el reenvío de un aviso que se sumó a un caso que ya existía
+            return caso
         puerta = (caso.situacion or {}).get(CasoEmergencia.SITUACION_EN_LA_PUERTA) or {}
         if caso.origen != Origen.DISPOSITIVO or puerta.get("dispositivo_id") != dispositivo.pk:
             raise UuidEnUso()
-        caso.familia_ya_tenia_caso = False
         return caso
     if caso.familia_ya_tenia_caso:
         return _avisar_sobre_el_caso_abierto(caso, dispositivo, usuario)
@@ -439,7 +450,7 @@ def avisar_a_la_mesa(*, dispositivo, usuario, datos_formulario1, uuid_cliente=No
         estado_anterior=caso.estado,
         detalle=f"En la puerta de {dispositivo.nombre} · esperando derivación",
     )
-    caso.ya_existia = False
+    caso.ya_existia = False  # ``_bloquear_caso`` volvió a leer el caso: no trae las marcas del alta
     caso.familia_ya_tenia_caso = False
     return caso
 
@@ -466,6 +477,12 @@ def _avisar_sobre_el_caso_abierto(caso, dispositivo, usuario):
     if caso.estado == Estado.CERRADO:
         raise EstadoCambio(CASO_YA_CERRADO.format(numero=caso.numero), estado_actual=caso.estado, caso=caso)
     en_este = derivacion is not None and derivacion.dispositivo_id == dispositivo.pk
+    # La misma regla que ofrece la búsqueda (``_con_caso_abierto``): con el ingreso o el alojamiento ya en
+    # marcha no hay nada que avisar. En otra institución se dice que la familia está en curso; acá, qué sigue.
+    if caso.estado in (Estado.INGRESO_EN_CURSO, Estado.ALOJADO) and not en_este:
+        raise CasoAbiertoEnOtraInstitucion(caso, dispositivo)
+    if en_este and caso.estado == Estado.ALOJADO:
+        raise ValidationError({"dni": YA_ALOJADA_NADA_QUE_AVISAR})
     if en_este and caso.estado in (Estado.DERIVADO, Estado.INGRESO_EN_CURSO):
         raise ValidationError(mensaje_otro_edificio(derivacion))
 
