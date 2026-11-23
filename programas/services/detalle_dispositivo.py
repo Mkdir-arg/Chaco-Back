@@ -622,7 +622,12 @@ def _fila_de_edificio(
         # El estado de la tarjeta es el de la última realizada; «Vencido» y «Vence en N días» van aparte.
         "estado": estado_edilicio(ultima),
         "vencido": bool(edificio.vencido),
-        "aviso": aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
+        # Un edificio inactivo (Cambio 583) lleva la marca «Inactivo» en lugar del aviso de vencimiento: ya no se relevan.
+        "aviso": (
+            aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy)
+            if edificio.activo
+            else {"texto": "Inactivo", "tono": "gray"}
+        ),
         "ultima": ultima,
         "ve_detalle": ve_detalle,
         "relevo": _nombre(ultima.realizada_por) if ultima and ve_detalle else "",
@@ -649,11 +654,14 @@ def _fila_de_edificio(
         "con_conteo": ve_detalle and con_registro,
         "url_ver": f"{base}&ver_edificio={edificio.pk}",
         "url_abrir": reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk]),
+        # Un edificio inactivo no se edita ni se desvincula (Cambio 583): el servicio lo rechaza y la tarjeta no lo ofrece.
         "url_editar": f"{reverse('dispositivos:detalle', args=[dispositivo.pk])}?edificio={edificio.pk}"
-        if puede_editar
+        if puede_editar and edificio.activo
         else "",
         "url_desvincular": (
-            reverse("dispositivos:edificio_desvincular", args=[dispositivo.pk, edificio.pk]) if puede_editar else ""
+            reverse("dispositivos:edificio_desvincular", args=[dispositivo.pk, edificio.pk])
+            if puede_editar and edificio.activo
+            else ""
         ),
         # «Agregar persona al edificio» (Cambio 523, PR 4): solo donde el servidor va a aceptar el alta.
         "url_agregar_persona": (
@@ -807,6 +815,7 @@ def infraestructura_del_dispositivo(
             "latitud",
             "longitud",
             "creado",
+            "activo",
         )
         .order_by("nombre", "pk")
     )

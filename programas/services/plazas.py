@@ -36,7 +36,7 @@ import re
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
-from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
+from programas.models import Dispositivo, Edificio, Plaza, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import (
     codigos_del_sector,
     compromisos_del_sector,
@@ -228,12 +228,18 @@ def _exigir_edificio_del_dispositivo(dispositivo, edificio):
     Se valida acá y no solo en el formulario: el selector ya ofrece solo esos edificios, pero un POST
     armado a mano no pasa por el selector. Va bajo el bloqueo del dispositivo, el mismo que toma
     `edificios.desvincular_edificio`, así que no se puede desvincular entre esta consulta y el guardado.
+
+    Un edificio **inactivo** (Cambio 583) tampoco se ofrece para ubicar un sector. La lectura toma el candado de la
+    fila del edificio, el mismo que `edificios.inactivar_edificio` toma después del de las instituciones: así un
+    sector no entra a un edificio que se está inactivando en ese mismo momento.
     """
 
     if edificio is None:
         raise ValidationError({"edificio": "Elegí el edificio del sector."})
     if not dispositivo.edificios.filter(pk=edificio.pk).exists():
         raise ValidationError({"edificio": "Ese edificio no está vinculado a este dispositivo."})
+    if not Edificio.objects.select_for_update().filter(pk=edificio.pk, activo=True).exists():
+        raise ValidationError({"edificio": "Ese edificio está inactivo."})
 
 
 def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
@@ -430,6 +436,13 @@ def reactivar_sector(*, sector, usuario):
             {
                 "__all__": "No se puede reactivar: el edificio del sector ya no está vinculado a este dispositivo. "
                 "Editá el sector, elegí un edificio y activalo."
+            }
+        )
+    if not Edificio.objects.select_for_update().filter(pk=sector.edificio_id, activo=True).exists():
+        raise ValidationError(
+            {
+                "__all__": "No se puede reactivar: el edificio del sector está inactivo. "
+                "Pedile al administrador del programa que lo reactive."
             }
         )
 

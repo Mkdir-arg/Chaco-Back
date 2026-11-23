@@ -22,6 +22,20 @@
       <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
     </a>
     {% endif %}
+    {# Solo el administrador del programa (la vista manda la URL); el servidor vuelve a exigirlo #}
+    {% if ficha.url_inactivar %}
+    <button type="button" class="btn-nodo btn-secondary btn-sm"
+            data-confirm-url="{{ ficha.url_inactivar }}"
+            data-confirm-title="¿Inactivar {{ ficha.nombre }}?"
+            data-confirm-text="{{ ficha.texto_inactivar }}"
+            data-confirm-ok="Sí, inactivar"
+            data-confirm-danger="true">
+      <i class="fas fa-ban" aria-hidden="true"></i> Inactivar edificio
+    </button>
+    {% endif %}
+    {% if ficha.url_reactivar %}
+    {% include "programas/dispositivos/edificios/_boton_activar.html" with url=ficha.url_reactivar nombre=ficha.nombre texto=ficha.texto_activar only %}
+    {% endif %}
   {% endpage_header %}
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="datos-titulo">
@@ -145,3 +159,5 @@
   </section>
 </div>
 {% endblock %}
+
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% endblock %}
