@@ -32,6 +32,7 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `GET /api/emergencia/entregas/{id}/` | kits | Una entrega con sus líneas |
 | `POST /api/emergencia/entregas/{id}/recibir/` | kits | Confirmar la recepción (multipart, idempotente, con conexión) |
 | `GET /api/emergencia/dispositivos/{id}/buscar/?dni=` | llegadas | Buscar a la familia por DNI (§13.2) |
+| `GET /api/emergencia/dispositivos/{id}/derivaciones/` | llegadas | Las familias derivadas a la sede que esperan respuesta (§13.2.1) |
 | `POST /api/emergencia/derivaciones/{id}/aceptar/` | llegadas | Aceptar la derivación y reservar camas (§13.3) |
 | `POST /api/emergencia/derivaciones/{id}/rechazar/` | llegadas | Rechazar la derivación con motivo (§13.4) |
 | `GET /api/emergencia/casos/{id}/integrantes/` | llegadas | Las personas de la familia y el contador (§13.5) |
@@ -633,6 +634,51 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
   identidad de §4): la búsqueda dice si un DNI está derivado o alojado en la red, y sin tope un token
   perdido enumera DNIs. Trae `Retry-After`; la app avisa y deja volver a buscar después. Un 403 no gasta
   la cubeta.
+
+### 13.2.1 Derivaciones por recibir (Cambio 576)
+
+`GET /api/emergencia/dispositivos/{id}/derivaciones/` — la lista que la web muestra en «Derivaciones por
+recibir»: las familias derivadas a la sede que **esperan respuesta**. La app la muestra al elegir la sede,
+antes del buscador por DNI, que se mantiene. `{id}` es un dispositivo de «mis dispositivos» con `admite: true`.
+**Aditivo**: ninguna ruta ni clave existente cambia; una app anterior no la usa y sigue andando.
+
+Sin parámetros. Respuesta 200: una **lista** (vacía si no hay ninguna), ordenada por `vence_en` ascendente
+(la que vence antes, arriba), que es el orden de la web. Sin paginar: son las pendientes de una sede.
+
+```json
+[
+  {"id": 55, "apellido": "Benítez", "personas": 7, "caso_numero": "2026-C-000184", "prioridad": "ALTA",
+   "vence_en": "2026-11-12T12:00:00-03:00", "por_vencer": false,
+   "edificio": {"id": 8, "nombre": "Edificio Norte"}}
+]
+```
+
+| Clave | Qué es |
+|---|---|
+| `id` | `id` de la **derivación**: el mismo que `derivacion.id` de §13.2 y el que llevan `aceptar`/`rechazar` (§13.3, §13.4) |
+| `apellido` | Apellido del responsable: la app dice «Familia Benítez» |
+| `personas` | Cantidad de personas declaradas (`caso.total_declarado` de §13.2) |
+| `caso_numero`, `prioridad` | Número del caso y su prioridad (`BAJA`, `MEDIA` o `ALTA`) |
+| `vence_en` | ISO 8601 con zona |
+| `por_vencer` | `true` si faltan **menos de 60 minutos** para `vence_en` o ya pasó (una vencida que la mesa todavía no marcó se acepta igual, §13.2): destacarla |
+| `edificio` | `{id, nombre}` del edificio al que va la familia, o `null` si la derivación no lo trae |
+
+- **Qué entra:** derivaciones `PENDIENTE` de casos `DERIVADO` hacia esa sede, las mismas que
+  `llegadas_del_dispositivo` da a la web. Las aceptadas (ingreso en curso), rechazadas, vencidas y
+  canceladas no aparecen.
+- **Alcance (Cambio 523):** con alcance **Edificios**, solo las derivaciones de sus edificios; las que no
+  tienen edificio, solo con alcance Institución. Es el mismo filtro de `buscar` y de `aceptar`.
+- **Sin datos personales de más:** ni DNI, ni nombres de integrantes, ni domicilio, ni teléfono. Eso se
+  ve al abrir la derivación (`buscar` por DNI, o `aceptar`).
+- **Abrir una fila:** el flujo es el de §13.3 y §13.4 con `derivaciones/{id}/aceptar/` y
+  `derivaciones/{id}/rechazar/`, usando el `id` de la fila. Para mostrar la tarjeta completa antes de
+  decidir (necesidades, teléfono, observaciones), la app sigue pidiendo `buscar?dni=`, que necesita el DNI:
+  esta lista no lo trae a propósito.
+- **Errores:** 401 sin token; 403 `SIN_MODULO` sin `dispositivo.admitir` en ningún dispositivo; 404 si la
+  sede no existe o es de otro dispositivo (el mismo cuerpo, no se nombra a nadie).
+- Es de solo lectura, no gasta la cubeta de `emergencia_buscar` y necesita conexión como el resto de M2.
+- `mis-dispositivos` sigue trayendo `derivaciones_pendientes`: es la cuenta de esta lista y sirve para
+  decidir si pedirla.
 
 ### 13.3 Aceptar la derivación
 

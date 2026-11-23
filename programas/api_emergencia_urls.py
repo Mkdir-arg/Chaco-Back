@@ -30,6 +30,7 @@ from programas.api.views_emergencia_llegadas import (
     CancelarIngresoView,
     CerrarConDiferenciaView,
     ConfirmarIntegranteView,
+    DerivacionesPorRecibirView,
     IntegrantesView,
     IntegranteView,
     PlazasDelDispositivoView,
@@ -67,6 +68,11 @@ urlpatterns = [
     path("entregas/<int:pk>/recibir/", RecibirEntregaKitView.as_view(), name="entrega-recibir"),
     # M2 · Llegada de familias (PR 8): la guardia con `dispositivo.admitir` en su Equipo.
     path("dispositivos/<int:dispositivo_id>/buscar/", BuscarFamiliaView.as_view(), name="dispositivo-buscar"),
+    path(
+        "dispositivos/<int:dispositivo_id>/derivaciones/",
+        DerivacionesPorRecibirView.as_view(),
+        name="dispositivo-derivaciones",
+    ),
     path("dispositivos/<int:dispositivo_id>/plazas/", PlazasDelDispositivoView.as_view(), name="dispositivo-plazas"),
     path("derivaciones/<int:pk>/aceptar/", AceptarDerivacionView.as_view(), name="derivacion-aceptar"),
     path("derivaciones/<int:pk>/rechazar/", RechazarDerivacionView.as_view(), name="derivacion-rechazar"),

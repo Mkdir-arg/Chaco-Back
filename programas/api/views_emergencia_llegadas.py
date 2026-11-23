@@ -22,6 +22,7 @@ que importa de acá; este módulo no los conoce.
 """
 
 from django.core.exceptions import PermissionDenied
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
@@ -41,6 +42,7 @@ from programas.api.serializers_emergencia import (
     CompletarFichaEnvioSerializer,
     ConfirmacionSerializer,
     ConfirmarIntegranteEnvioSerializer,
+    DerivacionPorRecibirSerializer,
     EstadoCambioSerializer,
     FichaCompletadaSerializer,
     IntegranteAgregadoSerializer,
@@ -187,6 +189,28 @@ class BuscarFamiliaView(_VistaDeLlegadas):
         if respuesta is not None:
             return respuesta
         return Response(BusquedaPorDniSerializer(resultado).data)
+
+
+class DerivacionesPorRecibirView(_VistaDeLlegadas):
+    @extend_schema(
+        responses={
+            200: DerivacionPorRecibirSerializer(many=True),
+            401: _SIN_TOKEN,
+            403: _SIN_ADMITIR,
+            404: _AJENO,
+        },
+        description=(
+            "Cambio 576: las familias derivadas a este dispositivo que esperan respuesta, como las lista la web en "
+            "«Derivaciones por recibir»: pendientes de casos `DERIVADO` dentro del alcance del usuario (con alcance "
+            "Edificios, solo las de sus edificios), la que vence antes, arriba. Una fila no trae DNI, integrantes, "
+            "domicilio ni teléfono: para abrirla, `aceptar` o `rechazar` con su `id`. Lista vacía si no hay ninguna."
+        ),
+    )
+    def get(self, request, dispositivo_id):
+        dispositivo = self._dispositivo(request, dispositivo_id)
+        pendientes = selectores_alojar.llegadas_del_dispositivo(dispositivo, request.user)["pendientes"]
+        contexto = {"ahora": timezone.now()}
+        return Response(DerivacionPorRecibirSerializer(pendientes, many=True, context=contexto).data)
 
 
 class AceptarDerivacionView(_VistaDeLlegadas):

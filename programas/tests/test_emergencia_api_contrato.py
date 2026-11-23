@@ -53,6 +53,7 @@ from programas.tests.base_emergencia_api import (
     CLAVES_CONFIRMACION,
     CLAVES_CONSULTA,
     CLAVES_DERIVACION_DEL_INGRESO,
+    CLAVES_DERIVACION_POR_RECIBIR,
     CLAVES_ENTREGA,
     CLAVES_ESTADO_CAMBIO,
     CLAVES_FICHA_COMPLETADA,
@@ -857,6 +858,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             ("/api/emergencia/entregas/{id}/recibir/", "post"),
             # M2 (PR 8)
             ("/api/emergencia/dispositivos/{dispositivo_id}/buscar/", "get"),
+            ("/api/emergencia/dispositivos/{dispositivo_id}/derivaciones/", "get"),
             ("/api/emergencia/dispositivos/{dispositivo_id}/plazas/", "get"),
             ("/api/emergencia/derivaciones/{id}/aceptar/", "post"),
             ("/api/emergencia/derivaciones/{id}/rechazar/", "post"),
@@ -896,6 +898,11 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             (rutas["/api/emergencia/entregas/{id}/recibir/"]["post"], "409", CLAVES_ESTADO_CAMBIO),
             # M2 (PR 8)
             (rutas["/api/emergencia/dispositivos/{dispositivo_id}/buscar/"]["get"], "200", CLAVES_BUSQUEDA),
+            (
+                rutas["/api/emergencia/dispositivos/{dispositivo_id}/derivaciones/"]["get"],
+                "200",
+                CLAVES_DERIVACION_POR_RECIBIR,
+            ),
             (rutas["/api/emergencia/dispositivos/{dispositivo_id}/plazas/"]["get"], "200", CLAVES_MAPA),
             (rutas["/api/emergencia/derivaciones/{id}/aceptar/"]["post"], "200", CLAVES_ACEPTACION),
             (rutas["/api/emergencia/derivaciones/{id}/aceptar/"]["post"], "409", CLAVES_ESTADO_CAMBIO),
