@@ -33,6 +33,7 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/entregas/{id}/recibir/` | kits | Confirmar la recepción (multipart, idempotente, con conexión) |
 | `GET /api/emergencia/dispositivos/{id}/buscar/?dni=` | llegadas | Buscar a la familia por DNI (§13.2) |
 | `GET /api/emergencia/dispositivos/{id}/derivaciones/` | llegadas | Las familias derivadas a la sede que esperan respuesta (§13.2.1) |
+| `GET /api/emergencia/derivaciones/{id}/` | llegadas | La tarjeta de una derivación pendiente, sin buscar el DNI (§13.2.2) |
 | `POST /api/emergencia/derivaciones/{id}/aceptar/` | llegadas | Aceptar la derivación y reservar camas (§13.3) |
 | `POST /api/emergencia/derivaciones/{id}/rechazar/` | llegadas | Rechazar la derivación con motivo (§13.4) |
 | `GET /api/emergencia/casos/{id}/integrantes/` | llegadas | Las personas de la familia y el contador (§13.5) |
@@ -679,6 +680,37 @@ Sin parámetros. Respuesta 200: una **lista** (vacía si no hay ninguna), ordena
 - Es de solo lectura, no gasta la cubeta de `emergencia_buscar` y necesita conexión como el resto de M2.
 - `mis-dispositivos` sigue trayendo `derivaciones_pendientes`: es la cuenta de esta lista y sirve para
   decidir si pedirla.
+
+### 13.2.2 Una derivación por recibir (Cambio 577)
+
+`GET /api/emergencia/derivaciones/{id}/` — la tarjeta de M2-2 para decidir («Aceptar y reservar camas» o
+«Rechazar») al tocar una fila de §13.2.1, **sin conocer el DNI**. `{id}` es el `id` de la fila. **Aditivo.**
+
+La respuesta es **la misma** que `derivacion` de §13.2 (las mismas claves, `edificio` incluido), con una
+sola diferencia: `responsable.identidad_a_revisar` viene **siempre `null`**. La tarjeta de la web tampoco lo
+muestra al abrir una fila (el aviso aparece recién con el ingreso en curso); si la app lo necesita, lo sigue
+obteniendo de `buscar?dni=`. Lo demás (nombre y DNI del responsable, teléfono, observaciones, necesidades,
+franjas, quién derivó) es lo que la web ya muestra en esa tarjeta a quien tiene `dispositivo.admitir`.
+
+```json
+{"id": 55, "estado": "PENDIENTE", "plazas_pedidas": 7,
+ "vence_en": "2026-11-12T12:00:00-03:00", "vencida": false,
+ "derivada_en": "2026-11-12T10:00:00-03:00", "derivada_por": "Ana López",
+ "edificio": {"id": 8, "nombre": "Edificio Norte"},
+ "caso": {"id": 184, "numero": "2026-C-000184", "estado": "DERIVADO", "prioridad": "ALTA", "total_declarado": 7},
+ "responsable": {"nombre": "Rosa", "apellido": "Benítez", "dni": "30111222", "identidad_a_revisar": null},
+ "grupo": {"menores_f": 2, "menores_m": 3, "adultos_f": 1, "adultos_m": 1, "mayores_f": 0, "mayores_m": 0,
+           "dependientes": 0, "mayores_dependientes": 0, "lactantes": 1, "responsable_aparte": false},
+ "necesidades": ["embarazo"], "telefono": "3624000000", "observaciones": "Vienen con un perro."}
+```
+
+- **Permisos y alcance:** los de `aceptar` y `rechazar` (§13.3, §13.4): `dispositivo.admitir` y, con alcance
+  Edificios, solo las derivaciones de sus edificios (Cambio 523). Fuera de alcance o inexistente: 404, el
+  mismo cuerpo. Sin la capacidad, 403 `SIN_MODULO`. Sin token, 401.
+- **Solo pendientes:** una derivación que ya no está pendiente (aceptada, rechazada, vencida por el cron o
+  cancelada por la mesa) contesta el **409** `{detail, estado_actual}` que daría `aceptar`. La app recarga la
+  lista; si `estado_actual` es `INGRESO_EN_CURSO`, sigue en M2-3 (§13.1).
+- Solo lectura; consultas fijas, no dependen de los datos.
 
 ### 13.3 Aceptar la derivación
 

@@ -20,6 +20,7 @@ import re
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.fields import empty
 from rest_framework.utils import html
@@ -549,6 +550,20 @@ class GrupoDeLaDerivacionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ResponsableSinAvisoSerializer(ResponsableSerializer):
+    """El responsable como lo muestra la tarjeta de la web: nombre, apellido y DNI. Sin la marca de identidad.
+
+    ``identidad_a_revisar`` (Cambio 486) la muestra la web recién al abrir el ingreso, no en la tarjeta de la
+    derivación pendiente: la clave viene siempre, pero en ``null``.
+    """
+
+    identidad_a_revisar = serializers.SerializerMethodField(help_text="Siempre `null` en `derivaciones/{id}/`.")
+
+    @extend_schema_field(IdentidadDeclaradaSerializer(allow_null=True))
+    def get_identidad_a_revisar(self, caso):
+        return None
+
+
 class DerivacionLlegadaSerializer(serializers.ModelSerializer):
     """La tarjeta de M2-2. Solo sale si la derivación es hacia el dispositivo de quien busca (RU-9)."""
 
@@ -636,6 +651,12 @@ class DerivacionPorRecibirSerializer(serializers.ModelSerializer):
 
     def get_por_vencer(self, derivacion) -> bool:
         return por_vencer(derivacion.vence_en, self.context["ahora"])
+
+
+class DerivacionDetalleSerializer(DerivacionLlegadaSerializer):
+    """``derivaciones/{id}/`` (Cambio 577): la misma tarjeta que ``derivacion`` de ``buscar``, sin el aviso de identidad."""
+
+    responsable = ResponsableSinAvisoSerializer(source="caso", read_only=True)
 
 
 class BusquedaPorDniSerializer(serializers.Serializer):
