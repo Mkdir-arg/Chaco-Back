@@ -36,6 +36,7 @@ from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio, sectores_por_edificio
+from programas.selectors.estadia_origen_emergencia import q_estadias_de_emergencia
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.bitacora_detalle import plural as _plural
@@ -46,7 +47,6 @@ from programas.services.dispositivos import (
     nombre_o,
     q_edificios_en_alcance,
 )
-from programas.services.estadia_origen_emergencia import q_estadias_de_emergencia
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
     DIAS_POR_VENCER,

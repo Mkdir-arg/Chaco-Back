@@ -51,7 +51,7 @@
         <tr>
           <td colspan="5" class="p-0">
             {% if hay_filtros_estadias %}
-            {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna estadía coincide con los filtros" texto="Probá con otro estado o sector." accion_url=next_url %}
+            {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna estadía coincide con los filtros" texto="Probá con otro estado, sector u origen." accion_url=next_url %}
             {% elif url_ingreso %}
             {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas en este edificio" texto="Cuando se registre un ingreso, la persona aparece acá." accion_url=url_ingreso accion_texto="Ingresar persona" accion_icono="fa-plus" %}
             {% else %}

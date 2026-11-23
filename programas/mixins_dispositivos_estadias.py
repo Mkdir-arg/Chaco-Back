@@ -19,8 +19,8 @@ from programas.forms_dinamicos import formulario_de_momento_para
 from programas.forms_dispositivos import EgresoForm
 from programas.mixins_dispositivos_sectores import _form_de_cambio_de_plaza
 from programas.models import Estadia, MomentoFormulario
+from programas.selectors.estadia_origen_emergencia import marcas_de_emergencia
 from programas.services.dispositivos import q_edificios_en_alcance
-from programas.services.estadia_origen_emergencia import marcas_de_emergencia
 from programas.services.ingreso import maneja_plazas
 from programas.services.sectores_plazas import se_puede_cambiar_plaza
 
