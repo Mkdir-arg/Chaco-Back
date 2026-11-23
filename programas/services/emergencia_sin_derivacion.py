@@ -56,8 +56,9 @@ from programas.services.emergencia_ingreso_comun import (
 class CasoAbiertoEnOtraInstitucion(CasoAbiertoDeLaFamilia):
     """El caso de la familia está en manos de otra institución.
 
-    Al ingresar, no se ingresa acá y se ofrece avisar a la mesa. Al avisar, no hay nada que avisar: el texto lo
-    pasa quien la levanta (``mensaje``), porque «Avisá a la mesa» al rechazar «Avisar a la mesa» no dice nada.
+    Ni al ingresar ni al avisar se manda «a avisar a la mesa»: con el ingreso o el alojamiento en marcha en otra
+    institución no hay nada que avisar y el propio sistema lo rechaza. Quien la levanta puede pasar su texto
+    (``mensaje``), como hace el aviso.
     """
 
     def __init__(self, caso, dispositivo=None, mensaje=None):
@@ -66,8 +67,7 @@ class CasoAbiertoEnOtraInstitucion(CasoAbiertoDeLaFamilia):
             dispositivo,
             mensaje=mensaje
             or (
-                f"La familia ya tiene el caso {caso.numero} en curso en otra institución: no se la puede ingresar "
-                "acá. Avisá a la mesa."
+                f"La familia ya tiene el caso {caso.numero} en curso en otra institución: no se la puede ingresar acá."
             ),
         )
 

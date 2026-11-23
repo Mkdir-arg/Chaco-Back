@@ -426,6 +426,19 @@ class BajasAgrupadasPorSectorTests(BaseBajaDePlaza):
         grupos = self.client.get(destino).context["plazas_dadas_de_baja"].grupos
         self.assertEqual([g.abierto for g in grupos], [True, False])
 
+    def test_un_id_de_miles_de_digitos_se_ignora_y_no_da_500(self):
+        """``int()`` de más de 4300 dígitos levanta ``ValueError``: con una URL armada a mano era un 500."""
+
+        self._baja()
+        self.client.force_login(self.operador_cis)
+        enorme = "9" * 5000
+
+        pantalla = self.client.get(self.mapa, {"inactivos": "1", "baja_sector": enorme, "baja_abierto": enorme})
+        respuesta = self.client.post(f"{self._url('plaza_reactivar')}?baja_sector={enorme}&baja_abierto={enorme}")
+
+        self.assertEqual(pantalla.status_code, 200)
+        self.assertRedirects(respuesta, url_solapa_sectores(self.cis.pk), fetch_redirect_response=False)
+
     def test_un_parametro_de_vuelta_que_no_es_un_numero_no_llega_a_la_url(self):
         self._baja()
         self.client.force_login(self.operador_cis)

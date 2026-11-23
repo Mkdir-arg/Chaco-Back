@@ -36,6 +36,7 @@ El orden de los candados
 Una entrega no toca casos, derivaciones ni plazas, así que su orden es propio y corto::
 
     entrega original  ·  dispositivo destino  ·  edificio  ·  numerador (serie K)  ·  entrega nueva
+
 ``crear_entrega`` toma ese orden (la entrega original solo si repone; el edificio, el elegido, el único o el de la
 original). La entrega va antes que el dispositivo porque cancelar una reposición bloquea original → reposición y
 recibirla bloquea reposición → dispositivo (la bitácora): con el dispositivo primero, crear, cancelar y recibir cerraban
@@ -43,7 +44,6 @@ un ciclo de tres. El dispositivo va antes que el edificio porque «inactivar» y
 Dispositivo → Edificio, y el ``INSERT`` pide un candado compartido sobre el dispositivo (FK). Las demás transiciones
 bloquean solo la entrega (recibir sigue con el dispositivo). Ninguna toma el numerador y *después* una entrega, así que
 no hay orden que cruzar.
-*después* una entrega, así que no hay orden que cruzar.
 La carrera cancelar / recibir se resuelve sobre la misma fila: gana quien llega primero al
 candado y el otro lee el estado nuevo y recibe :class:`EstadoCambioEntrega`. Las carreras
 contra el motor real están en ``programas.tests.test_emergencia_kits`` con ``@tag("mysql")``
