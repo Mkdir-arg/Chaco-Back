@@ -29,7 +29,7 @@ base de ECOM no tiene tablas de zona horaria y un ``Trunc*`` rompería solo en p
 
 from datetime import datetime, time, timedelta
 
-from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
+from django.db.models import Count, Exists, Max, Min, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, Edificio, EntregaKit, Estadia, LineaEntrega, TrazaEntrega
@@ -294,6 +294,21 @@ def entregas_pendientes_de(dispositivo, usuario):
         .prefetch_related(_lineas_ordenadas())
         .order_by("creado", "id")
     )
+
+
+def entregas_por_recibir_de(dispositivo):
+    """``(cantidad, número de la más vieja)`` de las entregas por recibir de TODA la institución, en UNA consulta.
+
+    «Por recibir» es ``EntregaKit.ESTADOS_ABIERTOS``, con o sin edificio. **No comprueba permisos**: la llama quien ya
+    resolvió que el usuario recibe kits con alcance sobre toda la institución (el aviso de la ficha). El número sale del
+    mismo ``aggregate`` que la cuenta: ``2026-K-000031`` lleva el correlativo con seis dígitos y crece con el tiempo,
+    así que el ``Min`` es la entrega abierta más vieja. Sin entregas, ``(0, None)``.
+    """
+
+    resumen = EntregaKit.objects.filter(dispositivo=dispositivo, estado__in=EntregaKit.ESTADOS_ABIERTOS).aggregate(
+        cantidad=Count("pk"), mas_vieja=Min("numero")
+    )
+    return resumen["cantidad"], resumen["mas_vieja"]
 
 
 def entregas_de(dispositivo, usuario=None):

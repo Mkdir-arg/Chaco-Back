@@ -89,13 +89,14 @@ def _texto_de_movimientos(ingresos, egresos):
     return "Hoy: " + " · ".join(partes) if partes else "Hoy: sin movimientos"
 
 
-def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede_recibir_kits):
+def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede_recibir_kits, alcance_kits=None):
     """Suma a cada fila de ``infraestructura_del_dispositivo`` lo que la tarjeta del edificio dibuja.
 
     ``ocupacion`` es la ``OcupacionDispositivo`` de la ficha (ya acotada al alcance de ``user``). Sin plazas en el tipo
     de la institución, la fila no lleva ocupación ni disponibles: la tarjeta no dibuja una barra vacía. Los kits solo se
     cuentan donde ``user`` puede recibirlos (``emergencia.recibir_kit`` sobre ese edificio), como en la página del edificio.
-    ``puede_recibir_kits`` es lo que la vista ya resolvió para la institución: no se vuelve a preguntar.
+    ``puede_recibir_kits`` es lo que la vista ya resolvió para la institución: no se vuelve a preguntar. Con el
+    ``alcance_kits`` que la vista ya calculó para el aviso de kits tampoco se repite esa consulta.
     """
 
     if not filas:
@@ -103,7 +104,8 @@ def completar_tarjetas(filas, *, user, dispositivo, ocupacion, con_plazas, puede
     ids = [fila["pk"] for fila in filas]
     hoy = timezone.localdate()
 
-    alcance_kits = alcance_de_edificios(user, dispositivo, CAP_RECIBIR_KIT) if puede_recibir_kits else None
+    if alcance_kits is None and puede_recibir_kits:
+        alcance_kits = alcance_de_edificios(user, dispositivo, CAP_RECIBIR_KIT)
     ids_con_kits = [pk for pk in ids if alcance_kits is not None and alcance_kits.permite(pk)]
     kits = _kits_pendientes(dispositivo, ids_con_kits) if ids_con_kits else {}
     equipo = contar_miembros_por_edificio(dispositivo, ids)
