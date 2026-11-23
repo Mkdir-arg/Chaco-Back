@@ -30,6 +30,12 @@ from programas.api.views_emergencia_llegadas import _AJENO, _SIN_ADMITIR, _filas
 from programas.models import CasoEmergencia
 from programas.services import emergencia_alojar as servicio_alojar
 
+_CASO_ABIERTO = (
+    " Si la familia ya tiene un caso abierto en otra institución, o ya alojado o ingresado donde no se puede "
+    "sumar, trae además `caso_abierto` (`{id, numero, familia, personas, estado, estado_texto, derivada_a, "
+    "derivada_en, derivada_a_otra, en_este_dispositivo}`) y no se crea nada (Cambio 579)."
+)
+
 
 class IngresoDirectoView(_VistaDeLlegadas):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -44,7 +50,7 @@ class IngresoDirectoView(_VistaDeLlegadas):
             ),
             400: _400(
                 "Lo mismo que el envío de M1 (§6) salvo la dirección, que es opcional; `plazas`: no hay camas "
-                "libres; `dispositivo`: no recibe familias. " + _DNI_REGISTRADO
+                "libres; `dispositivo`: no recibe familias. " + _DNI_REGISTRADO + _CASO_ABIERTO
             ),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
@@ -57,7 +63,9 @@ class IngresoDirectoView(_VistaDeLlegadas):
         description=(
             "M2-6 «Ingresar igual»: la familia llegó sin derivación. Crea el caso de origen dispositivo con el "
             "ingreso en curso, reserva las camas que alcancen y deja las N filas. **Idempotente** por "
-            "`uuid_cliente`: es lo único de M2 que la app encola sin señal."
+            "`uuid_cliente`: es lo único de M2 que la app encola sin señal. **Una familia, un caso abierto** "
+            "(Cambio 579): si la familia ya tiene uno, el ingreso se suma a ese caso (y, si estaba derivada a otra "
+            "institución, la derivación se cancela y se avisa a la mesa) y la respuesta trae `ya_tenia_caso: true`."
         ),
     )
     def post(self, request, dispositivo_id):
@@ -85,6 +93,7 @@ class IngresoDirectoView(_VistaDeLlegadas):
             "reservadas": caso.reservadas,
             "faltantes": caso.faltantes,
             "integrantes": integrantes,
+            "ya_tenia_caso": caso.familia_ya_tenia_caso,
         }
         return Response(IngresoDirectoSerializer(cuerpo).data, status=_creado_o_reenvio(caso.ya_existia))
 
@@ -114,6 +123,7 @@ class AvisarALaMesaView(_VistaDeLlegadas):
                 + _DNI_REGISTRADO
                 + " También si la familia ya tiene una derivación `PENDIENTE` o `ACEPTADA` hacia este mismo "
                 "dispositivo (de cualquier edificio): `detail` dice a cuál y no se crea el caso (Cambio 553)."
+                + _CASO_ABIERTO
             ),
             401: _SIN_TOKEN,
             403: _SIN_ADMITIR,
@@ -126,7 +136,8 @@ class AvisarALaMesaView(_VistaDeLlegadas):
         description=(
             "M2-6 «Avisar a la mesa»: la familia está en la puerta y no hay derivación. Crea el caso `NUEVO` con la "
             "marca «En la puerta de …»; la mesa lo deriva y la guardia busca de nuevo. No exige camas libres. "
-            "Idempotente por `uuid_cliente`."
+            "Idempotente por `uuid_cliente`. **Una familia, un caso abierto** (Cambio 579): si ya tiene uno, el aviso "
+            "se suma a ese caso y la respuesta trae `ya_tenia_caso: true`."
         ),
     )
     def post(self, request, dispositivo_id):
@@ -145,4 +156,5 @@ class AvisarALaMesaView(_VistaDeLlegadas):
         if respuesta is not None:
             return respuesta
         caso_leido = CasoEmergencia.objects.select_related("grupo").get(pk=caso.pk)
-        return Response(AvisoALaMesaSerializer({"caso": caso_leido}).data, status=_creado_o_reenvio(caso.ya_existia))
+        cuerpo = {"caso": caso_leido, "ya_tenia_caso": caso.familia_ya_tenia_caso}
+        return Response(AvisoALaMesaSerializer(cuerpo).data, status=_creado_o_reenvio(caso.ya_existia))

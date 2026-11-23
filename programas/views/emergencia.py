@@ -158,7 +158,9 @@ class NuevoCasoView(MesaPermissionMixin, View):
         return NuevoCasoMesaForm(*args, url_sugerencias=url)
 
     def _render(self, request, form, status=200):
-        return render(request, TEMPLATE_NUEVO, {"form": form}, status=status)
+        abierto = getattr(form, "caso_abierto", None)
+        contexto = {"form": form, "caso_abierto": abierto, "url_caso_abierto": _url_ficha(abierto) if abierto else ""}
+        return render(request, TEMPLATE_NUEVO, contexto, status=status)
 
     def get(self, request):
         return self._render(request, self._form())
@@ -172,6 +174,7 @@ class NuevoCasoView(MesaPermissionMixin, View):
                 usuario=request.user,
                 origen=CasoEmergencia.Origen.MESA,
                 datos_formulario1=form.datos_formulario1(),
+                forzar_nuevo_motivo=form.forzar_nuevo_motivo_de_la_mesa(),
             )
         except ValidationError as error:
             form.agregar_errores_del_servicio(rechazo_para_mostrar(request, error))

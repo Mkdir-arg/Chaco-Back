@@ -72,8 +72,11 @@ class BuscarPorDniTests(BaseAlojar):
         self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
         self.assertIsNone(resultado.derivacion)
         self.assertIsNone(resultado.caso)
-        self.assertNotIn("Escuela", repr(resultado))
-        self.assertEqual(resultado.mensaje, servicio.SIN_DERIVACION)
+        # Cambio 579 (decisión del PM, 23-nov): el modal tampoco nombra la institución, solo dice «otra».
+        self.assertIsNone(resultado.caso_abierto["derivada_a"])
+        self.assertIs(resultado.caso_abierto["derivada_a_otra"], True)
+        self.assertNotIn("Escuela", resultado.mensaje)
+        self.assertNotIn("Escuela", repr(vars(resultado)))
 
     def test_sin_alcance_sobre_el_dispositivo_no_se_busca(self):
         self._derivado()

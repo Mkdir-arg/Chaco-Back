@@ -42,6 +42,14 @@ from programas.models import (
 )
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.emergencia_comun import _exigir_mesa, _trazar, siguiente_numero
+from programas.services.emergencia_familia import (
+    anotar_envio_sumado,
+    caso_abierto_de_la_familia,
+    envio_ya_sumado,
+    resumen_del_caso_abierto,
+    serializar_altas,
+    ultimo_caso_de_la_familia,
+)
 from programas.services.emergencia_programa import CAP_EMERGENCIA_RELEVAR, puede_en_programa_emergencia
 from programas.services.identidad import texto_comparable
 from programas.services.ingreso import alta_minima_de_persona, buscar_ciudadano_por_dni
@@ -123,6 +131,75 @@ def nombre_en_conflicto(ciudadano, nombre, apellido):
         if declarado and registrado and texto_comparable(declarado) != texto_comparable(registrado):
             return True
     return False
+
+
+class CasoAbiertoDeLaFamilia(ValidationError):
+    """La familia ya tiene un caso abierto y no se pidió sumarse a él ni abrir uno nuevo con motivo (Cambio 579).
+
+    Es un ``ValidationError`` con la clave ``dni`` —la mesa lo muestra bajo el DNI—, con tipo propio para que
+    la pantalla ofrezca «Cargar como caso nuevo» y la API sume ``caso_abierto`` sin parsear el texto.
+    ``caso`` es el caso abierto y ``resumen`` lo único que se cuenta de él (:func:`resumen_del_caso_abierto`).
+    """
+
+    def __init__(self, caso, dispositivo=None, mensaje=None):
+        self.caso = caso
+        self.resumen = resumen_del_caso_abierto(caso, dispositivo)
+        super().__init__({"dni": mensaje or mensaje_caso_abierto(caso)})
+
+
+_NECESIDAD_TEXTO = {
+    "embarazo": "embarazo",
+    "electrodependiente": "electrodependencia",
+    "medicacion_critica": "medicación crítica",
+    "mascotas": "mascotas",
+}
+
+
+def _sumar_relevamiento_repetido(caso, usuario, limpio):
+    """El territorio relevó de nuevo a una familia que ya tenía caso abierto: lo declarado queda en el historial.
+
+    No se abre otro caso ni se pisan los datos del que está (necesidades, ubicación, teléfono, fotos): lo nuevo
+    va en el detalle de la traza ``RELEVAMIENTO_REPETIDO`` —necesidades críticas, observaciones, teléfono y
+    ubicación declarada— y las fotos se agregan al caso **solo** si no tenía la de ese tipo. Corre dentro de la
+    transacción de ``crear_caso``.
+    """
+
+    personas = limpio["total_declarado"]
+    partes = [f"Relevada de nuevo en territorio ({personas} persona{'s' if personas != 1 else ''}): sin caso nuevo"]
+    necesidades = [_NECESIDAD_TEXTO[clave] for clave in NECESIDADES if limpio["necesidades"].get(clave)]
+    if necesidades:
+        partes.append("Necesidades declaradas: " + ", ".join(necesidades))
+    ubicacion = limpio["direccion"]
+    if limpio["latitud"] is not None:
+        ubicacion += f" (GPS {limpio['latitud']}, {limpio['longitud']})"
+    partes.append(f"Ubicación declarada: {ubicacion}")
+    if limpio["situacion"].get("telefono"):
+        partes.append(f"Teléfono: {limpio['situacion']['telefono']}")
+    if limpio["situacion"].get("observaciones"):
+        partes.append(f"Observaciones: {limpio['situacion']['observaciones']}")
+    agregadas = []
+    for tipo, archivo in limpio["fotos"].items():
+        if AdjuntoCaso.objects.filter(caso=caso, tipo=tipo).exists():
+            continue
+        adjunto = AdjuntoCaso(caso=caso, archivo=archivo, tipo=tipo, cargado_por=usuario)
+        adjunto.full_clean()
+        adjunto.save()
+        anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
+        agregadas.append(adjunto.get_tipo_display().lower())
+    if agregadas:
+        partes.append("Fotos agregadas: " + ", ".join(agregadas))
+    _trazar(caso, usuario, Accion.RELEVAMIENTO_REPETIDO, estado_anterior=caso.estado, detalle=" · ".join(partes))
+
+
+def mensaje_caso_abierto(caso):
+    return (
+        f"Esta familia ya tiene el caso {caso.numero} abierto. Sumá lo que llegó a ese caso: "
+        "no se abre otro por la misma familia."
+    )
+
+
+MOTIVO_NUEVO_OBLIGATORIO = "Indicá por qué se abre un caso nuevo si la familia ya tiene uno abierto."
+FORZAR_SOLO_LA_MESA = "Solo la mesa puede abrir un caso nuevo para una familia que ya tiene uno abierto."
 
 
 #: El tope de ``CasoEmergencia.precision_m`` (``PositiveIntegerField``) en MySQL y MariaDB.
@@ -399,6 +476,7 @@ def _caso_de_ese_envio(uuid_cliente, usuario):
         # El mismo identificador en manos de otro no es un reenvío: no se le devuelve un caso ajeno.
         raise UuidEnUso()
     existente.ya_existia = True
+    existente.familia_ya_tenia_caso = False
     return existente
 
 
@@ -433,7 +511,16 @@ def _exigir_puede_crear(usuario, origen):
 
 @archivos_atomicos
 @transaction.atomic
-def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevado_en=None):
+def crear_caso(
+    *,
+    usuario,
+    origen,
+    datos_formulario1,
+    uuid_cliente=None,
+    relevado_en=None,
+    forzar_nuevo_motivo=None,
+    devolver_existente=False,
+):
     """Crea un caso con su grupo familiar. **La única función que crea casos.**
 
     La usan la mesa («Nuevo caso»), la API de la app (M1) y el ingreso directo del
@@ -484,11 +571,25 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
 
     ``relevado_en`` es la hora del teléfono al tocar «Enviar» (la única hora del cliente
     que se guarda, RU-18); sin ella, la del servidor.
+
+    **Una familia, un caso abierto** (Cambio 579, decisión 5). Con el candado del numerador puesto
+    (antes de dar de alta al responsable) y el responsable resuelto, busca el caso no cerrado de la familia
+    (:func:`~programas.services.emergencia_familia.caso_abierto_de_la_familia`). Si existe:
+
+    * por defecto, :class:`CasoAbiertoDeLaFamilia` (nada se crea);
+    * con ``devolver_existente=True`` devuelve **ese** caso, con ``caso.familia_ya_tenia_caso = True``: quien
+      llama lo suma (el aviso, el ingreso). Si el envío es del territorio, el relevamiento repetido queda
+      en su historial (:func:`_sumar_relevamiento_repetido`). El ``uuid_cliente`` queda anotado en el caso:
+      su reenvío devuelve el mismo caso con ``ya_existia = True`` sin ejecutar nada;
+    * con ``forzar_nuevo_motivo`` —solo la mesa, motivo obligatorio— abre uno nuevo igual y deja el motivo
+      y el caso anterior en la primera traza.
     """
 
     if origen not in Origen.values:
         raise ValueError(f"«{origen}» no es un origen de caso.")
     _exigir_puede_crear(usuario, origen)
+    if forzar_nuevo_motivo is not None and origen != Origen.MESA:
+        raise PermissionDenied(FORZAR_SOLO_LA_MESA)
 
     uuid_cliente = _como_uuid(uuid_cliente)
     if uuid_cliente is not None:
@@ -498,6 +599,18 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
 
     limpio = _validar_formulario1(datos_formulario1)
     ahora = timezone.now()
+    # Una familia, un caso abierto. El candado del numerador serializa toda alta y va ANTES de dar de alta al
+    # responsable: quien llega segundo espera al commit del primero y lo ve (READ COMMITTED). Sin él, dos ingresos
+    # a la vez abrirían dos casos. Y antes del alta de la persona, porque el INSERT del legajo deja un candado S
+    # sobre el final del índice de ``dni`` (REPEATABLE READ en el motor real) que frena el INSERT de otra
+    # familia: dos familias distintas se esperaban ahí, no en el numerador.
+    numerador = serializar_altas(ahora)
+    if uuid_cliente is not None:
+        # El mismo envío llegó dos veces a la vez: la búsqueda de arriba no vio nada porque el otro no había
+        # commiteado. Con el candado puesto sí lo ve, y no se suma al caso que ese envío acaba de crear.
+        existente = _caso_de_ese_envio(uuid_cliente, usuario)
+        if existente is not None:
+            return existente
     try:
         responsable, identidad_declarada = _responsable(datos_formulario1, limpio)
     except DniRegistrado:
@@ -517,6 +630,37 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
     )
     nace_tomado = origen == Origen.MESA
 
+    abierto = caso_abierto_de_la_familia(responsable)
+    if abierto is None and uuid_cliente is not None and devolver_existente:
+        # El envío se sumó a un caso que después se cerró: su reenvío no abre otro caso.
+        cerrado = ultimo_caso_de_la_familia(responsable)
+        if cerrado is not None and envio_ya_sumado(cerrado, uuid_cliente, usuario):
+            cerrado.personas_declaradas_ahora = limpio["total_declarado"]
+            cerrado.familia_ya_tenia_caso = True
+            cerrado.ya_existia = True
+            return cerrado
+    anterior_forzado = None
+    if abierto is not None:
+        if forzar_nuevo_motivo is not None:
+            forzar_nuevo_motivo = forzar_nuevo_motivo.strip()
+            if not forzar_nuevo_motivo:
+                raise ValidationError({"forzar_nuevo_motivo": MOTIVO_NUEVO_OBLIGATORIO})
+            anterior_forzado = abierto
+        elif devolver_existente:
+            # Lo que declaró quien llegó ahora: el ingreso sobre un caso alojado suma las personas que faltan.
+            abierto.personas_declaradas_ahora = limpio["total_declarado"]
+            abierto.familia_ya_tenia_caso = True
+            # Un envío que se sumó no deja caso con su ``uuid_cliente``: se reconoce por la anotación del caso, y
+            # el reenvío no vuelve a ejecutar nada aunque el caso haya cambiado de estado o de institución.
+            abierto.ya_existia = uuid_cliente is not None and envio_ya_sumado(abierto, uuid_cliente, usuario)
+            if not abierto.ya_existia:
+                if origen == Origen.TERRITORIO:
+                    _sumar_relevamiento_repetido(abierto, usuario, limpio)
+                anotar_envio_sumado(abierto, uuid_cliente, usuario)
+            return abierto
+        else:
+            raise CasoAbiertoDeLaFamilia(abierto)
+
     try:
         # Anidada: si el UNIQUE de `uuid_cliente` salta —el mismo envío llegó dos veces a la
         # vez—, se deshacen el grupo y el número y la transacción de afuera sigue sana.
@@ -535,7 +679,7 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
             grupo.full_clean()
             grupo.save()
             caso = CasoEmergencia(
-                numero=siguiente_numero(NumeradorEmergencia.Serie.CASOS, ahora),
+                numero=siguiente_numero(NumeradorEmergencia.Serie.CASOS, ahora, numerador),
                 grupo=grupo,
                 origen=origen,
                 estado=Estado.EN_GESTION if nace_tomado else Estado.NUEVO,
@@ -560,7 +704,7 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
         existente = _caso_de_ese_envio(uuid_cliente, usuario) if uuid_cliente is not None else None
         if existente is None:
             raise
-        return existente
+        return existente  # ya trae ``ya_existia`` y ``familia_ya_tenia_caso`` (``_caso_de_ese_envio``)
 
     for tipo, archivo in limpio["fotos"].items():
         adjunto = AdjuntoCaso(caso=caso, archivo=archivo, tipo=tipo, cargado_por=usuario)
@@ -569,6 +713,9 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
         anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
 
     detalle = PRIMERA_TRAZA[origen]
+    if anterior_forzado is not None:
+        # El motivo es de la mesa, no de la familia: va en el historial del caso nuevo y del anterior.
+        detalle += f" · caso nuevo aunque la familia tenía el {anterior_forzado.numero}: {forzar_nuevo_motivo}"
     if identidad_declarada is not None:
         # Sin nombres: el detalle de la traza nunca nombra a la familia.
         detalle += " · Identidad a revisar"
@@ -579,5 +726,14 @@ def crear_caso(*, usuario, origen, datos_formulario1, uuid_cliente=None, relevad
             origen,
         )
     _trazar(caso, usuario, Accion.CREADO, estado_anterior="", detalle=detalle)
+    if anterior_forzado is not None:
+        _trazar(
+            anterior_forzado,
+            usuario,
+            Accion.CASO_NUEVO_DE_LA_FAMILIA,
+            estado_anterior=anterior_forzado.estado,
+            detalle=f"La mesa abrió el caso {caso.numero} para la misma familia: {forzar_nuevo_motivo}",
+        )
     caso.ya_existia = False
+    caso.familia_ya_tenia_caso = False
     return caso

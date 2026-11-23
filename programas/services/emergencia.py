@@ -89,12 +89,15 @@ from programas.services.configuracion_emergencia import sla_vigente
 # (la API, el ingreso directo, los formularios, los tests) sigan andando.
 from programas.services.emergencia_alta import (  # noqa: F401
     CAP_ADMITIR,
+    FORZAR_SOLO_LA_MESA,
+    MOTIVO_NUEVO_OBLIGATORIO,
     NECESIDADES,
     NECESIDADES_CRITICAS,
     PRIMERA_TRAZA,
     SIN_PERMISO_DE_INGRESO_DIRECTO,
     SIN_PERMISO_DE_RELEVAR,
     UUID_EN_USO,
+    CasoAbiertoDeLaFamilia,
     UuidEnUso,
     _caso_de_ese_envio,
     _como_uuid,
@@ -604,7 +607,16 @@ def derivar_caso(
 
     caso.estado = Estado.DERIVADO
     caso.marcar("derivado_en", ahora)
-    caso.save(update_fields=["estado", "derivado_en", "modificado"])
+    campos = ["estado", "derivado_en", "modificado"]
+    if caso.situacion.get(CasoEmergencia.SITUACION_EN_LA_PUERTA_TRAS_DERIVAR):
+        # La mesa volvió a derivarla (Cambio 579): la familia ya no espera en la puerta.
+        caso.situacion = {
+            clave: valor
+            for clave, valor in caso.situacion.items()
+            if clave != CasoEmergencia.SITUACION_EN_LA_PUERTA_TRAS_DERIVAR
+        }
+        campos.append("situacion")
+    caso.save(update_fields=campos)
     faltan = f" · faltan {plazas_pedidas - libres}" if libres < plazas_pedidas else ""
     en_edificio = f" ({edificio.nombre})" if edificio is not None else ""
     _trazar(

@@ -51,7 +51,7 @@ def _bloquear_numerador(serie, anio):
     return NumeradorEmergencia.objects.select_for_update().get(serie=serie, anio=anio)
 
 
-def siguiente_correlativo(serie, momento=None):
+def siguiente_correlativo(serie, momento=None, numerador=None):
     """``(año, correlativo)`` del próximo número de ``serie``, bloqueando su contador.
 
     Una fila por serie y año con ``select_for_update``: quien numera espera al anterior y
@@ -59,24 +59,28 @@ def siguiente_correlativo(serie, momento=None):
     Tiene que correr dentro de una transacción: el candado se suelta con su commit, y si
     la transacción vuelve atrás el número también. Cada serie le da su formato: la ``C``
     acá abajo (:func:`siguiente_numero`) y la ``K`` en ``programas.services.kits``.
+
+    ``numerador`` es la fila que quien llama ya bloqueó en esta transacción (``serializar_altas``): se numera
+    sobre ella sin volver a tomar el candado.
     """
 
     anio = timezone.localtime(momento or timezone.now()).year
-    NumeradorEmergencia.objects.get_or_create(serie=serie, anio=anio)
-    numerador = _bloquear_numerador(serie, anio)
+    if numerador is None:
+        NumeradorEmergencia.objects.get_or_create(serie=serie, anio=anio)
+        numerador = _bloquear_numerador(serie, anio)
     numerador.ultimo += 1
     numerador.save(update_fields=["ultimo", "modificado"])
     return anio, numerador.ultimo
 
 
-def siguiente_numero(serie, momento=None):
+def siguiente_numero(serie, momento=None, numerador=None):
     """El próximo número de ``serie`` con el formato de los casos («2026-C-000184»).
 
     Es :func:`siguiente_correlativo` más el formato de ``CasoEmergencia``. Las entregas de
     kits usan el mismo contador (serie ``K``) con su propio formato, «2026-K-000031».
     """
 
-    return CasoEmergencia.formatear_numero(*siguiente_correlativo(serie, momento))
+    return CasoEmergencia.formatear_numero(*siguiente_correlativo(serie, momento, numerador))
 
 
 def _nombre_de(usuario):

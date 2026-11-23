@@ -58,7 +58,7 @@ CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "relevar"]
 CLAVES_LOCALIDAD = ["id", "nombre"]
 CLAVES_SUGERENCIAS = ["hay_mas", "resultados"]
 CLAVES_SUGERENCIA = ["apellido", "dni", "nombre"]
-CLAVES_CASO_CREADO = ["id", "numero", "prioridad", "total_declarado"]
+CLAVES_CASO_CREADO = ["id", "numero", "prioridad", "total_declarado", "ya_tenia_caso"]  # Cambio 579, aditiva
 CLAVES_MI_CASO = ["creado_en", "estado", "numero", "total_declarado"]
 CLAVES_CONSULTA = ["data", "datos_api", "origen", "success"]
 CLAVES_SIN_MODULO = ["code", "detail"]
@@ -134,6 +134,7 @@ CLAVES_BUSQUEDA = [
     "alojada_aca",
     "alojada_desde",
     "alojada_en",
+    "caso_abierto",  # Cambio 579, aditiva
     "derivacion",
     "derivada_a_otro_edificio",  # aditiva (A4)
     "dni",
@@ -141,6 +142,7 @@ CLAVES_BUSQUEDA = [
     "mensaje",
     "plazas_libres",
     "puede_avisar_a_la_mesa",  # Cambio 532, aditiva
+    "puede_ingresar_con_caso",  # Cambio 579, aditiva
     "puede_ingresar_igual",  # Cambio 532, aditiva
     "resultado",
 ]
@@ -185,8 +187,8 @@ CLAVES_MAPA = ["caso", "sectores"]
 CLAVES_SECTOR_CON_PLAZAS = ["libres", "plazas", "reservadas_familia", "sector", "total"]
 CLAVES_SECTOR_DEL_MAPA = ["edificio", "id", "nombre", "perfil"]  # edificio: aditiva
 CLAVES_PLAZA_DEL_MAPA = ["codigo", "detalle", "elegible", "estado", "id", "nombre", "texto", "tono"]
-CLAVES_INGRESO_DIRECTO = ["caso", "faltantes", "integrantes", "reservadas"]
-CLAVES_AVISO_A_LA_MESA = ["caso"]
+CLAVES_INGRESO_DIRECTO = ["caso", "faltantes", "integrantes", "reservadas", "ya_tenia_caso"]  # 579, aditiva
+CLAVES_AVISO_A_LA_MESA = ["caso", "ya_tenia_caso"]  # Cambio 579, aditiva
 #: El 400 trae además una clave por cada campo con error.
 CLAVES_FIJAS_DEL_400 = {"code", "detail", "non_field_errors"}
 

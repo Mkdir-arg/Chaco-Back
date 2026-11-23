@@ -43,7 +43,7 @@ from programas.services.configuracion_emergencia import (
     normalizar_nombre,
 )
 from programas.services.emergencia import MOTIVOS_DE_CIERRE_MANUAL, NECESIDADES
-from programas.services.emergencia_alta import DniRegistrado
+from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegistrado
 
 #: Tope de plazas que acepta el panel «Derivar»: el del campo `plazas_pedidas` (smallint).
 PLAZAS_MAXIMAS = 32767
@@ -382,6 +382,20 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         widget=SwitchInput(),
     )
 
+    forzar_nuevo = forms.BooleanField(
+        label="Abrir un caso nuevo aunque la familia ya tiene uno abierto",
+        required=False,
+        help_text="Solo si de verdad es otra situación (p. ej. la familia se separó). Queda en el historial de los dos casos.",
+        widget=SwitchInput(),
+    )
+    forzar_nuevo_motivo = forms.CharField(
+        label="Motivo del caso nuevo",
+        required=False,
+        max_length=240,
+        help_text="Obligatorio si abrís un caso nuevo.",
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+
     direccion = forms.CharField(
         label="Dirección",
         max_length=240,
@@ -462,11 +476,24 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
             )
         # La casilla solo aparece después del rechazo por DNI registrado, o si ya vino tildada.
         self.muestra_identidad_en_conflicto = bool(self.is_bound and self.data.get("identidad_en_conflicto"))
+        # Lo mismo con «Abrir un caso nuevo»: aparece cuando la familia ya tiene un caso abierto (Cambio 579).
+        self.muestra_caso_abierto = bool(self.is_bound and self.data.get("forzar_nuevo"))
+        self.caso_abierto = None
 
     def agregar_errores_del_servicio(self, error):
         if isinstance(error, DniRegistrado):
             self.muestra_identidad_en_conflicto = True
+        if isinstance(error, CasoAbiertoDeLaFamilia):
+            self.muestra_caso_abierto = True
+            self.caso_abierto = error.caso
         super().agregar_errores_del_servicio(error)
+
+    def forzar_nuevo_motivo_de_la_mesa(self):
+        """El motivo con el que la mesa abre un caso nuevo aunque la familia tenga uno, o ``None`` si no lo pide."""
+
+        if not self.cleaned_data.get("forzar_nuevo"):
+            return None
+        return self.cleaned_data.get("forzar_nuevo_motivo") or ""
 
     def _campos(self, nombres):
         return [self[nombre] for nombre in nombres]
@@ -475,6 +502,8 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         campos = self._campos(self.CAMPOS_DE_TRASLADO)
         if self.muestra_identidad_en_conflicto:
             campos.append(self["identidad_en_conflicto"])
+        if self.muestra_caso_abierto:
+            campos.extend([self["forzar_nuevo"], self["forzar_nuevo_motivo"]])
         return campos
 
     def campos_de_personas(self):
@@ -498,7 +527,9 @@ class NuevoCasoMesaForm(ErroresDelServicioMixin, forms.Form):
         datos = {
             campo: valor
             for campo, valor in self.cleaned_data.items()
-            if campo not in self.FOTOS and valor not in (None, "")
+            if campo not in self.FOTOS
+            and campo not in ("forzar_nuevo", "forzar_nuevo_motivo")
+            and valor not in (None, "")
         }
         datos["fotos"] = {
             tipo: self.cleaned_data[campo] for campo, tipo in self.FOTOS.items() if self.cleaned_data.get(campo)
