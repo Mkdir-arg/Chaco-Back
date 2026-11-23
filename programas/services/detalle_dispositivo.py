@@ -623,7 +623,6 @@ def _fila_de_edificio(
         "estado": estado_edilicio(ultima),
         "vencido": bool(edificio.vencido),
         # Un edificio inactivo (Cambio 583) lleva la marca «Inactivo» en lugar del aviso de vencimiento: ya no se relevan.
-        "activo": edificio.activo,
         "aviso": (
             aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy)
             if edificio.activo

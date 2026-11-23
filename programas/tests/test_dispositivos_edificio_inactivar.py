@@ -10,6 +10,9 @@
 5. Pantallas: la página del edificio, la ficha de Edificios, el listado y la tarjeta de Infraestructura.
 """
 
+import re
+from unittest import mock
+
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import Client
@@ -292,6 +295,18 @@ class InactivoNoSeOfreceTests(BaseInactivar):
             vincular_edificio(edificio=self.libre, dispositivo=self.otra, usuario=self._fresco(self.admin))
         self.assertFalse(self.libre.dispositivos.filter(pk=self.otra.pk).exists())
 
+    def test_vincular_vuelve_a_mirar_que_este_activo_bajo_candado(self):
+        """Aun si el alcance lo dejara pasar, un edificio inactivo (o que se está inactivando) no se vincula."""
+
+        self._inactivo(self.libre)
+
+        with mock.patch(
+            "programas.services.edificios.edificios_vinculables", return_value=Edificio.objects.filter(pk=self.libre.pk)
+        ):
+            with self.assertRaises(ValidationError):
+                vincular_edificio(edificio=self.libre, dispositivo=self.otra, usuario=self._fresco(self.admin))
+        self.assertFalse(self.libre.dispositivos.filter(pk=self.otra.pk).exists())
+
     def test_no_se_ofrece_para_relevamientos(self):
         self.assertIn(self.edif_c, edificios_para_asignar(self.admin))
         self._inactivo()
@@ -301,7 +316,6 @@ class InactivoNoSeOfreceTests(BaseInactivar):
 
     def test_no_se_ofrece_para_ubicar_un_sector_ni_se_ubica(self):
         self._inactivo()
-        usuario = self._fresco(self.admin_prog)
 
         form = SectorForm(dispositivo=self.cis)
         self.assertNotIn(self.edif_c, form.fields["edificio"].queryset)
@@ -316,7 +330,6 @@ class InactivoNoSeOfreceTests(BaseInactivar):
             )
         self.assertIn("edificio", error.exception.message_dict)
         self.assertFalse(Sector.objects.filter(nombre="Nuevo").exists())
-        self.assertIsNotNone(usuario)
 
     def test_un_sector_en_edicion_conserva_su_edificio_inactivo_en_el_form_y_no_se_activa_alli(self):
         sector = self._sector(self.edif_c)
@@ -460,8 +473,14 @@ class PantallasTests(BaseInactivar):
         self.assertContains(respuesta, "Inactivar edificio")
         self.assertContains(respuesta, f"¿Inactivar {self.edif_c.nombre}?")
         self.assertContains(respuesta, "El edificio deja de ofrecerse para relevamientos, sectores y vínculos.")
-        self.assertContains(respuesta, 'data-confirm-danger="true"')
-        self.assertContains(respuesta, reverse("dispositivos:edificio_inactivar", args=[self.edif_c.pk]))
+        url = reverse("dispositivos:edificio_inactivar", args=[self.edif_c.pk])
+        self.assertContains(respuesta, url)
+        # La confirmación roja es la del botón de inactivar, no la de otro ítem del menú (p. ej. «Desvincular»).
+        boton = re.search(
+            r'<button[^>]*data-confirm-url="' + re.escape(url) + r'[^"]*"[^>]*>', respuesta.content.decode()
+        )
+        self.assertIsNotNone(boton)
+        self.assertIn('data-confirm-danger="true"', boton.group(0))
         self.assertNotContains(respuesta, "Activar edificio")
 
     def test_quien_no_es_admin_no_ve_ningun_boton(self):
@@ -471,7 +490,7 @@ class PantallasTests(BaseInactivar):
             respuesta = self._pagina(self.no_admin)
             self.assertNotContains(respuesta, "Inactivar edificio")
             self.assertNotContains(respuesta, "Activar edificio")
-            self.assertNotContains(respuesta, "edificio_inactivar")
+            self.assertNotContains(respuesta, reverse("dispositivos:edificio_inactivar", args=[self.edif_c.pk]))
 
     def test_inactivo_marca_avisa_y_cambia_las_acciones_del_encabezado(self):
         self._inactivo()
@@ -500,6 +519,26 @@ class PantallasTests(BaseInactivar):
         self.assertContains(respuesta, "Este edificio está inactivo.")
         self.assertContains(respuesta, "Inactivo</span>")
         self.assertNotContains(respuesta, reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
+
+    def test_solapa_de_sectores_de_un_edificio_inactivo_no_ofrece_altas_ni_reactivar(self):
+        baja = self._sector(self.edif_c, nombre="Sector de baja")
+        Sector.objects.filter(pk=baja.pk).update(activo=False)
+        reactivar = reverse("dispositivos:sector_reactivar", args=[self.cis.pk, baja.pk])
+        nuevo = reverse("dispositivos:sector_crear", args=[self.cis.pk])
+
+        # Control positivo: con el edificio activo se ofrecen las tres cosas.
+        respuesta = self._pagina(self.admin_prog, tab="sectores", inactivos="1")
+        self.assertContains(respuesta, nuevo)
+        self.assertContains(respuesta, reactivar)
+
+        self._inactivo()
+        for params in ({"tab": "sectores"}, {"tab": "sectores", "inactivos": "1"}):
+            with self.subTest(params=params):
+                respuesta = self._pagina(self.admin_prog, **params)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertNotContains(respuesta, nuevo)
+                self.assertNotContains(respuesta, reactivar)
+                self.assertNotContains(respuesta, "Nuevo sector")
 
     def _ficha(self, usuario):
         return self._cliente(usuario).get(reverse("dispositivos:edificio_detalle", args=[self.edif_c.pk]))

@@ -7,8 +7,7 @@ de asignar de Relevamientos (P21) y no tiene ruta propia.
 """
 
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import JsonResponse
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -33,7 +32,7 @@ from programas.services.detalle_dispositivo import ESTADOS_EDILICIOS
 from programas.services.dispositivos import CAP_CONFIGURAR, CAP_VER_EDIFICIOS
 from programas.services.edificios import inactivar_edificio, reactivar_edificio
 from programas.urls_seguras import destino_seguro
-from programas.views.ajax_utils import errores_del_servicio, is_ajax, rechazar
+from programas.views.ajax_utils import errores_del_servicio, rechazar
 
 FILTROS = ("q", "localidad", "estado", "compartido", "situacion")
 
@@ -133,14 +132,10 @@ class _CambiarSituacionDelEdificioView(DispositivoProgramaPermissionMixin, View)
             request,
             reverse("dispositivos:edificio_detalle", args=[edificio.pk]),
             desde=("GET", "POST"),
-            prefijo=reverse("dispositivos:edificios").removesuffix("edificios/"),
+            prefijo=reverse("dispositivos:lista"),
         )
         try:
             edificio = self.ejecutar(edificio)
-        except PermissionDenied:
-            if is_ajax(request):
-                return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
-            raise
         except ValidationError as error:
             return rechazar(request, errores_del_servicio(error), volver)
         messages.success(request, self.mensaje(edificio))

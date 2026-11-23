@@ -24,14 +24,7 @@
       {% endif %}
       {# Con el edificio inactivo, el administrador del programa lo vuelve a activar desde acá #}
       {% if url_reactivar %}
-      <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
-              data-confirm-url="{{ url_reactivar }}"
-              data-confirm-title="¿Activar {{ edificio.nombre }}?"
-              data-confirm-text="El edificio vuelve a ofrecerse para relevamientos, sectores y vínculos, con sus datos, relevamientos y equipo como estaban."
-              data-confirm-ok="Sí, activar"
-              data-confirm-danger="false">
-        <i class="fas fa-circle-check" aria-hidden="true"></i> Activar edificio
-      </button>
+      {% include "programas/dispositivos/edificios/_boton_activar.html" with url=url_reactivar nombre=edificio.nombre texto=texto_activar fit=True only %}
       {% endif %}
       {# Cada ítem solo con su capacidad y su alcance sobre este edificio; si ninguno corresponde, el menú no se dibuja #}
       {% if hay_mas_acciones %}
@@ -55,7 +48,7 @@
         {% include "components/_menu_fila_item.html" with texto="Desvincular de "|add:dispositivo.nombre icono="fa-link-slash" peligro=True confirm_url=url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
         {% endif %}
         {% if url_inactivar %}
-        {% include "components/_menu_fila_item.html" with texto="Inactivar edificio" icono="fa-ban" peligro=True confirm_url=url_inactivar confirm_title="¿Inactivar "|add:edificio.nombre|add:"?" confirm_text="El edificio deja de ofrecerse para relevamientos, sectores y vínculos. No se borra nada y se puede volver a activar." confirm_ok="Sí, inactivar" only %}
+        {% include "components/_menu_fila_item.html" with texto="Inactivar edificio" icono="fa-ban" peligro=True confirm_url=url_inactivar confirm_title="¿Inactivar "|add:edificio.nombre|add:"?" confirm_text=texto_inactivar confirm_ok="Sí, inactivar" only %}
         {% endif %}
       {% endmenu_fila %}
       {% endif %}

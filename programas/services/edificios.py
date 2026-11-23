@@ -64,6 +64,9 @@ SECTORES_ACTIVOS_EN_EL_EDIFICIO = (
 )
 
 
+# Textos de las confirmaciones de inactivar y reactivar: los comparten la ficha y la página operativa del edificio.
+TEXTO_INACTIVAR = "El edificio deja de ofrecerse para relevamientos, sectores y vínculos. No se borra nada y se puede volver a activar."
+TEXTO_ACTIVAR = "El edificio vuelve a ofrecerse para relevamientos, sectores y vínculos, con sus datos, relevamientos y equipo como estaban."
 EDIFICIO_INACTIVO = "El edificio está inactivo: reactivalo antes de cambiarlo."
 
 
@@ -207,6 +210,11 @@ def vincular_edificio(*, edificio, dispositivo, usuario):
         # El ajeno y el inexistente, lo mismo: el alcance ya los excluyó a los dos.
         raise PermissionDenied("Ese edificio no está en tu alcance.")
 
+    # Mismo orden de candados que `desvincular_edificio` y `_bloquear_predio` (institución y después edificio): un
+    # edificio que se está inactivando no se vincula, o quedaría una institución con uno inactivo que no puede soltar.
+    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
+    if not Edificio.objects.select_for_update().filter(pk=edificio.pk, activo=True).exists():
+        raise ValidationError({"__all__": EDIFICIO_INACTIVO})
     dispositivo.edificios.add(edificio)
     _trazar(dispositivo, usuario, "EDIFICIO_VINCULADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")
     return edificio

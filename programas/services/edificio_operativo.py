@@ -56,7 +56,7 @@ from programas.services.dispositivos import (
     puede_operar_edificio,
 )
 from programas.services.edificio_historial import contar_eventos_del_edificio, rotulo_del_turno
-from programas.services.edificios import admite_editar_edificio
+from programas.services.edificios import TEXTO_ACTIVAR, TEXTO_INACTIVAR, admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.equipo_dispositivo import (
     edificios_donde_agregar_persona,
@@ -387,7 +387,8 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         "solapas": disponibles,
         "avisos": _avisos(user, dispositivo, edificio, acciones),
         "url_institucion": url_institucion,
-        "activo": edificio.activo,
+        "texto_inactivar": TEXTO_INACTIVAR,
+        "texto_activar": TEXTO_ACTIVAR,
         # La insignia «Inactivo» junto al título (`page_header`); vacía con el edificio activo.
         "estado_header": {"texto": "" if edificio.activo else "Inactivo", "tono": "gray"},
         "migas": [

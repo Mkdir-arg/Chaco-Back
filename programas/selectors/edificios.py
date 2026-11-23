@@ -41,7 +41,7 @@ from programas.services.dispositivos import (
     nombre_o,
     puede_configurar_dispositivos,
 )
-from programas.services.edificios import admite_editar_edificio
+from programas.services.edificios import TEXTO_ACTIVAR, TEXTO_INACTIVAR, admite_editar_edificio
 from programas.services.inspecciones import (
     edificios_en_alcance,
     edificios_para_asignar,
@@ -370,4 +370,6 @@ def ficha_de_edificio(user, edificio, pagina=1):
             if not edificio.activo and ve_situaciones(user)
             else ""
         ),
+        "texto_inactivar": TEXTO_INACTIVAR,
+        "texto_activar": TEXTO_ACTIVAR,
     }

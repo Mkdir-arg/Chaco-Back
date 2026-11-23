@@ -27,21 +27,14 @@
     <button type="button" class="btn-nodo btn-secondary btn-sm"
             data-confirm-url="{{ ficha.url_inactivar }}"
             data-confirm-title="¿Inactivar {{ ficha.nombre }}?"
-            data-confirm-text="El edificio deja de ofrecerse para relevamientos, sectores y vínculos. No se borra nada y se puede volver a activar."
+            data-confirm-text="{{ ficha.texto_inactivar }}"
             data-confirm-ok="Sí, inactivar"
             data-confirm-danger="true">
       <i class="fas fa-ban" aria-hidden="true"></i> Inactivar edificio
     </button>
     {% endif %}
     {% if ficha.url_reactivar %}
-    <button type="button" class="btn-nodo btn-brand btn-sm"
-            data-confirm-url="{{ ficha.url_reactivar }}"
-            data-confirm-title="¿Activar {{ ficha.nombre }}?"
-            data-confirm-text="El edificio vuelve a ofrecerse para relevamientos, sectores y vínculos, con sus datos, relevamientos y equipo como estaban."
-            data-confirm-ok="Sí, activar"
-            data-confirm-danger="false">
-      <i class="fas fa-circle-check" aria-hidden="true"></i> Activar edificio
-    </button>
+    {% include "programas/dispositivos/edificios/_boton_activar.html" with url=ficha.url_reactivar nombre=ficha.nombre texto=ficha.texto_activar only %}
     {% endif %}
   {% endpage_header %}
 
