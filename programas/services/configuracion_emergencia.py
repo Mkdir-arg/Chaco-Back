@@ -1,4 +1,4 @@
-"""Configuración de la mesa de Emergencia (pantalla E7): SLA y catálogo de kits.
+"""Configuración de la mesa de Emergencia: plazos de atención (SLA) e insumos (catálogo de kits).
 
 Todo lo que escribe pasa por acá —la vista web hoy, la API el día que la haya (RU-2)— y
 cada función vuelve a exigir ``emergencia.supervisar`` **con alcance sobre el programa
@@ -13,10 +13,12 @@ Reglas que viven en este módulo:
   persona/familia/lactante, cada cuántos días) va completa o vacía; cada campo que cambia
   deja traza, y el alta traza también la regla con la que nació. ``inicio_evento`` del SLA
   es desde cuándo cuenta la solapa «Abastecimiento» de E8 y no puede ser futuro.
-* El guardado de E7 es **una sola transacción**: o entran el SLA y el catálogo, o no
-  entra nada. Con dos supervisores guardando a la vez gana el último y la traza tiene
-  los dos cambios (la fila del SLA se toma con ``select_for_update``, así que cada uno
-  compara contra lo que dejó el anterior y no contra lo que tenía en pantalla).
+* **Un insumo ya usado no cambia de nombre ni de unidad** (Cambio 578): si alguna línea de
+  entrega lo referencia, ``editar_tipo_kit`` rechaza el cambio de esos dos campos; desactivarlo
+  y la regla de consumo sí se pueden. Las líneas además copian el nombre al crearse.
+* Con dos supervisores guardando el SLA a la vez gana el último y la traza tiene los dos
+  cambios (la fila se toma con ``select_for_update``, así que cada uno compara contra lo que
+  dejó el anterior y no contra lo que tenía en pantalla).
 """
 
 from datetime import datetime
@@ -54,6 +56,12 @@ CAMPO_ALTA = "alta"
 
 MENSAJE_SIN_PERMISO = "Solo quien supervisa la mesa de Emergencia puede cambiar su configuración."
 MENSAJE_NOMBRE_DUPLICADO = "Ya existe un tipo de kit con ese nombre."
+MENSAJE_INSUMO_USADO = (
+    "Este insumo ya salió en entregas: no se puede cambiar. Desactivalo y cargá uno nuevo con el dato corregido."
+)
+
+#: Lo que identifica a un insumo en las entregas que ya salieron: no cambia una vez usado.
+CAMPOS_DE_IDENTIDAD = ("nombre", "unidad")
 
 
 class ProgramaEmergenciaInexistente(RuntimeError):
@@ -243,6 +251,22 @@ def editar_tipo_kit(usuario, tipo, **campos):
     return _editar_bloqueado(usuario, TipoKit.objects.select_for_update().get(pk=tipo.pk), campos)
 
 
+def insumo_usado_en_entregas(tipo):
+    """¿Alguna línea de entrega referencia a este insumo? Una consulta (``EXISTS``)."""
+    return tipo.pk is not None and tipo.lineas_de_entrega.exists()
+
+
+def _exigir_identidad_intacta(tipo, campos):
+    """Regla 1 (Cambio 578): un insumo usado no cambia de nombre ni de unidad.
+
+    Compara contra lo que hay en la fila ya bloqueada, no contra lo que la pantalla mostraba:
+    un insumo que se usó entre el GET y el POST también se rechaza.
+    """
+    cambian = [campo for campo in CAMPOS_DE_IDENTIDAD if campo in campos and campos[campo] != getattr(tipo, campo)]
+    if cambian and insumo_usado_en_entregas(tipo):
+        raise ValidationError({campo: MENSAJE_INSUMO_USADO for campo in cambian})
+
+
 def _editar_bloqueado(usuario, tipo, campos):
     """La edición sobre una fila ya tomada con ``select_for_update``."""
     campos = dict(campos)
@@ -250,6 +274,7 @@ def _editar_bloqueado(usuario, tipo, campos):
         campos["nombre"] = normalizar_nombre(campos["nombre"])
     if "unidad" in campos:
         campos["unidad"] = (campos["unidad"] or "").strip()
+    _exigir_identidad_intacta(tipo, campos)
     cambios = _aplicar(tipo, campos, CAMPOS_TIPO_KIT)
     if not cambios:
         return tipo
@@ -262,30 +287,3 @@ def _editar_bloqueado(usuario, tipo, campos):
 def cambiar_estado_tipo_kit(usuario, tipo, activo):
     """Activa o desactiva un ítem (RN-4.7): desactivado deja de ofrecerse, no desaparece."""
     return editar_tipo_kit(usuario, tipo, activo=bool(activo))
-
-
-# ---------------------------------------------------------------------------
-# El guardado de E7
-# ---------------------------------------------------------------------------
-
-
-@transaction.atomic
-def guardar_configuracion(usuario, *, sla, kits):
-    """Guarda la pantalla E7 entera en una transacción.
-
-    ``sla`` es el dict de campos del SLA. ``kits`` es una lista de ``(tipo, campos)``: con
-    ``tipo`` se edita ese ítem, con ``None`` se crea uno. Si algo falla no queda nada
-    guardado ni ninguna traza.
-    """
-    _exigir_supervisar(usuario)
-    guardado = guardar_sla(usuario, **sla)
-    # Los ítems que se editan se toman todos juntos, en una consulta y en orden de pk: una
-    # por fila sería un N+1, y dos guardados simultáneos se cruzarían los candados.
-    a_editar = [tipo.pk for tipo, _campos in kits if tipo is not None]
-    bloqueados = {tipo.pk: tipo for tipo in TipoKit.objects.select_for_update().filter(pk__in=a_editar).order_by("pk")}
-    for tipo, campos in kits:
-        if tipo is None:
-            crear_tipo_kit(usuario, **campos)
-        else:
-            _editar_bloqueado(usuario, bloqueados[tipo.pk], campos)
-    return guardado

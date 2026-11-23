@@ -122,7 +122,7 @@
             <tbody>
               {% for linea in kits.lineas %}
               <tr class="hover:bg-secondary">
-                <td class="nodo-td text-heading font-medium">{{ linea.item.nombre }}<span class="block text-xs text-body-subtle font-normal">{{ linea.unidad }}</span></td>
+                <td class="nodo-td text-heading font-medium">{{ linea.nombre_visible }}<span class="block text-xs text-body-subtle font-normal">{{ linea.unidad }}</span></td>
                 <td class="nodo-td text-right">{{ linea.cantidad_enviada }}</td>
                 <td class="nodo-td text-right">{{ linea.cantidad_recibida|default_if_none:"—" }}</td>
                 <td class="nodo-td">{% include "components/_celda_diferencia.html" with enviada=linea.cantidad_enviada recibida=linea.cantidad_recibida only %}</td>

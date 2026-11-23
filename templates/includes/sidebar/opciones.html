@@ -603,7 +603,7 @@
 
         {# ── Emergencia (grupo colapsable) ───────────────────── #}
         {% comment %}Grupo propio, separado de Programas (Becas). La bandeja y las entregas las abre quien
-        opera o supervisa la mesa; el tablero (E1) y la configuración (E7), solo quien supervisa; la situación (E8),
+        opera o supervisa la mesa; el tablero (E1), los insumos y los plazos de atención, solo quien supervisa; la situación (E8),
         quien la ve o supervisa (con solo `ver_situacion`, el grupo trae solo ese ítem). Sin alcance:
         no suma consultas por página (sale del cache de capacidades); el alcance lo exige cada vista. Escrito
         con utilidades, como «Notificaciones»: colores y activo los pone .ds-snav.{% endcomment %}
@@ -679,16 +679,27 @@
                             </svg>
                             Tablero
                         </a>
-                        <a href="{% url 'emergencia:configuracion' %}"
+                        <a href="{% url 'emergencia:insumos' %}"
                            class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
-                           {% if 'emergencia/config' in pagina_actual %}aria-current="page"{% endif %}>
-                            {# adjustments-horizontal icon #}
+                           {% if 'emergencia/config/insumos' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# archive-box icon #}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                                  width="16" height="16" aria-hidden="true" class="flex-shrink-0">
                                 <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
+                                      d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/>
                             </svg>
-                            Configuración
+                            Insumos
+                        </a>
+                        <a href="{% url 'emergencia:plazos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
+                           {% if 'emergencia/config/plazos' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# clock icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                            </svg>
+                            Plazos de atención
                         </a>
                         {% endif %}
                     </div>

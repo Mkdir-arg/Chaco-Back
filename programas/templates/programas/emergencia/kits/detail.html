@@ -70,7 +70,7 @@ arquetipo Modal con POST clásico. Después de la recepción lo único que la me
             {% for linea in lineas %}
             <tr class="hover:bg-secondary">
               <td class="nodo-td text-heading font-medium">
-                {{ linea.item.nombre }}
+                {{ linea.nombre_visible }}
                 <span class="block text-xs text-body-subtle">{{ linea.unidad }}</span>
               </td>
               <td class="nodo-td text-right">{{ linea.cantidad_enviada }}</td>
