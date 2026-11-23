@@ -35,10 +35,15 @@ El orden de los candados
 
 Una entrega no toca casos, derivaciones ni plazas, así que su orden es propio y corto::
 
-    numerador (serie K)  ·  entrega
-
-``crear_entrega`` bloquea solo el numerador (todavía no hay entrega); las transiciones
-bloquean solo la entrega. Ninguna función toma los dos, así que no hay orden que cruzar.
+    entrega original  ·  dispositivo destino  ·  edificio  ·  numerador (serie K)  ·  entrega nueva
+``crear_entrega`` toma ese orden (la entrega original solo si repone; el edificio, el elegido, el único o el de la
+original). La entrega va antes que el dispositivo porque cancelar una reposición bloquea original → reposición y
+recibirla bloquea reposición → dispositivo (la bitácora): con el dispositivo primero, crear, cancelar y recibir cerraban
+un ciclo de tres. El dispositivo va antes que el edificio porque «inactivar» y «desvincular» edificio van
+Dispositivo → Edificio, y el ``INSERT`` pide un candado compartido sobre el dispositivo (FK). Las demás transiciones
+bloquean solo la entrega (recibir sigue con el dispositivo). Ninguna toma el numerador y *después* una entrega, así que
+no hay orden que cruzar.
+*después* una entrega, así que no hay orden que cruzar.
 La carrera cancelar / recibir se resuelve sobre la misma fila: gana quien llega primero al
 candado y el otro lee el estado nuevo y recibe :class:`EstadoCambioEntrega`. Las carreras
 contra el motor real están en ``programas.tests.test_emergencia_kits`` con ``@tag("mysql")``
@@ -99,6 +104,15 @@ CANTIDAD_INVALIDA = "Sacá el ítem o poné una cantidad: tiene que ser un núme
 ITEM_NO_DISPONIBLE = "Ese ítem ya no está en el catálogo activo. Recargá la pantalla y elegí otro."
 DISPOSITIVO_NO_ACTIVO = "Solo se envían kits a un dispositivo activo. Elegí otro destino."
 REPOSICION_INVALIDA = "Solo se repone una entrega que ese mismo dispositivo recibió con diferencias."
+REPOSICION_YA_HECHA = "La diferencia de la entrega {numero} ya está cerrada ({como}). Reponer se hace una sola vez."
+FALTA_EL_MOTIVO_DE_LA_DIFERENCIA = "Indicá por qué se acepta la diferencia."
+MOTIVO_DE_LA_DIFERENCIA_LARGO = "El motivo no puede tener más de {maximo} caracteres."
+EDIFICIO_INACTIVO = (
+    "El edificio {nombre} está inactivo y no recibe entregas nuevas. "
+    "Reactivalo o, si el dispositivo tiene otro edificio, elegí ese."
+)
+SIN_DIFERENCIA_QUE_CERRAR = "La entrega {numero} no tiene una diferencia para cerrar."
+DIFERENCIA_YA_CERRADA = "La diferencia de la entrega {numero} ya está cerrada ({como}). Recargá la pantalla."
 FALTA_EL_MOTIVO = "Indicá por qué se cancela la entrega."
 MOTIVO_LARGO = f"El motivo no puede tener más de {MOTIVO_MAXIMO} caracteres."
 TRANSPORTE_LARGO = f"El transporte no puede tener más de {TRANSPORTE_MAXIMO} caracteres."
@@ -281,19 +295,62 @@ def _validar_lineas(lineas):
     return [(activos[item_id], cantidad) for item_id, cantidad in zip(ids, cantidades, strict=True)]
 
 
-def _validar_reposicion(repone_a, dispositivo):
-    """HU-4.5: se repone una entrega que **ese** dispositivo recibió con diferencias."""
+def _como_se_cerro(entrega):
+    """«repuesta» o «aceptada»: cómo quedó cerrada la diferencia de ``entrega``."""
+
+    return EntregaKit.CierreDiferencia(entrega.cierre_diferencia).label.lower()
+
+
+def _bloquear_original(repone_a):
+    """La fila de la entrega que se repone, con candado, o ``None``. Va **antes** que el destino (ver el orden de
+    candados): se toma por pk y recién después se valida que sea de ese destino."""
 
     if repone_a is None:
         return None
-    original = EntregaKit.objects.filter(pk=getattr(repone_a, "pk", repone_a)).first()
+    return EntregaKit.objects.select_for_update().filter(pk=getattr(repone_a, "pk", repone_a)).first()
+
+
+def _validar_reposicion(repone_a, original, dispositivo):
+    """HU-4.5: se repone una entrega que **ese** dispositivo recibió con diferencias, y **una sola vez**.
+
+    ``original`` es la fila ya bloqueada por :func:`_bloquear_original` y se lee de ahí si ya se cerró: dos pedidos a
+    la vez de «Reponer» no arman dos reposiciones, el segundo ve el cierre del primero (Cambio 586).
+    """
+
+    if repone_a is None:
+        return None
     if (
         original is None
         or original.dispositivo_id != dispositivo.pk
         or original.estado != Estado.RECIBIDA_CON_DIFERENCIAS
     ):
         raise ValidationError({"repone_a": REPOSICION_INVALIDA})
+    if original.cierre_diferencia is not None:
+        raise _ReposicionYaHecha(
+            {"repone_a": REPOSICION_YA_HECHA.format(numero=original.numero, como=_como_se_cerro(original))}
+        )
     return original
+
+
+class _ReposicionYaHecha(ValidationError):
+    """La entrega a reponer ya tiene su diferencia cerrada. ``crear_entrega`` la distingue del resto: si la cerró **este
+    mismo armado** (doble envío a la vez), devuelve esa entrega en vez de rechazar."""
+
+
+def _cerrar_como_repuesta(original, reposicion, usuario, ahora):
+    """Deja ``original`` como repuesta por ``reposicion``, con su traza. ``original`` viene bloqueada."""
+
+    original.cierre_diferencia = EntregaKit.CierreDiferencia.REPUESTA
+    original.cierre_diferencia_en = ahora
+    original.cierre_diferencia_por = usuario
+    original.save(update_fields=["cierre_diferencia", "cierre_diferencia_en", "cierre_diferencia_por", "modificado"])
+    _trazar(
+        original,
+        usuario,
+        Accion.DIFERENCIA_REPUESTA,
+        estado_anterior=original.estado,
+        detalle=f"Repuesta con la entrega {reposicion.numero}",
+    )
 
 
 def _edificio_de_la_entrega(destino, edificio, original):
@@ -311,13 +368,36 @@ def _edificio_de_la_entrega(destino, edificio, original):
         pk = getattr(edificio, "pk", edificio)
         if not vinculados.filter(pk=pk).exists():
             raise ValidationError({"edificio": "El edificio tiene que estar vinculado al dispositivo destino."})
-        return pk
+        return _exigir_edificio_activo(pk)
     if original is not None and original.edificio_id is not None:
-        return original.edificio_id
-    unicos = list(vinculados.values_list("pk", flat=True)[:2])
-    if len(unicos) > 1:
+        return _exigir_edificio_activo(original.edificio_id)
+    activos = list(vinculados.filter(activo=True).values_list("pk", flat=True)[:2])
+    if len(activos) > 1:
         raise ValidationError({"edificio": "Elegí el edificio al que va la entrega."})
-    return unicos[0] if unicos else None
+    if activos:
+        return _exigir_edificio_activo(activos[0])
+    inactivo = vinculados.order_by("nombre").first()
+    if inactivo is not None:
+        # Todos sus edificios están inactivos: no se la deja sin edificio, se pide resolver el estado.
+        raise ValidationError({"edificio": EDIFICIO_INACTIVO.format(nombre=inactivo.nombre)})
+    return None
+
+
+def _exigir_edificio_activo(pk):
+    """Un edificio inactivo no recibe entregas nuevas (Cambio 586). Lo relee **con candado**, dentro de la transacción.
+
+    «Inactivar edificio» cuenta las entregas por recibir bajo el candado del mismo edificio: o la entrega entra antes
+    y la inactivación la ve, o la inactivación entra antes y acá se rechaza. Mismo patrón que
+    ``plazas._exigir_edificio_del_dispositivo``.
+    """
+
+    from programas.models import Edificio
+
+    bloqueado = Edificio.objects.select_for_update().filter(pk=pk).first()
+    if bloqueado is None or not bloqueado.activo:
+        nombre = bloqueado.nombre if bloqueado is not None else "elegido"
+        raise ValidationError({"edificio": EDIFICIO_INACTIVO.format(nombre=nombre)})
+    return bloqueado.pk
 
 
 def _entrega_de_ese_armado(uuid_cliente, usuario):
@@ -334,8 +414,13 @@ def _entrega_de_ese_armado(uuid_cliente, usuario):
 
 
 @transaction.atomic
-def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, edificio=None, uuid_cliente=None):
+def crear_entrega(
+    usuario, dispositivo, lineas, observacion="", repone_a=None, edificio=None, uuid_cliente=None, enviar=False
+):
     """Arma una entrega ``PREPARADA`` con sus líneas (HU-4.1). **La única función que crea entregas.**
+
+    ``enviar`` (Cambio 586): crea y marca en camino en **la misma transacción** («Crear y enviar»); sin él queda
+    ``PREPARADA``. Una entrega que ya existía por su ``uuid_cliente`` se devuelve tal cual, sin enviarla.
 
     * Exige trabajar en la mesa (``emergencia.operar`` o ``supervisar``).
     * **RN-4.2** — el destino tiene que estar ``ACTIVO`` (cualquier tipo). Se relee de la
@@ -346,7 +431,8 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
     * La ``unidad`` de cada línea se **copia** del catálogo (04 §10) y ``cantidad_recibida``
       nace ``NULL``.
     * ``repone_a`` (HU-4.5): la entrega que esta repone; tiene que ser del mismo dispositivo
-      y estar ``RECIBIDA_CON_DIFERENCIAS``.
+      y estar ``RECIBIDA_CON_DIFERENCIAS`` **sin cerrar**. Se bloquea su fila y queda como ``REPUESTA`` en la misma
+      transacción: reponer es una sola vez por entrega (Cambio 586).
     * ``edificio`` (Cambio 523): ver :func:`_edificio_de_la_entrega`; sin él sale de la entrega que repone o del
       único edificio del destino; con varios y sin de dónde sacarlo es obligatorio.
     * Numera con el contador de la serie ``K`` («2026-K-000031») y deja la primera traza.
@@ -363,11 +449,24 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
         existente = _entrega_de_ese_armado(uuid_cliente, usuario)
         if existente is not None:
             return existente
-    destino = Dispositivo.objects.filter(pk=getattr(dispositivo, "pk", dispositivo)).first()
+    # La entrega que se repone va primero, con candado y por pk: cancelar una reposición toma original → reposición y
+    # recibirla toma reposición → Dispositivo (bitácora); tomar el Dispositivo antes que la original cerraba un ciclo.
+    # Después el destino —«inactivar» y «desvincular» edificio van Dispositivo → Edificio y el INSERT pide un candado
+    # compartido sobre el Dispositivo (FK)— y recién ahí se valida que la original sea de ese destino.
+    bloqueada_original = _bloquear_original(repone_a)
+    destino = Dispositivo.objects.select_for_update().filter(pk=getattr(dispositivo, "pk", dispositivo)).first()
     if destino is None or destino.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ACTIVO})
     validas = _validar_lineas(lineas)
-    original = _validar_reposicion(repone_a, destino)
+    try:
+        original = _validar_reposicion(repone_a, bloqueada_original, destino)
+    except _ReposicionYaHecha:
+        # Doble envío a la vez del mismo armado: el primero ya repuso y su fila existe. Bajo el candado de la original
+        # se vuelve a mirar antes de rechazar, así el segundo recibe la entrega del primero y no un error.
+        existente = _entrega_de_ese_armado(uuid_cliente, usuario) if uuid_cliente is not None else None
+        if existente is None:
+            raise
+        return existente
     edificio_id = _edificio_de_la_entrega(destino, edificio, original)
 
     ahora = timezone.now()
@@ -404,6 +503,10 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
         # `observar_recepcion` reemplaza el campo: la nota original queda acá.
         detalle = f"{detalle} · nota para el dispositivo: {entrega.observacion_mesa}"
     _trazar(entrega, usuario, Accion.CREADA, estado_anterior="", detalle=detalle)
+    if original is not None:
+        _cerrar_como_repuesta(original, entrega, usuario, ahora)
+    if enviar:
+        entrega = marcar_en_camino(entrega, usuario)
     return entrega
 
 
@@ -448,7 +551,8 @@ def marcar_en_camino(entrega, usuario, transporte="", hora=None):
 def cancelar_entrega(entrega, usuario, motivo):
     """``PREPARADA`` o ``EN_CAMINO`` → ``CANCELADA``, con motivo obligatorio (RU-22).
 
-    Una entrega ya recibida o ya cancelada no se cancela: :class:`EstadoCambioEntrega`.
+    Una entrega ya recibida o ya cancelada no se cancela: :class:`EstadoCambioEntrega`. Si era la única reposición viva
+    de una entrega recibida con diferencias, esa entrega vuelve a «con diferencia sin cerrar» (Cambio 586).
     """
 
     _exigir_mesa(usuario)
@@ -458,6 +562,10 @@ def cancelar_entrega(entrega, usuario, motivo):
     if len(motivo) > MOTIVO_MAXIMO:
         raise ValidationError({"motivo": MOTIVO_LARGO})
 
+    # Primero la original (si esta repone a otra), después la entrega: el mismo orden de candados que al reponer.
+    original_bloqueada = (
+        EntregaKit.objects.select_for_update().filter(pk=entrega.repone_a_id).first() if entrega.repone_a_id else None
+    )
     bloqueada = _bloquear_entrega(entrega)
     _exigir_estado(bloqueada, *EntregaKit.ESTADOS_ABIERTOS)
     anterior = bloqueada.estado
@@ -465,7 +573,37 @@ def cancelar_entrega(entrega, usuario, motivo):
     bloqueada.motivo_cancelacion = motivo
     bloqueada.save(update_fields=["estado", "motivo_cancelacion", "modificado"])
     _trazar(bloqueada, usuario, Accion.CANCELADA, estado_anterior=anterior, detalle=motivo)
+    if original_bloqueada is not None:
+        _reabrir_si_no_queda_reposicion(original_bloqueada, bloqueada, usuario)
     return bloqueada
+
+
+def _reabrir_si_no_queda_reposicion(original, cancelada, usuario):
+    """Cancelar la única reposición viva devuelve la original a «con diferencia sin cerrar» (Cambio 586).
+
+    «Una sola vez» es una sola reposición **viva** (preparada, en camino o recibida) por entrega: si la que se
+    cancela era la última, no se repuso nada y la diferencia sigue abierta, así que se puede reponer de nuevo o
+    aceptar. Una original ya cerrada de otra manera (aceptada) no se toca. ``original`` viene bloqueada.
+    """
+
+    if (
+        original.estado != Estado.RECIBIDA_CON_DIFERENCIAS
+        or original.cierre_diferencia != EntregaKit.CierreDiferencia.REPUESTA
+    ):
+        return
+    if EntregaKit.objects.filter(repone_a=original).exclude(pk=cancelada.pk).exclude(estado=Estado.CANCELADA).exists():
+        return
+    original.cierre_diferencia = None
+    original.cierre_diferencia_en = None
+    original.cierre_diferencia_por = None
+    original.save(update_fields=["cierre_diferencia", "cierre_diferencia_en", "cierre_diferencia_por", "modificado"])
+    _trazar(
+        original,
+        usuario,
+        Accion.DIFERENCIA_REABIERTA,
+        estado_anterior=original.estado,
+        detalle=f"Se canceló la entrega {cancelada.numero} que la reponía: la diferencia sigue sin cerrar",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -646,6 +784,60 @@ def observar_recepcion(entrega, usuario, texto):
     bloqueada.save(update_fields=["observacion_mesa", "modificado"])
     _trazar(bloqueada, usuario, Accion.OBSERVADA, estado_anterior=bloqueada.estado, detalle=texto)
     return bloqueada
+
+
+@transaction.atomic
+def aceptar_diferencia(entrega, usuario, motivo):
+    """Cierra la diferencia de una entrega recibida sin reponerla: queda ``ACEPTADA``, con motivo obligatorio.
+
+    Es una de las dos salidas de «Qué hacer ahora» (la otra es reponer, que va en :func:`crear_entrega` con
+    ``repone_a``). Solo sobre una entrega ``RECIBIDA_CON_DIFERENCIAS`` y **sin cerrar**: ya repuesta o ya aceptada, o
+    sin diferencia, :class:`EstadoCambioEntrega`. Bloquea la fila antes de leer el cierre, así que aceptar y reponer a
+    la vez no se pisan: gana quien llega primero al candado. No cambia las cantidades (RN-4.5). Deja la traza con el
+    motivo completo.
+    """
+
+    _exigir_mesa(usuario)
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ValidationError({"motivo": FALTA_EL_MOTIVO_DE_LA_DIFERENCIA})
+    maximo = EntregaKit._meta.get_field("cierre_diferencia_motivo").max_length
+    if len(motivo) > maximo:
+        raise ValidationError({"motivo": MOTIVO_DE_LA_DIFERENCIA_LARGO.format(maximo=maximo)})
+
+    bloqueada = _bloquear_entrega(entrega)
+    if bloqueada.estado != Estado.RECIBIDA_CON_DIFERENCIAS:
+        raise EstadoCambioEntrega(SIN_DIFERENCIA_QUE_CERRAR.format(numero=bloqueada.numero), entrega=bloqueada)
+    if bloqueada.cierre_diferencia is not None:
+        raise EstadoCambioEntrega(
+            DIFERENCIA_YA_CERRADA.format(numero=bloqueada.numero, como=_como_se_cerro(bloqueada)), entrega=bloqueada
+        )
+    bloqueada.cierre_diferencia = EntregaKit.CierreDiferencia.ACEPTADA
+    bloqueada.cierre_diferencia_en = timezone.now()
+    bloqueada.cierre_diferencia_por = usuario
+    bloqueada.cierre_diferencia_motivo = motivo
+    bloqueada.save(
+        update_fields=[
+            "cierre_diferencia",
+            "cierre_diferencia_en",
+            "cierre_diferencia_por",
+            "cierre_diferencia_motivo",
+            "modificado",
+        ]
+    )
+    _trazar(bloqueada, usuario, Accion.DIFERENCIA_ACEPTADA, estado_anterior=bloqueada.estado, detalle=motivo)
+    return bloqueada
+
+
+def url_de_kits_del_edificio(url_pagina, entrega=None):
+    """La solapa Kits de la página del edificio (``url_pagina``), abierta en ``entrega`` si se pasa (id o instancia).
+
+    **Único lugar** donde se arma ese enlace: lo usan la recepción de la mesa, la lista y el detalle de la solapa y el
+    ítem «Recibir kit» del menú del edificio (Cambio 586).
+    """
+
+    pk = getattr(entrega, "pk", entrega)
+    return f"{url_pagina}?tab=kits&entrega={pk}" if pk else f"{url_pagina}?tab=kits"
 
 
 def aviso_de_kits_por_recibir(cantidad, url, *, en_este_edificio=False, mas_vieja=None):

@@ -6,9 +6,9 @@
 {% block main-content %}
 {% comment %}E5 · Detalle de una entrega de kits. Lo enviado contra lo recibido (tabla densa canónica con
 `_celda_diferencia.html`), las observaciones, el remito y la traza. Qué acción se ofrece lo decide la vista
-(`puede_*`, `url_reponer`); el servicio lo vuelve a exigir en cada POST. «Marcar en camino» y «Cancelar» son el
+(`puede_*`, `cerrar_diferencia`); el servicio lo vuelve a exigir en cada POST. «Marcar en camino» y «Cancelar» son el
 arquetipo Modal con POST clásico. Después de la recepción lo único que la mesa puede cambiar es su observación.{% endcomment %}
-<div x-data="{ modalEnCamino: false, modalCancelar: false }">
+<div x-data="{ modalEnCamino: false, modalCancelar: false, modalAceptar: false }">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
   <div class="space-y-5">
@@ -18,9 +18,6 @@ arquetipo Modal con POST clásico. Después de la recepción lo único que la me
       {% bajada %}{{ bajada }}{% endbajada %}
       {% if puede_marcar_en_camino %}
       <button type="button" @click="modalEnCamino=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-truck" aria-hidden="true"></i> Marcar en camino</button>
-      {% endif %}
-      {% if url_reponer %}
-      <a href="{{ url_reponer }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Reponer</a>
       {% endif %}
       {% if puede_cancelar %}
       <button type="button" @click="modalCancelar=true" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar entrega</button>
@@ -49,6 +46,28 @@ arquetipo Modal con POST clásico. Después de la recepción lo único que la me
         </dl>
       </div>
     </section>
+
+    {% if cerrar_diferencia %}
+    {# ===== Qué hacer ahora: cerrar la diferencia (Cambio 586). Dos salidas: reponer o aceptar con motivo ===== #}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-cerrar-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-cerrar-titulo" class="text-heading font-bold">Qué hacer ahora: cerrar la diferencia</h2>
+        <p class="mt-1 text-xs text-body-subtle">El dispositivo recibió menos de lo enviado. La diferencia queda abierta hasta que la mesa elija una de las dos salidas.</p>
+      </div>
+      <div class="p-5 space-y-4">
+        {% if cerrar_diferencia.sin_item_activo %}
+          {% include "components/_alerta.html" with tono="warning" titulo="Hay ítems que ya no se pueden reponer" texto=cerrar_diferencia.sin_item_activo_texto role="status" %}
+        {% endif %}
+        <div class="flex flex-wrap gap-3">
+          {% if cerrar_diferencia.url_reponer %}
+          <a href="{{ cerrar_diferencia.url_reponer }}" class="btn-nodo btn-brand btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Reponer lo que faltó</a>
+          {% endif %}
+          <button type="button" @click="modalAceptar=true" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-check" aria-hidden="true"></i> Aceptar la diferencia</button>
+        </div>
+        <p class="text-xs text-body-subtle">Reponer arma otra entrega con lo que faltó y se puede hacer una sola vez. Aceptar la deja como está y pide un motivo.</p>
+      </div>
+    </section>
+    {% endif %}
 
     {# ===== 2. Enviado contra recibido (tabla de conciliación) ===== #}
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-items-titulo">
@@ -183,6 +202,25 @@ arquetipo Modal con POST clásico. Después de la recepción lo único que la me
           {% include "components/_alerta.html" with tono="info" texto="El dispositivo la ve como entrega en camino y puede confirmar la recepción." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEnCamino=false" accion_texto="Marcar en camino" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_aceptar %}
+  {# Modal: Aceptar la diferencia — motivo obligatorio (arquetipo Modal) #}
+  <div x-show="modalAceptar" x-cloak x-becas-modal="modalAceptar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalAceptar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-aceptar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Aceptar la diferencia" titulo_id="modal-aceptar-titulo" icono="fa-check" cerrar="modalAceptar=false" %}
+      <form method="post" action="{% url 'emergencia:entrega_aceptar_diferencia' entrega.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in form_aceptar %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="La diferencia queda aceptada y la entrega no se repone. Las cantidades recibidas no cambian." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalAceptar=false" cancelar_texto="Volver" accion_texto="Sí, aceptar la diferencia" %}
       </form>
     </div>
   </div>

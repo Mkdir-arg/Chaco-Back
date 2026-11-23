@@ -99,8 +99,9 @@ los objetos de `page_obj.object_list`, `estados` (choices), `estado_actual`, `pu
 - Acción de fila que muta sin pedir datos ni destruir nada («Tomar» un caso): `<form method="post">` con
   `{% csrf_token %}` y un `btn-nodo btn-brand btn-sm btn-fit` con `aria-label` que nombra el registro, junto al
   `nodo-icon-btn` de abrir. Misma evidencia.
-- Solapas con modales por GET: `programas/templates/programas/emergencia/kits/list.html` (cuatro solapas con
-  conteo; «Marcar en camino» y «Cancelar» son ítems `url` del `menu_fila` que reabren el listado con
+- Solapas con modales por GET: `programas/templates/programas/emergencia/kits/list.html` (cinco solapas con
+  conteo —Abiertas, Demoradas (más de 48 h), Con diferencia sin cerrar, Recibidas, Canceladas—, un `_alerta.html` arriba
+  si hay demoradas y chips `badge` «Demorada» y «Diferencia sin cerrar» en la fila (Cambio 586); «Marcar en camino» y «Cancelar» son ítems `url` del `menu_fila` que reabren el listado con
   `?en_camino=<id>` / `?cancelar=<id>`, variante «abierto por parámetro GET» del arquetipo Modal).
 - Sin acción de alta: el `page_header` sin cuerpo. Acción secundaria: `btn-nodo btn-tertiary btn-base`.
   Cada acción del encabezado, también la secundaria, se dibuja solo si la vista resolvió su capacidad (p. ej. «Exportar

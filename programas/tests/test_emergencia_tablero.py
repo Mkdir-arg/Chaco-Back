@@ -553,12 +553,39 @@ class ProgramaVacioTests(BaseTablero):
 
 
 class AvisosTests(EscenarioTablero):
-    def test_las_siete_reglas_estan_registradas_en_el_ambito(self):
+    def test_las_ocho_reglas_estan_registradas_en_el_ambito(self):
         self.assertEqual(
             {regla.slug for regla in vencimientos.AVISOS if regla.ambito == "emergencia"},
             {slug for slug, *_resto in avisos_emergencia.REGLAS},
         )
-        self.assertEqual(len(avisos_emergencia.REGLAS), 7)
+        self.assertEqual(len(avisos_emergencia.REGLAS), 8)
+
+    def test_entrega_demorada_avisa_a_las_48_horas_sin_una_consulta_por_entrega(self):
+        """Cambio 586: en camino hace más de 48 h sin recibirse. Se apaga al cancelarla; no se cancela sola."""
+        en_camino = EntregaKit.Estado.EN_CAMINO
+        entrega = self._entrega(self.club, en_camino, despachada_en=T0 - timedelta(hours=47))
+        self.assertNotIn("emergencia.entrega_demorada", self._reglas())
+
+        EntregaKit.objects.filter(pk=entrega.pk).update(despachada_en=T0 - timedelta(hours=49))
+        demoradas = [a for a in self._avisos() if a["regla"] == "emergencia.entrega_demorada"]
+        self.assertEqual(len(demoradas), 1)
+        self.assertEqual(
+            demoradas[0]["titulo"], f"Entrega {entrega.numero} lleva más de 48 horas en camino sin recibirse"
+        )
+        self.assertEqual(demoradas[0]["enlace"], reverse("emergencia:entrega_detalle", args=[entrega.pk]))
+
+        # La foto cuesta lo mismo con una demorada que con cuatro: no hay una consulta por entrega.
+        with CaptureQueriesContext(connection) as con_una:
+            self._foto()
+        for _ in range(3):
+            self._entrega(self.escuela, en_camino, despachada_en=T0 - timedelta(hours=60))
+        with CaptureQueriesContext(connection) as con_cuatro:
+            self._foto()
+        self.assertEqual(len(con_cuatro), len(con_una))
+        self.assertEqual(len(self._foto().entregas_demoradas), 4)
+
+        EntregaKit.objects.filter(pk=entrega.pk).update(estado=EntregaKit.Estado.CANCELADA)
+        self.assertEqual(len(self._foto().entregas_demoradas), 3)
 
     def test_el_escenario_enciende_las_siete_de_la_alta_a_la_media(self):
         self.assertEqual(

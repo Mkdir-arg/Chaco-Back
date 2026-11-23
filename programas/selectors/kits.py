@@ -2,8 +2,8 @@
 
 Las reglas —quién puede, en qué estado, qué queda en la traza— están en
 ``programas.services.kits``. Acá viven el listado de la mesa (E4), el detalle (E5), las
-pendientes de un dispositivo (recepción web y M3) y el resumen de un destino (paso 1 del
-asistente).
+pendientes de un dispositivo (recepción web y M3) y el resumen de un destino (la pantalla
+«Nueva entrega»).
 
 **Alcance (RN-4.8).** La mesa ve todas las entregas; la guardia, solo las de los
 dispositivos donde tiene ``emergencia.recibir_kit`` (``dispositivos_en_alcance``). Las
@@ -44,6 +44,7 @@ from programas.services.ocupacion import ocupacion_de_plazas
 Estado = EntregaKit.Estado
 
 SOLAPA_ABIERTAS = "abiertas"
+SOLAPA_DEMORADAS = "demoradas"
 SOLAPA_CON_DIFERENCIAS = "con_diferencias"
 SOLAPA_RECIBIDAS = "recibidas"
 SOLAPA_CANCELADAS = "canceladas"
@@ -51,31 +52,77 @@ SOLAPA_CANCELADAS = "canceladas"
 #: Las solapas de E4, en el orden en que se dibujan: clave y rótulo.
 SOLAPAS = (
     (SOLAPA_ABIERTAS, "Abiertas"),
-    (SOLAPA_CON_DIFERENCIAS, "Con diferencias"),
+    (SOLAPA_DEMORADAS, f"Demoradas (más de {EntregaKit.HORAS_PARA_DEMORADA} h)"),
+    (SOLAPA_CON_DIFERENCIAS, "Con diferencia sin cerrar"),
     (SOLAPA_RECIBIDAS, "Recibidas"),
     (SOLAPA_CANCELADAS, "Canceladas"),
 )
 
-#: «Recibidas» son las completas: las que llegaron con diferencias tienen su propia solapa,
-#: que es la que la mesa mira para reponer.
-_Q_DE_SOLAPA = {
-    SOLAPA_ABIERTAS: Q(estado__in=EntregaKit.ESTADOS_ABIERTOS),
-    SOLAPA_CON_DIFERENCIAS: Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS),
-    SOLAPA_RECIBIDAS: Q(estado=Estado.RECIBIDA),
-    SOLAPA_CANCELADAS: Q(estado=Estado.CANCELADA),
-}
+#: «Demorada (más de 48 h)»: el rótulo del chip de la fila y de la columna de Abastecimiento.
+ROTULO_DEMORADA = f"Demorada (más de {EntregaKit.HORAS_PARA_DEMORADA} h)"
+
+
+def corte_de_demora(ahora=None):
+    """El momento antes del cual una entrega en camino se considera demorada (Cambio 586). **Único lugar** de la cuenta."""
+
+    return (ahora or timezone.now()) - timedelta(hours=EntregaKit.HORAS_PARA_DEMORADA)
+
+
+def q_demorada(ahora=None, prefijo=""):
+    """En camino y sin recibir hace más de :attr:`EntregaKit.HORAS_PARA_DEMORADA` horas (Cambio 586).
+
+    No se cancela sola: se avisa a la mesa y se la separa de lo «en camino» en el cálculo de faltante. Una sin
+    marca de salida (``PREPARADA``) no entra: todavía no salió. ``prefijo`` (``"entrega__"``) la usa desde una
+    consulta que parte de otro modelo.
+    """
+
+    return Q(**{f"{prefijo}estado": Estado.EN_CAMINO, f"{prefijo}despachada_en__lt": corte_de_demora(ahora)})
+
+
+def es_demorada_por(estado, despachada_en, ahora=None):
+    """La regla de :func:`q_demorada` sobre los dos datos que la deciden, sin consultas: en camino y despachada hace más
+    de :attr:`EntregaKit.HORAS_PARA_DEMORADA` horas. La usan :func:`es_demorada` y el tablero, que lee tuplas."""
+
+    return estado == Estado.EN_CAMINO and despachada_en is not None and despachada_en < corte_de_demora(ahora)
+
+
+def es_demorada(entrega, ahora=None):
+    """La misma regla de :func:`q_demorada`, sobre una entrega ya leída (sin consultas)."""
+
+    return es_demorada_por(entrega.estado, entrega.despachada_en, ahora)
+
+
+def q_diferencia_sin_cerrar():
+    """Recibida con diferencias y sin cerrar (ni repuesta ni aceptada): lo que la mesa tiene que resolver (Cambio 586)."""
+
+    return Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS, cierre_diferencia__isnull=True)
+
+
+def _q_de_solapas(ahora):
+    """«Recibidas» son las completas **y** las con diferencia ya cerrada: la mesa mira «Con diferencia sin cerrar»
+    para resolver, y ahí solo queda lo que falta decidir."""
+
+    return {
+        SOLAPA_ABIERTAS: Q(estado__in=EntregaKit.ESTADOS_ABIERTOS),
+        SOLAPA_DEMORADAS: q_demorada(ahora),
+        SOLAPA_CON_DIFERENCIAS: q_diferencia_sin_cerrar(),
+        SOLAPA_RECIBIDAS: Q(estado=Estado.RECIBIDA)
+        | Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS, cierre_diferencia__isnull=False),
+        SOLAPA_CANCELADAS: Q(estado=Estado.CANCELADA),
+    }
 
 
 def q_entrega_sin_revisar():
-    """Recibida con diferencias y sin la observación de la mesa **posterior a la recepción**.
+    """Recibida con diferencias, sin cerrar y sin la observación de la mesa **posterior a la recepción**.
 
     No alcanza con mirar ``observacion_mesa``: el campo nace con la nota que la mesa le deja al
     dispositivo al armar la entrega. Lo que dice «la mesa la revisó» es la traza ``OBSERVADA``,
-    que solo se escribe sobre una entrega ya recibida (``kits.observar_recepcion``).
+    que solo se escribe sobre una entrega ya recibida (``kits.observar_recepcion``). Cerrar la diferencia
+    (reponer o aceptar) también apaga el aviso (Cambio 586).
     """
 
     observada = TrazaEntrega.objects.filter(entrega=OuterRef("pk"), accion=TrazaEntrega.Accion.OBSERVADA)
-    return Q(estado=Estado.RECIBIDA_CON_DIFERENCIAS) & ~Q(Exists(observada))
+    return q_diferencia_sin_cerrar() & ~Q(Exists(observada))
 
 
 #: Cuántos ítems nombra el resumen de una fila antes de cortar con «…».
@@ -111,22 +158,22 @@ def _lineas_ordenadas():
 # ---------------------------------------------------------------------------
 
 
-def listado_de_entregas(filtros=None):
+def listado_de_entregas(filtros=None, ahora=None):
     """Las entregas de la mesa, de la más nueva a la más vieja, para paginar.
 
     ``filtros`` (todos opcionales): ``solapa`` (una de :data:`SOLAPAS`; sin ella o con una
     desconocida, todas), ``estado``, ``dispositivo`` (id), ``localidad`` (el texto exacto de
     la del dispositivo) y ``fecha`` (un ``date``: las armadas ese día local).
 
-    Trae el dispositivo y los dos usuarios con ``select_related`` y las líneas con un
-    ``prefetch``: **2 consultas por página**, tenga 5 entregas o 50.
+    Trae el dispositivo, el edificio, los dos usuarios y la entrega que repone con ``select_related`` y las líneas con
+    un ``prefetch``: **2 consultas por página**, tenga 5 entregas o 50.
     """
 
     filtros = filtros or {}
-    entregas = EntregaKit.objects.select_related("dispositivo", "armada_por", "recibida_por").prefetch_related(
-        _lineas_ordenadas()
-    )
-    q_solapa = _Q_DE_SOLAPA.get(filtros.get("solapa"))
+    entregas = EntregaKit.objects.select_related(
+        "dispositivo", "edificio", "armada_por", "recibida_por"
+    ).prefetch_related(_lineas_ordenadas())
+    q_solapa = _q_de_solapas(ahora or timezone.now()).get(filtros.get("solapa"))
     if q_solapa is not None:
         entregas = entregas.filter(q_solapa)
     if filtros.get("estado"):
@@ -141,12 +188,12 @@ def listado_de_entregas(filtros=None):
     return entregas.order_by("-creado", "-id")
 
 
-def conteos_de_solapas():
+def conteos_de_solapas(ahora=None):
     """``{solapa: cantidad, "total": n}`` de todas las entregas. **1 consulta.**"""
 
     conteos = EntregaKit.objects.aggregate(
         total=Count("id"),
-        **{solapa: Count("id", filter=q) for solapa, q in _Q_DE_SOLAPA.items()},
+        **{solapa: Count("id", filter=q) for solapa, q in _q_de_solapas(ahora or timezone.now()).items()},
     )
     return {clave: valor or 0 for clave, valor in conteos.items()}
 
@@ -184,7 +231,9 @@ def con_diferencias(entrega):
 def entregas_para_detalle():
     """Las entregas con lo que el detalle muestra en la cabecera. Para un ``get_object_or_404``."""
 
-    return EntregaKit.objects.select_related("dispositivo", "armada_por", "recibida_por", "repone_a")
+    return EntregaKit.objects.select_related(
+        "dispositivo", "edificio", "armada_por", "recibida_por", "repone_a", "cierre_diferencia_por"
+    )
 
 
 def lineas_de(entrega):
@@ -253,6 +302,21 @@ def faltantes_de(lineas):
         if linea.cantidad_recibida is not None
         and linea.cantidad_recibida < linea.cantidad_enviada
         and linea.item.activo
+    ]
+
+
+def faltantes_sin_item_activo(lineas):
+    """``[(nombre, cuánto faltó)]`` de lo que llegó de menos y cuyo ítem **ya no está activo** (Cambio 586).
+
+    Es lo que «Reponer» no puede cargar: la pantalla lo avisa en vez de descartarlo en silencio. Sin consultas.
+    """
+
+    return [
+        (linea.nombre_visible, linea.cantidad_enviada - linea.cantidad_recibida)
+        for linea in lineas
+        if linea.cantidad_recibida is not None
+        and linea.cantidad_recibida < linea.cantidad_enviada
+        and not linea.item.activo
     ]
 
 
@@ -385,7 +449,7 @@ def mis_dispositivos(usuario):
 
 
 # ---------------------------------------------------------------------------
-# Paso 1 del asistente: el destino
+# «Nueva entrega»: el destino
 # ---------------------------------------------------------------------------
 
 
@@ -393,12 +457,13 @@ def edificios_a_elegir(dispositivo, original=None):
     """Los edificios entre los que se elige al armar una entrega (Cambio 523).
 
     Solo si el destino ocupa más de uno y no hay una entrega que reponer con edificio de la que sacarlo; con uno
-    solo queda fijo y no se elige. Una consulta.
+    solo queda fijo y no se elige. Solo cuentan los edificios **activos**: uno inactivo no recibe entregas nuevas
+    (Cambio 586). Una consulta.
     """
 
     if original is not None and original.edificio_id is not None:
         return []
-    vinculados = list(Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre"))
+    vinculados = list(Edificio.objects.filter(dispositivos=dispositivo, activo=True).order_by("nombre"))
     return vinculados if len(vinculados) > 1 else []
 
 
@@ -416,7 +481,7 @@ def destinos_posibles(texto=""):
 
 
 def resumenes_de_destino(dispositivos, momento=None):
-    """``{id: resumen}`` de cada dispositivo, para elegir a quién enviarle (E4, paso 1).
+    """``{id: resumen}`` de cada dispositivo, para elegir a quién enviarle (E4, «Nueva entrega»).
 
     Cada resumen: ``alojadas`` (personas con estadía activa hoy), ``plazas_ocupadas`` y
     ``plazas_operativas`` (de ``ocupacion_de_plazas``, la misma cuenta que ve el dispositivo),

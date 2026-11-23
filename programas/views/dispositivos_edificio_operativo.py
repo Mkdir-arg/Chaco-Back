@@ -34,6 +34,7 @@ from programas.services.edificio_operativo import (
 from programas.services.edificio_operativo_edilicio import contexto_edilicio
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ingreso import maneja_plazas
+from programas.services.kits import url_de_kits_del_edificio
 
 
 def modales_del_equipo(request, dispositivo, edificio, contexto):
@@ -114,7 +115,7 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
                 raise Http404("Ese relevamiento no es de este edificio o no está en tu alcance.")
             context.update(edilicio)
         # Kits (Cambio 568): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=kits`.
-        context["url_solapa_kits"] = f"{url_pagina}?tab=kits"
+        context["url_solapa_kits"] = url_de_kits_del_edificio(url_pagina)
         context["kits_cargados"] = context["puede_kits"] and context["tab"] == "kits"
         if context["kits_cargados"]:
             context["kits"] = self._kits(dispositivo, edificio, self.request.GET.get("entrega", ""))

@@ -18,6 +18,10 @@ fila solo navega. Qué acción se ofrece lo decide la vista; el servicio lo vuel
       </a>
     {% endpage_header %}
 
+    {% if alerta_demoradas %}
+      {% include "components/_alerta.html" with tono="warning" titulo=alerta_demoradas.titulo texto=alerta_demoradas.texto accion_url=alerta_demoradas.url accion_texto="Ver las demoradas" role="status" %}
+    {% endif %}
+
     {# Solapas: recargan con la URL que armó la vista y conservan los filtros #}
     {% include "components/_chips_enlace.html" with nombre="Entregas por estado" chips=solapas %}
 
@@ -47,7 +51,7 @@ fila solo navega. Qué acción se ofrece lo decide la vista; el servicio lo vuel
           <thead>
             <tr class="nodo-thead-row">
               <th class="nodo-th">Entrega</th>
-              <th class="nodo-th">Dispositivo</th>
+              <th class="nodo-th">Destino</th>
               <th class="nodo-th">Estado</th>
               <th class="nodo-th">Armada por</th>
               <th class="nodo-th">Recibida por</th>
@@ -63,9 +67,14 @@ fila solo navega. Qué acción se ofrece lo decide la vista; el servicio lo vuel
               </td>
               <td class="nodo-td text-body">
                 {{ fila.entrega.dispositivo.nombre }}
+                {% if fila.entrega.edificio %}<span class="block text-xs text-body-subtle">{{ fila.entrega.edificio.nombre }}</span>{% endif %}
                 {% if fila.entrega.dispositivo.localidad %}<span class="block text-xs text-body-subtle">{{ fila.entrega.dispositivo.localidad }}</span>{% endif %}
               </td>
-              <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span></td>
+              <td class="nodo-td">
+                <span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span>
+                {% if fila.demorada %}<span class="block mt-1"><span class="badge badge-warning">{{ rotulo_demorada }}</span></span>{% endif %}
+                {% if fila.diferencia_sin_cerrar %}<span class="block mt-1"><span class="badge badge-warning">Diferencia sin cerrar</span></span>{% endif %}
+              </td>
               <td class="nodo-td text-body">{{ fila.armada }}</td>
               <td class="nodo-td text-body">{{ fila.recibida|default:"—" }}</td>
               <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
@@ -91,7 +100,7 @@ fila solo navega. Qué acción se ofrece lo decide la vista; el servicio lo vuel
       {% elif hay_entregas %}
         {% include "components/_estado_vacio.html" with icono="fa-inbox" titulo="No hay entregas en esta solapa" texto="Las entregas aparecen acá cuando pasan a este estado." %}
       {% else %}
-        {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="Todavía no hay entregas" texto="Armá la primera: elegí el dispositivo, los ítems del catálogo y las cantidades." accion_url=url_nueva accion_texto="Nueva entrega" accion_icono="fa-plus" %}
+        {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="Todavía no hay entregas" texto="Armá la primera: elegí el destino, los ítems del catálogo y las cantidades." accion_url=url_nueva accion_texto="Nueva entrega" accion_icono="fa-plus" %}
       {% endif %}
     </div>
   </div>

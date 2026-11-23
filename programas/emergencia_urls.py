@@ -48,16 +48,15 @@ urlpatterns = [
     # Cambio 588: la supervisión corrige la mesa (`emergencia.cerrar_reabrir`).
     path("casos/<int:pk>/cerrar-alojado/", mesa.CerrarAlojadoMesaView.as_view(), name="caso_cerrar_alojado"),
     path("casos/<int:pk>/reabrir/", mesa.ReabrirCasoView.as_view(), name="caso_reabrir"),
-    # Entregas de kits (etapa 4): E4 (listado y asistente de tres pasos) y E5 (detalle).
+    # Entregas de kits (etapa 4): E4 (listado y «Nueva entrega» en una sola pantalla) y E5 (detalle).
     path("entregas/", kits.EntregasListView.as_view(), name="entregas"),
-    path("entregas/nueva/", kits.NuevaEntregaDestinoView.as_view(), name="entrega_nueva"),
+    path("entregas/nueva/", kits.NuevaEntregaView.as_view(), name="entrega_nueva"),
+    # La URL del paso 2 del asistente viejo: redirige a la pantalla única (no rompe un enlace guardado).
     path("entregas/nueva/<int:dispositivo>/", kits.NuevaEntregaItemsView.as_view(), name="entrega_nueva_items"),
-    path(
-        "entregas/nueva/<int:dispositivo>/confirmar/",
-        kits.NuevaEntregaConfirmarView.as_view(),
-        name="entrega_nueva_confirmar",
-    ),
     path("entregas/<int:pk>/", kits.EntregaDetalleView.as_view(), name="entrega_detalle"),
+    path(
+        "entregas/<int:pk>/aceptar-diferencia/", kits.AceptarDiferenciaView.as_view(), name="entrega_aceptar_diferencia"
+    ),
     path("entregas/<int:pk>/en-camino/", kits.MarcarEnCaminoView.as_view(), name="entrega_en_camino"),
     path("entregas/<int:pk>/cancelar/", kits.CancelarEntregaView.as_view(), name="entrega_cancelar"),
     path("entregas/<int:pk>/observar/", kits.ObservarEntregaView.as_view(), name="entrega_observar"),

@@ -116,6 +116,17 @@ solo pone etiqueta y error.
   `sm:grid-cols-3` y «Agregar» es `btn-secondary btn-sm`, visible solo con JS. Sin JS,
   «Quitar» es el checkbox `DELETE` del formset. Un error que cruza filas va en la celda de su fila.
 
+- **Formulario de un destino con tabla de cantidades** (Cambio 586, «Nueva entrega» de kits de Emergencia).
+  Dos surfaces `bg-white rounded-xl border border-base shadow-sm p-6`: primero «Destino» (un `<form method="get">`
+  con el campo canónico, que no escribe nada) y, con el destino elegido, el `<form method="post">` con la tabla
+  canónica (`nodo-thead-row`/`nodo-th`/`nodo-td` dentro de `overflow-x-auto`, `<caption class="sr-only">`) de una fila por
+  ítem: columna informativa «Le falta (estimado)» y el campo de cantidad con el control canónico (`campo_control`); la
+  unidad va en `<span id="<auto_id>-ayuda">` y el input la nombra con `aria-describedby`. Lo que rechaza el servicio
+  vuelve arriba con `_form_errores`. Pie: «Cancelar» `btn-tertiary` y la acción `btn-brand`. No usa la sesión: lo elegido
+  viaja en un oculto y la vista lo revalida. Un enlace `btn-tertiary btn-sm` («Cargar lo estimado») rellena con un GET y
+  no se ofrece cuando la pantalla ya está atada a algo (una reposición). Evidencia:
+  `programas/templates/programas/emergencia/kits/nueva.html`; no pasa los marcadores de campo por grilla del
+  auditor (la tabla es el control), se valida por revisión y con el test de la vista.
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.
 - Grilla de dos columnas: envolver los `{% include %}` de campo en

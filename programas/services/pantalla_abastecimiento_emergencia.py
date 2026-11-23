@@ -18,7 +18,7 @@ from datetime import timedelta
 from django.urls import reverse
 from django.utils.formats import number_format
 
-from programas.models import Dispositivo, TipoKit
+from programas.models import Dispositivo, EntregaKit, TipoKit
 from programas.services.abastecimiento_emergencia import CUBRE, SIN_CONSUMO, nombre_visible, presentar_salud
 from programas.services.alertas_situacion_emergencia import alertas_de_abastecimiento
 from programas.services.ocupacion import etiqueta_y_tono
@@ -187,6 +187,7 @@ def tabla_por_item(abastecimiento):
                 "necesario": numero(fila.necesario),
                 "en_camino": numero(fila.en_camino),
                 "preparadas": numero(fila.preparadas),
+                "demoradas": numero(fila.demoradas),
                 "faltan": numero(fila.faltan),
                 "falta": bool(fila.faltan),
             }
@@ -231,7 +232,7 @@ def lista_de_dispositivos(abastecimiento, ahora, *, opera):
                 "ultima": _ultima(fila, ahora),
                 "necesita": _que_necesita(fila),
                 "url_preparar": (
-                    reverse("emergencia:entrega_nueva_items", args=[dispositivo.id])
+                    f"{reverse('emergencia:entrega_nueva')}?dispositivo={dispositivo.id}"
                     if opera and dispositivo.activo
                     else ""
                 ),
@@ -302,6 +303,7 @@ def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa):
         "items": tabla_por_item(abastecimiento),
         "dispositivos": lista_de_dispositivos(abastecimiento, ahora, opera=opera),
         "con_accion": opera,
+        "horas_demorada": EntregaKit.HORAS_PARA_DEMORADA,
         "reglas": como_se_calcula(abastecimiento),
         "hay_regla_lactante": bool(abastecimiento.salud.items_de_lactantes),
     }

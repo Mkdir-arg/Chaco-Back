@@ -391,7 +391,12 @@ class CorreccionesDeAuditoriaTests(BaseAlcance):
         def url(letra):
             return reverse("emergencia:dispositivo_kit_recibir", args=[self.cis.pk, entregas[letra].pk])
 
-        self.assertEqual(self._ver(recibe_a, url("a")).status_code, 200)
+        # Cambio 586: con edificio (y con `dispositivo.ver`, que TODO incluye) la recepción se hace en la solapa Kits
+        # del edificio: el GET redirige y la página a la que lleva abre, no rebota.
+        propia = self._ver(recibe_a, url("a"))
+        self.assertEqual(propia.status_code, 302)
+        with _reloj():
+            self.assertEqual(self.client.get(propia.url).status_code, 200)
         self.assertEqual(self._ver(recibe_a, url("b")).status_code, 404)
 
     # 3. archivos del formulario de una estadía

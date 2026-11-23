@@ -38,6 +38,7 @@ from programas.selectors.emergencia_abastecimiento import (
     ItemDelCatalogo,
     PersonaDelAbastecimiento,
     lecturas_de_abastecimiento,
+    lecturas_de_un_dispositivo,
 )
 from programas.services import abastecimiento_emergencia as reglas
 from programas.services import alertas_situacion_emergencia as alertas
@@ -50,6 +51,7 @@ from programas.services.abastecimiento_emergencia import (
     Salud,
     Unidades,
     armar_abastecimiento,
+    faltantes_de_un_dispositivo,
     presentar_salud,
 )
 from programas.services.ocupacion import NIVEL_CRITICA, NIVEL_EXIGIDA
@@ -538,6 +540,35 @@ class ArmadoTests(EscenarioAbastecimiento):
         )
         self.assertEqual((agua.necesario, agua.en_camino, agua.preparadas, agua.faltan), (31, 1, 10, 20))
 
+    def test_cambio_586_lo_en_camino_hace_mas_de_48_h_va_aparte_y_no_descuenta_el_faltante(self):
+        """Una entrega en camino hace 60 h no cuenta como «en camino»: se muestra «Demorado» y el faltante no baja."""
+        antes = self._item(self.gimnasio, self.agua)
+        entrega = EntregaKit.objects.create(
+            numero="2026-K-900001",
+            dispositivo=self.gimnasio,
+            estado=EstEntrega.EN_CAMINO,
+            armada_por=self.operador,
+            despachada_en=T0 - timedelta(hours=60),
+        )
+        LineaEntrega.objects.create(entrega=entrega, item=self.agua, unidad="unidad", cantidad_enviada=5)
+        reciente = EntregaKit.objects.create(
+            numero="2026-K-900002",
+            dispositivo=self.gimnasio,
+            estado=EstEntrega.EN_CAMINO,
+            armada_por=self.operador,
+            despachada_en=T0 - timedelta(hours=47),
+        )
+        LineaEntrega.objects.create(entrega=reciente, item=self.agua, unidad="unidad", cantidad_enviada=1)
+
+        armado, _foto = self._armar()
+        fila = next(f for f in armado.dispositivos if f.dispositivo.id == self.gimnasio.pk)
+        despues = next(i for i in fila.items if i.item.id == self.agua.pk)
+
+        self.assertEqual(despues.demoradas, 5)
+        # Solo la de 47 h suma a «en camino»; la de 60 h no descuenta nada.
+        self.assertEqual(despues.en_camino, antes.en_camino + 1)
+        self.assertEqual(despues.faltan, max(antes.faltan - 1, 0))
+
     def test_tc_1187_27_fuera_de_la_red_con_su_estado(self):
         suspendido = self.filas[self.suspendido.pk].dispositivo
         self.assertEqual((suspendido.estado, suspendido.activo), (Dispositivo.Estado.INACTIVO, False))
@@ -600,6 +631,45 @@ IR_A_PLAZOS = "Ir a Plazos de atención"
 IR_A_INSUMOS = "Ir a Insumos"
 
 
+class LeFaltaDeLaEntregaNuevaTests(EscenarioAbastecimiento):
+    """«Le falta (estimado)» de «Nueva entrega» sale de las mismas reglas que la solapa (Cambio 586)."""
+
+    def _propios(self, dispositivo_id):
+        lecturas = lecturas_de_un_dispositivo(dispositivo_id, INICIO, T0)
+        return faltantes_de_un_dispositivo(lecturas, dispositivo_id, T0)
+
+    def test_cada_dispositivo_da_lo_mismo_en_las_dos_pantallas(self):
+        armado, _foto = self._armar()
+
+        self.assertTrue(armado.dispositivos)
+        for fila in armado.dispositivos:
+            propios = self._propios(fila.dispositivo.id)
+            for item in fila.items:
+                with self.subTest(dispositivo=fila.dispositivo.nombre, item=item.item.nombre):
+                    self.assertEqual(propios[item.item.id], item)
+
+    def test_un_egreso_entre_el_inicio_y_la_primera_recepcion_del_dispositivo_cuenta_igual(self):
+        """El corte de los egresados es la primera recepción de **toda la red** (la solapa), no la del dispositivo: el
+        Club recibió ayer, pero la Escuela recibió al inicio del evento y desde ahí cuentan los que se fueron.
+        Mutación: cortar por la primera recepción del propio dispositivo deja este test en rojo."""
+        self._grupo(self.club, 6, T0 - timedelta(days=2), egresado_en=T0 - timedelta(hours=36))
+        foto = self._foto()
+        de_la_solapa = lecturas_de_abastecimiento(foto, INICIO)
+        propias = lecturas_de_un_dispositivo(self.club.pk, INICIO, T0)
+
+        def del_club(lecturas):
+            return sorted(
+                ((p.ingreso, p.egresado_en) for p in lecturas.personas if p.dispositivo_id == self.club.pk),
+                key=lambda par: (par[0], par[1] or T0),
+            )
+
+        self.assertIn(T0 - timedelta(hours=36), [egreso for _ingreso, egreso in del_club(propias)])
+        self.assertEqual(del_club(propias), del_club(de_la_solapa))
+
+    def test_sin_gente_alojada_no_hay_nada_que_estimar(self):
+        self.assertEqual(self._propios(self._dispositivo("Vacío", 1, localidad="Resistencia").pk), {})
+
+
 class VistaAbastecimientoTests(EscenarioAbastecimiento):
     def setUp(self):
         super().setUp()
@@ -640,6 +710,9 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         IntegranteGrupo.objects.update(egresado_en=T0 - timedelta(hours=1))
         self.assertIn("Todavía no hay personas alojadas por la emergencia", self._html(self.autoridad))
 
+    def test_el_encabezado_de_demorado_dice_las_horas_de_la_regla(self):
+        self.assertIn(f"Demorado (más de {EntregaKit.HORAS_PARA_DEMORADA} h)", _panel(self._html(self.autoridad)))
+
     def test_tc_1187_04_y_05_nota_provincial_y_los_filtros_no_la_acotan(self):
         sin_filtro = _panel(self._html(self.autoridad))
         con_filtro = _panel(self._html(self.autoridad, f"{URL_SOLAPA}&departamento=San+Fernando&ventana=7d"))
@@ -668,9 +741,9 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         self.assertNotIn("Preparar entrega", autoridad)
         for usuario in (self.mesa, self.supervisor):
             html = self._html(usuario)
-            self.assertIn(f"/emergencia/entregas/nueva/{self.salon.pk}/", html)
-            self.assertIn(f"/emergencia/entregas/nueva/{self.reservado.pk}/", html)
-            self.assertNotIn(f"/emergencia/entregas/nueva/{self.suspendido.pk}/", html)
+            self.assertIn(f"/emergencia/entregas/nueva/?dispositivo={self.salon.pk}", html)
+            self.assertIn(f"/emergencia/entregas/nueva/?dispositivo={self.reservado.pk}", html)
+            self.assertNotIn(f"/emergencia/entregas/nueva/?dispositivo={self.suspendido.pk}", html)
             inicio = html.index("Escuela Suspendida · Quitilipi")
             self.assertIn("Inactivo", html[inicio : html.index("</tr>", inicio)])
 

@@ -60,7 +60,7 @@ from programas.selectors.emergencia import (
     texto_de_minutos,
     ultima_traza_del_caso,
 )
-from programas.selectors.kits import q_entrega_sin_revisar, resumen_de_items
+from programas.selectors.kits import es_demorada_por, q_entrega_sin_revisar, resumen_de_items
 from programas.services.bitacora_detalle import plural
 from programas.services.ocupacion import Conteo
 
@@ -185,6 +185,13 @@ class EntregaSinRevisar(NamedTuple):
     recibida_en: datetime | None
 
 
+class EntregaDemorada(NamedTuple):
+    id: int
+    numero: str
+    dispositivo: str
+    despachada_en: datetime
+
+
 @dataclass(frozen=True)
 class Red:
     """Los dispositivos elegibles (RN-2.2) con sus camas, de ``ocupacion_de_plazas`` en lote."""
@@ -223,6 +230,8 @@ class Foto:
     #: Cuántas entregas están ``EN_CAMINO``.
     entregas_en_camino: int
     semaforos: dict = field(default_factory=dict)
+    #: Las ``EN_CAMINO`` hace más de 48 h sin recibirse, de la más vieja a la más nueva (Cambio 586).
+    entregas_demoradas: tuple["EntregaDemorada", ...] = ()
 
     @property
     def abiertos(self):
@@ -355,24 +364,28 @@ def _derivaciones_pendientes():
     )
 
 
-def _entregas():
+def _entregas(ahora):
     """Una consulta: las en camino y las recibidas con diferencias sin revisar (``kits.q_entrega_sin_revisar``).
 
-    Devuelve ``(sin_revisar, en_camino)``: la lista de las sin revisar y cuántas van en camino.
+    Devuelve ``(sin_revisar, en_camino, demoradas)``: la lista de las sin revisar, cuántas van en camino y la lista
+    de las que llevan más de ``EntregaKit.HORAS_PARA_DEMORADA`` horas en camino (también cuentan en ``en_camino``).
     """
 
     filas = (
         EntregaKit.objects.filter(Q(estado=EntregaKit.Estado.EN_CAMINO) | q_entrega_sin_revisar())
         .order_by("recibida_en", "id")
-        .values_list("id", "numero", "estado", "dispositivo__nombre", "recibida_en")
+        .values_list("id", "numero", "estado", "dispositivo__nombre", "recibida_en", "despachada_en")
     )
-    sin_revisar, en_camino = [], 0
-    for pk, numero, estado, dispositivo, recibida_en in filas:
+    sin_revisar, demoradas, en_camino = [], [], 0
+    for pk, numero, estado, dispositivo, recibida_en, despachada_en in filas:
         if estado == EntregaKit.Estado.EN_CAMINO:
             en_camino += 1
+            if es_demorada_por(estado, despachada_en, ahora):
+                demoradas.append(EntregaDemorada(pk, numero, dispositivo, despachada_en))
         else:
             sin_revisar.append(EntregaSinRevisar(pk, numero, dispositivo, recibida_en))
-    return tuple(sin_revisar), en_camino
+    demoradas.sort(key=lambda entrega: (entrega.despachada_en, entrega.id))
+    return tuple(sin_revisar), en_camino, tuple(demoradas)
 
 
 def foto_del_tablero(sla, ahora):
@@ -389,7 +402,7 @@ def foto_del_tablero(sla, ahora):
         semaforo = estado_sla(caso, sla, ahora)
         if semaforo is not None:
             semaforos[caso.id] = semaforo
-    sin_revisar, en_camino = _entregas()
+    sin_revisar, en_camino, demoradas = _entregas(ahora)
     return Foto(
         sla=sla,
         ahora=ahora,
@@ -398,6 +411,7 @@ def foto_del_tablero(sla, ahora):
         pendientes=_derivaciones_pendientes(),
         entregas_sin_revisar=sin_revisar,
         entregas_en_camino=en_camino,
+        entregas_demoradas=demoradas,
         semaforos=semaforos,
     )
 

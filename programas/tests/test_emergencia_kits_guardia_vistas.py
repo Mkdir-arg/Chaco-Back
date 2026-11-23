@@ -137,17 +137,88 @@ class RecepcionEnElDispositivoTests(BaseVistasKits):
             reverse("dispositivos:detalle", args=[self.club.pk]),
         )
 
-    def test_el_formulario_llega_precargado_con_lo_enviado(self):
+    def test_el_formulario_llega_con_las_cantidades_vacias(self):
+        """Cambio 586: quien recibe cuenta lo que llegó; el formulario no le sopla lo que se envió."""
         self.client.force_login(self.guardia)
 
         respuesta = self.client.get(self.url_recibir)
 
         self.assertTemplateUsed(respuesta, "programas/emergencia/kits/recibir.html")
-        self.assertContains(respuesta, f'name="cantidad_{self.colchon.pk}" value="10"')
-        self.assertContains(respuesta, f'name="cantidad_{self.alimentos.pk}" value="3"')
+        self.assertNotContains(respuesta, f'name="cantidad_{self.colchon.pk}" value=')
+        self.assertNotContains(respuesta, f'name="cantidad_{self.alimentos.pk}" value=')
         self.assertContains(respuesta, 'enctype="multipart/form-data"')
         self.assertContains(respuesta, "Entregar a la directora.")
         self.assertContains(respuesta, "Se enviaron 10 · en unidad.")
+
+    def _con_edificio(self):
+        from programas.models import Edificio
+
+        edificio = Edificio.objects.create(codigo="EG-1", nombre="Edificio guardia")
+        edificio.dispositivos.add(self.club)
+        EntregaKit.objects.filter(pk=self.entrega.pk).update(edificio=edificio)
+        return edificio
+
+    def test_con_dispositivo_ver_una_entrega_con_edificio_se_recibe_en_la_solapa_kits(self):
+        edificio = self._con_edificio()
+        con_ver = self._guardia("guardia_con_ver", [RECIBIR_KIT, "dispositivo.ver"], [self.club])
+        self.client.force_login(con_ver)
+        pagina = reverse("dispositivos:edificio_operativo", args=[self.club.pk, edificio.pk])
+        destino = f"{pagina}?tab=kits&entrega={self.entrega.pk}"
+
+        self.assertRedirects(self.client.get(self.url_recibir), destino, fetch_redirect_response=False)
+        self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], destino)
+
+    def test_sin_dispositivo_ver_la_recepcion_sigue_en_el_formulario_y_no_en_un_403(self):
+        """La guardia con solo ``emergencia.recibir_kit`` no puede abrir la página del edificio (403): su fila y su GET
+        van al formulario de recibir. Mutación: redirigir siempre a la solapa deja este test en rojo (403)."""
+        self._con_edificio()
+        self.client.force_login(self.guardia)
+
+        respuesta = self.client.get(self.url_recibir, follow=True)
+
+        self.assertEqual((respuesta.redirect_chain, respuesta.status_code), ([], 200))
+        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/recibir.html")
+        self.assertContains(respuesta, 'enctype="multipart/form-data"')
+        self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], self.url_recibir)
+
+    def test_con_dispositivo_ver_acotado_a_otro_edificio_la_recepcion_sigue_en_el_formulario_y_no_en_un_404(self):
+        """Dos filas del Equipo: una con ``dispositivo.ver`` + ``emergencia.recibir_kit`` acotada al edificio A y otra
+        con solo ``recibir_kit`` para toda la institución. La entrega es del edificio B: la página del edificio le
+        contesta 404, así que se recibe en el formulario. Mutación: decidir solo por ``dispositivo.ver`` (sin el alcance
+        por edificio) deja este test en rojo (404).
+        """
+        from django.contrib.auth.models import User
+
+        from programas.models import Edificio
+
+        edificio_a = Edificio.objects.create(codigo="EG-A", nombre="Edificio A")
+        edificio_b = self._con_edificio()
+        edificio_a.dispositivos.add(self.club)
+        usuario = User.objects.create_user(username="guardia_dos_filas", password="x")
+        rol_con_ver = self._sumar_rol(usuario, [RECIBIR_KIT, "dispositivo.ver"], self.dispositivos).groups.get()
+        fila_a = MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.club,
+            usuario=usuario,
+            rol=rol_con_ver,
+            alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS,
+        )
+        fila_a.edificios.set([edificio_a])
+        usuario = self._sumar_rol(usuario, [RECIBIR_KIT], self.dispositivos)
+        solo_recibir = usuario.groups.exclude(pk=rol_con_ver.pk).get()
+        MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.club,
+            usuario=usuario,
+            rol=solo_recibir,
+            alcance=MiembroEquipoDispositivo.Alcance.INSTITUCION,
+        )
+        self.assertEqual(self.entrega.pk, EntregaKit.objects.get(edificio=edificio_b).pk)
+        self.client.force_login(usuario)
+
+        respuesta = self.client.get(self.url_recibir, follow=True)
+
+        self.assertEqual((respuesta.redirect_chain, respuesta.status_code), ([], 200))
+        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/recibir.html")
+        self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], self.url_recibir)
 
     def test_hu_4_3_confirmar_sin_tocar_nada_la_deja_recibida(self):
         self.client.force_login(self.guardia)
