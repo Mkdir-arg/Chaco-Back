@@ -51,7 +51,12 @@ from programas.selectors.emergencia_abastecimiento import lecturas_de_un_disposi
 from programas.services import kits as servicio
 from programas.services.abastecimiento_emergencia import faltantes_de_un_dispositivo
 from programas.services.configuracion_emergencia import catalogo_kits, sla_vigente
-from programas.services.dispositivos import dispositivos_en_alcance, puede_operar_dispositivo
+from programas.services.dispositivos import (
+    ALCANCE_NADA,
+    alcance_de_edificios,
+    dispositivos_en_alcance,
+    puede_operar_dispositivo,
+)
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_supervisar_la_mesa, recibe_kits
 from programas.urls_seguras import destino_seguro
@@ -92,21 +97,25 @@ def _estado(entrega):
     return {"estado_texto": texto, "estado_tono": tono}
 
 
-def _puede_abrir_el_edificio(usuario, dispositivo):
-    """Si la página del edificio le abre a ``usuario``: pide ``dispositivo.ver``, igual que el enlace a la institución."""
+def _alcance_para_abrir_el_edificio(usuario, dispositivo):
+    """Los edificios cuya página le abre a ``usuario``: pide ``dispositivo.ver`` sobre la institución **y** el alcance por
+    edificio de esa capacidad (``alcance_de_edificios``), como la página misma. Se resuelve una vez por pantalla."""
 
-    return puede_operar_dispositivo(usuario, dispositivo, "dispositivo.ver")
+    if not puede_operar_dispositivo(usuario, dispositivo, "dispositivo.ver"):
+        return ALCANCE_NADA
+    return alcance_de_edificios(usuario, dispositivo, "dispositivo.ver")
 
 
-def _url_de_recepcion(entrega, dispositivo, puede_abrir_el_edificio):
+def _url_de_recepcion(entrega, dispositivo, alcance):
     """Dónde se recibe ``entrega`` (Cambio 586): la solapa Kits de su edificio, que es el lugar de la recepción.
 
-    Sin ``dispositivo.ver`` esa página contesta 403 (es el caso de la guardia con solo ``emergencia.recibir_kit``):
+    Sin ``dispositivo.ver`` esa página contesta 403 y fuera del alcance por edificio 404 (la guardia con solo
+    ``emergencia.recibir_kit``, o con ``dispositivo.ver`` acotado a otro edificio):
     ahí, y en las entregas anteriores al Cambio 523 que no tienen edificio, va el formulario de recepción del
-    dispositivo. ``puede_abrir_el_edificio`` se resuelve una vez por pantalla, no por fila.
+    dispositivo. ``alcance`` (``_alcance_para_abrir_el_edificio``) se resuelve una vez por pantalla, no por fila.
     """
 
-    if entrega.edificio_id is not None and puede_abrir_el_edificio:
+    if entrega.edificio_id is not None and alcance.permite(entrega.edificio_id):
         pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, entrega.edificio_id])
         return servicio.url_de_kits_del_edificio(pagina, entrega)
     return reverse("emergencia:dispositivo_kit_recibir", args=[dispositivo.pk, entrega.pk])
@@ -296,16 +305,17 @@ class NuevaEntregaView(MesaPermissionMixin, View):
       transacción. Lo que rechace el servicio vuelve a la pantalla.
     """
 
-    def _original(self, pedido, destino):
-        """La entrega que se repone, si la URL o el oculto la nombran, es de ese destino y su diferencia sigue abierta."""
+    def _original(self, pedido, destino, *, abierta=True):
+        """La entrega que se repone, si la URL o el oculto la nombran, es de ese destino y (``abierta``) su diferencia
+        sigue sin cerrar. Con ``abierta=False`` solo se pide que sea de ese destino: sirve para decidir los edificios de
+        un reenvío, que el servicio resuelve por su cuenta (Cambio 586)."""
 
         if not str(pedido or "").isdecimal():
             return None
-        return (
-            selectores.entregas_para_detalle()
-            .filter(selectores.q_diferencia_sin_cerrar(), pk=pedido, dispositivo=destino)
-            .first()
-        )
+        entregas = selectores.entregas_para_detalle()
+        if abierta:
+            entregas = entregas.filter(selectores.q_diferencia_sin_cerrar())
+        return entregas.filter(pk=pedido, dispositivo=destino).first()
 
     def _estimado(self, destino):
         """``({item_id: ItemDelDispositivo}, aviso)``: lo que le falta al destino y, si no se puede, por qué."""
@@ -412,9 +422,12 @@ class NuevaEntregaView(MesaPermissionMixin, View):
         if not pedido.isdecimal():
             raise Http404("Destino inexistente.")
         destino = get_object_or_404(selectores.destinos_posibles(), pk=pedido)
-        original = self._original(request.POST.get("repone_a"), destino)
+        repone = request.POST.get("repone_a")
+        original = self._original(repone, destino)
         destino_form = DestinoEntregaForm({"dispositivo": destino.pk})
-        form = self._form(destino, original, datos=request.POST)
+        # Un reenvío de una reposición ya hecha: los edificios se deciden con la entrega que nombra `repone_a`, aunque su
+        # diferencia ya esté cerrada; el servicio es el que la valida (y devuelve la del primer envío, si es el mismo armado).
+        form = self._form(destino, original or self._original(repone, destino, abierta=False), datos=request.POST)
         if not form.is_valid():
             return self._pantalla(request, destino_form, destino, form, original, status=400)
         enviar = form.cleaned_data["salida"] == NuevaEntregaForm.SALE_AHORA
@@ -676,13 +689,14 @@ class KitsDelDispositivoView(RecepcionKitsMixin, View):
         pagina = Paginator(
             selectores.entregas_pendientes_de(self.dispositivo, request.user), PENDIENTES_POR_PAGINA
         ).get_page(request.GET.get("page"))
-        puede_ver = _puede_abrir_el_edificio(request.user, self.dispositivo)
+        puede_ver = puede_operar_dispositivo(request.user, self.dispositivo, "dispositivo.ver")
+        alcance = alcance_de_edificios(request.user, self.dispositivo, "dispositivo.ver") if puede_ver else ALCANCE_NADA
         filas = [
             {
                 "entrega": entrega,
                 "items": selectores.resumen_de_items(list(entrega.lineas.all())),
                 "en_camino_desde": selectores.fecha_hora(entrega.despachada_en),
-                "url": _url_de_recepcion(entrega, self.dispositivo, puede_ver),
+                "url": _url_de_recepcion(entrega, self.dispositivo, alcance),
                 **_estado(entrega),
             }
             for entrega in pagina
@@ -725,11 +739,12 @@ class RecibirKitView(RecepcionKitsMixin, View):
         entrega = self._entrega(pk)
         if not entrega.abierta:
             return self._ya_no_esta_abierta(request, entrega)
-        if entrega.edificio_id is not None and _puede_abrir_el_edificio(request.user, self.dispositivo):
+        alcance = _alcance_para_abrir_el_edificio(request.user, self.dispositivo)
+        if entrega.edificio_id is not None and alcance.permite(entrega.edificio_id):
             # Cambio 586: la recepción se hace en la solapa Kits del edificio. Esta URL queda para el POST (que la
             # solapa usa), para las entregas anteriores al Cambio 523 (sin edificio) y para quien no puede abrir la
             # página del edificio (la guardia con solo ``emergencia.recibir_kit``): ellos reciben acá.
-            return redirect(_url_de_recepcion(entrega, self.dispositivo, True))
+            return redirect(_url_de_recepcion(entrega, self.dispositivo, alcance))
         return self._render(request, entrega, RecepcionKitForm(lineas=list(entrega.lineas.all())))
 
     def post(self, request, dispositivo, pk):

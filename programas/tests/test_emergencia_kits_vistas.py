@@ -639,6 +639,34 @@ class NuevaEntregaTests(BaseVistasKits):
         self.assertNotContains(repuesta, "Cargar lo estimado")
         self.assertContains(comun, "Cargar lo estimado")
 
+    def test_reenviar_una_reposicion_ya_hecha_a_un_destino_con_dos_edificios_devuelve_la_del_primer_envio(self):
+        """El segundo POST del mismo armado ya no encuentra la diferencia abierta: los edificios se deciden con la entrega
+        que nombra ``repone_a`` y no vuelve un «Elegí el edificio». Mutación: usar solo la diferencia abierta en el POST
+        deja este test en rojo (400)."""
+        import uuid
+
+        from programas.models import Edificio
+
+        edificios = [Edificio.objects.create(codigo=f"RE-{n}", nombre=f"Edificio {n}") for n in (1, 2)]
+        for edificio in edificios:
+            edificio.dispositivos.add(self.club)
+        original = self._recibir(self._en_camino(edificio=edificios[0]), {self.colchon.pk: 8, self.alimentos.pk: 3})
+        cuerpo = {
+            "dispositivo": self.club.pk,
+            "repone_a": original.pk,
+            "uuid_cliente": str(uuid.uuid4()),
+            "salida": "despues",
+            "observacion": "",
+            **self._cantidades(colchon=(self.colchon, 2)),
+        }
+
+        primero = self.client.post(URL_NUEVA, cuerpo)
+        segundo = self.client.post(URL_NUEVA, cuerpo)
+
+        self.assertEqual((primero.status_code, segundo.status_code), (302, 302))
+        self.assertEqual(primero.url, segundo.url)
+        self.assertEqual(EntregaKit.objects.filter(repone_a=original).count(), 1)
+
     def test_reponer_arranca_con_lo_que_falto(self):
         recibida = self._recibir(self._en_camino(), {self.colchon.pk: 8, self.alimentos.pk: 4})
 

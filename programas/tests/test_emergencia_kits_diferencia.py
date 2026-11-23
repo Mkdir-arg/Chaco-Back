@@ -372,12 +372,13 @@ class EdificioInactivoNoRecibeEntregasTests(BaseKits):
 
 
 class OrdenDeCandadosTests(BaseKits):
-    """``crear_entrega`` bloquea el dispositivo destino, después la entrega original y después el edificio.
+    """``crear_entrega`` bloquea la entrega original (si repone), después el dispositivo destino y después el edificio.
 
-    «Inactivar» y «desvincular» edificio van Dispositivo → Edificio, y el ``INSERT`` pide un candado compartido sobre el
-    dispositivo: tomar el edificio primero cerraba un ciclo (1213 para una de las dos). En SQLite ``select_for_update``
-    no hace nada, así que lo que se fija es **el orden en que se piden**. Mutación: pedir el edificio antes que el
-    dispositivo deja este test en rojo.
+    Cancelar una reposición toma original → reposición y recibirla toma reposición → dispositivo (bitácora): con el
+    dispositivo antes que la original, crear, cancelar y recibir cerraban un ciclo de tres. «Inactivar» y «desvincular»
+    edificio van Dispositivo → Edificio. En SQLite ``select_for_update`` no hace nada, así que lo que se fija es **el
+    orden en que se piden**. Mutación: pedir el dispositivo antes que la original, o el edificio antes que el
+    dispositivo, deja estos tests en rojo.
     """
 
     @contextmanager
@@ -408,7 +409,7 @@ class OrdenDeCandadosTests(BaseKits):
         self.assertLess(pedidos.index("Dispositivo"), pedidos.index("Edificio"))
         self.assertLess(pedidos.index("Edificio"), pedidos.index("NumeradorEmergencia"))
 
-    def test_con_una_reposicion_el_orden_es_dispositivo_original_edificio(self):
+    def test_con_una_reposicion_el_orden_es_original_dispositivo_edificio(self):
         edificio = self._edificio()
         original = self._recibida_con_faltante()
         EntregaKit.objects.filter(pk=original.pk).update(edificio=edificio)
@@ -416,8 +417,8 @@ class OrdenDeCandadosTests(BaseKits):
         with self._orden_de_los_candados() as pedidos:
             self._entrega(lineas=[(self.colchon, 2)], repone_a=original)
 
-        self.assertLess(pedidos.index("Dispositivo"), pedidos.index("EntregaKit"))
-        self.assertLess(pedidos.index("EntregaKit"), pedidos.index("Edificio"))
+        self.assertLess(pedidos.index("EntregaKit"), pedidos.index("Dispositivo"))
+        self.assertLess(pedidos.index("Dispositivo"), pedidos.index("Edificio"))
         self.assertLess(pedidos.index("Edificio"), pedidos.index("NumeradorEmergencia"))
 
 
@@ -446,6 +447,11 @@ class EntregasDemoradasTests(BaseKits):
 
         self.assertEqual(en_python, en_consulta)
         self.assertEqual(en_consulta, {entregas[2].pk})
+        # El tablero lee tuplas con la misma regla (`es_demorada_por`): el mismo borde.
+        from programas.selectors import emergencia_tablero
+
+        _sin_revisar, _en_camino, del_tablero = emergencia_tablero._entregas(T0)
+        self.assertEqual({entrega.id for entrega in del_tablero}, en_consulta)
 
     def test_q_demorada_con_prefijo_sirve_desde_las_lineas(self):
         vieja = self._despachada_hace(60)

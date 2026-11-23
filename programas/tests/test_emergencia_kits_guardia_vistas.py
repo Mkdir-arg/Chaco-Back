@@ -181,6 +181,45 @@ class RecepcionEnElDispositivoTests(BaseVistasKits):
         self.assertContains(respuesta, 'enctype="multipart/form-data"')
         self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], self.url_recibir)
 
+    def test_con_dispositivo_ver_acotado_a_otro_edificio_la_recepcion_sigue_en_el_formulario_y_no_en_un_404(self):
+        """Dos filas del Equipo: una con ``dispositivo.ver`` + ``emergencia.recibir_kit`` acotada al edificio A y otra
+        con solo ``recibir_kit`` para toda la institución. La entrega es del edificio B: la página del edificio le
+        contesta 404, así que se recibe en el formulario. Mutación: decidir solo por ``dispositivo.ver`` (sin el alcance
+        por edificio) deja este test en rojo (404).
+        """
+        from django.contrib.auth.models import User
+
+        from programas.models import Edificio
+
+        edificio_a = Edificio.objects.create(codigo="EG-A", nombre="Edificio A")
+        edificio_b = self._con_edificio()
+        edificio_a.dispositivos.add(self.club)
+        usuario = User.objects.create_user(username="guardia_dos_filas", password="x")
+        rol_con_ver = self._sumar_rol(usuario, [RECIBIR_KIT, "dispositivo.ver"], self.dispositivos).groups.get()
+        fila_a = MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.club,
+            usuario=usuario,
+            rol=rol_con_ver,
+            alcance=MiembroEquipoDispositivo.Alcance.EDIFICIOS,
+        )
+        fila_a.edificios.set([edificio_a])
+        usuario = self._sumar_rol(usuario, [RECIBIR_KIT], self.dispositivos)
+        solo_recibir = usuario.groups.exclude(pk=rol_con_ver.pk).get()
+        MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.club,
+            usuario=usuario,
+            rol=solo_recibir,
+            alcance=MiembroEquipoDispositivo.Alcance.INSTITUCION,
+        )
+        self.assertEqual(self.entrega.pk, EntregaKit.objects.get(edificio=edificio_b).pk)
+        self.client.force_login(usuario)
+
+        respuesta = self.client.get(self.url_recibir, follow=True)
+
+        self.assertEqual((respuesta.redirect_chain, respuesta.status_code), ([], 200))
+        self.assertTemplateUsed(respuesta, "programas/emergencia/kits/recibir.html")
+        self.assertEqual(self.client.get(self.url_kits).context["filas"][0]["url"], self.url_recibir)
+
     def test_hu_4_3_confirmar_sin_tocar_nada_la_deja_recibida(self):
         self.client.force_login(self.guardia)
 

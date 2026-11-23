@@ -710,6 +710,9 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         IntegranteGrupo.objects.update(egresado_en=T0 - timedelta(hours=1))
         self.assertIn("Todavía no hay personas alojadas por la emergencia", self._html(self.autoridad))
 
+    def test_el_encabezado_de_demorado_dice_las_horas_de_la_regla(self):
+        self.assertIn(f"Demorado (más de {EntregaKit.HORAS_PARA_DEMORADA} h)", _panel(self._html(self.autoridad)))
+
     def test_tc_1187_04_y_05_nota_provincial_y_los_filtros_no_la_acotan(self):
         sin_filtro = _panel(self._html(self.autoridad))
         con_filtro = _panel(self._html(self.autoridad, f"{URL_SOLAPA}&departamento=San+Fernando&ventana=7d"))

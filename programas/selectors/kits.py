@@ -79,14 +79,17 @@ def q_demorada(ahora=None, prefijo=""):
     return Q(**{f"{prefijo}estado": Estado.EN_CAMINO, f"{prefijo}despachada_en__lt": corte_de_demora(ahora)})
 
 
+def es_demorada_por(estado, despachada_en, ahora=None):
+    """La regla de :func:`q_demorada` sobre los dos datos que la deciden, sin consultas: en camino y despachada hace más
+    de :attr:`EntregaKit.HORAS_PARA_DEMORADA` horas. La usan :func:`es_demorada` y el tablero, que lee tuplas."""
+
+    return estado == Estado.EN_CAMINO and despachada_en is not None and despachada_en < corte_de_demora(ahora)
+
+
 def es_demorada(entrega, ahora=None):
     """La misma regla de :func:`q_demorada`, sobre una entrega ya leída (sin consultas)."""
 
-    return (
-        entrega.estado == Estado.EN_CAMINO
-        and entrega.despachada_en is not None
-        and entrega.despachada_en < corte_de_demora(ahora)
-    )
+    return es_demorada_por(entrega.estado, entrega.despachada_en, ahora)
 
 
 def q_diferencia_sin_cerrar():

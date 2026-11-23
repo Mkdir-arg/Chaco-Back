@@ -35,12 +35,14 @@ El orden de los candados
 
 Una entrega no toca casos, derivaciones ni plazas, así que su orden es propio y corto::
 
-    dispositivo destino  ·  entrega original  ·  edificio  ·  numerador (serie K)  ·  entrega nueva
-
+    entrega original  ·  dispositivo destino  ·  edificio  ·  numerador (serie K)  ·  entrega nueva
 ``crear_entrega`` toma ese orden (la entrega original solo si repone; el edificio, el elegido, el único o el de la
-original). El dispositivo va antes que el edificio porque «inactivar» y «desvincular» edificio van Dispositivo → Edificio
-y el ``INSERT`` pide un candado compartido sobre el dispositivo (FK). Cancelar una reposición bloquea la original y después
-la reposición, el mismo orden relativo; las demás transiciones bloquean solo la entrega. Ninguna toma el numerador y
+original). La entrega va antes que el dispositivo porque cancelar una reposición bloquea original → reposición y
+recibirla bloquea reposición → dispositivo (la bitácora): con el dispositivo primero, crear, cancelar y recibir cerraban
+un ciclo de tres. El dispositivo va antes que el edificio porque «inactivar» y «desvincular» edificio van
+Dispositivo → Edificio, y el ``INSERT`` pide un candado compartido sobre el dispositivo (FK). Las demás transiciones
+bloquean solo la entrega (recibir sigue con el dispositivo). Ninguna toma el numerador y *después* una entrega, así que
+no hay orden que cruzar.
 *después* una entrega, así que no hay orden que cruzar.
 La carrera cancelar / recibir se resuelve sobre la misma fila: gana quien llega primero al
 candado y el otro lee el estado nuevo y recibe :class:`EstadoCambioEntrega`. Las carreras
@@ -299,16 +301,24 @@ def _como_se_cerro(entrega):
     return EntregaKit.CierreDiferencia(entrega.cierre_diferencia).label.lower()
 
 
-def _validar_reposicion(repone_a, dispositivo):
+def _bloquear_original(repone_a):
+    """La fila de la entrega que se repone, con candado, o ``None``. Va **antes** que el destino (ver el orden de
+    candados): se toma por pk y recién después se valida que sea de ese destino."""
+
+    if repone_a is None:
+        return None
+    return EntregaKit.objects.select_for_update().filter(pk=getattr(repone_a, "pk", repone_a)).first()
+
+
+def _validar_reposicion(repone_a, original, dispositivo):
     """HU-4.5: se repone una entrega que **ese** dispositivo recibió con diferencias, y **una sola vez**.
 
-    Bloquea la fila de la entrega original (``select_for_update``) y lee de ahí si ya se cerró: dos pedidos a la vez
-    de «Reponer» no arman dos reposiciones, el segundo ve el cierre del primero (Cambio 586).
+    ``original`` es la fila ya bloqueada por :func:`_bloquear_original` y se lee de ahí si ya se cerró: dos pedidos a
+    la vez de «Reponer» no arman dos reposiciones, el segundo ve el cierre del primero (Cambio 586).
     """
 
     if repone_a is None:
         return None
-    original = EntregaKit.objects.select_for_update().filter(pk=getattr(repone_a, "pk", repone_a)).first()
     if (
         original is None
         or original.dispositivo_id != dispositivo.pk
@@ -439,15 +449,17 @@ def crear_entrega(
         existente = _entrega_de_ese_armado(uuid_cliente, usuario)
         if existente is not None:
             return existente
-    # El destino va primero y con candado: «inactivar» y «desvincular» edificio bloquean Dispositivo y después
-    # Edificio, y el INSERT de la entrega pide además un candado compartido sobre el Dispositivo (FK). Tomarlo antes
-    # que el edificio evita el ciclo.
+    # La entrega que se repone va primero, con candado y por pk: cancelar una reposición toma original → reposición y
+    # recibirla toma reposición → Dispositivo (bitácora); tomar el Dispositivo antes que la original cerraba un ciclo.
+    # Después el destino —«inactivar» y «desvincular» edificio van Dispositivo → Edificio y el INSERT pide un candado
+    # compartido sobre el Dispositivo (FK)— y recién ahí se valida que la original sea de ese destino.
+    bloqueada_original = _bloquear_original(repone_a)
     destino = Dispositivo.objects.select_for_update().filter(pk=getattr(dispositivo, "pk", dispositivo)).first()
     if destino is None or destino.estado != Dispositivo.Estado.ACTIVO:
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ACTIVO})
     validas = _validar_lineas(lineas)
     try:
-        original = _validar_reposicion(repone_a, destino)
+        original = _validar_reposicion(repone_a, bloqueada_original, destino)
     except _ReposicionYaHecha:
         # Doble envío a la vez del mismo armado: el primero ya repuso y su fila existe. Bajo el candado de la original
         # se vuelve a mirar antes de rechazar, así el segundo recibe la entrega del primero y no un error.
