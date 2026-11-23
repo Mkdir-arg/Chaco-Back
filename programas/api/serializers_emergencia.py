@@ -266,7 +266,7 @@ class LineaEntregaKitSerializer(serializers.ModelSerializer):
     """Un ítem de la entrega: lo enviado y, cuando ya se recibió, lo recibido."""
 
     item = serializers.IntegerField(source="item_id", read_only=True, help_text="`id` del ítem del catálogo.")
-    nombre = serializers.CharField(source="item.nombre", read_only=True)
+    nombre = serializers.CharField(source="nombre_visible", read_only=True)
     enviada = serializers.IntegerField(source="cantidad_enviada", read_only=True)
     recibida = serializers.IntegerField(
         source="cantidad_recibida", read_only=True, allow_null=True, help_text="`null` hasta que se recibe."

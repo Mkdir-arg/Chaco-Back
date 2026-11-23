@@ -392,7 +392,7 @@ def crear_entrega(usuario, dispositivo, lineas, observacion="", repone_a=None, e
         return existente
     LineaEntrega.objects.bulk_create(
         [
-            LineaEntrega(entrega=entrega, item=item, unidad=item.unidad, cantidad_enviada=cantidad)
+            LineaEntrega(entrega=entrega, item=item, nombre=item.nombre, unidad=item.unidad, cantidad_enviada=cantidad)
             for item, cantidad in validas
         ]
     )
@@ -501,7 +501,7 @@ def _validar_cantidades(lineas, cantidades):
     de_la_entrega = {linea.item_id: linea for linea in lineas}
     if set(recibidas) - set(de_la_entrega):
         raise ValidationError({"cantidades": ITEM_AJENO})
-    faltan = [linea.item.nombre for linea in lineas if recibidas.get(linea.item_id) in (None, "")]
+    faltan = [linea.nombre_visible for linea in lineas if recibidas.get(linea.item_id) in (None, "")]
     if faltan:
         raise ValidationError({"cantidades": FALTAN_CANTIDADES.format(items=", ".join(faltan))})
     limpias = {}
@@ -509,7 +509,7 @@ def _validar_cantidades(lineas, cantidades):
         entero = _entero(cantidad)
         if entero is None or not 0 <= entero <= CANTIDAD_MAXIMA:
             raise ValidationError(
-                {"cantidades": CANTIDAD_RECIBIDA_INVALIDA.format(item=de_la_entrega[item_id].item.nombre)}
+                {"cantidades": CANTIDAD_RECIBIDA_INVALIDA.format(item=de_la_entrega[item_id].nombre_visible)}
             )
         limpias[item_id] = entero
     return limpias
