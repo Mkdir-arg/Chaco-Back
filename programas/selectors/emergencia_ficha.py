@@ -85,13 +85,11 @@ def que_hacer_ahora(caso, puede, paso):
     if puede["puede_cancelar_derivacion"]:
         tono = "brand" if paso["urgente"] else "secondary"
         acciones.append(
-            _accion_de_la_ficha("cancelar_derivacion", "Cancelar la derivación", "fa-ban", tono, "modalCancelar")
+            _accion_de_la_ficha("cancelar_derivacion", "Cancelar derivación", "fa-ban", tono, "modalCancelar")
         )
     if puede["puede_cancelar_ingreso"]:
         acciones.append(
-            _accion_de_la_ficha(
-                "cancelar_ingreso", "Cancelar el ingreso", "fa-ban", "secondary", "modalCancelarIngreso"
-            )
+            _accion_de_la_ficha("cancelar_ingreso", "Cancelar ingreso", "fa-ban", "secondary", "modalCancelarIngreso")
         )
     if puede["puede_reabrir"]:
         acciones.append(_accion_de_la_ficha("reabrir", "Reabrir caso", "fa-lock-open", "brand"))

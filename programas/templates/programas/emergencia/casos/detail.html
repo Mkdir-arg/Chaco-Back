@@ -330,7 +330,7 @@ cuando la URL trae `?derivar=<id>` (variante «abierto por parámetro GET»): la
             <form method="get" action="{{ url_ficha }}" class="space-y-3">
               {% for field in panel.form.campos_visibles %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
               {{ panel.form.grupo }}
-              <input type="hidden" name="tab" :value="tab">
+              <input type="hidden" name="tab" value="{{ solapa }}" :value="tab">
               <div class="flex justify-end">
                 <button type="submit" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-rotate" aria-hidden="true"></i> Actualizar lista</button>
               </div>

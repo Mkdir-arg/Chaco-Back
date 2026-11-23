@@ -1,4 +1,4 @@
-"""Lo que dibujan las pantallas de la mesa de Emergencia: la bandeja (E2) y la ficha (E3).
+"""Lo que dibuja la bandeja de la mesa de Emergencia (E2) y lo que ella comparte con la ficha del caso (E3).
 
 Solo lectura y solo armado: toma lo que contestan ``programas.selectors.emergencia`` (semáforo,
 bandeja, panel de derivar, marcas) y lo deja en la forma que consumen los templates y las
@@ -7,7 +7,9 @@ acá: quién puede qué lo decide ``programas.services.emergencia`` cuando la ac
 estas funciones solo adelantan en pantalla lo que ese servicio va a contestar.
 
 Va en un módulo aparte del selector del caso a propósito: aquel lo comparten la API de la
-app y el tablero; esto es de las dos pantallas del backoffice.
+app y el tablero; esto es de las pantallas del backoffice. La ficha del caso (E3) vive en
+``programas.selectors.emergencia_ficha``; acá quedó lo que comparte con la bandeja (``que_falta``,
+los avisos, los formateadores) y el panel «Derivar».
 
 Cada función dice cuántas consultas hace. ``programas.tests.test_emergencia_mesa`` fija el
 total de E2 con 500 casos abiertos y el de E3 con 50 dispositivos.
@@ -149,7 +151,7 @@ def avisos_de_la_mesa(caso, sla, ahora):
 
     Los mismos para la fila de E2 (``texto`` y ``tono``) y para la cabecera de E3 (que suma
     ``detalle``). Sin consultas: ``caso`` viene anotado por
-    ``selectors.emergencia.con_avisos_de_la_mesa`` (la bandeja y :func:`casos_para_ficha`).
+    ``selectors.emergencia.con_avisos_de_la_mesa`` (la bandeja y ``emergencia_ficha.casos_para_ficha``).
 
     * «Rechazado por X: motivo» y «Derivación vencida · volver a derivar» mientras esa sea
       la última traza del caso: la próxima acción, cualquiera, los saca (RN-3.13, HU-2.5).

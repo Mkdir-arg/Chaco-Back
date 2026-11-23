@@ -261,7 +261,7 @@ class LoQueSeOfreceLoAceptaElServicioTests(_Base):
         bloque = self._bloque(respuesta)
         for texto in ("Elegir institución", "Anotar un contacto", "Cerrar sin alojamiento"):
             self.assertIn(texto, bloque)
-        for texto in ("Tomar el caso", "Cancelar la derivación", "Reabrir caso", "la familia ya no está"):
+        for texto in ("Tomar el caso", "Cancelar derivación", "Reabrir caso", "la familia ya no está"):
             self.assertNotIn(texto, bloque)
         self.assertIn('href="#caso-derivar-titulo"', bloque)
         self.assertIn('id="caso-derivar-titulo"', respuesta.content.decode())
@@ -391,15 +391,19 @@ class SolapasDeLaFichaTests(_Base):
 
     def test_los_paneles_van_en_el_orden_de_la_barra(self):
         html = self._ficha(self._caso_tomado(), self.operador).content.decode()
-        orden = [m.group(1) for m in re.finditer(r'role="tabpanel" id="panel-(\w+)"', html)]
-        self.assertEqual(orden, list(ficha.SOLAPAS_DE_LA_FICHA))
+        paneles = [m.group(1) for m in re.finditer(r'role="tabpanel" id="panel-(\w+)"', html)]
+        barra = re.findall(r'role="tab" id="tab-(\w+)"', html)
+        self.assertEqual(len(barra), len(ficha.SOLAPAS_DE_LA_FICHA))
+        self.assertEqual(paneles, barra)
 
     def test_actualizar_la_lista_de_derivar_conserva_la_solapa_a_la_vista(self):
         caso = self._caso_tomado()
         respuesta = self._ficha(caso, self.operador, tab="contactos", grupo=f"d{self.club.pk}")
-        self.assertContains(respuesta, '<input type="hidden" name="tab" :value="tab">')
+        self.assertContains(respuesta, '<input type="hidden" name="tab" value="contactos" :value="tab">')
         self.assertIn("tab=contactos", respuesta.context["panel"]["url_volver"])
-        for tarjeta in respuesta.context["panel"]["grupo"]["tarjetas"]:
+        tarjetas = respuesta.context["panel"]["grupo"]["tarjetas"]
+        self.assertTrue(tarjetas)
+        for tarjeta in tarjetas:
             self.assertIn("tab=contactos", tarjeta["accion_url"])
         # Una solapa que no existe se ignora: no viaja en ningún enlace.
         invalida = self._ficha(caso, self.operador, tab="'});alert(1)", grupo=f"d{self.club.pk}")

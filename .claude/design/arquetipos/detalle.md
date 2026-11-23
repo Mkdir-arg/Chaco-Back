@@ -158,8 +158,8 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   salen de `conteos`, de listas ya traídas. Los paneles van en el orden de la barra y solo los de las solapas inactivas llevan
   `x-cloak` (el activo se ve aunque Alpine no haya arrancado); cada acción tiene un solo texto, el del menú «Más acciones», y
   los botones que abren un modal comparten una rama (`accion.modal`, validada con `nombre_alpine` como `_menu_fila_item.html`). El
-  formulario GET del panel «Derivar» lleva la solapa a la vista (`<input type="hidden" name="tab" :value="tab">`) para que
-  actualizar la lista no la pierda. Sin clases ni piezas nuevas.
+  formulario GET del panel «Derivar» lleva la solapa a la vista (`<input type="hidden" name="tab" value="{{ solapa }}" :value="tab">`)
+  para que actualizar la lista no la pierda; los enlaces (tarjetas, «Volver a los edificios») llevan la de la URL. Sin clases ni piezas nuevas.
 - Tablero de programa como Detalle apilado (`{# arquetipo: detalle + apilado #}`): `{% hero_inicio %}` ocupa el
   lugar del `page_header` (solo en las pantallas de `HERO_PANTALLAS`, ficha `componentes/hero_inicio.md`), una franja
   de `_stat_card` `variante="tablero"`, los avisos como lista de `_alerta.html` (ficha `componentes/alerta.md`) y

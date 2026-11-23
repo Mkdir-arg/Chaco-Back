@@ -12,6 +12,7 @@ es una sola condición, `q_entrega_sin_revisar` del mismo selector, que comparte
 El armado que la llena es idempotente: `crear_entrega` de `programas/services/kits.py` devuelve la entrega ya creada
 por el mismo `uuid_cliente` (oculto en la pantalla «Nueva entrega»), así que reenviar el formulario no duplica filas (Cambio 535).
 La línea guarda el `nombre` del insumo al armarse (`nombre_visible` cae al del ítem si falta): la columna «Ítem» lee ese nombre, no el del catálogo, para que un insumo desactivado no cambie lo que dice una entrega vieja.
+El docstring de `programas/services/kits.py` que describe el orden de los candados (entrega, línea, caso) ya no repite una línea; el código no cambió.
 
 ## Invocación
 
