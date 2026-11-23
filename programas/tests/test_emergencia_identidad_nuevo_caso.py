@@ -144,7 +144,7 @@ class IdentidadARevisarEnLaMesaTests(BaseIdentidad):
         return CasoEmergencia.objects.get()
 
     def _marcas(self):
-        respuesta = self.client.get(URL_BANDEJA)
+        respuesta = self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
         return [marca["texto"] for fila in respuesta.context["filas"] for marca in fila["marcas"]]
 
     def _textos_de_la_ficha(self, caso):
