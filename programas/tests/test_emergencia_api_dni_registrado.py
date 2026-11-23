@@ -10,6 +10,7 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.urls import reverse
+from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.api.views import ConsultaPersonasThrottle
@@ -60,9 +61,10 @@ class DniRegistradoApiTests(BaseApiLlegadas):
 
     def test_con_identidad_en_conflicto_los_tres_extremos_crean_el_caso_marcado(self):
         for url, usuario in self._urls():
-            # El ingreso directo deja una derivación vigente a este dispositivo: sin darla por vencida, el aviso
-            # siguiente se rechaza por duplicado (Cambio 553), y acá se prueba la identidad, no el duplicado.
+            # Es la misma familia en los tres extremos: el caso anterior se cierra para que el siguiente se abra
+            # (una familia no tiene dos casos abiertos, Cambio 579) y acá se prueba la identidad, no el duplicado.
             Derivacion.objects.update(estado=Derivacion.Estado.VENCIDA, clave_vigente=None)
+            CasoEmergencia.objects.update(estado=CasoEmergencia.Estado.CERRADO, cerrado_en=timezone.now())
             with self.subTest(url=url):
                 respuesta = self._como(usuario).post(
                     url, self._cuerpo_conflicto(url, identidad_en_conflicto="true"), format="multipart"

@@ -17,6 +17,7 @@ from django.test.utils import CaptureQueriesContext
 from programas.models import CasoEmergencia, Dispositivo
 from programas.selectors import emergencia_mesa as mesa_selector
 from programas.services import emergencia as mesa
+from programas.services import emergencia_alojar as servicio
 from programas.tests.test_emergencia_marcas import URL_BANDEJA, BaseMarcas
 
 Estado = CasoEmergencia.Estado
@@ -176,12 +177,14 @@ class QueFaltaSinConsultasPorFilaTests(BaseMarcas):
                 self.client.get(URL_BANDEJA, {"solapa": "abiertos"})
             return len(capturadas)
 
-        self._derivado()
+        # Una familia, un caso abierto (Cambio 579): cada caso, con su propio DNI.
+        self._derivado(dni="30111001")
         con_uno = consultas()
-        for _ in range(4):
-            self._derivado()
-        self._caso_tomado()
-        self._rechazado()
+        for orden in range(4):
+            self._derivado(dni=f"3011110{orden}")
+        self._caso_tomado(dni="30111200")
+        _caso, derivacion = self._derivado(dni="30111300")
+        servicio.rechazar_derivacion(derivacion=derivacion, usuario=self.guardia, motivo="SIN_PLAZAS", observacion="")
         self.assertEqual(consultas(), con_uno)
 
 

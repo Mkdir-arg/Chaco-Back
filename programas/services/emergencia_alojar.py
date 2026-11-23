@@ -189,8 +189,11 @@ from programas.services.emergencia_recepcion import (  # noqa: F401
 )
 from programas.services.emergencia_sin_derivacion import (  # noqa: F401
     SIN_CAMAS_PARA_INGRESO_DIRECTO,
+    CasoAbiertoEnOtraInstitucion,
     avisar_a_la_mesa,
+    avisar_con_caso_abierto,
     es_ingreso_directo,
+    ingresar_con_caso_abierto,
     ingreso_directo,
 )
 

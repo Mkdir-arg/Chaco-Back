@@ -156,6 +156,15 @@ class BaseCasos(BaseEmergencia):
             relevado_en=relevado_en,
         )
 
+    def _caso_forzado(self, **cambios):
+        """Otro caso de una familia que ya tiene uno abierto: solo la mesa, con motivo (Cambio 579)."""
+        return servicio.crear_caso(
+            usuario=self.operador,
+            origen=Origen.MESA,
+            datos_formulario1=self._datos(**cambios),
+            forzar_nuevo_motivo="La familia se separó",
+        )
+
     def _caso_tomado(self, por=None, **cambios):
         return servicio.tomar_caso(self._caso(**cambios), por or self.operador)
 
@@ -685,10 +694,15 @@ class CrearCasoTests(BaseCasos):
         fila = self._fila(self._caso(precision_m=20))
         self.assertEqual((fila["latitud"], fila["longitud"], fila["precision_m"]), (None, None, None))
 
-    def test_un_agente_puede_cargar_dos_veces_a_la_misma_familia(self):
-        """RN-1.11: el servidor no lo bloquea; la mesa lo ve como posible duplicado."""
+    def test_un_agente_no_puede_cargar_dos_veces_a_la_misma_familia(self):
+        """RN-1.11, Cambio 579: una familia, un caso abierto. La mesa puede forzar otro, con motivo."""
         primero = self._caso(dni="31222333")
-        segundo = self._caso(dni="31222333")
+        with self.assertRaises(servicio.CasoAbiertoDeLaFamilia) as error:
+            self._caso(dni="31222333")
+        self.assertEqual(error.exception.caso.pk, primero.pk)
+        self.assertEqual(CasoEmergencia.objects.count(), 1)
+
+        segundo = self._caso_forzado(dni="31222333")
         self.assertNotEqual(primero.pk, segundo.pk)
         self.assertEqual(primero.grupo.responsable_id, segundo.grupo.responsable_id)
 
@@ -1772,7 +1786,8 @@ class OrdenDeLosCandadosEmergenciaTests(BaseCasos):
     def test_crear_un_caso_solo_bloquea_el_numerador(self):
         with self._orden() as orden:
             self._caso()
-        self.assertEqual(orden, ["numerador"])
+        # Una sola toma: la de ``serializar_altas``, sobre la que se numera (Cambio 579).
+        self.assertEqual(set(orden), {"numerador"})
 
 
 # ---------------------------------------------------------------------------
@@ -2286,7 +2301,7 @@ class MarcasDelCasoTests(BaseCasos):
     def test_posible_duplicado_por_el_mismo_responsable(self):
         """RN-2.14 / RN-1.11."""
         primero = self._caso(dni="31222333")
-        segundo = self._caso(dni="31222333")
+        segundo = self._caso_forzado(dni="31222333")
         otro = self._caso(dni="31999888")
 
         self.assertEqual(selectores.posibles_duplicados(primero), [(segundo.pk, segundo.numero)])
@@ -2313,7 +2328,8 @@ class MarcasDelCasoTests(BaseCasos):
 
     @tag("performance")
     def test_los_duplicados_de_una_pagina_son_tres_consultas(self):
-        casos = [self._caso(dni="31222333") for _ in range(3)] + [self._caso() for _ in range(10)]
+        casos = [self._caso(dni="31222333")] + [self._caso_forzado(dni="31222333") for _ in range(2)]
+        casos += [self._caso() for _ in range(10)]
         casos = list(CasoEmergencia.objects.select_related("grupo").filter(pk__in=[caso.pk for caso in casos]))
 
         with self.assertNumQueries(3):
