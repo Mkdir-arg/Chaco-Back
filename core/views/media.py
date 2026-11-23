@@ -130,6 +130,9 @@ def _foto_de_inspeccion(user, ruta):
     Una sola regla con la pantalla (`programas.services.inspecciones.inspecciones_visibles`):
     el coordinador en su alcance, el agente **solo en lo que tiene asignado** y quien opera
     alguna institución que ocupa el edificio.
+
+    Quien no lo ve recibe ``None`` (404), el mismo cuerpo que un archivo inexistente: un 403
+    le confirmaría a otra institución que esa foto existe (aislamiento entre instituciones).
     """
     from programas.models import FotoInspeccion
     from programas.services.inspecciones import inspecciones_visibles
@@ -137,7 +140,7 @@ def _foto_de_inspeccion(user, ruta):
     foto = FotoInspeccion.objects.filter(archivo=ruta).only("pk", "inspeccion_id").first()
     if foto is None:
         return None
-    return inspecciones_visibles(user).filter(pk=foto.inspeccion_id).exists()
+    return True if inspecciones_visibles(user).filter(pk=foto.inspeccion_id).exists() else None
 
 
 def _adjunto_de_becas(user, ruta):
@@ -220,6 +223,9 @@ def _adjunto_de_bitacora(user, ruta):
     Mismo alcance que la bitácora en pantalla: `dispositivo.ver` evaluada con la
     asignación al dispositivo concreto, no con la capacidad suelta. Un operador de otra
     institución tiene `dispositivo.ver` y no tiene por qué leer las actas de esta.
+
+    Siempre ``True`` o ``None``, nunca ``False``: el archivo ajeno responde 404, igual que el
+    inexistente, para que un 403 no confirme que existe.
     """
     from programas.models import AdjuntoBitacora, EntradaBitacora
     from programas.services.dispositivos import (

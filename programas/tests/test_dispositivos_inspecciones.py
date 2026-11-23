@@ -15,9 +15,11 @@ Lo que se fija acá, y por qué:
    inspección.
 """
 
+import re
 import tempfile
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -25,6 +27,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from core import rbac
@@ -534,14 +537,21 @@ class MediaDeFotosTests(BaseInspecciones):
         self.inspeccion = self._crear()
         foto = agregar_foto(self._fresco(self.agente), self.inspeccion, _foto())
         self.url = f"/media/{foto.archivo.name}"
+        self._clientes = {}
+
+    def _respuesta(self, usuario, url=None):
+        # Un cliente por usuario: la sesión única del backoffice cierra la anterior al volver a entrar.
+        cliente = self._clientes.get(usuario.pk)
+        if cliente is None:
+            cliente = self._clientes[usuario.pk] = Client()
+            cliente.force_login(usuario)
+        respuesta = cliente.get(url or self.url)
+        cuerpo = b"".join(respuesta.streaming_content) if respuesta.streaming else respuesta.content
+        # La página de error lleva un token CSRF distinto en cada pedido.
+        return respuesta.status_code, re.sub(rb"[A-Za-z0-9]{32,}", b"TOKEN", cuerpo)
 
     def _get(self, usuario):
-        cliente = Client()
-        cliente.force_login(usuario)
-        respuesta = cliente.get(self.url)
-        if respuesta.streaming:
-            b"".join(respuesta.streaming_content)
-        return respuesta.status_code
+        return self._respuesta(usuario)[0]
 
     def test_la_ven_el_agente_el_coordinador_y_las_instituciones_del_predio(self):
         for usuario in (self.agente, self.coordinador, self.operador_geriatrico):
@@ -549,7 +559,30 @@ class MediaDeFotosTests(BaseInspecciones):
                 self.assertEqual(self._get(usuario), 200)
 
     def test_no_la_ve_otro_agente(self):
-        self.assertEqual(self._get(self.otro_agente), 403)
+        self.assertEqual(self._get(self.otro_agente), 404)
+
+    def test_la_foto_ajena_responde_igual_que_una_que_no_existe(self):
+        """#1069: un 403 le confirmaría a otra institución que la foto existe."""
+        inexistente = "/media/dispositivos/inspecciones/2026/11/" + "0" * 32 + ".jpeg"
+        operador_cis = self._usuario("operador_cis", ("dispositivo.ver",), [self.cis])
+        for intruso in (self.otro_agente, operador_cis):
+            with self.subTest(usuario=intruso.username):
+                self.assertEqual(self._respuesta(intruso), self._respuesta(intruso, inexistente))
+                self.assertEqual(self._get(intruso), 404)
+
+    def test_el_agente_reasignado_pierde_la_foto_con_404(self):
+        self.assertEqual(self._get(self.agente), 200)
+
+        reasignar_inspeccion(self._fresco(self.coordinador), self.inspeccion, self._fresco(self.otro_agente))
+
+        self.assertEqual(self._get(self.otro_agente), 200)
+        self.assertEqual(self._get(self.agente), 404)
+
+    def test_anonimo_va_al_login(self):
+        respuesta = Client().get(self.url)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn(reverse(settings.LOGIN_URL), respuesta["Location"])
 
 
 class AlcanceDelCoordinadorTests(MediaDeFotosTests):
@@ -563,7 +596,7 @@ class AlcanceDelCoordinadorTests(MediaDeFotosTests):
         coordinador_cis = self._usuario("coordinador_cis", ("inspeccion.asignar",), [self.cis])
 
         self.assertNotIn(self.inspeccion, inspecciones_visibles(coordinador_cis))
-        self.assertEqual(self._get(coordinador_cis), 403)
+        self.assertEqual(self._get(coordinador_cis), 404)
 
     def test_el_coordinador_del_predio_la_ve_solo_por_asignar(self):
         coordinador_parador = self._usuario("coordinador_parador", ("inspeccion.asignar",), [self.parador])

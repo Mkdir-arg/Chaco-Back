@@ -188,6 +188,22 @@ class MediaTests(BaseDetalle):
     def test_otra_institucion_no_baja_el_archivo(self):
         self.assertEqual(self._bajar(self._usuario("Operador parador", self.parador)).status_code, 404)
 
+    def test_el_adjunto_ajeno_responde_igual_que_uno_inexistente(self):
+        """#1069: mismo código y mismo cuerpo, para que la respuesta no confirme que existe."""
+        adjunto = self.entrada.adjuntos.get(nombre_original="acta.pdf")
+        intruso = self._usuario("Operador parador", self.parador)
+        self.client.force_login(intruso)
+        inexistente = adjunto.archivo.url.rsplit("/", 1)[0] + "/" + "0" * 32 + ".pdf"
+
+        ajeno = self.client.get(adjunto.archivo.url)
+        nada = self.client.get(inexistente)
+
+        def cuerpo(respuesta):  # la página de error lleva un token CSRF distinto en cada pedido
+            return re.sub(rb"[A-Za-z0-9]{32,}", b"TOKEN", respuesta.content)
+
+        self.assertEqual((ajeno.status_code, cuerpo(ajeno)), (404, cuerpo(nada)))
+        self.assertEqual(nada.status_code, 404)
+
     def test_sin_dispositivo_ver_no_baja_el_archivo(self):
         self.assertEqual(self._bajar(self._usuario("Sin ver", self.cis, _sin("dispositivo.ver"))).status_code, 404)
 
