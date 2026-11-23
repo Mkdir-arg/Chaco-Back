@@ -553,7 +553,6 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
                 # Kits por recibir (#1347): mismo patrón que las derivaciones. Una consulta, y ninguna para quien
                 # no recibe kits con alcance sobre toda la institución.
                 "aviso_kits": self._aviso_de_kits(dispositivo) if puede_avisar_kits else None,
-                "alcance_kits": alcance_kits,
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
                 "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
                 # «Emergencia · Kits» del menú: solo para quien recibe kits en ESTE dispositivo.
@@ -566,19 +565,19 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         self._preparar_equipo(context, dispositivo)
-        self._preparar_edificios(context, dispositivo, ocupacion, con_plazas)
+        self._preparar_edificios(context, dispositivo, ocupacion, con_plazas, alcance_kits)
         return context
 
     @staticmethod
     def _aviso_de_kits(dispositivo):
         """El aviso de entregas de kits por recibir de la institución, o ``None`` sin ninguna (una consulta)."""
 
-        cantidad, mas_vieja = entregas_por_recibir_de(dispositivo)
+        cantidad, _primera, mas_vieja = entregas_por_recibir_de(dispositivo)
         return aviso_de_kits_por_recibir(
             cantidad, reverse("emergencia:dispositivo_kits", args=[dispositivo.pk]), mas_vieja=mas_vieja
         )
 
-    def _preparar_edificios(self, context, dispositivo, ocupacion, con_plazas):
+    def _preparar_edificios(self, context, dispositivo, ocupacion, con_plazas, alcance_kits):
         """La sección «Edificios · N»: una tarjeta por edificio y el aviso del que no tiene plazas disponibles.
 
         Las tarjetas salen de las filas de `infraestructura_del_dispositivo` más lo que suma `completar_tarjetas`; el
@@ -588,12 +587,10 @@ class DispositivoDetailView(EquipoDelLegajoMixin, DispositivoObjectPermissionMix
         infraestructura = context["infraestructura"]
         tarjetas = completar_tarjetas(
             infraestructura["listado"],
-            user=self.request.user,
             dispositivo=dispositivo,
             ocupacion=ocupacion,
             con_plazas=con_plazas,
-            puede_recibir_kits=context["puede_recibir_kits"],
-            alcance_kits=context["alcance_kits"],
+            alcance_kits=alcance_kits,
         )
         context["tarjetas_edificios"] = tarjetas
         context["aviso_sin_plazas"] = aviso_sin_plazas(tarjetas, dispositivo) if con_plazas else None

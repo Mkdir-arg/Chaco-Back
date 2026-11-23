@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from programas.models import EntregaKit, MiembroEquipoDispositivo
 from programas.selectors.kits import entregas_por_recibir_de
+from programas.services.dispositivos import ALCANCE_TODO
 from programas.services.kits import aviso_de_kits_por_recibir
 from programas.tests.test_emergencia_aviso_llegadas import BaseAviso
 
@@ -119,6 +120,19 @@ class QuienLoVeTests(BaseFichaKits):
         )
         MiembroEquipoDispositivo.objects.get(usuario=usuario).edificios.set([edificio])
         return User.objects.get(pk=usuario.pk)
+
+    def test_recibir_kit_en_otra_institucion_y_solo_ver_en_esta_no_lo_ve(self):
+        """Tener la capacidad en el programa no alcanza: el Equipo de ESTA institución tiene que dársela."""
+        mixto = self._guardia("mixto", self.escuela, capacidades=CAPS)
+        rol_solo_ver = self._usuario("rol_solo_ver", ("dispositivo.ver",), programa=self.dispositivos).groups.get()
+        mixto.groups.add(rol_solo_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.club, usuario=mixto, rol=rol_solo_ver)
+        with mock.patch(SELECTOR) as selector:
+            respuesta = self._ver(User.objects.get(pk=mixto.pk))
+
+        self.assertNotContains(respuesta, TITULO)
+        self.assertIsNone(respuesta.context["aviso_kits"])
+        selector.assert_not_called()
 
     def test_la_guardia_de_otra_institucion_ni_abre_la_ficha(self):
         self.client.force_login(self.guardia_escuela)
@@ -236,15 +250,26 @@ class AvisoDeKitsTests(BaseFichaKits):
         )
 
     def test_el_selector_cuenta_y_nombra_la_mas_vieja_en_una_consulta(self):
-        self.assertEqual(entregas_por_recibir_de(self.club), (0, None))
+        self.assertEqual(entregas_por_recibir_de(self.club), (0, None, None))
         self._entrega()
         self._entrega(Estado.PREPARADA)
         self._entrega(Estado.RECIBIDA)
         with CaptureQueriesContext(connection) as captura:
             resultado = entregas_por_recibir_de(self.club)
 
-        self.assertEqual(resultado, (2, "2026-K-000001"))
+        primera = EntregaKit.objects.get(numero="2026-K-000001")
+        self.assertEqual(resultado, (2, primera.pk, "2026-K-000001"))
         self.assertEqual(len(captura), 1)
+
+    def test_con_edificio_cuenta_solo_las_de_ese_edificio_y_nombra_su_primera(self):
+        edif_a, edif_b = self._edificio("ED-A"), self._edificio("ED-B")
+        self._entrega(edificio=edif_b)  # 000001
+        segunda = self._entrega(edificio=edif_a)  # 000002
+        self._entrega(edificio=None)  # 000003
+        self._entrega(Estado.RECIBIDA, edificio=edif_a)
+
+        self.assertEqual(entregas_por_recibir_de(self.club, edif_a), (1, segunda.pk, "2026-K-000002"))
+        self.assertEqual(entregas_por_recibir_de(self.club)[0], 3)
 
 
 class PresupuestoTests(BaseFichaKits):
@@ -254,13 +279,40 @@ class PresupuestoTests(BaseFichaKits):
             self._ver(usuario)
         return len(captura)
 
-    def test_el_aviso_suma_exactamente_una_consulta_a_la_ficha(self):
+    def test_con_edificios_el_aviso_suma_exactamente_una_consulta(self):
+        """Con edificios las tarjetas ya calculaban el alcance de kits: la vista lo comparte, solo suma el aggregate."""
+        self._edificio("ED-A")
         self._entrega()
         for usuario in (self.recibe, self._admin_con_kits()):
             con_aviso = self._consultas(usuario)
-            with mock.patch(SELECTOR, return_value=(0, None)):
+            with mock.patch(SELECTOR, return_value=(0, None, None)):
                 sin_aviso = self._consultas(usuario)
             self.assertEqual(con_aviso - sin_aviso, 1, usuario.username)
+
+    def test_sin_edificios_la_guardia_del_equipo_paga_dos_consultas_mas(self):
+        """Sin edificios las tarjetas no calculaban el alcance: ahora lo calcula la vista (1) y se suma el aggregate (1)."""
+        self._entrega()
+        con_aviso = self._consultas(self.recibe)
+        with (
+            mock.patch(SELECTOR, return_value=(0, None, None)),
+            mock.patch("programas.views.dispositivos_legajo.alcance_de_edificios", return_value=ALCANCE_TODO),
+        ):
+            antes = self._consultas(self.recibe)
+
+        self.assertEqual(con_aviso - antes, 2)
+
+    def test_el_admin_del_programa_sin_edificios_paga_solo_las_del_aviso(self):
+        self._entrega()
+        admin = self._admin_con_kits()
+        con_aviso = self._consultas(admin)
+        with (
+            mock.patch(SELECTOR, return_value=(0, None, None)),
+            mock.patch("programas.views.dispositivos_legajo.alcance_de_edificios", return_value=ALCANCE_TODO),
+        ):
+            antes = self._consultas(admin)
+
+        # El alcance del admin no consulta el Equipo, pero la vista lo calcula igual: lo medido es lo que se paga.
+        self.assertEqual(con_aviso - antes, 1)
 
     def test_cuesta_lo_mismo_con_una_que_con_muchas_entregas(self):
         self._entrega()

@@ -296,19 +296,21 @@ def entregas_pendientes_de(dispositivo, usuario):
     )
 
 
-def entregas_por_recibir_de(dispositivo):
-    """``(cantidad, número de la más vieja)`` de las entregas por recibir de TODA la institución, en UNA consulta.
+def entregas_por_recibir_de(dispositivo, edificio=None):
+    """``(cantidad, pk de la más vieja, número de la más vieja)`` de las entregas por recibir, en UNA consulta.
 
-    «Por recibir» es ``EntregaKit.ESTADOS_ABIERTOS``, con o sin edificio. **No comprueba permisos**: la llama quien ya
-    resolvió que el usuario recibe kits con alcance sobre toda la institución (el aviso de la ficha). El número sale del
-    mismo ``aggregate`` que la cuenta: ``2026-K-000031`` lleva el correlativo con seis dígitos y crece con el tiempo,
-    así que el ``Min`` es la entrega abierta más vieja. Sin entregas, ``(0, None)``.
+    «Por recibir» es ``EntregaKit.ESTADOS_ABIERTOS``. Sin ``edificio`` cuenta TODA la institución, con o sin edificio
+    (el aviso de la ficha); con ``edificio`` solo las de ese edificio exacto: la de otro edificio o sin edificio no
+    cuenta (el aviso y el «Recibir kit» de su página). **No comprueba permisos**: la llama quien ya resolvió que el
+    usuario recibe kits con alcance sobre lo que cuenta. La más vieja es la de menor número: ``2026-K-000031`` lleva el
+    correlativo con seis dígitos y crece con el tiempo, igual que el id. Sin entregas, ``(0, None, None)``.
     """
 
-    resumen = EntregaKit.objects.filter(dispositivo=dispositivo, estado__in=EntregaKit.ESTADOS_ABIERTOS).aggregate(
-        cantidad=Count("pk"), mas_vieja=Min("numero")
-    )
-    return resumen["cantidad"], resumen["mas_vieja"]
+    entregas = EntregaKit.objects.filter(dispositivo=dispositivo, estado__in=EntregaKit.ESTADOS_ABIERTOS)
+    if edificio is not None:
+        entregas = entregas.filter(edificio=edificio)
+    resumen = entregas.aggregate(cantidad=Count("pk"), primera=Min("pk"), numero=Min("numero"))
+    return resumen["cantidad"], resumen["primera"], resumen["numero"]
 
 
 def entregas_de(dispositivo, usuario=None):
