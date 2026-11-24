@@ -48,7 +48,7 @@ from programas.services.emergencia_ingreso_comun import (
     mensaje_otro_edificio,
     mensaje_vencida,
     puede_avisar_a_la_mesa,
-    puede_ingresar_en_caso_alojado,
+    puede_ingresar_en_el_caso_de_aca,
     puede_ingresar_igual,
 )
 from programas.services.estadias import verificar_alojamiento_en_red
@@ -253,16 +253,19 @@ def _con_caso_abierto(usuario, dispositivo, dni, libres, caso, puede_avisar, men
     disponible, salvo sobre un caso que ya está alojado o ingresado: ahí no hay nada que avisar.
     """
 
-    resumen = resumen_del_caso_abierto(caso, dispositivo)
+    derivacion = ultima_derivacion(caso)
+    resumen = resumen_del_caso_abierto(caso, dispositivo, derivacion=derivacion)
     alcance = puede_ingresar_igual(usuario, dispositivo)
-    if caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO):
+    # El caso que ya es de este dispositivo solo se toma si su edificio entra en el alcance (lo mismo que exige el servicio).
+    del_edificio_ajeno = resumen["en_este_dispositivo"] and not puede_ingresar_en_el_caso_de_aca(
+        usuario, dispositivo, derivacion
+    )
+    if del_edificio_ajeno:
+        puede_ingresar = False
+    elif caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO):
         puede_ingresar = alcance and libres > 0
     elif caso.estado == Estado.ALOJADO:
-        puede_ingresar = (
-            alcance
-            and resumen["en_este_dispositivo"]
-            and puede_ingresar_en_caso_alojado(usuario, dispositivo, ultima_derivacion(caso))
-        )
+        puede_ingresar = alcance and resumen["en_este_dispositivo"]
     else:
         puede_ingresar = False
     avisar = puede_avisar and caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO)

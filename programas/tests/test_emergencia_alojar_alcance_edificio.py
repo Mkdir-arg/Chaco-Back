@@ -25,6 +25,8 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -423,6 +425,72 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertEqual(_mensajes(segunda), [f"Ese formulario ya se había enviado: es el caso {caso.numero}."])
 
 
+class CasoAbiertoDeEsteDispositivoConAlcanceEdificiosTests(BaseEdificios):
+    """El caso abierto de este dispositivo en un edificio ajeno no se toma en ningún estado (ronda de auditoría)."""
+
+    def _ingresando_en(self, edificio):
+        caso, derivacion = self._derivado_a(edificio)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
+        caso = CasoEmergencia.objects.get(pk=caso.pk)
+        self.assertEqual(caso.estado, Estado.INGRESO_EN_CURSO)
+        return caso
+
+    def test_el_ingreso_en_curso_de_otro_edificio_no_se_toma_por_ningun_camino(self):
+        caso = self._ingresando_en(self.edif_a)
+
+        with self.assertRaises(PermissionDenied):
+            servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+        with self.assertRaises(PermissionDenied):
+            servicio.ingreso_directo(
+                dispositivo=self.club,
+                usuario=self.guardia_b,
+                datos_formulario1={"traslado": "BOMBEROS", "dni": "30111222", "adultos_f": "1"},
+            )
+
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.INGRESO_EN_CURSO)
+
+    def test_el_ingreso_en_curso_de_su_edificio_sigue_siendo_suyo(self):
+        caso = self._ingresando_en(self.edif_b)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+
+    def test_la_derivacion_pendiente_a_otro_edificio_de_este_dispositivo_no_se_toma(self):
+        caso, derivacion = self._derivado_a(self.edif_a)
+
+        with self.assertRaises(PermissionDenied):
+            servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(Derivacion.objects.get(pk=derivacion.pk).estado, Derivacion.Estado.PENDIENTE)
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.DERIVADO)
+
+    def test_la_busqueda_no_ofrece_ingresar_con_caso_si_lo_derivado_es_de_otro_edificio(self):
+        self._derivado_a(self.edif_a)
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+
+        self.assertIs(resultado.puede_ingresar_con_caso, False)
+
+    def test_con_alcance_institucion_puede_con_el_caso_de_cualquier_edificio(self):
+        caso = self._ingresando_en(self.edif_a)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+
+    def test_la_busqueda_con_familia_alojada_no_repite_la_consulta_de_la_derivacion(self):
+        caso, derivacion = self._derivado_a(self.edif_b)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.ALOJADO)
+        servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)  # calienta cachés
+        with CaptureQueriesContext(connection) as capturadas:
+            servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+        del_caso = [q for q in capturadas.captured_queries if 'WHERE "programas_derivacion"."caso_id" =' in q["sql"]]
+        self.assertEqual(len(del_caso), 1, "la última derivación del caso se lee una sola vez")
+        self.assertEqual(len(capturadas), 17)
+
+
 def _mensajes(respuesta):
     """Los mensajes que mostró la pantalla a la que llevó el POST (seguido con ``follow=True``)."""
     return [str(m) for m in respuesta.context["messages"]]
@@ -517,3 +585,19 @@ class ApiConAlcanceEdificiosTests(BaseApiLlegadas):
 
         self.assertEqual(respuesta.status_code, 400, respuesta.content)
         self.assertFalse(CasoEmergencia.objects.exists())
+
+    def test_ingreso_directo_sobre_el_ingreso_en_curso_de_otro_edificio_no_devuelve_personas(self):
+        servicio_inicial = self._como(self.guardia_centro).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo(dni="33444555"), format="multipart"
+        )
+        self.assertEqual(servicio_inicial.status_code, 201, servicio_inicial.content)
+        self.assertEqual(Derivacion.objects.get().edificio_id, self.edif_a.pk)
+
+        respuesta = self._como(self.guardia_b).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk),
+            self._cuerpo(dni="33444555", nombre=None, apellido=None),
+            format="multipart",
+        )
+
+        self.assertEqual(respuesta.status_code, 404, respuesta.content)
+        self.assertNotIn("integrantes", respuesta.json())

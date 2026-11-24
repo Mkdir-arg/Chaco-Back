@@ -1052,8 +1052,9 @@ elegida. Si en sus edificios no hay camas libres, contesta 400 `plazas` (como si
 `buscar` ya viene en 0 para él. Sin alcance (o con Edificios sin edificios vigentes) contesta 404, como un
 dispositivo ajeno; la app no ofrece el botón si `puede_ingresar_igual` es `false` o `plazas_libres` es 0
 (§13.2, Cambio 532). Las camas se reservan **todas en un mismo edificio** —el que tiene más libres entre las
-suyas—, que queda como el edificio del ingreso; si no alcanzan, faltan. Sumar personas a un caso **alojado** en
-este dispositivo con alcance Edificios exige que el ingreso del caso sea de uno de sus edificios.
+suyas—, que queda como el edificio del ingreso; si no alcanzan, faltan. Con alcance Edificios, tomar el caso
+abierto de este dispositivo (derivación pendiente, ingreso en curso o alojado) exige que su derivación sea de uno de sus
+edificios; si es de otro, contesta 404 y no devuelve integrantes.
 
 **Avisar a la mesa**: `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` — el mismo cuerpo. Crea el
 caso `NUEVO` con la marca «En la puerta de …»; la mesa lo deriva y la guardia busca de nuevo. No exige

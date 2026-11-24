@@ -97,13 +97,15 @@ def puede_ingresar_igual(usuario, dispositivo):
     return alcance.todo or bool(alcance.edificios)
 
 
-def puede_ingresar_en_caso_alojado(usuario, dispositivo, derivacion):
-    """¿Puede sumar personas a un caso ya alojado en ``dispositivo``? Con alcance Edificios, solo si el ingreso del
-    caso es de uno de sus edificios: no se le abre a la guardia un caso de un edificio que no alcanza."""
+def puede_ingresar_en_el_caso_de_aca(usuario, dispositivo, derivacion):
+    """¿Puede tomar el caso abierto cuya última ``derivacion`` es de ``dispositivo``? Con alcance Edificios, solo si
+    esa derivación es de uno de sus edificios: no se le abre a la guardia un caso (pendiente, ingresando o alojado)
+    de un edificio que no alcanza. Alcance Institución, admin y superusuario: siempre."""
 
-    return puede_ingresar_igual(usuario, dispositivo) and (
-        derivacion is None or puede_operar_edificio(usuario, dispositivo, derivacion.edificio_id, CAP_ADMITIR)
-    )
+    if dispositivo is None:
+        return False
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_ADMITIR)
+    return alcance.todo or (derivacion is not None and alcance.permite(derivacion.edificio_id))
 
 
 def puede_avisar_a_la_mesa(usuario, dispositivo):

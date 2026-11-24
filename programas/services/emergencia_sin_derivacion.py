@@ -49,7 +49,7 @@ from programas.services.emergencia_ingreso_comun import (
     marcar_en_la_puerta,
     mensaje_otro_edificio,
     puede_avisar_a_la_mesa,
-    puede_ingresar_en_caso_alojado,
+    puede_ingresar_en_el_caso_de_aca,
     puede_ingresar_igual,
 )
 
@@ -356,6 +356,9 @@ def _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, *, personas):
     if caso.estado == Estado.CERRADO:
         raise EstadoCambio(CASO_YA_CERRADO.format(numero=caso.numero), estado_actual=caso.estado, caso=caso)
     en_este = derivacion is not None and derivacion.dispositivo_id == dispositivo.pk
+    if en_este and not puede_ingresar_en_el_caso_de_aca(usuario, dispositivo, derivacion):
+        # Con alcance Edificios, el caso de un edificio ajeno no se toma en ningún estado (RU-9).
+        raise PermissionDenied(SIN_ALCANCE)
     caso.familia_ya_tenia_caso = True
 
     if caso.estado == Estado.INGRESO_EN_CURSO:
@@ -365,8 +368,6 @@ def _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, *, personas):
         raise CasoAbiertoEnOtraInstitucion(caso, dispositivo)
     if caso.estado == Estado.ALOJADO:
         if en_este:
-            if not puede_ingresar_en_caso_alojado(usuario, dispositivo, derivacion):
-                raise PermissionDenied(SIN_ALCANCE)
             return _sumar_personas_al_alojado(caso, dispositivo, usuario, personas)
         raise CasoAbiertoEnOtraInstitucion(caso, dispositivo)
 
