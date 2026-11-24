@@ -11,6 +11,7 @@ Lo que se fija acá:
 """
 
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth.models import Group, Permission
 from django.core.management import call_command
@@ -209,3 +210,36 @@ class NombreOcupadoTests(TestCase):
         self.assertNotIn("se crearía", linea)
         self.assertIn("10 por crear", salida)
         self._intacto(grupo, None)
+
+
+class DefensaDelSavepointTests(TestCase):
+    """Si el chequeo de nombre falla (collation de MariaDB), la escritura se deshace."""
+
+    def setUp(self):
+        for codigo, tipo in (
+            ("DISPOSITIVOS", Programa.TipoPrograma.DISPOSITIVOS),
+            ("EMERGENCIA", Programa.TipoPrograma.EMERGENCIA),
+        ):
+            Programa.objects.get_or_create(codigo=codigo, defaults={"nombre": codigo.title(), "tipo": tipo})
+
+    def test_un_rol_adoptado_por_nombre_no_queda_con_clave_ni_rolmeta(self):
+        sin_meta = Group.objects.create(name="Dispositivos — Consulta")
+        con_meta = Group.objects.create(name="Emergencia — Autoridad")
+        RolMeta.objects.create(grupo=con_meta, categoria=rbac.CATEGORIA_BACKOFFICE)
+        original = Group.objects.filter
+
+        class _SinNombre:
+            def exists(self):
+                return False
+
+        def filtro(*args, **kwargs):
+            if "name" in kwargs:
+                return _SinNombre()
+            return original(*args, **kwargs)
+
+        with mock.patch.object(Group.objects, "filter", side_effect=filtro):
+            salida = _correr()
+        self.assertFalse(RolMeta.objects.filter(grupo=sin_meta).exists())
+        self.assertIsNone(RolMeta.objects.get(grupo=con_meta).clave)
+        self.assertEqual(sin_meta.permissions.count(), 0)
+        self.assertEqual(salida.count("ya existe un rol con ese nombre"), 2)

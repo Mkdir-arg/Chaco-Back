@@ -47,6 +47,10 @@ def _permisos(codigos, ct, etiquetas):
     return permisos
 
 
+class _NoCreado(Exception):
+    """``asegurar_rol_sembrado`` encontró un rol existente: se deshace lo que escribió."""
+
+
 class Command(BaseCommand):
     help = (
         "Crea los roles de Dispositivos y Emergencia y el Administrador si faltan. "
@@ -56,86 +60,88 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Muestra qué haría, sin escribir nada.")
 
-    def _nombre_ocupado(self, nombre):
-        self.stdout.write(
-            self.style.WARNING(f"  ! {nombre}: ya existe un rol con ese nombre (sin esa clave): no se toca")
-        )
+    def _sembrar(self, clave, nombre, defaults, codigos, dry):
+        """Siembra un rol. Devuelve ``"existia"``, ``"ocupado"``, ``"por_crear"`` o ``"creado"``.
+
+        «Ocupado» es un Group con ese nombre pero sin esa clave: no se adopta (adoptarlo le
+        pisaría las capacidades). El nombre se compara **contra la base**, no en Python: MariaDB
+        no distingue mayúsculas ni tildes y ``get_or_create`` lo encontraría igual. Como defensa,
+        la escritura va en un savepoint: si ``asegurar_rol_sembrado`` termina adoptando un rol que
+        ya estaba, se revierte lo que escribió (la clave o la ``RolMeta``).
+        """
+        if RolMeta.objects.filter(clave=clave).exists():
+            return "existia"
+        if Group.objects.filter(name=nombre).exists():
+            return "ocupado"
+        if dry:
+            return "por_crear"
+        try:
+            with transaction.atomic():
+                group, _meta, creado = asegurar_rol_sembrado(clave, nombre, defaults)
+                if not creado:
+                    raise _NoCreado
+                group.permissions.set(_permisos(codigos, self._ct, self._etiquetas))
+        except _NoCreado:
+            return "ocupado"
+        return "creado"
 
     @transaction.atomic
     def handle(self, *args, **options):
         dry = options["dry_run"]
-        etiquetas = dict(rbac.todas_las_capacidades())
+        self._etiquetas = dict(rbac.todas_las_capacidades())
+        self._ct = ContentType.objects.get_for_model(Capacidad)
         codigos_validos = set(rbac.codigos_de_capacidad())
-        ct = ContentType.objects.get_for_model(Capacidad)
         programas = {p.codigo: p for p in Programa.objects.all()}
-        existentes = set(RolMeta.objects.exclude(clave__isnull=True).values_list("clave", flat=True))
-        nombres = set(Group.objects.values_list("name", flat=True))
         creados = salteados = 0
 
-        self.stdout.write(
-            self.style.MIGRATE_HEADING(
-                "=== Roles de Dispositivos y Emergencia" + (" (dry-run)" if dry else "") + " ===\n"
-            )
-        )
+        titulo = "=== Roles de Dispositivos y Emergencia" + (" (dry-run)" if dry else "") + " ===\n"
+        self.stdout.write(self.style.MIGRATE_HEADING(titulo))
 
+        pedidos = []
         for rol in ROLES_DISPOSITIVOS_EMERGENCIA:
-            if rol.clave in existentes:
-                self.stdout.write(f"  · {rol.nombre}: ya existía")
-                continue
-            if rol.nombre in nombres:
-                self._nombre_ocupado(rol.nombre)
-                continue
-            programa = programas.get(rol.programa)
-            if programa is None:
-                salteados += 1
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"  ! {rol.nombre}: el programa {rol.programa} no existe en esta base, se saltea"
-                    )
-                )
-                continue
             faltan = [c for c in rol.capacidades if c not in codigos_validos]
             if faltan:
                 raise ValueError(f"{rol.clave}: capacidades fuera del catálogo: {faltan}")
-            if dry:
-                self.stdout.write(f"  + {rol.nombre}: se crearía con {len(rol.capacidades)} capacidades")
-                creados += 1
-                continue
-            group, _meta, creado = asegurar_rol_sembrado(
-                rol.clave,
-                rol.nombre,
-                {
-                    "descripcion": rol.descripcion,
-                    "categoria": rbac.CATEGORIA_PROGRAMA,
-                    "protegido": False,
-                    "activo": True,
-                    "programa": programa,
-                },
+            programa = programas.get(rol.programa)
+            defaults = {
+                "descripcion": rol.descripcion,
+                "categoria": rbac.CATEGORIA_PROGRAMA,
+                "protegido": False,
+                "activo": True,
+                "programa": programa,
+            }
+            pedidos.append((rol.clave, rol.nombre, defaults, rol.capacidades, programa is not None, rol.programa))
+        pedidos.append(
+            (
+                rbac.CLAVE_ROL_ADMINISTRADOR,
+                rbac.ROL_ADMINISTRADOR,
+                DEFAULTS_ADMINISTRADOR,
+                rbac.codigos_de_capacidad(),
+                True,
+                None,
             )
-            if not creado:  # carrera: apareció entre la lectura y la escritura
-                self._nombre_ocupado(rol.nombre)
-                continue
-            group.permissions.set(_permisos(rol.capacidades, ct, etiquetas))
-            self.stdout.write(self.style.SUCCESS(f"  ✓ {rol.nombre}: creado con {len(rol.capacidades)} capacidades"))
-            creados += 1
+        )
 
-        if rbac.CLAVE_ROL_ADMINISTRADOR in existentes:
-            self.stdout.write(f"  · {rbac.ROL_ADMINISTRADOR}: ya existía")
-        elif rbac.ROL_ADMINISTRADOR in nombres:
-            self._nombre_ocupado(rbac.ROL_ADMINISTRADOR)
-        elif dry:
-            self.stdout.write(f"  + {rbac.ROL_ADMINISTRADOR}: se crearía con todas las capacidades")
-            creados += 1
-        else:
-            group, _meta, creado = asegurar_rol_sembrado(
-                rbac.CLAVE_ROL_ADMINISTRADOR, rbac.ROL_ADMINISTRADOR, DEFAULTS_ADMINISTRADOR
-            )
-            if creado:
-                group.permissions.set(_permisos(rbac.codigos_de_capacidad(), ct, etiquetas))
-                self.stdout.write(self.style.SUCCESS(f"  ✓ {rbac.ROL_ADMINISTRADOR}: creado con todas las capacidades"))
+        for clave, nombre, defaults, codigos, hay_programa, codigo_programa in pedidos:
+            if not hay_programa and not RolMeta.objects.filter(clave=clave).exists():
+                salteados += 1
+                self.stdout.write(
+                    self.style.WARNING(f"  ! {nombre}: el programa {codigo_programa} no existe en esta base, se saltea")
+                )
+                continue
+            estado = self._sembrar(clave, nombre, defaults, codigos, dry)
+            if estado == "existia":
+                self.stdout.write(f"  · {nombre}: ya existía")
+            elif estado == "ocupado":
+                self.stdout.write(
+                    self.style.WARNING(f"  ! {nombre}: ya existe un rol con ese nombre (sin esa clave): no se toca")
+                )
+            elif estado == "por_crear":
+                self.stdout.write(f"  + {nombre}: se crearía con {len(codigos)} capacidades")
                 creados += 1
             else:
-                self._nombre_ocupado(rbac.ROL_ADMINISTRADOR)
+                self.stdout.write(self.style.SUCCESS(f"  ✓ {nombre}: creado con {len(codigos)} capacidades"))
+                creados += 1
 
         resumen = f"\n{creados} por crear" if dry else f"\n{creados} creados"
         if salteados:
