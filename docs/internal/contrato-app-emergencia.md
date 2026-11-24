@@ -613,10 +613,13 @@ Las diez claves vienen **siempre**; las que no aplican al resultado, en `null` (
 
 - `puede_ingresar_igual` y `puede_avisar_a_la_mesa` (Cambio 532, **aditivas**): solo con `SIN_DERIVACION`
   (en los otros resultados, `false`). Dicen si el usuario tiene el alcance para cada botón de M2-6:
-  «Ingresar igual» exige alcance sobre **toda la institución**; «Avisar a la mesa» vale con cualquier alcance,
-  también **Edificios**. `puede_ingresar_igual` no mira las camas: el botón va si es `true` **y**
-  `plazas_libres ≥ 1`. Una app anterior que no las lee sigue andando: con alcance Edificios, `ingreso-directo`
-  le contesta 404 como hasta ahora (§13.10).
+  «Ingresar igual» y «Avisar a la mesa» valen con cualquier alcance del Equipo, también **Edificios**
+  (decisión del PM del 24/11/2026: antes «Ingresar igual» exigía la institución entera). Con alcance Edificios,
+  «Ingresar igual» es **solo con las camas de sus edificios**: `plazas_libres` ya cuenta solo esas (las camas
+  de sectores sin edificio solo cuentan con alcance Institución). `puede_ingresar_igual` no mira las camas: el
+  botón va si es `true` **y** `plazas_libres ≥ 1`. Un alcance Edificios sin edificios vigentes da `false`
+  (fail-closed). Una app anterior que no las lee sigue andando: `ingreso-directo` contesta 404 solo si el
+  usuario no tiene alcance (§13.10).
 - `derivacion.edificio` (Cambio 553, **aditiva**): `{id, nombre}` del edificio al que se derivó la familia, o
   `null` si la derivación no lo trae. Solo con `DERIVACION`.
 - `derivada_a_otro_edificio` y `edificio_derivado` (Cambio 553, **aditivas**): con `SIN_DERIVACION`, `true` y
@@ -1042,10 +1045,15 @@ cola reintenta con el **mismo** `uuid_cliente` hasta recibir 200 o 201; el reenv
 el mismo caso y lo que reservó la primera vez, sin volver a mirar las camas. 409 `UUID_EN_USO` si ese
 identificador ya creó un caso de otro usuario. 400 como §6 —incluido el de «DNI ya registrado» con
 `persona_registrada`, y `identidad_en_conflicto` para enviar con identidad a revisar—, más `plazas` (no hay camas libres; mostrar
-«Avisar a la mesa») y `dispositivo` (no recibe familias). Exige alcance sobre **toda la institución**: con
-alcance Edificios contesta 404, como un dispositivo ajeno; la app no ofrece el botón si
-`puede_ingresar_igual` es `false` (§13.2, Cambio 532). Las camas se reservan **todas en un mismo edificio**
-—el que tiene más libres—, que queda como el edificio del ingreso; si no alcanzan, faltan.
+«Avisar a la mesa») y `dispositivo` (no recibe familias). Exige alcance del Equipo sobre el dispositivo: con
+alcance **Institución**, camas de cualquier edificio y las sin edificio; con alcance **Edificios** (decisión del
+PM del 24/11/2026), **solo camas de sus edificios** vigentes, y el caso queda en el edificio de la cama
+elegida. Si en sus edificios no hay camas libres, contesta 400 `plazas` (como sin camas) y `plazas_libres` de
+`buscar` ya viene en 0 para él. Sin alcance (o con Edificios sin edificios vigentes) contesta 404, como un
+dispositivo ajeno; la app no ofrece el botón si `puede_ingresar_igual` es `false` o `plazas_libres` es 0
+(§13.2, Cambio 532). Las camas se reservan **todas en un mismo edificio** —el que tiene más libres entre las
+suyas—, que queda como el edificio del ingreso; si no alcanzan, faltan. Sumar personas a un caso **alojado** en
+este dispositivo con alcance Edificios exige que el ingreso del caso sea de uno de sus edificios.
 
 **Avisar a la mesa**: `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` — el mismo cuerpo. Crea el
 caso `NUEVO` con la marca «En la puerta de …»; la mesa lo deriva y la guardia busca de nuevo. No exige

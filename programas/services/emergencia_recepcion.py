@@ -22,7 +22,11 @@ from programas.selectors.emergencia_alojar import camas_libres
 from programas.services.dispositivos import q_edificios_en_alcance
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _hora, _nombre_de, _trazar
-from programas.services.emergencia_familia import caso_abierto_de_la_familia, resumen_del_caso_abierto
+from programas.services.emergencia_familia import (
+    caso_abierto_de_la_familia,
+    resumen_del_caso_abierto,
+    ultima_derivacion,
+)
 from programas.services.emergencia_ingreso_comun import (
     CAP_ADMITIR,
     SIN_ALCANCE,
@@ -44,6 +48,7 @@ from programas.services.emergencia_ingreso_comun import (
     mensaje_otro_edificio,
     mensaje_vencida,
     puede_avisar_a_la_mesa,
+    puede_ingresar_en_caso_alojado,
     puede_ingresar_igual,
 )
 from programas.services.estadias import verificar_alojamiento_en_red
@@ -93,7 +98,7 @@ class ResultadoBusqueda:
     * ``dni`` — el DNI buscado, normalizado.
     * ``puede_ingresar_igual`` / ``puede_avisar_a_la_mesa`` — solo con ``SIN_DERIVACION`` (en los
       otros, ``False``): si quien busca tiene el alcance para cada botón (:func:`puede_ingresar_igual`
-      exige la institución entera; :func:`puede_avisar_a_la_mesa`, admitir con cualquier alcance).
+      vale con la institución o con edificios; :func:`puede_avisar_a_la_mesa`, admitir con cualquier alcance).
       «Ingresar igual» además necesita ``plazas_libres ≥ 1``: eso no lo mira la bandera.
     * ``caso_abierto`` — con ``SIN_DERIVACION``, si la familia ya tiene un caso abierto (Cambio 579): lo único que
       la guardia ve de él (:func:`~programas.services.emergencia_familia.resumen_del_caso_abierto`).
@@ -253,7 +258,11 @@ def _con_caso_abierto(usuario, dispositivo, dni, libres, caso, puede_avisar, men
     if caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO):
         puede_ingresar = alcance and libres > 0
     elif caso.estado == Estado.ALOJADO:
-        puede_ingresar = alcance and resumen["en_este_dispositivo"]
+        puede_ingresar = (
+            alcance
+            and resumen["en_este_dispositivo"]
+            and puede_ingresar_en_caso_alojado(usuario, dispositivo, ultima_derivacion(caso))
+        )
     else:
         puede_ingresar = False
     avisar = puede_avisar and caso.estado in (Estado.NUEVO, Estado.EN_GESTION, Estado.DERIVADO)

@@ -49,6 +49,7 @@ from programas.services.emergencia_ingreso_comun import (
     marcar_en_la_puerta,
     mensaje_otro_edificio,
     puede_avisar_a_la_mesa,
+    puede_ingresar_en_caso_alojado,
     puede_ingresar_igual,
 )
 
@@ -232,8 +233,8 @@ def _abrir_el_ingreso(*, caso, dispositivo, usuario, libres, momento, detalle):
 def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=None):
     """«Ingresar igual»: la familia llegó sola y el dispositivo la recibe sin pasar por la mesa (HU-3.6, RN-3.10).
 
-    Exige ``dispositivo.admitir`` sobre **toda la institución** (:func:`puede_ingresar_igual`), que sea elegible para alojar
-    familias y que tenga **al menos una cama libre**. En una transacción:
+    Exige ``dispositivo.admitir`` (:func:`puede_ingresar_igual`: con alcance Edificios, solo con camas de sus
+    edificios), que sea elegible para alojar familias y que tenga **al menos una cama libre** de su alcance. En una transacción:
 
     * crea el caso con ``crear_caso(origen=DISPOSITIVO)`` —misma validación del Formulario 1,
       con dirección y localidad opcionales—;
@@ -322,7 +323,7 @@ def ingresar_con_caso_abierto(*, dispositivo, usuario, dni):
     """«Ingresar con este caso»: la guardia ingresa a la familia sobre el caso que ya tenía abierto (Cambio 579).
 
     Es la salida del modal «Esta familia ya tiene un caso abierto»: no hace falta cargar el Formulario 1 de
-    nuevo. Mismas reglas de alcance que «Ingresar igual» (toda la institución y camas libres). El caso se
+    nuevo. Mismas reglas de alcance que «Ingresar igual» (sus edificios y camas libres). El caso se
     resuelve por el ``dni`` del responsable o de un integrante. Ver :func:`_ingresar_en_el_caso_abierto` por lo
     que pasa según el estado del caso.
     """
@@ -364,6 +365,8 @@ def _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, *, personas):
         raise CasoAbiertoEnOtraInstitucion(caso, dispositivo)
     if caso.estado == Estado.ALOJADO:
         if en_este:
+            if not puede_ingresar_en_caso_alojado(usuario, dispositivo, derivacion):
+                raise PermissionDenied(SIN_ALCANCE)
             return _sumar_personas_al_alojado(caso, dispositivo, usuario, personas)
         raise CasoAbiertoEnOtraInstitucion(caso, dispositivo)
 
