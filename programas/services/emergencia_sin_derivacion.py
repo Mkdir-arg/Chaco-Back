@@ -34,6 +34,7 @@ from programas.services.emergencia_familia import (
     caso_abierto_de_la_familia,
     caso_del_envio_sumado,
     envio_sumado,
+    es_caso_de_este_dispositivo,
 )
 from programas.services.emergencia_ingreso_comun import (
     SIN_ALCANCE,
@@ -356,7 +357,9 @@ def _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, *, personas):
     if caso.estado == Estado.CERRADO:
         raise EstadoCambio(CASO_YA_CERRADO.format(numero=caso.numero), estado_actual=caso.estado, caso=caso)
     en_este = derivacion is not None and derivacion.dispositivo_id == dispositivo.pk
-    if en_este and not puede_ingresar_en_el_caso_de_aca(usuario, dispositivo, derivacion):
+    if es_caso_de_este_dispositivo(caso, derivacion, dispositivo) and not puede_ingresar_en_el_caso_de_aca(
+        usuario, dispositivo, derivacion
+    ):
         # Con alcance Edificios, el caso de un edificio ajeno no se toma en ningún estado (RU-9).
         raise PermissionDenied(SIN_ALCANCE)
     caso.familia_ya_tenia_caso = True

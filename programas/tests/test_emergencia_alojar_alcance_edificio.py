@@ -472,6 +472,35 @@ class CasoAbiertoDeEsteDispositivoConAlcanceEdificiosTests(BaseEdificios):
 
         self.assertIs(resultado.puede_ingresar_con_caso, False)
 
+    def _deja_la_derivacion_a_a(self, como):
+        caso, derivacion = self._derivado_a(self.edif_a)
+        if como == "rechazada":
+            servicio.rechazar_derivacion(derivacion=derivacion, usuario=self.guardia, motivo="SIN_PLAZAS")
+        else:
+            mesa.cancelar_derivacion(derivacion, self.operador, "La familia cambió de zona")
+        caso = CasoEmergencia.objects.get(pk=caso.pk)
+        self.assertEqual(caso.estado, Estado.EN_GESTION)
+        return caso
+
+    def _ingresa_con_el_caso_sin_vigencia(self, como):
+        caso = self._deja_la_derivacion_a_a(como)
+        busqueda = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+        self.assertIs(busqueda.puede_ingresar_con_caso, True)
+        self.assertIs(busqueda.caso_abierto["en_este_dispositivo"], False)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.INGRESO_EN_CURSO)
+        vigente = Derivacion.objects.get(caso=caso, estado=Derivacion.Estado.ACEPTADA)
+        self.assertEqual(vigente.edificio_id, self.edif_b.pk)
+
+    def test_con_la_derivacion_a_otro_edificio_rechazada_la_guardia_ingresa_en_su_edificio(self):
+        self._ingresa_con_el_caso_sin_vigencia("rechazada")
+
+    def test_con_la_derivacion_a_otro_edificio_cancelada_la_guardia_ingresa_en_su_edificio(self):
+        self._ingresa_con_el_caso_sin_vigencia("cancelada")
+
     def test_con_alcance_institucion_puede_con_el_caso_de_cualquier_edificio(self):
         caso = self._ingresando_en(self.edif_a)
 
