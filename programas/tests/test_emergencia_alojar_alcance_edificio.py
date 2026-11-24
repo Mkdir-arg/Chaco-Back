@@ -256,6 +256,50 @@ class SinDerivacionConAlcanceEdificiosTests(BaseEdificios):
         self.assertEqual((caso.reservadas, caso.faltantes), (3, caso.grupo.total_declarado - 3))
 
 
+class CasoAlojadoConAlcanceEdificiosTests(BaseEdificios):
+    """Sumar personas a un caso ALOJADO acá: con alcance Edificios, solo si el ingreso es de uno de sus edificios."""
+
+    def _alojado_en(self, edificio):
+        caso, derivacion = self._derivado_a(edificio)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.ALOJADO)
+        return CasoEmergencia.objects.get(pk=caso.pk)
+
+    def test_el_caso_alojado_en_otro_edificio_no_se_ingresa(self):
+        caso = self._alojado_en(self.edif_a)
+
+        with self.assertRaises(PermissionDenied):
+            servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.ALOJADO)
+
+    def test_el_caso_alojado_en_su_edificio_se_ingresa(self):
+        caso = self._alojado_en(self.edif_b)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.INGRESO_EN_CURSO)
+
+    def test_la_busqueda_no_ofrece_ingresar_con_caso_si_el_alojado_es_de_otro_edificio(self):
+        self._alojado_en(self.edif_a)
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+
+        self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
+        self.assertIs(resultado.puede_ingresar_con_caso, False)
+        institucion = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia)
+        self.assertIs(institucion.puede_ingresar_con_caso, True)
+
+    def test_la_busqueda_ofrece_ingresar_con_caso_si_el_alojado_es_de_su_edificio(self):
+        self._alojado_en(self.edif_b)
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+
+        self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
+        self.assertIs(resultado.puede_ingresar_con_caso, True)
+
+
 class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
     """Hallazgos 4 y 11 por la web (E6)."""
 
