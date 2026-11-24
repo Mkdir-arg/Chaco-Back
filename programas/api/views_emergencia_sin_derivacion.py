@@ -85,8 +85,8 @@ class IngresoDirectoView(_VistaDeLlegadas):
             return respuesta
         caso_leido, datos = _filas(caso.pk)
         integrantes = datos["integrantes"]
-        if caso.ya_existia and not self._opera_el_ingreso(request, caso.pk):
-            # El reenvío no trae personas de un ingreso al que el usuario ya no tiene alcance (RU-9).
+        if not self._opera_el_ingreso(request, caso.pk):
+            # No se devuelven personas de un ingreso al que el usuario no tiene alcance (RU-9).
             integrantes = []
         cuerpo = {
             "caso": caso_leido,

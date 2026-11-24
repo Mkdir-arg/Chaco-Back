@@ -73,8 +73,8 @@ TEMPLATES = "programas/emergencia/dispositivo/"
 LLEGADAS_POR_PAGINA = 25
 
 SIN_ALCANCE_PARA_INGRESAR_IGUAL = (
-    "Ingresar a una familia sin derivación lo puede hacer quien tiene a cargo toda la institución. "
-    "Avisale a la mesa para que la derive."
+    "Ingresar a una familia sin derivación lo puede hacer quien tiene a cargo la institución o alguno de sus "
+    "edificios. Avisale a la mesa para que la derive."
 )
 
 
@@ -199,7 +199,7 @@ class LlegadasView(GuardiaView):
             form_rechazo=RechazarDerivacionForm(auto_id="rechazo_%s") if tarjeta and tarjeta["pendiente"] else None,
             sin_derivacion=sin_derivacion,
             alojada=resultado is not None and resultado.resultado == servicio.BUSQUEDA_ALOJADA,
-            # Las dos banderas del servicio (hallazgo 4): «Ingresar igual» exige la institución entera.
+            # Las dos banderas del servicio (hallazgo 4): «Ingresar igual» exige alcance; con Edificios, camas de los suyos.
             alcance_para_ingresar=sin_derivacion and resultado.puede_ingresar_igual,
             puede_ingresar_igual=sin_derivacion and resultado.puede_ingresar_igual and resultado.plazas_libres > 0,
             puede_avisar=sin_derivacion and resultado.puede_avisar_a_la_mesa,
@@ -872,7 +872,7 @@ class IngresoDirectoView(_Formulario1View):
     sin_alcance = SIN_ALCANCE_PARA_INGRESAR_IGUAL
 
     def preparar(self, request, **kwargs):
-        # «Ingresar igual» exige la institución entera (hallazgo 4): a quien no la tiene no se le
+        # «Ingresar igual» exige alcance sobre la institución o sus edificios: a quien no lo tiene no se le
         # muestra el formulario para rechazárselo después.
         if request.method == "GET" and not servicio.puede_ingresar_igual(request.user, self.dispositivo):
             messages.warning(request, SIN_ALCANCE_PARA_INGRESAR_IGUAL)

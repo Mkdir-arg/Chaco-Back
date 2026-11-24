@@ -173,16 +173,36 @@ def nombra_la_institucion(derivacion, dispositivo):
     return dispositivo is None or derivacion.dispositivo_id == dispositivo.pk
 
 
-def resumen_del_caso_abierto(caso, dispositivo=None):
+_SIN_LEER = object()
+
+
+def es_caso_de_este_dispositivo(caso, derivacion, dispositivo):
+    """¿El caso ya es de ``dispositivo``? Su última ``derivacion`` es de él y sigue vigente (o el caso está alojado).
+
+    Una derivación rechazada, vencida o cancelada no hace «de acá» al caso: la familia puede entrar por cualquier
+    edificio. Es la única definición: la comparten el resumen del caso abierto y la guarda de edificio del ingreso.
+    """
+
+    return bool(
+        dispositivo is not None
+        and derivacion is not None
+        and derivacion.dispositivo_id == dispositivo.pk
+        and (derivacion.vigente or caso.estado == Estado.ALOJADO)
+    )
+
+
+def resumen_del_caso_abierto(caso, dispositivo=None, *, derivacion=_SIN_LEER):
     """Lo que la guardia puede ver de un caso abierto de la familia: nada más que esto.
 
     ``numero``, ``familia`` (el apellido del responsable), ``personas``, ``estado`` y, si
     :func:`nombra_la_institucion`, ``derivada_a`` (la institución) y ``derivada_en``; si la derivación vigente es de
     otra institución y no se nombra, ``derivada_a_otra`` es ``True``. Nada de la ficha, de los
     contactos ni de las fotos. ``en_este_dispositivo`` dice si el caso ya está derivado, o ingresado, acá.
+    ``derivacion`` es la última del caso si quien llama ya la leyó (evita la consulta repetida).
     """
 
-    derivacion = ultima_derivacion(caso)
+    if derivacion is _SIN_LEER:
+        derivacion = ultima_derivacion(caso)
     vigente = derivacion is not None and derivacion.vigente
     nombra = nombra_la_institucion(derivacion, dispositivo)
     return {
@@ -195,10 +215,5 @@ def resumen_del_caso_abierto(caso, dispositivo=None):
         "derivada_a": derivacion.dispositivo.nombre if nombra else None,
         "derivada_en": derivacion.creado if nombra else None,
         "derivada_a_otra": vigente and not nombra,
-        "en_este_dispositivo": bool(
-            dispositivo is not None
-            and derivacion is not None
-            and derivacion.dispositivo_id == dispositivo.pk
-            and (vigente or caso.estado == Estado.ALOJADO)
-        ),
+        "en_este_dispositivo": es_caso_de_este_dispositivo(caso, derivacion, dispositivo),
     }

@@ -696,7 +696,9 @@ class BusquedaPorDniSerializer(serializers.Serializer):
 
     resultado = serializers.CharField(help_text="`DERIVACION`, `SIN_DERIVACION` o `ALOJADA`.")
     dni = serializers.CharField(help_text="El DNI buscado, solo dígitos.")
-    plazas_libres = serializers.IntegerField(help_text="Camas libres del dispositivo ahora: decide «Ingresar igual».")
+    plazas_libres = serializers.IntegerField(
+        help_text="Camas libres que este usuario puede usar ahora (con alcance Edificios, solo las de sus edificios): decide «Ingresar igual»."
+    )
     mensaje = serializers.CharField(help_text="El texto para la pantalla. Nunca nombra un dispositivo ajeno.")
     derivacion = DerivacionLlegadaSerializer(allow_null=True, help_text="Solo con `DERIVACION`.")
     alojada_aca = serializers.BooleanField(allow_null=True, help_text="Solo con `ALOJADA`: ¿en este dispositivo?")
@@ -706,8 +708,9 @@ class BusquedaPorDniSerializer(serializers.Serializer):
     alojada_desde = serializers.DateTimeField(allow_null=True)
     puede_ingresar_igual = serializers.BooleanField(
         help_text=(
-            "Solo con `SIN_DERIVACION` (si no, `false`): el usuario puede «Ingresar igual» acá, que exige alcance "
-            "sobre toda la institución. Ofrecer el botón solo si es `true` **y** `plazas_libres ≥ 1` (Cambio 532)."
+            "Solo con `SIN_DERIVACION` (si no, `false`): el usuario puede «Ingresar igual» acá: alcance sobre la "
+            "institución o sobre edificios (con edificios, solo con las camas de los suyos; decisión del PM del "
+            "24/11/2026). Ofrecer el botón solo si es `true` **y** `plazas_libres ≥ 1` (Cambio 532)."
         )
     )
     puede_avisar_a_la_mesa = serializers.BooleanField(
