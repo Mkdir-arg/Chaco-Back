@@ -21,11 +21,10 @@ from django.db import transaction
 
 from core import rbac
 from programas.models import Programa
+from programas.services.inspecciones import CAP_RELEVAR
 from programas.services.roles_sembrados import ROL_AGENTE_RELEVAMIENTO
 from users.models import Capacidad
 from users.services.roles import asegurar_rol_sembrado
-
-CAP_RELEVAR = ROL_AGENTE_RELEVAMIENTO.capacidades[0]
 
 
 def asegurar_roles_dispositivos():

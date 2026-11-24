@@ -20,20 +20,13 @@ from django.db import transaction
 
 from core import rbac
 from users.models import Capacidad, RolMeta
-from users.services.roles import asegurar_rol_sembrado
+from users.services.roles import DEFAULTS_ADMINISTRADOR, asegurar_rol_sembrado
 
 # Categoría inicial sugerida para los grupos legacy conocidos (cosmético).
 #: Claves estables de los dos roles que siembra este comando (OPS-06 fase 2). El rol
 #: se reconoce por la clave, no por el nombre: renombrarlo desde el ABM ya no hace que
 #: el arranque siguiente cree un duplicado con el nombre canónico.
 CLAVE_ADMINISTRADOR = rbac.CLAVE_ROL_ADMINISTRADOR
-#: Cómo nace el rol protegido ``Administrador``; lo reusa ``sembrar_roles_dispositivos_emergencia``.
-DEFAULTS_ADMINISTRADOR = {
-    "descripcion": "Acceso total al backoffice. Rol protegido del sistema.",
-    "categoria": rbac.CATEGORIA_BACKOFFICE,
-    "protegido": True,
-    "activo": True,
-}
 CLAVE_OPERADOR = "sistema.operador_backoffice"
 NOMBRE_OPERADOR = "Operador de backoffice"
 
@@ -88,13 +81,14 @@ class Command(BaseCommand):
 
         # 3. Rol Administrador protegido con todas las capacidades.
         self.stdout.write(self.style.MIGRATE_LABEL("\nRol Administrador..."))
-        defaults_admin = DEFAULTS_ADMINISTRADOR
-        admin_group, admin_meta, _ = asegurar_rol_sembrado(CLAVE_ADMINISTRADOR, rbac.ROL_ADMINISTRADOR, defaults_admin)
+        admin_group, admin_meta, _ = asegurar_rol_sembrado(
+            CLAVE_ADMINISTRADOR, rbac.ROL_ADMINISTRADOR, DEFAULTS_ADMINISTRADOR
+        )
         # El Administrador sí se realinea en cada arranque: es el rol protegido que
         # garantiza el acceso de emergencia, y el ABM no lo deja editar.
-        for campo, valor in defaults_admin.items():
+        for campo, valor in DEFAULTS_ADMINISTRADOR.items():
             setattr(admin_meta, campo, valor)
-        admin_meta.save(update_fields=list(defaults_admin))
+        admin_meta.save(update_fields=list(DEFAULTS_ADMINISTRADOR))
         admin_group.permissions.set(list(codename_a_perm.values()))
         self.stdout.write(self.style.SUCCESS("  ✓ Administrador con todas las capacidades"))
 

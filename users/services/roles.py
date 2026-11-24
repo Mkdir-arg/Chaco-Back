@@ -12,6 +12,16 @@ class RolProtegidoError(Exception):
     """No se puede editar/eliminar/desactivar un rol protegido."""
 
 
+#: Cómo nace el rol protegido ``Administrador`` (lo usan ``seed_rbac`` y
+#: ``sembrar_roles_dispositivos_emergencia``).
+DEFAULTS_ADMINISTRADOR = {
+    "descripcion": "Acceso total al backoffice. Rol protegido del sistema.",
+    "categoria": rbac.CATEGORIA_BACKOFFICE,
+    "protegido": True,
+    "activo": True,
+}
+
+
 def _set_capacidades(group, codigos, permitidas=None, programa=None):
     """Deja el rol con ``codigos``, **conservando** lo que el operador no podía tocar.
 

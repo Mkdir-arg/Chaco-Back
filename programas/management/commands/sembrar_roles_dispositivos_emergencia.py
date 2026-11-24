@@ -9,6 +9,8 @@ Reglas:
 
 * Cada rol se identifica por su **clave** (``RolMeta.clave``), no por el nombre: uno renombrado
   desde Roles sigue siendo el mismo y no se duplica.
+* Un Group con el mismo nombre pero sin esa clave (o con otra) cuenta como existente y **no se adopta**:
+  se avisa y no se escribe nada (adoptarlo le pisaría las capacidades).
 * Si el rol ya existe, **no se toca nada** (ni capacidades, ni nombre, ni estado): lo que el PM
   editó a mano sobrevive. Se informa «ya existía».
 * Los roles de programa se anclan al programa (categoría «Programa»). Si el programa
@@ -21,7 +23,7 @@ Reglas:
 Las definiciones viven en ``programas/services/roles_sembrados.py``.
 """
 
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -29,9 +31,8 @@ from django.db import transaction
 from core import rbac
 from programas.models import Programa
 from programas.services.roles_sembrados import ROLES_DISPOSITIVOS_EMERGENCIA
-from users.management.commands.seed_rbac import CLAVE_ADMINISTRADOR, DEFAULTS_ADMINISTRADOR
 from users.models import Capacidad, RolMeta
-from users.services.roles import asegurar_rol_sembrado
+from users.services.roles import DEFAULTS_ADMINISTRADOR, asegurar_rol_sembrado
 
 
 def _permisos(codigos, ct, etiquetas):
@@ -49,11 +50,16 @@ def _permisos(codigos, ct, etiquetas):
 class Command(BaseCommand):
     help = (
         "Crea los roles de Dispositivos y Emergencia y el Administrador si faltan. "
-        "No toca los que ya existen. --dry-run no escribe."
+        "No toca los que ya existen (por clave ni por nombre). --dry-run no escribe."
     )
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Muestra qué haría, sin escribir nada.")
+
+    def _nombre_ocupado(self, nombre):
+        self.stdout.write(
+            self.style.WARNING(f"  ! {nombre}: ya existe un rol con ese nombre (sin esa clave): no se toca")
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -63,6 +69,7 @@ class Command(BaseCommand):
         ct = ContentType.objects.get_for_model(Capacidad)
         programas = {p.codigo: p for p in Programa.objects.all()}
         existentes = set(RolMeta.objects.exclude(clave__isnull=True).values_list("clave", flat=True))
+        nombres = set(Group.objects.values_list("name", flat=True))
         creados = salteados = 0
 
         self.stdout.write(
@@ -74,6 +81,9 @@ class Command(BaseCommand):
         for rol in ROLES_DISPOSITIVOS_EMERGENCIA:
             if rol.clave in existentes:
                 self.stdout.write(f"  · {rol.nombre}: ya existía")
+                continue
+            if rol.nombre in nombres:
+                self._nombre_ocupado(rol.nombre)
                 continue
             programa = programas.get(rol.programa)
             if programa is None:
@@ -91,7 +101,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"  + {rol.nombre}: se crearía con {len(rol.capacidades)} capacidades")
                 creados += 1
                 continue
-            group, meta, _creado = asegurar_rol_sembrado(
+            group, _meta, creado = asegurar_rol_sembrado(
                 rol.clave,
                 rol.nombre,
                 {
@@ -102,20 +112,30 @@ class Command(BaseCommand):
                     "programa": programa,
                 },
             )
+            if not creado:  # carrera: apareció entre la lectura y la escritura
+                self._nombre_ocupado(rol.nombre)
+                continue
             group.permissions.set(_permisos(rol.capacidades, ct, etiquetas))
             self.stdout.write(self.style.SUCCESS(f"  ✓ {rol.nombre}: creado con {len(rol.capacidades)} capacidades"))
             creados += 1
 
-        if CLAVE_ADMINISTRADOR in existentes:
+        if rbac.CLAVE_ROL_ADMINISTRADOR in existentes:
             self.stdout.write(f"  · {rbac.ROL_ADMINISTRADOR}: ya existía")
+        elif rbac.ROL_ADMINISTRADOR in nombres:
+            self._nombre_ocupado(rbac.ROL_ADMINISTRADOR)
         elif dry:
             self.stdout.write(f"  + {rbac.ROL_ADMINISTRADOR}: se crearía con todas las capacidades")
             creados += 1
         else:
-            group, _meta, _ = asegurar_rol_sembrado(CLAVE_ADMINISTRADOR, rbac.ROL_ADMINISTRADOR, DEFAULTS_ADMINISTRADOR)
-            group.permissions.set(_permisos(rbac.codigos_de_capacidad(), ct, etiquetas))
-            self.stdout.write(self.style.SUCCESS(f"  ✓ {rbac.ROL_ADMINISTRADOR}: creado con todas las capacidades"))
-            creados += 1
+            group, _meta, creado = asegurar_rol_sembrado(
+                rbac.CLAVE_ROL_ADMINISTRADOR, rbac.ROL_ADMINISTRADOR, DEFAULTS_ADMINISTRADOR
+            )
+            if creado:
+                group.permissions.set(_permisos(rbac.codigos_de_capacidad(), ct, etiquetas))
+                self.stdout.write(self.style.SUCCESS(f"  ✓ {rbac.ROL_ADMINISTRADOR}: creado con todas las capacidades"))
+                creados += 1
+            else:
+                self._nombre_ocupado(rbac.ROL_ADMINISTRADOR)
 
         resumen = f"\n{creados} por crear" if dry else f"\n{creados} creados"
         if salteados:

@@ -155,3 +155,57 @@ class SembrarRolesTests(TestCase):
         admin.permissions.remove(Permission.objects.get(codename=rbac.codename_de("ciudadano.ver")))
         _correr()
         self.assertNotIn("ciudadano.ver", rbac.capacidades_de_grupo(admin))
+
+
+class NombreOcupadoTests(TestCase):
+    """Un Group con el nombre del rol pero sin su clave no se adopta (escalada de permisos)."""
+
+    def setUp(self):
+        for codigo, tipo in (
+            ("DISPOSITIVOS", Programa.TipoPrograma.DISPOSITIVOS),
+            ("EMERGENCIA", Programa.TipoPrograma.EMERGENCIA),
+        ):
+            Programa.objects.get_or_create(codigo=codigo, defaults={"nombre": codigo.title(), "tipo": tipo})
+        self.perm = Permission.objects.get(codename=rbac.codename_de("ciudadano.ver"))
+
+    def _rol_ajeno(self, nombre, clave=None):
+        grupo = Group.objects.create(name=nombre)
+        grupo.permissions.add(self.perm)
+        RolMeta.objects.create(grupo=grupo, categoria=rbac.CATEGORIA_BACKOFFICE, clave=clave)
+        return grupo
+
+    def _intacto(self, grupo, clave):
+        meta = RolMeta.objects.get(grupo=grupo)
+        self.assertEqual(meta.clave, clave)
+        self.assertEqual(meta.categoria, rbac.CATEGORIA_BACKOFFICE)
+        self.assertIsNone(meta.programa_id)
+        self.assertEqual(set(grupo.permissions.values_list("pk", flat=True)), {self.perm.pk})
+
+    def test_nombre_igual_y_sin_clave_conserva_permisos_categoria_y_clave_nula(self):
+        grupo = self._rol_ajeno("Dispositivos — Consulta")
+        salida = _correr()
+        self._intacto(grupo, None)
+        self.assertIn("ya existe un rol con ese nombre", salida)
+        self.assertIn("10 creados", salida)
+
+    def test_nombre_igual_con_otra_clave_no_se_toca_ni_en_la_segunda_corrida(self):
+        grupo = self._rol_ajeno("Emergencia — Autoridad", clave="otra.clave")
+        _correr()
+        _correr()
+        self._intacto(grupo, "otra.clave")
+        self.assertFalse(RolMeta.objects.filter(clave="emergencia.autoridad").exists())
+
+    def test_administrador_con_nombre_ocupado_no_se_adopta(self):
+        grupo = self._rol_ajeno(rbac.ROL_ADMINISTRADOR)
+        salida = _correr()
+        self._intacto(grupo, None)
+        self.assertIn("ya existe un rol con ese nombre", salida)
+
+    def test_dry_run_con_nombre_ocupado_dice_ya_existe_y_no_se_crearia(self):
+        grupo = self._rol_ajeno("Dispositivos — Administrador")
+        salida = _correr("--dry-run")
+        linea = next(x for x in salida.splitlines() if "Dispositivos — Administrador" in x)
+        self.assertIn("ya existe un rol con ese nombre", linea)
+        self.assertNotIn("se crearía", linea)
+        self.assertIn("10 por crear", salida)
+        self._intacto(grupo, None)
