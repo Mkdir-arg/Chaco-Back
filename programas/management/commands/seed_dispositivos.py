@@ -21,13 +21,11 @@ from django.db import transaction
 
 from core import rbac
 from programas.models import Programa
-from programas.services.inspecciones import CAP_RELEVAR, CLAVE_ROL_AGENTE, NOMBRE_ROL_AGENTE
+from programas.services.roles_sembrados import ROL_AGENTE_RELEVAMIENTO
 from users.models import Capacidad
 from users.services.roles import asegurar_rol_sembrado
 
-DESCRIPCION_ROL_AGENTE = (
-    "Releva edificios en campo: carga el resultado de los relevamientos edilicios que se le asignan."
-)
+CAP_RELEVAR = ROL_AGENTE_RELEVAMIENTO.capacidades[0]
 
 
 def asegurar_roles_dispositivos():
@@ -43,10 +41,10 @@ def asegurar_roles_dispositivos():
         content_type=ct, codename=codename, defaults={"name": etiquetas.get(codename, CAP_RELEVAR)}
     )
     group, meta, creado = asegurar_rol_sembrado(
-        CLAVE_ROL_AGENTE,
-        NOMBRE_ROL_AGENTE,
+        ROL_AGENTE_RELEVAMIENTO.clave,
+        ROL_AGENTE_RELEVAMIENTO.nombre,
         {
-            "descripcion": DESCRIPCION_ROL_AGENTE,
+            "descripcion": ROL_AGENTE_RELEVAMIENTO.descripcion,
             "categoria": rbac.CATEGORIA_PROGRAMA,
             "protegido": False,
             "activo": True,

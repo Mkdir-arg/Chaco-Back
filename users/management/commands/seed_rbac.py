@@ -27,6 +27,13 @@ from users.services.roles import asegurar_rol_sembrado
 #: se reconoce por la clave, no por el nombre: renombrarlo desde el ABM ya no hace que
 #: el arranque siguiente cree un duplicado con el nombre canónico.
 CLAVE_ADMINISTRADOR = rbac.CLAVE_ROL_ADMINISTRADOR
+#: Cómo nace el rol protegido ``Administrador``; lo reusa ``sembrar_roles_dispositivos_emergencia``.
+DEFAULTS_ADMINISTRADOR = {
+    "descripcion": "Acceso total al backoffice. Rol protegido del sistema.",
+    "categoria": rbac.CATEGORIA_BACKOFFICE,
+    "protegido": True,
+    "activo": True,
+}
 CLAVE_OPERADOR = "sistema.operador_backoffice"
 NOMBRE_OPERADOR = "Operador de backoffice"
 
@@ -81,12 +88,7 @@ class Command(BaseCommand):
 
         # 3. Rol Administrador protegido con todas las capacidades.
         self.stdout.write(self.style.MIGRATE_LABEL("\nRol Administrador..."))
-        defaults_admin = {
-            "descripcion": "Acceso total al backoffice. Rol protegido del sistema.",
-            "categoria": rbac.CATEGORIA_BACKOFFICE,
-            "protegido": True,
-            "activo": True,
-        }
+        defaults_admin = DEFAULTS_ADMINISTRADOR
         admin_group, admin_meta, _ = asegurar_rol_sembrado(CLAVE_ADMINISTRADOR, rbac.ROL_ADMINISTRADOR, defaults_admin)
         # El Administrador sí se realinea en cada arranque: es el rol protegido que
         # garantiza el acceso de emergencia, y el ABM no lo deja editar.
