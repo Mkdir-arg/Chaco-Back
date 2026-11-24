@@ -34,6 +34,7 @@ from programas.services.emergencia_familia import (
     caso_abierto_de_la_familia,
     caso_del_envio_sumado,
     envio_sumado,
+    es_caso_de_este_dispositivo,
 )
 from programas.services.emergencia_ingreso_comun import (
     SIN_ALCANCE,
@@ -49,6 +50,7 @@ from programas.services.emergencia_ingreso_comun import (
     marcar_en_la_puerta,
     mensaje_otro_edificio,
     puede_avisar_a_la_mesa,
+    puede_ingresar_en_el_caso_de_aca,
     puede_ingresar_igual,
 )
 
@@ -232,8 +234,8 @@ def _abrir_el_ingreso(*, caso, dispositivo, usuario, libres, momento, detalle):
 def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=None):
     """«Ingresar igual»: la familia llegó sola y el dispositivo la recibe sin pasar por la mesa (HU-3.6, RN-3.10).
 
-    Exige ``dispositivo.admitir`` sobre **toda la institución** (:func:`puede_ingresar_igual`), que sea elegible para alojar
-    familias y que tenga **al menos una cama libre**. En una transacción:
+    Exige ``dispositivo.admitir`` (:func:`puede_ingresar_igual`: con alcance Edificios, solo con camas de sus
+    edificios), que sea elegible para alojar familias y que tenga **al menos una cama libre** de su alcance. En una transacción:
 
     * crea el caso con ``crear_caso(origen=DISPOSITIVO)`` —misma validación del Formulario 1,
       con dirección y localidad opcionales—;
@@ -322,7 +324,7 @@ def ingresar_con_caso_abierto(*, dispositivo, usuario, dni):
     """«Ingresar con este caso»: la guardia ingresa a la familia sobre el caso que ya tenía abierto (Cambio 579).
 
     Es la salida del modal «Esta familia ya tiene un caso abierto»: no hace falta cargar el Formulario 1 de
-    nuevo. Mismas reglas de alcance que «Ingresar igual» (toda la institución y camas libres). El caso se
+    nuevo. Mismas reglas de alcance que «Ingresar igual» (sus edificios y camas libres). El caso se
     resuelve por el ``dni`` del responsable o de un integrante. Ver :func:`_ingresar_en_el_caso_abierto` por lo
     que pasa según el estado del caso.
     """
@@ -355,6 +357,11 @@ def _ingresar_en_el_caso_abierto(caso, dispositivo, usuario, *, personas):
     if caso.estado == Estado.CERRADO:
         raise EstadoCambio(CASO_YA_CERRADO.format(numero=caso.numero), estado_actual=caso.estado, caso=caso)
     en_este = derivacion is not None and derivacion.dispositivo_id == dispositivo.pk
+    if es_caso_de_este_dispositivo(caso, derivacion, dispositivo) and not puede_ingresar_en_el_caso_de_aca(
+        usuario, dispositivo, derivacion
+    ):
+        # Con alcance Edificios, el caso de un edificio ajeno no se toma en ningún estado (RU-9).
+        raise PermissionDenied(SIN_ALCANCE)
     caso.familia_ya_tenia_caso = True
 
     if caso.estado == Estado.INGRESO_EN_CURSO:

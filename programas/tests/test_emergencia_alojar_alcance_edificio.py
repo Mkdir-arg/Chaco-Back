@@ -6,8 +6,9 @@ El Club se parte en dos edificios: **A** con el sector «General» (9 camas) y *
 * 1 — aceptar una derivación a B reserva solo camas de B (si no alcanzan, faltan), y la guardia de B
   sigue el ingreso aunque lo haya aceptado otro: la reserva sobrante se libera sin su alcance y «no
   hay cama» mira las camas que ella puede elegir.
-* 4 — con alcance Edificios se puede «Avisar a la mesa» y no «Ingresar igual»; la pantalla y la API
-  lo dicen antes del 403.
+* 4 — con alcance Edificios se puede «Avisar a la mesa» y también «Ingresar igual», pero este último solo
+  con camas de sus edificios (decisión del PM del 24/11/2026; antes exigía la institución entera). La
+  pantalla y la API lo dicen antes del 403.
 * 13 — «mis dispositivos» cuenta camas y derivaciones de sus edificios, no de la institución.
 * 18 — el ingreso directo nace con el edificio de las camas que reservó.
 * 11 — el Formulario 1 del backoffice lleva su ``uuid_cliente``: el mismo envío dos veces es un caso.
@@ -15,14 +16,19 @@ El Club se parte en dos edificios: **A** con el sector «General» (9 camas) y *
 Mutaciones verificadas (cada una pone en rojo al menos un test de acá): sacar ``edificio_id`` de
 ``aceptar_derivacion``; liberar la sobrante con ``verificar_alcance=True``; ``_hay_cama_para_elegir``
 sin ``usuario``; ``avisar_a_la_mesa`` con alcance de institución; sacar el filtro de edificio de
-``resumen_de_llegadas``; el ingreso directo sin ``edificio_id``; no pasar ``uuid_cliente`` al servicio.
+``resumen_de_llegadas``; el ingreso directo sin ``edificio_id``; no pasar ``uuid_cliente`` al servicio;
+(24/11/2026) ``camas_libres`` sin el filtro por edificio del usuario: ponen en rojo los tests de «Ingresar igual»
+con camas libres solo en otro edificio.
 """
 
 from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import (
@@ -178,13 +184,56 @@ class SinDerivacionConAlcanceEdificiosTests(BaseEdificios):
         puerta = caso.situacion[CasoEmergencia.SITUACION_EN_LA_PUERTA]
         self.assertEqual(puerta["dispositivo_id"], self.club.pk)
 
-    def test_con_alcance_edificios_no_ingresa_igual(self):
+    def test_con_alcance_edificios_ingresa_igual_en_una_cama_de_su_edificio(self):
+        caso = servicio.ingreso_directo(dispositivo=self.club, usuario=self.guardia_b, datos_formulario1=self._datos())
+
+        derivacion = Derivacion.objects.get(caso=caso)
+        self.assertEqual(derivacion.edificio_id, self.edif_b.pk)  # A tiene 9 libres, pero no son suyas
+        self.assertEqual(_edificios_de(self._reservas(derivacion)), {self.edif_b.pk})
+        self.assertEqual(caso.estado, Estado.INGRESO_EN_CURSO)
+
+    def test_con_alcance_edificios_sin_camas_libres_en_su_edificio_no_ingresa_igual(self):
+        self._ocupar_plazas(Plaza.objects.filter(sector__edificio=self.edif_b).order_by("pk"))  # A: 9, B: 0
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="33444555", usuario=self.guardia_b)
+        self.assertEqual(resultado.plazas_libres, 0)
+        with self.assertRaises(ValidationError) as error:
+            servicio.ingreso_directo(dispositivo=self.club, usuario=self.guardia_b, datos_formulario1=self._datos())
+
+        self.assertEqual(error.exception.message_dict["plazas"], [servicio.SIN_CAMAS_PARA_INGRESO_DIRECTO])
+        self.assertFalse(CasoEmergencia.objects.exists())
+
+    def test_con_alcance_edificios_sin_edificios_vigentes_no_ingresa_igual(self):
+        self.edif_b.dispositivos.remove(self.club)  # el edificio de la guardia ya no es de la institución
+
+        self.assertFalse(servicio.puede_ingresar_igual(self.guardia_b, self.club))
         with self.assertRaises(PermissionDenied):
             servicio.ingreso_directo(dispositivo=self.club, usuario=self.guardia_b, datos_formulario1=self._datos())
         self.assertFalse(CasoEmergencia.objects.exists())
 
+    def test_las_camas_sin_edificio_no_se_ofrecen_a_alcance_edificios(self):
+        self._ocupar_plazas(Plaza.objects.filter(sector__edificio=self.edif_b).order_by("pk"))
+        Sector.objects.filter(dispositivo=self.club, edificio=self.edif_a).update(edificio=None)  # A: 9 sin edificio
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="33444555", usuario=self.guardia_b)
+        self.assertEqual(resultado.plazas_libres, 0)
+        with self.assertRaises(ValidationError):
+            servicio.ingreso_directo(dispositivo=self.club, usuario=self.guardia_b, datos_formulario1=self._datos())
+        self.assertFalse(CasoEmergencia.objects.exists())
+
+    def test_con_alcance_institucion_ingresa_en_camas_de_cualquier_edificio_y_sin_edificio(self):
+        Sector.objects.filter(dispositivo=self.club, edificio=self.edif_a).update(
+            edificio=None
+        )  # 9 sin edificio, 3 en B
+
+        caso = servicio.ingreso_directo(dispositivo=self.club, usuario=self.guardia, datos_formulario1=self._datos())
+
+        derivacion = Derivacion.objects.get(caso=caso)
+        self.assertIsNone(derivacion.edificio_id)
+        self.assertEqual(caso.reservadas, caso.grupo.total_declarado)
+
     def test_la_busqueda_dice_que_puede_hacer_cada_alcance(self):
-        for usuario, esperado in ((self.guardia, (True, True)), (self.guardia_b, (False, True))):
+        for usuario, esperado in ((self.guardia, (True, True)), (self.guardia_b, (True, True))):
             with self.subTest(usuario=usuario.username):
                 resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="33444555", usuario=usuario)
                 self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
@@ -209,13 +258,67 @@ class SinDerivacionConAlcanceEdificiosTests(BaseEdificios):
         self.assertEqual((caso.reservadas, caso.faltantes), (3, caso.grupo.total_declarado - 3))
 
 
+class CasoAlojadoConAlcanceEdificiosTests(BaseEdificios):
+    """Sumar personas a un caso ALOJADO acá: con alcance Edificios, solo si el ingreso es de uno de sus edificios."""
+
+    def _alojado_en(self, edificio):
+        caso, derivacion = self._derivado_a(edificio)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.ALOJADO)
+        return CasoEmergencia.objects.get(pk=caso.pk)
+
+    def test_el_caso_alojado_en_otro_edificio_no_se_ingresa(self):
+        caso = self._alojado_en(self.edif_a)
+
+        with self.assertRaises(PermissionDenied):
+            servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.ALOJADO)
+
+    def test_el_caso_alojado_en_su_edificio_se_ingresa(self):
+        caso = self._alojado_en(self.edif_b)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.INGRESO_EN_CURSO)
+
+    def test_la_busqueda_no_ofrece_ingresar_con_caso_si_el_alojado_es_de_otro_edificio(self):
+        self._alojado_en(self.edif_a)
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+
+        self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
+        self.assertIs(resultado.puede_ingresar_con_caso, False)
+        institucion = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia)
+        self.assertIs(institucion.puede_ingresar_con_caso, True)
+
+    def test_la_busqueda_ofrece_ingresar_con_caso_si_el_alojado_es_de_su_edificio(self):
+        self._alojado_en(self.edif_b)
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+
+        self.assertEqual(resultado.resultado, servicio.BUSQUEDA_SIN_DERIVACION)
+        self.assertIs(resultado.puede_ingresar_con_caso, True)
+
+
 class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
     """Hallazgos 4 y 11 por la web (E6)."""
 
     def _url(self, nombre, *args):
         return reverse(f"dispositivos:emergencia_{nombre}", args=[self.club.pk, *args])
 
-    def test_con_alcance_edificios_no_ve_ingresar_igual_y_si_avisar(self):
+    def test_con_alcance_edificios_ve_ingresar_igual_y_avisar_si_hay_camas_en_su_edificio(self):
+        self.client.force_login(self.guardia_b)
+
+        respuesta = self.client.get(self._url("llegadas"), {"dni": "33444555"})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, self._url("ingreso_directo"))
+        self.assertContains(respuesta, self._url("avisar"))
+
+    def test_con_camas_libres_solo_en_otro_edificio_no_ve_ingresar_igual_y_si_avisar(self):
+        self._ocupar_plazas(Plaza.objects.filter(sector__edificio=self.edif_b).order_by("pk"))
         self.client.force_login(self.guardia_b)
 
         respuesta = self.client.get(self._url("llegadas"), {"dni": "33444555"})
@@ -223,6 +326,22 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertEqual(respuesta.status_code, 200)
         self.assertNotContains(respuesta, self._url("ingreso_directo"))
         self.assertContains(respuesta, self._url("avisar"))
+        self.assertContains(respuesta, "No hay camas libres")
+
+    def test_el_post_con_camas_libres_solo_en_otro_edificio_se_rechaza(self):
+        self._ocupar_plazas(Plaza.objects.filter(sector__edificio=self.edif_b).order_by("pk"))
+        self.client.force_login(self.guardia_b)
+
+        self.client.post(self._url("ingreso_directo"), FORMULARIO1)
+
+        self.assertFalse(CasoEmergencia.objects.exists())
+
+    def test_el_post_con_alcance_edificios_ingresa_en_su_edificio(self):
+        self.client.force_login(self.guardia_b)
+
+        self.client.post(self._url("ingreso_directo"), FORMULARIO1)
+
+        self.assertEqual(Derivacion.objects.get().edificio_id, self.edif_b.pk)
 
     def test_la_familia_derivada_a_otro_edificio_no_se_invita_a_avisar_a_la_mesa(self):
         self._derivado_a(self.edif_a, dni="33444555")
@@ -246,7 +365,15 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertContains(respuesta, self._url("ingreso_directo"))
         self.assertContains(respuesta, self._url("avisar"))
 
-    def test_el_formulario_de_ingresar_igual_no_se_abre_con_alcance_edificios(self):
+    def test_el_formulario_de_ingresar_igual_se_abre_con_alcance_edificios(self):
+        self.client.force_login(self.guardia_b)
+
+        respuesta = self.client.get(self._url("ingreso_directo"))
+
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_el_formulario_de_ingresar_igual_no_se_abre_sin_edificios_vigentes(self):
+        self.edif_b.dispositivos.remove(self.club)
         self.client.force_login(self.guardia_b)
 
         respuesta = self.client.get(self._url("ingreso_directo"))
@@ -254,6 +381,7 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertRedirects(respuesta, self._url("llegadas"), fetch_redirect_response=False)
 
     def test_el_post_de_ingresar_igual_sin_alcance_conserva_el_formulario(self):
+        self.edif_b.dispositivos.remove(self.club)
         self.client.force_login(self.guardia_b)
 
         respuesta = self.client.post(self._url("ingreso_directo"), FORMULARIO1)
@@ -297,6 +425,101 @@ class PantallaDeLlegadasConAlcanceEdificiosTests(BaseEdificios):
         self.assertEqual(_mensajes(segunda), [f"Ese formulario ya se había enviado: es el caso {caso.numero}."])
 
 
+class CasoAbiertoDeEsteDispositivoConAlcanceEdificiosTests(BaseEdificios):
+    """El caso abierto de este dispositivo en un edificio ajeno no se toma en ningún estado (ronda de auditoría)."""
+
+    def _ingresando_en(self, edificio):
+        caso, derivacion = self._derivado_a(edificio)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
+        caso = CasoEmergencia.objects.get(pk=caso.pk)
+        self.assertEqual(caso.estado, Estado.INGRESO_EN_CURSO)
+        return caso
+
+    def test_el_ingreso_en_curso_de_otro_edificio_no_se_toma_por_ningun_camino(self):
+        caso = self._ingresando_en(self.edif_a)
+
+        with self.assertRaises(PermissionDenied):
+            servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+        with self.assertRaises(PermissionDenied):
+            servicio.ingreso_directo(
+                dispositivo=self.club,
+                usuario=self.guardia_b,
+                datos_formulario1={"traslado": "BOMBEROS", "dni": "30111222", "adultos_f": "1"},
+            )
+
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.INGRESO_EN_CURSO)
+
+    def test_el_ingreso_en_curso_de_su_edificio_sigue_siendo_suyo(self):
+        caso = self._ingresando_en(self.edif_b)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+
+    def test_la_derivacion_pendiente_a_otro_edificio_de_este_dispositivo_no_se_toma(self):
+        caso, derivacion = self._derivado_a(self.edif_a)
+
+        with self.assertRaises(PermissionDenied):
+            servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(Derivacion.objects.get(pk=derivacion.pk).estado, Derivacion.Estado.PENDIENTE)
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.DERIVADO)
+
+    def test_la_busqueda_no_ofrece_ingresar_con_caso_si_lo_derivado_es_de_otro_edificio(self):
+        self._derivado_a(self.edif_a)
+
+        resultado = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+
+        self.assertIs(resultado.puede_ingresar_con_caso, False)
+
+    def _deja_la_derivacion_a_a(self, como):
+        caso, derivacion = self._derivado_a(self.edif_a)
+        if como == "rechazada":
+            servicio.rechazar_derivacion(derivacion=derivacion, usuario=self.guardia, motivo="SIN_PLAZAS")
+        else:
+            mesa.cancelar_derivacion(derivacion, self.operador, "La familia cambió de zona")
+        caso = CasoEmergencia.objects.get(pk=caso.pk)
+        self.assertEqual(caso.estado, Estado.EN_GESTION)
+        return caso
+
+    def _ingresa_con_el_caso_sin_vigencia(self, como):
+        caso = self._deja_la_derivacion_a_a(como)
+        busqueda = servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+        self.assertIs(busqueda.puede_ingresar_con_caso, True)
+        self.assertIs(busqueda.caso_abierto["en_este_dispositivo"], False)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia_b, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+        self.assertEqual(CasoEmergencia.objects.get(pk=caso.pk).estado, Estado.INGRESO_EN_CURSO)
+        vigente = Derivacion.objects.get(caso=caso, estado=Derivacion.Estado.ACEPTADA)
+        self.assertEqual(vigente.edificio_id, self.edif_b.pk)
+
+    def test_con_la_derivacion_a_otro_edificio_rechazada_la_guardia_ingresa_en_su_edificio(self):
+        self._ingresa_con_el_caso_sin_vigencia("rechazada")
+
+    def test_con_la_derivacion_a_otro_edificio_cancelada_la_guardia_ingresa_en_su_edificio(self):
+        self._ingresa_con_el_caso_sin_vigencia("cancelada")
+
+    def test_con_alcance_institucion_puede_con_el_caso_de_cualquier_edificio(self):
+        caso = self._ingresando_en(self.edif_a)
+
+        resultado = servicio.ingresar_con_caso_abierto(dispositivo=self.club, usuario=self.guardia, dni="30111222")
+
+        self.assertEqual(resultado.pk, caso.pk)
+
+    def test_la_busqueda_con_familia_alojada_no_repite_la_consulta_de_la_derivacion(self):
+        caso, derivacion = self._derivado_a(self.edif_b)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia)
+        CasoEmergencia.objects.filter(pk=caso.pk).update(estado=Estado.ALOJADO)
+        servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)  # calienta cachés
+        with CaptureQueriesContext(connection) as capturadas:
+            servicio.buscar_por_dni(dispositivo=self.club, dni="30111222", usuario=self.guardia_b)
+        del_caso = [q for q in capturadas.captured_queries if 'WHERE "programas_derivacion"."caso_id" =' in q["sql"]]
+        self.assertEqual(len(del_caso), 1, "la última derivación del caso se lee una sola vez")
+        self.assertEqual(len(capturadas), 17)
+
+
 def _mensajes(respuesta):
     """Los mensajes que mostró la pantalla a la que llevó el POST (seguido con ``follow=True``)."""
     return [str(m) for m in respuesta.context["messages"]]
@@ -330,7 +553,7 @@ class ApiConAlcanceEdificiosTests(BaseApiLlegadas):
         self.assertEqual(fila(self.guardia_centro), (12, 2))
 
     def test_buscar_trae_las_dos_banderas(self):
-        for usuario, esperado in ((self.guardia_centro, (True, True)), (self.guardia_b, (False, True))):
+        for usuario, esperado in ((self.guardia_centro, (True, True)), (self.guardia_b, (True, True))):
             with self.subTest(usuario=usuario.username):
                 cuerpo = self._como(usuario).get(_url("dispositivo-buscar", self.centro.pk), {"dni": "33444555"}).json()
                 self.assertEqual(cuerpo["resultado"], "SIN_DERIVACION")
@@ -352,3 +575,58 @@ class ApiConAlcanceEdificiosTests(BaseApiLlegadas):
         )
 
         self.assertEqual(respuesta.status_code, 201, respuesta.content)
+
+    def _ocupar_edificio_b(self):
+        for n, plaza in enumerate(Plaza.objects.filter(sector__edificio=self.edif_b)):
+            persona = Ciudadano.objects.create(dni=str(40_000_000 + n), nombre="Persona", apellido="Alojada")
+            Estadia.objects.create(
+                ciudadano=persona,
+                dispositivo=self.centro,
+                plaza=plaza,
+                fecha_ingreso=timezone.now() - timedelta(days=1),
+                clave_alojamiento=Estadia.clave_para(persona),
+            )
+
+    def test_buscar_cuenta_solo_las_camas_de_sus_edificios_para_ingresar_igual(self):
+        def buscar(usuario):
+            return self._como(usuario).get(_url("dispositivo-buscar", self.centro.pk), {"dni": "33444555"}).json()
+
+        self.assertEqual(buscar(self.guardia_b)["plazas_libres"], 3)
+        self._ocupar_edificio_b()
+        cuerpo = buscar(self.guardia_b)
+        self.assertEqual((cuerpo["puede_ingresar_igual"], cuerpo["plazas_libres"]), (True, 0))
+        self.assertEqual(buscar(self.guardia_centro)["plazas_libres"], 9)
+
+    def test_ingreso_directo_con_alcance_edificios_crea_la_estadia_en_su_edificio(self):
+        respuesta = self._como(self.guardia_b).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo(), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+        self.assertEqual(Derivacion.objects.get().edificio_id, self.edif_b.pk)
+
+    def test_ingreso_directo_con_camas_libres_solo_en_otro_edificio_se_rechaza(self):
+        self._ocupar_edificio_b()
+
+        respuesta = self._como(self.guardia_b).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo(), format="multipart"
+        )
+
+        self.assertEqual(respuesta.status_code, 400, respuesta.content)
+        self.assertFalse(CasoEmergencia.objects.exists())
+
+    def test_ingreso_directo_sobre_el_ingreso_en_curso_de_otro_edificio_no_devuelve_personas(self):
+        servicio_inicial = self._como(self.guardia_centro).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk), self._cuerpo(dni="33444555"), format="multipart"
+        )
+        self.assertEqual(servicio_inicial.status_code, 201, servicio_inicial.content)
+        self.assertEqual(Derivacion.objects.get().edificio_id, self.edif_a.pk)
+
+        respuesta = self._como(self.guardia_b).post(
+            _url("dispositivo-ingreso-directo", self.centro.pk),
+            self._cuerpo(dni="33444555", nombre=None, apellido=None),
+            format="multipart",
+        )
+
+        self.assertEqual(respuesta.status_code, 404, respuesta.content)
+        self.assertNotIn("integrantes", respuesta.json())

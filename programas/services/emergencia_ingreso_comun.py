@@ -25,7 +25,7 @@ from programas.models import (
     TrazaCaso,
 )
 from programas.services.bitacora import anotar_novedad_automatica
-from programas.services.dispositivos import puede_operar_dispositivo, puede_operar_edificio, puede_operar_institucion
+from programas.services.dispositivos import alcance_de_edificios, puede_operar_dispositivo, puede_operar_edificio
 from programas.services.emergencia import EstadoCambio
 from programas.services.emergencia_comun import _bloquear_caso, _hora, _trazar
 from programas.services.reservas_derivacion import liberar_reservas_de_derivacion, reservar_plazas_de_derivacion
@@ -84,11 +84,28 @@ def _exigir_alcance(usuario, dispositivo, derivacion=None):
 def puede_ingresar_igual(usuario, dispositivo):
     """¿Puede hacer «Ingresar igual» (el ingreso directo) en ``dispositivo``? Sin mirar camas.
 
-    Exige alcance sobre **toda la institución**: el ingreso directo no cuelga de una derivación a un
-    edificio. La regla que aplican el servicio, la pantalla de Llegadas y la API (``buscar``).
+    Alcance Institución (o admin del programa, superusuario): sí. Alcance Edificios: también, **con las camas de sus
+    edificios** (decisión del PM del 24/11/2026; antes exigía la institución entera, Cambio 532): las camas que se
+    cuentan y se ofrecen salen de ``camas_libres(..., usuario=...)``, que ya las acota, y el caso queda en el
+    edificio de la cama. Fail-closed (Cambio 523): un alcance Edificios sin edificios vigentes no puede.
+    La regla que aplican el servicio, la pantalla de Llegadas y la API (``buscar``).
     """
 
-    return dispositivo is not None and puede_operar_institucion(usuario, dispositivo, CAP_ADMITIR)
+    if dispositivo is None:
+        return False
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_ADMITIR)
+    return alcance.todo or bool(alcance.edificios)
+
+
+def puede_ingresar_en_el_caso_de_aca(usuario, dispositivo, derivacion):
+    """¿Puede tomar el caso abierto cuya última ``derivacion`` es de ``dispositivo``? Con alcance Edificios, solo si
+    esa derivación es de uno de sus edificios: no se le abre a la guardia un caso (pendiente, ingresando o alojado)
+    de un edificio que no alcanza. Alcance Institución, admin y superusuario: siempre."""
+
+    if dispositivo is None:
+        return False
+    alcance = alcance_de_edificios(usuario, dispositivo, CAP_ADMITIR)
+    return alcance.todo or (derivacion is not None and alcance.permite(derivacion.edificio_id))
 
 
 def puede_avisar_a_la_mesa(usuario, dispositivo):
