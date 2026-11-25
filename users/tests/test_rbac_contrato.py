@@ -107,6 +107,12 @@ CAPACIDADES_SIN_USO = {
     # Mapa de Google Maps, fase 1 (`docs/mapa.md`): el catálogo va primero para que el PM pueda
     # armar los roles; `/mapa/` y su API las empiezan a evaluar en la fase 3, y cada una sale
     # de acá en ese PR.
+    # Stock de insumos por edificio (análisis 010, PR 1): el catálogo va primero para que el PM pueda
+    # armar los roles; los servicios (PR 2a) y las pantallas (PR 6a) que las evalúan llegan después, y
+    # cada una sale de acá en el PR que la empieza a evaluar (`stock.ver` y `stock.entregar` ya las
+    # nombra `programas/services/dispositivos.py` y `roles_sembrados.py`).
+    "stock.ingresar": "Ingreso manual y traspaso: los exige `services/stock.py` (PR 2a/2b); sin pantalla todavía",
+    "stock.ajustar": "Ajuste por conteo: lo exige `services/stock.py` (PR 2a); sin pantalla todavía",
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro

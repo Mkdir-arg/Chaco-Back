@@ -103,7 +103,10 @@ class SolapasDeCapacidadesTests(TestCase):
         # `dispositivos_emergencia` (recibir kits) va en esta solapa y no en «Emergencia»:
         # se tilda en un rol del programa Dispositivos (hallazgo H3 del plan de Emergencia).
         modulos = self._por_id(rbac.arbol_por_tabs())
-        self.assertEqual(modulos["dispositivos"], {"dispositivos", "inspecciones", "dispositivos_emergencia"})
+        # `dispositivos_stock` (análisis 010) va en la misma solapa y por el mismo motivo.
+        self.assertEqual(
+            modulos["dispositivos"], {"dispositivos", "inspecciones", "dispositivos_emergencia", "dispositivos_stock"}
+        )
         self.assertEqual(modulos["emergencia"], {"emergencia"})
 
     def test_ambitos_generales_y_de_administracion(self):
