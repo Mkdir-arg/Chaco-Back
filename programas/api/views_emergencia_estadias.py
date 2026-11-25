@@ -20,12 +20,15 @@ from programas.api.serializers_emergencia_estadias import (
     MotivoEgresoSerializer,
     PlazasParaCambioSerializer,
 )
+from programas.api.serializers_emergencia_plazas import MapaDelEdificioSerializer
 from programas.api.views_emergencia import _SIN_MODULO, _SIN_TOKEN, _respuesta_de_validacion, _VistaDeCampo
 from programas.mixins_dispositivos_estadias import formulario_de_egreso
 from programas.models import Estadia, MotivoEgreso, Plaza
+from programas.services.edificio_operativo import edificio_de_la_institucion
 from programas.services.dispositivos import puede_operar_plaza, q_edificios_en_alcance
 from programas.services.estadias import CAP_ADMITIR, asignar_plaza, cambiar_plaza, egresar_persona
 from programas.services.ingreso import plazas_para_ingresar
+from programas.services.plazas_app import mapa_del_edificio
 
 CAP_VER = "dispositivo.ver"
 CODIGO_EGRESO_CON_FORMULARIO = "EGRESO_CON_FORMULARIO"
@@ -37,13 +40,14 @@ _AJENA = OpenApiResponse(description="La estadía no existe o es de un edificio 
 _SIN_CAPACIDAD = OpenApiResponse(description="Ve la estadía pero no tiene la capacidad de la acción.")
 
 
-def _mapa_actualizado(request, estadia):
-    """El mapa del edificio de la estadía, para que la app repinte sin otro pedido.
-
-    TODO(596): conectar ``mapa_del_edificio(user, dispositivo, edificio)`` cuando entre el PR 596.
-    Mientras tanto la app recibe ``null`` y vuelve a pedir ``.../mapa/``.
-    """
-    return None
+def _mapa_actualizado(request, dispositivo, edificio_id):
+    """El mapa del edificio indicado, para que la app repinte sin otro pedido (``None`` si no hay edificio)."""
+    if edificio_id is None:
+        return None
+    edificio = edificio_de_la_institucion(request.user, dispositivo, edificio_id)
+    if edificio is None:
+        return None
+    return MapaDelEdificioSerializer(mapa_del_edificio(request.user, dispositivo, edificio)).data
 
 
 class _VistaDeEstadia(_VistaDeCampo):
@@ -92,6 +96,7 @@ class EgresarEstadiaView(_VistaDeEstadia):
         datos, error = self._entrada(EgresarEnvioSerializer, request)
         if error is not None:
             return error
+        edificio_id = estadia.plaza.sector.edificio_id if estadia.plaza_id else None
         motivo = (
             MotivoEgreso.objects.filter(pk=datos["motivo_egreso_id"]).first() if datos["motivo_egreso_id"] else None
         )
@@ -110,7 +115,7 @@ class EgresarEstadiaView(_VistaDeEstadia):
         )
         if respuesta is not None:
             return respuesta
-        return Response({"ok": True, "mapa": _mapa_actualizado(request, estadia)})
+        return Response({"ok": True, "mapa": _mapa_actualizado(request, estadia.dispositivo, edificio_id)})
 
 
 class PlazasParaCambioView(_VistaDeEstadia):
@@ -175,4 +180,4 @@ class CambiarPlazaEstadiaView(_VistaDeEstadia):
         )
         if respuesta is not None:
             return respuesta
-        return Response({"ok": True, "mapa": _mapa_actualizado(request, estadia)})
+        return Response({"ok": True, "mapa": _mapa_actualizado(request, estadia.dispositivo, plaza.sector.edificio_id)})

@@ -10,7 +10,7 @@ from unittest import mock
 from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import Estadia, MotivoEgreso, Plaza
+from programas.models import Edificio, Estadia, MotivoEgreso, Plaza
 from programas.tests.base_emergencia_api import BaseApiEmergencia, _url
 from programas.tests.test_emergencia_alojar_base import GUARDIA
 
@@ -20,6 +20,9 @@ PLAZAS_PARA_CAMBIO = "estadia-plazas-para-cambio"
 class BaseEstadias(BaseApiEmergencia):
     def setUp(self):
         super().setUp()
+        edificio = Edificio.objects.create(codigo="EDI-C", nombre="Edificio del club")
+        edificio.dispositivos.add(self.club)
+        self.club.sectores.update(edificio=edificio)
         self.operador_sala = self._guardia("operador_sala", list(GUARDIA), [self.club])
         self.solo_admite = self._guardia("solo_admite", ["dispositivo.ver", "dispositivo.admitir"], [self.club])
         self.motivo = MotivoEgreso.objects.create(codigo="alta-e", nombre="Alta voluntaria")
@@ -36,6 +39,11 @@ class BaseEstadias(BaseApiEmergencia):
             fecha_ingreso=timezone.now() - timedelta(days=1),
             clave_alojamiento=Estadia.clave_para(persona),
         )
+
+    @staticmethod
+    def _plazas_del_mapa(mapa):
+        assert mapa is not None and mapa["sectores"], mapa
+        return {plaza["codigo"]: plaza for sector in mapa["sectores"] for plaza in sector["plazas"]}
 
     def _cuerpo_egreso(self, **cambios):
         cuerpo = {"motivo_egreso_id": self.motivo.pk, "destino": "Domicilio de un familiar"}
@@ -63,7 +71,9 @@ class EgresarTests(BaseEstadias):
         estadia = self._alojar()
         respuesta = self._egresar(estadia, pertenencias_devueltas=True, observaciones="Sin novedades")
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        self.assertEqual(respuesta.json(), {"ok": True, "mapa": None})
+        cuerpo = respuesta.json()
+        self.assertTrue(cuerpo["ok"])
+        self.assertEqual(self._plazas_del_mapa(cuerpo["mapa"])["C001"]["estado"], "disponible")
         estadia.refresh_from_db()
         self.assertEqual(estadia.estado, Estadia.Estado.EGRESADA)
         self.assertEqual(estadia.motivo, self.motivo)
@@ -157,7 +167,11 @@ class CambiarPlazaTests(BaseEstadias):
         destino = Plaza.objects.get(sector__dispositivo=self.club, codigo="C003")
         respuesta = self._cambiar(estadia, destino)
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        self.assertEqual(respuesta.json(), {"ok": True, "mapa": None})
+        cuerpo = respuesta.json()
+        self.assertTrue(cuerpo["ok"])
+        plazas = self._plazas_del_mapa(cuerpo["mapa"])
+        self.assertEqual(plazas["C001"]["estado"], "disponible")
+        self.assertEqual(plazas["C003"]["estado"], "ocupada")
         estadia.refresh_from_db()
         self.assertEqual(estadia.plaza_id, destino.pk)
 
