@@ -231,6 +231,14 @@ URLS_DE_LLEGADAS_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/plazas/",
 ]
 
+#: Las de egreso y cambio de plaza (Cambio 597); los tests estan en test_api_emergencia_estadias.
+URLS_DE_ESTADIAS_DEL_BARRIDO = [
+    "/api/emergencia/estadias/1/cambiar-plaza/",
+    "/api/emergencia/estadias/1/egresar/",
+    "/api/emergencia/estadias/1/plazas-para-cambio/",
+    "/api/emergencia/motivos-egreso/",
+]
+
 #: Las rutas que solo abre el agente; el resto las abre cualquiera con el módulo.
 SOLO_DEL_AGENTE = {URL_CASOS, URL_MIOS}
 

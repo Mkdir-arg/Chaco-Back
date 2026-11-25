@@ -48,6 +48,10 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/casos/{id}/cancelar-ingreso/` | llegadas | Cancelar el ingreso (§13.9) |
 | `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` | llegadas | «Ingresar igual» (multipart, idempotente, se encola) (§13.10) |
 | `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` | llegadas | «Avisar a la mesa» (multipart, idempotente) (§13.10) |
+| `GET /api/emergencia/motivos-egreso/` | módulo | Motivos de egreso vigentes (§14) |
+| `POST /api/emergencia/estadias/{id}/egresar/` | `dispositivo.egresar` | Egreso de una persona (§14) |
+| `GET /api/emergencia/estadias/{id}/plazas-para-cambio/` | `dispositivo.admitir` | Plazas libres del dispositivo (§14) |
+| `POST /api/emergencia/estadias/{id}/cambiar-plaza/` | `dispositivo.admitir` | Cambio de plaza de una estadía (§14) |
 
 «Módulo», «agente», «kits» y «llegadas» son los cuatro permisos del namespace (§2).
 
@@ -1130,3 +1134,15 @@ Las secciones 4 a 8 (`educacion` a `observaciones`) aceptan además `"sin_datos"
 hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `true` cuando las cinco
 tienen algún dato o `sin_datos`. Los nombres de campo no se repiten entre secciones: por eso los
 errores 400 usan el nombre plano del campo.
+
+
+## 14. Egreso y cambio de plaza de una estadía (Cambio 597)
+
+Vale para **cualquier** dispositivo y edificio, con el alcance de la web: una estadía de un edificio que el usuario no ve (o que no existe) es **404**; verla pero no tener la capacidad de la acción es **403** `{"detail", "code": "SIN_PERMISO"}`. Egresar pide `dispositivo.egresar`; cambiar de plaza, `dispositivo.admitir`. Las reglas son las de `estadias.egresar_persona` / `cambiar_plaza`.
+
+- `GET motivos-egreso/` → `[{"id", "nombre"}]` (solo activos).
+- `POST estadias/{id}/egresar/` body `{"motivo_egreso_id", "destino", "pertenencias_devueltas": bool, "observaciones": "", "fecha_egreso": iso|null}` → 200 `{"ok": true, "mapa": null}`. Motivo ausente o inactivo, destino vacío, fecha futura o estadía ya cerrada: 400 `VALIDACION` con el campo (`motivo`, `destino`, `fecha_egreso`, `estado`). Si el tipo del dispositivo pide un formulario de egreso: 409 `{"detail": "Este egreso se registra desde el backoffice.", "codigo": "EGRESO_CON_FORMULARIO"}`.
+- `GET estadias/{id}/plazas-para-cambio/` → `{"sectores": [{"id", "nombre", "plazas": [{"id", "codigo", "tipo"}]}]}`: las libres del mismo dispositivo (sin la plaza actual ni sectores sin libres).
+- `POST estadias/{id}/cambiar-plaza/` body `{"plaza_id", "motivo"}` → 200 `{"ok": true, "mapa": null}`. Plaza ocupada o de otro dispositivo, o motivo vacío: 400. Si la estadía no tenía plaza, se le asigna (motivo opcional), como la web.
+
+`mapa` viene `null` hasta que se conecte el mapa del edificio (Cambio 596): la app vuelve a pedir `.../mapa/`.
