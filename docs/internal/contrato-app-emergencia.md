@@ -1141,11 +1141,11 @@ errores 400 usan el nombre plano del campo.
 Vale para **cualquier** dispositivo y edificio, con el alcance de la web: una estadía de un edificio que el usuario no ve (o que no existe) es **404**; verla pero no tener la capacidad de la acción es **403** `{"detail", "code": "SIN_PERMISO"}`. Egresar pide `dispositivo.egresar`; cambiar de plaza, `dispositivo.admitir`. Las reglas son las de `estadias.egresar_persona` / `cambiar_plaza`.
 
 - `GET motivos-egreso/` → `[{"id", "nombre"}]` (solo activos).
-- `POST estadias/{id}/egresar/` body `{"motivo_egreso_id", "destino", "pertenencias_devueltas": bool, "observaciones": "", "fecha_egreso": iso|null}` → 200 `{"ok": true, "mapa": null}`. Motivo ausente o inactivo, destino vacío, fecha futura o estadía ya cerrada: 400 `VALIDACION` con el campo (`motivo`, `destino`, `fecha_egreso`, `estado`). Si el tipo del dispositivo pide un formulario de egreso: 409 `{"detail": "Este egreso se registra desde el backoffice.", "codigo": "EGRESO_CON_FORMULARIO"}`.
+- `POST estadias/{id}/egresar/` body `{"motivo_egreso_id", "destino", "pertenencias_devueltas": bool, "observaciones": "", "fecha_egreso": iso|null}` → 200 `{"ok": true, "mapa": {…}}`. Motivo ausente o inactivo, destino vacío, fecha futura o estadía ya cerrada: 400 `VALIDACION` con el campo (`motivo`, `destino`, `fecha_egreso`, `estado`). Si el tipo del dispositivo pide un formulario de egreso: 409 `{"detail": "Este egreso se registra desde el backoffice.", "codigo": "EGRESO_CON_FORMULARIO"}`.
 - `GET estadias/{id}/plazas-para-cambio/` → `{"sectores": [{"id", "nombre", "plazas": [{"id", "codigo", "tipo"}]}]}`: las libres del mismo dispositivo (sin la plaza actual ni sectores sin libres).
-- `POST estadias/{id}/cambiar-plaza/` body `{"plaza_id", "motivo"}` → 200 `{"ok": true, "mapa": null}`. Plaza ocupada o de otro dispositivo, o motivo vacío: 400. Si la estadía no tenía plaza, se le asigna (motivo opcional), como la web.
+- `POST estadias/{id}/cambiar-plaza/` body `{"plaza_id", "motivo"}` → 200 `{"ok": true, "mapa": {…}}`. Plaza ocupada o de otro dispositivo, o motivo vacío: 400. Si la estadía no tenía plaza, se le asigna (motivo opcional), como la web.
 
-`mapa` viene `null` hasta que se conecte el mapa del edificio (Cambio 596): la app vuelve a pedir `.../mapa/`.
+`mapa` es el mismo cuerpo que `GET dispositivos/{id}/edificios/{id}/mapa/` (§14) del edificio de la plaza (en el cambio, el de la plaza nueva), para repintar sin otro pedido; `null` si la estadía no tenía plaza o el edificio no está en el alcance.
 ## 14. Plazas y estadías (lectura) — Cambio 596
 
 Vale para **cualquier** institución y edificio, de Emergencia o no. Quién ve qué es el alcance de la web

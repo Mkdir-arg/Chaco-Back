@@ -24,8 +24,8 @@ from programas.api.serializers_emergencia_plazas import MapaDelEdificioSerialize
 from programas.api.views_emergencia import _SIN_MODULO, _SIN_TOKEN, _respuesta_de_validacion, _VistaDeCampo
 from programas.mixins_dispositivos_estadias import formulario_de_egreso
 from programas.models import Estadia, MotivoEgreso, Plaza
-from programas.services.edificio_operativo import edificio_de_la_institucion
 from programas.services.dispositivos import puede_operar_plaza, q_edificios_en_alcance
+from programas.services.edificio_operativo import edificio_de_la_institucion
 from programas.services.estadias import CAP_ADMITIR, asignar_plaza, cambiar_plaza, egresar_persona
 from programas.services.ingreso import plazas_para_ingresar
 from programas.services.plazas_app import mapa_del_edificio
