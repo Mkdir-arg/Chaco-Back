@@ -5,10 +5,11 @@ tendrán que respetar. Lo que se prueba acá es lo que la base y los modelos gar
 """
 
 import uuid
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import PROTECT
 from django.test import TestCase
 
@@ -126,6 +127,33 @@ class LibroInmutableTests(BaseStock):
             with self.subTest(modelo=nombre), self.assertRaises(ValidationError):
                 fila.save()
 
+    def test_save_de_una_instancia_nueva_con_pk_existente_no_pisa_la_fila(self):
+        for nombre, (fila, modelo) in self._casos().items():
+            with self.subTest(modelo=nombre):
+                copia = modelo(pk=fila.pk, tipo="AJUSTE")
+                for campo in modelo._meta.concrete_fields:
+                    if campo.name not in ("id", "tipo"):
+                        setattr(copia, campo.attname, getattr(fila, campo.attname))
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    copia.save()
+                self.assertNotEqual(modelo.objects.get(pk=fila.pk).tipo, "AJUSTE")
+
+    def test_save_con_force_update_o_update_fields_levanta(self):
+        for nombre, (fila, modelo) in self._casos().items():
+            with self.subTest(modelo=nombre):
+                nueva = modelo(pk=fila.pk)
+                with self.assertRaises(ValidationError):
+                    nueva.save(force_update=True)
+                with self.assertRaises(ValidationError):
+                    nueva.save(update_fields=["tipo"])
+
+    def test_bulk_create_con_update_conflicts_levanta(self):
+        for nombre, (fila, modelo) in self._casos().items():
+            with self.subTest(modelo=nombre), self.assertRaises(ValidationError):
+                modelo.objects.bulk_create(
+                    [modelo(pk=fila.pk)], update_conflicts=True, update_fields=["tipo"], unique_fields=["id"]
+                )
+
     def test_delete_de_instancia_levanta(self):
         for nombre, (fila, modelo) in self._casos().items():
             with self.subTest(modelo=nombre), self.assertRaises(ValidationError):
@@ -144,7 +172,9 @@ class LibroInmutableTests(BaseStock):
         self._movimiento(operacion)
         with self.assertRaises(ValidationError):
             operacion.movimientos.update(cantidad=9)
-        self.assertEqual(MovimientoStock._base_manager.__class__, MovimientoStock.objects.__class__)
+        for modelo in (OperacionStock, MovimientoStock):
+            self.assertEqual(modelo._base_manager.__class__, modelo.objects.__class__)
+            self.assertEqual(modelo._default_manager.__class__, modelo.objects.__class__)
 
     def test_insertar_filas_nuevas_funciona(self):
         self.assertEqual(self._movimiento().cantidad, 5)
@@ -231,6 +261,15 @@ class OperacionYMovimientoTests(BaseStock):
         operacion = self._operacion()
         for campo in ("origen", "origen_detalle", "comprobante", "motivo", "observacion"):
             self.assertEqual(getattr(operacion, campo), "", campo)
+
+    def test_los_textos_opcionales_nacen_vacios_en_un_motor_sin_returning(self):
+        """MySQL 8 no devuelve columnas en el INSERT: sin `default`, queda un `DatabaseDefault` en memoria."""
+
+        with mock.patch.object(connection.features, "can_return_columns_from_insert", False):
+            operacion = self._operacion()
+        for campo in ("origen", "origen_detalle", "comprobante", "motivo", "observacion"):
+            self.assertEqual(getattr(operacion, campo), "", campo)
+            self.assertEqual(OperacionStock._meta.get_field(campo).default, "", campo)
 
     def test_los_catalogos_son_los_de_la_decision_4(self):
         self.assertEqual(

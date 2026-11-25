@@ -192,7 +192,7 @@ Una fila por acción de una persona. No hereda `TimeStamped` (no se modifica).
 | `uuid_cliente` | `UUIDField(null=True, unique=True, editable=False)` | `char(36)` en MySQL/MariaDB (migración aparte, patrón `0136`); entra al ratchet de `test_becas_models` |
 
 Índices: `(dispositivo, edificio, creado_en)` (historial del edificio), `(ciudadano, creado_en)` (historial de la
-persona), `(tipo, creado_en)`.
+persona). No hay índice por `(tipo, creado_en)`: ninguna consulta prevista filtra por tipo sin edificio.
 
 ### 6.4 `MovimientoStock` (tabla nueva, inmutable)
 
@@ -205,7 +205,7 @@ persona), `(tipo, creado_en)`.
 | `saldo_posterior` | `PositiveIntegerField` | El saldo después de este movimiento (historial sin recalcular) |
 | `creado_en` | `DateTimeField(auto_now_add=True)` | |
 
-Índices: `(dispositivo, edificio, item, creado_en)`.
+Índices: `movstock_clave_idx` `(dispositivo, edificio, item, creado_en)` (historial de un insumo) y `movstock_edificio_idx` `(dispositivo, edificio, creado_en)` (últimos movimientos del edificio y filtro por fechas).
 
 La inmutabilidad de las dos tablas usa un `QuerySet`/`Manager` que levanta en `update`, `delete` y `bulk_update`, más
 `save()`/`delete()` que rechazan una fila existente: la séptima copia del bloque de `TrazaEntrega`. Se escribe **una

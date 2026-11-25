@@ -2,8 +2,10 @@
 
 Un modelo que lo usa hereda de :class:`LibroInmutable` y queda así:
 
-* ``QuerySet.update`` / ``delete`` / ``bulk_update`` levantan ``ValidationError``;
-* ``save()`` sobre una fila que ya existe y ``delete()`` de instancia levantan ``ValidationError``.
+* ``QuerySet.update`` / ``delete`` / ``bulk_update`` y ``bulk_create(update_conflicts=True)`` levantan
+  ``ValidationError``;
+* ``save()`` sobre una fila que ya existe y ``delete()`` de instancia levantan ``ValidationError``; ``save()`` de
+  una instancia nueva siempre es un INSERT (``force_insert``), así que un ``pk`` existente choca en vez de pisar.
 
 Lo mal cargado se corrige con una fila nueva, nunca reescribiendo la historia. Por ahora lo usan solo las dos
 tablas del stock; migrar las trazas viejas queda para la auditoría (MINOR 10 del Cambio 471).
@@ -20,7 +22,8 @@ MENSAJE_NO_SE_BORRA = "Este registro no se elimina."
 
 
 class LibroInmutableQuerySet(models.QuerySet):
-    """Sin vías masivas de mutación (``update``, ``delete``, ``bulk_update``)."""
+    """Sin vías masivas de mutación: ``update``, ``update_or_create``, ``delete``, ``bulk_update`` y
+    ``bulk_create(update_conflicts=True)``."""
 
     def update(self, **kwargs):
         raise ValidationError(MENSAJE_INMUTABLE)
@@ -34,10 +37,15 @@ class LibroInmutableQuerySet(models.QuerySet):
     def bulk_update(self, objs, fields, batch_size=None):
         raise ValidationError(MENSAJE_INMUTABLE)
 
+    def bulk_create(self, objs, *args, update_conflicts=False, **kwargs):
+        # `ON DUPLICATE KEY UPDATE` reescribiría una fila existente.
+        if update_conflicts:
+            raise ValidationError(MENSAJE_INMUTABLE)
+        return super().bulk_create(objs, *args, update_conflicts=update_conflicts, **kwargs)
+
 
 class LibroInmutableManager(models.Manager.from_queryset(LibroInmutableQuerySet)):
-    def bulk_update(self, objs, fields, batch_size=None):
-        raise ValidationError(MENSAJE_INMUTABLE)
+    """El Manager delega en el QuerySet: no repite sus bloqueos."""
 
 
 class LibroInmutable(models.Model):
@@ -51,8 +59,10 @@ class LibroInmutable(models.Model):
         default_manager_name = "objects"
 
     def save(self, *args, **kwargs):
-        if not self._state.adding:
+        if not self._state.adding or kwargs.get("force_update") or kwargs.get("update_fields"):
             raise ValidationError(MENSAJE_INMUTABLE)
+        # Con `pk` asignado a mano Django haría UPDATE primero: se fuerza el INSERT, que choca contra la fila vieja.
+        kwargs["force_insert"] = True
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

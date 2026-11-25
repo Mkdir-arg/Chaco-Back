@@ -48,7 +48,6 @@ class SaldoStock(TimeStamped):
             models.UniqueConstraint(fields=["dispositivo", "edificio", "item"], name="saldo_stock_clave_unica"),
             # MySQL >= 8.0.16 y MariaDB >= 10.2 la hacen cumplir: es el respaldo de «nunca negativo» (RN-010-03).
             models.CheckConstraint(condition=models.Q(cantidad__gte=0), name="saldo_stock_no_negativo"),
-            # MySQL >= 8.0.16 y MariaDB >= 10.2 la hacen cumplir: es el respaldo de «nunca negativo» (RN-010-03).
         ]
 
     def __str__(self):
@@ -135,32 +134,39 @@ class OperacionStock(LibroInmutable):
         verbose_name="Entrega de kit",
     )
     # Solo ingreso manual.
-    origen = models.CharField(max_length=20, choices=Origen.choices, blank=True, db_default="", verbose_name="Origen")
-    origen_detalle = models.CharField(max_length=120, blank=True, db_default="", verbose_name="Detalle del origen")
+    # `default` y `db_default` de a par: sin `default`, MySQL 8 (sin RETURNING) deja un `DatabaseDefault` en memoria.
+    origen = models.CharField(
+        max_length=20, choices=Origen.choices, blank=True, default="", db_default="", verbose_name="Origen"
+    )
+    origen_detalle = models.CharField(
+        max_length=120, blank=True, default="", db_default="", verbose_name="Detalle del origen"
+    )
     # Número o referencia de texto, sin foto (decisión 3).
-    comprobante = models.CharField(max_length=60, blank=True, db_default="", verbose_name="Comprobante")
+    comprobante = models.CharField(max_length=60, blank=True, default="", db_default="", verbose_name="Comprobante")
     # Solo ajuste.
     motivo = models.CharField(
-        max_length=20, choices=MotivoAjuste.choices, blank=True, db_default="", verbose_name="Motivo del ajuste"
+        max_length=20,
+        choices=MotivoAjuste.choices,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Motivo del ajuste",
     )
     # Detalle del ajuste u observación de la entrega.
-    observacion = models.CharField(max_length=200, blank=True, db_default="", verbose_name="Observación")
+    observacion = models.CharField(max_length=200, blank=True, default="", db_default="", verbose_name="Observación")
     # Idempotencia (RN-010-18). Único sobre columna anulable y `char(36)` en MySQL/MariaDB (programas.0145);
     # se busca con `core.db.q_uuid_en_texto`.
     uuid_cliente = models.UUIDField(null=True, blank=True, unique=True, editable=False, verbose_name="Identificador")
 
-    class Meta:
+    class Meta(LibroInmutable.Meta):
         verbose_name = "Operación de stock"
         verbose_name_plural = "Operaciones de stock"
         ordering = ["creado_en", "id"]
-        base_manager_name = "objects"
-        default_manager_name = "objects"
         indexes = [
             # El historial del edificio.
             models.Index(fields=["dispositivo", "edificio", "creado_en"], name="opstock_edificio_idx"),
             # El historial de la persona.
             models.Index(fields=["ciudadano", "creado_en"], name="opstock_persona_idx"),
-            models.Index(fields=["tipo", "creado_en"], name="opstock_tipo_idx"),
         ]
 
     def __str__(self):
@@ -199,17 +205,17 @@ class MovimientoStock(LibroInmutable):
     saldo_posterior = models.PositiveIntegerField(verbose_name="Saldo posterior")
     creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Momento")
 
-    class Meta:
+    class Meta(LibroInmutable.Meta):
         verbose_name = "Movimiento de stock"
         verbose_name_plural = "Movimientos de stock"
         ordering = ["creado_en", "id"]
-        base_manager_name = "objects"
-        default_manager_name = "objects"
         constraints = [
             models.CheckConstraint(condition=~models.Q(cantidad=0), name="movimiento_stock_no_cero"),
         ]
         indexes = [
             models.Index(fields=["dispositivo", "edificio", "item", "creado_en"], name="movstock_clave_idx"),
+            # Últimos movimientos del edificio y filtro por fechas sin insumo.
+            models.Index(fields=["dispositivo", "edificio", "creado_en"], name="movstock_edificio_idx"),
         ]
 
     def __str__(self):
