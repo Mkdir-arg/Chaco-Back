@@ -196,12 +196,14 @@ class _ReservaDeCamaView(_AccionDeCamaView):
                 ciudadano=ciudadano,
                 usuario=request.user,
                 tipo=self.tipo,
-                desde=datos.get("desde"),
                 hasta=datos.get("hasta"),
                 motivo=datos.get("motivo", ""),
             ),
             sin_permiso=_sin_capacidad(),
         )
+        if respuesta is not None and "ciudadano" in respuesta.data:
+            # El servicio habla de la persona; la app la pide por DNI: ese error va a ese campo (como la web).
+            respuesta.data["dni"] = respuesta.data.pop("ciudadano")
         return respuesta
 
 

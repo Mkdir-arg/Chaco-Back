@@ -17,6 +17,12 @@ from programas.api.views_emergencia import (
     RaizApiEmergencia,
     SugerirPersonasEmergenciaView,
 )
+from programas.api.views_emergencia_estadias import (
+    CambiarPlazaEstadiaView,
+    EgresarEstadiaView,
+    MotivosEgresoView,
+    PlazasParaCambioView,
+)
 from programas.api.views_emergencia_kits import (
     EntregaKitDetalleView,
     EntregasDelDispositivoView,
@@ -108,6 +114,11 @@ urlpatterns = [
         name="dispositivo-ingreso-directo",
     ),
     path("dispositivos/<int:dispositivo_id>/avisar-mesa/", AvisarALaMesaView.as_view(), name="dispositivo-avisar-mesa"),
+    # Egreso por persona y cambio de plaza (Cambio 597): cualquier dispositivo, con el alcance de la web.
+    path("motivos-egreso/", MotivosEgresoView.as_view(), name="motivos-egreso"),
+    path("estadias/<int:pk>/egresar/", EgresarEstadiaView.as_view(), name="estadia-egresar"),
+    path("estadias/<int:pk>/plazas-para-cambio/", PlazasParaCambioView.as_view(), name="estadia-plazas-para-cambio"),
+    path("estadias/<int:pk>/cambiar-plaza/", CambiarPlazaEstadiaView.as_view(), name="estadia-cambiar-plaza"),
     # Acciones de cama (Cambio 598): reservar, prestar, liberar, sacar de servicio y volver a servicio.
     path("plazas/<int:pk>/reservar/", ReservarPlazaView.as_view(), name="plaza-reservar"),
     path("plazas/<int:pk>/prestar/", PrestarPlazaView.as_view(), name="plaza-prestar"),
