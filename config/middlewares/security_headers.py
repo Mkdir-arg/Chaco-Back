@@ -25,6 +25,8 @@ configurada pasa lo mismo con los hosts de Google Maps, por la misma razón: sin
 key no hay mapa y la política no se abre.
 """
 
+from urllib.parse import urlsplit
+
 from django.conf import settings
 
 RECAPTCHA_HOSTS = ("https://www.google.com", "https://www.gstatic.com")
@@ -107,12 +109,25 @@ def parsear_fuentes_extra(texto):
     return fuentes
 
 
+def _origen(url):
+    """``https://app.ejemplo/x`` → ``https://app.ejemplo``; vacío si no es http(s) con host."""
+    partes = urlsplit(url or "")
+    if partes.scheme not in ("http", "https") or not partes.netloc:
+        return ""
+    return f"{partes.scheme}://{partes.netloc}"
+
+
 def _politica():
     extras = [getattr(settings, "CSP_EXTRA_SOURCES", {}) or {}]
     if getattr(settings, "GTM_CONTAINER_ID", ""):
         extras.insert(0, GTM_SOURCES)
     if getattr(settings, "GOOGLE_MAPS_API_KEY", ""):
         extras.insert(0, GOOGLE_MAPS_SOURCES)
+    origen_app = _origen(getattr(settings, "APP_CAMPO_URL", ""))
+    if origen_app:
+        # «Definí tu contraseña» redirige al usuario de la app a la app (Cambio 593), y
+        # Chromium aplica form-action también al 302 que sigue al envío del formulario.
+        extras.insert(0, {"form-action": [origen_app]})
     partes = []
     for directiva, valores in POLITICA_BASE.items():
         completos = list(valores)

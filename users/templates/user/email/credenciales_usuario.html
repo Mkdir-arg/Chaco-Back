@@ -19,7 +19,7 @@
 </style>
 </head>
 <body style="margin:0; padding:0; background-color:#f9fafb; -webkit-font-smoothing:antialiased;">
-<span style="display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all;">Tu usuario del backoffice ya está activo. Adentro está tu contraseña provisoria.</span>
+<span style="display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all;">{% if enlace_establecer %}Tu usuario de la aplicación de campo ya está activo. Adentro está el enlace para definir tu contraseña.{% else %}Tu usuario del backoffice ya está activo. Adentro está tu contraseña provisoria.{% endif %}</span>
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f9fafb;">
 <tr>
@@ -42,7 +42,7 @@
               <p style="margin:0 0 12px 0; font-size:12px; line-height:16px; mso-line-height-rule:exactly; letter-spacing:1px; text-transform:uppercase; color:#5059bc; font-weight:bold;">Alta de usuario</p>
               <h1 class="h1" style="margin:0 0 16px 0; font-size:28px; line-height:34px; mso-line-height-rule:exactly; letter-spacing:-0.8px; font-weight:bold; color:#252f40;">Tu usuario ya está activo</h1>
               <p style="margin:0 0 16px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Hola {{ user.first_name|default:user.username }},</p>
-              <p style="margin:0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Se creó tu cuenta en el backoffice de DATAÑACH. Estos son tus datos de acceso.</p>
+              <p style="margin:0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Se creó tu cuenta en {% if enlace_establecer %}la aplicación de campo{% else %}el backoffice{% endif %} de DATAÑACH. Estos son tus datos de acceso.</p>
             </td>
           </tr>
 
@@ -60,10 +60,12 @@
                   <td style="padding:6px 16px 6px 8px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:22px; mso-line-height-rule:exactly; color:#4b5563;">{{ rol }}</td>
                 </tr>
                 {% endif %}
+                {% if enlace_login %}
                 <tr>
                   <td width="120" style="width:120px; padding:6px 8px 14px 16px; font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:18px; mso-line-height-rule:exactly; text-transform:uppercase; letter-spacing:1px; color:#6b7280;">Acceso</td>
                   <td style="padding:6px 16px 14px 8px; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:22px; mso-line-height-rule:exactly; color:#4b5563; word-break:break-all;"><a href="{{ enlace_login }}" style="color:#5059bc; text-decoration:underline;">{{ enlace_login }}</a></td>
                 </tr>
+                {% endif %}
               </table>
             </td>
           </tr>
