@@ -11,7 +11,7 @@ Sin JS: la lista y la tabla «Presión por localidad» del Resumen tienen los mi
   {% if mapa.hay_puntos %}
   <div class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-5" data-mapa="situacion" x-data="{ elegido: null }" @nodo-mapa-capas:seleccion="elegido = $event.detail.id">
     <div class="lg:col-span-2 space-y-2">
-      {% include "components/_mapa_capas.html" with nombre="situacion" puntos=mapa.puntos etiqueta="Mapa de la situación" detalle=False only %}
+      {% include "components/_mapa_capas.html" with nombre="situacion" puntos=mapa.puntos etiqueta="Mapa de la situación" detalle=False alto="pagina" only %}
       {% if mapa.pie %}<p class="text-xs text-body-subtle">{{ mapa.pie }}</p>{% endif %}
     </div>
 

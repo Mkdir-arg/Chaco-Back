@@ -6,8 +6,9 @@
 cargador de Google Maps (`mapa_google.md`).
 **Consumidores:** `/mapa/` (`mapa/templates/mapa/mapa.html`, golden del arquetipo Mapa); el lugar de la toma de
 Becas (`programas/templates/programas/becas/revision/_detalle/_trazabilidad.html`, un punto, `a_pedido`,
-`detalle=False`); previsto, la solapa «Mapa» del tablero «Situación» de
-Emergencia (E8: C1 #1173, E-6 #1185). Una pantalla con mapa de puntos usa esta pieza: no arma sus marcadores a
+`detalle=False`); la solapa «Mapa» del tablero «Situación» de Emergencia
+(`programas/templates/programas/emergencia/situacion/_capas_mapa.html`, `detalle=False`, `alto="pagina"`: el mapa es
+la protagonista de la solapa, igual que en `/mapa/`). Una pantalla con mapa de puntos usa esta pieza: no arma sus marcadores a
 mano sobre `NodoMapa`.
 
 ## Invocación
