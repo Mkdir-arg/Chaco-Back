@@ -440,6 +440,21 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
 
         self.assertEqual(respuesta["Location"], "https://app.test")
 
+    @override_settings(APP_CAMPO_URL="https://app.test/")
+    def test_la_csp_de_la_pantalla_deja_volver_a_la_app(self):
+        """El test client no aplica CSP: Chromium sí aplica form-action al 302 del envío."""
+        url = reverse(
+            "users:establecer_contrasena",
+            kwargs={
+                "uidb64": urlsafe_base64_encode(force_bytes(self.territorial.pk)),
+                "token": default_token_generator.make_token(self.territorial),
+            },
+        )
+        pantalla = self.client.get(self.client.get(url)["Location"])
+
+        self.assertEqual(pantalla.status_code, 200)
+        self.assertIn("form-action 'self' https://app.test;", pantalla["Content-Security-Policy"])
+
     @override_settings(APP_CAMPO_URL="https://app.test")
     def test_el_usuario_de_backoffice_vuelve_al_login_del_backoffice(self):
         operador = _user("operador", _rol("OpX", ["ciudadano.ver"]))

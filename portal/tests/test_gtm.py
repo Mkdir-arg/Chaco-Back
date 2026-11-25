@@ -120,3 +120,15 @@ class FuentesExtraTests(SimpleTestCase):
     @override_settings(CSP_EXTRA_SOURCES={"connect-src": ["https://connect.facebook.net"]}, GTM_CONTAINER_ID="")
     def test_las_fuentes_extra_entran_a_la_politica(self):
         self.assertIn("connect-src 'self' https://connect.facebook.net", _politica())
+
+    @override_settings(APP_CAMPO_URL="https://app.test/login?x=1")
+    def test_form_action_suma_solo_el_origen_de_la_app(self):
+        self.assertIn("form-action 'self' https://app.test;", _politica())
+
+    @override_settings(APP_CAMPO_URL="")
+    def test_sin_app_form_action_queda_en_self(self):
+        self.assertIn("form-action 'self';", _politica())
+
+    @override_settings(APP_CAMPO_URL="javascript:alert(1)")
+    def test_una_direccion_que_no_es_http_no_entra(self):
+        self.assertIn("form-action 'self';", _politica())
