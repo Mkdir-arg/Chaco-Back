@@ -61,16 +61,16 @@ class Migration(migrations.Migration):
                             ("OTRO_PROGRAMA", "Otro programa"),
                             ("OTRO", "Otro"),
                         ],
-                        db_default="",
+                        db_default="", default="",
                         max_length=20,
                         verbose_name="Origen",
                     ),
                 ),
                 (
                     "origen_detalle",
-                    models.CharField(blank=True, db_default="", max_length=120, verbose_name="Detalle del origen"),
+                    models.CharField(blank=True, db_default="", default="", max_length=120, verbose_name="Detalle del origen"),
                 ),
-                ("comprobante", models.CharField(blank=True, db_default="", max_length=60, verbose_name="Comprobante")),
+                ("comprobante", models.CharField(blank=True, db_default="", default="", max_length=60, verbose_name="Comprobante")),
                 (
                     "motivo",
                     models.CharField(
@@ -83,14 +83,14 @@ class Migration(migrations.Migration):
                             ("CORRECCION_CARGA", "Corrección de carga"),
                             ("OTRO", "Otro"),
                         ],
-                        db_default="",
+                        db_default="", default="",
                         max_length=20,
                         verbose_name="Motivo del ajuste",
                     ),
                 ),
                 (
                     "observacion",
-                    models.CharField(blank=True, db_default="", max_length=200, verbose_name="Observación"),
+                    models.CharField(blank=True, db_default="", default="", max_length=200, verbose_name="Observación"),
                 ),
                 (
                     "uuid_cliente",
@@ -294,12 +294,12 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["ciudadano", "creado_en"], name="opstock_persona_idx"),
         ),
         migrations.AddIndex(
-            model_name="operacionstock",
-            index=models.Index(fields=["tipo", "creado_en"], name="opstock_tipo_idx"),
+            model_name="movimientostock",
+            index=models.Index(fields=["dispositivo", "edificio", "item", "creado_en"], name="movstock_clave_idx"),
         ),
         migrations.AddIndex(
             model_name="movimientostock",
-            index=models.Index(fields=["dispositivo", "edificio", "item", "creado_en"], name="movstock_clave_idx"),
+            index=models.Index(fields=["dispositivo", "edificio", "creado_en"], name="movstock_edificio_idx"),
         ),
         migrations.AddConstraint(
             model_name="movimientostock",
