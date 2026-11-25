@@ -5,7 +5,7 @@ se ve a la persona; sin ``dispositivo.ver`` el perfil dice ``plazas: false``) y 
 (constante respecto de la cantidad de camas).
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.db import connection
 from django.test import tag
@@ -255,6 +255,26 @@ class MapaDelEdificioTests(BasePlazasApp):
         plazas = self._plazas_del_mapa(cuerpo)
         self.assertEqual(plazas[self._plaza(self.sector_a1, 0).codigo]["estadia_id"], ocupada.pk)
         self.assertEqual(plazas[self._plaza(self.sector_a1, 1).codigo]["reserva_id"], reserva.pk)
+
+    def test_con_un_prestamo_vencido_sin_liberar_y_una_reserva_nueva_se_ve_la_persona_vigente(self):
+        plaza = self._plaza(self.sector_a1, 0)
+        ahora = timezone.now()
+        vencido = ReservaPlaza.objects.create(
+            plaza=plaza,
+            ciudadano=self._persona("Paz", "Juan"),
+            tipo=ReservaPlaza.Tipo.PRESTAMO,
+            desde=ahora - timedelta(days=3),
+            hasta=ahora - timedelta(days=1),
+        )
+        vigente = self._reservar(plaza, persona=self._persona("Reyes", "Luz"))
+
+        celda = self._plazas_del_mapa(self._mapa(self.jefa).json())[plaza.codigo]
+
+        self.assertEqual(celda["estado"], "reservada")
+        self.assertEqual(celda["persona"]["nombre"], "Reyes, Luz")
+        self.assertEqual(datetime.fromisoformat(celda["hasta"]), vigente.hasta)
+        # Lo que se libera sigue siendo la más vieja sin resolver, la misma que `reserva_abierta_de`.
+        self.assertEqual(celda["reserva_id"], vencido.pk)
 
     def test_cada_estado_con_su_persona_fechas_y_acciones(self):
         p = [self._plaza(self.sector_a1, i) for i in range(4)]

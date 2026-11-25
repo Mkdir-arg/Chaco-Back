@@ -172,10 +172,12 @@ def edificios_de_la_app(user):
 # ---------------------------------------------------------------------------------------
 
 
-def _reservas_abiertas(plaza_ids):
-    """``{plaza_id: (id, desde, hasta, nombre, dni)}`` de las reservas sin resolver. Una consulta.
+def _reservas_abiertas(plaza_ids, momento):
+    """``{plaza_id: (reserva_id, vigente)}`` de las reservas sin resolver. Una consulta.
 
-    Con el orden descendente por id queda la más vieja, la misma que ``estadias.reserva_abierta_de`` libera.
+    ``reserva_id`` es el de la más vieja sin resolver, la misma que ``estadias.reserva_abierta_de`` libera.
+    ``vigente`` es ``(desde, hasta, nombre, dni)`` de la reserva que hace «reservada» o «prestada» a la plaza en
+    ``momento`` (la que cuenta ``estado_de_plazas``; con varias, la más nueva), o ``None`` si todas vencieron.
     """
 
     if not plaza_ids:
@@ -186,10 +188,13 @@ def _reservas_abiertas(plaza_ids):
         .order_by("-id")
         .values_list("plaza_id", "id", "desde", "hasta", "ciudadano__apellido", "ciudadano__nombre", "ciudadano__dni")
     )
-    return {
-        plaza_id: (pk, desde, hasta, _nombre(apellido, nombre), dni)
-        for plaza_id, pk, desde, hasta, apellido, nombre, dni in filas
-    }
+    abiertas = {}
+    for plaza_id, pk, desde, hasta, apellido, nombre, dni in filas:
+        _viejo, vigente = abiertas.get(plaza_id, (None, None))
+        if vigente is None and desde <= momento and (hasta is None or hasta >= momento):
+            vigente = (desde, hasta, _nombre(apellido, nombre), dni)
+        abiertas[plaza_id] = (pk, vigente)
+    return abiertas
 
 
 def _estadias_de_las_camas(estadia_ids):
@@ -222,7 +227,7 @@ def mapa_del_edificio(user, dispositivo, edificio):
     por_sector = plazas_por_sector([sector.sector_id for sector in ocupacion.sectores])
     dibujadas = [plaza for sector in ocupacion.sectores for plaza in por_sector.get(sector.sector_id, ())]
     estados = estado_de_plazas(dibujadas, momento, puede_ver_personas=ver_personas)
-    reservas = _reservas_abiertas([plaza.pk for plaza in dibujadas])
+    reservas = _reservas_abiertas([plaza.pk for plaza in dibujadas], momento)
     estadias = _estadias_de_las_camas([e.estadia_id for e in estados.values() if e.estadia_id])
 
     sectores = []
@@ -249,8 +254,10 @@ def mapa_del_edificio(user, dispositivo, edificio):
                 ingreso, dni = estadias[estado.estadia_id]
                 desde = _iso(ingreso)
                 persona = {"nombre": estado.ocupante, "dni": dni} if ver_personas else None
-            elif reserva is not None and estado.estado in (ESTADO_RESERVADA, ESTADO_PRESTADA):
-                _pk, reservada_desde, reservada_hasta, nombre, dni = reserva
+            elif (
+                reserva is not None and reserva[1] is not None and estado.estado in (ESTADO_RESERVADA, ESTADO_PRESTADA)
+            ):
+                reservada_desde, reservada_hasta, nombre, dni = reserva[1]
                 desde, hasta = _iso(reservada_desde), _iso(reservada_hasta)
                 persona = {"nombre": nombre, "dni": dni} if ver_personas else None
             plazas.append(
