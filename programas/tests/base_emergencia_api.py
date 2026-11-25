@@ -231,6 +231,15 @@ URLS_DE_LLEGADAS_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/plazas/",
 ]
 
+#: Las de las acciones de cama (Cambio 598).
+URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO = [
+    "/api/emergencia/plazas/1/fuera-servicio/",
+    "/api/emergencia/plazas/1/liberar/",
+    "/api/emergencia/plazas/1/prestar/",
+    "/api/emergencia/plazas/1/reservar/",
+    "/api/emergencia/plazas/1/volver-servicio/",
+]
+
 #: Las rutas que solo abre el agente; el resto las abre cualquiera con el módulo.
 SOLO_DEL_AGENTE = {URL_CASOS, URL_MIOS}
 

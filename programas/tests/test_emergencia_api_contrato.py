@@ -85,6 +85,7 @@ from programas.tests.base_emergencia_api import (
     URL_PERFIL,
     URL_RAIZ,
     URL_SUGERIR,
+    URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO,
     URLS_DE_KITS_DEL_BARRIDO,
     URLS_DE_LLEGADAS_DEL_BARRIDO,
     BaseApiEmergencia,
@@ -273,6 +274,7 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
                 ]
                 + URLS_DE_KITS_DEL_BARRIDO
                 + URLS_DE_LLEGADAS_DEL_BARRIDO
+                + URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO
             ),
         )
         self.assertGreaterEqual(len(urls_de_la_api_de_becas()), 5)

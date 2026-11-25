@@ -48,6 +48,11 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/casos/{id}/cancelar-ingreso/` | llegadas | Cancelar el ingreso (§13.9) |
 | `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` | llegadas | «Ingresar igual» (multipart, idempotente, se encola) (§13.10) |
 | `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` | llegadas | «Avisar a la mesa» (multipart, idempotente) (§13.10) |
+| `POST /api/emergencia/plazas/{id}/reservar/` | módulo | Reservar una cama (§14) |
+| `POST /api/emergencia/plazas/{id}/prestar/` | módulo | Prestar una cama (§14) |
+| `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§14) |
+| `POST /api/emergencia/plazas/{id}/fuera-servicio/` | módulo | Sacar una cama de servicio (§14) |
+| `POST /api/emergencia/plazas/{id}/volver-servicio/` | módulo | Volver una cama a servicio (§14) |
 
 «Módulo», «agente», «kits» y «llegadas» son los cuatro permisos del namespace (§2).
 
@@ -1130,3 +1135,31 @@ Las secciones 4 a 8 (`educacion` a `observaciones`) aceptan además `"sin_datos"
 hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `true` cuando las cinco
 tienen algún dato o `sin_datos`. Los nombres de campo no se repiten entre secciones: por eso los
 errores 400 usan el nombre plano del campo.
+
+## 14. Acciones de cama (Cambio 598)
+
+Cinco `POST` sobre una cama (`{id}` = `plaza.id` del mapa del edificio). Todos bajo el permiso de módulo; la
+capacidad de cada acción se resuelve por cama, igual que la web (`PlazaReservarView` y hermanas, `acciones_de_plaza`).
+Las acciones que ofrece cada cama son las de `plazas[].acciones` del mapa: la app solo muestra esas.
+
+| Ruta | Cuerpo | Capacidad |
+|---|---|---|
+| `plazas/{id}/reservar/` | `{"dni", "sexo"?: "F\|M\|X", "desde"?: iso, "hasta"?: iso, "motivo"?: ""}` | `dispositivo.admitir` + `ciudadano.ver` |
+| `plazas/{id}/prestar/` | igual, con `hasta` **obligatorio** | `dispositivo.admitir` + `ciudadano.ver` |
+| `plazas/{id}/liberar/` | `{"motivo"?: ""}` | `dispositivo.admitir` |
+| `plazas/{id}/fuera-servicio/` | `{"motivo"}` (obligatorio) | `dispositivo.editar` |
+| `plazas/{id}/volver-servicio/` | sin cuerpo | `dispositivo.editar` |
+
+La persona se busca **solo por DNI en el Legajo** (`buscar_ciudadano_por_dni`, acepta puntos); no se da de alta desde acá.
+`sexo` se acepta pero no se usa. `desde` no puede ser futuro; `hasta` tiene que ser posterior a ahora.
+
+**200** `{"ok": true, "mapa": {...}}`: el mapa del edificio de la cama, ya actualizado (el mismo cuerpo de
+`GET dispositivos/{d}/edificios/{e}/mapa/`). *Hasta que se integre el mapa (Cambio 596) `mapa` viaja en `null`:
+la app recarga el mapa con el `GET`.* «Sacar de servicio» y «volver a servicio» son idempotentes: si la cama ya
+estaba así, 200 sin cambios.
+
+| Código | Cuándo | Cuerpo |
+|---|---|---|
+| 400 | cuerpo inválido; la cama no admite la acción en su estado (ocupada, ya reservada, institución no activa…); persona sin Legajo | `{"code": "VALIDACION", "detail", "<campo>": [...], "non_field_errors": [...]}`; la cama ocupada que se quiere sacar de servicio trae el motivo de `bloqueo_de_plaza` en `detail`; persona inexistente: `code: "PERSONA_NO_ENCONTRADA"` |
+| 403 | ve la cama pero no tiene la capacidad de la acción | `{"detail", "code": "SIN_PERMISO"}` (o `SIN_MODULO` si no abre el módulo) |
+| 404 | la cama no existe, es de un sector dado de baja o de un edificio fuera de su alcance | `{"detail": "No encontrado."}` |
