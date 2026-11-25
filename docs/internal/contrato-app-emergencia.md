@@ -119,10 +119,12 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 |---|---|---|---|
 | 401 | — | Sin token o token inválido | Volver al login |
 | 403 | `SIN_MODULO` | El usuario no tiene el permiso de la ruta | Mostrar `detail`; no reintentar |
+| 403 | `SIN_PERMISO` | Ve la estadía pero no tiene la capacidad de la acción (§15) | Mostrar `detail`; no reintentar |
 | 400 | `VALIDACION` | El envío no es válido (§6) | Mostrar el detalle por campo; el agente corrige y reenvía con el **mismo** `uuid_cliente` |
 | 400 | `VALIDACION` + `persona_registrada` | El DNI ya está registrado como otra persona (§6, «DNI ya registrado») | Preguntar «¿Es esa persona?» con las tres salidas; **no** reintentar solo desde la cola |
 | 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
 | 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12); el caso ya no está como la acción necesita: otra guardia actuó desde su teléfono o el backoffice, la mesa canceló, el cron venció (§13) | Mostrar `detail` y recargar con `estado_actual` (§13.1) |
+| 409 | `EGRESO_CON_FORMULARIO` | El tipo del dispositivo pide formulario de egreso (§15) | Mostrar `detail`: el egreso se registra desde el backoffice |
 | 404 | — | El dispositivo, la entrega, la derivación o el caso no existen, o no son del usuario | Recargar «mis dispositivos» |
 | 429 | — | Tope de consultas de identidad (§4, que también cuenta cada rechazo «DNI ya registrado» de §6) o de búsquedas por DNI (§13.2). Trae `Retry-After` | Identidad: seguir con carga manual del nombre. Búsqueda: esperar `Retry-After` y volver a buscar |
 
@@ -1141,9 +1143,9 @@ errores 400 usan el nombre plano del campo.
 Vale para **cualquier** dispositivo y edificio, con el alcance de la web: una estadía de un edificio que el usuario no ve (o que no existe) es **404**; verla pero no tener la capacidad de la acción es **403** `{"detail", "code": "SIN_PERMISO"}`. Egresar pide `dispositivo.egresar`; cambiar de plaza, `dispositivo.admitir`. Las reglas son las de `estadias.egresar_persona` / `cambiar_plaza`.
 
 - `GET motivos-egreso/` → `[{"id", "nombre"}]` (solo activos).
-- `POST estadias/{id}/egresar/` body `{"motivo_egreso_id", "destino", "pertenencias_devueltas": bool, "observaciones": "", "fecha_egreso": iso|null}` → 200 `{"ok": true, "mapa": {…}}`. Motivo ausente o inactivo, destino vacío, fecha futura o estadía ya cerrada: 400 `VALIDACION` con el campo (`motivo`, `destino`, `fecha_egreso`, `estado`). Si el tipo del dispositivo pide un formulario de egreso: 409 `{"detail": "Este egreso se registra desde el backoffice.", "codigo": "EGRESO_CON_FORMULARIO"}`.
+- `POST estadias/{id}/egresar/` body `{"motivo_egreso_id", "destino", "pertenencias_devueltas": bool, "observaciones": "", "fecha_egreso": iso|null}` → 200 `{"ok": true, "mapa": {…}}`. Motivo ausente o inactivo, destino vacío, fecha futura o estadía ya cerrada: 400 `VALIDACION` con el campo (`motivo`, `destino`, `fecha_egreso`, `estado`). Si el tipo del dispositivo pide un formulario de egreso: 409 `{"detail": "Este egreso se registra desde el backoffice.", "code": "EGRESO_CON_FORMULARIO"}`. El 403 `SIN_PERMISO` va antes que el 409.
 - `GET estadias/{id}/plazas-para-cambio/` → `{"sectores": [{"id", "nombre", "plazas": [{"id", "codigo", "tipo"}]}]}`: las libres del mismo dispositivo (sin la plaza actual ni sectores sin libres).
-- `POST estadias/{id}/cambiar-plaza/` body `{"plaza_id", "motivo"}` → 200 `{"ok": true, "mapa": {…}}`. Plaza ocupada o de otro dispositivo, o motivo vacío: 400. Si la estadía no tenía plaza, se le asigna (motivo opcional), como la web.
+- `POST estadias/{id}/cambiar-plaza/` body `{"plaza_id", "motivo"}` → 200 `{"ok": true, "mapa": {…}}`. Plaza ocupada, de otro dispositivo o de un tipo que el dispositivo no admite, o motivo vacío: 400. Si la estadía no tenía plaza, se le asigna (motivo opcional), como la web.
 
 `mapa` es el mismo cuerpo que `GET dispositivos/{id}/edificios/{id}/mapa/` (§14) del edificio de la plaza (en el cambio, el de la plaza nueva), para repintar sin otro pedido; `null` si la estadía no tenía plaza o el edificio no está en el alcance.
 ## 14. Plazas y estadías (lectura) — Cambio 596

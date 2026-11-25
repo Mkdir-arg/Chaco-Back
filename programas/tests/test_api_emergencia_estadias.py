@@ -5,12 +5,11 @@ alcance: estadía ajena o inexistente = 404; ver sin la capacidad de la acción 
 """
 
 from datetime import timedelta
-from unittest import mock
 
 from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import Edificio, Estadia, MotivoEgreso, Plaza
+from programas.models import DisenoFormulario, Edificio, Estadia, MomentoFormulario, MotivoEgreso, Plaza
 from programas.tests.base_emergencia_api import BaseApiEmergencia, _url
 from programas.tests.test_emergencia_alojar_base import GUARDIA
 
@@ -131,17 +130,35 @@ class EgresarTests(BaseEstadias):
         estadia.refresh_from_db()
         self.assertTrue(estadia.activa)
 
+    def _con_formulario_de_egreso(self):
+        DisenoFormulario.objects.create(tipo_dispositivo=self.club.tipo, momento=MomentoFormulario.EGRESO)
+
     def test_un_tipo_con_formulario_de_egreso_es_409(self):
         estadia = self._alojar()
-        with mock.patch("programas.api.views_emergencia_estadias.formulario_de_egreso", return_value=object()):
-            respuesta = self._egresar(estadia)
+        self._con_formulario_de_egreso()
+        respuesta = self._egresar(estadia)
         self.assertEqual(respuesta.status_code, 409)
         self.assertEqual(
             respuesta.json(),
-            {"detail": "Este egreso se registra desde el backoffice.", "codigo": "EGRESO_CON_FORMULARIO"},
+            {"detail": "Este egreso se registra desde el backoffice.", "code": "EGRESO_CON_FORMULARIO"},
         )
         estadia.refresh_from_db()
         self.assertTrue(estadia.activa)
+
+    def test_sin_capacidad_de_egresar_el_403_va_antes_que_el_409(self):
+        """Mutación: con el 409 antes del chequeo de capacidad, este test da 409."""
+        estadia = self._alojar()
+        self._con_formulario_de_egreso()
+        respuesta = self._egresar(estadia, usuario=self.solo_admite)
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.json()["code"], "SIN_PERMISO")
+
+    def test_egreso_de_una_estadia_sin_plaza_devuelve_mapa_nulo(self):
+        estadia = self._alojar()
+        Estadia.objects.filter(pk=estadia.pk).update(plaza=None)
+        respuesta = self._egresar(estadia)
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json(), {"ok": True, "mapa": None})
 
 
 class CambiarPlazaTests(BaseEstadias):
@@ -209,3 +226,29 @@ class CambiarPlazaTests(BaseEstadias):
         destino = Plaza.objects.get(sector__dispositivo=self.club, codigo="C004")
         self.assertEqual(self._cambiar(propia, destino, usuario=solo_ve).status_code, 403)
         self.assertEqual(self._como(solo_ve).get(_url(PLAZAS_PARA_CAMBIO, propia.pk)).status_code, 403)
+
+    def test_un_destino_de_un_tipo_que_el_dispositivo_ya_no_admite_es_400(self):
+        """Mutación: sin validar contra ``plazas_para_ingresar`` el cambio entra (200)."""
+        estadia = self._alojar(codigo="C001")
+        destino = Plaza.objects.get(sector__dispositivo=self.club, codigo="C003")
+        tipo = self.club.tipo
+        tipo.tipos_plaza_admitidos = [Plaza.Tipo.CUPO]
+        tipo.save()
+        respuesta = self._cambiar(estadia, destino)
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("plaza_id", respuesta.json())
+        estadia.refresh_from_db()
+        self.assertNotEqual(estadia.plaza_id, destino.pk)
+
+    def test_una_estadia_sin_plaza_se_asigna_sin_motivo_y_devuelve_el_mapa(self):
+        estadia = self._alojar(codigo="C001")
+        Estadia.objects.filter(pk=estadia.pk).update(plaza=None)
+        estadia.refresh_from_db()
+        destino = Plaza.objects.get(sector__dispositivo=self.club, codigo="C003")
+        respuesta = self._como(self.operador_sala).post(
+            _url("estadia-cambiar-plaza", estadia.pk), {"plaza_id": destino.pk}, format="json"
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(self._plazas_del_mapa(respuesta.json()["mapa"])["C003"]["estado"], "ocupada")
+        estadia.refresh_from_db()
+        self.assertEqual(estadia.plaza_id, destino.pk)

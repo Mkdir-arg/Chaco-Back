@@ -22,13 +22,13 @@ from programas.api.serializers_emergencia_estadias import (
 )
 from programas.api.serializers_emergencia_plazas import MapaDelEdificioSerializer
 from programas.api.views_emergencia import _SIN_MODULO, _SIN_TOKEN, _respuesta_de_validacion, _VistaDeCampo
-from programas.mixins_dispositivos_estadias import formulario_de_egreso
-from programas.models import Estadia, MotivoEgreso, Plaza
+from programas.models import Estadia, MomentoFormulario, MotivoEgreso, Plaza
 from programas.services.dispositivos import puede_operar_plaza, q_edificios_en_alcance
 from programas.services.edificio_operativo import edificio_de_la_institucion
-from programas.services.estadias import CAP_ADMITIR, asignar_plaza, cambiar_plaza, egresar_persona
+from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, asignar_plaza, cambiar_plaza, egresar_persona
 from programas.services.ingreso import plazas_para_ingresar
 from programas.services.plazas_app import mapa_del_edificio
+from programas.services.respuestas_dispositivo import formulario_vigente
 
 CAP_VER = "dispositivo.ver"
 CODIGO_EGRESO_CON_FORMULARIO = "EGRESO_CON_FORMULARIO"
@@ -82,15 +82,17 @@ class EgresarEstadiaView(_VistaDeEstadia):
             401: _SIN_TOKEN,
             403: _SIN_CAPACIDAD,
             404: _AJENA,
-            409: OpenApiResponse(description="El tipo pide formulario de egreso: `codigo: EGRESO_CON_FORMULARIO`."),
+            409: OpenApiResponse(description="El tipo pide formulario de egreso: `code: EGRESO_CON_FORMULARIO`."),
         },
         description="Registra el egreso de **una** persona (`egresar_persona`). `fecha_egreso` vacía = ahora.",
     )
     def post(self, request, pk):
         estadia = self._estadia(request, pk)
-        if formulario_de_egreso(estadia.dispositivo) is not None:
+        if not puede_operar_plaza(request.user, estadia.dispositivo, estadia.plaza_id, CAP_EGRESAR):
+            return self._sin_capacidad(MENSAJE_SIN_EGRESAR)
+        if formulario_vigente(estadia.dispositivo.tipo_id, MomentoFormulario.EGRESO) is not None:
             return Response(
-                {"detail": MENSAJE_EGRESO_CON_FORMULARIO, "codigo": CODIGO_EGRESO_CON_FORMULARIO},
+                {"detail": MENSAJE_EGRESO_CON_FORMULARIO, "code": CODIGO_EGRESO_CON_FORMULARIO},
                 status=status.HTTP_409_CONFLICT,
             )
         datos, error = self._entrada(EgresarEnvioSerializer, request)
@@ -166,11 +168,14 @@ class CambiarPlazaEstadiaView(_VistaDeEstadia):
             return error
         plaza = None
         if datos["plaza_id"]:
-            plaza = (
-                Plaza.objects.select_related("sector")
-                .filter(pk=datos["plaza_id"], sector__dispositivo=estadia.dispositivo)
-                .first()
-            )
+            sectores, _ = plazas_para_ingresar(estadia.dispositivo, usuario=request.user)
+            elegibles = {p["pk"] for item in sectores for p in item["plazas"]}
+            if datos["plaza_id"] in elegibles:
+                plaza = (
+                    Plaza.objects.select_related("sector")
+                    .filter(pk=datos["plaza_id"], sector__dispositivo=estadia.dispositivo)
+                    .first()
+                )
         if plaza is None:
             return _respuesta_de_validacion({"plaza_id": ["Elegí la plaza a la que se mueve la persona."]})
         mover = asignar_plaza if estadia.plaza_id is None else cambiar_plaza
