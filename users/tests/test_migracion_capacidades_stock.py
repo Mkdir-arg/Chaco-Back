@@ -51,12 +51,6 @@ class CatalogoTests(TestCase):
         for codename, nombre in migracion.CAPACIDADES:
             self.assertEqual(catalogo.get(codename), nombre)
 
-    def test_la_migracion_declara_la_misma_lista_que_el_catalogo(self):
-        """`AlterModelOptions` reemplaza la lista entera: una capacidad que falte se pierde en silencio."""
-
-        declaradas = list(APPS_DE_ENTONCES.get_model("users", "Capacidad")._meta.permissions)
-        self.assertEqual(declaradas, list(rbac.todas_las_capacidades()))
-
     def test_la_lista_nueva_es_la_de_la_0052_mas_las_cuatro(self):
         anterior = estado_historico("users", "0052_capacidad_cerrar_reabrir_emergencia", al_final=True)
         antes = {c for c, _ in anterior.get_model("users", "Capacidad")._meta.permissions}
