@@ -163,13 +163,14 @@ class CambiarPlazaEstadiaView(_VistaDeEstadia):
     )
     def post(self, request, pk):
         estadia = self._estadia(request, pk)
+        if not puede_operar_plaza(request.user, estadia.dispositivo, estadia.plaza_id, CAP_ADMITIR):
+            return self._sin_capacidad(MENSAJE_SIN_CAMBIAR)
         datos, error = self._entrada(CambiarPlazaEnvioSerializer, request)
         if error is not None:
             return error
         plaza = None
         if datos["plaza_id"]:
-            sectores, _ = plazas_para_ingresar(estadia.dispositivo, usuario=request.user)
-            elegibles = {p["pk"] for item in sectores for p in item["plazas"]}
+            _, elegibles = plazas_para_ingresar(estadia.dispositivo, usuario=request.user)
             if datos["plaza_id"] in elegibles:
                 plaza = (
                     Plaza.objects.select_related("sector")
