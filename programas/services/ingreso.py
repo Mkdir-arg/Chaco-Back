@@ -232,7 +232,7 @@ def confirmar_ingreso(
         elif datos_manual:
             ciudadano = _alta_manual(datos_manual)
         else:
-            ciudadano = _alta_desde_registro(datos_renaper)
+            ciudadano = alta_desde_registro(datos_renaper)
         plaza = Plaza.objects.get(pk=plaza_id) if plaza_id else None
         # Lo que la persona tenía guardado: si es la plaza donde entra, el ingreso la consume;
         # el resto se cierra, **en este dispositivo y en cualquier otro** (decisión del PM,
@@ -345,8 +345,12 @@ def _bloquear_persona(ciudadano):
     Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
 
 
-def _alta_desde_registro(datos):
-    """Crea el legajo con lo que respondió el Registro de Personas, como lo hace Legajos."""
+def alta_desde_registro(datos):
+    """Crea el legajo con lo que respondió el Registro de Personas, como lo hace Legajos.
+
+    Público desde el stock (PR 2b): la entrega a una persona da de alta con la misma regla, el mismo formulario y la
+    misma tolerancia a la carrera por el DNI. Corre dentro de la transacción de quien la llama.
+    """
 
     return _crear_legajo(
         datos["dni"],
@@ -354,6 +358,9 @@ def _alta_desde_registro(datos):
         Ciudadano.EstadoRenaper.REGISTRADO,
         "Los datos del Registro de Personas no alcanzan para dar de alta a la persona.",
     )
+
+
+_alta_desde_registro = alta_desde_registro  # el nombre de antes: mismo comportamiento
 
 
 def _alta_manual(datos):

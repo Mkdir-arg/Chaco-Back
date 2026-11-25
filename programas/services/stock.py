@@ -45,13 +45,16 @@ from programas.models import (
     SaldoStock,
     TipoKit,
 )
+from programas.selectors import stock as selectores
 from programas.services.dispositivos import (
     CAP_STOCK_AJUSTAR,
     CAP_STOCK_ENTREGAR,
     CAP_STOCK_INGRESAR,
     CAP_STOCK_VER,
     bloquear_instituciones,
+    dispositivos_en_alcance,
     puede_operar_edificio,
+    q_edificios_en_alcance,
 )
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.kits import (
@@ -64,6 +67,7 @@ from programas.services.kits import (
     _entero,
     _pares_de,
 )
+from programas.services.stock_personas import dar_de_alta, resolver_persona
 
 ORIGEN_DETALLE_MAXIMO = OperacionStock._meta.get_field("origen_detalle").max_length
 COMPROBANTE_MAXIMO = OperacionStock._meta.get_field("comprobante").max_length
@@ -91,6 +95,8 @@ SALDO_VISTO_INVALIDO = "Falta el saldo que se vio al abrir el ajuste."
 AJUSTE_SIN_DIFERENCIA = "Contaste lo mismo que ya hay: no hay nada que ajustar."
 AJUSTE_DE_INSUMO_INACTIVO = "Ese insumo está desactivado: solo se puede ajustar hacia abajo."
 UUID_EN_USO = "Ese identificador de envío ya se usó en otra operación."
+DESTINO_INVALIDO = "El destino no es válido para este traspaso."
+TRASPASO_AL_MISMO_LUGAR = "El destino tiene que ser otro edificio u otra institución."
 
 
 class SaldoInsuficiente(ValidationError):
@@ -215,22 +221,25 @@ def _validar_lineas(lineas, *, solo_activos):
     return [(insumos[item_id], cantidad) for item_id, cantidad in zip(ids, cantidades, strict=True)]
 
 
-def _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo_id, edificio_id):
+def _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo_id, edificio_id, destino=(None, None)):
     """La operación que ya hizo ese ``uuid_cliente`` (con ``ya_existia``) o ``None`` (RN-010-18).
 
-    Reenviarlo **el mismo usuario**, para la misma acción y el mismo lugar, es un reintento. En manos de otro, de
-    otro tipo de operación o de otro edificio no lo es: :class:`UuidEnUso`, sin devolver una operación ajena.
+    Reenviarlo **el mismo usuario**, para la misma acción y el mismo lugar —y en un traspaso, el mismo destino—, es
+    un reintento. En manos de otro, de otro tipo de operación, de otro edificio o de otro destino no lo es:
+    :class:`UuidEnUso`, sin devolver una operación ajena.
     """
 
     existente = OperacionStock.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
     if existente is None:
         return None
-    if (existente.usuario_id, existente.tipo, existente.dispositivo_id, existente.edificio_id) != (
-        usuario.pk,
-        tipo,
-        dispositivo_id,
-        edificio_id,
-    ):
+    if (
+        existente.usuario_id,
+        existente.tipo,
+        existente.dispositivo_id,
+        existente.edificio_id,
+        existente.destino_dispositivo_id,
+        existente.destino_edificio_id,
+    ) != (usuario.pk, tipo, dispositivo_id, edificio_id, *destino):
         raise UuidEnUso()
     existente.ya_existia = True
     return existente
@@ -306,13 +315,12 @@ def _nombres_de(item_ids):
     return dict(TipoKit.objects.filter(pk__in=item_ids).values_list("pk", "nombre"))
 
 
-def _asentar(*, usuario, tipo, dispositivo_id, edificio_id, cambios, uuid_cliente=None, previa=None, **campos):
-    """Escribe la operación, sus movimientos y los saldos. **El único lugar donde un saldo cambia** (RN-010-03/05).
+def _exigir_saldo(cambios):
+    """RN-010-03: ninguna salida deja un saldo negativo. Levanta :class:`SaldoInsuficiente` sin escribir nada.
 
-    ``cambios`` es ``[(SaldoStock bloqueado, delta, tipo de movimiento)]``. Todo o nada: si alguna salida no alcanza
-    se levanta :class:`SaldoInsuficiente` **antes** de escribir nada, así que no queda operación ni movimiento, y el
-    ``CHECK`` de la base queda como respaldo y no como regla. Una operación que llegó a la vez con el mismo
-    ``uuid_cliente`` (o la misma entrega) la ordena el UNIQUE: se deshace este intento y se devuelve la del otro.
+    ``saldos_actuales`` trae **todas** las líneas que salen (las de la entrega o las del origen de un traspaso), no
+    solo las que no alcanzan: la pantalla las muestra juntas. Las entradas no entran: en un traspaso el mismo insumo
+    tiene un saldo de salida y otro de entrada, y pisarían la clave.
     """
 
     faltantes = {
@@ -325,9 +333,21 @@ def _asentar(*, usuario, tipo, dispositivo_id, edificio_id, cambios, uuid_client
         )
         raise SaldoInsuficiente(
             f"No alcanza el stock de: {detalle}. Recargá para ver el saldo actual.",
-            saldos_actuales={saldo.item_id: saldo.cantidad for saldo, _d, _t in cambios},
+            saldos_actuales={saldo.item_id: saldo.cantidad for saldo, delta, _t in cambios if delta < 0},
             faltantes=faltantes,
         )
+
+
+def _asentar(*, usuario, tipo, dispositivo_id, edificio_id, cambios, uuid_cliente=None, previa=None, **campos):
+    """Escribe la operación, sus movimientos y los saldos. **El único lugar donde un saldo cambia** (RN-010-03/05).
+
+    ``cambios`` es ``[(SaldoStock bloqueado, delta, tipo de movimiento)]``. Todo o nada: si alguna salida no alcanza
+    se levanta :class:`SaldoInsuficiente` **antes** de escribir nada, así que no queda operación ni movimiento, y el
+    ``CHECK`` de la base queda como respaldo y no como regla. Una operación que llegó a la vez con el mismo
+    ``uuid_cliente`` (o la misma entrega) la ordena el UNIQUE: se deshace este intento y se devuelve la del otro.
+    """
+
+    _exigir_saldo(cambios)
     ahora = timezone.now()
     try:
         # Anidada: si el UNIQUE salta, se deshace solo este alta y la transacción de afuera sigue sana.
@@ -578,4 +598,232 @@ def sumar_recepcion_de_kit(entrega, usuario):
         ],
         previa=previa,
         entrega_kit=entrega,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Entrega a una persona
+# ---------------------------------------------------------------------------
+
+
+def consultar_persona(usuario, dispositivo, edificio, dni, sexo="", nombre="", apellido=""):
+    """A quién se le va a entregar y qué recibió antes, **sin escribir nada**. Devuelve ``(persona, historial)``.
+
+    Es lo único que expone identidad sin entregar (el GET de la pantalla y de la API): exige lo mismo que entregar,
+    ``stock.entregar`` y ``ciudadano.ver`` sobre el edificio, para que nadie consulte el padrón por acá. ``persona``
+    es una :class:`~programas.services.stock_personas.PersonaResuelta` y ``historial`` las últimas entregas de esa
+    persona en toda la red, con las de otras instituciones sin nombre (``selectors.stock.historial_de_persona``). Una
+    persona que todavía no tiene legajo no tiene historial. ``PersonaSinDatos`` y ``ValidationError`` de
+    :func:`~programas.services.stock_personas.resolver_persona` llegan tal cual.
+    """
+
+    dispositivo = _dispositivo(dispositivo)
+    _exigir(puede_entregar, usuario, dispositivo, _pk(edificio))
+    persona = resolver_persona(dni, sexo, nombre, apellido)
+    historial = selectores.historial_de_persona(persona.ciudadano, dispositivo) if persona.ciudadano else []
+    return persona, historial
+
+
+@transaction.atomic
+def entregar_a_persona(
+    usuario,
+    dispositivo,
+    edificio,
+    dni,
+    lineas,
+    sexo="",
+    nombre="",
+    apellido="",
+    observacion="",
+    uuid_cliente=None,
+):
+    """Descuenta insumos del stock del edificio y los asienta a nombre de una persona (RN-010-09). Devuelve la operación.
+
+    * Exige ``stock.entregar`` **y** ``ciudadano.ver`` (y ``stock.ver``) sobre el edificio: se mira **acá**, antes de
+      consultar a nadie, para que una entrega sin permiso no sirva de consulta al padrón.
+    * Institución ``ACTIVO`` y edificio activo (RN-010-14). Los insumos se entregan mientras tengan saldo, estén o no
+      activos (RN-010-17). Líneas de RN-010-04.
+    * La persona sale de :func:`~programas.services.stock_personas.resolver_persona` (legajo → Registro → alta
+      mínima) **antes** de tomar ningún candado, y el alta del legajo va **adentro** de la transacción y después de
+      verificar el saldo: si la entrega falla no queda un legajo huérfano.
+    * Nunca negativo: se valida contra el saldo leído **bajo candado** (:class:`SaldoInsuficiente`, todo o nada).
+    * No se anula una entrega: un error de carga se corrige con un ajuste «Corrección de carga».
+    * Idempotente por ``uuid_cliente`` (RN-010-18).
+    """
+
+    dispositivo = _dispositivo(dispositivo)
+    edificio_id = _pk(edificio)
+    _exigir(puede_entregar, usuario, dispositivo, edificio_id)
+    uuid_cliente = _como_uuid(uuid_cliente)
+    tipo = OperacionStock.Tipo.ENTREGA_PERSONA
+    anterior = (
+        _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo.pk, edificio_id) if uuid_cliente else None
+    )
+    if anterior is not None:
+        return anterior
+
+    if not lleva_stock(dispositivo):
+        raise StockNoHabilitado()
+    observacion = _texto(observacion)
+    if len(observacion) > OBSERVACION_MAXIMA:
+        raise ValidationError({"observacion": OBSERVACION_LARGA})
+    validas = _validar_lineas(lineas, solo_activos=False)
+    persona = resolver_persona(dni, sexo, nombre, apellido)
+
+    estados, edificios = _preparar([(dispositivo.pk, edificio_id)])
+    _exigir_activos(dispositivo.pk, edificio_id, estados, edificios)
+    anterior = (
+        _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo.pk, edificio_id) if uuid_cliente else None
+    )
+    if anterior is not None:
+        return anterior
+    saldos = saldos_bloqueados([(dispositivo.pk, edificio_id, item.pk) for item, _c in validas])
+    cambios = [
+        (saldos[(dispositivo.pk, edificio_id, item.pk)], -cantidad, MovimientoStock.Tipo.ENTREGA_PERSONA)
+        for item, cantidad in validas
+    ]
+    # Antes del alta: sin saldo no se escribe ni el legajo.
+    _exigir_saldo(cambios)
+    ciudadano = dar_de_alta(persona)
+    return _asentar(
+        usuario=usuario,
+        tipo=tipo,
+        dispositivo_id=dispositivo.pk,
+        edificio_id=edificio_id,
+        cambios=cambios,
+        uuid_cliente=uuid_cliente,
+        previa=lambda: _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo.pk, edificio_id),
+        ciudadano=ciudadano,
+        observacion=observacion,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Traspaso entre dos edificios
+# ---------------------------------------------------------------------------
+
+
+def destinos_de_traspaso(usuario, dispositivo, edificio):
+    """Los pares ``(Dispositivo, Edificio)`` a los que ``usuario`` puede traspasar desde ``(dispositivo, edificio)``.
+
+    La decisión por defecto (RN-010-11): **solo dentro del alcance de** ``stock.ingresar`` **de quien traspasa** (y
+    ``stock.ver``, como toda acción); el administrador del programa, a cualquiera. Son instituciones que llevan
+    stock y están ``ACTIVO``, con edificio activo, sin el propio origen. Es el mismo predicado que
+    :func:`traspasar` aplica al destino, en una consulta. Exige poder traspasar desde el origen.
+    """
+
+    dispositivo = _dispositivo(dispositivo)
+    edificio_id = _pk(edificio)
+    _exigir(puede_ingresar, usuario, dispositivo, edificio_id)
+    pares = Edificio.dispositivos.through.objects.filter(
+        dispositivo__tipo__maneja_stock=True, dispositivo__estado=Dispositivo.Estado.ACTIVO, edificio__activo=True
+    )
+    for capacidad in (CAP_STOCK_VER, CAP_STOCK_INGRESAR):
+        pares = pares.filter(dispositivo__in=dispositivos_en_alcance(usuario, capacidad)).filter(
+            q_edificios_en_alcance(usuario, capacidad, "dispositivo_id", "edificio_id")
+        )
+    pares = (
+        pares.exclude(dispositivo_id=dispositivo.pk, edificio_id=edificio_id)
+        .select_related("dispositivo", "edificio")
+        .order_by("dispositivo__nombre", "dispositivo_id", "edificio__nombre", "edificio_id")
+    )
+    return [(par.dispositivo, par.edificio) for par in pares]
+
+
+def _destino_de_traspaso(usuario, destino_dispositivo, destino_edificio):
+    """El ``(Dispositivo, edificio_id)`` de destino, o ``ValidationError({"destino": …})``.
+
+    Un mismo mensaje para el que no existe, el que no está vinculado y el que queda fuera del alcance de
+    ``stock.ingresar`` de quien traspasa: la respuesta no cuenta qué instituciones existen fuera de su alcance.
+    """
+
+    dispositivo_id, edificio_id = _entero(_pk(destino_dispositivo)), _entero(_pk(destino_edificio))
+    destino = Dispositivo.objects.select_related("tipo").filter(pk=dispositivo_id).first() if dispositivo_id else None
+    vinculado = (
+        edificio_id is not None
+        and destino is not None
+        and Edificio.dispositivos.through.objects.filter(dispositivo_id=destino.pk, edificio_id=edificio_id).exists()
+    )
+    if not vinculado or not puede_ingresar(usuario, destino, edificio_id):
+        raise ValidationError({"destino": DESTINO_INVALIDO})
+    return destino, edificio_id
+
+
+@transaction.atomic
+def traspasar(
+    usuario,
+    dispositivo,
+    edificio,
+    destino_dispositivo,
+    destino_edificio,
+    lineas,
+    observacion="",
+    uuid_cliente=None,
+):
+    """Pasa insumos de ``(dispositivo, edificio)`` a ``(destino_dispositivo, destino_edificio)`` en una sola operación.
+
+    Por cada insumo deja **dos** movimientos, ``TRASPASO_SALIDA`` y ``TRASPASO_ENTRADA``, que suman cero (RN-010-11).
+
+    * Exige ``stock.ingresar`` (y ``stock.ver``) sobre el **origen**, y sobre el **destino** (que es lo que limita a
+      dónde se puede mandar): un destino fuera de ese alcance, que no existe o no está vinculado es
+      ``ValidationError`` en ``destino``, con el mismo texto para los tres.
+    * El destino tiene que ser **otro** par; la institución destino lleva stock y está ``ACTIVO`` y el edificio
+      destino está activo. El origen puede no estar activo: se permite vaciarlo (RN-010-14).
+    * Inmediato: el destino no confirma. Nunca negativo: la salida se valida contra el saldo del origen bajo candado.
+    * Candados de los **dos** pares por pk ascendente (Dispositivos, Edificios y Saldos juntos): A→B y B→A a la vez
+      piden las mismas filas en el mismo orden y no se matan (RN-010-19).
+    * Idempotente por ``uuid_cliente``, que además queda atado a este destino (RN-010-18).
+    """
+
+    dispositivo = _dispositivo(dispositivo)
+    edificio_id = _pk(edificio)
+    _exigir(puede_ingresar, usuario, dispositivo, edificio_id)
+    uuid_cliente = _como_uuid(uuid_cliente)
+    tipo = OperacionStock.Tipo.TRASPASO
+    destino_ids = (_entero(_pk(destino_dispositivo)), _entero(_pk(destino_edificio)))
+    anterior = (
+        _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo.pk, edificio_id, destino_ids)
+        if uuid_cliente
+        else None
+    )
+    if anterior is not None:
+        return anterior
+
+    destino, destino_edificio_id = _destino_de_traspaso(usuario, destino_dispositivo, destino_edificio)
+    if edificio_id is None:
+        raise ValidationError({"edificio": EDIFICIO_NO_ES_DE_LA_INSTITUCION})
+    if (destino.pk, destino_edificio_id) == (dispositivo.pk, edificio_id):
+        raise ValidationError({"destino": TRASPASO_AL_MISMO_LUGAR})
+    observacion = _texto(observacion)
+    if len(observacion) > OBSERVACION_MAXIMA:
+        raise ValidationError({"observacion": OBSERVACION_LARGA})
+    validas = _validar_lineas(lineas, solo_activos=False)
+
+    estados, edificios = _preparar([(dispositivo.pk, edificio_id), (destino.pk, destino_edificio_id)])
+    _exigir_activos(destino.pk, destino_edificio_id, estados, edificios)
+    anterior = (
+        _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo.pk, edificio_id, destino_ids)
+        if uuid_cliente
+        else None
+    )
+    if anterior is not None:
+        return anterior
+    origen_de = {item.pk: (dispositivo.pk, edificio_id, item.pk) for item, _c in validas}
+    destino_de = {item.pk: (destino.pk, destino_edificio_id, item.pk) for item, _c in validas}
+    saldos = saldos_bloqueados([*origen_de.values(), *destino_de.values()])
+    cambios = []
+    for item, cantidad in validas:
+        cambios.append((saldos[origen_de[item.pk]], -cantidad, MovimientoStock.Tipo.TRASPASO_SALIDA))
+        cambios.append((saldos[destino_de[item.pk]], cantidad, MovimientoStock.Tipo.TRASPASO_ENTRADA))
+    return _asentar(
+        usuario=usuario,
+        tipo=tipo,
+        dispositivo_id=dispositivo.pk,
+        edificio_id=edificio_id,
+        cambios=cambios,
+        uuid_cliente=uuid_cliente,
+        previa=lambda: _operacion_de_ese_envio(uuid_cliente, usuario, tipo, dispositivo.pk, edificio_id, destino_ids),
+        destino_dispositivo_id=destino.pk,
+        destino_edificio_id=destino_edificio_id,
+        observacion=observacion,
     )
