@@ -48,11 +48,11 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/casos/{id}/cancelar-ingreso/` | llegadas | Cancelar el ingreso (§13.9) |
 | `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` | llegadas | «Ingresar igual» (multipart, idempotente, se encola) (§13.10) |
 | `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` | llegadas | «Avisar a la mesa» (multipart, idempotente) (§13.10) |
-| `POST /api/emergencia/plazas/{id}/reservar/` | módulo | Reservar una cama (§15) |
-| `POST /api/emergencia/plazas/{id}/prestar/` | módulo | Prestar una cama (§15) |
-| `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§15) |
-| `POST /api/emergencia/plazas/{id}/fuera-servicio/` | módulo | Sacar una cama de servicio (§15) |
-| `POST /api/emergencia/plazas/{id}/volver-servicio/` | módulo | Volver una cama a servicio (§15) |
+| `POST /api/emergencia/plazas/{id}/reservar/` | módulo | Reservar una cama (§16) |
+| `POST /api/emergencia/plazas/{id}/prestar/` | módulo | Prestar una cama (§16) |
+| `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§16) |
+| `POST /api/emergencia/plazas/{id}/fuera-servicio/` | módulo | Sacar una cama de servicio (§16) |
+| `POST /api/emergencia/plazas/{id}/volver-servicio/` | módulo | Volver una cama a servicio (§16) |
 
 «Módulo», «agente», «kits» y «llegadas» son los cuatro permisos del namespace (§2).
 
@@ -1136,7 +1136,7 @@ hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `
 tienen algún dato o `sin_datos`. Los nombres de campo no se repiten entre secciones: por eso los
 errores 400 usan el nombre plano del campo.
 
-## 15. Acciones de cama (Cambio 598)
+## 16. Acciones de cama (Cambio 598)
 
 Cinco `POST` sobre una cama (`{id}` = `plaza.id` del mapa del edificio). Todos bajo el permiso de módulo; la
 capacidad de cada acción se resuelve por cama, igual que la web (`PlazaReservarView` y hermanas, `acciones_de_plaza`).
