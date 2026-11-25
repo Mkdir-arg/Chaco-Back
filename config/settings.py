@@ -344,6 +344,10 @@ EMAIL_ASUNTO_PREFIJO = "" if ENVIRONMENT == "prd" else f"[{ENVIRONMENT.upper()}]
 # Pie de los correos. Vacío = la línea no se renderiza (a definir con el cliente).
 EMAIL_SOPORTE = os.getenv("EMAIL_SOPORTE", "")
 EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
+# Dirección de la app de campo (PWA) de este ambiente, p. ej. https://datanach-app.ecomdev.ar.
+# Al usuario que solo existe para la app, el correo de alta le indica esta dirección y no la
+# del backoffice, que lo rechaza. Vacío = el correo no muestra ninguna dirección de ingreso.
+APP_CAMPO_URL = os.getenv("APP_CAMPO_URL", "").strip().rstrip("/")
 
 # Campañas de Notificaciones (análisis 007, RNF-007-05): cuántos correos salen por
 # conexión SMTP y cuántos segundos se espera entre un lote y el siguiente. Se arranca

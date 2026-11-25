@@ -22,6 +22,9 @@ from core import rbac
 from programas.models import Programa, Segmento
 from users.models import Capacidad, Profile, RolMeta
 
+#: La URL del login del backoffice ("/") entera, no como prefijo de otra ruta.
+LOGIN_DEL_BACKOFFICE = r"http://testserver/(?![\w-])"
+
 CLAVE = "Clave-Segura-2026"
 
 
@@ -359,6 +362,30 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         self.assertNotIn("Contraseña provisoria", cuerpo)
         self.assertNotIn("primer ingreso", cuerpo)
 
+    @override_settings(APP_CAMPO_URL="https://app.test")
+    def test_el_alta_del_usuario_de_la_app_indica_la_direccion_de_la_app(self):
+        from users.services.correo import entregar_credenciales_provisorias
+
+        entregar_credenciales_provisorias(self.territorial, self.client.request().wsgi_request)
+
+        correo = mail.outbox[0]
+        html = correo.alternatives[0][0]
+        for contenido in (correo.body, html):
+            self.assertIn("https://app.test", contenido)
+            self.assertIn("aplicación de campo", contenido)
+            self.assertNotRegex(contenido, LOGIN_DEL_BACKOFFICE)
+            self.assertNotIn("backoffice", contenido)
+
+    @override_settings(APP_CAMPO_URL="")
+    def test_sin_direccion_de_la_app_el_correo_no_manda_al_backoffice(self):
+        from users.services.correo import entregar_credenciales_provisorias
+
+        entregar_credenciales_provisorias(self.territorial, self.client.request().wsgi_request)
+
+        correo = mail.outbox[0]
+        self.assertNotRegex(correo.body, LOGIN_DEL_BACKOFFICE)
+        self.assertNotRegex(correo.alternatives[0][0], LOGIN_DEL_BACKOFFICE)
+
     def test_el_alta_de_un_usuario_de_backoffice_sigue_llevando_la_clave(self):
         from users.services.correo import ENTREGA_CLAVE, entregar_credenciales_provisorias
 
@@ -393,6 +420,48 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         self.assertFalse(Profile.objects.get(user=self.territorial).debe_cambiar_contrasena)
         self.territorial.refresh_from_db()
         self.assertTrue(self.territorial.check_password("Elegida-Por-Mi-2026"))
+
+    def _definir_clave(self, user):
+        url = reverse(
+            "users:establecer_contrasena",
+            kwargs={
+                "uidb64": urlsafe_base64_encode(force_bytes(user.pk)),
+                "token": default_token_generator.make_token(user),
+            },
+        )
+        destino = self.client.get(url)["Location"]
+        return self.client.post(
+            destino, {"new_password1": "Elegida-Por-Mi-2026", "new_password2": "Elegida-Por-Mi-2026"}
+        )
+
+    @override_settings(APP_CAMPO_URL="https://app.test")
+    def test_el_usuario_de_la_app_vuelve_a_la_app_despues_de_definir_la_clave(self):
+        respuesta = self._definir_clave(self.territorial)
+
+        self.assertEqual(respuesta["Location"], "https://app.test")
+
+    @override_settings(APP_CAMPO_URL="https://app.test/")
+    def test_la_csp_de_la_pantalla_deja_volver_a_la_app(self):
+        """El test client no aplica CSP: Chromium sí aplica form-action al 302 del envío."""
+        url = reverse(
+            "users:establecer_contrasena",
+            kwargs={
+                "uidb64": urlsafe_base64_encode(force_bytes(self.territorial.pk)),
+                "token": default_token_generator.make_token(self.territorial),
+            },
+        )
+        pantalla = self.client.get(self.client.get(url)["Location"])
+
+        self.assertEqual(pantalla.status_code, 200)
+        self.assertIn("form-action 'self' https://app.test;", pantalla["Content-Security-Policy"])
+
+    @override_settings(APP_CAMPO_URL="https://app.test")
+    def test_el_usuario_de_backoffice_vuelve_al_login_del_backoffice(self):
+        operador = _user("operador", _rol("OpX", ["ciudadano.ver"]))
+
+        respuesta = self._definir_clave(operador)
+
+        self.assertEqual(respuesta["Location"], reverse("users:login"))
 
     def test_el_territorial_sigue_sin_poder_entrar_al_backoffice(self):
         respuesta = self.client.post(reverse("users:login"), {"username": "terri", "password": CLAVE})

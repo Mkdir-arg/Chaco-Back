@@ -1,6 +1,6 @@
 Hola {{ user.first_name|default:user.username }},
 
-Se creó tu cuenta en el backoffice de DATAÑACH. Estos son tus datos de acceso.
+Se creó tu cuenta en {% if enlace_establecer %}la aplicación de campo{% else %}el backoffice{% endif %} de DATAÑACH. Estos son tus datos de acceso.
 
 Usuario: {{ user.username }}
 {% if rol %}Rol: {{ rol }}
@@ -11,7 +11,9 @@ Definí tu contraseña con este enlace:
 El enlace es válido por 24 horas y puede usarse una sola vez. Después entrás a la
 aplicación de campo con tu usuario y la contraseña que elijas; si se te vence,
 pedí uno nuevo desde "Olvidé mi contraseña".
-
+{% if enlace_login %}
+Ingresá a la aplicación en {{ enlace_login }}
+{% endif %}
 No compartas este enlace con nadie. El equipo de DATAÑACH nunca te va a pedir tu
 clave por correo ni por teléfono.
 {% else %}Contraseña provisoria: {{ password_provisoria }}
