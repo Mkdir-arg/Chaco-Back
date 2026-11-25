@@ -48,11 +48,11 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/casos/{id}/cancelar-ingreso/` | llegadas | Cancelar el ingreso (§13.9) |
 | `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` | llegadas | «Ingresar igual» (multipart, idempotente, se encola) (§13.10) |
 | `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` | llegadas | «Avisar a la mesa» (multipart, idempotente) (§13.10) |
-| `POST /api/emergencia/plazas/{id}/reservar/` | módulo | Reservar una cama (§14) |
-| `POST /api/emergencia/plazas/{id}/prestar/` | módulo | Prestar una cama (§14) |
-| `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§14) |
-| `POST /api/emergencia/plazas/{id}/fuera-servicio/` | módulo | Sacar una cama de servicio (§14) |
-| `POST /api/emergencia/plazas/{id}/volver-servicio/` | módulo | Volver una cama a servicio (§14) |
+| `POST /api/emergencia/plazas/{id}/reservar/` | módulo | Reservar una cama (§15) |
+| `POST /api/emergencia/plazas/{id}/prestar/` | módulo | Prestar una cama (§15) |
+| `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§15) |
+| `POST /api/emergencia/plazas/{id}/fuera-servicio/` | módulo | Sacar una cama de servicio (§15) |
+| `POST /api/emergencia/plazas/{id}/volver-servicio/` | módulo | Volver una cama a servicio (§15) |
 
 «Módulo», «agente», «kits» y «llegadas» son los cuatro permisos del namespace (§2).
 
@@ -1136,7 +1136,7 @@ hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `
 tienen algún dato o `sin_datos`. Los nombres de campo no se repiten entre secciones: por eso los
 errores 400 usan el nombre plano del campo.
 
-## 14. Acciones de cama (Cambio 598)
+## 15. Acciones de cama (Cambio 598)
 
 Cinco `POST` sobre una cama (`{id}` = `plaza.id` del mapa del edificio). Todos bajo el permiso de módulo; la
 capacidad de cada acción se resuelve por cama, igual que la web (`PlazaReservarView` y hermanas, `acciones_de_plaza`).
@@ -1154,8 +1154,7 @@ La persona se busca **solo por DNI en el Legajo** (`buscar_ciudadano_por_dni`, a
 `sexo` se acepta pero no se usa. `desde` no puede ser futuro; `hasta` tiene que ser posterior a ahora.
 
 **200** `{"ok": true, "mapa": {...}}`: el mapa del edificio de la cama, ya actualizado (el mismo cuerpo de
-`GET dispositivos/{d}/edificios/{e}/mapa/`). *Hasta que se integre el mapa (Cambio 596) `mapa` viaja en `null`:
-la app recarga el mapa con el `GET`.* «Sacar de servicio» y «volver a servicio» son idempotentes: si la cama ya
+`GET dispositivos/{d}/edificios/{e}/mapa/`). «Sacar de servicio» y «volver a servicio» son idempotentes: si la cama ya
 estaba así, 200 sin cambios.
 
 | Código | Cuándo | Cuerpo |
@@ -1163,3 +1162,58 @@ estaba así, 200 sin cambios.
 | 400 | cuerpo inválido; la cama no admite la acción en su estado (ocupada, ya reservada, institución no activa…); persona sin Legajo | `{"code": "VALIDACION", "detail", "<campo>": [...], "non_field_errors": [...]}`; la cama ocupada que se quiere sacar de servicio trae el motivo de `bloqueo_de_plaza` en `detail`; persona inexistente: `code: "PERSONA_NO_ENCONTRADA"` |
 | 403 | ve la cama pero no tiene la capacidad de la acción | `{"detail", "code": "SIN_PERMISO"}` (o `SIN_MODULO` si no abre el módulo) |
 | 404 | la cama no existe, es de un sector dado de baja o de un edificio fuera de su alcance | `{"detail": "No encontrado."}` |
+
+## 14. Plazas y estadías (lectura) — Cambio 596
+
+Vale para **cualquier** institución y edificio, de Emergencia o no. Quién ve qué es el alcance de la web
+(`dispositivo.ver` con `q_edificios_en_alcance`); el permiso de módulo es el de todo el namespace. Un
+edificio o una institución ajenos, desvinculados o fuera de alcance contestan **404**, igual que un id
+inexistente. Las fechas son ISO 8601 con zona.
+
+**Perfil.** `GET /api/emergencia/perfil/` suma la clave aditiva `plazas`: `true` si el usuario ve al menos
+un edificio con `dispositivo.ver` en su alcance. Las demás claves no cambian.
+
+| Método y ruta | Para qué |
+|---|---|
+| `GET /api/emergencia/edificios/` | Un ítem por par institución-edificio en alcance, por nombre de edificio, sin paginar |
+| `GET /api/emergencia/dispositivos/{d}/edificios/{e}/mapa/` | El mapa de camas del edificio con las acciones que el usuario puede ejercer |
+| `GET /api/emergencia/dispositivos/{d}/edificios/{e}/estadias/?estado=&sector=&page=` | Las estadías de la institución en ese edificio, paginadas de a 25 |
+
+```json
+// edificios/
+[{"dispositivo": {"id": 7, "nombre": "Sede Central"},
+  "edificio": {"id": 3, "nombre": "Edificio Alfa", "direccion": "Calle 1 100, Resistencia, Chaco"},
+  "resumen": {"total": 6, "libres": 3, "ocupadas": 1, "reservadas": 1, "prestadas": 1, "fuera_servicio": 0}}]
+
+// mapa/
+{"dispositivo": {"id": 7, "nombre": "Sede Central", "estado": "ACTIVO"},
+ "edificio": {"id": 3, "nombre": "Edificio Alfa"},
+ "resumen": {"total": 6, "libres": 3, "ocupadas": 1, "reservadas": 1, "prestadas": 1, "fuera_servicio": 0},
+ "puede": {"egresar": true, "admitir": true, "editar": true, "ver_personas": true},
+ "sectores": [{"id": 5, "nombre": "Pabellón 1", "tipo": "…", "resumen": {"…": 0},
+   "plazas": [{"id": 41, "codigo": "C001", "tipo": "CAMA", "estado": "ocupada",
+     "persona": {"nombre": "Benítez, Rosa", "dni": "30000001"},
+     "estadia_id": 12, "reserva_id": null, "desde": "2026-11-24T10:00:00-03:00", "hasta": null,
+     "acciones": ["egresar", "reubicar", "fuera_servicio"], "bloqueo": "La plaza está ocupada: …"}]}]}
+```
+
+- `estado` de la plaza: `disponible`, `ocupada`, `reservada`, `prestada` o `fuera_servicio`.
+- `acciones` es lo que la web ofrece (`acciones_de_plaza`) filtrado a `egresar`, `reubicar`, `liberar`,
+  `reservar`, `prestar`, `fuera_servicio` y `volver`. Con la plaza ocupada, `fuera_servicio` viene con su
+  `bloqueo` (el motivo); es `""` en las demás.
+- `reserva_id` es la reserva o préstamo **sin liberar**, aunque haya vencido (la plaza se ve `disponible` y
+  ofrece `liberar`). `desde`/`hasta` son los de la estadía (ingreso) o los de la reserva.
+- Sin `ciudadano.ver`, `persona` es `null` (ni nombre ni DNI) y no se ofrecen `reservar` ni `prestar`.
+- Las capacidades se evalúan **sobre este edificio**: con alcance Edificios, un edificio ajeno es 404.
+
+```json
+// estadias/ — `estado`: activa (por defecto) o egresada
+{"count": 1, "next": null, "previous": null,
+ "results": [{"id": 12, "persona": {"nombre": "Benítez, Rosa", "dni": "30000001"},
+   "sector": {"id": 5, "nombre": "Pabellón 1"}, "plaza": {"id": 41, "codigo": "C001"},
+   "fecha_ingreso": "2026-11-24T10:00:00-03:00", "fecha_egreso": null, "estado": "activa",
+   "origen": "emergencia", "emergencia": {"caso_numero": "E-0001"}, "acciones": ["egresar", "reubicar"]}]}
+```
+
+`origen` es `emergencia` (con `emergencia.caso_numero`) o `dispositivo` (con `emergencia: null`). Solo
+aparecen las estadías con plaza en este edificio. Una página fuera de rango devuelve la última.

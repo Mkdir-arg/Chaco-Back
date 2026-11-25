@@ -23,6 +23,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from core import rbac
+from programas.api.serializers_emergencia_plazas import MapaDelEdificioSerializer
 from programas.api.serializers_emergencia_plazas_acciones import (
     FueraDeServicioEnvioSerializer,
     LiberarPlazaEnvioSerializer,
@@ -42,6 +43,7 @@ from programas.services.estadias import (
 )
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.ocupacion import estado_de_plazas
+from programas.services.plazas_app import mapa_del_edificio
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
@@ -95,11 +97,14 @@ def _persona_no_encontrada():
 def _respuesta_con_mapa(request, plaza):
     """Lo que contesta toda acción: ``{"ok": true, "mapa": {...}}``.
 
-    TODO(596): ``mapa`` es el cuerpo de ``GET dispositivos/<d>/edificios/<e>/mapa/``, que arma
-    ``mapa_del_edificio(user, dispositivo, edificio)`` en el PR 596. Mientras no esté integrado va ``None``;
-    este es el único lugar que lo conecta.
+    ``mapa`` es el cuerpo de ``GET dispositivos/<d>/edificios/<e>/mapa/`` del edificio de la plaza, ya con la
+    acción aplicada.
     """
-    return Response({"ok": True, "mapa": None})
+    sector = plaza.sector
+    if not sector.edificio_id:  # sector anterior al campo (Cambio 429): sin edificio no hay mapa que armar
+        return Response({"ok": True, "mapa": None})
+    mapa = mapa_del_edificio(request.user, sector.dispositivo, sector.edificio)
+    return Response({"ok": True, "mapa": MapaDelEdificioSerializer(mapa).data})
 
 
 class _AccionDeCamaView(_VistaDeCampo):
@@ -114,7 +119,7 @@ class _AccionDeCamaView(_VistaDeCampo):
     def _plaza(self, request, pk):
         """La plaza **si el usuario la ve**; si no, el 404 de siempre. Con el sector y el dispositivo ya traídos."""
         return self._o_404(
-            Plaza.objects.select_related("sector__dispositivo").filter(
+            Plaza.objects.select_related("sector__dispositivo", "sector__edificio").filter(
                 q_edificios_en_alcance(request.user, CAP_VER, "sector__dispositivo_id", "sector__edificio_id"),
                 sector__activo=True,
             ),

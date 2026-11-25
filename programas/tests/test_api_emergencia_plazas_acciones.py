@@ -1,7 +1,7 @@
 """Cambio 598: acciones de cama en la API de campo (reservar, prestar, liberar, sacar de servicio, volver a servicio).
 
 Cada vista llama al mismo servicio que la web; acá se fija el contrato HTTP: 200 ``{ok, mapa}`` (el mapa
-llega con el PR 596: por ahora ``null``), 404 fuera de alcance, 403 sin capacidad, 400 con el motivo.
+es el de ``GET .../mapa/`` del edificio de la cama, ya actualizado), 404 fuera de alcance, 403 sin capacidad, 400 con el motivo.
 
 **Mutación vista en rojo** (alcance): sin el ``q_edificios_en_alcance`` de ``_AccionDeCamaView._plaza``, la plaza
 de otra institución deja de dar 404 y contesta 403, y ``test_la_plaza_de_otra_institucion_es_404`` falla.
@@ -12,7 +12,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import Plaza, ReservaPlaza
+from programas.models import Edificio, Plaza, ReservaPlaza, Sector
 from programas.services import estadias
 from programas.tests.base_emergencia_api import NO_ENCONTRADO, SIN_MODULO, BaseApiEmergencia, _url
 
@@ -25,6 +25,16 @@ class AccionesDeCamaTests(BaseApiEmergencia):
         self.jefa = self._guardia("jefa", [VER, ADMITIR, EDITAR, CIUDADANO], [self.club])
         self.plaza = Plaza.objects.filter(sector__dispositivo=self.club).order_by("codigo").first()
         self.persona = Ciudadano.objects.create(dni="30111222", nombre="Rosa", apellido="Benítez")
+        self.edificio = Edificio.objects.create(codigo="EDI-C", nombre="Edificio del club")
+        self.edificio.dispositivos.add(self.club)
+        Sector.objects.filter(dispositivo=self.club).update(edificio=self.edificio)
+
+    def _celda(self, respuesta, plaza=None):
+        """La plaza dentro del ``mapa`` de la respuesta; el mapa trae los sectores del edificio."""
+        mapa = respuesta.json()["mapa"]
+        self.assertTrue(mapa["sectores"])
+        plaza = plaza or self.plaza
+        return next(p for s in mapa["sectores"] for p in s["plazas"] if p["id"] == plaza.pk)
 
     def _post(self, usuario, nombre, plaza=None, cuerpo=None):
         return self._como(usuario).post(_url(nombre, (plaza or self.plaza).pk), cuerpo or {}, format="json")
@@ -44,7 +54,10 @@ class AccionesDeCamaTests(BaseApiEmergencia):
     def test_reservar(self):
         respuesta = self._reservar(motivo="Lista de espera")
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        self.assertEqual(respuesta.json(), {"ok": True, "mapa": None})
+        self.assertTrue(respuesta.json()["ok"])
+        celda = self._celda(respuesta)
+        self.assertEqual(celda["estado"], "reservada")
+        self.assertEqual(celda["persona"]["dni"], "30111222")
         reserva = estadias.reserva_abierta_de(self.plaza)
         self.assertEqual(reserva.ciudadano_id, self.persona.pk)
         self.assertEqual(reserva.tipo, ReservaPlaza.Tipo.RESERVA)
@@ -52,6 +65,7 @@ class AccionesDeCamaTests(BaseApiEmergencia):
     def test_prestar_con_vencimiento(self):
         respuesta = self._post(self.jefa, "plaza-prestar", cuerpo={"dni": "30111222", "hasta": self._hasta()})
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(self._celda(respuesta)["estado"], "prestada")
         reserva = estadias.reserva_abierta_de(self.plaza)
         self.assertEqual(reserva.tipo, ReservaPlaza.Tipo.PRESTAMO)
         self.assertIsNotNone(reserva.hasta)
@@ -66,6 +80,7 @@ class AccionesDeCamaTests(BaseApiEmergencia):
         self._reservar()
         respuesta = self._post(self.jefa, "plaza-liberar", cuerpo={"motivo": "No vino"})
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(self._celda(respuesta)["estado"], "disponible")
         self.assertIsNone(estadias.reserva_abierta_de(self.plaza))
 
     def test_liberar_sin_reserva_es_400(self):
@@ -76,12 +91,14 @@ class AccionesDeCamaTests(BaseApiEmergencia):
     def test_sacar_de_servicio_y_volver(self):
         respuesta = self._post(self.jefa, "plaza-fuera-servicio", cuerpo={"motivo": "Colchón roto"})
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(self._celda(respuesta)["estado"], "fuera_servicio")
         self.plaza.refresh_from_db()
         self.assertEqual(self.plaza.estado, Plaza.Estado.FUERA_SERVICIO)
         self.assertEqual(self.plaza.motivo_fuera_servicio, "Colchón roto")
 
         respuesta = self._post(self.jefa, "plaza-volver-servicio")
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(self._celda(respuesta)["estado"], "disponible")
         self.plaza.refresh_from_db()
         self.assertEqual(self.plaza.estado, Plaza.Estado.OPERATIVA)
 

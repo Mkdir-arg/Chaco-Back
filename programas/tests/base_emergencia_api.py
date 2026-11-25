@@ -54,7 +54,8 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 
 CLAVES_RAIZ = ["casos", "casos/mios", "localidades", "mis-dispositivos", "perfil", "personas/consultar"]
 # `llegadas` y `kits` (Cambio 475) son aditivas: `dispositivo` sigue siendo `llegadas or kits`.
-CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "relevar"]
+# `plazas` (Cambio 596) es aditiva: ve algún edificio con `dispositivo.ver`.
+CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "plazas", "relevar"]
 CLAVES_LOCALIDAD = ["id", "nombre"]
 CLAVES_SUGERENCIAS = ["hay_mas", "resultados"]
 CLAVES_SUGERENCIA = ["apellido", "dni", "nombre"]
@@ -209,6 +210,13 @@ URLS_DE_KITS_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/entregas/",
     "/api/emergencia/entregas/1/",
     "/api/emergencia/entregas/1/recibir/",
+]
+
+#: Plazas y estadías (Cambio 596). Sus claves y tests están en ``test_api_emergencia_plazas``.
+URLS_DE_PLAZAS_DEL_BARRIDO = [
+    "/api/emergencia/edificios/",
+    "/api/emergencia/dispositivos/1/edificios/1/mapa/",
+    "/api/emergencia/dispositivos/1/edificios/1/estadias/",
 ]
 
 #: Las de M2 (PR 8) que llevan un id. Sus claves están arriba; los tests de cada ruta, en

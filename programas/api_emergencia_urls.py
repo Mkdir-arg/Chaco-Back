@@ -38,6 +38,11 @@ from programas.api.views_emergencia_llegadas import (
     QuitarIntegranteView,
     RechazarDerivacionView,
 )
+from programas.api.views_emergencia_plazas import (
+    EdificiosDeLaAppView,
+    EstadiasDelEdificioView,
+    MapaDelEdificioView,
+)
 from programas.api.views_emergencia_plazas_acciones import (
     FueraDeServicioView,
     LiberarPlazaView,
@@ -109,4 +114,16 @@ urlpatterns = [
     path("plazas/<int:pk>/liberar/", LiberarPlazaView.as_view(), name="plaza-liberar"),
     path("plazas/<int:pk>/fuera-servicio/", FueraDeServicioView.as_view(), name="plaza-fuera-servicio"),
     path("plazas/<int:pk>/volver-servicio/", VolverAServicioView.as_view(), name="plaza-volver-servicio"),
+    # Plazas y estadías (Cambio 596): lectura, para cualquier institución y edificio en el alcance de `dispositivo.ver`.
+    path("edificios/", EdificiosDeLaAppView.as_view(), name="edificios"),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/mapa/",
+        MapaDelEdificioView.as_view(),
+        name="edificio-mapa",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/estadias/",
+        EstadiasDelEdificioView.as_view(),
+        name="edificio-estadias",
+    ),
 ]

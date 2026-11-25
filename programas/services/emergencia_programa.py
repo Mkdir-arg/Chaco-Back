@@ -95,6 +95,8 @@ def roles_en_app(user):
       kits» (M3).
     * ``dispositivo`` — ``llegadas or kits``: **opera de verdad** en algún dispositivo. Se
       mantiene por compatibilidad con la app que todavía no lee las dos de arriba.
+    * ``plazas`` — ve al menos un edificio con ``dispositivo.ver`` en su alcance (Cambio 596):
+      abre «Plazas y estadías». Aditiva; es de Dispositivos y vale para cualquier institución.
 
     Las dos capacidades de la guardia van con alcance: integra el **Equipo** de algún
     dispositivo con un rol que la tiene, o administra el programa Dispositivos **y** su rol la
@@ -107,6 +109,9 @@ def roles_en_app(user):
     que ejercerla. Y ninguna capacidad de otro programa (``becas.campo``,
     ``inspeccion.relevar``) entra en esta cuenta (RU §6 n.° 3).
     """
+    # Import local: `plazas_app` depende de `edificio_operativo`, que importa este módulo.
+    from programas.services.plazas_app import ve_plazas
+
     llegadas = admite_familias(user)
     kits = recibe_kits(user)
     return {
@@ -114,6 +119,7 @@ def roles_en_app(user):
         "llegadas": llegadas,
         "kits": kits,
         "dispositivo": llegadas or kits,
+        "plazas": ve_plazas(user),
     }
 
 

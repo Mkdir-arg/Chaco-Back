@@ -88,6 +88,7 @@ from programas.tests.base_emergencia_api import (
     URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO,
     URLS_DE_KITS_DEL_BARRIDO,
     URLS_DE_LLEGADAS_DEL_BARRIDO,
+    URLS_DE_PLAZAS_DEL_BARRIDO,
     BaseApiEmergencia,
     urls_de_la_api_de_becas,
     urls_de_la_api_de_emergencia,
@@ -100,9 +101,9 @@ Estado = CasoEmergencia.Estado
 Prioridad = CasoEmergencia.Prioridad
 
 
-def _accesos(relevar=False, llegadas=False, kits=False):
+def _accesos(relevar=False, llegadas=False, kits=False, plazas=False):
     """Lo que contesta ``roles_en_app``: ``dispositivo`` es siempre ``llegadas or kits``."""
-    return {"relevar": relevar, "llegadas": llegadas, "kits": kits, "dispositivo": llegadas or kits}
+    return {"relevar": relevar, "llegadas": llegadas, "kits": kits, "dispositivo": llegadas or kits, "plazas": plazas}
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +276,7 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
                 + URLS_DE_KITS_DEL_BARRIDO
                 + URLS_DE_LLEGADAS_DEL_BARRIDO
                 + URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO
+                + URLS_DE_PLAZAS_DEL_BARRIDO
             ),
         )
         self.assertGreaterEqual(len(urls_de_la_api_de_becas()), 5)
