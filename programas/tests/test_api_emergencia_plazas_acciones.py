@@ -62,6 +62,14 @@ class AccionesDeCamaTests(BaseApiEmergencia):
         self.assertEqual(reserva.ciudadano_id, self.persona.pk)
         self.assertEqual(reserva.tipo, ReservaPlaza.Tipo.RESERVA)
 
+    def test_reservar_ignora_el_desde_del_cliente(self):
+        """Como la web: la reserva arranca ahora; un ``desde`` retroactivo del cliente no se respeta."""
+        antes = timezone.now()
+        respuesta = self._reservar(desde=(antes - timedelta(days=2)).isoformat())
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        reserva = estadias.reserva_abierta_de(self.plaza)
+        self.assertGreaterEqual(reserva.desde, antes)
+
     def test_prestar_con_vencimiento(self):
         respuesta = self._post(self.jefa, "plaza-prestar", cuerpo={"dni": "30111222", "hasta": self._hasta()})
         self.assertEqual(respuesta.status_code, 200, respuesta.content)

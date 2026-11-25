@@ -222,10 +222,18 @@ class CambiarPlazaTests(BaseEstadias):
         self.assertEqual(self._como(self.operador_sala).get(_url(PLAZAS_PARA_CAMBIO, en_ajeno.pk)).status_code, 404)
 
         propia = self._alojar()
-        solo_ve = self._guardia("solo_ve", ["dispositivo.ver"], [self.club])
+        # Abre el módulo (admite en otro dispositivo) pero en el del test solo ve y egresa: SIN_PERMISO, no SIN_MODULO.
+        sin_admitir = self._guardia("sin_admitir", ["dispositivo.ver", "dispositivo.admitir"], [ajeno])
+        sin_admitir = self._sumar_rol(
+            sin_admitir, ["dispositivo.ver", "dispositivo.egresar"], self.dispositivos, [self.club]
+        )
         destino = Plaza.objects.get(sector__dispositivo=self.club, codigo="C004")
-        self.assertEqual(self._cambiar(propia, destino, usuario=solo_ve).status_code, 403)
-        self.assertEqual(self._como(solo_ve).get(_url(PLAZAS_PARA_CAMBIO, propia.pk)).status_code, 403)
+        respuesta = self._cambiar(propia, destino, usuario=sin_admitir)
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.json()["code"], "SIN_PERMISO")
+        respuesta = self._como(sin_admitir).get(_url(PLAZAS_PARA_CAMBIO, propia.pk))
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.json()["code"], "SIN_PERMISO")
 
     def test_un_destino_de_un_tipo_que_el_dispositivo_ya_no_admite_es_400(self):
         """Mutación: sin validar contra ``plazas_para_ingresar`` el cambio entra (200)."""
