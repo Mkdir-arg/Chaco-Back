@@ -132,3 +132,14 @@ class FuentesExtraTests(SimpleTestCase):
     @override_settings(APP_CAMPO_URL="javascript:alert(1)")
     def test_una_direccion_que_no_es_http_no_entra(self):
         self.assertIn("form-action 'self';", _politica())
+
+    def test_un_host_mal_cargado_no_abre_la_politica(self):
+        for valor in ("https://*", "https://a.ar;worker-src *", "https://a.ar b.ar", "https://u:clave@a.ar"):
+            with self.subTest(valor=valor), override_settings(APP_CAMPO_URL=valor):
+                politica = _politica()
+                self.assertIn("form-action 'self';", politica)
+                self.assertNotIn("worker-src", politica)
+
+    @override_settings(APP_CAMPO_URL="http://localhost:8100")
+    def test_un_host_con_puerto_entra(self):
+        self.assertIn("form-action 'self' http://localhost:8100;", _politica())
