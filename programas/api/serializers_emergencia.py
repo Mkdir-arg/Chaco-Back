@@ -237,6 +237,9 @@ class PerfilEmergenciaSerializer(serializers.Serializer):
     dispositivo = serializers.BooleanField(
         help_text="`llegadas` o `kits`: opera en algún dispositivo. Se mantiene por compatibilidad."
     )
+    plazas = serializers.BooleanField(
+        help_text="Ve al menos un edificio con `dispositivo.ver` en su alcance: «Plazas y estadías» (Cambio 596)."
+    )
 
 
 # ---------------------------------------------------------------------------

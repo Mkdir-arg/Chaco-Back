@@ -38,6 +38,11 @@ from programas.api.views_emergencia_llegadas import (
     QuitarIntegranteView,
     RechazarDerivacionView,
 )
+from programas.api.views_emergencia_plazas import (
+    EdificiosDeLaAppView,
+    EstadiasDelEdificioView,
+    MapaDelEdificioView,
+)
 from programas.api.views_emergencia_sin_derivacion import AvisarALaMesaView, IngresoDirectoView
 
 app_name = "emergencia_api"
@@ -96,4 +101,16 @@ urlpatterns = [
         name="dispositivo-ingreso-directo",
     ),
     path("dispositivos/<int:dispositivo_id>/avisar-mesa/", AvisarALaMesaView.as_view(), name="dispositivo-avisar-mesa"),
+    # Plazas y estadías (Cambio 596): lectura, para cualquier institución y edificio en el alcance de `dispositivo.ver`.
+    path("edificios/", EdificiosDeLaAppView.as_view(), name="edificios"),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/mapa/",
+        MapaDelEdificioView.as_view(),
+        name="edificio-mapa",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/estadias/",
+        EstadiasDelEdificioView.as_view(),
+        name="edificio-estadias",
+    ),
 ]
