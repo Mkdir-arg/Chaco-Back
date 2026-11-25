@@ -493,7 +493,7 @@ def _plazas_por_sector(sector_ids):
     por_sector = {pk: [] for pk in sector_ids}
     plazas = (
         Plaza.objects.filter(sector_id__in=sector_ids)
-        .only("id", "sector_id", "codigo", "estado", "motivo_fuera_servicio")
+        .only("id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio")
         .order_by("sector_id", "codigo")
     )
     for plaza in plazas:
@@ -503,6 +503,10 @@ def _plazas_por_sector(sector_ids):
         pk: sorted(fila, key=lambda p: clave_natural(p.codigo))[:TOPE_PLAZAS_POR_SECTOR]
         for pk, fila in por_sector.items()
     }
+
+
+#: El agrupado por sector, sin el guion bajo, para quien arma el mismo mapa por otro canal (la API de la app).
+plazas_por_sector = _plazas_por_sector
 
 
 def _reservas_abiertas_por_plaza(plazas):
