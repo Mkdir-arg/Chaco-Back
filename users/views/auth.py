@@ -14,6 +14,7 @@ from django.db import transaction
 from django.shortcuts import redirect, resolve_url
 from django.urls import reverse, reverse_lazy
 
+from core import rbac
 from core.services.throttle import rate_limit_excedido
 from users.forms.auth import UsuariosAuthenticationForm
 from users.models import Profile
@@ -161,3 +162,9 @@ class EstablecerContrasenaView(PasswordResetConfirmView):
         if self.user is not None:
             Profile.objects.filter(user=self.user).update(debe_cambiar_contrasena=False)
         return response
+
+    def get_success_url(self):
+        # Al usuario de la app el login del backoffice lo rechaza: se lo manda a la app.
+        if settings.APP_CAMPO_URL and self.user is not None and rbac.es_solo_campo(self.user):
+            return settings.APP_CAMPO_URL
+        return super().get_success_url()

@@ -62,6 +62,10 @@ def enviar_credenciales_usuario(
     if not user.email:
         raise ValueError("El usuario no tiene un correo electrónico informado.")
 
+    # El usuario del enlace es el de la app de campo: el login del backoffice lo
+    # rechaza, así que la dirección de ingreso es la de la app (o ninguna, si el
+    # ambiente no la configuró).
+    enlace_login = settings.APP_CAMPO_URL if enlace_establecer else f"{protocol}://{domain}{reverse('users:login')}"
     contexto = {
         "user": user,
         "password_provisoria": password_provisoria,
@@ -69,7 +73,7 @@ def enviar_credenciales_usuario(
         "rol": rol,
         "protocol": protocol,
         "domain": domain,
-        "enlace_login": f"{protocol}://{domain}{reverse('users:login')}",
+        "enlace_login": enlace_login,
         **contexto_pie(),
     }
 
