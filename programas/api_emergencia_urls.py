@@ -43,6 +43,13 @@ from programas.api.views_emergencia_plazas import (
     EstadiasDelEdificioView,
     MapaDelEdificioView,
 )
+from programas.api.views_emergencia_plazas_acciones import (
+    FueraDeServicioView,
+    LiberarPlazaView,
+    PrestarPlazaView,
+    ReservarPlazaView,
+    VolverAServicioView,
+)
 from programas.api.views_emergencia_sin_derivacion import AvisarALaMesaView, IngresoDirectoView
 
 app_name = "emergencia_api"
@@ -101,6 +108,12 @@ urlpatterns = [
         name="dispositivo-ingreso-directo",
     ),
     path("dispositivos/<int:dispositivo_id>/avisar-mesa/", AvisarALaMesaView.as_view(), name="dispositivo-avisar-mesa"),
+    # Acciones de cama (Cambio 598): reservar, prestar, liberar, sacar de servicio y volver a servicio.
+    path("plazas/<int:pk>/reservar/", ReservarPlazaView.as_view(), name="plaza-reservar"),
+    path("plazas/<int:pk>/prestar/", PrestarPlazaView.as_view(), name="plaza-prestar"),
+    path("plazas/<int:pk>/liberar/", LiberarPlazaView.as_view(), name="plaza-liberar"),
+    path("plazas/<int:pk>/fuera-servicio/", FueraDeServicioView.as_view(), name="plaza-fuera-servicio"),
+    path("plazas/<int:pk>/volver-servicio/", VolverAServicioView.as_view(), name="plaza-volver-servicio"),
     # Plazas y estadías (Cambio 596): lectura, para cualquier institución y edificio en el alcance de `dispositivo.ver`.
     path("edificios/", EdificiosDeLaAppView.as_view(), name="edificios"),
     path(
