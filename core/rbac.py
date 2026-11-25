@@ -121,6 +121,25 @@ CATALOGO = [
         ],
     },
     {
+        # Stock de insumos por edificio (análisis 010, RN-010-13). Módulo propio y acotado a DISPOSITIVOS por
+        # el mismo motivo que ``dispositivos_emergencia``: se evalúan con ``puede_operar_edificio`` (Equipo del
+        # dispositivo y alcance por edificio), así que tienen que poder tildarse en los roles de ese programa.
+        # Cada acción exige además ``stock.ver`` sobre el mismo edificio; entregar exige ``ciudadano.ver``.
+        # ``dispositivo.ver_todos`` amplía solo ``stock.ver``. Recibir kits sigue siendo
+        # ``emergencia.recibir_kit``: la suma al stock es consecuencia de la recepción.
+        "modulo": "dispositivos_stock",
+        "label": "Stock de insumos",
+        "tab": "dispositivos",
+        "alcance": "programa",
+        "programas": ("DISPOSITIVOS",),
+        "capacidades": [
+            ("stock.ver", "Ver el stock de insumos de sus edificios"),
+            ("stock.entregar", "Entregar insumos a personas desde el stock de su edificio"),
+            ("stock.ingresar", "Cargar ingresos manuales y traspasar stock entre edificios"),
+            ("stock.ajustar", "Ajustar el stock de un edificio por conteo"),
+        ],
+    },
+    {
         # Mesa de Emergencia. Las cinco se evalúan con alcance sobre el programa EMERGENCIA
         # (``programas.services.emergencia_programa.puede_en_programa_emergencia``) y solo
         # se pueden tildar en un rol de ese programa.

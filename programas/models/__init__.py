@@ -521,6 +521,17 @@ class TipoDispositivo(TimeStamped):
             "Sus camas siguen sumando en los totales."
         ),
     )
+    # Análisis 010 (RN-010-01): independiente de `maneja_plazas`. `NOT NULL` con `DEFAULT` real en la base
+    # (como `ubicacion_reservada`): el código viejo da de alta tipos sin conocerla.
+    maneja_stock = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="Lleva stock de insumos",
+        help_text=(
+            "Sus instituciones llevan stock por edificio: lo recibido de la mesa, ingresos, entregas a "
+            "personas, traspasos y ajustes."
+        ),
+    )
     activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
 
     class Meta:
@@ -6822,3 +6833,7 @@ class TrazaEntrega(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Las trazas de una entrega no se eliminan.")
+
+
+# Stock de insumos (análisis 010): vive en su módulo; se importa al final para que `programas.models` los exponga.
+from programas.models.stock import MovimientoStock, OperacionStock, SaldoStock  # noqa: E402,F401
