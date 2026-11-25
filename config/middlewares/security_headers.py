@@ -25,9 +25,13 @@ configurada pasa lo mismo con los hosts de Google Maps, por la misma razón: sin
 key no hay mapa y la política no se abre.
 """
 
+import re
 from urllib.parse import urlsplit
 
 from django.conf import settings
+
+#: Un host con puerto opcional, sin comodín, espacios, ``;`` ni usuario:clave.
+HOST_VALIDO = re.compile(r"[A-Za-z0-9.-]+(:\d{1,5})?")
 
 RECAPTCHA_HOSTS = ("https://www.google.com", "https://www.gstatic.com")
 
@@ -110,9 +114,13 @@ def parsear_fuentes_extra(texto):
 
 
 def _origen(url):
-    """``https://app.ejemplo/x`` → ``https://app.ejemplo``; vacío si no es http(s) con host."""
+    """``https://app.ejemplo/x`` → ``https://app.ejemplo``; vacío si no es http(s) con host.
+
+    El host se valida: ``urlsplit`` deja en ``netloc`` comodines, espacios, ``;`` y
+    usuario:clave, y un valor mal cargado abriría ``form-action`` o metería directivas.
+    """
     partes = urlsplit(url or "")
-    if partes.scheme not in ("http", "https") or not partes.netloc:
+    if partes.scheme not in ("http", "https") or not HOST_VALIDO.fullmatch(partes.netloc):
         return ""
     return f"{partes.scheme}://{partes.netloc}"
 
