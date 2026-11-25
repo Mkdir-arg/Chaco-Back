@@ -86,6 +86,7 @@ from programas.tests.base_emergencia_api import (
     URL_RAIZ,
     URL_SUGERIR,
     URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO,
+    URLS_DE_ESTADIAS_DEL_BARRIDO,
     URLS_DE_KITS_DEL_BARRIDO,
     URLS_DE_LLEGADAS_DEL_BARRIDO,
     URLS_DE_PLAZAS_DEL_BARRIDO,
@@ -275,6 +276,7 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
                 ]
                 + URLS_DE_KITS_DEL_BARRIDO
                 + URLS_DE_LLEGADAS_DEL_BARRIDO
+                + URLS_DE_ESTADIAS_DEL_BARRIDO
                 + URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO
                 + URLS_DE_PLAZAS_DEL_BARRIDO
             ),

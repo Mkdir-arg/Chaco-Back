@@ -48,6 +48,10 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/casos/{id}/cancelar-ingreso/` | llegadas | Cancelar el ingreso (§13.9) |
 | `POST /api/emergencia/dispositivos/{id}/ingreso-directo/` | llegadas | «Ingresar igual» (multipart, idempotente, se encola) (§13.10) |
 | `POST /api/emergencia/dispositivos/{id}/avisar-mesa/` | llegadas | «Avisar a la mesa» (multipart, idempotente) (§13.10) |
+| `GET /api/emergencia/motivos-egreso/` | módulo | Motivos de egreso vigentes (§15) |
+| `POST /api/emergencia/estadias/{id}/egresar/` | `dispositivo.egresar` | Egreso de una persona (§15) |
+| `GET /api/emergencia/estadias/{id}/plazas-para-cambio/` | `dispositivo.admitir` | Plazas libres del dispositivo (§15) |
+| `POST /api/emergencia/estadias/{id}/cambiar-plaza/` | `dispositivo.admitir` | Cambio de plaza de una estadía (§15) |
 | `POST /api/emergencia/plazas/{id}/reservar/` | módulo | Reservar una cama (§16) |
 | `POST /api/emergencia/plazas/{id}/prestar/` | módulo | Prestar una cama (§16) |
 | `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§16) |
@@ -120,10 +124,12 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 |---|---|---|---|
 | 401 | — | Sin token o token inválido | Volver al login |
 | 403 | `SIN_MODULO` | El usuario no tiene el permiso de la ruta | Mostrar `detail`; no reintentar |
+| 403 | `SIN_PERMISO` | Ve la estadía pero no tiene la capacidad de la acción (§15) | Mostrar `detail`; no reintentar |
 | 400 | `VALIDACION` | El envío no es válido (§6) | Mostrar el detalle por campo; el agente corrige y reenvía con el **mismo** `uuid_cliente` |
 | 400 | `VALIDACION` + `persona_registrada` | El DNI ya está registrado como otra persona (§6, «DNI ya registrado») | Preguntar «¿Es esa persona?» con las tres salidas; **no** reintentar solo desde la cola |
 | 409 | `UUID_EN_USO` | Ese `uuid_cliente` ya creó un caso de **otro** usuario, o ya es el de la recepción de **otra** entrega | No reintentar con ese identificador |
 | 409 | — (trae `estado_actual`) | La entrega ya fue recibida o la mesa la canceló (§12); el caso ya no está como la acción necesita: otra guardia actuó desde su teléfono o el backoffice, la mesa canceló, el cron venció (§13) | Mostrar `detail` y recargar con `estado_actual` (§13.1) |
+| 409 | `EGRESO_CON_FORMULARIO` | El tipo del dispositivo pide formulario de egreso (§15) | Mostrar `detail`: el egreso se registra desde el backoffice |
 | 404 | — | El dispositivo, la entrega, la derivación o el caso no existen, o no son del usuario | Recargar «mis dispositivos» |
 | 429 | — | Tope de consultas de identidad (§4, que también cuenta cada rechazo «DNI ya registrado» de §6) o de búsquedas por DNI (§13.2). Trae `Retry-After` | Identidad: seguir con carga manual del nombre. Búsqueda: esperar `Retry-After` y volver a buscar |
 
@@ -1136,33 +1142,6 @@ hay nada que cargar»), que cuenta como sección completa. `ficha_completa` es `
 tienen algún dato o `sin_datos`. Los nombres de campo no se repiten entre secciones: por eso los
 errores 400 usan el nombre plano del campo.
 
-## 16. Acciones de cama (Cambio 598)
-
-Cinco `POST` sobre una cama (`{id}` = `plaza.id` del mapa del edificio). Todos bajo el permiso de módulo; la
-capacidad de cada acción se resuelve por cama, igual que la web (`PlazaReservarView` y hermanas, `acciones_de_plaza`).
-Las acciones que ofrece cada cama son las de `plazas[].acciones` del mapa: la app solo muestra esas.
-
-| Ruta | Cuerpo | Capacidad |
-|---|---|---|
-| `plazas/{id}/reservar/` | `{"dni", "sexo"?: "F\|M\|X", "desde"?: iso, "hasta"?: iso, "motivo"?: ""}` | `dispositivo.admitir` + `ciudadano.ver` |
-| `plazas/{id}/prestar/` | igual, con `hasta` **obligatorio** | `dispositivo.admitir` + `ciudadano.ver` |
-| `plazas/{id}/liberar/` | `{"motivo"?: ""}` | `dispositivo.admitir` |
-| `plazas/{id}/fuera-servicio/` | `{"motivo"}` (obligatorio) | `dispositivo.editar` |
-| `plazas/{id}/volver-servicio/` | sin cuerpo | `dispositivo.editar` |
-
-La persona se busca **solo por DNI en el Legajo** (`buscar_ciudadano_por_dni`, acepta puntos); no se da de alta desde acá.
-`sexo` se acepta pero no se usa. `desde` no puede ser futuro; `hasta` tiene que ser posterior a ahora.
-
-**200** `{"ok": true, "mapa": {...}}`: el mapa del edificio de la cama, ya actualizado (el mismo cuerpo de
-`GET dispositivos/{d}/edificios/{e}/mapa/`). «Sacar de servicio» y «volver a servicio» son idempotentes: si la cama ya
-estaba así, 200 sin cambios.
-
-| Código | Cuándo | Cuerpo |
-|---|---|---|
-| 400 | cuerpo inválido; la cama no admite la acción en su estado (ocupada, ya reservada, institución no activa…); persona sin Legajo | `{"code": "VALIDACION", "detail", "<campo>": [...], "non_field_errors": [...]}`; la cama ocupada que se quiere sacar de servicio trae el motivo de `bloqueo_de_plaza` en `detail`; persona inexistente: `code: "PERSONA_NO_ENCONTRADA"` |
-| 403 | ve la cama pero no tiene la capacidad de la acción | `{"detail", "code": "SIN_PERMISO"}` (o `SIN_MODULO` si no abre el módulo) |
-| 404 | la cama no existe, es de un sector dado de baja o de un edificio fuera de su alcance | `{"detail": "No encontrado."}` |
-
 ## 14. Plazas y estadías (lectura) — Cambio 596
 
 Vale para **cualquier** institución y edificio, de Emergencia o no. Quién ve qué es el alcance de la web
@@ -1217,3 +1196,41 @@ un edificio con `dispositivo.ver` en su alcance. Las demás claves no cambian.
 
 `origen` es `emergencia` (con `emergencia.caso_numero`) o `dispositivo` (con `emergencia: null`). Solo
 aparecen las estadías con plaza en este edificio. Una página fuera de rango devuelve la última.
+
+## 15. Egreso y cambio de plaza de una estadía (Cambio 597)
+
+Vale para **cualquier** dispositivo y edificio, con el alcance de la web: una estadía de un edificio que el usuario no ve (o que no existe) es **404**; verla pero no tener la capacidad de la acción es **403** `{"detail", "code": "SIN_PERMISO"}`. Egresar pide `dispositivo.egresar`; cambiar de plaza, `dispositivo.admitir`. Las reglas son las de `estadias.egresar_persona` / `cambiar_plaza`.
+
+- `GET motivos-egreso/` → `[{"id", "nombre"}]` (solo activos).
+- `POST estadias/{id}/egresar/` body `{"motivo_egreso_id", "destino", "pertenencias_devueltas": bool, "observaciones": "", "fecha_egreso": iso|null}` → 200 `{"ok": true, "mapa": {…}}`. Motivo ausente o inactivo, destino vacío, fecha futura o estadía ya cerrada: 400 `VALIDACION` con el campo (`motivo`, `destino`, `fecha_egreso`, `estado`). Si el tipo del dispositivo pide un formulario de egreso: 409 `{"detail": "Este egreso se registra desde el backoffice.", "code": "EGRESO_CON_FORMULARIO"}`. El 403 `SIN_PERMISO` va antes que el 409.
+- `GET estadias/{id}/plazas-para-cambio/` → `{"sectores": [{"id", "nombre", "plazas": [{"id", "codigo", "tipo"}]}]}`: las libres del mismo dispositivo (sin la plaza actual ni sectores sin libres).
+- `POST estadias/{id}/cambiar-plaza/` body `{"plaza_id", "motivo"}` → 200 `{"ok": true, "mapa": {…}}`. Plaza ocupada, de otro dispositivo o de un tipo que el dispositivo no admite, o motivo vacío: 400. Si la estadía no tenía plaza, se le asigna (motivo opcional), como la web.
+
+`mapa` es el mismo cuerpo que `GET dispositivos/{id}/edificios/{id}/mapa/` (§14) del edificio de la plaza (en el cambio, el de la plaza nueva), para repintar sin otro pedido; `null` si la estadía no tenía plaza o el edificio no está en el alcance.
+
+## 16. Acciones de cama (Cambio 598)
+
+Cinco `POST` sobre una cama (`{id}` = `plaza.id` del mapa del edificio). Todos bajo el permiso de módulo; la
+capacidad de cada acción se resuelve por cama, igual que la web (`PlazaReservarView` y hermanas, `acciones_de_plaza`).
+Las acciones que ofrece cada cama son las de `plazas[].acciones` del mapa: la app solo muestra esas.
+
+| Ruta | Cuerpo | Capacidad |
+|---|---|---|
+| `plazas/{id}/reservar/` | `{"dni", "sexo"?: "F\|M\|X", "desde"?: iso, "hasta"?: iso, "motivo"?: ""}` | `dispositivo.admitir` + `ciudadano.ver` |
+| `plazas/{id}/prestar/` | igual, con `hasta` **obligatorio** | `dispositivo.admitir` + `ciudadano.ver` |
+| `plazas/{id}/liberar/` | `{"motivo"?: ""}` | `dispositivo.admitir` |
+| `plazas/{id}/fuera-servicio/` | `{"motivo"}` (obligatorio) | `dispositivo.editar` |
+| `plazas/{id}/volver-servicio/` | sin cuerpo | `dispositivo.editar` |
+
+La persona se busca **solo por DNI en el Legajo** (`buscar_ciudadano_por_dni`, acepta puntos); no se da de alta desde acá.
+`sexo` se acepta pero no se usa. `desde` se acepta y se ignora: la reserva arranca ahora. `hasta` tiene que ser posterior a ahora. Si el servicio rechaza a la persona (p. ej. ya tiene otra plaza), el error sale en la clave `dni`, como en la web.
+
+**200** `{"ok": true, "mapa": {...}}`: el mapa del edificio de la cama, ya actualizado (el mismo cuerpo de
+`GET dispositivos/{d}/edificios/{e}/mapa/`). «Sacar de servicio» y «volver a servicio» son idempotentes: si la cama ya
+estaba así, 200 sin cambios.
+
+| Código | Cuándo | Cuerpo |
+|---|---|---|
+| 400 | cuerpo inválido; la cama no admite la acción en su estado (ocupada, ya reservada, institución no activa…); persona sin Legajo | `{"code": "VALIDACION", "detail", "<campo>": [...], "non_field_errors": [...]}`; la cama ocupada que se quiere sacar de servicio trae el motivo de `bloqueo_de_plaza` en `detail`; persona inexistente: `code: "PERSONA_NO_ENCONTRADA"` |
+| 403 | ve la cama pero no tiene la capacidad de la acción | `{"detail", "code": "SIN_PERMISO"}` (o `SIN_MODULO` si no abre el módulo) |
+| 404 | la cama no existe, es de un sector dado de baja o de un edificio fuera de su alcance | `{"detail": "No encontrado."}` |

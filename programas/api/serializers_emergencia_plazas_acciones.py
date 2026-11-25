@@ -12,8 +12,8 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 class ReservarPlazaEnvioSerializer(serializers.Serializer):
     """Reservar: ``{dni, sexo?, desde?, hasta?, motivo?}``.
 
-    ``sexo`` se acepta por contrato con la app pero no se usa: la web tampoco da de alta personas
-    desde «Reservar» (``ReservarPlazaForm``), solo busca en el Legajo por DNI.
+    ``desde`` y ``sexo`` se aceptan por contrato con la app pero no se usan: la reserva arranca ahora, y la web
+    tampoco da de alta personas desde «Reservar» (``ReservarPlazaForm``), solo busca en el Legajo por DNI.
     """
 
     dni = serializers.CharField(max_length=32)

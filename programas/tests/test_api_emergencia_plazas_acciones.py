@@ -145,7 +145,9 @@ class AccionesDeCamaTests(BaseApiEmergencia):
     def test_la_misma_persona_no_reserva_dos_plazas(self):
         self.assertEqual(self._reservar().status_code, 200)
         segunda = Plaza.objects.filter(sector__dispositivo=self.club).order_by("codigo")[1]
-        self.assertEqual(self._reservar(segunda).status_code, 400)
+        respuesta = self._reservar(segunda)
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("dni", respuesta.json())
 
     # --- Persona -----------------------------------------------------------------------------
 

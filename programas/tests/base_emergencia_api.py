@@ -239,6 +239,14 @@ URLS_DE_LLEGADAS_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/plazas/",
 ]
 
+#: Las de egreso y cambio de plaza (Cambio 597); los tests estan en test_api_emergencia_estadias.
+URLS_DE_ESTADIAS_DEL_BARRIDO = [
+    "/api/emergencia/estadias/1/cambiar-plaza/",
+    "/api/emergencia/estadias/1/egresar/",
+    "/api/emergencia/estadias/1/plazas-para-cambio/",
+    "/api/emergencia/motivos-egreso/",
+]
+
 #: Las de las acciones de cama (Cambio 598).
 URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO = [
     "/api/emergencia/plazas/1/fuera-servicio/",
