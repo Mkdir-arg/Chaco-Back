@@ -32,6 +32,7 @@ from programas.services.avisos_emergencia import por_vencer
 from programas.services.emergencia import NECESIDADES
 from programas.services.emergencia_campo import acotar_relevado_en
 from programas.services.emergencia_ingreso_comun import derivacion_vencida
+from programas.services.kits import edificios_para_recibir, suma_al_stock
 
 FOTO_EXTENSIONES_APP = (".jpg", ".jpeg")
 MENSAJE_FOTO_JPEG = "La foto tiene que llegar en JPEG. La app convierte y comprime antes de enviar."
@@ -240,6 +241,9 @@ class PerfilEmergenciaSerializer(serializers.Serializer):
     plazas = serializers.BooleanField(
         help_text="Ve al menos un edificio con `dispositivo.ver` en su alcance: «Plazas y estadías» (Cambio 596)."
     )
+    stock = serializers.BooleanField(
+        help_text="Ve el stock (`stock.ver`) de al menos un edificio de una institución que lleva stock: «Stock»."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +298,12 @@ class EntregaKitSerializer(serializers.ModelSerializer):
     """Una entrega de kits como la ve la guardia: la misma forma en la lista y en el detalle."""
 
     lineas = LineaEntregaKitSerializer(many=True, read_only=True)
+    requiere_edificio = serializers.SerializerMethodField(
+        help_text="Hay que elegir `edificio_id` al recibirla: no tiene edificio y la institución lleva stock."
+    )
+    edificios = serializers.SerializerMethodField(
+        help_text="Entre cuáles elige quien recibe (`{id, nombre}`). Vacía si no hay nada que elegir."
+    )
 
     class Meta:
         model = EntregaKit
@@ -306,8 +316,37 @@ class EntregaKitSerializer(serializers.ModelSerializer):
             "observacion_mesa",
             "observacion_dispositivo",
             "lineas",
+            "requiere_edificio",
+            "edificios",
         ]
         read_only_fields = fields
+
+    def _de_su_dispositivo(self, entrega) -> dict:
+        """``{"requiere_edificio", "edificios"}`` de una entrega **sin edificio**, calculado una vez por dispositivo.
+
+        La lista trae muchas entregas del mismo dispositivo y la respuesta solo depende de él y del usuario: se
+        resuelve una vez y no por fila (la lista no crece en consultas con las entregas).
+        """
+
+        memo = self.__dict__.setdefault("_memo_por_dispositivo", {})
+        if entrega.dispositivo_id not in memo:
+            usuario = getattr(self.context.get("request"), "user", None)
+            lleva = suma_al_stock(entrega.dispositivo)
+            edificios = edificios_para_recibir(usuario, entrega) if lleva and usuario is not None else []
+            memo[entrega.dispositivo_id] = {
+                "requiere_edificio": bool(lleva),
+                "edificios": [{"id": e.pk, "nombre": e.nombre} for e in edificios],
+            }
+        return memo[entrega.dispositivo_id]
+
+    def get_requiere_edificio(self, entrega) -> bool:
+        # Solo una entrega sin edificio (anteriores al Cambio 523) puede pedirlo: el resto no consulta nada.
+        return entrega.edificio_id is None and self._de_su_dispositivo(entrega)["requiere_edificio"]
+
+    def get_edificios(self, entrega) -> list:
+        if entrega.edificio_id is not None:
+            return []
+        return self._de_su_dispositivo(entrega)["edificios"]
 
 
 class _CantidadesField(serializers.DictField):
@@ -359,6 +398,12 @@ class RecepcionKitEnvioSerializer(serializers.Serializer):
         help_text="Obligatorio. Foto del remito en JPEG, hasta 5 MB. HEIC/HEIF se convierten en la app.",
     )
     observacion = _texto(help_text="Lo que la mesa tiene que saber de esta entrega. Opcional.")
+    edificio_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Edificio en que se recibe. Obligatorio si la entrega trae `requiere_edificio: true`; si no, se ignora.",
+    )
 
     def cantidades_por_item(self):
         """``{item_id: cantidad}`` con las claves como enteros: lo que recibe ``recibir_entrega``."""

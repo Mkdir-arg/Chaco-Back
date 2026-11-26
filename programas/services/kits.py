@@ -123,6 +123,10 @@ SIN_EDIFICIO_PARA_EL_STOCK = (
     "{nombre} lleva stock y no tiene un edificio activo: vinculale uno antes de enviarle kits, "
     "porque lo que reciba se suma al stock de su edificio."
 )
+SIN_EDIFICIO_PARA_RECIBIR = (
+    "{nombre} lleva stock y no tiene un edificio activo: vinculale uno para recibir esta entrega, "
+    "porque lo que llegue se suma al stock de su edificio."
+)
 ELEGI_EL_EDIFICIO_DE_LA_RECEPCION = "Elegí en qué edificio se recibe: lo recibido se suma al stock de ese edificio."
 EDIFICIO_NO_ES_DEL_DISPOSITIVO = "El edificio tiene que ser uno de los edificios vinculados a este dispositivo."
 SIN_DIFERENCIA_QUE_CERRAR = "La entrega {numero} no tiene una diferencia para cerrar."
@@ -731,7 +735,7 @@ def _edificio_de_la_recepcion(usuario, entrega, edificio):
     if pk is None:
         if not Edificio.objects.filter(dispositivos=entrega.dispositivo_id, activo=True).exists():
             # Sin edificios activos no hay qué elegir (la pantalla no dibuja el desplegable): se dice qué falta.
-            raise ValidationError({"edificio": SIN_EDIFICIO_PARA_EL_STOCK.format(nombre=entrega.dispositivo.nombre)})
+            raise ValidationError({"edificio": SIN_EDIFICIO_PARA_RECIBIR.format(nombre=entrega.dispositivo.nombre)})
         raise ValidationError({"edificio": ELEGI_EL_EDIFICIO_DE_LA_RECEPCION})
     Dispositivo.objects.select_for_update().filter(pk=entrega.dispositivo_id).first()
     vinculado = Edificio.dispositivos.through.objects.filter(dispositivo_id=entrega.dispositivo_id, edificio_id=pk)

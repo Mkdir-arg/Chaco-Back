@@ -9,6 +9,7 @@ misma función que usa la recepción web: la vista solo traduce lo que rechaza
 La base, los permisos y los traductores están en ``views_emergencia``.
 """
 
+from django.core.exceptions import ValidationError
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -74,6 +75,18 @@ class MisDispositivosEmergenciaView(_VistaDeCampo):
         return Response(MiDispositivoEmergenciaSerializer(filas, many=True).data)
 
 
+def _con_edificio_id(accion):
+    """Corre ``accion``; el error del servicio sobre ``edificio`` sale con la clave que manda la app: ``edificio_id``."""
+    try:
+        return accion()
+    except ValidationError as error:
+        if hasattr(error, "error_dict") and "edificio" in error.error_dict:
+            errores = dict(error.error_dict)
+            errores["edificio_id"] = errores.pop("edificio")
+            raise ValidationError(errores) from error
+        raise
+
+
 class _VistaDeKits(_VistaDeCampo):
     """Base de M3: token (o sesión), el módulo abierto y recibir kits en algún dispositivo."""
 
@@ -110,7 +123,7 @@ class EntregasDelDispositivoView(_VistaDeKits):
             entregas = selectores_kits.entregas_pendientes_de(dispositivo, request.user)
         else:
             entregas = selectores_kits.entregas_de(dispositivo, request.user)[:TOPE_ENTREGAS]
-        return Response(EntregaKitSerializer(entregas, many=True).data)
+        return Response(EntregaKitSerializer(entregas, many=True, context={"request": request}).data)
 
 
 class EntregaKitDetalleView(_VistaDeKits):
@@ -119,7 +132,7 @@ class EntregaKitDetalleView(_VistaDeKits):
         description="Una entrega de un dispositivo donde el usuario recibe kits, con sus líneas.",
     )
     def get(self, request, pk):
-        return Response(EntregaKitSerializer(self._entrega(request, pk)).data)
+        return Response(EntregaKitSerializer(self._entrega(request, pk), context={"request": request}).data)
 
 
 class RecibirEntregaKitView(_VistaDeKits):
@@ -135,7 +148,8 @@ class RecibirEntregaKitView(_VistaDeKits):
                 description=(
                     "La recepción no es válida. Trae `code: VALIDACION`, `detail` legible y el detalle por campo: "
                     "falta `uuid_cliente`, falta la cantidad de algún ítem o no es un entero ≥ 0 (`cantidades`), "
-                    "falta el remito, no es JPEG o pasa de 5 MB (`remito`)."
+                    "falta el remito, no es JPEG o pasa de 5 MB (`remito`), o `edificio_id` falta, no es un edificio "
+                    "vinculado al dispositivo o está inactivo."
                 )
             ),
             401: _SIN_TOKEN,
@@ -162,13 +176,16 @@ class RecibirEntregaKitView(_VistaDeKits):
         if not entrada.is_valid():
             return _respuesta_de_validacion(entrada.errors)
         recibida, respuesta = self._ejecutar(
-            lambda: servicio_kits.recibir_entrega(
-                entrega,
-                request.user,
-                entrada.cantidades_por_item(),
-                entrada.validated_data["remito"],
-                observacion=entrada.validated_data["observacion"],
-                uuid_cliente=entrada.validated_data["uuid_cliente"],
+            lambda: _con_edificio_id(
+                lambda: servicio_kits.recibir_entrega(
+                    entrega,
+                    request.user,
+                    entrada.cantidades_por_item(),
+                    entrada.validated_data["remito"],
+                    observacion=entrada.validated_data["observacion"],
+                    uuid_cliente=entrada.validated_data["uuid_cliente"],
+                    edificio=entrada.validated_data.get("edificio_id"),
+                )
             )
         )
         if respuesta is not None:

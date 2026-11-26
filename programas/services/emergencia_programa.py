@@ -9,6 +9,7 @@ en que un rol de otro programa terminaba abriendo un módulo ajeno.
 
 from core import rbac
 from programas.services.dispositivos import (
+    CAP_STOCK_VER,
     dispositivos_en_alcance,
     dispositivos_operados,
     puede_configurar_dispositivos,
@@ -97,6 +98,8 @@ def roles_en_app(user):
       mantiene por compatibilidad con la app que todavía no lee las dos de arriba.
     * ``plazas`` — ve al menos un edificio con ``dispositivo.ver`` en su alcance (Cambio 596):
       abre «Plazas y estadías». Aditiva; es de Dispositivos y vale para cualquier institución.
+    * ``stock`` — ve el stock de al menos un edificio activo de una institución que lleva stock, con ``stock.ver``
+      (análisis 010, §12.1): abre «Stock». Aditiva.
 
     Las dos capacidades de la guardia van con alcance: integra el **Equipo** de algún
     dispositivo con un rol que la tiene, o administra el programa Dispositivos **y** su rol la
@@ -109,8 +112,9 @@ def roles_en_app(user):
     que ejercerla. Y ninguna capacidad de otro programa (``becas.campo``,
     ``inspeccion.relevar``) entra en esta cuenta (RU §6 n.° 3).
     """
-    # Import local: `plazas_app` depende de `edificio_operativo`, que importa este módulo.
+    # Import local: `plazas_app` y `stock_app` dependen de `edificio_operativo`, que importa este módulo.
     from programas.services.plazas_app import ve_plazas
+    from programas.services.stock_app import ve_stock
 
     llegadas = admite_familias(user)
     kits = recibe_kits(user)
@@ -120,6 +124,7 @@ def roles_en_app(user):
         "kits": kits,
         "dispositivo": llegadas or kits,
         "plazas": ve_plazas(user),
+        "stock": ve_stock(user),
     }
 
 
@@ -154,10 +159,20 @@ def recibe_kits(usuario):
     return dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT).exists()
 
 
+def _lleva_stock_en_su_equipo(user):
+    """¿Integra el Equipo de una institución que lleva stock con un rol que tiene ``stock.ver``? (análisis 010, §12.1).
+
+    Es lo que abre el módulo a quien **solo** lleva stock: sin esto, el login no le traería ``"emergencia"``.
+    """
+
+    return dispositivos_operados(user, CAP_STOCK_VER).filter(tipo__maneja_stock=True).exists()
+
+
 def _es_de_la_guardia(user):
     return (
         dispositivos_operados(user, CAP_ADMITIR).exists()
         or dispositivos_operados(user, CAP_RECIBIR_KIT).exists()
+        or _lleva_stock_en_su_equipo(user)
         or puede_configurar_dispositivos(user)
     )
 

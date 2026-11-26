@@ -57,8 +57,13 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `POST /api/emergencia/plazas/{id}/liberar/` | módulo | Liberar la reserva o el préstamo (§16) |
 | `POST /api/emergencia/plazas/{id}/fuera-servicio/` | módulo | Sacar una cama de servicio (§16) |
 | `POST /api/emergencia/plazas/{id}/volver-servicio/` | módulo | Volver una cama a servicio (§16) |
+| `GET /api/emergencia/stock/` | stock | Los pares institución-edificio cuyo stock ve el usuario (§17) |
+| `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/` | stock | El saldo del edificio por insumo y lo que el usuario puede hacer (§17) |
+| `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/movimientos/` | stock | El libro del edificio, de a 50 (§17) |
+| `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/destinos-traspaso/` | `stock.ingresar` | A qué edificios puede traspasar desde este (§17) |
+| `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/persona/?dni=` | `stock.entregar` + `ciudadano.ver` | A quién se le entrega y qué recibió antes; no escribe (§17) |
 
-«Módulo», «agente», «kits» y «llegadas» son los cuatro permisos del namespace (§2).
+«Módulo», «agente», «kits», «llegadas» y «stock» son los permisos del namespace (§2).
 
 ## 1. Login
 
@@ -76,6 +81,8 @@ cuerpo no cambian**; lo nuevo es un valor posible dentro de `modulos`.
 - es **agente territorial**: capacidad `emergencia.relevar` en el programa Emergencia;
 - es de la **guardia de un dispositivo**: integra el Equipo de algún dispositivo con un rol que tiene
   `dispositivo.admitir` o `emergencia.recibir_kit`;
+- lleva **stock**: integra el Equipo de una institución cuyo tipo lleva stock con un rol que tiene `stock.ver`
+  (PR 7a). Quien **solo** lleva stock entra al módulo con eso, sin ninguna otra capacidad de Emergencia;
 - es **administrador del programa Dispositivos**.
 
 La capacidad tildada en un rol **sin** estar en el Equipo de ningún dispositivo no abre el módulo.
@@ -89,6 +96,7 @@ es del backoffice.
 | Territorial de Becas que además releva | `["becas", "emergencia"]` |
 | Agente edilicio que además releva | `["dispositivos", "emergencia"]` |
 | Guardia con `dispositivo.admitir` en su Equipo | `["emergencia"]` |
+| Miembro del Equipo de una institución con stock, solo con `stock.ver` | `["emergencia"]` |
 | Administrador del programa Dispositivos | `["emergencia"]` |
 
 Errores del login (sin cambios): 400 credenciales inválidas; 403
@@ -98,7 +106,7 @@ demasiados intentos fallidos.
 
 ## 2. Permisos y códigos de error
 
-Cuatro permisos, los cuatro con el mismo `code` que el resto de la app:
+Cinco permisos, los cinco con el mismo `code` que el resto de la app:
 
 | Permiso | Regla | 403 |
 |---|---|---|
@@ -106,6 +114,8 @@ Cuatro permisos, los cuatro con el mismo `code` que el resto de la app:
 | **Agente** | `emergencia.relevar` en el programa Emergencia | `{"detail": "El usuario no tiene permiso para relevar familias en Emergencia. Pedile a quien administra los usuarios que te sume el rol de agente territorial.", "code": "SIN_MODULO"}` |
 | **Kits** | Abre el módulo **y** tiene `emergencia.recibir_kit` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no recibe kits en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que reciba kits.", "code": "SIN_MODULO"}` |
 | **Llegadas** | Abre el módulo **y** tiene `dispositivo.admitir` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no admite familias en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que admita familias.", "code": "SIN_MODULO"}` |
+
+| **Stock** | Abre el módulo **y** tiene `stock.ver` sobre un edificio **activo** de una institución cuyo tipo lleva stock (con su alcance: Institución o Edificios) | `{"detail": "El usuario no lleva stock en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que vea el stock.", "code": "SIN_MODULO"}` |
 
 **Alcance por dispositivo (kits y llegadas).** Los permisos «kits» y «llegadas» dicen que el usuario
 recibe kits o admite familias *en algún lado*. Qué dispositivo, qué entrega, qué derivación y qué caso son
@@ -138,7 +148,7 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 `GET /api/emergencia/perfil/` — qué accesos muestra la pantalla inicial del módulo.
 
 ```json
-{"relevar": true, "llegadas": false, "kits": true, "dispositivo": true}
+{"relevar": true, "llegadas": false, "kits": true, "dispositivo": true, "plazas": false, "stock": false}
 ```
 
 **Qué ofrece la app, una clave por módulo:**
@@ -149,6 +159,7 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | `llegadas` | M2 · «Llegada de familias» | admite familias en **algún** dispositivo: `dispositivo.admitir` en su Equipo, o administra el programa Dispositivos **con** esa capacidad |
 | `kits` | M3 · «Recepción de kits» | recibe kits en **algún** dispositivo: `emergencia.recibir_kit` en su Equipo, o administra el programa Dispositivos **con** esa capacidad |
 | `dispositivo` | — | `llegadas` **o** `kits`: opera en algún dispositivo |
+| `stock` | «Stock» (§17) | ve el stock de al menos un edificio **activo** de una institución que lo lleva: `stock.ver` con su alcance. Aditiva (PR 7a) |
 
 - `llegadas` y `kits` son **aditivas** (Cambio 475): la app que no las lee sigue andando con
   `dispositivo`, que no cambió de significado. La app nueva ofrece M2 solo con `llegadas` y M3 solo con
@@ -462,6 +473,7 @@ que ser uno donde el usuario recibe kits (si no, 404).
 [{"id": 31, "numero": "2026-K-000031", "estado": "EN_CAMINO",
   "despachada_en": "2026-11-12T10:00:00-03:00", "recibida_en": null,
   "observacion_mesa": "Entregar a la directora.", "observacion_dispositivo": "",
+  "requiere_edificio": true, "edificios": [{"id": 3, "nombre": "Edificio Alfa"}, {"id": 4, "nombre": "Edificio Beta"}],
   "lineas": [{"item": 12, "nombre": "Colchón", "unidad": "unidad", "enviada": 10, "recibida": null},
              {"item": 14, "nombre": "Kit alimentario", "unidad": "kit", "enviada": 3, "recibida": null}]}]
 ```
@@ -479,6 +491,8 @@ que ser uno donde el usuario recibe kits (si no, 404).
 | `lineas[].nombre`, `lineas[].unidad` | Para mostrar. La unidad es la del momento en que se armó la entrega |
 | `lineas[].enviada` | Lo que salió: con esto se **precarga** la cantidad a confirmar |
 | `lineas[].recibida` | Lo que se confirmó. `null` hasta la recepción |
+| `requiere_edificio` | `true` si hay que elegir `edificio_id` al recibirla (§12): la entrega **no tiene edificio** (anteriores al Cambio 523) **y** la institución lleva stock. `false` en el resto. Aditiva (PR 7a) |
+| `edificios` | Entre cuáles elige quien recibe, `[{id, nombre}]`: los edificios activos vinculados a la institución que el usuario alcanza con `emergencia.recibir_kit`. `[]` si no hay nada que elegir (la entrega ya tiene edificio, la institución no lleva stock o no hay ninguno activo). Aditiva (PR 7a) |
 
 La respuesta no trae la foto del remito: se guarda detrás de login y la ven la mesa y el equipo del
 dispositivo desde el backoffice.
@@ -500,6 +514,7 @@ daría 409).
 | `cantidades[<id del ítem>]` | entero ≥ 0 | **sí, uno por cada línea** | Cuánto llegó de ese ítem, aunque sea `0`. Ejemplo: `cantidades[12]=8` |
 | `remito` | archivo | **sí** | Foto del remito. **Solo JPEG** (extensión `.jpg`/`.jpeg` y contenido JPEG de verdad), hasta **5 MB** |
 | `observacion` | texto | no | Lo que la mesa tiene que saber |
+| `edificio_id` | entero | **solo si la entrega trae `requiere_edificio: true`** | En qué edificio se recibe: lo recibido se **suma al stock de ese edificio**. Tiene que ser uno de `edificios` (§10). Si la entrega ya tiene edificio o la institución no lleva stock, se ignora |
 
 Vale sobre una entrega `EN_CAMINO` y también sobre una `PREPARADA`. Respuesta **200**:
 
@@ -518,8 +533,8 @@ Después de confirmada, la recepción **no se corrige**: no hay ruta para cambia
 ### Idempotencia
 
 - El mismo `uuid_cliente` enviado otra vez sobre la misma entrega devuelve **200** con el mismo cuerpo
-  que la primera vez. **No se vuelve a validar ni se escribe nada**: no importa qué traiga el segundo
-  cuerpo (ni siquiera hace falta el remito).
+  que la primera vez. **No se escribe nada** ni se vuelven a mirar las cantidades, el remito ni el edificio, pero
+  el cuerpo del reenvío **sí se valida en su forma** (UUID, enteros): un reenvío mal formado es 400.
 - Tras un **400**, se corrige y se reenvía con el **mismo** `uuid_cliente`: ese envío no escribió nada.
 - **409 `UUID_EN_USO`**: ese identificador ya es el de la recepción de **otra** entrega.
 
@@ -555,6 +570,7 @@ campo con error):
 | `uuid_cliente` | Falta o no es un UUID |
 | `cantidades` | No viene ninguna; falta la de algún ítem de la entrega (el mensaje dice cuál); alguna no es un entero ≥ 0; viene la de un ítem que no es de la entrega |
 | `remito` | Falta; no es JPEG; pasa de 5 MB |
+| `edificio_id` | Falta con `requiere_edificio: true` («Elegí en qué edificio se recibe…»); no es un edificio vinculado a la institución, está inactivo o queda fuera del alcance de `emergencia.recibir_kit`; la institución lleva stock y no tiene ningún edificio activo («vinculale uno para recibir esta entrega») |
 
 404: la entrega no existe o es de un dispositivo donde el usuario no recibe kits. 403 `SIN_MODULO`: el
 usuario no recibe kits en ningún dispositivo.
@@ -1234,3 +1250,75 @@ estaba así, 200 sin cambios.
 | 400 | cuerpo inválido; la cama no admite la acción en su estado (ocupada, ya reservada, institución no activa…); persona sin Legajo | `{"code": "VALIDACION", "detail", "<campo>": [...], "non_field_errors": [...]}`; la cama ocupada que se quiere sacar de servicio trae el motivo de `bloqueo_de_plaza` en `detail`; persona inexistente: `code: "PERSONA_NO_ENCONTRADA"` |
 | 403 | ve la cama pero no tiene la capacidad de la acción | `{"detail", "code": "SIN_PERMISO"}` (o `SIN_MODULO` si no abre el módulo) |
 | 404 | la cama no existe, es de un sector dado de baja o de un edificio fuera de su alcance | `{"detail": "No encontrado."}` |
+
+## 17. Stock (lectura) — PR 7a
+
+Solo lectura. Las escrituras (entregar a una persona, ingresar, ajustar, traspasar) son de otro PR. Vale para
+**instituciones cuyo tipo lleva stock** y **edificios activos**. Quién ve qué es el alcance de la web: `stock.ver`
+con su alcance (Institución o Edificios, `q_edificios_en_alcance`). El permiso «Stock» (§2) dice que el usuario ve
+el stock *de algún edificio*; qué institución y qué edificio son suyos se resuelve por alcance, y lo ajeno, lo
+que no existe, lo no vinculado entre sí, el edificio fuera del alcance y la institución que no lleva stock
+contestan **404** con el mismo cuerpo (`{"detail": "No encontrado."}`). Ver el edificio pero no tener la capacidad
+de la consulta es **403** `{"detail", "code": "SIN_PERMISO"}`. Toda respuesta va con `Cache-Control: no-store`.
+
+| Método y ruta | Capacidad | Para qué |
+|---|---|---|
+| `GET stock/` | `stock.ver` | Un ítem por par institución-edificio, por nombre, sin paginar |
+| `GET dispositivos/{d}/edificios/{e}/stock/` | `stock.ver` | El saldo del edificio, por insumo |
+| `GET dispositivos/{d}/edificios/{e}/stock/movimientos/?tipo=&item=&cursor=` | `stock.ver` | El libro, de a 50, del más nuevo al más viejo |
+| `GET dispositivos/{d}/edificios/{e}/stock/destinos-traspaso/` | `stock.ingresar` | A qué pares puede traspasar desde este |
+| `GET dispositivos/{d}/edificios/{e}/stock/persona/?dni=&sexo=` | `stock.entregar` + `ciudadano.ver` | A quién se le va a entregar y qué recibió antes |
+
+```json
+// stock/
+[{"dispositivo": {"id": 7, "nombre": "Sede Central"}, "edificio": {"id": 3, "nombre": "Edificio Alfa"},
+  "insumos_con_saldo": 4, "puede": {"entregar": true, "ingresar": true, "ajustar": false}}]
+
+// dispositivos/7/edificios/3/stock/
+{"dispositivo": {"id": 7, "nombre": "Sede Central"}, "edificio": {"id": 3, "nombre": "Edificio Alfa"},
+ "puede": {"entregar": true, "ingresar": true, "ajustar": false},
+ "saldos": [{"item_id": 12, "nombre": "Colchón", "unidad": "unidad", "cantidad": 18, "activo": true}],
+ "insumos_activos": [{"item_id": 12, "nombre": "Colchón", "unidad": "unidad"}]}
+
+// dispositivos/7/edificios/3/stock/movimientos/
+{"resultados": [{"id": 90, "tipo": "ENTREGA_PERSONA", "item_id": 12, "nombre": "Colchón", "unidad": "unidad",
+   "cantidad": -2, "saldo_posterior": 18, "creado_en": "2026-11-26T10:00:00-03:00",
+   "usuario": "Gabi Guardia", "detalle": "Entrega a persona"}],
+ "siguiente": 41}
+
+// dispositivos/7/edificios/3/stock/destinos-traspaso/
+[{"dispositivo": {"id": 8, "nombre": "Escuela 12"}, "edificio": {"id": 5, "nombre": "Edificio Beta"}}]
+
+// dispositivos/7/edificios/3/stock/persona/?dni=30111222
+{"persona": {"dni": "30111222", "nombre": "Ana", "apellido": "Paz"},
+ "historial": [{"creado_en": "2026-11-20T09:00:00-03:00", "institucion": "Otra institución",
+   "lineas": [{"nombre": "Colchón", "unidad": "unidad", "cantidad": 1}]}]}
+```
+
+- **`puede`** son los mismos predicados que aplican las escrituras (`entregar` además exige `ciudadano.ver`);
+  la app muestra solo los botones que vienen en `true`. En la lista se calcula por conjuntos, y un test lo compara
+  contra los predicados para varios perfiles.
+- **Lista.** Solo instituciones que llevan stock y edificios **activos** (sin edificio activo no se opera).
+  `insumos_con_saldo` cuenta los insumos con saldo mayor que 0.
+- **Saldos.** Un insumo desactivado con saldo > 0 se lista con `activo: false` (solo se puede bajar); con saldo 0
+  no se lista. `insumos_activos` es lo que se puede cargar, tenga o no saldo.
+- **Libro.** Se pagina por `cursor` (el `siguiente` de la página anterior; `null` si no hay más), por `id`: un
+  movimiento nuevo no corre la página. `tipo` es uno de los de `MovimientoStock`, `item` un `id` de insumo. Un
+  valor inválido es 400 `VALIDACION`. **No nombra a la persona de una entrega** (ni copia la observación, que es
+  texto libre) **ni a la otra institución de un traspaso** («Traspaso a otra institución»): quien mira puede no
+  alcanzarla.
+- **Persona.** Exige poder entregar **antes** de tocar el padrón (403 `SIN_PERMISO` si no). Descuenta de la cubeta
+  `personas_campo` —la misma de `personas/consultar/`—, solo cuando efectivamente consulta: un 404, un 400 o un 403
+  no la gastan. **No escribe**: no da de alta el legajo ni la persona (eso es del POST de entrega). Con legajo
+  resuelve por el legajo; sin legajo y con `sexo` (`F`/`M`/`X`) consulta al Registro; sin legajo y sin `sexo`, o si
+  el Registro no la tiene, contesta **200** con `persona: null` e `historial: []`: la app pide nombre y apellido al
+  entregar. El historial son las últimas entregas de esa persona en toda la red; las de otra institución figuran
+  como «Otra institución», sin nombre.
+
+| Código | Cuándo |
+|---|---|
+| 400 `VALIDACION` | `movimientos/`: `tipo`, `item` o `cursor` inválidos. `persona/`: falta el DNI, no es válido, `sexo` fuera de la lista o persona fallecida |
+| 403 `SIN_MODULO` | No ve stock en ningún edificio (§2) |
+| 403 `SIN_PERMISO` | Ve el edificio pero no puede traspasar (`destinos-traspaso/`) ni entregar (`persona/`) |
+| 404 | La institución o el edificio no existen, no están vinculados, están fuera del alcance de `stock.ver` o la institución no lleva stock |
+| 429 | `persona/`: tope de consultas de identidad (`personas_campo`). Trae `Retry-After` |

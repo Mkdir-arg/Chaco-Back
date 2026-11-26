@@ -57,6 +57,13 @@ from programas.api.views_emergencia_plazas_acciones import (
     VolverAServicioView,
 )
 from programas.api.views_emergencia_sin_derivacion import AvisarALaMesaView, IngresoDirectoView
+from programas.api.views_emergencia_stock import (
+    DestinosDeTraspasoView,
+    MovimientosDelEdificioView,
+    PersonaDelStockView,
+    StockDeLaAppView,
+    StockDelEdificioView,
+)
 
 app_name = "emergencia_api"
 
@@ -136,5 +143,27 @@ urlpatterns = [
         "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/estadias/",
         EstadiasDelEdificioView.as_view(),
         name="edificio-estadias",
+    ),
+    # Stock (PR 7a, análisis 010): lectura, para quien ve el stock de una institución que lo lleva.
+    path("stock/", StockDeLaAppView.as_view(), name="stock"),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/",
+        StockDelEdificioView.as_view(),
+        name="stock-edificio",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/movimientos/",
+        MovimientosDelEdificioView.as_view(),
+        name="stock-movimientos",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/destinos-traspaso/",
+        DestinosDeTraspasoView.as_view(),
+        name="stock-destinos-traspaso",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/persona/",
+        PersonaDelStockView.as_view(),
+        name="stock-persona",
     ),
 ]

@@ -270,18 +270,16 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
             }
         )
 
-    por_recibir = EntregaKit.objects.filter(
-        dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
-    ).count()
-    if por_recibir:
-        # Con stock, recibir esa entrega exige un edificio vinculado (`stock._preparar`): quedaría trabada.
-        raise ValidationError(
-            {
-                "__all__": f"No se puede desvincular {edificio.nombre}: tiene "
-                f"{_plural(por_recibir, 'entrega de kits por recibir', 'entregas de kits por recibir')}. "
-                f"{'Recibí la entrega' if por_recibir == 1 else 'Recibí las entregas'} antes."
-            }
-        )
+    # Rige en **toda** institución, lleve stock o no, igual que «Inactivar». Con stock es lo que evita que la
+    # entrega quede trabada (recibirla exige un edificio vinculado, `stock._preparar`); sin stock, que se desvincule
+    # un edificio al que todavía le llegan kits.
+    motivo_entregas = _motivo_entregas_por_recibir(
+        EntregaKit.objects.filter(
+            dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
+        ).count()
+    )
+    if motivo_entregas:
+        raise ValidationError({"__all__": _mensaje_de_bloqueo(edificio, [motivo_entregas], accion="desvincular")})
 
     con_stock = SaldoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, cantidad__gt=0).count()
     if con_stock:
@@ -331,14 +329,11 @@ def _motivos_de_bloqueo(edificio):
         )
     if InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists():
         motivos.append(("un relevamiento en curso", "cerrá o cancelá el relevamiento"))
-    entregas = EntregaKit.objects.filter(edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS).count()
-    if entregas:
-        motivos.append(
-            (
-                _plural(entregas, "entrega de kits por recibir", "entregas de kits por recibir"),
-                "recibí la entrega" if entregas == 1 else "recibí las entregas",
-            )
-        )
+    motivo_entregas = _motivo_entregas_por_recibir(
+        EntregaKit.objects.filter(edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS).count()
+    )
+    if motivo_entregas:
+        motivos.append(motivo_entregas)
     con_stock = SaldoStock.objects.filter(edificio=edificio, cantidad__gt=0).count()
     if con_stock:
         motivos.append(
@@ -354,10 +349,24 @@ def _unir(partes, conjuncion):
     return partes[0] if len(partes) == 1 else f"{', '.join(partes[:-1])} {conjuncion} {partes[-1]}"
 
 
-def _mensaje_de_bloqueo(edificio, motivos):
+def _motivo_entregas_por_recibir(cuantas):
+    """El motivo ``(que_tiene, que_hacer)`` de ``cuantas`` entregas de kits por recibir, o ``None`` si no hay.
+
+    Lo comparten «Inactivar» y «Desvincular»: el texto y el criterio de «por recibir» están en un solo lugar.
+    """
+
+    if not cuantas:
+        return None
+    return (
+        _plural(cuantas, "entrega de kits por recibir", "entregas de kits por recibir"),
+        "recibí la entrega" if cuantas == 1 else "recibí las entregas",
+    )
+
+
+def _mensaje_de_bloqueo(edificio, motivos, accion="inactivar"):
     que_tiene = _unir([tiene for tiene, _hacer in motivos], "y")
     que_hacer = _unir([hacer for _tiene, hacer in motivos], "o")
-    return f"No se puede inactivar {edificio.nombre}: tiene {que_tiene}. {que_hacer[0].upper()}{que_hacer[1:]} antes."
+    return f"No se puede {accion} {edificio.nombre}: tiene {que_tiene}. {que_hacer[0].upper()}{que_hacer[1:]} antes."
 
 
 def _exigir_admin_del_programa(usuario):

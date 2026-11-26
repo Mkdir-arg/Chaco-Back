@@ -301,8 +301,9 @@ class EntregaSinEdificioTests(BaseRecepcionStock):
 
         self.assertEqual(
             ctx.exception.message_dict["edificio"],
-            [servicio.SIN_EDIFICIO_PARA_EL_STOCK.format(nombre=self.club.nombre)],
+            [servicio.SIN_EDIFICIO_PARA_RECIBIR.format(nombre=self.club.nombre)],
         )
+        self.assertIn("para recibir esta entrega", ctx.exception.message_dict["edificio"][0])
 
     def test_con_edificios_activos_y_sin_elegir_pide_elegir(self):
         with self.assertRaises(ValidationError) as ctx:

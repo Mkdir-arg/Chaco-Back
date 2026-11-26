@@ -376,6 +376,8 @@ class EntregasDelDispositivoApiTests(BaseApiKits):
                         "recibida": None,
                     },
                 ],
+                "requiere_edificio": False,
+                "edificios": [],
             },
         )
 
@@ -464,7 +466,7 @@ class RecibirEntregaApiTests(BaseApiKits):
         self.assertEqual((entrega.pk, usuario), (self.entrega.pk, self.deposito))
         self.assertEqual(cantidades, {self.colchon.pk: 8, self.alimentos.pk: 3})
         self.assertEqual(remito.name, "remito.jpg")
-        self.assertEqual(llamada.kwargs, {"observacion": "Faltaron dos.", "uuid_cliente": envio})
+        self.assertEqual(llamada.kwargs, {"observacion": "Faltaron dos.", "uuid_cliente": envio, "edificio": None})
 
     def test_recibir_una_preparada_vale(self):
         preparada = servicio_kits.crear_entrega(self.operador, self.club, [(self.colchon, 2)])
