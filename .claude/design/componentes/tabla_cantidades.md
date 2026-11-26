@@ -32,7 +32,8 @@ Va **dentro del `<form>` del consumidor**, que pone la card, el csrf y el pie. N
 - Los campos se arman con `programas/forms_cantidades.py` (`campo_de_cantidad`, con `help_text="En <unidad>."`, que
   es lo que hace que `campo_control` agregue `<auto_id>-ayuda` al `aria-describedby` del control; el texto visible de ese
   `<span>` es `fila.unidad`, `_tabla_cantidades.html:32`) y su guarda: un insumo pedido que ya no tiene fila no se descarta en silencio. En
-  stock las filas son los insumos con saldo **más** los que llegan cargados en el POST («Hay 0 y pediste N»).
+  Entregar y Traspasar las filas son los insumos con saldo **más** los que llegan cargados en el POST («Hay 0 y pediste
+  N»); en Ingresar son todos los insumos activos del catálogo.
 - Cada pantalla elige su `rotulo_cantidad` («Cantidad a enviar», «a entregar», «a ingresar», «a traspasar»); la pieza no
   cambia. Las filas de una pantalla de stock las arma el form (`FormConTablaDeCantidades.filas()`) con
   `info = [{texto: <lo que hay ahora>, nota: ""}]`.

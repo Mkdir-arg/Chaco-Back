@@ -26,6 +26,9 @@ Va dentro de la surface del consumidor; no pone card ni paginación.
 - Con `filas` vacío no dibuja nada: el consumidor muestra `_estado_vacio`.
 - **Privacidad:** el armado de `detalle` (persona y observación solo con `ciudadano.ver`; otra institución sin
   nombre) vive en `programas/services/edificio_stock.py` (`fila_de_movimiento` y `_detalle`), no en el template.
+- El panel que la consume (`contexto_de_la_solapa`) lee `stock.ver` **una** vez y se lo pasa a `_acciones`: sin él no
+  hay botones (Entregar, Ingresar, Traspasar) y con él cada permiso por acción se decide una sola vez, aunque dos
+  botones compartan capacidad. Los botones salen del servicio, nunca del template.
 
 ## Prohibido
 
