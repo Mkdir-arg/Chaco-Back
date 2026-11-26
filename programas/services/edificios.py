@@ -32,7 +32,15 @@ from contextlib import contextmanager
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 
-from programas.models import Dispositivo, Edificio, EntregaKit, InspeccionEdificio, Sector, TrazaDispositivo
+from programas.models import (
+    Dispositivo,
+    Edificio,
+    EntregaKit,
+    InspeccionEdificio,
+    SaldoStock,
+    Sector,
+    TrazaDispositivo,
+)
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.services.dispositivos import puede_configurar_dispositivos, puede_editar_legajo
 from programas.services.equipo_dispositivo import soltar_edificio_del_equipo
@@ -61,6 +69,11 @@ RELEVAMIENTO_EN_CURSO = "El edificio tiene un relevamiento en curso: no puede qu
 SECTORES_ACTIVOS_EN_EL_EDIFICIO = (
     "El edificio tiene {cuantos} sector{plural_sector} activo{plural_activo} de esta institución: "
     "asignales otro edificio o dalos de baja antes de desvincularlo."
+)
+#: RN-010-15 / decisión 6: el stock es de (institución, edificio); soltar el vínculo lo dejaría huérfano.
+STOCK_EN_EL_EDIFICIO = (
+    "La institución tiene stock en el edificio ({cuantos}): traspasalo a otro edificio o ajustalo a cero "
+    "antes de desvincularlo."
 )
 
 
@@ -257,6 +270,17 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
             }
         )
 
+    # Rige en **toda** institución, lleve stock o no, igual que «Inactivar». Con stock es lo que evita que la
+    # entrega quede trabada (recibirla exige un edificio vinculado, `stock._preparar`); sin stock, que se desvincule
+    # un edificio al que todavía le llegan kits.
+    motivo_entregas = _motivo_entregas_por_recibir(dispositivo=dispositivo, edificio=edificio)
+    if motivo_entregas:
+        raise ValidationError({"__all__": _mensaje_de_bloqueo(edificio, [motivo_entregas], accion="desvincular")})
+
+    con_stock = SaldoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, cantidad__gt=0).count()
+    if con_stock:
+        raise ValidationError({"__all__": STOCK_EN_EL_EDIFICIO.format(cuantos=_plural(con_stock, "insumo", "insumos"))})
+
     if (
         not edificio.dispositivos.exclude(pk=dispositivo.pk).exists()
         and InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists()
@@ -285,9 +309,9 @@ def _plural(cuantos, singular, plural):
 def _motivos_de_bloqueo(edificio):
     """``[(que_tiene, que_hacer)]`` de lo que impide inactivar ``edificio``; vacío si nada lo impide.
 
-    Tres cosas, de cualquier institución del predio: sectores activos ubicados en el edificio, un relevamiento en
-    curso y entregas de kits por recibir hacia él (``EntregaKit.ESTADOS_ABIERTOS``: las mismas que cuenta el
-    «N por recibir» de la página del edificio). El **Equipo no bloquea**: queda asignado y vuelve al reactivar.
+    Cuatro cosas, de cualquier institución del predio: sectores activos ubicados en el edificio, un relevamiento en
+    curso, entregas de kits por recibir hacia él (``EntregaKit.ESTADOS_ABIERTOS``: las mismas que cuenta el
+    «N por recibir» de la página del edificio) y stock con saldo mayor que 0 (RN-010-15). El **Equipo no bloquea**: queda asignado y vuelve al reactivar.
     """
 
     motivos = []
@@ -301,12 +325,15 @@ def _motivos_de_bloqueo(edificio):
         )
     if InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists():
         motivos.append(("un relevamiento en curso", "cerrá o cancelá el relevamiento"))
-    entregas = EntregaKit.objects.filter(edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS).count()
-    if entregas:
+    motivo_entregas = _motivo_entregas_por_recibir(edificio=edificio)
+    if motivo_entregas:
+        motivos.append(motivo_entregas)
+    con_stock = SaldoStock.objects.filter(edificio=edificio, cantidad__gt=0).count()
+    if con_stock:
         motivos.append(
             (
-                _plural(entregas, "entrega de kits por recibir", "entregas de kits por recibir"),
-                "recibí la entrega" if entregas == 1 else "recibí las entregas",
+                f"stock en {_plural(con_stock, 'insumo', 'insumos')}",
+                "traspasalo a otro edificio o ajustalo a cero",
             )
         )
     return motivos
@@ -316,10 +343,26 @@ def _unir(partes, conjuncion):
     return partes[0] if len(partes) == 1 else f"{', '.join(partes[:-1])} {conjuncion} {partes[-1]}"
 
 
-def _mensaje_de_bloqueo(edificio, motivos):
+def _motivo_entregas_por_recibir(**filtro):
+    """El motivo ``(que_tiene, que_hacer)`` de las entregas de kits por recibir que cumplen ``filtro``, o ``None``.
+
+    Lo comparten «Inactivar» (``edificio=``) y «Desvincular» (``edificio=`` y ``dispositivo=``): el texto y el criterio
+    de «por recibir» (``EntregaKit.ESTADOS_ABIERTOS``) están en un solo lugar.
+    """
+
+    cuantas = EntregaKit.objects.filter(estado__in=EntregaKit.ESTADOS_ABIERTOS, **filtro).count()
+    if not cuantas:
+        return None
+    return (
+        _plural(cuantas, "entrega de kits por recibir", "entregas de kits por recibir"),
+        "recibí la entrega" if cuantas == 1 else "recibí las entregas",
+    )
+
+
+def _mensaje_de_bloqueo(edificio, motivos, accion="inactivar"):
     que_tiene = _unir([tiene for tiene, _hacer in motivos], "y")
     que_hacer = _unir([hacer for _tiene, hacer in motivos], "o")
-    return f"No se puede inactivar {edificio.nombre}: tiene {que_tiene}. {que_hacer[0].upper()}{que_hacer[1:]} antes."
+    return f"No se puede {accion} {edificio.nombre}: tiene {que_tiene}. {que_hacer[0].upper()}{que_hacer[1:]} antes."
 
 
 def _exigir_admin_del_programa(usuario):

@@ -590,6 +590,20 @@ def q_edificios_en_alcance(user, capacidad, campo_dispositivo, campo_edificio):
     return Q(**{f"{campo_dispositivo}__in": completas}) | Q(Exists(de_sus_edificios))
 
 
+def pares_en_alcance(user, capacidad):
+    """Los vínculos institución-edificio que ``user`` alcanza con ``capacidad``, como filas del vínculo.
+
+    La única escritura de «institución en alcance **y** edificio en alcance» sobre el vínculo: la usan plazas
+    (``dispositivo.ver``) y stock (``stock.ver``, sumando su filtro de tipo) y las que vengan.
+    """
+
+    from programas.models import Edificio
+
+    return Edificio.dispositivos.through.objects.filter(
+        dispositivo_id__in=dispositivos_en_alcance(user, capacidad).values("pk"),
+    ).filter(q_edificios_en_alcance(user, capacidad, "dispositivo_id", "edificio_id"))
+
+
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):
     from programas.models import TrazaDispositivo
 

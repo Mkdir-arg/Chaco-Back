@@ -55,7 +55,8 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 CLAVES_RAIZ = ["casos", "casos/mios", "localidades", "mis-dispositivos", "perfil", "personas/consultar"]
 # `llegadas` y `kits` (Cambio 475) son aditivas: `dispositivo` sigue siendo `llegadas or kits`.
 # `plazas` (Cambio 596) es aditiva: ve algún edificio con `dispositivo.ver`.
-CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "plazas", "relevar"]
+# `stock` (PR 7a, análisis 010 §12.1) es aditiva: ve el stock de algún edificio activo con `stock.ver`.
+CLAVES_PERFIL = ["dispositivo", "kits", "llegadas", "plazas", "relevar", "stock"]
 CLAVES_LOCALIDAD = ["id", "nombre"]
 CLAVES_SUGERENCIAS = ["hay_mas", "resultados"]
 CLAVES_SUGERENCIA = ["apellido", "dni", "nombre"]
@@ -77,8 +78,10 @@ CLAVES_MI_DISPOSITIVO = [
     "plazas_libres",
     "recibe_kits",
 ]
+# `requiere_edificio` y `edificios` (PR 7a, análisis 010 §10) son aditivas.
 CLAVES_ENTREGA = [
     "despachada_en",
+    "edificios",
     "estado",
     "id",
     "lineas",
@@ -86,6 +89,7 @@ CLAVES_ENTREGA = [
     "observacion_dispositivo",
     "observacion_mesa",
     "recibida_en",
+    "requiere_edificio",
 ]
 CLAVES_LINEA_DE_ENTREGA = ["enviada", "item", "nombre", "recibida", "unidad"]
 CLAVES_RECEPCION = ["diferencias", "estado"]
@@ -218,6 +222,24 @@ URLS_DE_PLAZAS_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/edificios/1/mapa/",
     "/api/emergencia/dispositivos/1/edificios/1/estadias/",
 ]
+
+#: Stock (PR 7a, análisis 010 §17). Sus claves y tests están en ``test_emergencia_api_stock_lectura``.
+URLS_DE_STOCK_DEL_BARRIDO = [
+    "/api/emergencia/stock/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/destinos-traspaso/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/movimientos/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/persona/",
+    # PR 7b: las escrituras. Sus claves y tests están en ``test_emergencia_api_stock_escritura``.
+    "/api/emergencia/dispositivos/1/edificios/1/stock/ajustes/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/entregas/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/ingresos/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/traspasos/",
+]
+
+#: Claves de las respuestas de escritura del stock (PR 7b, §17).
+CLAVES_STOCK_OPERACION = ["creado_en", "id", "movimientos", "tipo", "uuid_cliente", "ya_existia"]
+CLAVES_STOCK_MOVIMIENTO_OPERACION = ["cantidad", "item_id", "nombre", "saldo_posterior", "unidad"]
 
 #: Las de M2 (PR 8) que llevan un id. Sus claves están arriba; los tests de cada ruta, en
 #: los ``test_emergencia_api_m2*``.

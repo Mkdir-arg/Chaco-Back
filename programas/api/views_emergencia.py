@@ -15,9 +15,10 @@ El namespace está partido por superficie, y este módulo es la base que importa
 
 Lo común vive acá:
 
-* **Los permisos.** `EmergenciaModuloPermission` es «abre el módulo»
-  (``emergencia_programa.modulo_habilitado``, la misma función que consulta el login):
-  agente territorial o guardia de un dispositivo. `EmergenciaRelevarPermission` es
+* **Los permisos.** `EmergenciaModuloPermission` es «abre el módulo de campo»
+  (``emergencia_programa.modulo_de_campo_habilitado``): agente territorial o guardia de un dispositivo, **sin**
+  sumar a quien solo lleva stock. Es la base de todo el namespace; solo el perfil y las vistas de stock usan
+  `EmergenciaModuloConStockPermission` (``modulo_habilitado``, la función que consulta el login). `EmergenciaRelevarPermission` es
   ``emergencia.relevar`` en el programa EMERGENCIA: solo el agente crea casos.
   `EmergenciaRecibirKitPermission` (``emergencia_programa.recibe_kits``) y `EmergenciaAdmitirPermission`
   (``emergencia_programa.admite_familias``) son «recibe kits» y «admite familias» en **algún**
@@ -74,6 +75,7 @@ from programas.services.emergencia_alta import CasoAbiertoDeLaFamilia, DniRegist
 from programas.services.emergencia_programa import (
     CAP_EMERGENCIA_RELEVAR,
     admite_familias,
+    modulo_de_campo_habilitado,
     modulo_habilitado,
     puede_en_programa_emergencia,
     recibe_kits,
@@ -129,11 +131,23 @@ def _400(descripcion):
 
 
 class EmergenciaModuloPermission(BasePermission):
-    """Abre el módulo: agente territorial o guardia de un dispositivo (H10 del plan)."""
+    """Abre el módulo de campo: agente territorial o guardia de un dispositivo (H10 del plan).
+
+    **No** suma a quien solo lleva stock (``stock.ver``): ese usuario recibe el 403 ``SIN_MODULO`` de siempre en toda
+    la API de campo (consulta de identidades, localidades, plazas, llegadas, kits) y solo abre el perfil y el stock
+    con :class:`EmergenciaModuloConStockPermission`.
+    """
 
     # `code` además de `detail`: la app distingue «este usuario no tiene el módulo» de
     # cualquier otro 403, igual que en Becas y en el relevamiento edilicio.
     message = {"detail": MENSAJE_SIN_MODULO, "code": CODIGO_SIN_MODULO}
+
+    def has_permission(self, request, view):
+        return modulo_de_campo_habilitado(request.user)
+
+
+class EmergenciaModuloConStockPermission(EmergenciaModuloPermission):
+    """Abre el módulo también para quien solo lleva stock: el perfil y las vistas de stock (``modulo_habilitado``)."""
 
     def has_permission(self, request, view):
         return modulo_habilitado(request.user)
@@ -307,6 +321,9 @@ class _VistaDeCampo(APIView):
 
 
 class PerfilEmergenciaView(_VistaDeCampo):
+    # El login le ofrece «emergencia» a quien solo lleva stock: el perfil le dice qué abre (`stock: true`).
+    permission_classes = [IsAuthenticated, EmergenciaModuloConStockPermission]
+
     @extend_schema(
         responses={200: PerfilEmergenciaSerializer, 401: _SIN_TOKEN, 403: _SIN_MODULO},
         description=(

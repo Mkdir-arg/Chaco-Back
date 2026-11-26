@@ -617,6 +617,10 @@ REST_FRAMEWORK = {
         # holgado: una guardia en plena evacuación busca cientos de familias por
         # turno, y cada 429 deja a una en la puerta.
         "emergencia_buscar": "300/hour",
+        # Stock (PR 7b) · las escrituras de la app (entregar, ingresar, traspasar, ajustar). Por usuario. Una entrega
+        # puede consultar al Registro de Personas, y todas toman candados: sin tope, un token perdido las martilla.
+        # Holgado: una guardia entrega a decenas de familias por hora y cada 429 deja a una en la puerta.
+        "stock_escritura": "600/hour",
     },
 }
 

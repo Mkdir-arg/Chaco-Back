@@ -9,6 +9,7 @@ en que un rol de otro programa terminaba abriendo un módulo ajeno.
 
 from core import rbac
 from programas.services.dispositivos import (
+    CAP_STOCK_VER,
     dispositivos_en_alcance,
     dispositivos_operados,
     puede_configurar_dispositivos,
@@ -95,8 +96,11 @@ def roles_en_app(user):
       kits» (M3).
     * ``dispositivo`` — ``llegadas or kits``: **opera de verdad** en algún dispositivo. Se
       mantiene por compatibilidad con la app que todavía no lee las dos de arriba.
-    * ``plazas`` — ve al menos un edificio con ``dispositivo.ver`` en su alcance (Cambio 596):
-      abre «Plazas y estadías». Aditiva; es de Dispositivos y vale para cualquier institución.
+    * ``plazas`` — ve al menos un edificio con ``dispositivo.ver`` en su alcance (Cambio 596) **y** abre el módulo de
+      campo (:func:`modulo_de_campo_habilitado`): abre «Plazas y estadías». Aditiva; quien solo lleva stock no la
+      tiene, porque esas rutas le contestan 403.
+    * ``stock`` — ve el stock de al menos un edificio activo de una institución que lleva stock, con ``stock.ver``
+      (análisis 010, §12.1): abre «Stock». Aditiva.
 
     Las dos capacidades de la guardia van con alcance: integra el **Equipo** de algún
     dispositivo con un rol que la tiene, o administra el programa Dispositivos **y** su rol la
@@ -109,17 +113,21 @@ def roles_en_app(user):
     que ejercerla. Y ninguna capacidad de otro programa (``becas.campo``,
     ``inspeccion.relevar``) entra en esta cuenta (RU §6 n.° 3).
     """
-    # Import local: `plazas_app` depende de `edificio_operativo`, que importa este módulo.
+    # Import local: `plazas_app` y `stock_app` dependen de `edificio_operativo`, que importa este módulo.
     from programas.services.plazas_app import ve_plazas
+    from programas.services.stock_app import ve_stock
 
     llegadas = admite_familias(user)
     kits = recibe_kits(user)
+    # Plazas es de campo: quien solo lleva stock recibe 403 en esas rutas, así que el perfil no se las ofrece.
+    campo = modulo_de_campo_habilitado(user)
     return {
         "relevar": puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR),
         "llegadas": llegadas,
         "kits": kits,
         "dispositivo": llegadas or kits,
-        "plazas": ve_plazas(user),
+        "plazas": campo and ve_plazas(user),
+        "stock": ve_stock(user),
     }
 
 
@@ -154,6 +162,15 @@ def recibe_kits(usuario):
     return dispositivos_en_alcance(usuario, CAP_RECIBIR_KIT).exists()
 
 
+def _lleva_stock_en_su_equipo(user):
+    """¿Integra el Equipo de una institución que lleva stock con un rol que tiene ``stock.ver``? (análisis 010, §12.1).
+
+    Es lo que abre el módulo a quien **solo** lleva stock: sin esto, el login no le traería ``"emergencia"``.
+    """
+
+    return dispositivos_operados(user, CAP_STOCK_VER).filter(tipo__maneja_stock=True).exists()
+
+
 def _es_de_la_guardia(user):
     return (
         dispositivos_operados(user, CAP_ADMITIR).exists()
@@ -162,16 +179,29 @@ def _es_de_la_guardia(user):
     )
 
 
-def modulo_habilitado(user):
-    """¿``user`` abre el módulo Emergencia de la app? **La única regla de acceso** (H10).
+def modulo_de_campo_habilitado(user):
+    """¿``user`` abre el módulo Emergencia **de campo** (relevar, llegadas, kits, plazas)? El predicado de antes del stock.
 
-    La consultan el login (``"emergencia"`` en ``modulos``) y los permisos de
-    ``/api/emergencia/``: si cada uno escribiera la suya, el login le ofrecería a alguien
-    un módulo que después le contesta 403, o al revés. Es verdadera cuando
-    :func:`roles_en_app` da algún acceso, y también para el administrador del programa
-    Dispositivos sin ``dispositivo.admitir`` ni ``emergencia.recibir_kit`` (H10: el login no
-    cambia); a ese el perfil le contesta ``dispositivo: false``.
+    Es :func:`modulo_habilitado` **sin** sumar a quien solo lleva stock. Lo exigen todas las vistas de
+    ``/api/emergencia/`` salvo el perfil y las de stock: quien solo tiene ``stock.ver`` no consulta identidades,
+    no ve localidades ni motivos de egreso, y recibe el mismo 403 ``SIN_MODULO`` de antes del PR 7a.
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
     return puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR) or _es_de_la_guardia(user)
+
+
+def modulo_habilitado(user):
+    """¿``user`` abre el módulo Emergencia de la app? **La única regla de acceso** (H10).
+
+    La consultan el login (``"emergencia"`` en ``modulos``), el perfil y las vistas de stock: si cada uno
+    escribiera la suya, el login le ofrecería a alguien un módulo que después le contesta 403, o al revés. Es
+    verdadera cuando :func:`roles_en_app` da algún acceso, y también para el administrador del programa
+    Dispositivos sin ``dispositivo.admitir`` ni ``emergencia.recibir_kit`` (H10: el login no
+    cambia); a ese el perfil le contesta ``dispositivo: false``. Suma a quien solo lleva stock
+    (:func:`_lleva_stock_en_su_equipo`); el resto de la API de campo exige
+    :func:`modulo_de_campo_habilitado`.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    return modulo_de_campo_habilitado(user) or _lleva_stock_en_su_equipo(user)

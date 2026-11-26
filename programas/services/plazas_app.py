@@ -19,13 +19,13 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.rbac import puede
-from programas.models import Edificio, Estadia, ReservaPlaza
+from programas.models import Estadia, ReservaPlaza
 from programas.selectors.estadia_origen_emergencia import marcas_de_emergencia
 from programas.services.detalle_dispositivo import FILTRO_ALOJADAS, FILTRO_EGRESADAS
 from programas.services.dispositivos import (
     CAP_EDITAR,
     CAP_VER,
-    dispositivos_en_alcance,
+    pares_en_alcance,
     puede_operar_edificio,
     q_edificios_en_alcance,
 )
@@ -108,21 +108,12 @@ def _resumen(conteo):
 # ---------------------------------------------------------------------------------------
 
 
-def _pares_en_alcance(user):
-    """Los vínculos institución-edificio que ``user`` alcanza leyendo (``dispositivo.ver``), como filas del vínculo."""
-
-    vinculo = Edificio.dispositivos.through
-    return vinculo.objects.filter(
-        dispositivo_id__in=dispositivos_en_alcance(user, CAP_VER).values("pk"),
-    ).filter(q_edificios_en_alcance(user, CAP_VER, "dispositivo_id", "edificio_id"))
-
-
 def ve_plazas(user):
     """¿``user`` ve al menos un edificio con ``dispositivo.ver``? Es la clave ``plazas`` del perfil de la app."""
 
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return _pares_en_alcance(user).exists()
+    return pares_en_alcance(user, CAP_VER).exists()
 
 
 def edificios_de_la_app(user):
@@ -132,7 +123,7 @@ def edificios_de_la_app(user):
     """
 
     pares = list(
-        _pares_en_alcance(user)
+        pares_en_alcance(user, CAP_VER)
         .select_related("edificio", "dispositivo")
         .only(
             "dispositivo_id",

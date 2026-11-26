@@ -9,7 +9,8 @@ Qué fija este archivo, regla por regla (``docs/internal/emergencia/04-kits.md``
   hasta 5 MB, estado final según diferencias (la positiva también cuenta), idempotencia
   por ``uuid_cliente``, :class:`EstadoCambioEntrega` si ya fue recibida o cancelada, y la
   recepción no se edita: lo único posible después es ``observar_recepcion``.
-* **RN-4.6 a 4.9** — nada toca existencias, un ítem desactivado sigue en las entregas
+* **RN-4.6 a 4.9** — RN-4.6 (nada toca existencias) vale solo para una institución que no lleva stock: la
+  revirtió el análisis 010 para las que sí (``test_stock_recepcion``). Un ítem desactivado sigue en las entregas
   viejas, el alcance de la guardia es su dispositivo y cada transición deja traza.
 * **Mutación de RN-4.8** — ``recibir_kit`` en el dispositivo A no recibe una entrega de B.
   Se vio en rojo contra la guarda rota antes de quedar verde; el detalle está en el
@@ -324,15 +325,16 @@ class CrearEntregaTests(BaseKits):
             self._entrega(lineas=[(self.agua, 1)])
 
     def test_rn_4_6_nada_toca_existencias(self):
-        """No hay stock: armar y recibir no escriben en ninguna tabla que no sea de la entrega."""
+        """RN-4.6 sigue valiendo para una institución que **no lleva stock** (el análisis 010 la revirtió solo para
+        las que sí: ver ``test_stock_recepcion``): armar y recibir no escriben fuera de las tablas de la entrega."""
         catalogo_antes = list(TipoKit.objects.order_by("pk").values())
 
         self._recibir(self._en_camino(), {self.colchon.pk: 8, self.alimentos.pk: 5})
 
         self.assertEqual(list(TipoKit.objects.order_by("pk").values()), catalogo_antes)
         campos = {campo.name for modelo in (TipoKit, EntregaKit, LineaEntrega) for campo in modelo._meta.get_fields()}
-        # Las tablas de stock del análisis 010 (PR 1) apuntan a estos modelos por FK inversa, pero todavía nada
-        # las escribe: la suma desde la recepción llega en el PR 3, que revierte RN-4.6 y reescribe este test.
+        # Las tablas de stock del análisis 010 apuntan a estos modelos por FK inversa; el club de este test no lleva
+        # stock (`maneja_stock` apagado), así que la recepción no las escribe.
         inversas_del_stock = {"saldos_stock", "movimientos_stock", "operacion_stock"}
         self.assertEqual(
             {campo for campo in campos - inversas_del_stock if "stock" in campo or "existencia" in campo}, set()
@@ -913,6 +915,11 @@ class ObservarRecepcionTests(BaseKits):
                 "siguiente_numero_de_entrega",
                 # Arma el aviso de la pantalla; no lee ni escribe cantidades.
                 "aviso_de_kits_por_recibir",
+                # Stock (Cambios 605 y 607): solo leen —si la institución lleva stock, si hay que elegir edificio y entre
+                # cuáles elige quien recibe—.
+                "suma_al_stock",
+                "requiere_edificio_al_recibir",
+                "edificios_para_recibir",
             },
         )
 
