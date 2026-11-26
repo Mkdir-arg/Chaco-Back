@@ -65,6 +65,9 @@ CICLOS_CONOCIDOS = {
     # El proceso masivo importa el envío a SIIS en el encabezado y el envío lo
     # devuelve diferido: el único de los cinco con una pata ya a nivel de módulo.
     ("programas.services.proceso_masivo", "programas.services.siis_envio"),
+    # Stock (análisis 010, PR 3): `stock` toma de `kits` sus validaciones de líneas en el encabezado y `kits.recibir_entrega`
+    # le pide `sumar_recepcion_de_kit` diferido (Cambio 601, decisión 9). Sin ese diferido el proyecto no arranca.
+    ("programas.services.kits", "programas.services.stock"),
 }
 
 # Aristas vista→vista de `programas/views/`, medidas hoy. `ajax_utils` queda exento:
