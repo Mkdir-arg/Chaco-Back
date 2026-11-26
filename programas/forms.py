@@ -736,6 +736,7 @@ class TipoDispositivoForm(forms.ModelForm):
         "umbral_ocupacion_amarillo",
         "umbral_ocupacion_rojo",
         "ubicacion_reservada",
+        "maneja_stock",
         "activo",
     ]
 
@@ -749,6 +750,7 @@ class TipoDispositivoForm(forms.ModelForm):
             "umbral_ocupacion_amarillo",
             "umbral_ocupacion_rojo",
             "ubicacion_reservada",
+            "maneja_stock",
             "activo",
         ]
         widgets = {
@@ -759,6 +761,7 @@ class TipoDispositivoForm(forms.ModelForm):
             "umbral_ocupacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "umbral_ocupacion_rojo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "ubicacion_reservada": SwitchInput(),
+            "maneja_stock": SwitchInput(),
             "activo": SwitchInput(),
         }
 
@@ -787,6 +790,19 @@ class TipoDispositivoForm(forms.ModelForm):
             self.fields["maneja_sectores_plazas"].initial = self.instance.maneja_plazas or self.instance.maneja_camas
             self.fields["tipos_plaza_admitidos"].initial = tipos
 
+    def _validar_dejar_de_llevar_stock(self, cleaned):
+        """RN-010-16: destildar «Lleva stock» se rechaza si alguna institución del tipo tiene saldo mayor que 0."""
+
+        if not (self.instance.pk and self.instance.maneja_stock) or cleaned.get("maneja_stock"):
+            return
+        con_saldo = Dispositivo.objects.filter(tipo=self.instance, saldos_stock__cantidad__gt=0).distinct().count()
+        if con_saldo:
+            cuantas = "Hay 1 institución" if con_saldo == 1 else f"Hay {con_saldo} instituciones"
+            self.add_error(
+                "maneja_stock",
+                f"{cuantas} de este tipo con stock cargado: no se puede dejar de llevar stock mientras haya saldo.",
+            )
+
     def _plazas_cargadas(self):
         if not self.instance.pk:
             return 0
@@ -808,6 +824,7 @@ class TipoDispositivoForm(forms.ModelForm):
                     ("Hay 1 plaza cargada" if cargadas == 1 else f"Hay {cargadas} plazas cargadas")
                     + " en instituciones de este tipo: no se puede dejar de manejar plazas mientras existan.",
                 )
+        self._validar_dejar_de_llevar_stock(cleaned)
         amarillo = cleaned.get("umbral_ocupacion_amarillo")
         rojo = cleaned.get("umbral_ocupacion_rojo")
         cleaned["umbral_ocupacion_amarillo"] = (

@@ -32,6 +32,7 @@ from programas.services.edificio_operativo import (
     q_estadias_del_edificio,
 )
 from programas.services.edificio_operativo_edilicio import contexto_edilicio
+from programas.services.edificio_stock import contexto_de_la_solapa
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ingreso import maneja_plazas
 from programas.services.kits import url_de_kits_del_edificio
@@ -119,6 +120,10 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         context["kits_cargados"] = context["puede_kits"] and context["tab"] == "kits"
         if context["kits_cargados"]:
             context["kits"] = self._kits(dispositivo, edificio, self.request.GET.get("entrega", ""))
+        # Stock (análisis 010): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=stock`.
+        if context["stock_cargado"]:
+            context["stock"] = contexto_de_la_solapa(self.request.user, dispositivo, edificio)
+            context["contadores"]["stock"] = context["stock"]["insumos"]
         # Historial (Cambio 571): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=historial`.
         if context["historial_cargado"]:
             context.update(

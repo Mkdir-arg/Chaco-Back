@@ -86,6 +86,9 @@
     {% if aviso_kits %}
     {% include "components/_alerta.html" with tono=aviso_kits.tono icono=aviso_kits.icono titulo=aviso_kits.titulo texto=aviso_kits.texto accion_url=aviso_kits.accion_url accion_texto=aviso_kits.accion_texto role="status" %}
     {% endif %}
+    {% if aviso_stock %}
+    {% include "components/_alerta.html" with tono=aviso_stock.tono icono=aviso_stock.icono titulo=aviso_stock.titulo texto=aviso_stock.texto accion_url=aviso_stock.accion_url accion_texto=aviso_stock.accion_texto role="status" %}
+    {% endif %}
 
     {# ===== Alertas del programa: derivadas del dato, se resuelven en su origen y no bloquean nada ===== #}
     {# role="status" y no el "alert" por defecto: son permanentes mientras el origen siga asi, no #}

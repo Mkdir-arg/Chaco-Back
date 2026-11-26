@@ -2170,6 +2170,14 @@ class TarjetaEdificioTest(SimpleTestCase):
         html = self._render(self._edificio(kits=None))
         self.assertNotIn(">Kits</dt>", html)
 
+    def test_la_fila_de_stock_va_entre_kits_y_equipo_y_sin_permiso_no_se_dibuja(self):
+        con = self._render(self._edificio(stock={"texto": "4 insumos · 1 sin existencia", "clase": "text-fg-warning"}))
+        self.assertIn("4 insumos · 1 sin existencia", con)
+        self.assertLess(con.index(">Kits</dt>"), con.index(">Stock</dt>"))
+        self.assertLess(con.index(">Stock</dt>"), con.index(">Equipo</dt>"))
+        self.assertNotIn(">Stock</dt>", self._render(self._edificio(stock=None)))
+        self.assertNotIn(">Stock</dt>", self._render())
+
     def test_sin_aviso_ni_predio_compartido_no_se_dibujan(self):
         html = self._render(self._edificio(aviso=None, predio_compartido=False))
         self.assertNotIn("Vencido", html)
@@ -2596,3 +2604,160 @@ class AvisoErroresTest(SimpleTestCase):
 
         self.assertEqual(aviso["titulo"], "No se guardó: hay 2 cosas para corregir")
         self.assertEqual([i["texto"] for i in aviso["items"]], ["Clave: Muy corta.", "Clave: Sin número."])
+
+
+class TablaCantidadesTest(SimpleTestCase):
+    """Tabla de cantidades (``components/_tabla_cantidades.html``): una fila por ítem con su control de cantidad."""
+
+    PLANTILLA = "components/_tabla_cantidades.html"
+
+    class _Formulario(forms.Form):
+        # `help_text` es lo que hace que `campo_control` apunte `aria-describedby` a `<id>-ayuda` (la unidad).
+        cantidad_1 = forms.IntegerField(required=False, min_value=0, label="Colchón", help_text="unidad")
+        cantidad_2 = forms.IntegerField(required=False, min_value=0, label="Frazada", help_text="par")
+
+    def _filas(self, formulario):
+        return [
+            {
+                "campo": formulario["cantidad_1"],
+                "nombre": "Colchón",
+                "unidad": "unidad",
+                "info": [{"texto": "5", "nota": "2 demorados (más de 24 h)"}],
+            },
+            {
+                "campo": formulario["cantidad_2"],
+                "nombre": "Frazada",
+                "unidad": "par",
+                "info": [{"texto": "", "nota": ""}],
+            },
+        ]
+
+    def _render(self, formulario=None, **extra):
+        formulario = formulario or self._Formulario()
+        contexto = {
+            "filas": self._filas(formulario),
+            "columnas_info": ["Le falta (estimado)"],
+            "rotulo_cantidad": "Cantidad a enviar",
+            "caption": "Ítems de la entrega",
+            **extra,
+        }
+        return render_to_string(self.PLANTILLA, contexto)
+
+    def test_es_la_tabla_canonica_con_caption_y_sus_rotulos(self):
+        html = self._render()
+        self.assertIn("overflow-x-auto", html)
+        self.assertIn('<caption class="sr-only">Ítems de la entrega</caption>', html)
+        self.assertIn('class="nodo-thead-row"', html)
+        for rotulo in ("Ítem", "Le falta (estimado)", "Cantidad a enviar"):
+            self.assertIn(f'scope="col">{rotulo}</th>', html)
+
+    def test_el_label_la_unidad_y_el_aria_apuntan_al_mismo_control(self):
+        html = self._render()
+        self.assertIn('<label for="id_cantidad_1">Colchón</label>', html)
+        self.assertIn('<span id="id_cantidad_1-ayuda"', html)
+        self.assertIn(">unidad</span>", html)
+        control = re.search(r'<input[^>]*name="cantidad_1"[^>]*>', html).group(0)
+        self.assertIn('id="id_cantidad_1"', control)
+        self.assertIn('aria-describedby="id_cantidad_1-ayuda"', control)
+
+    def test_cada_fila_tiene_su_data_error_oculto_sin_errores(self):
+        html = self._render()
+        self.assertIn('id="id_cantidad_1-error"', html)
+        self.assertIn('data-error="cantidad_1"', html)
+        self.assertIn('data-error="cantidad_2"', html)
+        self.assertEqual(html.count(" hidden"), 2)
+
+    def test_el_error_de_una_fila_se_ve_solo_en_esa_fila(self):
+        formulario = self._Formulario({"cantidad_1": "-3", "cantidad_2": ""})
+        html = self._render(formulario)
+        con_error = re.search(r'<p id="id_cantidad_1-error"[^>]*>', html).group(0)
+        sin_error = re.search(r'<p id="id_cantidad_2-error"[^>]*>', html).group(0)
+        self.assertNotIn("hidden", con_error)
+        self.assertIn("hidden", sin_error)
+        self.assertIn('aria-invalid="true"', html)
+
+    def test_la_celda_de_info_vacia_muestra_raya_y_la_nota_va_debajo(self):
+        html = self._render()
+        self.assertIn('5<span class="block text-xs text-body-subtle">2 demorados (más de 24 h)</span>', html)
+        self.assertEqual(html.count("—"), 1)
+
+    def test_sin_columnas_de_info_solo_hay_item_y_cantidad(self):
+        formulario = self._Formulario()
+        fila = {"campo": formulario["cantidad_1"], "nombre": "Colchón", "unidad": "unidad", "info": []}
+        html = self._render(formulario, columnas_info=[], filas=[fila])
+        self.assertEqual(html.count("<th "), 2)
+
+    def test_sin_filas_no_dibuja_nada(self):
+        self.assertEqual(self._render(filas=[]).strip(), "")
+
+    def test_escapa_el_texto_de_la_vista(self):
+        formulario = self._Formulario()
+        filas = self._filas(formulario)
+        filas[0]["nombre"] = "<script>alert(1)</script>"
+        html = self._render(formulario, filas=filas)
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertIn("&lt;script&gt;", html)
+
+
+class TablaMovimientosTest(SimpleTestCase):
+    """Tabla de movimientos (``components/_tabla_movimientos.html``): contrato de la pieza."""
+
+    PLANTILLA = "components/_tabla_movimientos.html"
+
+    def _fila(self, **extra):
+        fila = {
+            "fecha": "12/11/2026 09:30",
+            "tipo_texto": "Ingreso",
+            "tipo_tono": "success",
+            "insumo": "Arroz",
+            "unidad": "kg",
+            "cantidad_texto": "+8",
+            "suma": True,
+            "queda": 20,
+            "quien": "Ana Pérez",
+            "detalle": "Compra del mes",
+        }
+        fila.update(extra)
+        return fila
+
+    def _render(self, filas):
+        return render_to_string(self.PLANTILLA, {"filas": filas, "caption": "Últimos movimientos"})
+
+    def test_dibuja_las_siete_columnas_y_el_caption(self):
+        html = self._render([self._fila()])
+        self.assertIn('<caption class="sr-only">Últimos movimientos</caption>', html)
+        self.assertIn("overflow-x-auto", html)
+        for rotulo in ("Fecha", "Tipo", "Insumo", "Cantidad", "Queda", "Quién", "Detalle"):
+            self.assertIn(f'scope="col">{rotulo}</th>', html)
+        self.assertEqual(html.count("<th "), 7)
+
+    def test_la_fila_muestra_tipo_en_badge_insumo_con_unidad_y_datos(self):
+        html = self._render([self._fila()])
+        self.assertIn('<span class="badge badge-dot badge-success">Ingreso</span>', html)
+        self.assertIn("Arroz", html)
+        self.assertIn(">kg</span>", html)
+        for texto in ("12/11/2026 09:30", "Ana Pérez", "Compra del mes", ">20</td>"):
+            self.assertIn(texto, html)
+
+    def test_la_cantidad_lleva_el_signo_en_texto_y_el_color_lo_refuerza(self):
+        entra = self._render([self._fila()])
+        sale = self._render([self._fila(cantidad_texto="−3", suma=False, tipo_tono="danger")])
+        self.assertIn("text-fg-success", entra)
+        self.assertIn(">+8</td>", entra)
+        self.assertNotIn("text-fg-danger", entra)
+        self.assertIn("text-fg-danger", sale)
+        self.assertIn(">−3</td>", sale)
+        self.assertNotIn("text-fg-success", sale)
+
+    def test_sin_filas_no_dibuja_nada(self):
+        self.assertEqual(self._render([]).strip(), "")
+
+    def test_no_pone_card_ni_paginacion(self):
+        html = self._render([self._fila()])
+        self.assertNotIn("rounded-xl", html)
+        self.assertNotIn("<nav", html)
+
+    def test_escapa_el_texto_de_la_vista(self):
+        html = self._render([self._fila(detalle="<script>alert(1)</script>")])
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertIn("&lt;script&gt;", html)

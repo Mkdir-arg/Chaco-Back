@@ -1,0 +1,68 @@
+{# Solapa «Stock» de la página operativa del edificio (Cambio 601, PR 4): saldo de insumos y últimos movimientos. Contexto: `stock` (lo arma programas.services.edificio_stock.contexto_de_la_solapa); cada botón llega solo si el usuario puede usarlo. #}
+{% load nodo_ui %}
+<div class="space-y-5">
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="stock-saldo-titulo">
+    <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <h2 id="stock-saldo-titulo" class="text-heading font-bold">Saldo de insumos</h2>
+        <p class="text-xs text-body-subtle mt-1">{{ stock.resumen }}</p>
+      </div>
+      {% if stock.acciones %}
+      <div class="flex flex-wrap items-center gap-2">
+        {% for accion in stock.acciones %}
+        <a href="{{ accion.url }}" class="btn-nodo btn-{{ accion.variante }} btn-sm btn-fit">{% if accion.icono %}<i class="fas {{ accion.icono }}" aria-hidden="true"></i> {% endif %}{{ accion.texto }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% if stock.filas %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <caption class="sr-only">Saldo de cada insumo en este edificio</caption>
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th" scope="col">Insumo</th>
+            <th class="nodo-th text-right" scope="col">Hay</th>
+            <th class="nodo-th" scope="col">Último movimiento</th>
+            {% if stock.puede_ajustar %}<th class="nodo-th nodo-col-acciones text-right" scope="col"><span class="sr-only">Acciones</span></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in stock.filas %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">{{ fila.nombre }}{% if fila.desactivado %} <span class="badge badge-gray">Desactivado</span>{% endif %}<span class="block text-xs text-body-subtle font-normal">{{ fila.unidad }}</span></td>
+            <td class="nodo-td text-right">{{ fila.cantidad }}{% if fila.sin_existencia %} <span class="badge badge-warning">Sin existencia</span>{% endif %}</td>
+            <td class="nodo-td text-body">{{ fila.ultimo }}</td>
+            {% if stock.puede_ajustar %}
+            <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+              {% if fila.url_ajustar %}
+              {% with numero=forloop.counter|stringformat:"s" %}
+              {% menu_fila id="stock-"|add:numero etiqueta="Acciones de "|add:fila.nombre %}
+                {% include "components/_menu_fila_item.html" with texto="Ajustar" icono="fa-sliders" url=fila.url_ajustar only %}
+              {% endmenu_fila %}
+              {% endwith %}
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/_estado_vacio.html" with icono="fa-boxes-stacked" titulo="Todavía no hay stock cargado en este edificio" texto="El stock se carga con ingresos, con la recepción de kits o con un ajuste de inventario inicial." %}
+    {% endif %}
+  </section>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="stock-movimientos-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="stock-movimientos-titulo" class="text-heading font-bold">Últimos movimientos</h2>
+      <p class="text-xs text-body-subtle mt-1">Ingresos, entregas, traspasos y ajustes de este edificio, del más nuevo al más viejo.</p>
+    </div>
+    {% if stock.movimientos %}
+    {% include "components/_tabla_movimientos.html" with filas=stock.movimientos caption="Últimos movimientos de stock de este edificio" only %}
+    {% else %}
+    {% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo="Sin movimientos todavía" texto="Cada ingreso, entrega, traspaso o ajuste queda registrado acá." %}
+    {% endif %}
+  </section>
+</div>

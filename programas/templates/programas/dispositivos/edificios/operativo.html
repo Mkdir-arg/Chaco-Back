@@ -135,6 +135,16 @@
           <span class="badge" :class="tab==='kits' ? 'badge-info' : 'badge-gray'">{{ contadores.kits }} por recibir</span>
         </button>
         {% endif %}
+        {# Stock: igual que Kits, botón y panel bajo el mismo `{% if %}` (`puede_stock`); el saldo se arma solo con la solapa abierta (`stock_cargado`) #}
+        {% if puede_stock %}
+        <button @click="{% if stock_cargado %}tab='stock'{% else %}window.location.href='{{ url_solapa_stock|escapejs }}'{% endif %}" type="button" role="tab" id="tab-stock" aria-controls="panel-stock" {% if not stock_cargado %}data-solapa-navega{% endif %}
+                :aria-selected="tab==='stock'"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                :class="tab==='stock' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-boxes-stacked" aria-hidden="true"></i> Stock
+          <span class="badge" :class="tab==='stock' ? 'badge-info' : 'badge-gray'">{% if stock_cargado %}{% with n=stock.insumos %}{{ n }} insumo{{ n|pluralize }}{% endwith %}{% else %}{% with n=contadores.stock %}{{ n }} insumo{{ n|pluralize }}{% endwith %}{% endif %}</span>
+        </button>
+        {% endif %}
         {# El Equipo se arma solo con la solapa abierta (`equipo_cargado`): si no vino, el botón navega a ella #}
         <button @click="{% if equipo_cargado %}tab='equipo'{% else %}window.location.href='{{ url_solapa_equipo|escapejs }}'{% endif %}" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo" {% if not equipo_cargado %}data-solapa-navega{% endif %}
                 :aria-selected="tab==='equipo'"
@@ -176,6 +186,12 @@
       {% if puede_kits %}
       <div x-show="tab==='kits'" x-cloak role="tabpanel" id="panel-kits" aria-labelledby="tab-kits" class="p-5">
         {% if kits_cargados %}{% include "programas/dispositivos/edificios/operativo/_kits.html" %}{% endif %}
+      </div>
+      {% endif %}
+
+      {% if puede_stock %}
+      <div x-show="tab==='stock'" x-cloak role="tabpanel" id="panel-stock" aria-labelledby="tab-stock" class="p-5">
+        {% if stock_cargado %}{% include "programas/dispositivos/edificios/operativo/_stock.html" %}{% endif %}
       </div>
       {% endif %}
 

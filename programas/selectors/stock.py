@@ -26,7 +26,7 @@ def saldos_de(dispositivo, edificio):
 FILTROS_DE_MOVIMIENTOS = ("item", "tipo", "desde", "hasta")
 
 
-def movimientos_de(dispositivo, edificio, filtros=None):
+def movimientos_de(dispositivo, edificio, filtros=None, *, con_persona=False):
     """Los movimientos de (instituciÃ³n, edificio), del mÃ¡s nuevo al mÃ¡s viejo.
 
     ``filtros`` (todos opcionales): ``item`` (id), ``tipo`` (un ``MovimientoStock.Tipo``), ``desde`` y ``hasta``
@@ -44,7 +44,36 @@ def movimientos_de(dispositivo, edificio, filtros=None):
         consulta = consulta.filter(creado_en__gte=rango_dia_local(filtros["desde"])[0])
     if filtros.get("hasta"):
         consulta = consulta.filter(creado_en__lt=rango_dia_local(filtros["hasta"])[1])
-    return consulta.select_related("item", "operacion", "operacion__usuario").order_by("-creado_en", "-id")
+    # Lo que el detalle de cada fila nombra, traído en la misma consulta (la solapa no hace una por movimiento).
+    relacionados = [
+        "item",
+        "operacion",
+        "operacion__usuario",
+        "operacion__entrega_kit",
+        "operacion__edificio",
+        "operacion__destino_edificio",
+    ]
+    if con_persona:
+        relacionados.append("operacion__ciudadano")
+    return consulta.select_related(*relacionados).order_by("-creado_en", "-id")
+
+
+def resumen_de_insumos_por_edificio(dispositivo, edificio_ids):
+    """Para la fila «Stock» de la tarjeta, en **una** consulta agrupada: ``{edificio_id: {"insumos": n, "sin_existencia": m}}``.
+
+    ``insumos`` son los que la solapa muestra (con saldo, o activos y en 0: ``saldos_de``); ``sin_existencia`` son
+    los activos en 0. Un edificio sin ninguna fila de saldo no aparece en el resultado.
+    """
+
+    filas = (
+        SaldoStock.objects.filter(dispositivo=dispositivo, edificio_id__in=list(edificio_ids))
+        .exclude(item__activo=False, cantidad=0)
+        .values("edificio_id")
+        .annotate(insumos=Count("item_id"), sin_existencia=Count("item_id", filter=Q(cantidad=0)))
+    )
+    return {
+        fila["edificio_id"]: {"insumos": fila["insumos"], "sin_existencia": fila["sin_existencia"]} for fila in filas
+    }
 
 
 def resumen_por_edificio(dispositivo, edificio_ids):
