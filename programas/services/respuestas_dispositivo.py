@@ -195,8 +195,9 @@ def guardar_respuestas_ingreso(estadia, diseno, foto, respuestas, archivos=(), u
     """Guarda lo respondido en el formulario de ingreso de la ``estadia`` recién creada.
 
     Mismo contrato que :func:`guardar_respuestas_alta`: va dentro de la transacción del
-    ingreso (la vista), con ``archivos_atomicos`` por afuera. Los obligatorios no se exigen
-    acá: la vista los valida **antes** de ingresar (:func:`faltantes_de`).
+    ingreso (:func:`programas.services.ingreso.ingresar_con_formulario`), con ``archivos_atomicos``
+    por afuera. Los obligatorios no se exigen acá: quien llama los valida **antes** de ingresar
+    (:func:`faltantes_de`).
     """
     return _guardar_respuestas(
         RespuestasIngresoEstadia,

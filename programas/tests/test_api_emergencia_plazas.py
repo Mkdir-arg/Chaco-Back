@@ -308,11 +308,12 @@ class MapaDelEdificioTests(BasePlazasApp):
         self.assertEqual(fuera["acciones"], ["volver"])
         self.assertEqual(libre["estado"], "disponible")
         self.assertIsNone(libre["persona"])
-        self.assertEqual(libre["acciones"], ["reservar", "prestar", "fuera_servicio"])
+        self.assertEqual(libre["acciones"], ["ingresar", "reservar", "prestar", "fuera_servicio"])
         self.assertEqual(libre["bloqueo"], "")
         for plaza in plazas.values():
-            self.assertNotIn("ingresar", plaza["acciones"])
             self.assertNotIn("baja", plaza["acciones"])
+            # «Ingresar» (Cambio 614) se ofrece en las camas disponibles y en ninguna otra.
+            self.assertEqual("ingresar" in plaza["acciones"], plaza["estado"] == "disponible")
 
     def test_sin_ciudadano_ver_no_se_ve_a_la_persona_ni_el_dni(self):
         self._alojar(self._plaza(self.sector_a1, 0))
@@ -339,7 +340,7 @@ class MapaDelEdificioTests(BasePlazasApp):
         self.assertEqual(cuerpo["puede"], {"egresar": False, "admitir": True, "editar": False, "ver_personas": True})
         plazas = self._plazas_del_mapa(cuerpo)
         self.assertEqual(plazas[self._plaza(self.sector_a1, 0).codigo]["acciones"], ["reubicar"])
-        self.assertEqual(plazas[self._plaza(self.sector_a2, 0).codigo]["acciones"], ["reservar", "prestar"])
+        self.assertEqual(plazas[self._plaza(self.sector_a2, 0).codigo]["acciones"], ["ingresar", "reservar", "prestar"])
 
     def test_edificio_de_otro_dispositivo_o_inexistente_es_404(self):
         for dispositivo, edificio in (

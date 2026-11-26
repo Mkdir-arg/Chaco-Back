@@ -9,12 +9,57 @@ from __future__ import annotations
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_date
 
-from programas.forms_dinamicos import _field_para_campo
-from programas.models import TipoCampo
+from programas.forms_dinamicos import _field_para_campo, es_adjunto, sin_archivos
+from programas.models import MomentoFormulario, TipoCampo
 from programas.services.condiciones import esta_vacio
 from programas.services.firma import errores_del_firmante, normalizar_firmante
 from programas.services.respuestas import aplicar, campos_de
-from programas.services.respuestas_dispositivo import faltantes_de
+from programas.services.respuestas_dispositivo import faltantes_de, formulario_vigente, foto_vigente
+
+
+class RespuestasInvalidas(ValidationError):
+    """Las respuestas de un formulario no pasan el motor: tipo inválido u obligatorio sin responder.
+    ``por_clave`` es ``{clave: texto}``; la API lo devuelve aparte."""
+
+    def __init__(self, por_clave):
+        super().__init__({"respuestas": list(por_clave.values())})
+        self.por_clave = dict(por_clave)
+
+
+class FormularioCambio(Exception):
+    """La versión del formulario de ingreso que mandó la app ya no es la vigente (o el tipo ya no lo pide)."""
+
+
+class IngresoConArchivo(Exception):
+    """El formulario de ingreso pide un archivo o una firma obligatorios y la app no los puede mandar."""
+
+
+def requiere_archivo(foto):
+    """¿La foto tiene un campo de archivo o firma **obligatorio**? Ese formulario no se completa desde la app."""
+    return any(campo.get("obligatorio") and es_adjunto(campo) for campo in campos_de(foto))
+
+
+def formulario_de_ingreso_de_la_app(tipo_id, envio):
+    """El formulario de ingreso que manda la app, validado **antes** de escribir nada.
+
+    ``envio`` es ``{version, respuestas}`` o ``None``. Devuelve ``(diseno, foto, efectivas)`` o ``None`` si el
+    tipo no pide formulario. Archivos y firmas no viajan: se descartan. Levanta :class:`FormularioCambio` (la
+    versión ya no es la vigente), :class:`IngresoConArchivo` (un archivo obligatorio visible) o
+    :class:`RespuestasInvalidas` (``por_clave`` con lo que no pasa el motor).
+    """
+    diseno = formulario_vigente(tipo_id, MomentoFormulario.INGRESO)
+    if envio is not None and (diseno is None or envio["version"] != diseno.version):
+        raise FormularioCambio
+    if diseno is None:
+        return None
+    foto = foto_vigente(diseno)
+    respuestas = sin_archivos(foto, (envio or {}).get("respuestas"))
+    if any(es_adjunto(campo) for campo in faltantes_de(foto, respuestas)):
+        raise IngresoConArchivo
+    efectivas, errores, _avisos = validar_respuestas_con_avisos(foto, respuestas)
+    if errores:
+        raise RespuestasInvalidas(errores)
+    return diseno, foto, efectivas
 
 
 def _es_fecha_iso(valor):

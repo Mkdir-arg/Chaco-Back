@@ -1204,11 +1204,11 @@ un edificio con `dispositivo.ver` en su alcance. Las demás claves no cambian.
 
 - `estado` de la plaza: `disponible`, `ocupada`, `reservada`, `prestada` o `fuera_servicio`.
 - `acciones` es lo que la web ofrece (`acciones_de_plaza`) filtrado a `egresar`, `reubicar`, `liberar`,
-  `reservar`, `prestar`, `fuera_servicio` y `volver`. Con la plaza ocupada, `fuera_servicio` viene con su
+  `reservar`, `prestar`, `fuera_servicio`, `volver` e `ingresar` (Cambio 614, §18; solo en la cama disponible). Con la plaza ocupada, `fuera_servicio` viene con su
   `bloqueo` (el motivo); es `""` en las demás.
 - `reserva_id` es la reserva o préstamo **sin liberar**, aunque haya vencido (la plaza se ve `disponible` y
   ofrece `liberar`). `desde`/`hasta` son los de la estadía (ingreso) o los de la reserva.
-- Sin `ciudadano.ver`, `persona` es `null` (ni nombre ni DNI) y no se ofrecen `reservar` ni `prestar`.
+- Sin `ciudadano.ver`, `persona` es `null` (ni nombre ni DNI) y no se ofrecen `ingresar`, `reservar` ni `prestar`.
 - Las capacidades se evalúan **sobre este edificio**: con alcance Edificios, un edificio ajeno es 404.
 
 ```json
@@ -1398,3 +1398,102 @@ de la primera vez y **no mueve el saldo**. Un reenvío con el cuerpo malformado 
 | 409 `UUID_EN_USO` | Ese `uuid_cliente` es de otra operación, otro usuario, otro edificio u otro destino |
 | 409 `STOCK_NO_HABILITADO` | La institución no está activa (ingresar, entregar y recibir un traspaso lo exigen), el edificio está inactivo o la institución de destino de un traspaso no lleva stock |
 | 429 | Tope de escrituras de stock del usuario (`stock_escritura`, 600/hora). Trae `Retry-After` |
+
+## 18. Ingresar a una persona en una cama (Cambio 614)
+
+La cama `disponible` ofrece la acción `ingresar` en `plazas[].acciones` del mapa (§14), solo cuando la web ofrecería «Ingresar persona»:
+`dispositivo.admitir` sobre el edificio **y** `ciudadano.ver`, con la institución **ACTIVA**. El flujo es el asistente de la web en tres pasos y
+**no consulta el Registro de Personas**: la persona que no está en el padrón se da de alta a mano (`estado_renaper` vacío).
+
+| Método y ruta | Paso |
+|---|---|
+| `GET dispositivos/{d}/ingreso/persona/?dni=` | 1. ¿La persona está en el padrón? ¿Ya está alojada? |
+| `GET dispositivos/{d}/ingreso/formulario/` | 2. El formulario de **ingreso** del tipo, o `null` |
+| `POST dispositivos/{d}/ingresar/` | 3. Confirmar: alta si hace falta + estadía + respuestas, en **una** transacción |
+
+**Quién puede (los tres).** Institución que el usuario no ve (o inexistente): **404** `{"detail": "No encontrado."}`. La ve pero no tiene `dispositivo.admitir` sobre ella o `ciudadano.ver`: **403** `{"detail", "code": "SIN_PERMISO"}` (`SIN_MODULO` si no abre el módulo). Institución que no está ACTIVA: **400** `VALIDACION` con la clave `dispositivo`. Dar de alta a una persona nueva pide además `ciudadano.crear`: **403** `SIN_PERMISO`, sin escribir nada (usar un legajo que ya existe no lo pide).
+
+### 18.1 Paso 1: la persona
+
+`GET dispositivos/{d}/ingreso/persona/?dni=30.111.222` (acepta puntos). DNI que no tiene 7 u 8 dígitos: 400 `{"code": "VALIDACION", "detail", "dni": [...]}`.
+
+```json
+// en el padrón y libre
+{"encontrada": true,
+ "persona": {"id": 812, "dni": "30111222", "nombre_completo": "Rosa Benítez"},
+ "alojada": false, "alojamiento": null, "plaza_reservada_id": null}
+
+// en el padrón y ya alojada en algún dispositivo
+{"encontrada": true,
+ "persona": {"id": 812, "dni": "30111222", "nombre_completo": "Rosa Benítez"},
+ "alojada": true,
+ "alojamiento": {"mensaje": "La persona ya figura alojada en Club Sarmiento (C002) desde el 25/11/2026 09:30. Registrá el egreso o el traslado antes de alojarla de nuevo.",
+                 "dentro_del_alcance": true, "dispositivo": "Club Sarmiento", "plaza": "C002", "desde": "2026-11-25T09:30:00-03:00"},
+ "plaza_reservada_id": null}
+
+// no está en el padrón: la app pide los datos y los manda en `persona_nueva` (paso 3)
+{"encontrada": false}
+```
+
+- `alojada: true` con `alojamiento.dentro_del_alcance: false`: está alojada en una institución fuera del alcance del usuario; `dispositivo` y `plaza` vienen vacíos (`""`), `desde` en `null`, y el `mensaje` dice a quién pedir el egreso. La app lo muestra y **no deja seguir**: el paso 3 lo rechazaría igual.
+- `plaza_reservada_id`: la cama que la persona tiene reservada o prestada **en este dispositivo**. El ingreso la consume (la cama es elegible para ella aunque el mapa la muestre `reservada` o `prestada`).
+- **Tope (SEC-25)**: consultar un DNI descuenta de la cubeta `personas_campo` del usuario, la misma de la consulta de identidad y de la sugerencia por DNI. Superada: **429** con `Retry-After` (segundos). Lo que se rechaza antes (institución ajena 404, sin capacidad 403, dispositivo inactivo o DNI mal formado 400) no gasta la cubeta. La app no encadena consultas: una por cada DNI que el agente confirma.
+
+### 18.2 Paso 2: el formulario de ingreso
+
+`GET dispositivos/{d}/ingreso/formulario/`: sin formulario, `{"formulario": null}`. Con formulario, **el mismo formato que el formulario del relevamiento** (`{definicion, version}`; la app reusa su renderizador), más `requiere_archivo`:
+
+```json
+{"formulario": {"version": 4,
+  "definicion": {"version": 4, "canal": null, "destinos_siis": [],
+                 "items": [{"tipo_item": "grupo", "clave": "g1", "titulo": "Datos del ingreso", "items": [
+                   {"tipo_item": "campo", "clave": "c9", "texto": "Cantidad de pertenencias", "tipo": "INT", "obligatorio": true},
+                   {"tipo_item": "campo", "clave": "c10", "texto": "Observaciones", "tipo": "STRING", "obligatorio": false}]}]},
+  "requiere_archivo": false}}
+```
+
+`requiere_archivo: true` avisa que la definición tiene un campo de **archivo o firma obligatorio** (la app no puede mandarlos, ver 18.3): la app puede avisar de entrada que ese ingreso se hace en el backoffice. Los archivos y firmas **opcionales** se omiten del formulario que dibuja la app.
+
+### 18.3 Paso 3: confirmar
+
+`POST dispositivos/{d}/ingresar/`. Una de las dos formas de indicar a la persona (las dos juntas, o ninguna: 400 en `ciudadano_id` o `persona_nueva`):
+
+```json
+// persona que ya está en el padrón (paso 1: encontrada)
+{"plaza_id": 41, "ciudadano_id": 812,
+ "formulario": {"version": 4, "respuestas": {"c9": 3, "c10": "Llega con mochila"}}}
+
+// persona nueva: se da de alta al confirmar. Obligatorios: dni, nombre, apellido.
+// sexo (F|M|X) y fecha_nacimiento (AAAA-MM-DD, no futura) son opcionales
+{"plaza_id": 41,
+ "persona_nueva": {"dni": "40111222", "nombre": "Lucía", "apellido": "Ferreyra", "sexo": "F", "fecha_nacimiento": "1990-05-17"}}
+```
+
+- `plaza_id` es la cama del mapa. Tiene que estar **disponible** (o ser la que la persona tiene guardada) y en un edificio donde el usuario puede admitir; si no, 400 en `plaza_id`. Se puede omitir solo si el tipo del dispositivo no maneja plazas ni exige asignarla.
+- `formulario` se manda **solo si el paso 2 trajo uno**; `version` es la que la app dibujó. Las `respuestas` son `{clave: valor}` como en el relevamiento (texto: string; entero: número o string numérico; selector: una opción; múltiple: lista; fecha: `AAAA-MM-DD`). Se validan con el mismo motor: obligatorios visibles, condiciones y tipos.
+- Si `persona_nueva.dni` ya está en el padrón se usa **ese legajo** (no se duplica ni se pisan sus datos).
+- No hay `fecha_ingreso`: el ingreso es ahora.
+
+**201** `{"ok": true, "estadia_id": 230, "mapa": {…}}`: `mapa` es el cuerpo de `GET dispositivos/{d}/edificios/{e}/mapa/` (§14) del edificio de la cama, ya con la persona en ella (`null` si no se mandó `plaza_id`).
+
+| Código | Cuándo | Cuerpo |
+|---|---|---|
+| 400 | cuerpo inválido, persona inexistente (`ciudadano_id`), alta inválida, cama tomada, persona ya alojada, respuestas inválidas, institución no activa | `{"code": "VALIDACION", "detail", "<campo>": [...], "non_field_errors": [...]}` |
+| 403 | sin `dispositivo.admitir`, `ciudadano.ver` o (para el alta) `ciudadano.crear` | `{"detail", "code": "SIN_PERMISO"}` |
+| 404 | institución fuera de alcance o inexistente | `{"detail": "No encontrado."}` |
+| 409 | `FORMULARIO_CAMBIO` o `INGRESO_CON_ARCHIVO` (abajo) | `{"detail", "code"}` |
+
+Los errores del alta salen **por campo** (`dni`, `nombre`, `apellido`, `sexo`, `fecha_nacimiento`) en el nivel del cuerpo. Cama tomada en carrera: `{"code": "VALIDACION", "detail": "…", "plaza_id": ["…"]}`; la app recarga el mapa. Persona ya alojada: `detail` con el mensaje del paso 1. Respuestas inválidas:
+
+```json
+{"code": "VALIDACION", "detail": "«Cantidad de pertenencias» es obligatorio.",
+ "respuestas": ["«Cantidad de pertenencias» es obligatorio."], "claves": {"c9": "«Cantidad de pertenencias» es obligatorio."}}
+```
+
+`claves` es `{clave del campo: texto}` para pintar el error en cada campo.
+
+**409 `FORMULARIO_CAMBIO`** `{"detail": "El formulario de ingreso cambió. Volvé a cargarlo.", "code": "FORMULARIO_CAMBIO"}`: la `version` mandada ya no es la vigente, o el tipo ya no tiene formulario. La app vuelve a pedir el paso 2, conserva lo escrito y reenvía. No se escribió nada.
+
+**409 `INGRESO_CON_ARCHIVO`** `{"detail": "Este ingreso se hace desde el backoffice.", "code": "INGRESO_CON_ARCHIVO"}`: el formulario tiene un campo de archivo o firma **obligatorio** visible. La app no sube archivos en este paso (no hay estadía a la que adjuntarlos antes de confirmar), así que ese ingreso se hace en el backoffice; no se escribió nada. Los archivos opcionales se omiten y, aunque `respuestas` traiga una marca de «adjunto» para ellos, no se guarda (no hay archivo). Igual que `EGRESO_CON_FORMULARIO` (§15).
+
+**Atomicidad.** El alta de la persona, la estadía y las respuestas del formulario entran juntas o no entran: si algo falla (cama tomada, persona alojada, respuestas) no queda legajo huérfano ni estadía a medias.

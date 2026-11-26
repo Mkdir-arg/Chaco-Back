@@ -34,7 +34,6 @@ import json
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -59,7 +58,7 @@ from programas.services.estadias import (
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
     buscar_en_registro_de_personas,
-    confirmar_ingreso,
+    ingresar_con_formulario,
     maneja_plazas,
     plaza_reservada_de,
     plazas_para_ingresar,
@@ -71,7 +70,6 @@ from programas.services.ocupacion import (
     ocupacion_de_plazas,
     tension_de_ocupacion,
 )
-from programas.services.respuestas_dispositivo import guardar_respuestas_ingreso
 
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
@@ -838,26 +836,20 @@ class IngresoConfirmarView(IngresoBaseView):
         no cambia; si guardar las respuestas falla se deshace también la estadía (y el alta del legajo), y
         `archivos_atomicos` borra el archivo que ya se hubiera escrito."""
 
-        with transaction.atomic():
-            estadia = confirmar_ingreso(
-                dispositivo=self.dispositivo,
-                usuario=request.user,
-                ciudadano_id=estado.get("ciudadano_id"),
-                datos_renaper=estado.get("renaper"),
-                datos_manual=estado.get("manual"),
-                plaza_id=estado.get("plaza_id"),
-                fecha_ingreso=form.cleaned_data["fecha_ingreso"],
-            )
-            if formulario is not None:
-                guardar_respuestas_ingreso(
-                    estadia,
-                    formulario.diseno,
-                    formulario.foto,
-                    formulario.respuestas(),
-                    formulario.archivos(),
-                    request.user,
-                )
-        return estadia
+        return ingresar_con_formulario(
+            dispositivo=self.dispositivo,
+            usuario=request.user,
+            ciudadano_id=estado.get("ciudadano_id"),
+            datos_renaper=estado.get("renaper"),
+            datos_manual=estado.get("manual"),
+            plaza_id=estado.get("plaza_id"),
+            fecha_ingreso=form.cleaned_data["fecha_ingreso"],
+            formulario=(
+                (formulario.diseno, formulario.foto, formulario.respuestas(), formulario.archivos())
+                if formulario is not None
+                else None
+            ),
+        )
 
     def _volver_a_la_plaza(self, estado, mensaje, formulario=None):
         if formulario is not None:

@@ -96,6 +96,7 @@ from programas.services.respuestas_dispositivo import (
     guardar_respuestas_relevamiento,
 )
 from programas.services.validacion_relevamiento import (
+    RespuestasInvalidas,  # noqa: F401  (se reexporta: la API de inspecciones lo importa de acá)
     avisos_de_archivos_obligatorios,
     validar_respuestas_con_avisos,
 )
@@ -137,15 +138,6 @@ class InspeccionEnConflicto(ValidationError):
     def __init__(self, codigo, mensaje):
         super().__init__(mensaje, code=codigo)
         self.codigo = codigo
-
-
-class RespuestasInvalidas(ValidationError):
-    """Las respuestas del formulario «Relevamiento» no pasan el motor: tipo inválido u
-    obligatorio sin responder. ``por_clave`` es ``{clave: texto}``; la API lo devuelve aparte."""
-
-    def __init__(self, por_clave):
-        super().__init__({"respuestas": list(por_clave.values())})
-        self.por_clave = dict(por_clave)
 
 
 class InspeccionReasignada(PermissionDenied):
