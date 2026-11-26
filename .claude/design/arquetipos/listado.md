@@ -103,6 +103,11 @@ los objetos de `page_obj.object_list`, `estados` (choices), `estado_actual`, `pu
   conteo —Abiertas, Demoradas (más de 48 h), Con diferencia sin cerrar, Recibidas, Canceladas—, un `_alerta.html` arriba
   si hay demoradas y chips `badge` «Demorada» y «Diferencia sin cerrar» en la fila (Cambio 586); «Marcar en camino» y «Cancelar» son ítems `url` del `menu_fila` que reabren el listado con
   `?en_camino=<id>` / `?cancelar=<id>`, variante «abierto por parámetro GET» del arquetipo Modal).
+- Listado de un registro hijo con vuelta al padre («movimientos de un edificio»,
+  `programas/templates/programas/dispositivos/stock/movimientos.html`): tabla `components/_tabla_movimientos.html` +
+  `_paginacion` (de a 25), filtros GET con `data-dynamic-list-filters` (insumo, tipo, desde, hasta) y estado vacío distinto con
+  y sin filtros. Diferencias declaradas con la golden: `hay_filtros` lo arma la vista (solo cuenta filtros válidos) en vez de
+  `request.GET|hay_filtros`, y el `page_header` lleva `eyebrow` y `volver_url`. Sin acción de alta ni de fila.
 - Sin acción de alta: el `page_header` sin cuerpo. Acción secundaria: `btn-nodo btn-tertiary btn-base`.
   Cada acción del encabezado, también la secundaria, se dibuja solo si la vista resolvió su capacidad (p. ej. «Exportar
   CSV» con `ciudadano.exportar` en `legajos/templates/legajos/ciudadano_list.html`, SEC-20).

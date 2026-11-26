@@ -2,7 +2,9 @@
 
 **Clasificación:** Canónico reutilizable. Una fila por movimiento de stock, ya en texto.
 **Evidencia:** `templates/components/_tabla_movimientos.html`,
-`programas/templates/programas/dispositivos/edificios/operativo/_stock.html` (consumidor),
+`programas/templates/programas/dispositivos/edificios/operativo/_stock.html` (consumidor: panel de la solapa Stock),
+`programas/templates/programas/dispositivos/stock/movimientos.html` (consumidor: listado paginado de a 25 con filtros insumo, tipo, desde y hasta),
+`programas/services/edificio_stock.py`,
 `core/tests/test_nodo_ui_piezas.py` (`TablaMovimientosTest`).
 
 Va dentro de la surface del consumidor; no pone card ni paginación.
@@ -26,9 +28,13 @@ Va dentro de la surface del consumidor; no pone card ni paginación.
 - Con `filas` vacío no dibuja nada: el consumidor muestra `_estado_vacio`.
 - **Privacidad:** el armado de `detalle` (persona y observación solo con `ciudadano.ver`; otra institución sin
   nombre) vive en `programas/services/edificio_stock.py` (`fila_de_movimiento` y `_detalle`), no en el template.
-- El panel que la consume (`contexto_de_la_solapa`) lee `stock.ver` **una** vez y se lo pasa a `_acciones`: sin él no
-  hay botones (Entregar, Ingresar, Traspasar) y con él cada permiso por acción se decide una sola vez, aunque dos
-  botones compartan capacidad. Los botones salen del servicio, nunca del template.
+- El panel que la consume (`contexto_de_la_solapa`) decide cada permiso **una** vez: `puede_ver_stock` está memoizado
+  sobre el usuario y sin `stock.ver` no hay botones (Entregar, Ingresar, Traspasar); cada permiso por acción se decide
+  una sola vez, aunque dos botones compartan capacidad. Los botones salen del servicio, nunca del template.
+- `_url_de_accion` solo hace `reverse(...)`: una ruta mal escrita rompe fuerte, no esconde el botón.
+- Cada fila de saldo del panel trae `item_id` y `url_ajustar`, un link GET (`?tab=stock&ajustar=<id>`), no un POST.
+  Claves del contexto de la solapa: `puede_ajustar`, `url_enviar_ajuste` y `url_movimientos` (esta última solo con
+  `stock.ver`).
 
 ## Prohibido
 

@@ -154,6 +154,10 @@ solo pone etiqueta y error.
   - Las tres pantallas de stock comparten `FormConTablaDeCantidades` (`programas/forms_stock.py`): campos
     `cantidad_<id>`, guarda de «un insumo pedido que ya no tiene fila no se descarta en silencio» y «cargá al menos un
     insumo». Cada una dibuja sus ocultos con `form.hidden_fields` y el `auto_id` propio de la vista.
+  - El ajuste de **un** insumo no es pantalla sino modal AJAX: `AjusteForm` (mismo archivo) lleva en ocultos `item`,
+    `saldo_visto` y `uuid_cliente`, y a la vista `motivo`, `cantidad_contada` (con `numero(0)`, tope
+    `CANTIDAD_MAXIMA`) y `detalle`. Los errores de un oculto suben al error general; el resto de las reglas (detalle
+    obligatorio, saldo que cambió) las decide el servicio. Ver `modal.md`.
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.
 - Grilla de dos columnas: envolver los `{% include %}` de campo en
