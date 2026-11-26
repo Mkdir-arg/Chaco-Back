@@ -23,6 +23,7 @@ from programas.api.views_emergencia_estadias import (
     MotivosEgresoView,
     PlazasParaCambioView,
 )
+from programas.api.views_emergencia_ingreso import IngresarView, IngresoFormularioView, IngresoPersonaView
 from programas.api.views_emergencia_kits import (
     EntregaKitDetalleView,
     EntregasDelDispositivoView,
@@ -138,6 +139,14 @@ urlpatterns = [
     path("plazas/<int:pk>/liberar/", LiberarPlazaView.as_view(), name="plaza-liberar"),
     path("plazas/<int:pk>/fuera-servicio/", FueraDeServicioView.as_view(), name="plaza-fuera-servicio"),
     path("plazas/<int:pk>/volver-servicio/", VolverAServicioView.as_view(), name="plaza-volver-servicio"),
+    # Ingresar a una persona en una cama (Cambio 614): persona por DNI, formulario de ingreso y confirmación.
+    path("dispositivos/<int:dispositivo_id>/ingreso/persona/", IngresoPersonaView.as_view(), name="ingreso-persona"),
+    path(
+        "dispositivos/<int:dispositivo_id>/ingreso/formulario/",
+        IngresoFormularioView.as_view(),
+        name="ingreso-formulario",
+    ),
+    path("dispositivos/<int:dispositivo_id>/ingresar/", IngresarView.as_view(), name="dispositivo-ingresar"),
     # Plazas y estadías (Cambio 596): lectura, para cualquier institución y edificio en el alcance de `dispositivo.ver`.
     path("edificios/", EdificiosDeLaAppView.as_view(), name="edificios"),
     path(

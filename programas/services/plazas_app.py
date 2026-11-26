@@ -45,6 +45,7 @@ from programas.services.plazas import puede_configurar_plazas
 from programas.services.sectores_plazas import (
     ACCION_EGRESAR,
     ACCION_FUERA_SERVICIO,
+    ACCION_INGRESAR,
     ACCION_LIBERAR,
     ACCION_PRESTAR,
     ACCION_RESERVAR,
@@ -65,8 +66,9 @@ ESTADO_DE_LA_APP = {
     ESTADO_FUERA_SERVICIO: "fuera_servicio",
 }
 
-#: Las acciones sobre una cama que la app ofrece. Quedan afuera ``ingresar``, ``ver_estadia``, ``ver_legajo`` y ``baja``.
+#: Las acciones sobre una cama que la app ofrece. Quedan afuera ``ver_estadia``, ``ver_legajo`` y ``baja``.
 ACCIONES_DE_LA_APP = (
+    ACCION_INGRESAR,
     ACCION_EGRESAR,
     ACCION_REUBICAR,
     ACCION_LIBERAR,
