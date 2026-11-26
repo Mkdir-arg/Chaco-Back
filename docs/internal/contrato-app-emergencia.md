@@ -166,6 +166,7 @@ El token no abre nada por sí solo: un usuario de Becas recibe 403 `SIN_MODULO` 
 | `llegadas` | M2 · «Llegada de familias» | admite familias en **algún** dispositivo: `dispositivo.admitir` en su Equipo, o administra el programa Dispositivos **con** esa capacidad |
 | `kits` | M3 · «Recepción de kits» | recibe kits en **algún** dispositivo: `emergencia.recibir_kit` en su Equipo, o administra el programa Dispositivos **con** esa capacidad |
 | `dispositivo` | — | `llegadas` **o** `kits`: opera en algún dispositivo |
+| `plazas` | «Plazas y estadías» | ve un edificio con `dispositivo.ver` **y** abre el módulo de campo: quien solo tiene `stock.ver` la recibe en `false` (esas rutas le dan 403). Aditiva |
 | `stock` | «Stock» (§17) | ve el stock de al menos un edificio **activo** de una institución que lo lleva: `stock.ver` con su alcance. Aditiva (PR 7a) |
 
 - `llegadas` y `kits` son **aditivas** (Cambio 475): la app que no las lee sigue andando con

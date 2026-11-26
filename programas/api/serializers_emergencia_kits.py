@@ -12,7 +12,7 @@ from rest_framework import serializers
 from rest_framework.fields import empty
 from rest_framework.utils import html
 
-from programas.api.serializers_emergencia import _texto
+from programas.api.serializers_emergencia import texto
 from programas.models import EntregaKit, LineaEntrega
 from programas.services.kits import edificios_para_recibir, requiere_edificio_al_recibir
 
@@ -168,7 +168,7 @@ class RecepcionKitEnvioSerializer(serializers.Serializer):
         default=None,
         help_text="Obligatorio. Foto del remito en JPEG, hasta 5 MB. HEIC/HEIF se convierten en la app.",
     )
-    observacion = _texto(help_text="Lo que la mesa tiene que saber de esta entrega. Opcional.")
+    observacion = texto(help_text="Lo que la mesa tiene que saber de esta entrega. Opcional.")
     edificio_id = serializers.IntegerField(
         required=False,
         allow_null=True,
