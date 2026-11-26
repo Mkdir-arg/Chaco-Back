@@ -6499,7 +6499,9 @@ class NumeradorEmergencia(TimeStamped):
 class EntregaKit(TimeStamped):
     """Una entrega de insumos de la mesa a un dispositivo: **una entrega, una recepción** (etapa 4).
 
-    No hay stock ni depósitos (RN-4.6): las cantidades son lo que dice un remito. La mesa
+    Las cantidades son lo que dice un remito. RN-4.6 («no hay stock») quedó **revertida** por el análisis 010
+    (RN-010-06): si el tipo de la institución lleva stock, lo recibido se suma al stock de su edificio al recibir
+    (``stock.sumar_recepcion_de_kit``); una institución que no lleva stock no se toca. La mesa
     la arma (``PREPARADA``), la marca en camino y el dispositivo confirma qué llegó; lo que
     difiere queda a la vista en cada línea. Toda regla está en ``programas.services.kits``.
 

@@ -727,6 +727,7 @@ class RecibirKitView(RecepcionKitsMixin, View):
             # Si la recepción vino de la solapa Kits del edificio y el formulario vuelve con error, conserva el regreso.
             "siguiente": self._siguiente(request),
             "url_cancelar": self._destino(request),
+            "suma_al_stock": servicio.suma_al_stock(self.dispositivo),
             **_estado(entrega),
         }
         return render(request, TEMPLATE_RECIBIR, contexto, status=status)
@@ -745,11 +746,20 @@ class RecibirKitView(RecepcionKitsMixin, View):
             # solapa usa), para las entregas anteriores al Cambio 523 (sin edificio) y para quien no puede abrir la
             # página del edificio (la guardia con solo ``emergencia.recibir_kit``): ellos reciben acá.
             return redirect(_url_de_recepcion(entrega, self.dispositivo, alcance))
-        return self._render(request, entrega, RecepcionKitForm(lineas=list(entrega.lineas.all())))
+        return self._render(request, entrega, self._form(entrega))
+
+    def _form(self, entrega, *datos):
+        """El formulario de la entrega; con el desplegable de edificio solo si hay que elegirlo (RN-010-07)."""
+
+        return RecepcionKitForm(
+            *datos,
+            lineas=list(entrega.lineas.all()),
+            edificios=servicio.edificios_para_recibir(self.request.user, entrega),
+        )
 
     def post(self, request, dispositivo, pk):
         entrega = self._entrega(pk)
-        form = RecepcionKitForm(request.POST, request.FILES, lineas=list(entrega.lineas.all()))
+        form = self._form(entrega, request.POST, request.FILES)
         if not form.is_valid():
             return self._render(request, entrega, form, status=400)
         try:
@@ -759,6 +769,7 @@ class RecibirKitView(RecepcionKitsMixin, View):
                 form.cantidades(),
                 form.cleaned_data["remito"],
                 observacion=form.cleaned_data["observacion"],
+                edificio=form.edificio(),
             )
         except EstadoCambio as cambio:
             messages.warning(request, cambio.mensaje)

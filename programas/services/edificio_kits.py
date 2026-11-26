@@ -168,6 +168,7 @@ def contexto_del_detalle(dispositivo, edificio, usuario, entrega_pk, url_pagina)
     }
     if entrega.abierta:
         contexto["form"] = RecepcionKitForm(lineas=lineas)
+        contexto["suma_al_stock"] = servicio.suma_al_stock(dispositivo)
         contexto["url_recibir"] = reverse("emergencia:dispositivo_kit_recibir", args=[dispositivo.pk, entrega.pk])
     elif recibida:
         contexto["remito"] = (
