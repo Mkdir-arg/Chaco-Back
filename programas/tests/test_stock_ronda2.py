@@ -8,7 +8,7 @@ Mutaciones verificadas a mano (se rompe la regla, se mira el test rojo, se resta
 * sacar ``_exigir_tope`` de ``_asentar`` pone rojo los dos tests de tope (ingreso, traspaso y recepción de kit; en el
   ajuste no se alcanza: lo para el chequeo de lo contado);
 * sacar el ``atomic`` (el ``with transaction.atomic()``) de ``entregar_a_persona`` pone rojo
-  ``test_si_falla_al_asentar_tampoco_queda_el_legajo``;
+  ``test_si_falla_al_asentar_tampoco_queda_el_legajo``, que vive en ``test_stock_entrega_persona.py`` (no acá);
 * sacar el ``lleva_stock`` de ``consultar_persona`` pone rojo ``test_consultar_persona_rechaza_una_institucion_...``.
 """
 

@@ -30,16 +30,17 @@ from django.urls import reverse
 from django.views import View
 
 from core import rbac
+from programas.forms_cantidades import ids_con_cantidad
 from programas.forms_stock import EntregaPersonaForm, PersonaForm
 from programas.selectors import stock as selectores
 from programas.services import stock as servicio
 from programas.services.dispositivos import CAP_STOCK_ENTREGAR, dispositivos_en_alcance, puede_operar_edificio
 from programas.services.edificio_operativo import edificio_de_la_institucion
-from programas.services.edificio_stock import filas_de_historial, texto_de_la_persona
 from programas.services.estadias import CAP_VER_CIUDADANO
-from programas.services.stock_personas import PersonaSinDatos
+from programas.services.stock_personas import PersonaSinDatos, filas_de_historial, texto_de_la_persona
 
 TEMPLATE_ENTREGAR = "programas/dispositivos/stock/entregar.html"
+AUTO_ID_ENTREGA = "entrega_%s"
 
 
 class EntregarAPersonaView(LoginRequiredMixin, View):
@@ -77,10 +78,25 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
     def _url_entregar(self):
         return reverse("dispositivos:stock_entregar", args=[self.dispositivo.pk, self.edificio.pk])
 
-    def _saldos(self):
-        """Los insumos que se pueden entregar: los que **hoy** tienen saldo en este edificio (una consulta)."""
+    def _saldos(self, cargados=()):
+        """Los insumos con fila: los que **hoy** tienen saldo en este edificio **más** los que llegan cargados (una consulta).
 
-        return [saldo for saldo in selectores.saldos_de(self.dispositivo, self.edificio) if saldo.cantidad > 0]
+        Un insumo que llegó a 0 entre el GET y el POST conserva su fila: el servicio contesta ``SaldoInsuficiente`` y
+        la pantalla dice «Hay 0 y pediste 3» en vez de entregar el resto sin avisar.
+        """
+
+        cargados = set(cargados)
+        return [
+            saldo
+            for saldo in selectores.saldos_de(self.dispositivo, self.edificio)
+            if saldo.cantidad > 0 or saldo.item_id in cargados
+        ]
+
+    def _form_entrega(self, datos=None, initial=None):
+        """El formulario de la entrega con los saldos de ahora. ``auto_id`` propio: los ocultos repiten los ids del GET."""
+
+        cargados = ids_con_cantidad(datos) if datos is not None else ()
+        return EntregaPersonaForm(datos, initial=initial, saldos=self._saldos(cargados), auto_id=AUTO_ID_ENTREGA)
 
     def _pantalla(self, request, persona_form, form=None, persona=None, historial=(), status=200):
         contexto = {
@@ -103,10 +119,11 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
             )
         return render(request, TEMPLATE_ENTREGAR, contexto, status=status)
 
-    def _mostrar_persona(self, request, persona_form, form_de_entrega):
+    def _mostrar_persona(self, request, persona_form, form_de_entrega, resuelta=None):
         """Resuelve a la persona **sin escribir** y dibuja la pantalla; si no se puede, la pantalla pide lo que falta.
 
-        ``form_de_entrega`` es la función que arma el formulario de la entrega con los saldos de ahora.
+        ``form_de_entrega`` es la función que arma el formulario de la entrega con los saldos de ahora. ``resuelta`` es
+        la persona que el servicio ya resolvió en un POST rechazado: no se consulta de nuevo al Registro.
         """
 
         datos = persona_form.cleaned_data
@@ -119,6 +136,7 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
                 datos["sexo"],
                 datos["nombre"],
                 datos["apellido"],
+                persona=resuelta,
             )
         except PersonaSinDatos as error:
             persona_form.pedir_nombre = True
@@ -141,7 +159,7 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
         def sin_cargar():
             datos = persona_form.cleaned_data
             iniciales = {clave: datos[clave] for clave in ("dni", "sexo", "nombre", "apellido")}
-            return EntregaPersonaForm(initial={**iniciales, "uuid_cliente": uuid4()}, saldos=self._saldos())
+            return self._form_entrega(initial={**iniciales, "uuid_cliente": uuid4()})
 
         return self._mostrar_persona(request, persona_form, sin_cargar)
 
@@ -149,7 +167,8 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
         persona_form = PersonaForm(request.POST)
         if not persona_form.is_valid():
             return self._pantalla(request, persona_form)
-        form = EntregaPersonaForm(request.POST, saldos=self._saldos())
+        form = self._form_entrega(request.POST)
+        resuelta = None
         if form.is_valid():
             try:
                 operacion = servicio.entregar_a_persona(
@@ -166,15 +185,17 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
                 )
             except servicio.SaldoInsuficiente as error:
                 # El saldo de ahora (otra entrega pudo haber pasado): se vuelve a leer y se marca cada fila.
-                form = EntregaPersonaForm(request.POST, saldos=self._saldos())
+                resuelta = getattr(error, "persona", None)
+                form = self._form_entrega(request.POST)
                 form.full_clean()
                 form.agregar_errores_del_servicio(error)
                 form.marcar_faltantes(error.faltantes)
             except servicio.UuidEnUso as error:
                 # Ese identificador ya fue de otra operación: se regenera para que el reintento sea una entrega nueva.
+                resuelta = getattr(error, "persona", None)
                 datos = request.POST.copy()
                 datos["uuid_cliente"] = str(uuid4())
-                form = EntregaPersonaForm(datos, saldos=self._saldos())
+                form = self._form_entrega(datos)
                 form.full_clean()
                 form.agregar_errores_del_servicio(error)
             except PersonaSinDatos as error:
@@ -182,10 +203,11 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
                 persona_form.add_error(None, error)
                 return self._pantalla(request, persona_form)
             except ValidationError as error:
+                resuelta = getattr(error, "persona", None)
                 form.agregar_errores_del_servicio(error)
             else:
                 return self._entregada(request, operacion)
-        return self._mostrar_persona(request, persona_form, lambda: form)
+        return self._mostrar_persona(request, persona_form, lambda: form, resuelta)
 
     def _entregada(self, request, operacion):
         """Éxito, o reenvío del mismo ``uuid_cliente`` (``ya_existia``): en los dos casos vuelve a la solapa Stock."""

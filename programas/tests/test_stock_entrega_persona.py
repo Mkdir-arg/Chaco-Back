@@ -7,8 +7,8 @@ rojo, se restaura):
   ``test_sin_ciudadano_ver_no_entrega_ni_consulta_el_registro`` y ``test_consultar_persona_exige_lo_mismo_que_entregar``;
 * sacar ``_exigir_saldo`` de ``entregar_a_persona`` y de ``_asentar`` pone rojo ``test_saldo_insuficiente_es_todo_o_nada``
   (llega el ``IntegrityError`` del ``CHECK``, no la excepción del dominio);
-* sacar el ``atomic`` de ``entregar_a_persona`` pone rojo ``test_si_falla_al_asentar_tampoco_queda_el_legajo``
-  (``test_stock_ronda2``): ``test_sin_saldo_no_queda_un_legajo_huerfano`` no lo detecta, porque ahí el saldo se rechaza
+* sacar el ``atomic`` de ``entregar_a_persona`` pone rojo ``test_si_falla_al_asentar_tampoco_queda_el_legajo`` (que vive
+  **en este archivo**): ``test_sin_saldo_no_queda_un_legajo_huerfano`` no lo detecta, porque ahí el saldo se rechaza
   antes del alta; mover ``dar_de_alta`` antes de ``_exigir_saldo`` lo detecta ``test_stock_ronda2``, no este archivo;
 * nombrar siempre la institución en ``historial_de_persona`` pone rojo ``test_otra_institucion_figura_sin_nombre``.
 """

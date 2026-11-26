@@ -11,19 +11,16 @@ from django import forms
 
 from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
+from programas.forms_cantidades import campo_de, campo_de_cantidad, claves_sin_campo
 from programas.forms_emergencia import ErroresDelServicioMixin
-from programas.services.kits import CANTIDAD_MAXIMA
 from programas.services.stock import OBSERVACION_MAXIMA
 
-#: Prefijo de los campos de cantidad: ``cantidad_<id del insumo>``.
-PREFIJO_CANTIDAD = "cantidad_"
 OCULTOS = ("dni", "sexo", "nombre", "apellido", "uuid_cliente")
 CANTIDAD_ENTREGADA_INVALIDA = "Tiene que ser un número entero, cero o más."
 FALTA_EL_IDENTIFICADOR = "Falta el identificador del envío: volvé a abrir la pantalla."
-
-
-def _numero(minimo):
-    return forms.NumberInput(attrs={"class": INPUT_CLASS, "min": minimo, "inputmode": "numeric"})
+INSUMO_SIN_FILA = (
+    "Algún insumo ya no está en el stock de este edificio. Volvé a cargar la pantalla y revisá las cantidades."
+)
 
 
 class PersonaForm(ErroresDelServicioMixin, forms.Form):
@@ -71,6 +68,9 @@ class EntregaPersonaForm(ErroresDelServicioMixin, forms.Form):
     abrir la pantalla y se conserva en los reintentos, así un doble clic no entrega dos veces.
     """
 
+    #: Los ocultos no tienen dónde dibujar su error: el del servicio sube a los errores generales.
+    CAMPOS_ARRIBA = OCULTOS
+
     dni = forms.CharField(required=False, widget=forms.HiddenInput())
     sexo = forms.CharField(required=False, widget=forms.HiddenInput())
     nombre = forms.CharField(required=False, widget=forms.HiddenInput())
@@ -90,24 +90,22 @@ class EntregaPersonaForm(ErroresDelServicioMixin, forms.Form):
     def __init__(self, *args, saldos, **kwargs):
         super().__init__(*args, **kwargs)
         self.saldos = list(saldos)
-        cantidades = {}
-        for saldo in self.saldos:
-            cantidades[f"{PREFIJO_CANTIDAD}{saldo.item_id}"] = forms.IntegerField(
-                label=saldo.item.nombre,
-                required=False,
-                min_value=0,
-                max_value=CANTIDAD_MAXIMA,
-                error_messages={
-                    "invalid": CANTIDAD_ENTREGADA_INVALIDA,
-                    "min_value": CANTIDAD_ENTREGADA_INVALIDA,
-                    "max_value": CANTIDAD_ENTREGADA_INVALIDA,
-                },
-                widget=_numero(0),
-            )
+        cantidades = {
+            campo_de(saldo.item_id): campo_de_cantidad(saldo.item, minimo=0, mensaje=CANTIDAD_ENTREGADA_INVALIDA)
+            for saldo in self.saldos
+        }
         # Las cantidades primero: es lo que se carga.
         self.fields = {**cantidades, **self.fields}
         if not self.is_bound:
             self.initial.setdefault("uuid_cliente", uuid.uuid4())
+
+    def clean(self):
+        limpio = super().clean()
+        # Una cantidad de un insumo que no tiene fila (la vista arma las filas con los saldos de ahora **más** los
+        # insumos que llegan cargados) no se descarta en silencio: la entrega saldría distinta de lo mostrado.
+        if claves_sin_campo(self.data, self.fields):
+            raise forms.ValidationError(INSUMO_SIN_FILA)
+        return limpio
 
     def _post_clean(self):
         """El error de un campo oculto no tiene dónde dibujarse: sube a los errores generales (``_form_errores``)."""
@@ -122,7 +120,7 @@ class EntregaPersonaForm(ErroresDelServicioMixin, forms.Form):
 
         return [
             {
-                "campo": self[f"{PREFIJO_CANTIDAD}{saldo.item_id}"],
+                "campo": self[campo_de(saldo.item_id)],
                 "nombre": saldo.item.nombre,
                 "unidad": saldo.item.unidad,
                 "info": [{"texto": str(saldo.cantidad), "nota": ""}],
@@ -135,13 +133,13 @@ class EntregaPersonaForm(ErroresDelServicioMixin, forms.Form):
 
         lineas = {}
         for saldo in self.saldos:
-            cantidad = self.cleaned_data.get(f"{PREFIJO_CANTIDAD}{saldo.item_id}")
+            cantidad = self.cleaned_data.get(campo_de(saldo.item_id))
             if cantidad:
                 lineas[saldo.item_id] = cantidad
         return lineas
 
     def campo_de_cantidad(self, item_id):
-        return f"{PREFIJO_CANTIDAD}{item_id}"
+        return campo_de(item_id)
 
     def marcar_faltantes(self, faltantes):
         """Pone en la fila de cada insumo que no alcanzó cuánto pidió y cuánto hay **ahora** (``{item_id: (pedido, hay)}``)."""

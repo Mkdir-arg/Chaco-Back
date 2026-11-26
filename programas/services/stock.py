@@ -633,7 +633,7 @@ def sumar_recepcion_de_kit(entrega, usuario):
 # ---------------------------------------------------------------------------
 
 
-def consultar_persona(usuario, dispositivo, edificio, dni, sexo="", nombre="", apellido=""):
+def consultar_persona(usuario, dispositivo, edificio, dni, sexo="", nombre="", apellido="", persona=None):
     """A quién se le va a entregar y qué recibió antes, **sin escribir nada**. Devuelve ``(persona, historial)``.
 
     Es lo único que expone identidad sin entregar (el GET de la pantalla y de la API): exige lo mismo que entregar,
@@ -641,14 +641,17 @@ def consultar_persona(usuario, dispositivo, edificio, dni, sexo="", nombre="", a
     es una :class:`~programas.services.stock_personas.PersonaResuelta` y ``historial`` las últimas entregas de esa
     persona en toda la red, con las de otras instituciones sin nombre (``selectors.stock.historial_de_persona``). Una
     persona que todavía no tiene legajo no tiene historial. ``PersonaSinDatos`` y ``ValidationError`` de
-    :func:`~programas.services.stock_personas.resolver_persona` llegan tal cual.
+    :func:`~programas.services.stock_personas.resolver_persona` llegan tal cual. ``persona`` es una
+    ``PersonaResuelta`` que el llamador ya tiene (la de un rechazo de ``entregar_a_persona``): no se consulta de nuevo
+    al Registro, pero los permisos se exigen igual.
     """
 
     dispositivo = _dispositivo(dispositivo)
     _exigir(puede_entregar, usuario, dispositivo, _edificio_id(edificio))
     if not lleva_stock(dispositivo):
         raise StockNoHabilitado()
-    persona = resolver_persona(dni, sexo, nombre, apellido)
+    if persona is None:
+        persona = resolver_persona(dni, sexo, nombre, apellido)
     historial = selectores.historial_de_persona(persona.ciudadano, dispositivo) if persona.ciudadano else []
     return persona, historial
 
@@ -699,31 +702,36 @@ def entregar_a_persona(
     validas = _validar_lineas(lineas, solo_activos=False)
     persona = resolver_persona(dni, sexo, nombre, apellido)  # red: fuera de la transacción
 
-    with transaction.atomic():
-        estados, edificios = _preparar([(dispositivo.pk, edificio_id)])
-        _exigir_activos(dispositivo.pk, edificio_id, estados, edificios)
-        anterior = reenvio()
-        if anterior is not None:
-            return anterior
-        saldos = saldos_bloqueados([(dispositivo.pk, edificio_id, item.pk) for item, _c in validas])
-        cambios = [
-            (saldos[(dispositivo.pk, edificio_id, item.pk)], -cantidad, MovimientoStock.Tipo.ENTREGA_PERSONA)
-            for item, cantidad in validas
-        ]
-        # Antes del alta: sin saldo no se escribe ni el legajo.
-        _exigir_saldo(cambios)
-        ciudadano = dar_de_alta(persona)
-        return _asentar(
-            usuario=usuario,
-            tipo=tipo,
-            dispositivo_id=dispositivo.pk,
-            edificio_id=edificio_id,
-            cambios=cambios,
-            uuid_cliente=uuid_cliente,
-            previa=reenvio,
-            ciudadano=ciudadano,
-            observacion=observacion,
-        )
+    try:
+        with transaction.atomic():
+            estados, edificios = _preparar([(dispositivo.pk, edificio_id)])
+            _exigir_activos(dispositivo.pk, edificio_id, estados, edificios)
+            anterior = reenvio()
+            if anterior is not None:
+                return anterior
+            saldos = saldos_bloqueados([(dispositivo.pk, edificio_id, item.pk) for item, _c in validas])
+            cambios = [
+                (saldos[(dispositivo.pk, edificio_id, item.pk)], -cantidad, MovimientoStock.Tipo.ENTREGA_PERSONA)
+                for item, cantidad in validas
+            ]
+            # Antes del alta: sin saldo no se escribe ni el legajo.
+            _exigir_saldo(cambios)
+            ciudadano = dar_de_alta(persona)
+            return _asentar(
+                usuario=usuario,
+                tipo=tipo,
+                dispositivo_id=dispositivo.pk,
+                edificio_id=edificio_id,
+                cambios=cambios,
+                uuid_cliente=uuid_cliente,
+                previa=reenvio,
+                ciudadano=ciudadano,
+                observacion=observacion,
+            )
+    except ValidationError as error:
+        # La persona ya se resolvió (red): quien muestre el rechazo la reutiliza en vez de consultar al Registro otra vez.
+        error.persona = persona
+        raise
 
 
 # ---------------------------------------------------------------------------

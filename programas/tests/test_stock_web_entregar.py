@@ -1,6 +1,7 @@
 """«Entregar a persona» en la web (análisis 010, PR 5): permisos en las dos capas, GET que no escribe, saldo insuficiente,
 idempotencia por ``uuid_cliente`` y privacidad del historial."""
 
+import re
 import uuid
 from unittest.mock import patch
 
@@ -87,6 +88,30 @@ class PermisosDeLaVistaTests(BaseWebEntregar):
         self.assertEqual(self.client.post(self._url(), self._datos({self.colchon: 1})).status_code, 404)
         self.assertEqual(self.client.get(self._url(self.disp, self.otro_edificio)).status_code, 200)
         self.assertEqual(self._cantidad(self.colchon), 5)
+
+    def test_con_lectura_de_toda_la_red_pero_operar_en_otro_edificio_es_404(self):
+        """Primera capa, ``puede_operar_edificio``: leer todos los edificios no alcanza para entregar en uno ajeno."""
+
+        rol = self._rol(
+            "Lee todo, opera uno",
+            ("dispositivo.ver", "dispositivo.ver_todos", "stock.ver", "stock.entregar", "ciudadano.ver"),
+        )
+        usuario = self._usuario("lee_todo_opera_uno", rol)
+        miembro = MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.disp, usuario=usuario, rol=rol, alcance=Alcance.EDIFICIOS
+        )
+        miembro.edificios.set([self.otro_edificio])
+        self._entrar(self._fresco(usuario))
+
+        self.assertEqual(self.client.get(self._url(self.disp, self.edificio)).status_code, 404)
+        self.assertEqual(self.client.get(self._url(self.disp, self.otro_edificio)).status_code, 200)
+
+    def test_sin_stock_ver_es_403_en_el_get_sin_dni(self):
+        """Primera capa, ``stock.ver``: sin ella la pantalla ni abre (el servicio solo cortaría al pedir un DNI)."""
+
+        sin_ver = self._usuario_con("sin_ver", ("stock.entregar", "ciudadano.ver"))
+        self._entrar(sin_ver)
+        self.assertEqual(self.client.get(self._url()).status_code, 403)
 
     def test_un_post_sin_identificador_del_envio_muestra_el_error_arriba_y_no_entrega(self):
         """El error de un campo oculto no se vería: sube a los errores generales del formulario."""
@@ -256,6 +281,87 @@ class ElPostEntregaTests(BaseWebEntregar):
         self.assertEqual(fila["info"][0]["texto"], "1")
         # Lo que cargó la persona se conserva, y el identificador del envío es el mismo.
         self.assertEqual(respuesta.context["form"][f"cantidad_{self.colchon.pk}"].value(), "4")
+
+    def _colchon_llega_a_cero(self):
+        """Lo que pasa entre el GET y el POST: otra entrega se llevó todo el colchón."""
+
+        self._sembrar(self.colchon, 0)
+
+    def test_un_insumo_que_llega_a_cero_entre_el_get_y_el_post_no_entrega_el_resto_en_silencio(self):
+        """Todo o nada: 3 colchones (ya sin stock) + 1 frazada no sale como «1 frazada» y «Entrega registrada»."""
+
+        self._colchon_llega_a_cero()
+        respuesta = self.client.post(self._url(), self._datos({self.colchon: 3, self.frazada: 1}))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Hay 0 y pediste 3.")
+        self.assertEqual(self._cantidad(self.frazada), 2)
+        self.assertFalse(OperacionStock.objects.filter(tipo=OperacionStock.Tipo.ENTREGA_PERSONA).exists())
+        self.assertFalse(self._mensajes(respuesta))
+        # La fila del colchón sigue en pantalla, con lo cargado y el saldo de ahora.
+        fila = next(f for f in respuesta.context["filas"] if f["nombre"] == "Colchón stock")
+        self.assertEqual(fila["info"][0]["texto"], "0")
+        self.assertEqual(respuesta.context["form"][f"cantidad_{self.colchon.pk}"].value(), "3")
+
+    def test_un_insumo_en_cero_que_no_se_pidio_sigue_sin_ofrecerse_en_el_post(self):
+        self._colchon_llega_a_cero()
+        respuesta = self.client.post(self._url(), self._datos({self.frazada: 5}))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotIn("Colchón stock", [f["nombre"] for f in respuesta.context["filas"]])
+
+    def test_el_reintento_por_saldo_insuficiente_tambien_conserva_el_insumo_en_cero(self):
+        """El segundo camino: el servicio contesta ``SaldoInsuficiente`` y el formulario se rearma con los saldos de ahora."""
+
+        self._colchon_llega_a_cero()
+        datos = self._datos({self.colchon: 3, self.frazada: 5})
+        respuesta = self.client.post(self._url(), datos)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Hay 0 y pediste 3.")
+        self.assertContains(respuesta, "Hay 2 y pediste 5.")
+        self.assertEqual(self._cantidad(self.frazada), 2)
+        self.assertFalse(OperacionStock.objects.filter(tipo=OperacionStock.Tipo.ENTREGA_PERSONA).exists())
+
+    def test_una_cantidad_de_un_insumo_sin_fila_alguna_se_rechaza_y_no_se_descarta(self):
+        """Un insumo que nunca tuvo saldo en el edificio: la guarda del formulario, no un descarte silencioso."""
+
+        datos = self._datos({self.frazada: 1}, **{"cantidad_999999": "2"})
+        respuesta = self.client.post(self._url(), datos)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Algún insumo ya no está en el stock de este edificio")
+        self.assertEqual(self._cantidad(self.frazada), 2)
+
+    def test_un_error_del_alta_en_un_campo_oculto_se_muestra_arriba(self):
+        """Un nombre de 200 caracteres desde el Registro rompe el alta del legajo: el error sube, no se pierde."""
+
+        largo = {"success": True, "data": {**self.RENAPER_ENCUENTRA["data"], "nombre": "N" * 200}}
+        datos = self._datos({self.colchon: 1}, dni="27555666", sexo="F")
+        with patch(self.CONSULTA_RENAPER, return_value=largo):
+            respuesta = self.client.post(self._url(), datos)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context["form"].non_field_errors())
+        self.assertFalse(Ciudadano.objects.filter(dni="27555666").exists())
+        self.assertEqual(self._cantidad(self.colchon), 5)
+
+    def test_el_rechazo_no_consulta_dos_veces_al_registro(self):
+        """El servicio ya resolvió a la persona: mostrar el rechazo la reutiliza en vez de volver a la red."""
+
+        datos = self._datos({self.colchon: 9}, dni="27555666", sexo="F")
+        with patch(self.CONSULTA_RENAPER, return_value=self.RENAPER_ENCUENTRA) as consulta:
+            respuesta = self.client.post(self._url(), datos)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Hay 5 y pediste 9.")
+        self.assertEqual(consulta.call_count, 1)
+
+    def test_los_ids_de_la_pantalla_no_se_repiten_y_la_cantidad_anuncia_su_unidad(self):
+        """Los ocultos de la entrega repiten ``dni`` y ``sexo`` del buscador: ids propios, y ``aria-describedby`` con la unidad."""
+
+        respuesta = self.client.get(self._url(), {"dni": "30111222"})
+        self.assertEqual(respuesta.status_code, 200)
+        ids = re.findall(r'\sid="([^"]+)"', respuesta.content.decode())
+        repetidos = {i for i in ids if ids.count(i) > 1}
+        self.assertFalse(repetidos, repetidos)
+        self.assertContains(respuesta, 'id="id_dni"')
+        self.assertContains(respuesta, f'id="entrega_cantidad_{self.colchon.pk}"')
+        self.assertContains(respuesta, f'aria-describedby="entrega_cantidad_{self.colchon.pk}-ayuda"')
 
     def test_doble_post_con_el_mismo_uuid_es_una_sola_operacion(self):
         datos = self._datos({self.colchon: 2})

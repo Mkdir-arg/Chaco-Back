@@ -450,6 +450,21 @@ class PresupuestoDeStockTests(BaseLecturaStock):
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
         self.assertLessEqual(con_treinta, techo["consultas_fijas"])
 
+    def test_la_guardia_que_entrega_entra_en_el_techo_y_no_crece_con_los_insumos(self):
+        """El peor usuario de la solapa: ve el stock **y** entrega (``stock.entregar`` + ``ciudadano.ver``), así que el
+        panel decide el botón «Entregar a persona». Con ``ve_inst`` ese camino no se ejercita."""
+
+        guardia = self._con("Guardia de stock", *LECTURA, "stock.entregar", "ciudadano.ver")
+        self._cargar(1)
+        con_uno = self._medir(guardia, self._url(self.edif_a), tab="stock")
+        self._cargar(29, desde=1)
+
+        con_treinta = self._medir(guardia, self._url(self.edif_a), tab="stock")
+
+        self.assertEqual(con_treinta, con_uno)
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
+        self.assertLessEqual(con_treinta, techo["consultas_fijas"], f"medido con la guardia: {con_treinta}")
+
     def _mover_de_todo(self, cuantos, desde=0):
         """``cuantos`` movimientos de **cada** tipo que nombra otra fila (kit, traspaso y entrega a persona), en edif_a."""
 
@@ -480,6 +495,15 @@ class PresupuestoDeStockTests(BaseLecturaStock):
                 destino_dispositivo=self.cis,
                 destino_edificio=self.edif_a,
             )
+            # La otra punta: sale de edif_a hacia edif_b, y la fila dice «A <edificio>» (``destino_edificio``).
+            traspaso_salida = OperacionStock.objects.create(
+                tipo=OperacionStock.Tipo.TRASPASO,
+                dispositivo=self.cis,
+                edificio=self.edif_a,
+                usuario=self.ve_inst,
+                destino_dispositivo=self.cis,
+                destino_edificio=self.edif_b,
+            )
             entrega_persona = OperacionStock.objects.create(
                 tipo=OperacionStock.Tipo.ENTREGA_PERSONA,
                 dispositivo=self.cis,
@@ -490,6 +514,7 @@ class PresupuestoDeStockTests(BaseLecturaStock):
             for operacion, tipo, cantidad in (
                 (de_kit, MovimientoStock.Tipo.INGRESO_KIT, 4),
                 (traspaso, MovimientoStock.Tipo.TRASPASO_ENTRADA, 2),
+                (traspaso_salida, MovimientoStock.Tipo.TRASPASO_SALIDA, -3),
                 (entrega_persona, MovimientoStock.Tipo.ENTREGA_PERSONA, -1),
             ):
                 MovimientoStock.objects.create(

@@ -231,41 +231,12 @@ def contexto_de_la_solapa(user, dispositivo, edificio):
     }
 
 
-def filas_de_historial(historial):
-    """Las filas de «Lo que recibió antes» (``selectors.stock.historial_de_persona``), ya en texto para el template.
-
-    ``institucion`` ya viene resuelta por el selector: solo la propia se nombra, el resto es «Otra institución».
-    """
-
-    return [
-        {
-            "fecha": fecha_hora(entrega["creado_en"]),
-            "institucion": entrega["institucion"],
-            "propia": entrega["propia"],
-            "lineas": [f"{linea['nombre']} · {linea['cantidad']} {linea['unidad']}" for linea in entrega["lineas"]],
-        }
-        for entrega in historial
-    ]
-
-
-def texto_de_la_persona(persona):
-    """Lo que dice el aviso de la persona resuelta: quién es y de dónde salen sus datos (RN-010-09)."""
-
-    if persona.origen == "legajo":
-        return "Ya tiene legajo."
-    if persona.origen == "registro":
-        return "No tiene legajo: se da de alta con los datos del Registro de Personas al registrar la entrega."
-    return "No está en el Registro de Personas: se da de alta con el nombre y el apellido que cargaste."
-
-
 __all__ = [
     "MOVIMIENTOS_EN_LA_SOLAPA",
     "SIN_STOCK_CARGADO",
     "contar_insumos",
     "contexto_de_la_solapa",
     "fila_de_movimiento",
-    "filas_de_historial",
-    "texto_de_la_persona",
     "puede_solapa",
     "texto_de_resumen",
 ]
