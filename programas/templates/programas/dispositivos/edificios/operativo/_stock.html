@@ -1,4 +1,4 @@
-{# Solapa «Stock» de la página operativa del edificio (Cambio 601, PR 4): saldo de insumos y últimos movimientos. Contexto: `stock` (lo arma programas.services.edificio_stock.contexto_de_la_solapa); cada botón llega solo si el usuario puede usarlo. #}
+{# Solapa «Stock» de la página operativa del edificio (Cambio 603, PR 4): saldo de insumos y últimos movimientos. Contexto: `stock` (lo arma programas.services.edificio_stock.contexto_de_la_solapa); cada botón llega solo si el usuario puede usarlo. #}
 {% load nodo_ui %}
 <div class="space-y-5">
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="stock-saldo-titulo">
@@ -36,11 +36,9 @@
             {% if stock.puede_ajustar %}
             <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
               {% if fila.url_ajustar %}
-              {% with numero=forloop.counter|stringformat:"s" %}
-              {% menu_fila id="stock-"|add:numero etiqueta="Acciones de "|add:fila.nombre %}
-                {% include "components/_menu_fila_item.html" with texto="Ajustar" icono="fa-sliders" url=fila.url_ajustar only %}
-              {% endmenu_fila %}
-              {% endwith %}
+              <a href="{{ fila.url_ajustar }}" class="nodo-icon-btn" aria-label="Ajustar el stock de {{ fila.nombre }}" title="Ajustar">
+                <i class="fas fa-sliders" aria-hidden="true"></i>
+              </a>{# Una sola acción por fila: botón de ícono (tabla.md). Si el PR 6b suma otra, pasan a `menu_fila` con 3. #}
               {% endif %}
             </td>
             {% endif %}

@@ -5,7 +5,10 @@ Mutaciones verificadas a mano (se rompe la regla, se mira el test rojo, se resta
 * devolver ``@transaction.atomic`` a ``entregar_a_persona`` (la consulta al Registro vuelve a quedar adentro) pone rojo
   ``test_la_consulta_al_registro_corre_fuera_de_la_transaccion_de_la_entrega``;
 * mover ``dar_de_alta`` antes de ``_exigir_saldo`` pone rojo ``test_sin_saldo_ni_se_intenta_dar_de_alta_a_la_persona``;
-* sacar ``_exigir_tope`` de ``_asentar`` pone rojo los tres tests de tope;
+* sacar ``_exigir_tope`` de ``_asentar`` pone rojo los dos tests de tope (ingreso, traspaso y recepción de kit; en el
+  ajuste no se alcanza: lo para el chequeo de lo contado);
+* sacar el ``atomic`` (el ``with transaction.atomic()``) de ``entregar_a_persona`` pone rojo
+  ``test_si_falla_al_asentar_tampoco_queda_el_legajo``;
 * sacar el ``lleva_stock`` de ``consultar_persona`` pone rojo ``test_consultar_persona_rechaza_una_institucion_...``.
 """
 
@@ -15,7 +18,7 @@ from django.core.exceptions import ValidationError
 from django.db import connection
 
 from legajos.models import Ciudadano
-from programas.models import Dispositivo, OperacionStock
+from programas.models import OperacionStock
 from programas.services import stock as servicio
 from programas.tests.base_stock import BaseEntrega
 
@@ -125,10 +128,14 @@ class TopeYEntradasNoNumericasTests(BaseEntrega):
     def test_un_ajuste_nunca_pasa_del_maximo(self):
         self._sembrar(self.colchon, 1)
 
-        with self.assertRaises(ValidationError):
+        # En un ajuste el saldo queda en lo contado, así que el tope lo para el chequeo de lo contado y no ``_exigir_tope``.
+        with self.assertRaises(ValidationError) as contexto:
             servicio.ajustar(
                 self.carga, self.disp, self.edificio, self.colchon, servicio.CANTIDAD_MAXIMA + 1, 1, "OTRO", "x"
             )
+
+        self.assertEqual(contexto.exception.message_dict, {"cantidad_contada": [servicio.CONTADO_INVALIDO]})
+        self.assertEqual(self._cantidad(self.colchon), 1)
 
     def test_un_insumo_o_una_institucion_no_numericos_son_un_error_de_validacion(self):
         with self.assertRaises(ValidationError) as contexto:
@@ -164,7 +171,6 @@ class TraspasoRondaDosTests(BaseEntrega):
     def test_el_destino_inactivo_tiene_su_propio_mensaje(self):
         """DECISIÓN TOMADA POR DEFECTO: un texto que habla del destino, no del origen."""
 
-        self.disp.estado = Dispositivo.Estado.ACTIVO
         self.otro_edificio.activo = False
         self.otro_edificio.save()
 

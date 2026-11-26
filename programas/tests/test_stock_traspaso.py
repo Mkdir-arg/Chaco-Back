@@ -474,7 +474,7 @@ class DestinosDeTraspasoTests(BaseTraspaso):
                 for dispositivo, edificio in todos:
                     par = (dispositivo.pk, edificio.pk)
                     try:
-                        servicio._destino_de_traspaso(usuario, dispositivo, edificio)
+                        servicio._destino_de_traspaso(usuario, (dispositivo.pk, edificio.pk))
                         alcanzable = True
                     except ValidationError:
                         alcanzable = False

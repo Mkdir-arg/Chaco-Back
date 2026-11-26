@@ -142,7 +142,7 @@
                 class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='stock' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-boxes-stacked" aria-hidden="true"></i> Stock
-          <span class="badge" :class="tab==='stock' ? 'badge-info' : 'badge-gray'">{% if stock_cargado %}{% with n=stock.insumos %}{{ n }} insumo{{ n|pluralize }}{% endwith %}{% else %}{% with n=contadores.stock %}{{ n }} insumo{{ n|pluralize }}{% endwith %}{% endif %}</span>
+          <span class="badge" :class="tab==='stock' ? 'badge-info' : 'badge-gray'">{% with n=contadores.stock %}{{ n }} insumo{{ n|pluralize }}{% endwith %}</span>
         </button>
         {% endif %}
         {# El Equipo se arma solo con la solapa abierta (`equipo_cargado`): si no vino, el botón navega a ella #}

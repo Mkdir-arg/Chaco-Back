@@ -5,7 +5,8 @@ from datetime import datetime, time
 
 from django import forms
 from django.contrib.auth.models import User
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -790,18 +791,44 @@ class TipoDispositivoForm(forms.ModelForm):
             self.fields["maneja_sectores_plazas"].initial = self.instance.maneja_plazas or self.instance.maneja_camas
             self.fields["tipos_plaza_admitidos"].initial = tipos
 
-    def _validar_dejar_de_llevar_stock(self, cleaned):
-        """RN-010-16: destildar «Lleva stock» se rechaza si alguna institución del tipo tiene saldo mayor que 0."""
+    def deja_de_llevar_stock(self):
+        """Si este guardado destilda «Lleva stock» en un tipo que lo llevaba (lee el valor de antes: ``initial``)."""
 
-        if not (self.instance.pk and self.instance.maneja_stock) or cleaned.get("maneja_stock"):
+        return bool(self.instance.pk and self.initial.get("maneja_stock") and not self.cleaned_data.get("maneja_stock"))
+
+    def _validar_dejar_de_llevar_stock(self, cleaned):
+        """RN-010-16, el aviso temprano: destildar se rechaza si alguna institución del tipo tiene saldo mayor que 0.
+
+        Es una lectura sin candado, para dar el error en el campo. La que decide es la de :meth:`save`, que cuenta
+        **bajo candado** dentro de la transacción que guarda: entre esta lectura y el guardado puede entrar un ingreso.
+        """
+
+        if not self.deja_de_llevar_stock():
             return
-        con_saldo = Dispositivo.objects.filter(tipo=self.instance, saldos_stock__cantidad__gt=0).distinct().count()
-        if con_saldo:
-            cuantas = "Hay 1 institución" if con_saldo == 1 else f"Hay {con_saldo} instituciones"
-            self.add_error(
-                "maneja_stock",
-                f"{cuantas} de este tipo con stock cargado: no se puede dejar de llevar stock mientras haya saldo.",
-            )
+        from programas.services.stock import exigir_sin_saldo_para_dejar_de_llevar
+
+        try:
+            exigir_sin_saldo_para_dejar_de_llevar(self.instance, bloquear=False)
+        except ValidationError as error:
+            self.add_error(None, error)
+
+    def save(self, commit=True):
+        """Guarda el tipo; si destilda «Lleva stock», cuenta el saldo bajo candado en la misma transacción (RN-010-16).
+
+        Levanta ``ValidationError({"maneja_stock": …})`` si en el medio entró stock: la vista lo vuelve al campo.
+        """
+
+        with transaction.atomic():
+            if commit and self.deja_de_llevar_stock():
+                from programas.services.stock import exigir_sin_saldo_para_dejar_de_llevar
+
+                exigir_sin_saldo_para_dejar_de_llevar(self.instance, bloquear=True)
+            tipo = super().save(commit=False)
+            tipo.tipos_plaza_admitidos = list(self.cleaned_data.get("tipos_plaza_admitidos") or [])
+            tipo.maneja_camas = bool(self.cleaned_data.get("maneja_sectores_plazas"))
+            if commit:
+                tipo.save()
+            return tipo
 
     def _plazas_cargadas(self):
         if not self.instance.pk:
@@ -836,14 +863,6 @@ class TipoDispositivoForm(forms.ModelForm):
         if cleaned["umbral_ocupacion_amarillo"] >= cleaned["umbral_ocupacion_rojo"]:
             self.add_error("umbral_ocupacion_rojo", "El umbral rojo debe ser mayor que el amarillo.")
         return cleaned
-
-    def save(self, commit=True):
-        tipo = super().save(commit=False)
-        tipo.tipos_plaza_admitidos = list(self.cleaned_data.get("tipos_plaza_admitidos") or [])
-        tipo.maneja_camas = bool(self.cleaned_data.get("maneja_sectores_plazas"))
-        if commit:
-            tipo.save()
-        return tipo
 
 
 class FranjaHorariaForm(forms.Form):

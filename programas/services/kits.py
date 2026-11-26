@@ -292,7 +292,7 @@ def _validar_lineas(lineas, *, solo_activos=True):
     cantidades = [_entero(cantidad) for _item, cantidad in pares]
     if any(cantidad is None or not 0 < cantidad <= CANTIDAD_MAXIMA for cantidad in cantidades):
         raise ValidationError({"lineas": CANTIDAD_INVALIDA})
-    # Una consulta: el ítem tiene que existir y estar activo **ahora**, no cuando se abrió la pantalla.
+    # Una consulta: el ítem tiene que existir (y, con ``solo_activos``, estar activo) **ahora**, no cuando se abrió la pantalla.
     insumos = TipoKit.objects.filter(pk__in=ids, **({"activo": True} if solo_activos else {})).in_bulk()
     if len(insumos) != len(ids):
         raise ValidationError({"lineas": ITEM_NO_DISPONIBLE})

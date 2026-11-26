@@ -176,6 +176,34 @@ def _exigir(permiso, user, dispositivo, edificio_id):
         raise PermissionDenied(SIN_PERMISO_DE_STOCK)
 
 
+def exigir_sin_saldo_para_dejar_de_llevar(tipo, *, bloquear):
+    """RN-010-16: un tipo no deja de llevar stock mientras alguna institución suya tenga saldo mayor que 0.
+
+    ``ValidationError({"maneja_stock": …})`` con cuántas instituciones lo impiden. Con ``bloquear=True`` toma, **en
+    exclusivo** y por pk, las filas de las instituciones del tipo antes de contar: una entrega o un ingreso en curso
+    las tiene en compartido y se espera a que termine, y una que llegue después espera a este commit y encuentra el
+    tipo ya sin stock (``_preparar`` lo vuelve a leer bajo candado). Sin el candado, contar y destildar dejaban una
+    ventana: el tipo quedaba sin stock y con saldo. Hay que llamarlo **dentro** de la transacción que guarda el tipo.
+    Sin ``bloquear`` es la lectura rápida de la validación del formulario, que avisa antes de guardar.
+    """
+
+    instituciones = Dispositivo.objects.filter(tipo=tipo)
+    if bloquear:
+        instituciones = instituciones.select_for_update().order_by("pk")
+    ids = list(instituciones.values_list("pk", flat=True))
+    con_saldo = (
+        SaldoStock.objects.filter(dispositivo_id__in=ids, cantidad__gt=0).values("dispositivo_id").distinct().count()
+    )
+    if con_saldo:
+        cuantas = "Hay 1 institución" if con_saldo == 1 else f"Hay {con_saldo} instituciones"
+        raise ValidationError(
+            {
+                "maneja_stock": f"{cuantas} de este tipo con stock cargado: "
+                "no se puede dejar de llevar stock mientras haya saldo."
+            }
+        )
+
+
 # ---------------------------------------------------------------------------
 # Piezas comunes: resolver, validar, bloquear, asentar
 # ---------------------------------------------------------------------------
@@ -730,15 +758,23 @@ def destinos_de_traspaso(usuario, dispositivo, edificio):
     return [(par.dispositivo, par.edificio) for par in pares]
 
 
-def _destino_de_traspaso(usuario, destino_dispositivo, destino_edificio):
+def _destino_de_traspaso(usuario, destino_ids):
     """El ``(Dispositivo, edificio_id)`` de destino, o ``ValidationError({"destino": …})``.
+
+    ``destino_ids`` es ``(dispositivo_id, edificio_id)`` ya interpretado por :func:`traspasar` (el mismo par que ató
+    el ``uuid_cliente``): el destino se lee **una** vez, así que la clave de idempotencia y la validación no pueden
+    discrepar.
 
     Un mismo mensaje para el que no existe, el que no está vinculado y el que queda fuera del alcance de
     ``stock.ingresar`` de quien traspasa: la respuesta no cuenta qué instituciones existen fuera de su alcance.
     """
 
-    dispositivo_id, edificio_id = _entero(_pk(destino_dispositivo)), _entero(_pk(destino_edificio))
-    destino = Dispositivo.objects.select_related("tipo").filter(pk=dispositivo_id).first() if dispositivo_id else None
+    dispositivo_id, edificio_id = destino_ids
+    destino = (
+        Dispositivo.objects.select_related("tipo").filter(pk=dispositivo_id).first()
+        if dispositivo_id is not None
+        else None
+    )
     vinculado = (
         edificio_id is not None
         and destino is not None
@@ -786,7 +822,7 @@ def traspasar(
     if anterior is not None:
         return anterior
 
-    destino, destino_edificio_id = _destino_de_traspaso(usuario, destino_dispositivo, destino_edificio)
+    destino, destino_edificio_id = _destino_de_traspaso(usuario, destino_ids)
     if edificio_id is None:
         raise ValidationError({"edificio": EDIFICIO_NO_ES_DE_LA_INSTITUCION})
     if (destino.pk, destino_edificio_id) == (dispositivo.pk, edificio_id):

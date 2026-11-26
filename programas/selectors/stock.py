@@ -28,8 +28,8 @@ def movimientos_de(dispositivo, edificio, filtros=None, *, con_persona=False):
     """Los movimientos de (institución, edificio), del más nuevo al más viejo.
 
     ``filtros`` (todos opcionales): ``item`` (id), ``tipo`` (un ``MovimientoStock.Tipo``), ``desde`` y ``hasta``
-    (``date`` locales, inclusivos). No trae a la persona: el nombre de quien recibió una entrega es un dato personal
-    que decide la pantalla según ``ciudadano.ver`` (PR 6b).
+    (``date`` locales, inclusivos). Trae la persona de las entregas (``operacion__ciudadano``) **solo** con
+    ``con_persona=True``: su nombre es un dato personal y quien llama lo pide según ``ciudadano.ver``.
     """
 
     filtros = filtros or {}
@@ -122,20 +122,6 @@ def historial_de_persona(ciudadano, desde_dispositivo, limite=HISTORIAL_DE_PERSO
         }
         for operacion in operaciones
     ]
-
-
-def resumen_por_edificio(dispositivo, edificio_ids):
-    """Para la tarjeta del edificio, en **una** consulta agrupada: ``{edificio_id: {"insumos": n, "unidades": total}}``.
-
-    Cuenta los insumos con saldo mayor que 0. Un edificio sin saldo no aparece en el resultado.
-    """
-
-    filas = (
-        SaldoStock.objects.filter(dispositivo=dispositivo, edificio_id__in=list(edificio_ids), cantidad__gt=0)
-        .values("edificio_id")
-        .annotate(insumos=Count("item_id"), unidades=Sum("cantidad"))
-    )
-    return {fila["edificio_id"]: {"insumos": fila["insumos"], "unidades": fila["unidades"]} for fila in filas}
 
 
 def stock_por_dispositivo_e_item(dispositivo_ids):

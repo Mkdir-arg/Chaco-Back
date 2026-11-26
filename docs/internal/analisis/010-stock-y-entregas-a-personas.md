@@ -238,8 +238,8 @@ con estado es lo que ya existía (`EntregaKit`, `Edificio.activo`, `Dispositivo.
   `ingreso.buscar_ciudadano_por_dni`, `buscar_en_registro_de_personas` y un `alta_desde_registro` público (hoy
   `_alta_desde_registro`); no duplica la lógica del ingreso.
 - **`programas/selectors/stock.py`**: `saldos_de(dispositivo, edificio)`, `movimientos_de(..., filtros)`,
-  `historial_de_persona(ciudadano, desde_dispositivo)`, `resumen_por_edificio(dispositivo, edificio_ids)` (la tarjeta:
-  una consulta agrupada), `stock_por_dispositivo_e_item(dispositivo_ids)` (E8: una consulta), `diferencias_de_saldo()`.
+  `historial_de_persona(ciudadano, desde_dispositivo)`, `resumen_de_insumos_por_edificio(dispositivo, edificio_ids)` (la tarjeta
+  y el botón de la solapa: una consulta agrupada, insumos y sin existencia), `stock_por_dispositivo_e_item(dispositivo_ids)` (E8: una consulta), `diferencias_de_saldo()`.
 - **`programas/services/edificio_stock.py`**: arma la solapa (como `edificio_kits.py`).
 - **RBAC.** `core/rbac.py`: módulo `dispositivos_stock` con las cuatro capacidades. `users.0053`: `AlterModelOptions` de
   `Capacidad` con la lista entera + siembra al «Administrador» protegido (patrón `users.0052`).

@@ -315,8 +315,8 @@
     },
     "dispositivos_edificio_operativo_stock": {
       "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
-      "consultas_fijas": 24,
-      "motivo": "Presupuesto nuevo (Cambio 603, PR 4 de Stock): la solapa Stock de la pagina del edificio se arma SOLO con la solapa abierta (?tab=stock) y solo con un tipo que lleva stock y stock.ver sobre el edificio. Son las 22 del encabezado mas dos lecturas fijas: el saldo por insumo y los ultimos movimientos con todo lo que nombran traido en la misma consulta. El test mide 1 y 30 insumos y exige el mismo numero: no hay consultas por insumo ni por movimiento (RNF-010-04)."
+      "consultas_fijas": 26,
+      "motivo": "Presupuesto nuevo (Cambio 603, PR 4 de Stock; 24 -> 26 en el Cambio 606, PR 5: con la ruta de «Entregar a persona» el panel ofrece el boton y decidirlo cuesta dos consultas fijas, el alcance de stock.ver y de stock.entregar sobre el edificio; no crecen con los insumos ni los movimientos): la solapa Stock de la pagina del edificio se arma SOLO con la solapa abierta (?tab=stock) y solo con un tipo que lleva stock y stock.ver sobre el edificio. Son las 22 del encabezado mas dos lecturas fijas: el saldo por insumo y los ultimos movimientos con todo lo que nombran traido en la misma consulta. El test mide 1 y 30 insumos y exige el mismo numero: no hay consultas por insumo ni por movimiento (RNF-010-04)."
     },
     "dispositivos_edificio_operativo_historial": {
       "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",

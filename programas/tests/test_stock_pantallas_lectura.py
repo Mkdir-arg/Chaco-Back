@@ -15,6 +15,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
@@ -22,7 +23,7 @@ from django.urls import reverse
 
 from legajos.models import Ciudadano
 from programas.forms import TipoDispositivoForm
-from programas.models import MovimientoStock, OperacionStock, SaldoStock, TipoKit
+from programas.models import Edificio, EntregaKit, MovimientoStock, OperacionStock, SaldoStock, TipoKit
 from programas.tests.test_dispositivos_edificio_operativo import BaseOperativo
 from programas.tests.test_equipo_alcance_edificio import Alcance
 
@@ -223,15 +224,34 @@ class PanelTests(BaseLecturaStock):
         return otra
 
 
+class RutasDeStockTests(BaseLecturaStock):
+    """``_url_de_accion`` esconde en silencio una ruta que no existe: un nombre mal escrito no se vería sin este test."""
+
+    def test_los_nombres_de_ruta_que_el_panel_conoce_resuelven(self):
+        self.assertEqual(
+            reverse("dispositivos:stock_entregar", args=[self.cis.pk, self.edif_a.pk]),
+            f"/dispositivos/{self.cis.pk}/edificios/{self.edif_a.pk}/stock/entregar/",
+        )
+
+    def test_una_ruta_que_todavia_no_existe_no_dibuja_el_boton_y_una_que_existe_si(self):
+        from programas.services.edificio_stock import _url_de_accion
+
+        self.assertEqual(_url_de_accion("dispositivos:stock_ingresar", self.cis, self.edif_a), "")
+        self.assertTrue(_url_de_accion("dispositivos:stock_entregar", self.cis, self.edif_a))
+
+
 class AccionesTests(BaseLecturaStock):
     """Las acciones se ofrecen con su capacidad y solo si su ruta existe (los PR 5 y 6 las crean)."""
 
-    def test_hoy_no_hay_botones_porque_las_rutas_no_existen(self):
+    def test_hoy_solo_existe_la_ruta_de_entregar(self):
+        """Ingresar, Traspasar y Ajustar llegan con el PR 6: sin su ruta el panel no dibuja un botón que da 404."""
+
         completa = self._con("Completa", *LECTURA, "stock.entregar", "stock.ingresar", "stock.ajustar", "ciudadano.ver")
 
         stock = self._get(completa, self.edif_a, tab="stock").context["stock"]
 
-        self.assertEqual(stock["acciones"], [])
+        self.assertEqual([a["texto"] for a in stock["acciones"]], ["Entregar a persona"])
+        self.assertTrue(stock["acciones"][0]["url"].endswith("/stock/entregar/"))
         self.assertFalse(stock["puede_ajustar"])
 
     def test_con_las_rutas_cada_boton_exige_su_capacidad(self):
@@ -355,6 +375,34 @@ class CheckboxDelTipoTests(BaseLecturaStock):
         self.assertFalse(form.is_valid())
         self.assertIn("Hay 1 institución", form.errors["maneja_stock"][0])
 
+    def test_si_entra_stock_despues_de_validar_el_guardado_lo_rechaza_bajo_candado(self):
+        """La carrera de RN-010-16: la validación vio saldo 0, un ingreso entró, y el guardado no puede destildar."""
+
+        form = TipoDispositivoForm(self._datos(), instance=self.tipo)
+        self.assertTrue(form.is_valid(), form.errors)
+        self._sembrar(self.colchon, 5)
+
+        with self.assertRaises(ValidationError) as contexto:
+            form.save()
+
+        self.assertIn("Hay 1 institución", contexto.exception.message_dict["maneja_stock"][0])
+        self.tipo.refresh_from_db()
+        self.assertTrue(self.tipo.maneja_stock)
+
+    def test_la_vista_devuelve_el_rechazo_del_guardado_en_el_campo(self):
+        admin = User.objects.create_superuser("admin_tipo", "a@x.com", "x")
+        self.client.force_login(admin)
+        self._sembrar(self.colchon, 5)
+
+        # Sin el aviso temprano del formulario: es el guardado, bajo candado, el que tiene que frenarlo.
+        with mock.patch.object(TipoDispositivoForm, "_validar_dejar_de_llevar_stock"):
+            respuesta = self.client.post(reverse("dispositivos:tipo_editar", args=[self.tipo.pk]), self._datos())
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("Hay 1 institución", respuesta.context["form"].errors["maneja_stock"][0])
+        self.tipo.refresh_from_db()
+        self.assertTrue(self.tipo.maneja_stock)
+
     def test_destildar_con_saldo_cero_se_permite(self):
         self._sembrar(self.colchon, 0)
 
@@ -402,7 +450,73 @@ class PresupuestoDeStockTests(BaseLecturaStock):
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
         self.assertLessEqual(con_treinta, techo["consultas_fijas"])
 
-    def test_la_ficha_con_edificios_suma_a_lo_sumo_una_consulta_por_el_stock(self):
+    def _mover_de_todo(self, cuantos, desde=0):
+        """``cuantos`` movimientos de **cada** tipo que nombra otra fila (kit, traspaso y entrega a persona), en edif_a."""
+
+        persona, _creada = Ciudadano.objects.get_or_create(
+            dni="30777666", defaults={"nombre": "Eva", "apellido": "Sosa"}
+        )
+        item = TipoKit.objects.create(nombre=f"Movido {desde}", unidad="unidad")
+        for numero in range(desde, desde + cuantos):
+            entrega = EntregaKit.objects.create(
+                numero=f"2026-K-9{numero:05d}",
+                dispositivo=self.cis,
+                edificio=self.edif_a,
+                estado=EntregaKit.Estado.RECIBIDA,
+                armada_por=self.ve_inst,
+            )
+            de_kit = OperacionStock.objects.create(
+                tipo=OperacionStock.Tipo.INGRESO_KIT,
+                dispositivo=self.cis,
+                edificio=self.edif_a,
+                usuario=self.ve_inst,
+                entrega_kit=entrega,
+            )
+            traspaso = OperacionStock.objects.create(
+                tipo=OperacionStock.Tipo.TRASPASO,
+                dispositivo=self.cis,
+                edificio=self.edif_b,
+                usuario=self.ve_inst,
+                destino_dispositivo=self.cis,
+                destino_edificio=self.edif_a,
+            )
+            entrega_persona = OperacionStock.objects.create(
+                tipo=OperacionStock.Tipo.ENTREGA_PERSONA,
+                dispositivo=self.cis,
+                edificio=self.edif_a,
+                usuario=self.ve_inst,
+                ciudadano=persona,
+            )
+            for operacion, tipo, cantidad in (
+                (de_kit, MovimientoStock.Tipo.INGRESO_KIT, 4),
+                (traspaso, MovimientoStock.Tipo.TRASPASO_ENTRADA, 2),
+                (entrega_persona, MovimientoStock.Tipo.ENTREGA_PERSONA, -1),
+            ):
+                MovimientoStock.objects.create(
+                    operacion=operacion,
+                    tipo=tipo,
+                    dispositivo=self.cis,
+                    edificio=self.edif_a,
+                    item=item,
+                    cantidad=cantidad,
+                    saldo_posterior=10,
+                )
+
+    def test_la_solapa_no_hace_una_consulta_por_cada_tipo_de_movimiento_ni_por_persona(self):
+        """Cada fila nombra cosas distintas según su tipo (entrega de kit, edificio de la otra punta, persona): todas
+        vienen en la consulta de los movimientos. Sacar uno de esos ``select_related`` hace crecer el costo con las filas."""
+
+        lector = self._con("Lector con persona", *LECTURA, "ciudadano.ver")
+        url = self._url(self.edif_a)
+        self._mover_de_todo(1)
+        con_uno = self._medir(lector, url, tab="stock")
+
+        self._mover_de_todo(7, desde=1)
+        con_ocho = self._medir(lector, url, tab="stock")
+
+        self.assertEqual(con_ocho, con_uno)
+
+    def test_la_ficha_con_edificios_no_crece_con_los_edificios_y_el_peor_usuario_entra_en_el_techo(self):
         url = reverse("dispositivos:detalle", args=[self.cis.pk])
         self._cargar(3)
         self.tipo.maneja_stock = False
@@ -411,9 +525,28 @@ class PresupuestoDeStockTests(BaseLecturaStock):
         self.tipo.maneja_stock = True
         self.tipo.save(update_fields=["maneja_stock"])
 
-        con_modulo = self._medir(self.ve_inst, url)
+        con_dos_edificios = self._medir(self.ve_inst, url)
+        for numero in range(4):
+            extra = Edificio.objects.create(codigo=f"ED-X{numero}", nombre=f"Edificio extra {numero}")
+            extra.dispositivos.add(self.cis)
+        con_seis_edificios = self._medir(self.ve_inst, url)
 
-        # Fijas, no por tarjeta: el alcance de stock.ver, el resumen agrupado de las tarjetas y el aviso (RN-010-21).
-        self.assertLessEqual(con_modulo - sin_modulo, 3)
+        # El stock suma consultas fijas (el alcance de stock.ver, el resumen agrupado de las tarjetas y el aviso:
+        # RN-010-21) y ninguna por tarjeta.
+        self.assertLessEqual(con_dos_edificios - sin_modulo, 3)
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_FICHA]
-        self.assertLessEqual(con_modulo, techo["consultas_fijas"])
+        self.assertLessEqual(con_dos_edificios, techo["consultas_fijas"])
+        # Cada edificio nuevo suma lo mismo que ya sumaba sin el módulo: la diferencia no depende de cuántos haya.
+        self.tipo.maneja_stock = False
+        self.tipo.save(update_fields=["maneja_stock"])
+        sin_modulo_seis = self._medir(self.ve_inst, url)
+        self.assertEqual(con_seis_edificios - sin_modulo_seis, con_dos_edificios - sin_modulo)
+
+    def test_el_superusuario_con_un_tipo_que_lleva_stock_entra_en_el_techo_de_la_ficha(self):
+        admin = User.objects.create_superuser("super_ficha", "s@x.com", "x")
+        self._cargar(3)
+
+        consultas = self._medir(admin, reverse("dispositivos:detalle", args=[self.cis.pk]))
+
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_FICHA]
+        self.assertLessEqual(consultas, techo["consultas_fijas"])
