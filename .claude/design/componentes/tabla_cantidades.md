@@ -2,7 +2,8 @@
 
 **Clasificación:** Canónico reutilizable. Pieza única: una fila por ítem con su control de cantidad.
 **Evidencia:** `templates/components/_tabla_cantidades.html`, `programas/templates/programas/emergencia/kits/nueva.html`
-(consumidor), `core/tests/test_nodo_ui_piezas.py` (`TablaCantidadesTest`).
+(consumidor), `programas/templates/programas/dispositivos/stock/entregar.html` (consumidor, `rotulo_item="Insumo"`, columna
+«En stock»), `core/tests/test_nodo_ui_piezas.py` (`TablaCantidadesTest`).
 
 Va **dentro del `<form>` del consumidor**, que pone la card, el csrf y el pie. No pagina ni calcula.
 
@@ -17,7 +18,7 @@ Va **dentro del `<form>` del consumidor**, que pone la card, el csrf y el pie. N
 | `filas` | Armadas por la **vista**: `campo` (BoundField de la cantidad), `nombre`, `unidad`, `info` = `[{texto, nota}]` |
 | `columnas_info` | Rótulos de las columnas informativas, en el mismo orden que `info` (vacía o ausente: sin columnas) |
 | `rotulo_cantidad` | Rótulo de la última columna, la del control |
-| `rotulo_item` | Opcional: rótulo de la primera columna (por defecto «Ítem»; el stock usará «Insumo») |
+| `rotulo_item` | Opcional: rótulo de la primera columna (por defecto «Ítem»; el stock usa «Insumo») |
 | `caption` | Texto para el lector de pantalla (`sr-only`) |
 
 ## Reglas

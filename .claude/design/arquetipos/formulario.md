@@ -126,8 +126,14 @@ solo pone etiqueta y error.
   viaja en un oculto y la vista lo revalida. Un enlace `btn-tertiary btn-sm` («Cargar lo estimado») rellena con un GET y
   no se ofrece cuando la pantalla ya está atada a algo (una reposición). Evidencia:
   `programas/templates/programas/emergencia/kits/nueva.html`, que dibuja la tabla con la pieza
-  `components/_tabla_cantidades.html` (`componentes/tabla_cantidades.md`); no pasa los marcadores de campo por grilla del
-  auditor (la tabla es el control), se valida por revisión y con el test de la vista.
+  `components/_tabla_cantidades.html` (`componentes/tabla_cantidades.md`), y
+  `programas/templates/programas/dispositivos/stock/entregar.html` («Entregar a persona», Stock); no pasan los marcadores
+  de campo por grilla del auditor (la tabla es el control), se validan por revisión y con el test de la vista.
+  El «destino» puede ser una persona: la superficie 1 es un GET con DNI y sexo (nombre y apellido solo con
+  `PERSONA_SIN_DATOS`); la persona se anuncia con `_alerta` info y se revalida en el POST. Entre la alerta y el form va una
+  superficie de solo lectura «Lo que recibió antes» (encabezado `px-5 py-4 border-b border-light`, tabla canónica escrita a
+  mano: Fecha / Institución / «Qué recibió», tope de 20 recortado en el selector, `_estado_vacio` si no hay). El saldo va
+  como columna informativa «En stock» de `_tabla_cantidades`.
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.
 - Grilla de dos columnas: envolver los `{% include %}` de campo en
