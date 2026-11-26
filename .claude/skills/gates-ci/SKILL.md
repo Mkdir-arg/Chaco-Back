@@ -91,8 +91,10 @@ acá va el orden en que se decide.
    cargue, esa condición queda cubierta por un test en un proceso aislado, como
    `core/tests/test_twisted_dns.py`.
 4. **Decidir.**
-   - Hay versión **final** corregida: se sube el pin (si el paquete no está pineado, la
-     toma sola la imagen).
+   - Hay versión **final** corregida: se sube el pin. Si el paquete es transitivo y no está
+     pineado, se pinea igual en `requirements.txt`: la capa de `pip install` del Dockerfile
+     queda cacheada mientras ese archivo no cambie, y la imagen seguiría con la versión
+     vulnerable (Cambio 611).
    - No hay versión final corregida (solo un rc, o ninguna) y el módulo **no** se carga: excepción en
      `security/excepciones.toml` con `vence_el` y ticket.
    - El módulo **sí** se carga en la superficie servida (p. ej. `twisted.web` con daphne):
