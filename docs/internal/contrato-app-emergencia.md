@@ -1396,5 +1396,5 @@ de la primera vez y **no mueve el saldo**. Un reenvío con el cuerpo malformado 
 | 409 `SALDO_INSUFICIENTE` | Una salida supera el saldo leído bajo candado. Con `saldos`. No se mueve nada |
 | 409 `SALDO_CAMBIO` | `ajustes/`: el saldo ya no es `saldo_visto`. Con `saldo_actual` |
 | 409 `UUID_EN_USO` | Ese `uuid_cliente` es de otra operación, otro usuario, otro edificio u otro destino |
-| 409 `STOCK_NO_HABILITADO` | La institución no está activa (ingresar, entregar y recibir un traspaso lo exigen) o el edificio está inactivo |
+| 409 `STOCK_NO_HABILITADO` | La institución no está activa (ingresar, entregar y recibir un traspaso lo exigen), el edificio está inactivo o la institución de destino de un traspaso no lleva stock |
 | 429 | Tope de escrituras de stock del usuario (`stock_escritura`, 600/hora). Trae `Retry-After` |

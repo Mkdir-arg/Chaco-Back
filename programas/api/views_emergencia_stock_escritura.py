@@ -11,12 +11,14 @@ para el mismo lugar (con el resultado de la primera vez, sin mover el saldo). Un
 antes de llegar al servicio. Sin escrituras offline (decisión 7): la app necesita conexión y no las encola.
 
 Los rechazos del servicio, con su ``code``: 409 ``SALDO_INSUFICIENTE`` (con los saldos), ``SALDO_CAMBIO``,
-``UUID_EN_USO`` y ``STOCK_NO_HABILITADO``; 400 ``VALIDACION`` y ``PERSONA_SIN_DATOS``.
+``UUID_EN_USO`` y ``STOCK_NO_HABILITADO``; 400 ``VALIDACION`` y ``PERSONA_SIN_DATOS``. Una entrega rechazada por la
+persona o por el saldo gasta una consulta de ``personas_campo`` (429 si se agotó); la asentada no.
 """
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
+from rest_framework.exceptions import Throttled
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
@@ -25,12 +27,13 @@ from programas.api.serializers_emergencia_stock import (
     EntregaAPersonaEnvioSerializer,
     IngresoManualEnvioSerializer,
     OperacionDeStockSerializer,
+    SaldoCambioSerializer,
+    SaldoInsuficienteSerializer,
     TraspasoEnvioSerializer,
 )
-from programas.api.throttles import StockEscrituraThrottle
+from programas.api.throttles import StockEscrituraThrottle, descontar_consulta_de_identidad
 from programas.api.views_emergencia import (
     _SIN_TOKEN,
-    CODIGO_UUID_EN_USO,
     _creado_o_reenvio,
     _errores,
     _respuesta_de_validacion,
@@ -46,8 +49,6 @@ from programas.services import stock_app
 from programas.services.stock_personas import PersonaSinDatos
 
 CODIGO_PERSONA_SIN_DATOS = "PERSONA_SIN_DATOS"
-CODIGO_SALDO_CAMBIO = "SALDO_CAMBIO"
-CODIGO_STOCK_NO_HABILITADO = "STOCK_NO_HABILITADO"
 
 #: Lo que el servicio llama de una forma y la app manda de otra.
 _CLAVE_DE_LA_APP = {"item": "item_id"}
@@ -56,8 +57,8 @@ _CONFLICTOS = OpenApiResponse(
     description=(
         "`code: SALDO_INSUFICIENTE` (con `saldos` de todas las líneas que salen), `SALDO_CAMBIO` (ajuste: con "
         "`saldo_actual` y `saldo_visto`), `UUID_EN_USO` (ese `uuid_cliente` es de otra operación, de otro usuario o de "
-        "otro lugar) o `STOCK_NO_HABILITADO` (la institución no lleva stock o no está activa, o el edificio está "
-        "inactivo)."
+        "otro lugar) o `STOCK_NO_HABILITADO` (la institución —o la de destino de un traspaso— no lleva stock o no está "
+        "activa, o el edificio está inactivo)."
     )
 )
 _VALIDACION = OpenApiResponse(
@@ -71,8 +72,11 @@ _OPERACION = OpenApiResponse(
 )
 
 
-def _rechazo(codigo, error, **extra):
-    return Response({"detail": error.messages[0], "code": codigo, **extra}, status=status.HTTP_409_CONFLICT)
+def _rechazo(error, serializador=None, **extra):
+    cuerpo = {"detail": error.messages[0], "code": error.code, **extra}
+    if serializador is not None:
+        cuerpo = serializador(cuerpo).data
+    return Response(cuerpo, status=status.HTTP_409_CONFLICT)
 
 
 def _con_claves_de_la_app(error):
@@ -89,6 +93,8 @@ class _EscrituraDeStockView(_VistaDeStock):
     parser_classes = [JSONParser]
     throttle_classes = [StockEscrituraThrottle]
     envio = None
+    #: Una entrega rechazada por la persona o por el saldo gasta la cuota de identidad (ver ``_descontar_identidad``).
+    gasta_cuota_de_identidad = False
 
     def puede(self, usuario, dispositivo, edificio_id):
         raise NotImplementedError
@@ -115,23 +121,40 @@ class _EscrituraDeStockView(_VistaDeStock):
         try:
             return accion(), None
         except PersonaSinDatos as error:
+            self._descontar_identidad()
             return None, self._sin_datos(error)
         except servicio.SaldoInsuficiente as error:
-            return None, Response(stock_app.rechazo_por_saldo(error), status=status.HTTP_409_CONFLICT)
+            self._descontar_identidad()
+            return None, Response(
+                SaldoInsuficienteSerializer(stock_app.rechazo_por_saldo(error)).data, status=status.HTTP_409_CONFLICT
+            )
         except servicio.SaldoCambio as error:
             return None, _rechazo(
-                CODIGO_SALDO_CAMBIO, error, saldo_actual=error.saldo_actual, saldo_visto=error.saldo_visto
+                error, SaldoCambioSerializer, saldo_actual=error.saldo_actual, saldo_visto=error.saldo_visto
             )
         except servicio.StockNoHabilitado as error:
-            return None, _rechazo(CODIGO_STOCK_NO_HABILITADO, error)
+            return None, _rechazo(error)
         except servicio.UuidEnUso as error:
-            return None, _rechazo(CODIGO_UUID_EN_USO, error)
+            return None, _rechazo(error)
         except PermissionDenied:
             # La capacidad se perdió entre la vista y el servicio (lo sacaron del Equipo): 403, no 404, porque el par
             # ya se resolvió por alcance.
             return None, _sin_permiso()
         except ValidationError as error:
+            if "dni" in getattr(error, "error_dict", {}):
+                self._descontar_identidad()
             return None, _respuesta_de_validacion(_errores(_con_claves_de_la_app(error)))
+
+    def _descontar_identidad(self):
+        """La entrega rechazada por la persona o por el saldo ya consultó el legajo o el Registro y dice si el DNI
+        existe o figura fallecido: gasta de ``personas_campo`` como el «DNI ya registrado» de ``crear_caso``. La
+        asentada no gasta; agotada la cuota, contesta 429."""
+
+        if not self.gasta_cuota_de_identidad:
+            return
+        espera = descontar_consulta_de_identidad(self.request)
+        if espera is not None:
+            raise Throttled(wait=espera)
 
     @staticmethod
     def _sin_datos(error):
@@ -164,6 +187,7 @@ _RESPUESTAS = {
 
 class EntregaAPersonaView(_EscrituraDeStockView):
     envio = EntregaAPersonaEnvioSerializer
+    gasta_cuota_de_identidad = True
 
     def puede(self, usuario, dispositivo, edificio_id):
         return servicio.puede_entregar(usuario, dispositivo, edificio_id)

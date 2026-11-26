@@ -311,7 +311,7 @@ def rechazo_por_saldo(error):
     insumos = {i.pk: i for i in TipoKit.objects.filter(pk__in=error.saldos_actuales)}
     return {
         "detail": error.messages[0],
-        "code": "SALDO_INSUFICIENTE",
+        "code": error.code,
         "saldos": [
             {
                 "item_id": item_id,

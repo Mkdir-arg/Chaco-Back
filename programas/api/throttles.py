@@ -36,8 +36,9 @@ class StockEscrituraThrottle(UserRateThrottle):
 
     Una entrega a una persona puede consultar al Registro de Personas, así que no queda sin tope; pero una guardia en
     plena distribución entrega a decenas de familias por hora, de modo que el límite es holgado. Por usuario, no por
-    IP, por la misma razón que ``personas_campo``. La entrega no devuelve el nombre de la persona: no abre una
-    consulta de identidad por otra puerta.
+    IP, por la misma razón que ``personas_campo``. La entrega no devuelve el nombre, pero un rechazo por la persona
+    (sin datos, DNI de un fallecido) o por el saldo revela si el DNI existe: esos rechazos descuentan además de
+    ``personas_campo`` (``descontar_consulta_de_identidad``); la entrega asentada no.
     """
 
     scope = "stock_escritura"

@@ -25,9 +25,12 @@ Mutaciones verificadas (romper la regla pone rojo el test que se nombra; ver el 
 from unittest import mock
 from uuid import uuid4
 
+from django.core.cache import cache
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from programas.api.throttles import StockEscrituraThrottle
+from programas.api.throttles import ConsultaPersonasThrottle, StockEscrituraThrottle
 from programas.models import Dispositivo, MovimientoStock, OperacionStock
 from programas.tests.base_emergencia_api import CLAVES_STOCK_MOVIMIENTO_OPERACION, CLAVES_STOCK_OPERACION
 from programas.tests.base_stock import TODAS_LAS_DE_STOCK
@@ -374,3 +377,80 @@ class CubetaTests(BaseEscritura):
         ajeno = self._otro_usuario("sin_nada_2")
         for _ in range(3):
             self.assertEqual(self._post(ajeno, "stock-ingresar", self._ingreso()).status_code, 403)
+
+
+class IdentidadDeLaEntregaTests(BaseEscritura):
+    """La entrega rechazada por la persona o el saldo gasta ``personas_campo``; la asentada no (ronda 2).
+
+    **Mutación vista en rojo:** sacar ``_descontar_identidad`` de ``_correr`` deja la segunda entrega rechazada en
+    400/409 en vez de 429.
+    """
+
+    def _rechazos(self):
+        # nombre -> (cuerpo, respuesta simulada del Registro, estado del primer rechazo)
+        return {
+            "persona_sin_datos": (self._entrega(dni="40999888"), self.RENAPER_NO_ESTA, 400),
+            "dni_fallecido": (self._entrega(dni="27555666", sexo="F"), self.RENAPER_FALLECIDA, 400),
+            "saldo_insuficiente": (self._entrega(lineas=[{"item_id": self.colchon.pk, "cantidad": 999}]), None, 409),
+        }
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_cada_rechazo_descuenta_y_al_agotarla_da_429(self, _rate):
+        self._sembrar(self.colchon, 5)
+        for nombre, (cuerpo, registro, estado) in self._rechazos().items():
+            with self.subTest(nombre), mock.patch(self.CONSULTA_RENAPER, return_value=registro):
+                cache.clear()
+                primera = self._post(self.op, "stock-entregar", {**cuerpo, "uuid_cliente": str(uuid4())})
+                segunda = self._post(self.op, "stock-entregar", {**cuerpo, "uuid_cliente": str(uuid4())})
+                self.assertEqual(primera.status_code, estado, primera.content)
+                self.assertEqual(segunda.status_code, 429)
+                self.assertIn("Retry-After", segunda)
+        self.assertEqual(self._cantidad(self.colchon), 5)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_la_entrega_asentada_no_descuenta(self, _rate):
+        self._sembrar(self.colchon, 10)
+        for _ in range(3):
+            self.assertEqual(self._post(self.op, "stock-entregar", self._entrega()).status_code, 201)
+        pide_de_mas = self._entrega(lineas=[{"item_id": self.colchon.pk, "cantidad": 999}])
+        self.assertEqual(self._post(self.op, "stock-entregar", pide_de_mas).status_code, 409)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_las_otras_escrituras_no_descuentan(self, _rate):
+        self._sembrar(self.colchon, 1)
+        for _ in range(3):
+            respuesta = self._post(self.op, "stock-traspasar", self._traspaso())
+            self.assertEqual((respuesta.status_code, respuesta.json()["code"]), (409, "SALDO_INSUFICIENTE"))
+
+
+class CostoTests(BaseEscritura):
+    """Ingresar, entregar y traspasar cuestan lo mismo con 1 línea que con 5, salvo 1 UPDATE por saldo tocado.
+
+    El ajuste es de un solo insumo: no tiene líneas que crezcan.
+    """
+
+    def _consultas(self, nombre, cuerpo):
+        with CaptureQueriesContext(connection) as contexto:
+            respuesta = self._post(self.op, nombre, cuerpo)
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+        return len(contexto)
+
+    def test_el_costo_no_crece_con_las_lineas(self):
+        insumos = [self.colchon, self.frazada]
+        for i in range(3):
+            insumos.append(type(self.colchon).objects.create(nombre=f"Insumo costo {i}", unidad="u"))
+        for insumo in insumos:
+            self._sembrar(insumo, 50)
+        una = [{"item_id": self.colchon.pk, "cantidad": 1}]
+        cinco = [{"item_id": i.pk, "cantidad": 1} for i in insumos]
+        self._post(self.op, "stock-ingresar", self._ingreso())  # calienta cachés de ContentType/permisos
+        casos = {
+            "stock-entregar": (self._entrega, 1),
+            "stock-ingresar": (self._ingreso, 1),
+            "stock-traspasar": (self._traspaso, 2),  # toca el saldo del origen y el del destino
+        }
+        for nombre, (armar, saldos_por_linea) in casos.items():
+            with self.subTest(nombre):
+                con_una = self._consultas(nombre, armar(lineas=una))
+                con_cinco = self._consultas(nombre, armar(lineas=cinco))
+                self.assertLessEqual(con_cinco - con_una, saldos_por_linea * (len(cinco) - 1), (con_una, con_cinco))
