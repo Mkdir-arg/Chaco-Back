@@ -125,7 +125,8 @@ solo pone etiqueta y error.
   vuelve arriba con `_form_errores`. Pie: «Cancelar» `btn-tertiary` y la acción `btn-brand`. No usa la sesión: lo elegido
   viaja en un oculto y la vista lo revalida. Un enlace `btn-tertiary btn-sm` («Cargar lo estimado») rellena con un GET y
   no se ofrece cuando la pantalla ya está atada a algo (una reposición). Evidencia:
-  `programas/templates/programas/emergencia/kits/nueva.html`; no pasa los marcadores de campo por grilla del
+  `programas/templates/programas/emergencia/kits/nueva.html`, que dibuja la tabla con la pieza
+  `components/_tabla_cantidades.html` (`componentes/tabla_cantidades.md`); no pasa los marcadores de campo por grilla del
   auditor (la tabla es el control), se valida por revisión y con el test de la vista.
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.

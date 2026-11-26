@@ -7,7 +7,8 @@ Contexto:
                      pk, nombre, codigo, domicilio, estado {texto, tono} (estado edilicio), aviso {texto, tono} o None,
                      predio_compartido, ocupacion {valor, maximo, porcentaje, tono, etiqueta, texto, nombre} o None (sin
                      plazas en el tipo: no hay barra ni «Disponibles»), disponibles (entero o None), kits {texto, clase} o
-                     None (el usuario no recibe kits: no hay fila), equipo {texto, clase}, movimientos (texto del pie).
+                     None (el usuario no recibe kits: no hay fila), stock {texto, clase} o None (sin permiso de stock sobre el
+                     edificio: no hay fila; «N insumos · M sin existencia» o «Sin stock cargado»), equipo {texto, clase}, movimientos (texto del pie).
                    Los datos ya vienen recortados por alcance (Cambio 428): acá no se decide nada.
   url_ver          obligatorio: la página del edificio. Es el título, el ítem «Abrir edificio» y el pie.
   url_editar       opcional: sin ella no hay «Editar edificio» (la vista la manda solo con `dispositivo.editar`).
@@ -58,6 +59,7 @@ La ocupación es `_barra_umbral` (sin marcas de umbral: la leyenda es de la fran
     <dl class="divide-y divide-light text-sm">
       {% if edificio.ocupacion %}<div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Disponibles</dt><dd class="font-semibold text-heading">{{ edificio.disponibles }}</dd></div>{% endif %}
       {% if edificio.kits %}<div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Kits</dt><dd class="font-semibold {{ edificio.kits.clase }}">{{ edificio.kits.texto }}</dd></div>{% endif %}
+      {% if edificio.stock %}<div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Stock</dt><dd class="font-semibold {{ edificio.stock.clase }}">{{ edificio.stock.texto }}</dd></div>{% endif %}
       <div class="flex justify-between gap-3 py-2"><dt class="text-body-subtle">Equipo</dt><dd class="font-semibold {{ edificio.equipo.clase }}">{{ edificio.equipo.texto }}</dd></div>
     </dl>
   </div>

@@ -22,11 +22,13 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from programas.models import EntregaKit, Estadia
+from programas.selectors.stock import resumen_de_insumos_por_edificio
 from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import (
     contar_miembros_por_edificio,
     entero_de_parametro,
 )
+from programas.services.edificio_stock import texto_de_resumen
 from programas.services.ocupacion import tension_de_ocupacion
 
 #: Cuántos edificios con lugar nombra el aviso antes de dejar de enumerarlos.
@@ -87,14 +89,27 @@ def _texto_de_movimientos(ingresos, egresos):
     return "Hoy: " + " · ".join(partes) if partes else "Hoy: sin movimientos"
 
 
-def completar_tarjetas(filas, *, dispositivo, ocupacion, con_plazas, alcance_kits):
+def _texto_de_stock(resumen):
+    """La fila «Stock» de la tarjeta: ``{"texto", "clase"}`` con el mismo texto que el resumen de la solapa."""
+
+    insumos = resumen["insumos"] if resumen else 0
+    sin_existencia = resumen["sin_existencia"] if resumen else 0
+    texto = texto_de_resumen(insumos, sin_existencia)
+    if not insumos:
+        return {"texto": texto, "clase": "text-body-subtle"}
+    return {"texto": texto, "clase": "text-fg-warning" if sin_existencia else "text-heading"}
+
+
+def completar_tarjetas(filas, *, dispositivo, ocupacion, con_plazas, alcance_kits, alcance_stock=None):
     """Suma a cada fila de ``infraestructura_del_dispositivo`` lo que la tarjeta del edificio dibuja.
 
     ``ocupacion`` es la ``OcupacionDispositivo`` de la ficha (ya acotada al alcance de quien mira). Sin plazas en el
     tipo de la institución, la fila no lleva ocupación ni disponibles: la tarjeta no dibuja una barra vacía.
     ``alcance_kits`` es el de ``emergencia.recibir_kit`` que la vista ya calculó (el mismo que decide el aviso de kits
     de la ficha): ``None`` si quien mira no recibe kits en la institución. Los kits solo se cuentan en los edificios que
-    alcanza, como en la página del edificio.
+    alcanza, como en la página del edificio. ``alcance_stock`` es el de ``stock.ver``: ``None`` si el tipo no lleva
+    stock o quien mira no lo ve (la fila ``stock`` queda en ``None`` y no se dibuja); con él, el resumen sale de **una**
+    consulta agrupada y solo de los edificios que alcanza.
     """
 
     if not filas:
@@ -104,6 +119,8 @@ def completar_tarjetas(filas, *, dispositivo, ocupacion, con_plazas, alcance_kit
 
     ids_con_kits = [pk for pk in ids if alcance_kits is not None and alcance_kits.permite(pk)]
     kits = _kits_pendientes(dispositivo, ids_con_kits) if ids_con_kits else {}
+    ids_con_stock = [pk for pk in ids if alcance_stock is not None and alcance_stock.permite(pk)]
+    stock = resumen_de_insumos_por_edificio(dispositivo, ids_con_stock) if ids_con_stock else {}
     equipo = contar_miembros_por_edificio(dispositivo, ids)
     movimientos = _movimientos_de_hoy(dispositivo, ids, hoy) if con_plazas else {}
 
@@ -135,6 +152,7 @@ def completar_tarjetas(filas, *, dispositivo, ocupacion, con_plazas, alcance_kit
             fila["kits"] = {"texto": texto, "clase": clase}
         else:
             fila["kits"] = None
+        fila["stock"] = _texto_de_stock(stock.get(pk)) if pk in ids_con_stock else None
         miembros = equipo.get(pk, 0)
         fila["equipo"] = (
             {"texto": _plural(miembros, "persona", "personas"), "clase": "text-heading"}
