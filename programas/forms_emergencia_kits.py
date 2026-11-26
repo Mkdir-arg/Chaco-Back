@@ -17,6 +17,7 @@ from programas.selectors.kits import SOLAPA_ABIERTAS, SOLAPAS, destinos_posibles
 from programas.services.kits import (
     CANTIDAD_INVALIDA,
     CANTIDAD_MAXIMA,
+    ELEGI_EL_EDIFICIO_DE_LA_RECEPCION,
     FALTA_EL_MOTIVO,
     FALTA_EL_MOTIVO_DE_LA_DIFERENCIA,
     FALTA_EL_REMITO,
@@ -304,9 +305,24 @@ class RecepcionKitForm(ErroresDelServicioMixin, forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
     )
 
-    def __init__(self, *args, lineas, **kwargs):
+    def __init__(self, *args, lineas, edificios=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.lineas = list(lineas)
+        # RN-010-07: una entrega sin edificio en una institución con stock pide elegir en cuál se recibe. La lista
+        # (`kits.edificios_para_recibir`) llega vacía cuando no hace falta, y entonces el campo no existe.
+        edificios = list(edificios)
+        if edificios:
+            self.fields["edificio"] = forms.ModelChoiceField(
+                label="Edificio en el que se recibe",
+                queryset=Edificio.objects.filter(pk__in=[e.pk for e in edificios]).order_by("nombre"),
+                empty_label="Elegí el edificio",
+                help_text="Lo recibido se suma al stock de este edificio.",
+                widget=forms.Select(attrs={"class": INPUT_CLASS}),
+                error_messages={
+                    "required": ELEGI_EL_EDIFICIO_DE_LA_RECEPCION,
+                    "invalid_choice": ELEGI_EL_EDIFICIO_DE_LA_RECEPCION,
+                },
+            )
         cantidades = {}
         for linea in self.lineas:
             cantidades[_campo_de(linea.item_id)] = forms.IntegerField(
@@ -329,7 +345,13 @@ class RecepcionKitForm(ErroresDelServicioMixin, forms.Form):
         return [self[_campo_de(linea.item_id)] for linea in self.lineas]
 
     def campos_del_remito(self):
-        return [self["remito"], self["observacion"]]
+        # El edificio (si hay que elegirlo) va primero: es dónde se suma lo que llegó.
+        return [*([self["edificio"]] if "edificio" in self.fields else []), self["remito"], self["observacion"]]
+
+    def edificio(self):
+        """El edificio elegido (``recibir_entrega(edificio=…)``), o ``None`` si la entrega ya lo tenía."""
+
+        return self.cleaned_data.get("edificio")
 
     def cantidades(self):
         """``{item_id: cantidad}``: lo que recibe ``recibir_entrega``."""
