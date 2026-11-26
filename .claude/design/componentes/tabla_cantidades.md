@@ -27,6 +27,9 @@ Va **dentro del `<form>` del consumidor**, que pone la card, el csrf y el pie. N
   `<auto_id>-ayuda` (la nombra `aria-describedby`) y el error por fila en `<auto_id>-error` con `data-error`.
 - Un `texto` vacío en una celda de `info` dibuja «—»; la `nota` va debajo en `text-xs text-body-subtle`.
 - Sin `filas` no dibuja nada. Lleva su propio `overflow-x-auto`.
+- Los campos se arman con `programas/forms_cantidades.py` (`campo_de_cantidad`, con `help_text="En <unidad>."`, que
+  es lo que llena `<auto_id>-ayuda`) y su guarda: un insumo pedido que ya no tiene fila no se descarta en silencio. En
+  stock las filas son los insumos con saldo **más** los que llegan cargados en el POST («Hay 0 y pediste N»).
 
 ## Prohibido
 
