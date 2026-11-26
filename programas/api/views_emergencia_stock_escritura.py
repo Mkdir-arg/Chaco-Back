@@ -12,12 +12,13 @@ antes de llegar al servicio. Sin escrituras offline (decisión 7): la app necesi
 
 Los rechazos del servicio, con su ``code``: 409 ``SALDO_INSUFICIENTE`` (con los saldos), ``SALDO_CAMBIO``,
 ``UUID_EN_USO`` y ``STOCK_NO_HABILITADO``; 400 ``VALIDACION`` y ``PERSONA_SIN_DATOS``. Una entrega rechazada por la
-persona o por el saldo gasta una consulta de ``personas_campo`` (429 si se agotó); la asentada no.
+persona, por el saldo o por una institución o un edificio no activos gasta una consulta de ``personas_campo`` (429 si
+se agotó); la asentada no.
 """
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import status
+from drf_spectacular.utils import OpenApiResponse, PolymorphicProxySerializer, extend_schema
+from rest_framework import serializers, status
 from rest_framework.exceptions import Throttled
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
@@ -53,13 +54,26 @@ CODIGO_PERSONA_SIN_DATOS = "PERSONA_SIN_DATOS"
 #: Lo que el servicio llama de una forma y la app manda de otra.
 _CLAVE_DE_LA_APP = {"item": "item_id"}
 
+
+class _RechazoSerializer(serializers.Serializer):
+    """409 de ``UUID_EN_USO`` y ``STOCK_NO_HABILITADO``: solo el mensaje y el código."""
+
+    detail = serializers.CharField()
+    code = serializers.CharField()
+
+
 _CONFLICTOS = OpenApiResponse(
+    response=PolymorphicProxySerializer(
+        component_name="RechazoDeStock409",
+        serializers=[SaldoInsuficienteSerializer, SaldoCambioSerializer, _RechazoSerializer],
+        resource_type_field_name=None,
+    ),
     description=(
         "`code: SALDO_INSUFICIENTE` (con `saldos` de todas las líneas que salen), `SALDO_CAMBIO` (ajuste: con "
         "`saldo_actual` y `saldo_visto`), `UUID_EN_USO` (ese `uuid_cliente` es de otra operación, de otro usuario o de "
         "otro lugar) o `STOCK_NO_HABILITADO` (la institución —o la de destino de un traspaso— no lleva stock o no está "
         "activa, o el edificio está inactivo)."
-    )
+    ),
 )
 _VALIDACION = OpenApiResponse(
     description=(
@@ -133,6 +147,9 @@ class _EscrituraDeStockView(_VistaDeStock):
                 error, SaldoCambioSerializer, saldo_actual=error.saldo_actual, saldo_visto=error.saldo_visto
             )
         except servicio.StockNoHabilitado as error:
+            # La persona se resuelve antes que el estado de la institución y del edificio: este 409 ya dijo que el DNI
+            # tiene legajo o figura en el Registro. Sin esto era un oráculo de identidad sin cuota.
+            self._descontar_identidad()
             return None, _rechazo(error)
         except servicio.UuidEnUso as error:
             return None, _rechazo(error)

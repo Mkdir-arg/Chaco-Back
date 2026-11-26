@@ -31,7 +31,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from programas.api.throttles import ConsultaPersonasThrottle, StockEscrituraThrottle
-from programas.models import Dispositivo, MovimientoStock, OperacionStock
+from programas.models import Dispositivo, Edificio, MovimientoStock, OperacionStock
 from programas.tests.base_emergencia_api import CLAVES_STOCK_MOVIMIENTO_OPERACION, CLAVES_STOCK_OPERACION
 from programas.tests.base_stock import TODAS_LAS_DE_STOCK
 from programas.tests.test_emergencia_api_stock_lectura import BaseApiStock
@@ -386,25 +386,48 @@ class IdentidadDeLaEntregaTests(BaseEscritura):
     400/409 en vez de 429.
     """
 
+    def _institucion_observada(self):
+        Dispositivo.objects.filter(pk=self.disp.pk).update(estado=Dispositivo.Estado.OBSERVADO)
+
+    def _edificio_inactivo(self):
+        Edificio.objects.filter(pk=self.edificio.pk).update(activo=False)
+
     def _rechazos(self):
-        # nombre -> (cuerpo, respuesta simulada del Registro, estado del primer rechazo)
+        # nombre -> (cuerpo, respuesta simulada del Registro, estado del primer rechazo, preparación del escenario)
+        # Los dos últimos usan el DNI con legajo (``self.persona``): sin la cuota, el 409 confirmaba que existe.
         return {
-            "persona_sin_datos": (self._entrega(dni="40999888"), self.RENAPER_NO_ESTA, 400),
-            "dni_fallecido": (self._entrega(dni="27555666", sexo="F"), self.RENAPER_FALLECIDA, 400),
-            "saldo_insuficiente": (self._entrega(lineas=[{"item_id": self.colchon.pk, "cantidad": 999}]), None, 409),
+            "persona_sin_datos": (self._entrega(dni="40999888"), self.RENAPER_NO_ESTA, 400, None),
+            "dni_fallecido": (self._entrega(dni="27555666", sexo="F"), self.RENAPER_FALLECIDA, 400, None),
+            "saldo_insuficiente": (
+                self._entrega(lineas=[{"item_id": self.colchon.pk, "cantidad": 999}]),
+                None,
+                409,
+                None,
+            ),
+            "institucion_no_activa": (self._entrega(), None, 409, self._institucion_observada),
+            "edificio_inactivo": (self._entrega(), None, 409, self._edificio_inactivo),
         }
 
     @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
     def test_cada_rechazo_descuenta_y_al_agotarla_da_429(self, _rate):
+        """**Mutación vista en rojo:** sin ``_descontar_identidad`` en el ``except StockNoHabilitado``,
+        ``institucion_no_activa`` y ``edificio_inactivo`` dan 409 las dos veces."""
+
         self._sembrar(self.colchon, 5)
-        for nombre, (cuerpo, registro, estado) in self._rechazos().items():
+        for nombre, (cuerpo, registro, estado, preparar) in self._rechazos().items():
             with self.subTest(nombre), mock.patch(self.CONSULTA_RENAPER, return_value=registro):
                 cache.clear()
+                if preparar:
+                    preparar()
                 primera = self._post(self.op, "stock-entregar", {**cuerpo, "uuid_cliente": str(uuid4())})
                 segunda = self._post(self.op, "stock-entregar", {**cuerpo, "uuid_cliente": str(uuid4())})
                 self.assertEqual(primera.status_code, estado, primera.content)
+                if preparar:
+                    self.assertEqual(primera.json()["code"], "STOCK_NO_HABILITADO")
                 self.assertEqual(segunda.status_code, 429)
                 self.assertIn("Retry-After", segunda)
+                Dispositivo.objects.filter(pk=self.disp.pk).update(estado=Dispositivo.Estado.ACTIVO)
+                Edificio.objects.filter(pk=self.edificio.pk).update(activo=True)
         self.assertEqual(self._cantidad(self.colchon), 5)
 
     @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
