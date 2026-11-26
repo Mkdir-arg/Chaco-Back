@@ -82,6 +82,8 @@ class DispositivoFueraDeLaRed(NamedTuple):
     localidad: str
     estado: str
     reservado: bool
+    #: El tipo lleva stock (RN-010-01): E8 le muestra el «Stock registrado» (RN-010-20).
+    lleva_stock: bool = False
 
 
 @dataclass(frozen=True)
@@ -201,11 +203,11 @@ def _fuera_de_la_red(ids):
     filas = (
         Dispositivo.objects.filter(pk__in=ids)
         .order_by("nombre", "id")
-        .values_list("id", "nombre", "localidad", "estado", "tipo__ubicacion_reservada")
+        .values_list("id", "nombre", "localidad", "estado", "tipo__ubicacion_reservada", "tipo__maneja_stock")
     )
     return {
-        pk: DispositivoFueraDeLaRed(pk, nombre, localidad or "", estado, bool(reservado))
-        for pk, nombre, localidad, estado, reservado in filas
+        pk: DispositivoFueraDeLaRed(pk, nombre, localidad or "", estado, bool(reservado), bool(lleva_stock))
+        for pk, nombre, localidad, estado, reservado, lleva_stock in filas
     }
 
 

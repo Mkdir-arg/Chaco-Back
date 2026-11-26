@@ -9,6 +9,9 @@ AE-8 a AE-10 están en ``programas.services.alertas_situacion_emergencia`` y lo 
 **Es una estimación, no un stock** (RNF-009-13): lo recibido se da por consumido a la tasa de la
 regla desde la primera recepción del ítem en el dispositivo, sobre las personas, familias o
 lactantes que de verdad estuvieron ahí. No sabe lo que llegó por fuera de la mesa ni lo que se perdió.
+Una sola excepción, desde el análisis 010 (RN-010-20): en las instituciones cuyo tipo lleva stock
+(``DispositivoDelAbastecimiento.lleva_stock``) la pantalla suma al lado el **stock registrado**, rotulado así. El
+faltante no cambia: sigue saliendo de la estimación y no lee ningún saldo.
 
 Reglas:
 
@@ -266,6 +269,8 @@ class DispositivoDelAbastecimiento(NamedTuple):
     reservado: bool
     #: ``Dispositivo.Estado``; vacío si no se pudo leer (no se ofrece «Preparar entrega»).
     estado: str
+    #: El tipo lleva stock (RN-010-01): solo a esas instituciones se les muestra el «Stock registrado» (RN-010-20).
+    lleva_stock: bool = False
 
     @property
     def activo(self):
@@ -421,10 +426,16 @@ def _dispositivos(ids, foto, lecturas):
             dispositivo.localidad or "",
             bool(dispositivo.tipo.ubicacion_reservada),
             Dispositivo.Estado.ACTIVO,
+            bool(dispositivo.tipo.maneja_stock),
         )
     for dispositivo in lecturas.fuera_de_la_red.values():
         resultado[dispositivo.id] = DispositivoDelAbastecimiento(
-            dispositivo.id, dispositivo.nombre, dispositivo.localidad, dispositivo.reservado, dispositivo.estado
+            dispositivo.id,
+            dispositivo.nombre,
+            dispositivo.localidad,
+            dispositivo.reservado,
+            dispositivo.estado,
+            dispositivo.lleva_stock,
         )
     for dispositivo in foto.con_gente:
         resultado.setdefault(

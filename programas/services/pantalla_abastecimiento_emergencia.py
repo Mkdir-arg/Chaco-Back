@@ -6,7 +6,9 @@ Nada de acá consulta la base ni decide una regla: los números salen de
 ítem, la cobertura en horas o en fecha) y se decide qué enlace viaja según quién mira:
 
 * **Todo rotulado «estimado»; nunca «stock»** (RNF-009-13): la nota de arriba dice que no es un
-  inventario.
+  inventario. **Única excepción** (análisis 010, RN-010-20): en las instituciones cuyo tipo lleva stock, la
+  columna «Stock registrado» muestra lo que hay en sus edificios, rotulado así y nunca «estimado». Si ninguna fila
+  lleva stock, ni la columna ni la palabra aparecen; en las filas sin stock, la celda es «—». El faltante no cambia.
 * **«Preparar entrega»** (paso 2 de E4) solo con ``operar`` o ``supervisar`` y el dispositivo
   ``ACTIVO``: sin eso, la URL ni se calcula.
 * **Enlaces a «Insumos» y «Plazos de atención»** (la configuración de la mesa) solo con ``supervisar``.
@@ -27,6 +29,7 @@ from programas.services.pantalla_situacion_emergencia import DIAS, RED_PROVINCIA
 TEXTO_SIN_ESTIMAR = "Sin estimar · no se calcula en Situación"
 IR_A_PLAZOS = "Ir a Plazos de atención"
 IR_A_INSUMOS = "Ir a Insumos"
+SIN_STOCK = "—"
 
 #: Los estados vacíos de la solapa (§3.9 y §12), listos para ``components/_estado_vacio.html``. La acción
 #: de los que piden ir a Plazos o a Insumos solo viaja con ``supervisar``.
@@ -121,12 +124,16 @@ def texto_de_cobertura(item):
     return f"sin cubrir desde hace ≈ {numero(horas)} h" if horas else "sin cubrir"
 
 
-def nota(abastecimiento):
+NOTA_STOCK_REGISTRADO = " · el «Stock registrado» es lo cargado en la institución, no una estimación"
+
+
+def nota(abastecimiento, *, con_stock=False):
     inicio = local(abastecimiento.inicio_evento)
-    return (
+    texto = (
         f"{RED_PROVINCIAL} · próximas 48 h · desde el inicio del evento ({inicio:%d/%m %H:%M}) · "
         "estimado con la regla de consumo de cada ítem; no es un inventario"
     )
+    return f"{texto}{NOTA_STOCK_REGISTRADO}" if con_stock else texto
 
 
 def tarjetas(abastecimiento):
@@ -210,8 +217,28 @@ def _ultima(fila, ahora):
     return f"hace {numero(int((ahora - fila.ultima_recepcion).total_seconds() // 3600))} h"
 
 
-def lista_de_dispositivos(abastecimiento, ahora, *, opera):
-    """«Dispositivos con faltantes» (B15), en el orden de urgencia. Sin paginar (RN-009-20)."""
+def _stock_registrado(fila, stock):
+    """«Colchones: 3; Agua: 0»: lo que registra la institución de lo que le falta. «—» si su tipo no lleva stock."""
+
+    if not fila.dispositivo.lleva_stock:
+        return SIN_STOCK
+    saldos = stock.get(fila.dispositivo.id, {})
+    return "; ".join(f"{item.item.nombre}: {numero(saldos.get(item.item.id, 0))}" for item in fila.items if item.faltan)
+
+
+def con_stock_registrado(abastecimiento):
+    """Los ids de las instituciones con faltantes cuyo tipo lleva stock: lo único que la vista tiene que leer."""
+
+    return [fila.dispositivo.id for fila in abastecimiento.dispositivos if fila.dispositivo.lleva_stock]
+
+
+def lista_de_dispositivos(abastecimiento, ahora, *, opera, stock=None):
+    """«Dispositivos con faltantes» (B15), en el orden de urgencia. Sin paginar (RN-009-20).
+
+    ``stock`` es ``{dispositivo_id: {item_id: cantidad}}`` de ``stock_por_dispositivo_e_item`` (RN-010-20).
+    """
+
+    stock = stock or {}
 
     filas = []
     for fila in abastecimiento.dispositivos:
@@ -231,6 +258,7 @@ def lista_de_dispositivos(abastecimiento, ahora, *, opera):
                 "personas": personas,
                 "ultima": _ultima(fila, ahora),
                 "necesita": _que_necesita(fila),
+                "stock": _stock_registrado(fila, stock),
                 "url_preparar": (
                     f"{reverse('emergencia:entrega_nueva')}?dispositivo={dispositivo.id}"
                     if opera and dispositivo.activo
@@ -280,11 +308,12 @@ def panel_sin_calcular(*, pedido, inicio_evento, url_calcular, supervisa):
     return None
 
 
-def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa):
+def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa, stock=None):
     """Todo lo que dibuja la solapa calculada. Sin consultas.
 
     ``abastecimiento`` es el de ``armar_abastecimiento``; ``opera`` (``operar`` o ``supervisar``) decide
-    los nombres de la salud y «Preparar entrega»; ``supervisa``, el enlace a Insumos.
+    los nombres de la salud y «Preparar entrega»; ``supervisa``, el enlace a Insumos; ``stock``, lo que leyó
+    ``programas.selectors.stock.stock_por_dispositivo_e_item`` de las instituciones de :func:`con_stock_registrado`.
     """
 
     url_insumos = _url_insumos(supervisa)
@@ -293,15 +322,17 @@ def contexto_de_abastecimiento(abastecimiento, ahora, *, opera, supervisa):
     if not abastecimiento.hay_alojados:
         return _vacio(VACIO_SIN_ALOJADOS)
     salud = presentar_salud(abastecimiento.salud, opera)
+    con_stock = bool(con_stock_registrado(abastecimiento))
     return {
         "calculado": True,
         "vacio": None,
         "url_insumos": url_insumos,
-        "nota": nota(abastecimiento),
+        "nota": nota(abastecimiento, con_stock=con_stock),
+        "con_stock": con_stock,
         "tarjetas": tarjetas(abastecimiento),
         "atencion": alertas_de_abastecimiento(abastecimiento, salud),
         "items": tabla_por_item(abastecimiento),
-        "dispositivos": lista_de_dispositivos(abastecimiento, ahora, opera=opera),
+        "dispositivos": lista_de_dispositivos(abastecimiento, ahora, opera=opera, stock=stock),
         "con_accion": opera,
         "horas_demorada": EntregaKit.HORAS_PARA_DEMORADA,
         "reglas": como_se_calcula(abastecimiento),
