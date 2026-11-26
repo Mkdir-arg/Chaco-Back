@@ -1,0 +1,40 @@
+{# arquetipo: listado #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Stock · Movimientos{% endblock %}
+
+{% block main-content %}
+{% comment %}Stock · «Movimientos» (análisis 010, PR 6b). Molde: golden de Listado (becas/revision/personas_list.html); la tabla es la pieza
+`components/_tabla_movimientos.html` (la de la solapa Stock) y la paginación y el estado vacío con y sin filtros son los canónicos. Diferencias declaradas: el vacío usa `hay_filtros` armado en la vista (solo cuenta filtros válidos) en vez de `request.GET|hay_filtros`, y el encabezado lleva `eyebrow` y `volver_url`.
+Sin acción de alta ni de fila: el encabezado vuelve al stock del edificio.{% endcomment %}
+<div class="space-y-6">
+  {% page_header titulo="Movimientos de stock" eyebrow=edificio.nombre volver_url=url_stock volver_label="stock del edificio" %}
+    {% bajada %}Todo lo que entró, salió o se ajustó en este edificio, del más nuevo al más viejo.{% endbajada %}
+  {% endpage_header %}
+
+  {% comment %}Filtros: el <form> va sin class y cada control con aria-label (dynamic_list_filters.js lo reescribe al montar).{% endcomment %}
+  <form method="get" data-dynamic-list-filters>
+    <select name="insumo" class="nodo-field max-w-xs" aria-label="Insumo">
+      <option value="">Todos los insumos</option>
+      {% for insumo in insumos %}<option value="{{ insumo.pk }}" {% if filtros.insumo == insumo.pk|stringformat:"s" %}selected{% endif %}>{{ insumo.nombre }}</option>{% endfor %}
+    </select>
+    <select name="tipo" class="nodo-field max-w-xs" aria-label="Tipo de movimiento">
+      <option value="">Todos los tipos</option>
+      {% for valor, texto in tipos %}<option value="{{ valor }}" {% if filtros.tipo == valor %}selected{% endif %}>{{ texto }}</option>{% endfor %}
+    </select>
+    <input type="date" name="desde" value="{{ filtros.desde }}" class="nodo-field max-w-xs" aria-label="Desde">
+    <input type="date" name="hasta" value="{{ filtros.hasta }}" class="nodo-field max-w-xs" aria-label="Hasta">
+  </form>
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% if filas %}
+    {% include "components/_tabla_movimientos.html" with filas=filas caption="Movimientos de stock de este edificio" only %}
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="movimiento" %}
+    {% elif hay_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún movimiento coincide con los filtros" texto="Probá con otros filtros." accion_url=url_movimientos %}
+    {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo="Sin movimientos todavía" texto="Cada ingreso, entrega, traspaso o ajuste queda registrado acá." %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

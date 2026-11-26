@@ -14,6 +14,7 @@ pone rojo ``test_el_orden_es_dispositivo_edificio_saldo``; cambiar el ``order_by
 
 from unittest import mock
 
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
@@ -147,11 +148,11 @@ class NadaQuedaSiLaOperacionFallaTests(BaseStock):
     def test_un_rechazo_despues_de_los_candados_deja_la_base_como_estaba(self):
         """El saldo en cero que se pre-crea vive en la misma transacción: si la operación se rechaza, se deshace."""
 
-        self.edificio.activo = False
-        self.edificio.save()
+        # Un ajuste hacia arriba de un insumo desactivado se rechaza **después** de ``saldos_bloqueados`` (que ya creó
+        # la fila en cero): solo el ``atomic`` de ``ajustar`` la deshace.
+        with self.assertRaises(ValidationError) as contexto:
+            servicio.ajustar(self.carga, self.disp, self.edificio, self.viejo, 3, 0, "OTRO", "conteo")
 
-        with self.assertRaises(Exception):  # noqa: B017
-            servicio.ingresar_manual(self.carga, self.disp, self.edificio, {self.colchon.pk: 1}, origen="DONACION")
-
+        self.assertEqual(contexto.exception.message_dict, {"item": [servicio.AJUSTE_DE_INSUMO_INACTIVO]})
         self.assertFalse(SaldoStock.objects.exists())
         self.assertFalse(OperacionStock.objects.exists())

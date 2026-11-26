@@ -32,6 +32,12 @@ adentro del primer bloque porque, como hijo directo de `space-y-5`, suma un huec
      data-error="ubicacion_reservada">{{ form.ubicacion_reservada.errors|join:" " }}</p>
 </div>
 <div>
+  <label class="inline-flex items-center gap-2 text-sm text-body">{{ form.maneja_stock }} {{ form.maneja_stock.label }}</label>
+  <p class="mt-1 text-xs text-body-subtle">{{ form.maneja_stock.help_text }}</p>
+  <p class="text-xs text-fg-danger{% if not form.maneja_stock.errors %} hidden{% endif %}"
+     data-error="maneja_stock">{{ form.maneja_stock.errors|join:" " }}</p>
+</div>
+<div>
   <label class="inline-flex items-center gap-2 text-sm text-body">{{ form.activo }} {{ form.activo.label }}</label>
   <p class="text-xs text-fg-danger{% if not form.activo.errors %} hidden{% endif %}"
      data-error="activo">{{ form.activo.errors|join:" " }}</p>

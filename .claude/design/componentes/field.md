@@ -41,7 +41,7 @@ Render de cada campo:
 - El alta y la edición del edificio viven en la sección «Edificios» de la ficha de la institución (`EdificioForm`); no hay una solapa «Infraestructura».
 - Selector de agentes al reasignar un relevamiento (`ReasignarRelevamientoForm`, `programas/forms_dispositivos.py`): cada opción es «Nombre Apellido · usuario» (solo el usuario si no hay nombre), para distinguir homónimos; la ayuda del campo es la de la pantalla.
 - «Corregir novedad» de la bitácora (`CorreccionForm`, `programas/forms_bitacora.py`, Cambio 426): suma `personas` (`ChipsSelectMultiple`) y `adjuntos` (`AdjuntosField`) con los mismos campos del alta, sin variante nueva; desde el Cambio 436 también `quitar_adjuntos` y `quitar_personas` (`_IdsField`, ids de las casillas «Quitar» de la novedad elegida, `.nodo-checks`; el servicio los valida contra los de esa novedad); el formulario lleva `auto_id="id_corr_%s"` porque convive con el modal de alta en la misma página.
-- Tipo de dispositivo (`TipoDispositivoForm`, `programas/forms.py`, Cambio 499): suma la casilla «Ubicación reservada» (`CheckboxInput` con `CHECKBOX_CLASS`) en `_tipo_form_fields.html` con el mismo marcado de label, ayuda y `data-error` que «Maneja sectores y plazas»; sin variante nueva.
+- Tipo de dispositivo (`TipoDispositivoForm`, `programas/forms.py`, Cambio 499): suma el interruptor «Ubicación reservada» (`SwitchInput`, no `CheckboxInput`) en `_tipo_form_fields.html` con el mismo marcado de label, ayuda y `data-error` que «Maneja sectores y plazas»; sin variante nueva.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo
   escribe sin recargar. En un form con prefijo (el formulario del tipo dentro del modal de
@@ -172,7 +172,7 @@ autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 ```
 
 - **Casilla que muestra otros campos** (`TipoDispositivoForm`, «Maneja sectores y plazas»): el widget lleva `x-model` sobre un `x-data` del template y los campos dependientes `x-show`, sin `x-cloak`: sin JS se ven siempre y el servidor decide en `clean()`.
-  Los cuatro booleanos del tipo (`maneja_sectores_plazas`, `plaza_obligatoria_al_ingresar`, `ubicacion_reservada`, `activo`) son `SwitchInput`
+  Los cinco booleanos del tipo (`maneja_sectores_plazas`, `plaza_obligatoria_al_ingresar`, `ubicacion_reservada`, `maneja_stock`, `activo`) son `SwitchInput`
   —mismo nombre de campo y mismo valor que con la casilla— con el texto al costado (`<label class="inline-flex items-center gap-2 text-sm text-body">`).
 
 - **Accesibilidad de los chips:** el contenedor es `role="group"` con `aria-labelledby` hacia el

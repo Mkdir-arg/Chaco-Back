@@ -274,8 +274,12 @@ def _pares_de(lineas):
     return pares
 
 
-def _validar_lineas(lineas):
-    """RN-4.1: al menos una, ítems activos, sin repetir, cantidades enteras > 0. Devuelve ``[(TipoKit, int)]``."""
+def _validar_lineas(lineas, *, solo_activos=True):
+    """RN-4.1: al menos una, ítems activos, sin repetir, cantidades enteras > 0. Devuelve ``[(TipoKit, int)]``.
+
+    Con ``solo_activos=False`` basta que el ítem exista: es lo que usa el stock (RN-010-17) para entregar o traspasar
+    un insumo desactivado que todavía tiene saldo.
+    """
 
     pares = _pares_de(lineas)
     if not pares:
@@ -288,11 +292,11 @@ def _validar_lineas(lineas):
     cantidades = [_entero(cantidad) for _item, cantidad in pares]
     if any(cantidad is None or not 0 < cantidad <= CANTIDAD_MAXIMA for cantidad in cantidades):
         raise ValidationError({"lineas": CANTIDAD_INVALIDA})
-    # Una consulta: el ítem tiene que existir y estar activo **ahora**, no cuando se abrió la pantalla.
-    activos = TipoKit.objects.filter(pk__in=ids, activo=True).in_bulk()
-    if len(activos) != len(ids):
+    # Una consulta: el ítem tiene que existir (y, con ``solo_activos``, estar activo) **ahora**, no cuando se abrió la pantalla.
+    insumos = TipoKit.objects.filter(pk__in=ids, **({"activo": True} if solo_activos else {})).in_bulk()
+    if len(insumos) != len(ids):
         raise ValidationError({"lineas": ITEM_NO_DISPONIBLE})
-    return [(activos[item_id], cantidad) for item_id, cantidad in zip(ids, cantidades, strict=True)]
+    return [(insumos[item_id], cantidad) for item_id, cantidad in zip(ids, cantidades, strict=True)]
 
 
 def _como_se_cerro(entrega):

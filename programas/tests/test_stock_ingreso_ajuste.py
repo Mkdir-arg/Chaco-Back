@@ -461,6 +461,9 @@ class IdempotenciaTests(BaseStock):
         self.assertTrue(resultado.ya_existia)
         self.assertEqual(resultado.pk, primera["op"].pk)
         self.assertEqual(MovimientoStock.objects.count(), 0)
+        # La relectura vuelve **antes** de crear saldos: sin ella, el respaldo del UNIQUE devolvería la misma operación
+        # pero dejando los saldos en cero ya creados.
+        self.assertFalse(SaldoStock.objects.exists())
 
 
 class SumarRecepcionDeKitTests(BaseStock):
@@ -600,20 +603,21 @@ class SelectoresTests(BaseStock):
         self.assertEqual(selectores.movimientos_de(self.disp, self.edificio, {"desde": dia}).count(), 3)
         self.assertEqual(selectores.movimientos_de(self.disp, self.edificio, {"hasta": dia}).count(), 3)
 
-    def test_resumen_por_edificio_es_una_consulta_agrupada(self):
+    def test_resumen_de_insumos_por_edificio_es_una_consulta_agrupada(self):
         self._sembrar(self.colchon, 5)
-        self._sembrar(self.frazada, 2)
+        self._sembrar(self.frazada, 0)
         self._sembrar(self.viejo, 0)
         self._sembrar(self.colchon, 1, edificio=self.otro_edificio)
 
         with self.assertNumQueries(1):
-            resumen = selectores.resumen_por_edificio(self.disp, [self.edificio.pk, self.otro_edificio.pk])
+            resumen = selectores.resumen_de_insumos_por_edificio(self.disp, [self.edificio.pk, self.otro_edificio.pk])
 
+        # El insumo desactivado en 0 no cuenta (RN-010-17); el activo en 0 sí, y cuenta como «sin existencia».
         self.assertEqual(
             resumen,
             {
-                self.edificio.pk: {"insumos": 2, "unidades": 7},
-                self.otro_edificio.pk: {"insumos": 1, "unidades": 1},
+                self.edificio.pk: {"insumos": 2, "sin_existencia": 1},
+                self.otro_edificio.pk: {"insumos": 1, "sin_existencia": 0},
             },
         )
 

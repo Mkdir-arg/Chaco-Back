@@ -56,6 +56,8 @@ from programas.services.dispositivos import (
     puede_operar_edificio,
 )
 from programas.services.edificio_historial import contar_eventos_del_edificio, rotulo_del_turno
+from programas.services.edificio_stock import contar_insumos
+from programas.services.edificio_stock import puede_solapa as puede_solapa_de_stock
 from programas.services.edificios import TEXTO_ACTIVAR, TEXTO_INACTIVAR, admite_editar_edificio
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT
 from programas.services.equipo_dispositivo import (
@@ -70,7 +72,7 @@ from programas.services.kits import aviso_de_kits_por_recibir, url_de_kits_del_e
 from programas.services.ocupacion import ocupacion_de_plazas
 
 #: Las solapas de la página, en el orden en que se dibujan.
-SOLAPAS = ("sectores", "estadias", "kits", "equipo", "edilicio", "historial")
+SOLAPAS = ("sectores", "estadias", "kits", "stock", "equipo", "edilicio", "historial")
 SOLAPA_POR_DEFECTO = "sectores"
 
 #: Cuántos nombres del Equipo caben en la franja de datos antes de «y N más».
@@ -93,15 +95,20 @@ def edificio_de_la_institucion(user, dispositivo, edificio_pk):
     return edificio
 
 
-def solapas_disponibles(*, con_plazas, puede_kits):
+def solapas_disponibles(*, con_plazas, puede_kits, puede_stock=False):
     """Las solapas que existen para **esta** institución y **este** usuario.
 
     «Sectores y plazas» solo si el tipo maneja plazas (como P4); «Kits» solo con ``emergencia.recibir_kit`` sobre el
-    edificio: las entregas se ven con esa capacidad.
+    edificio: las entregas se ven con esa capacidad; «Stock» solo si el tipo lleva stock y tiene ``stock.ver`` sobre el
+    edificio (análisis 010, RN-010-01).
     """
 
     return tuple(
-        solapa for solapa in SOLAPAS if (solapa != "sectores" or con_plazas) and (solapa != "kits" or puede_kits)
+        solapa
+        for solapa in SOLAPAS
+        if (solapa != "sectores" or con_plazas)
+        and (solapa != "kits" or puede_kits)
+        and (solapa != "stock" or puede_stock)
     )
 
 
@@ -291,6 +298,8 @@ def _acciones(user, dispositivo, edificio):
     acciones = {
         "puede_kits": puede_kits,
         "kits_por_recibir": kits_por_recibir,
+        # Un tipo que no lleva stock no consulta nada: el módulo apagado no cuesta (RN-010-01).
+        "puede_stock": puede_solapa_de_stock(user, dispositivo, pk),
         # Un edificio inactivo no ofrece las acciones operativas (ingresar, bitácora): ofrece «Activar edificio».
         "url_ingreso": (
             reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]) + como_param
@@ -364,7 +373,9 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
     # franja «Equipo en turno», que se ven con cualquier solapa abierta.
     equipo = miembros_del_edificio(dispositivo, edificio.pk)
     estado = _estado_edilicio(user, edificio)
-    disponibles = solapas_disponibles(con_plazas=con_plazas, puede_kits=acciones["puede_kits"])
+    disponibles = solapas_disponibles(
+        con_plazas=con_plazas, puede_kits=acciones["puede_kits"], puede_stock=acciones["puede_stock"]
+    )
     pendientes_de_kit = acciones["kits_por_recibir"]
     url_institucion = reverse("dispositivos:detalle", args=[dispositivo.pk])
     tab = normalizar_solapa(tab_pedida, disponibles)
@@ -384,6 +395,9 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
         # El Historial (Cambio 571) también se arma solo con su solapa abierta.
         "historial_cargado": tab == "historial",
         "url_solapa_historial": f"{url_pagina}?tab=historial",
+        # Stock (análisis 010): el saldo y los movimientos se arman solo con su solapa abierta; con otra, el botón navega.
+        "stock_cargado": acciones["puede_stock"] and tab == "stock",
+        "url_solapa_stock": f"{url_pagina}?tab=stock",
         "solapas": disponibles,
         "avisos": _avisos(user, dispositivo, edificio, acciones),
         "url_institucion": url_institucion,
@@ -407,6 +421,8 @@ def contexto_del_edificio(user, dispositivo, edificio, tab_pedida=""):
             "sectores": conteo.totales if conteo is not None else 0,
             "estadias": contar_alojadas(dispositivo, q_alcance=q_estadias_del_edificio(edificio)),
             "kits": pendientes_de_kit,
+            # Los insumos con saldo: una consulta agrupada. Con la solapa abierta lo pone la vista (sale de la lista).
+            "stock": contar_insumos(dispositivo, edificio) if acciones["puede_stock"] and tab != "stock" else None,
             "equipo": len(equipo),
             # Una consulta (UNION ALL). Con la solapa abierta lo pone la vista: es el total del paginador de la lista.
             "historial": None

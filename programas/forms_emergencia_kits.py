@@ -11,6 +11,9 @@ import uuid
 from django import forms
 
 from programas.forms import INPUT_CLASS
+from programas.forms_cantidades import campo_de as _campo_de
+from programas.forms_cantidades import campo_de_cantidad, claves_sin_campo
+from programas.forms_cantidades import numero as _numero
 from programas.forms_emergencia import ErroresDelServicioMixin
 from programas.models import Dispositivo, Edificio, EntregaKit
 from programas.selectors.kits import SOLAPA_ABIERTAS, SOLAPAS, destinos_posibles
@@ -29,8 +32,6 @@ from programas.services.kits import (
     TRANSPORTE_MAXIMO,
 )
 
-#: Prefijo de los campos de cantidad: `cantidad_<id del ítem>`.
-PREFIJO_CANTIDAD = "cantidad_"
 FORMATO_FECHA_HORA = "%Y-%m-%dT%H:%M"
 ELEGI_UNA_HORA_VALIDA = "Indicá la fecha y la hora de salida, o dejala vacía para usar la de ahora."
 CANTIDAD_RECIBIDA_REQUERIDA = "Indicá cuánto llegó, aunque sea cero."
@@ -39,14 +40,6 @@ ITEM_FUERA_DEL_CATALOGO = (
     "Algún ítem ya no está en el catálogo activo. Volvé a cargar la pantalla y revisá las cantidades."
 )
 CANTIDAD_RECIBIDA_INVALIDA = "Tiene que ser un número entero, cero o más."
-
-
-def _numero(minimo):
-    return forms.NumberInput(attrs={"class": INPUT_CLASS, "min": minimo, "inputmode": "numeric"})
-
-
-def _campo_de(item_id):
-    return f"{PREFIJO_CANTIDAD}{item_id}"
 
 
 class FiltrosEntregasForm(forms.Form):
@@ -146,19 +139,7 @@ class NuevaEntregaForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.catalogo = list(catalogo)
         for item in self.catalogo:
-            self.fields[_campo_de(item.pk)] = forms.IntegerField(
-                label=item.nombre,
-                required=False,
-                min_value=1,
-                max_value=CANTIDAD_MAXIMA,
-                help_text=f"En {item.unidad}.",
-                error_messages={
-                    "invalid": CANTIDAD_INVALIDA,
-                    "min_value": CANTIDAD_INVALIDA,
-                    "max_value": CANTIDAD_INVALIDA,
-                },
-                widget=_numero(1),
-            )
+            self.fields[_campo_de(item.pk)] = campo_de_cantidad(item, minimo=1, mensaje=CANTIDAD_INVALIDA)
         # Cambio 523: un destino con más de un edificio exige elegir a cuál va la entrega; con uno solo queda
         # fijo y el campo no existe (lo resuelve ``crear_entrega``).
         edificios = list(edificios)
@@ -178,10 +159,7 @@ class NuevaEntregaForm(forms.Form):
         limpio = super().clean()
         # Una cantidad de un ítem que ya no está en el catálogo activo (se desactivó mientras la pantalla estaba
         # abierta) no se descarta en silencio: la entrega saldría distinta de lo mostrado.
-        if any(
-            clave.startswith(PREFIJO_CANTIDAD) and clave not in self.fields and str(valor).strip()
-            for clave, valor in self.data.items()
-        ):
+        if claves_sin_campo(self.data, self.fields):
             raise forms.ValidationError(ITEM_FUERA_DEL_CATALOGO)
         # Si alguna cantidad ya falló, ese es el error: no se le suma «no hay ítems».
         if not self.errors and not self.lineas(limpio):
