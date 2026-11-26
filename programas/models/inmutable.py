@@ -22,7 +22,8 @@ MENSAJE_NO_SE_BORRA = "Este registro no se elimina."
 
 
 class LibroInmutableQuerySet(models.QuerySet):
-    """Sin vías masivas de mutación (``update``, ``delete``, ``bulk_update``)."""
+    """Sin vías masivas de mutación: ``update``, ``update_or_create``, ``delete``, ``bulk_update`` y
+    ``bulk_create(update_conflicts=True)``."""
 
     def update(self, **kwargs):
         raise ValidationError(MENSAJE_INMUTABLE)
