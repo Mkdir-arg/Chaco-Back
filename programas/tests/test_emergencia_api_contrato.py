@@ -88,6 +88,7 @@ from programas.tests.base_emergencia_api import (
     URL_SUGERIR,
     URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO,
     URLS_DE_ESTADIAS_DEL_BARRIDO,
+    URLS_DE_INGRESO_DEL_BARRIDO,
     URLS_DE_KITS_DEL_BARRIDO,
     URLS_DE_LLEGADAS_DEL_BARRIDO,
     URLS_DE_PLAZAS_DEL_BARRIDO,
@@ -287,6 +288,7 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
                 + URLS_DE_LLEGADAS_DEL_BARRIDO
                 + URLS_DE_ESTADIAS_DEL_BARRIDO
                 + URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO
+                + URLS_DE_INGRESO_DEL_BARRIDO
                 + URLS_DE_PLAZAS_DEL_BARRIDO
                 + URLS_DE_STOCK_DEL_BARRIDO
             ),
@@ -984,6 +986,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             rutas[URL_CASOS]["post"],
             rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso-directo/"]["post"],
             rutas["/api/emergencia/dispositivos/{dispositivo_id}/avisar-mesa/"]["post"],
+            rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso/persona/"]["get"],
         ):
             with self.subTest(operacion=operacion["operationId"]):
                 self.assertIn("429", operacion["responses"])

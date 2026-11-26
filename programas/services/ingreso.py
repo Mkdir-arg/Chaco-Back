@@ -38,6 +38,7 @@ from programas.services.estadias import (
 )
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import ESTADO_PRESTADA, ESTADO_RESERVADA, estado_de_plazas
+from programas.services.respuestas_dispositivo import guardar_respuestas_ingreso
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +212,40 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_
     return armados, elegibles
 
 
+def ingresar_con_formulario(
+    *,
+    dispositivo,
+    usuario,
+    ciudadano_id,
+    datos_renaper,
+    datos_manual,
+    plaza_id,
+    fecha_ingreso=None,
+    formulario=None,
+):
+    """El ingreso y, si el tipo lo pide, sus respuestas: **una** transacción (la web y la app la comparten).
+
+    ``formulario`` es ``(diseno, foto, respuestas, archivos)`` o ``None``. Si guardar las respuestas falla se
+    deshace también la estadía y el alta del legajo; el borrado de un archivo ya escrito es de quien llama
+    (``archivos_atomicos``). Deja pasar lo que deja pasar :func:`confirmar_ingreso`.
+    """
+
+    with transaction.atomic():
+        estadia = confirmar_ingreso(
+            dispositivo=dispositivo,
+            usuario=usuario,
+            ciudadano_id=ciudadano_id,
+            datos_renaper=datos_renaper,
+            datos_manual=datos_manual,
+            plaza_id=plaza_id,
+            fecha_ingreso=fecha_ingreso,
+        )
+        if formulario is not None:
+            diseno, foto, respuestas, archivos = formulario
+            guardar_respuestas_ingreso(estadia, diseno, foto, respuestas, archivos, usuario)
+    return estadia
+
+
 def confirmar_ingreso(
     *, dispositivo, usuario, ciudadano_id, datos_renaper, plaza_id, fecha_ingreso=None, datos_manual=None
 ):
@@ -358,6 +393,18 @@ def alta_desde_registro(datos):
         Ciudadano.EstadoRenaper.REGISTRADO,
         "Los datos del Registro de Personas no alcanzan para dar de alta a la persona.",
     )
+
+
+def errores_del_alta_manual(datos):
+    """``{campo: [mensajes]}`` de lo que el alta mínima no acepta (vacío si alcanza), con el formulario de siempre.
+
+    Los campos son los del formulario (``genero``, no ``sexo``). Lo usa la API para validar **antes** de escribir.
+    """
+
+    form = CiudadanoManualForm(data=datos)
+    if form.is_valid():
+        return {}
+    return {campo: list(mensajes) for campo, mensajes in form.errors.items()}
 
 
 def _alta_manual(datos):

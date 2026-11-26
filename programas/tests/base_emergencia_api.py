@@ -278,6 +278,13 @@ URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO = [
     "/api/emergencia/plazas/1/volver-servicio/",
 ]
 
+#: Las de ingresar a una persona en una cama (Cambio 614); los tests estan en test_api_emergencia_plazas_ingreso.
+URLS_DE_INGRESO_DEL_BARRIDO = [
+    "/api/emergencia/dispositivos/1/ingresar/",
+    "/api/emergencia/dispositivos/1/ingreso/formulario/",
+    "/api/emergencia/dispositivos/1/ingreso/persona/",
+]
+
 #: Las rutas que solo abre el agente; el resto las abre cualquiera con el módulo.
 SOLO_DEL_AGENTE = {URL_CASOS, URL_MIOS}
 
