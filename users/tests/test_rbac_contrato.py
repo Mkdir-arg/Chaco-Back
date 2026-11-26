@@ -107,6 +107,14 @@ CAPACIDADES_SIN_USO = {
     # Mapa de Google Maps, fase 1 (`docs/mapa.md`): el catálogo va primero para que el PM pueda
     # armar los roles; `/mapa/` y su API las empiezan a evaluar en la fase 3, y cada una sale
     # de acá en ese PR.
+    # Stock de insumos por edificio (análisis 010, PR 1): el catálogo va primero para que el PM pueda
+    # armar los roles; los servicios (PR 2a) y las pantallas (PR 6a) que las evalúan llegan después, y
+    # cada una sale de acá en el PR que la empieza a evaluar. `stock.ver` y `stock.entregar` no figuran:
+    # el extractor las cuenta por las llamadas de `programas/tests/test_stock_modelos.py`, pero en runtime
+    # nadie las evalúa todavía; el PR 2a (`stock.entregar`) y el 6a (`stock.ver`) tienen que verificar que
+    # un servicio o una vista las exija de verdad.
+    "stock.ingresar": "Ingreso manual y traspaso: los exige `services/stock.py` (PR 2a/2b); sin pantalla todavía",
+    "stock.ajustar": "Ajuste por conteo: lo exige `services/stock.py` (PR 2a); sin pantalla todavía",
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro

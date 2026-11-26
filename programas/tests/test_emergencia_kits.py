@@ -51,7 +51,10 @@ from programas.models import (
     EntregaKit,
     LineaEntrega,
     MiembroEquipoDispositivo,
+    MovimientoStock,
     NumeradorEmergencia,
+    OperacionStock,
+    SaldoStock,
     TipoDispositivo,
     TipoKit,
     TrazaEntrega,
@@ -328,7 +331,15 @@ class CrearEntregaTests(BaseKits):
 
         self.assertEqual(list(TipoKit.objects.order_by("pk").values()), catalogo_antes)
         campos = {campo.name for modelo in (TipoKit, EntregaKit, LineaEntrega) for campo in modelo._meta.get_fields()}
-        self.assertEqual({campo for campo in campos if "stock" in campo or "existencia" in campo}, set())
+        # Las tablas de stock del análisis 010 (PR 1) apuntan a estos modelos por FK inversa, pero todavía nada
+        # las escribe: la suma desde la recepción llega en el PR 3, que revierte RN-4.6 y reescribe este test.
+        inversas_del_stock = {"saldos_stock", "movimientos_stock", "operacion_stock"}
+        self.assertEqual(
+            {campo for campo in campos - inversas_del_stock if "stock" in campo or "existencia" in campo}, set()
+        )
+        self.assertFalse(
+            SaldoStock.objects.exists() or OperacionStock.objects.exists() or MovimientoStock.objects.exists()
+        )
 
 
 # ---------------------------------------------------------------------------
