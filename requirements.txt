@@ -35,7 +35,7 @@ cryptography==50.0.0
 
 # Cache
 django-redis==5.4.0
-redis==5.0.1
+redis==8.1.0
 
 # Estaticos servidos por la propia app (clave en Kubernetes, donde no hay nginx
 # adelante; en la VM nginx los intercepta antes y el middleware queda inerte)
