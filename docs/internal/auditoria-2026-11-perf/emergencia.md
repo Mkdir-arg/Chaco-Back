@@ -2986,3 +2986,5 @@ Lo que la revisión independiente dejó como MINOR en #1204 y #1205 y que va **e
 6. **«O en otro integrante, se rechaza» no es exacto.** Otra fila con el DNI del responsable y el nombre declarado se acepta si la persona 1 todavía no se confirmó (después la frena `_ya_confirmada_en`). Ajustar el texto del Cambio 497.
 
 **Regla propuesta por esas auditorías** (también en el README de la serie, «Reglas propuestas»): la idempotencia por `uuid_cliente` pasa la guarda de alcance en **todas** las ramas `ya_existia`, y toda resolución de persona por DNI que escribe compara nombre y apellido (`nombre_en_conflicto`).
+
+> **Nota al pie (Stock, PR 8):** las menciones de esta auditoría a «no hay stock (RN-4.6)» describen el SHA auditado. Desde el análisis 010, las instituciones cuyo tipo lleva stock tienen saldos por edificio y la solapa Abastecimiento de E8 muestra su «Stock registrado» (RN-010-20) sin cambiar el faltante.

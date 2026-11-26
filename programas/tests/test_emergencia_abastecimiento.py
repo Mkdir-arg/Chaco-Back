@@ -26,10 +26,12 @@ from legajos.models import Ciudadano
 from programas.models import (
     CasoEmergencia,
     Dispositivo,
+    Edificio,
     EntregaKit,
     Estadia,
     IntegranteGrupo,
     LineaEntrega,
+    SaldoStock,
     SLAEmergencia,
     TipoDispositivo,
     TipoKit,
@@ -770,10 +772,65 @@ class VistaAbastecimientoTests(EscenarioAbastecimiento):
         self.assertNotIn("Lactantes sin", html)
 
     def test_tc_1187_39_rotulos(self):
+        """RNF-009-13 acotada (RN-010-20): sin ninguna institución con stock, la solapa no dice «stock» en ningún lado."""
         panel = _panel(self._html(self.supervisor)).lower()
         self.assertNotIn("stock", panel)
         self.assertEqual(panel.count("inventario"), panel.count("no es un inventario"))
         self.assertIn("(estimado)", panel)
+
+    # -- E8 · «Stock registrado» (análisis 010, RN-010-20) --------------------------------------------------------
+
+    def _con_stock(self, dispositivo, saldos=()):
+        """Pasa el tipo del dispositivo a uno que lleva stock y siembra ``[(item, cantidad_por_edificio), ...]``."""
+        tipo = TipoDispositivo.objects.create(codigo="CSTK", nombre="Con stock", maneja_stock=True)
+        Dispositivo.objects.filter(pk=dispositivo.pk).update(tipo=tipo)
+        for item, cantidades in saldos:
+            for n, cantidad in enumerate(cantidades):
+                edificio, _ = Edificio.objects.get_or_create(codigo=f"ED-{n}", defaults={"nombre": f"Edificio {n}"})
+                SaldoStock.objects.create(dispositivo=dispositivo, edificio=edificio, item=item, cantidad=cantidad)
+
+    def _fila(self, html, nombre):
+        """La fila de la tabla «Dispositivos con faltantes» (no los avisos de arriba, que también nombran)."""
+        tabla = html[html.index('id="abastecimiento-dispositivos-titulo"') :]
+        inicio = tabla.index(nombre)
+        return tabla[tabla.rindex("<tr", 0, inicio) : tabla.index("</tr>", inicio)]
+
+    def test_e8_stock_registrado_suma_los_edificios_de_la_institucion_con_stock(self):
+        """Club: faltan colchones. Σ de sus dos edificios = 3 + 2."""
+        self._con_stock(self.club, [(self.colchon, (3, 2))])
+        html = self._html(self.autoridad)
+        self.assertIn('scope="col">Stock registrado</th>', html)
+        self.assertIn("Colchones: 5", self._fila(html, "Club Atlético Sarmiento"))
+        self.assertIn("lo cargado en la institución, no una estimación", html)
+
+    def test_e8_institucion_con_stock_sin_saldo_dice_cero(self):
+        self._con_stock(self.club)
+        self.assertIn("Colchones: 0", self._fila(self._html(self.autoridad), "Club Atlético Sarmiento"))
+
+    def test_e8_las_filas_sin_stock_no_dicen_stock_y_no_tienen_valor(self):
+        """Mutación: mostrar el valor en todas las filas (ignorar ``lleva_stock``) deja este test en rojo."""
+        self._con_stock(self.club, [(self.colchon, (3,))])
+        html = self._html(self.autoridad)
+        for nombre in ("Salón Parroquial", "EES N.° 9", "Gimnasio Provincial"):
+            fila = self._fila(html, nombre)
+            with self.subTest(nombre):
+                self.assertNotIn("stock", fila.lower())
+                self.assertEqual(fila.count("—"), 1)
+                self.assertNotIn("Colchones: 0", fila)
+
+    def test_e8_el_faltante_no_cambia_con_el_stock(self):
+        """RN-010-20: 500 colchones registrados no tapan el faltante estimado del Club. Mutación: restar el saldo del
+        faltante deja este test en rojo."""
+
+        def faltan(armado):
+            return [(f.dispositivo.id, [i.faltan for i in f.items]) for f in armado.dispositivos]
+
+        sin, _foto = self._armar()
+        self._con_stock(self.club, [(self.colchon, (500,))])
+        con, _foto = self._armar()
+        self.assertEqual(faltan(sin), faltan(con))
+        self.assertEqual([f.faltan for f in sin.por_item], [f.faltan for f in con.por_item])
+        self.assertTrue(any(f.faltan for f in con.por_item))
 
     def test_tc_1187_40_la_solapa_no_se_imprime(self):
         html = self._html(self.autoridad)
@@ -893,6 +950,22 @@ class PresupuestoAbastecimientoTests(BancoSituacion):
         self.assertEqual(respuesta.status_code, 200)
         # `captured_queries` lee el registro de la conexión: se copia antes del próximo `reset_queries`.
         return [consulta["sql"] for consulta in capturadas.captured_queries]
+
+    def test_e8_stock_registrado_suma_una_consulta_como_maximo(self):
+        """RN-010-20: con todas las instituciones con stock, la solapa lee los saldos en UNA consulta agrupada."""
+        sin = self._vista(URL_SOLAPA)
+        TipoDispositivo.objects.filter(pk=self.tipo.pk).update(maneja_stock=True)
+        item = next(i for i in self.items if i.regla_modo == Modo.DOTACION)
+        edificio = Edificio.objects.create(codigo="ED-P", nombre="Edificio perf")
+        SaldoStock.objects.bulk_create(
+            [
+                SaldoStock(dispositivo=d, edificio=edificio, item=item, cantidad=n % 7)
+                for n, d in enumerate(self.dispositivos)
+            ]
+        )
+        con = self._vista(URL_SOLAPA)
+        self.assertEqual(len(con) - len(sin), 1, con)
+        self.assertEqual(sum("programas_saldostock" in q for q in con), 1)
 
     def test_tc_1187_41_consultas_fijas_y_un_evento_anterior_no_cambia_nada(self):
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]["consultas_fijas"]

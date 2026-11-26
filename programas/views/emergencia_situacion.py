@@ -28,11 +28,16 @@ from programas.mixins_emergencia import SituacionPermissionMixin
 from programas.selectors import emergencia_situacion as situacion
 from programas.selectors.emergencia_abastecimiento import lecturas_de_abastecimiento
 from programas.selectors.emergencia_situacion import FiltrosSituacion
+from programas.selectors.stock import stock_por_dispositivo_e_item
 from programas.services.abastecimiento_emergencia import armar_abastecimiento
 from programas.services.configuracion_emergencia import sla_vigente
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.emergencia_programa import puede_operar_la_mesa, puede_supervisar_la_mesa
-from programas.services.pantalla_abastecimiento_emergencia import contexto_de_abastecimiento, panel_sin_calcular
+from programas.services.pantalla_abastecimiento_emergencia import (
+    con_stock_registrado,
+    contexto_de_abastecimiento,
+    panel_sin_calcular,
+)
 from programas.services.pantalla_situacion_emergencia import contexto_del_resumen, pildoras
 
 TEMPLATE = "programas/emergencia/situacion/situacion.html"
@@ -114,4 +119,9 @@ def _abastecimiento(request, foto, sla, ahora, *, solapa, supervisa, url_calcula
     if panel is not None:
         return panel
     armado = armar_abastecimiento(lecturas_de_abastecimiento(foto, sla.inicio_evento), foto, ahora)
-    return contexto_de_abastecimiento(armado, ahora, opera=puede_operar_la_mesa(request.user), supervisa=supervisa)
+    # RN-010-20: +1 consulta, y solo si alguna institución con faltantes lleva stock (si no, 0).
+    con_stock = con_stock_registrado(armado)
+    stock = stock_por_dispositivo_e_item(con_stock) if con_stock else {}
+    return contexto_de_abastecimiento(
+        armado, ahora, opera=puede_operar_la_mesa(request.user), supervisa=supervisa, stock=stock
+    )
