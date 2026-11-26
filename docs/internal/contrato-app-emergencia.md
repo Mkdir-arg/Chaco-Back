@@ -110,12 +110,15 @@ Cinco permisos, los cinco con el mismo `code` que el resto de la app:
 
 | Permiso | Regla | 403 |
 |---|---|---|
-| **Módulo** | La misma del login (§1): agente, guardia o administrador de Dispositivos | `{"detail": "El usuario no tiene acceso al módulo Emergencia.", "code": "SIN_MODULO"}` |
+| **Módulo** | El de **campo**: agente, guardia o administrador de Dispositivos. **No** suma a quien solo tiene `stock.ver`: ese usuario recibe 403 `SIN_MODULO` en toda ruta de este permiso (identidad §4, localidades, plazas, estadías, llegadas, kits), como antes del stock. Solo el perfil y las rutas de «Stock» abren con la regla del login (§1), que sí lo suma | `{"detail": "El usuario no tiene acceso al módulo Emergencia.", "code": "SIN_MODULO"}` |
 | **Agente** | `emergencia.relevar` en el programa Emergencia | `{"detail": "El usuario no tiene permiso para relevar familias en Emergencia. Pedile a quien administra los usuarios que te sume el rol de agente territorial.", "code": "SIN_MODULO"}` |
 | **Kits** | Abre el módulo **y** tiene `emergencia.recibir_kit` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no recibe kits en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que reciba kits.", "code": "SIN_MODULO"}` |
 | **Llegadas** | Abre el módulo **y** tiene `dispositivo.admitir` en el Equipo de algún dispositivo (o administra el programa Dispositivos con esa capacidad) | `{"detail": "El usuario no admite familias en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que admita familias.", "code": "SIN_MODULO"}` |
+| **Stock** | Abre el módulo (con la regla del login, que suma a quien solo lleva stock) **y** tiene `stock.ver` sobre un edificio **activo** de una institución cuyo tipo lleva stock (con su alcance: Institución o Edificios) | `{"detail": "El usuario no lleva stock en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que vea el stock.", "code": "SIN_MODULO"}` |
 
-| **Stock** | Abre el módulo **y** tiene `stock.ver` sobre un edificio **activo** de una institución cuyo tipo lleva stock (con su alcance: Institución o Edificios) | `{"detail": "El usuario no lleva stock en ningún dispositivo. Pedile a quien arma el equipo del dispositivo que te sume con un rol que vea el stock.", "code": "SIN_MODULO"}` |
+Nota sobre el módulo de campo y el stock: el login le ofrece `"emergencia"` a quien solo lleva stock, y esa persona
+abre el perfil (con `stock: true`) y las rutas de «Stock»; todo lo demás le contesta lo mismo que antes de que existiera
+el stock.
 
 **Alcance por dispositivo (kits y llegadas).** Los permisos «kits» y «llegadas» dicen que el usuario
 recibe kits o admite familias *en algún lado*. Qué dispositivo, qué entrega, qué derivación y qué caso son
@@ -178,7 +181,9 @@ dispositivo».
 ## 4. Consulta de identidad
 
 `POST /api/emergencia/personas/consultar/` (JSON). **Mismo cuerpo, misma respuesta y mismos códigos**
-que `POST /api/becas/personas/consultar/`; existe aparte porque aquella exige `becas.campo`.
+que `POST /api/becas/personas/consultar/`; existe aparte porque aquella exige `becas.campo`. Pide el permiso
+«Módulo» **de campo** (§2): quien solo tiene `stock.ver` recibe 403 `SIN_MODULO` y no consulta identidades por acá; su
+única puerta a una persona es `stock/persona/` (§17), que exige `stock.entregar` y `ciudadano.ver`.
 
 ```json
 {"dni": "30111222", "sexo": "F"}

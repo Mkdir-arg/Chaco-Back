@@ -273,11 +273,7 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
     # Rige en **toda** institución, lleve stock o no, igual que «Inactivar». Con stock es lo que evita que la
     # entrega quede trabada (recibirla exige un edificio vinculado, `stock._preparar`); sin stock, que se desvincule
     # un edificio al que todavía le llegan kits.
-    motivo_entregas = _motivo_entregas_por_recibir(
-        EntregaKit.objects.filter(
-            dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
-        ).count()
-    )
+    motivo_entregas = _motivo_entregas_por_recibir(dispositivo=dispositivo, edificio=edificio)
     if motivo_entregas:
         raise ValidationError({"__all__": _mensaje_de_bloqueo(edificio, [motivo_entregas], accion="desvincular")})
 
@@ -329,9 +325,7 @@ def _motivos_de_bloqueo(edificio):
         )
     if InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists():
         motivos.append(("un relevamiento en curso", "cerrá o cancelá el relevamiento"))
-    motivo_entregas = _motivo_entregas_por_recibir(
-        EntregaKit.objects.filter(edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS).count()
-    )
+    motivo_entregas = _motivo_entregas_por_recibir(edificio=edificio)
     if motivo_entregas:
         motivos.append(motivo_entregas)
     con_stock = SaldoStock.objects.filter(edificio=edificio, cantidad__gt=0).count()
@@ -349,12 +343,14 @@ def _unir(partes, conjuncion):
     return partes[0] if len(partes) == 1 else f"{', '.join(partes[:-1])} {conjuncion} {partes[-1]}"
 
 
-def _motivo_entregas_por_recibir(cuantas):
-    """El motivo ``(que_tiene, que_hacer)`` de ``cuantas`` entregas de kits por recibir, o ``None`` si no hay.
+def _motivo_entregas_por_recibir(**filtro):
+    """El motivo ``(que_tiene, que_hacer)`` de las entregas de kits por recibir que cumplen ``filtro``, o ``None``.
 
-    Lo comparten «Inactivar» y «Desvincular»: el texto y el criterio de «por recibir» están en un solo lugar.
+    Lo comparten «Inactivar» (``edificio=``) y «Desvincular» (``edificio=`` y ``dispositivo=``): el texto y el criterio
+    de «por recibir» (``EntregaKit.ESTADOS_ABIERTOS``) están en un solo lugar.
     """
 
+    cuantas = EntregaKit.objects.filter(estado__in=EntregaKit.ESTADOS_ABIERTOS, **filtro).count()
     if not cuantas:
         return None
     return (

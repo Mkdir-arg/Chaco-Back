@@ -448,7 +448,7 @@ class NombreDeLaLineaTests(BaseInsumos):
         self.assertNotContains(respuesta, "Agua 6 l")
 
     def test_la_api_de_la_guardia_conserva_la_clave_nombre(self):
-        from programas.api.serializers_emergencia import LineaEntregaKitSerializer
+        from programas.api.serializers_emergencia_kits import LineaEntregaKitSerializer
 
         entrega = self._entrega(lineas=[(self.agua, 6)])
         LineaEntrega.objects.filter(entrega=entrega).update(nombre="Agua de antes")

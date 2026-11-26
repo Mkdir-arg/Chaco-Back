@@ -78,17 +78,17 @@ _NOMBRES_EN_LA_FRANJA = 2
 _LARGO_OBSERVACION = 60
 
 
-def edificio_de_la_institucion(user, dispositivo, edificio_pk):
-    """El edificio, o ``None``: vinculado a ``dispositivo`` y en el alcance de lectura de ``user``.
+def edificio_de_la_institucion(user, dispositivo, edificio_pk, capacidad=CAP_VER):
+    """El edificio, o ``None``: vinculado a ``dispositivo`` y en el alcance de ``capacidad`` de ``user`` (por defecto, leer).
 
     ``None`` es el 404 de la vista, igual para un edificio que no existe, que no es de la institución o que queda
-    fuera del alcance de quien mira (alcance Edificios: solo los suyos).
+    fuera del alcance de quien mira (alcance Edificios: solo los suyos). Stock lo pide con ``stock.ver``.
     """
 
     edificio = Edificio.objects.filter(pk=edificio_pk, dispositivos=dispositivo).first()
     if edificio is None:
         return None
-    if not alcance_de_edificios(user, dispositivo, CAP_VER).permite(edificio.pk):
+    if not alcance_de_edificios(user, dispositivo, capacidad).permite(edificio.pk):
         return None
     return edificio
 

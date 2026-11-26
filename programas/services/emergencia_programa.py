@@ -172,21 +172,33 @@ def _es_de_la_guardia(user):
     return (
         dispositivos_operados(user, CAP_ADMITIR).exists()
         or dispositivos_operados(user, CAP_RECIBIR_KIT).exists()
-        or _lleva_stock_en_su_equipo(user)
         or puede_configurar_dispositivos(user)
     )
+
+
+def modulo_de_campo_habilitado(user):
+    """¿``user`` abre el módulo Emergencia **de campo** (relevar, llegadas, kits, plazas)? El predicado de antes del stock.
+
+    Es :func:`modulo_habilitado` **sin** sumar a quien solo lleva stock. Lo exigen todas las vistas de
+    ``/api/emergencia/`` salvo el perfil y las de stock: quien solo tiene ``stock.ver`` no consulta identidades,
+    no ve localidades ni motivos de egreso, y recibe el mismo 403 ``SIN_MODULO`` de antes del PR 7a.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    return puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR) or _es_de_la_guardia(user)
 
 
 def modulo_habilitado(user):
     """¿``user`` abre el módulo Emergencia de la app? **La única regla de acceso** (H10).
 
-    La consultan el login (``"emergencia"`` en ``modulos``) y los permisos de
-    ``/api/emergencia/``: si cada uno escribiera la suya, el login le ofrecería a alguien
-    un módulo que después le contesta 403, o al revés. Es verdadera cuando
-    :func:`roles_en_app` da algún acceso, y también para el administrador del programa
+    La consultan el login (``"emergencia"`` en ``modulos``), el perfil y las vistas de stock: si cada uno
+    escribiera la suya, el login le ofrecería a alguien un módulo que después le contesta 403, o al revés. Es
+    verdadera cuando :func:`roles_en_app` da algún acceso, y también para el administrador del programa
     Dispositivos sin ``dispositivo.admitir`` ni ``emergencia.recibir_kit`` (H10: el login no
-    cambia); a ese el perfil le contesta ``dispositivo: false``.
+    cambia); a ese el perfil le contesta ``dispositivo: false``. Suma a quien solo lleva stock
+    (:func:`_lleva_stock_en_su_equipo`); el resto de la API de campo exige
+    :func:`modulo_de_campo_habilitado`.
     """
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR) or _es_de_la_guardia(user)
+    return modulo_de_campo_habilitado(user) or _lleva_stock_en_su_equipo(user)

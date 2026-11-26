@@ -16,7 +16,7 @@ fijas; el saldo, 2 más las capacidades; el libro, 1.
 from django.db.models import Count
 
 from core import rbac
-from programas.models import Edificio, MovimientoStock, SaldoStock, TipoKit
+from programas.models import MovimientoStock, SaldoStock, TipoKit
 from programas.selectors import stock as selectores
 from programas.services import stock as servicio
 from programas.services.dispositivos import (
@@ -24,10 +24,9 @@ from programas.services.dispositivos import (
     CAP_STOCK_ENTREGAR,
     CAP_STOCK_INGRESAR,
     CAP_STOCK_VER,
-    alcance_de_edificios,
-    dispositivos_en_alcance,
-    q_edificios_en_alcance,
+    pares_en_alcance,
 )
+from programas.services.edificio_operativo import edificio_de_la_institucion
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.stock_personas import PersonaSinDatos
 
@@ -43,10 +42,7 @@ MOVIMIENTOS_POR_PAGINA = 50
 def _pares(user, capacidad):
     """Los vínculos institución-edificio que ``user`` alcanza con ``capacidad``, de instituciones que llevan stock."""
 
-    return Edificio.dispositivos.through.objects.filter(
-        dispositivo__tipo__maneja_stock=True,
-        dispositivo_id__in=dispositivos_en_alcance(user, capacidad).values("pk"),
-    ).filter(q_edificios_en_alcance(user, capacidad, "dispositivo_id", "edificio_id"))
+    return pares_en_alcance(user, capacidad).filter(dispositivo__tipo__maneja_stock=True)
 
 
 def _pares_visibles(user):
@@ -70,10 +66,7 @@ def edificio_de_stock(user, dispositivo, edificio_pk):
     fuera del alcance de quien mira.
     """
 
-    edificio = Edificio.objects.filter(pk=edificio_pk, dispositivos=dispositivo).first()
-    if edificio is None or not alcance_de_edificios(user, dispositivo, CAP_STOCK_VER).permite(edificio.pk):
-        return None
-    return edificio
+    return edificio_de_la_institucion(user, dispositivo, edificio_pk, CAP_STOCK_VER)
 
 
 def _breve(objeto):

@@ -15,9 +15,9 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from programas.api.serializers_emergencia import (
+from programas.api.serializers_emergencia import EstadoCambioSerializer
+from programas.api.serializers_emergencia_kits import (
     EntregaKitSerializer,
-    EstadoCambioSerializer,
     MiDispositivoEmergenciaSerializer,
     RecepcionKitEnvioSerializer,
     RecepcionKitRespuestaSerializer,

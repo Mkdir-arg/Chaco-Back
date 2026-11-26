@@ -15,7 +15,7 @@ from django.test import tag
 from django.test.utils import CaptureQueriesContext
 
 from core.validators import ADJUNTO_MAX_BYTES, MENSAJE_ADJUNTO_TAMANIO
-from programas.api.serializers_emergencia import (
+from programas.api.serializers_emergencia_kits import (
     MENSAJE_CANTIDADES_INVALIDAS,
     MENSAJE_SIN_CANTIDADES,
 )

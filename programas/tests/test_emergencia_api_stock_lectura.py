@@ -14,11 +14,16 @@ Mutaciones verificadas (romper la regla pone rojo el test que se nombra; ver el 
 
 * sacar ``stock.ver`` de ``_lleva_stock_en_su_equipo`` (``modulo_habilitado``) →
   ``test_quien_solo_lleva_stock_abre_el_modulo``;
-* sacar el filtro de alcance de ``stock_app._pares`` (``dispositivo_id__in`` o ``q_edificios_en_alcance``) →
-  ``test_la_lista_solo_trae_lo_que_alcanza`` y ``test_con_alcance_edificios_la_lista_trae_solo_los_suyos``;
-* sacar el filtro de alcance de ``edificio_de_stock`` → ``test_404_fuera_de_alcance_es_igual_a_inexistente``;
-* sacar ``stock.entregar`` de la consulta de persona (``services.stock.consultar_persona``) →
-  ``test_la_persona_exige_poder_entregar``.
+* sacar el ``q_edificios_en_alcance`` de ``dispositivos.pares_en_alcance`` →
+  ``test_la_lista_solo_trae_lo_que_alcanza`` y ``test_con_alcance_edificios_la_lista_trae_solo_los_suyos``
+  (el ``dispositivo_id__in`` de ese mismo filtro es redundante con ``q_edificios_en_alcance``: sacarlo solo no da
+  rojo, y no es una fuga);
+* sacar el chequeo de alcance de ``edificio_de_la_institucion`` (el que usa ``edificio_de_stock`` con ``stock.ver``) →
+  ``test_404_fuera_de_alcance_es_igual_a_inexistente``;
+* sacar el ``puede_entregar`` de ``PersonaDelStockView.get`` → ``test_la_persona_exige_poder_entregar``;
+* ``EmergenciaModuloPermission`` con ``modulo_habilitado`` (suma stock) en vez de ``modulo_de_campo_habilitado`` →
+  ``test_quien_solo_lleva_stock_no_consulta_identidades`` y el barrido
+  ``test_quien_solo_lleva_stock_recibe_el_mismo_403_de_antes_en_toda_la_api_de_campo``.
 """
 
 import shutil
@@ -46,8 +51,19 @@ from programas.models import (
     OperacionStock,
 )
 from programas.services import stock as servicio
-from programas.services.emergencia_programa import modulo_habilitado, roles_en_app
-from programas.tests.base_emergencia_api import CLAVES_ENTREGA, CLAVES_PERFIL, CLAVES_SIN_MODULO
+from programas.services.emergencia_programa import modulo_de_campo_habilitado, modulo_habilitado, roles_en_app
+from programas.tests.base_emergencia_api import (
+    CLAVES_ENTREGA,
+    CLAVES_PERFIL,
+    CLAVES_SIN_MODULO,
+    SIN_MODULO,
+    SIN_RELEVAR,
+    SOLO_DEL_AGENTE,
+    URL_CONSULTAR,
+    URL_PERFIL,
+    URLS_DE_STOCK_DEL_BARRIDO,
+    urls_de_la_api_de_emergencia,
+)
 from programas.tests.base_stock import BaseEntrega
 from programas.tests.test_emergencia_casos import JPEG
 
@@ -185,6 +201,41 @@ class AccesoAlStockTests(BaseApiStock):
         for nombre in ("stock", "stock-edificio", "stock-movimientos", "stock-destinos-traspaso", "stock-persona"):
             with self.subTest(nombre):
                 self.assertEqual(self.api.get(self._url(nombre)).status_code, 401)
+
+    def test_quien_solo_lleva_stock_no_consulta_identidades(self):
+        """``stock.ver`` abre el perfil y el stock, **no** la consulta de identidad: 403 ``SIN_MODULO`` como antes del PR.
+
+        **Mutación vista en rojo:** con ``EmergenciaModuloPermission.has_permission`` llamando a ``modulo_habilitado``
+        (el predicado que suma stock) en vez de ``modulo_de_campo_habilitado``, esta ruta contesta 200/404 con el
+        legajo y el test falla; el barrido de abajo falla en todas las rutas de campo. Restaurada, verde.
+        """
+
+        self.assertTrue(modulo_habilitado(self.ve))
+        self.assertFalse(modulo_de_campo_habilitado(self.ve))
+        for datos in ({"dni": "30111222"}, {"dni": "30111222", "sexo": "F"}):
+            with self.subTest(datos=datos):
+                respuesta = self._como(self.ve).post(URL_CONSULTAR, datos, format="json")
+                self.assertEqual(respuesta.status_code, 403)
+                self.assertEqual(respuesta.json(), SIN_MODULO)
+
+    def test_quien_solo_lleva_stock_recibe_el_mismo_403_de_antes_en_toda_la_api_de_campo(self):
+        """Cada ruta del namespace salvo el perfil y el stock responde a ``stock.ver`` solo lo que antes del PR.
+
+        Raíz, identidad, localidades, plazas, estadías, llegadas, kits y relevamiento: 403 con el cuerpo de siempre
+        (``SIN_MODULO``; ``SIN_RELEVAR`` en las dos del agente).
+        """
+
+        propias_del_stock = {URL_PERFIL, *URLS_DE_STOCK_DEL_BARRIDO}
+        cliente = self._como(self.ve)
+        rutas = [url for url in urls_de_la_api_de_emergencia() if url not in propias_del_stock]
+        self.assertGreater(len(rutas), 30)
+        for url in rutas:
+            esperado = SIN_RELEVAR if url in SOLO_DEL_AGENTE else SIN_MODULO
+            for metodo in ("get", "post"):
+                with self.subTest(url=url, metodo=metodo):
+                    respuesta = getattr(cliente, metodo)(url, {}, format="json")
+                    self.assertEqual(respuesta.status_code, 403)
+                    self.assertEqual(respuesta.json(), esperado)
 
 
 # ---------------------------------------------------------------------------
@@ -569,8 +620,11 @@ class PersonaDelStockTests(BaseApiStock):
     def test_la_persona_exige_poder_entregar(self):
         """403 ``SIN_PERMISO`` sin ``stock.entregar`` **o** sin ``ciudadano.ver``, y sin tocar el padrón.
 
-        **Mutación vista en rojo:** sin la guarda ``puede_entregar`` de ``consultar_persona`` el que solo ve el stock
-        consulta el padrón por acá.
+        Lo frena la **vista** (``PersonaDelStockView.get``) antes de llamar al servicio: este test no prueba la guarda
+        de ``services.stock.consultar_persona`` (esa es defensa en profundidad y la cubren los tests del servicio).
+
+        **Mutación vista en rojo:** sacar el ``if not servicio.puede_entregar`` de la vista deja que el que solo ve el
+        stock consulte el padrón por acá.
         """
 
         sin_ciudadano = self._usuario_con("sin_ciudadano", ("stock.ver", "stock.entregar"))
@@ -679,14 +733,35 @@ class RecepcionConEdificioTests(BaseApiStock):
         self.assertIs(cuerpo["requiere_edificio"], False)
         self.assertEqual(cuerpo["edificios"], [])
 
-    def test_con_alcance_edificios_elige_solo_entre_los_suyos(self):
+    def test_con_alcance_edificios_la_entrega_sin_edificio_es_404(self):
+        """La entrega sin edificio solo la alcanza quien tiene alcance Institución: con alcance Edificios, 404."""
+
         de_uno = self._de_edificios("recibe_uno", [self.edificio], capacidades=("emergencia.recibir_kit",))
         entrega = self._legada()
 
         cuerpo = self._como(de_uno).get(f"/api/emergencia/entregas/{entrega.pk}/")
 
-        # La entrega sin edificio solo la alcanza quien tiene alcance Institución: para el resto es 404.
         self.assertEqual(cuerpo.status_code, 404)
+
+    def test_la_lista_no_crece_en_consultas_con_las_entregas_legadas(self):
+        """El memo es por dispositivo: 1 entrega legada y 5 hacen las mismas consultas (``EntregaKitSerializer``).
+
+        **Mutación vista en rojo:** sin el memo ``_memo_por_dispositivo`` cada entrega recalcula el edificio y las
+        consultas crecen con la cantidad de entregas.
+        """
+
+        url = f"/api/emergencia/dispositivos/{self.disp.pk}/entregas/"
+        self._legada()
+        self._como(self.recibe).get(url)  # calienta cachés (permisos, contenttypes)
+        with CaptureQueriesContext(connection) as una:
+            self._como(self.recibe).get(url)
+        for _ in range(4):
+            self._legada()
+        with CaptureQueriesContext(connection) as cinco:
+            respuesta = self._como(self.recibe).get(url)
+
+        self.assertEqual(len(respuesta.json()), 5)
+        self.assertEqual(len(cinco), len(una))
 
     def test_recibir_con_edificio_id_suma_al_stock_de_ese_edificio(self):
         entrega = self._legada()

@@ -915,8 +915,10 @@ class ObservarRecepcionTests(BaseKits):
                 "siguiente_numero_de_entrega",
                 # Arma el aviso de la pantalla; no lee ni escribe cantidades.
                 "aviso_de_kits_por_recibir",
-                # Stock (Cambio 605): solo leen —si la institución lleva stock y entre qué edificios elige quien recibe—.
+                # Stock (Cambios 605 y 607): solo leen —si la institución lleva stock, si hay que elegir edificio y entre
+                # cuáles elige quien recibe—.
                 "suma_al_stock",
+                "requiere_edificio_al_recibir",
                 "edificios_para_recibir",
             },
         )

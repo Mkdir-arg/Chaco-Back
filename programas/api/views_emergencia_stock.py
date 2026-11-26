@@ -31,7 +31,7 @@ from programas.api.throttles import ConsultaPersonasThrottle
 from programas.api.views_emergencia import (
     _SIN_TOKEN,
     CODIGO_SIN_MODULO,
-    EmergenciaModuloPermission,
+    EmergenciaModuloConStockPermission,
     _respuesta_de_validacion,
     _VistaDeCampo,
 )
@@ -62,7 +62,7 @@ _FUERA_DE_ALCANCE = OpenApiResponse(
 class EmergenciaStockPermission(BasePermission):
     """Ve el stock de **algún** edificio: ``stock.ver`` con alcance en una institución que lleva stock.
 
-    Va después de ``EmergenciaModuloPermission``. Qué institución y qué edificio son suyos lo decide cada vista, con 404.
+    Va después de ``EmergenciaModuloConStockPermission``. Qué institución y qué edificio son suyos lo decide cada vista, con 404.
     """
 
     message = {"detail": MENSAJE_SIN_STOCK, "code": CODIGO_SIN_MODULO}
@@ -78,7 +78,7 @@ def _sin_permiso():
 
 
 class _VistaDeStock(_VistaDeCampo):
-    permission_classes = [IsAuthenticated, EmergenciaModuloPermission, EmergenciaStockPermission]
+    permission_classes = [IsAuthenticated, EmergenciaModuloConStockPermission, EmergenciaStockPermission]
 
     def finalize_response(self, request, response, *args, **kwargs):
         # Saldos y personas: nada de esto se guarda en una caché intermedia.

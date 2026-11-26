@@ -703,6 +703,16 @@ def suma_al_stock(dispositivo):
     return stock.lleva_stock(dispositivo)
 
 
+def requiere_edificio_al_recibir(entrega):
+    """¿Quien recibe ``entrega`` tiene que elegir el edificio? Sí si **no tiene edificio** y la institución lleva stock.
+
+    La única escritura de esta regla (RN-010-07): la aplican :func:`edificios_para_recibir`, :func:`recibir_entrega` y
+    el ``requiere_edificio`` que lee la app.
+    """
+
+    return entrega.edificio_id is None and bool(suma_al_stock(entrega.dispositivo))
+
+
 def edificios_para_recibir(usuario, entrega):
     """Entre qué edificios elige quien recibe ``entrega``, o ``[]`` si no hay nada que elegir (RN-010-07).
 
@@ -713,7 +723,7 @@ def edificios_para_recibir(usuario, entrega):
 
     from programas.models import Edificio
 
-    if entrega.edificio_id is not None or not suma_al_stock(entrega.dispositivo):
+    if not requiere_edificio_al_recibir(entrega):
         return []
     alcance = alcance_de_edificios(usuario, entrega.dispositivo, CAP_RECIBIR_KIT)
     activos = Edificio.objects.filter(dispositivos=entrega.dispositivo, activo=True).order_by("nombre")
@@ -796,7 +806,7 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
 
     lleva_stock = suma_al_stock(bloqueada.dispositivo)
     edificio_elegido = None
-    if lleva_stock and bloqueada.edificio_id is None:
+    if requiere_edificio_al_recibir(bloqueada):
         edificio_elegido = _edificio_de_la_recepcion(usuario, bloqueada, edificio)
         bloqueada.edificio_id = edificio_elegido
 
