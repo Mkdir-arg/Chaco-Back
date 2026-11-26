@@ -223,6 +223,29 @@ class AccesoAlStockTests(BaseApiStock):
                 self.assertEqual(respuesta.status_code, 403)
                 self.assertEqual(respuesta.json(), SIN_MODULO)
 
+    def test_stock_ver_mas_una_capacidad_de_campo_abre_plazas(self):
+        """Decisión del PM (26-nov-2026, Cambio 615): «si tiene la capacidad, sí lo puede hacer».
+
+        Quien lleva stock **y además** tiene ``dispositivo.admitir`` en su Equipo entra a Plazas (200); quien solo
+        lleva stock sigue con 403 ``SIN_MODULO`` (contraste, mismo usuario sin la capacidad de campo).
+
+        **Mutación vista en rojo:** con ``_es_de_la_guardia`` ignorando ``CAP_ADMITIR``, el usuario con las dos
+        capacidades recibe 403 y este test falla. Restaurada, verde.
+        """
+
+        con_campo = self._usuario_con("stock_y_admite", ("stock.ver", "dispositivo.admitir"))
+
+        self.assertTrue(modulo_de_campo_habilitado(con_campo))
+        respuesta = self._como(con_campo).get(reverse("emergencia_api:edificios"))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(roles_en_app(con_campo)["plazas"])
+        mapa = self._get(con_campo, "edificio-mapa")
+        self.assertEqual(mapa.status_code, 200)
+
+        contraste = self._como(self.ve).get(reverse("emergencia_api:edificios"))
+        self.assertEqual(contraste.status_code, 403)
+        self.assertEqual(contraste.json(), SIN_MODULO)
+
     def test_quien_solo_lleva_stock_recibe_el_mismo_403_de_antes_en_toda_la_api_de_campo(self):
         """Cada ruta del namespace salvo el perfil y el stock responde a ``stock.ver`` solo lo que antes del PR.
 
