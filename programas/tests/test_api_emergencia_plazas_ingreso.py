@@ -12,16 +12,20 @@ entran juntas o no entran.
   ``test_el_dispositivo_de_otra_institucion_es_404`` falla (en los tres extremos).
 * Capacidad: sin la comprobación de ``puede_operar_dispositivo``/``puede(ciudadano.ver)`` en ``_dispositivo``,
   ``test_sin_admitir_es_403`` y ``test_sin_ciudadano_ver_es_403`` fallan.
+* Tope: sin ``throttle_classes``/``check_throttles`` en ``IngresoPersonaView``, ``test_el_segundo_dni_da_429`` falla
+  (la consulta por DNI del ingreso era una enumeración del padrón sin tope, SEC-25).
 """
 
 from datetime import date, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from legajos.models import Ciudadano
+from programas.api.throttles import ConsultaPersonasThrottle
 from programas.models import (
     Dispositivo,
     Edificio,
@@ -329,9 +333,7 @@ class IngresarTests(BaseIngresoApi):
             "persona_nueva": PERSONA_NUEVA,
             "formulario": {"version": diseno.version, "respuestas": {self._clave("Cantidad de pertenencias"): 3}},
         }
-        with mock.patch(
-            "programas.api.views_emergencia_ingreso.guardar_respuestas_ingreso", side_effect=ValidationError("falló")
-        ):
+        with mock.patch("programas.services.ingreso.guardar_respuestas_ingreso", side_effect=ValidationError("falló")):
             respuesta = self._ingresar(**cuerpo)
         self.assertEqual(respuesta.status_code, 400, respuesta.content)
         self.assertFalse(Ciudadano.objects.filter(dni="40111222").exists())
@@ -418,6 +420,41 @@ class IngresarTests(BaseIngresoApi):
         respuesta = self._ingresar(usuario=self.territorial_becas, ciudadano_id=self.persona.pk)
         self.assertEqual(respuesta.status_code, 403, respuesta.content)
         self.assertEqual(respuesta.json()["code"], "SIN_MODULO")
+
+
+class IngresoPersonaTopeTests(BaseIngresoApi):
+    """SEC-25: la consulta de un DNI descuenta de la cubeta ``personas_campo``, la de la consulta de identidad."""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_el_segundo_dni_da_429(self, _rate):
+        self.assertEqual(self._persona("30111222").status_code, 200)
+
+        segunda = self._persona("40111222")
+
+        self.assertEqual(segunda.status_code, 429)
+        self.assertIn("Retry-After", segunda)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_lo_que_se_rechaza_no_gasta_la_cubeta(self, _rate):
+        for dni in ("", "abc", "123"):
+            self.assertEqual(self._persona(dni).status_code, 400)
+        self.assertEqual(
+            self._persona("30111222", dispositivo=self._dispositivo("Otro club", camas=1)).status_code, 404
+        )
+
+        self.assertEqual(self._persona("30111222").status_code, 200)
+
+    @mock.patch.object(ConsultaPersonasThrottle, "get_rate", return_value="1/hour")
+    def test_la_cubeta_es_por_usuario(self, _rate):
+        self.assertEqual(self._persona("30111222").status_code, 200)
+        self.assertEqual(self._persona("30111222").status_code, 429)
+        otro = self._guardia("operador_tope", [VER, ADMITIR, CIUDADANO, CREAR], [self.club])
+        self.assertEqual(self._persona("30111222", usuario=otro).status_code, 200)
 
 
 class IngresoPersonaTests(BaseIngresoApi):

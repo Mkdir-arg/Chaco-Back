@@ -237,7 +237,7 @@ class IngresoConFormularioTests(_Base):
             real(*args, **kwargs)  # escribe la fila y el archivo…
             raise RuntimeError("falla el guardado")
 
-        with patch("programas.views.dispositivos_ingreso.guardar_respuestas_ingreso", side_effect=explota_despues):
+        with patch("programas.services.ingreso.guardar_respuestas_ingreso", side_effect=explota_despues):
             with self.assertRaises(RuntimeError):
                 self._confirmar(self._completo())
 

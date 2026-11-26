@@ -986,6 +986,7 @@ class EsquemaDeLaApiDeEmergenciaTests(BaseApiEmergencia):
             rutas[URL_CASOS]["post"],
             rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso-directo/"]["post"],
             rutas["/api/emergencia/dispositivos/{dispositivo_id}/avisar-mesa/"]["post"],
+            rutas["/api/emergencia/dispositivos/{dispositivo_id}/ingreso/persona/"]["get"],
         ):
             with self.subTest(operacion=operacion["operationId"]):
                 self.assertIn("429", operacion["responses"])

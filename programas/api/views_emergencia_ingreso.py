@@ -20,23 +20,21 @@ el backoffice (409 ``INGRESO_CON_ARCHIVO``); los opcionales se omiten.
 """
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.rbac import puede
-from legajos.forms import CiudadanoManualForm
 from legajos.models import Ciudadano
 from programas.api.serializers_emergencia_ingreso import (
     FormularioDeIngresoRespuestaSerializer,
     IngresarEnvioSerializer,
     PersonaDelIngresoRespuestaSerializer,
 )
+from programas.api.throttles import ConsultaPersonasThrottle
 from programas.api.views_emergencia import _SIN_TOKEN, _400, _respuesta_de_validacion, _VistaDeCampo
 from programas.api.views_emergencia_estadias import _mapa_actualizado
-from programas.forms_dinamicos import es_adjunto
 from programas.models import Dispositivo, MomentoFormulario, Plaza
 from programas.services.dispositivos import (
     CAP_VER,
@@ -47,18 +45,19 @@ from programas.services.dispositivos import (
 from programas.services.estadias import CAP_ADMITIR, CAP_VER_CIUDADANO, verificar_alojamiento_en_red
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
-    confirmar_ingreso,
+    errores_del_alta_manual,
+    ingresar_con_formulario,
     plaza_reservada_de,
     plazas_para_ingresar,
 )
-from programas.services.respuestas import campos_de
-from programas.services.respuestas_dispositivo import (
-    faltantes_de,
-    formulario_vigente,
-    foto_vigente,
-    guardar_respuestas_ingreso,
+from programas.services.respuestas_dispositivo import formulario_vigente, foto_vigente
+from programas.services.validacion_relevamiento import (
+    FormularioCambio,
+    IngresoConArchivo,
+    RespuestasInvalidas,
+    formulario_de_ingreso_de_la_app,
+    requiere_archivo,
 )
-from programas.services.validacion_relevamiento import validar_respuestas_con_avisos
 
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
@@ -84,15 +83,6 @@ def _sin_capacidad(mensaje=MENSAJE_SIN_INGRESAR):
     return Response({"detail": mensaje, "code": CODIGO_SIN_PERMISO}, status=status.HTTP_403_FORBIDDEN)
 
 
-def _hay_adjunto_obligatorio(foto):
-    return any(campo.get("obligatorio") and es_adjunto(campo) for campo in campos_de(foto))
-
-
-def _adjuntos_obligatorios_sin_responder(foto, respuestas):
-    """Los obligatorios **visibles** de tipo archivo o firma: la app no los puede mandar."""
-    return [campo for campo in faltantes_de(foto, respuestas) if es_adjunto(campo)]
-
-
 class _VistaDeIngreso(_VistaDeCampo):
     """Resuelve la institución por alcance y exige la capacidad del asistente de la web."""
 
@@ -111,6 +101,16 @@ class _VistaDeIngreso(_VistaDeCampo):
 
 
 class IngresoPersonaView(_VistaDeIngreso):
+    """Consultar un DNI es una consulta de identidad: descuenta de la cubeta ``personas_campo`` (SEC-25), la misma
+    de la consulta y de la sugerencia. Se descuenta **después** de las puertas de la vista (404/403/400 de la
+    institución) y con un DNI bien formado, para que lo rechazado no gaste la cubeta del usuario."""
+
+    throttle_classes = [ConsultaPersonasThrottle]
+    _descuenta = False
+
+    def get_throttles(self):
+        return super().get_throttles() if self._descuenta else []
+
     @extend_schema(
         parameters=[OpenApiParameter("dni", str, required=True, description="DNI de la persona (7 u 8 dígitos).")],
         responses={
@@ -119,6 +119,9 @@ class IngresoPersonaView(_VistaDeIngreso):
             401: _SIN_TOKEN,
             403: _SIN_CAPACIDAD,
             404: _AJENA,
+            429: OpenApiResponse(
+                description="Se superó el tope de consultas de identidad del usuario (compartido con la consulta)."
+            ),
         },
         description=(
             "Paso 1 del ingreso: busca a la persona por DNI **solo en el padrón** (no consulta el Registro de "
@@ -134,6 +137,8 @@ class IngresoPersonaView(_VistaDeIngreso):
         dni = normalizar_dni(request.query_params.get("dni", ""))
         if not dni_valido(dni):
             return _respuesta_de_validacion({"dni": [MENSAJE_DNI_INVALIDO]})
+        self._descuenta = True
+        self.check_throttles(request)
         ciudadano = buscar_ciudadano_por_dni(dni)
         if ciudadano is None:
             return Response({"encontrada": False})
@@ -189,7 +194,7 @@ class IngresoFormularioView(_VistaDeIngreso):
                 "formulario": {
                     "definicion": foto,
                     "version": diseno.version,
-                    "requiere_archivo": _hay_adjunto_obligatorio(foto),
+                    "requiere_archivo": requiere_archivo(foto),
                 }
             }
         )
@@ -274,10 +279,11 @@ class IngresarView(_VistaDeIngreso):
             "fecha_nacimiento": nueva["fecha_nacimiento"].isoformat() if nueva["fecha_nacimiento"] else None,
             "genero": nueva["sexo"],
         }
-        form = CiudadanoManualForm(data=manual)
-        if not form.is_valid():
-            errores = {("sexo" if campo == "genero" else campo): list(msgs) for campo, msgs in form.errors.items()}
-            return None, _respuesta_de_validacion(errores)
+        errores = errores_del_alta_manual(manual)
+        if errores:
+            return None, _respuesta_de_validacion(
+                {("sexo" if campo == "genero" else campo): m for campo, m in errores.items()}
+            )
         return {"manual": manual}, None
 
     def _plaza(self, request, dispositivo, plaza_id, persona):
@@ -301,55 +307,45 @@ class IngresarView(_VistaDeIngreso):
         return plaza.first(), None
 
     def _formulario(self, dispositivo, envio):
-        """``((diseno, foto, respuestas) | None, None)`` o ``(None, respuesta)``. Valida antes de escribir nada."""
-        diseno = formulario_vigente(dispositivo.tipo_id, MomentoFormulario.INGRESO)
-        if envio is not None and (diseno is None or envio["version"] != diseno.version):
+        """``((diseno, foto, respuestas, ()) | None, None)`` o ``(None, respuesta)``. Valida antes de escribir."""
+        try:
+            validado = formulario_de_ingreso_de_la_app(dispositivo.tipo_id, envio)
+        except FormularioCambio:
             return None, Response(
                 {"detail": MENSAJE_FORMULARIO_CAMBIO, "code": CODIGO_FORMULARIO_CAMBIO},
                 status=status.HTTP_409_CONFLICT,
             )
-        if diseno is None:
-            return None, None
-        foto = foto_vigente(diseno)
-        respuestas = dict((envio or {}).get("respuestas") or {})
-        sin_adjuntos = {
-            clave: valor
-            for clave, valor in respuestas.items()
-            if not any(es_adjunto(campo) and campo["clave"] == clave for campo in campos_de(foto))
-        }
-        if _adjuntos_obligatorios_sin_responder(foto, sin_adjuntos):
+        except IngresoConArchivo:
             return None, Response(
                 {"detail": MENSAJE_INGRESO_CON_ARCHIVO, "code": CODIGO_INGRESO_CON_ARCHIVO},
                 status=status.HTTP_409_CONFLICT,
             )
-        efectivas, errores, _avisos = validar_respuestas_con_avisos(foto, sin_adjuntos)
-        if errores:
-            respuesta = _respuesta_de_validacion({"respuestas": list(errores.values())})
-            respuesta.data["claves"] = errores
+        except RespuestasInvalidas as error:
+            respuesta = _respuesta_de_validacion({"respuestas": list(error.por_clave.values())})
+            respuesta.data["claves"] = error.por_clave
             return None, respuesta
-        return (diseno, foto, efectivas), None
+        if validado is None:
+            return None, None
+        diseno, foto, respuestas = validado
+        return (diseno, foto, respuestas, ()), None
 
     def _ingresar(self, request, dispositivo, datos, persona, plaza, formulario):
-        """La estadía y sus respuestas en una transacción; el servicio de siempre revalida y toma la cama."""
+        """La estadía y sus respuestas en una transacción (el servicio de siempre revalida y toma la cama)."""
+        ciudadano = persona.get("ciudadano")
         try:
-            with transaction.atomic():
-                ciudadano = persona.get("ciudadano")
-                estadia = confirmar_ingreso(
-                    dispositivo=dispositivo,
-                    usuario=request.user,
-                    ciudadano_id=ciudadano.pk if ciudadano else None,
-                    datos_renaper=None,
-                    datos_manual=persona.get("manual"),
-                    plaza_id=plaza.pk if plaza is not None else None,
-                )
-                if formulario is not None:
-                    diseno, foto, respuestas = formulario
-                    guardar_respuestas_ingreso(estadia, diseno, foto, respuestas, (), request.user)
+            return ingresar_con_formulario(
+                dispositivo=dispositivo,
+                usuario=request.user,
+                ciudadano_id=ciudadano.pk if ciudadano else None,
+                datos_renaper=None,
+                datos_manual=persona.get("manual"),
+                plaza_id=plaza.pk if plaza is not None else None,
+                formulario=formulario,
+            )
         except Ciudadano.DoesNotExist:
             raise ValidationError({"ciudadano_id": "No encontramos a esa persona en el padrón."}) from None
         except Plaza.DoesNotExist:
             raise ValidationError({"plaza_id": MENSAJE_PLAZA_NO_DISPONIBLE}) from None
-        return estadia
 
     @staticmethod
     def _aplanar(errores):

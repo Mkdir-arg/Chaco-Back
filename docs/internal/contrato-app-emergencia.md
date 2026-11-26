@@ -1437,6 +1437,7 @@ La cama `disponible` ofrece la acción `ingresar` en `plazas[].acciones` del map
 
 - `alojada: true` con `alojamiento.dentro_del_alcance: false`: está alojada en una institución fuera del alcance del usuario; `dispositivo` y `plaza` vienen vacíos (`""`), `desde` en `null`, y el `mensaje` dice a quién pedir el egreso. La app lo muestra y **no deja seguir**: el paso 3 lo rechazaría igual.
 - `plaza_reservada_id`: la cama que la persona tiene reservada o prestada **en este dispositivo**. El ingreso la consume (la cama es elegible para ella aunque el mapa la muestre `reservada` o `prestada`).
+- **Tope (SEC-25)**: consultar un DNI descuenta de la cubeta `personas_campo` del usuario, la misma de la consulta de identidad y de la sugerencia por DNI. Superada: **429** con `Retry-After` (segundos). Lo que se rechaza antes (institución ajena 404, sin capacidad 403, dispositivo inactivo o DNI mal formado 400) no gasta la cubeta. La app no encadena consultas: una por cada DNI que el agente confirma.
 
 ### 18.2 Paso 2: el formulario de ingreso
 
