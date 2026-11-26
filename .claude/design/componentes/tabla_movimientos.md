@@ -33,6 +33,9 @@ Va dentro de la surface del consumidor; no pone card ni paginación.
   una sola vez, aunque dos botones compartan capacidad. Los botones salen del servicio, nunca del template.
 - `_url_de_accion` solo hace `reverse(...)`: una ruta mal escrita rompe fuerte, no esconde el botón.
 - Cada fila de saldo del panel trae `item_id` y `url_ajustar`, un link GET (`?tab=stock&ajustar=<id>`), no un POST.
+  Esa URL la arma **un solo helper**, `url_abrir_ajuste(dispositivo, edificio, item_id)` en
+  `programas/services/edificio_stock.py`: lo usan el botón de la fila y el reintento tras `SaldoCambio` / `UuidEnUso`,
+  así que los dos abren siempre el mismo modal. Nadie escribe esa URL a mano.
   Claves del contexto de la solapa: `puede_ajustar`, `url_enviar_ajuste` y `url_movimientos` (esta última solo con
   `stock.ver`).
 

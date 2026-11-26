@@ -157,7 +157,8 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   el `x-data` de la página suma `modalAjustar: true` cuando la vista pasa `ajuste`, y el molde sigue siendo la golden
   `becas/config/programa_list.html` (el de P21 es solo evidencia de esta variante). Limitación: tras la recarga no hay
   disparador al que devolver el foco al cerrar, y cae en el `body`. Un saldo que cambió mientras se contaba (`SaldoCambio`)
-  se resuelve reabriendo el modal con el saldo de ahora y un aviso, no con un mensaje en el campo.
+  se resuelve reabriendo el modal con el saldo de ahora y un aviso, no con un mensaje en el campo. El aviso dice
+  «Hay <cantidad> ahora (<unidad>)»: la unidad va como rótulo entre paréntesis, igual que en la tabla.
 - **Paso previo de elección**: un modal con `<form method="get">` (sin `{% csrf_token %}` ni
   `data-ajax`, porque no muta) que elige el registro y reabre la pantalla con el modal del paso
   siguiente. Conserva la solapa y los filtros activos en `<input type="hidden">` armados en la
