@@ -1,0 +1,41 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Stock · Ingresar{% endblock %}
+
+{% block main-content %}
+{% comment %}Stock · «Ingresar stock» (análisis 010, PR 6a). Molde: golden de Formulario (becas/config/segmento_form.html), variante
+«destino con tabla de cantidades» (stock/entregar.html, emergencia/kits/nueva.html). El destino —el edificio— ya lo eligió la URL, así
+que no hay superficie GET: una sola superficie POST con el origen, el comprobante y la tabla de cantidades de los insumos activos.
+Lo que rechace el servicio vuelve arriba del formulario.{% endcomment %}
+<div class="space-y-5">
+  {% page_header titulo="Ingresar stock" eyebrow=edificio.nombre volver_url=url_stock volver_label="stock del edificio" %}
+    {% bajada %}Cargá de dónde viene y cuánto entra de cada insumo. Lo que dejes vacío no se suma. Si el origen es «Otro», el detalle es obligatorio.{% endbajada %}
+  {% endpage_header %}
+
+  {% if sin_insumos %}
+    {% include "components/_alerta.html" with tono="warning" titulo="No hay insumos activos en el catálogo" texto="Sin insumos no se puede cargar stock. Hay que darlos de alta en el catálogo de insumos antes de cargar stock." %}
+  {% else %}
+  <form method="post" action="{{ url_ingresar }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+    <h2 class="text-heading font-bold">{{ edificio.nombre }} <span class="text-body-subtle font-normal">· {{ dispositivo.nombre }}</span></h2>
+
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for field in form.campos_visibles %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+    </div>
+
+    <div class="mt-4 border-t border-light pt-4">
+      <p class="mb-3 text-xs text-body-subtle">La columna «En stock» es lo que hay ahora en este edificio.</p>
+      {% include "components/_tabla_cantidades.html" with filas=filas columnas_info=columnas_info rotulo_item="Insumo" rotulo_cantidad="Cantidad a ingresar" caption="Insumos activos del catálogo y la cantidad a ingresar" only %}
+    </div>
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{{ url_stock }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-plus" aria-hidden="true"></i> Registrar ingreso</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

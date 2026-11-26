@@ -3,8 +3,10 @@ vinculado, dos insumos activos y uno desactivado, y usuarios con cada combinaci�
 
 from django.contrib.auth.models import User
 
+from legajos.models import Ciudadano
 from programas.models import Edificio, MovimientoStock, OperacionStock, SaldoStock, TipoKit
 from programas.selectors import stock as selectores
+from programas.services import stock as servicio
 from programas.tests.test_dispositivos_equipo_410 import BaseEquipo
 
 TODAS_LAS_DE_STOCK = ("dispositivo.ver", "stock.ver", "stock.entregar", "stock.ingresar", "stock.ajustar")
@@ -77,3 +79,43 @@ class BaseStock(BaseEquipo):
 
     def _otro_usuario(self, nombre="otro"):
         return User.objects.create_user(username=nombre, password="x")
+
+
+class BaseEntrega(BaseStock):
+    """Suma a :class:`BaseStock` quien entrega (con ``ciudadano.ver``), una persona con legajo y una segunda
+    institución que también lleva stock con su edificio (para el historial y los traspasos)."""
+
+    #: Lo que responde el Registro de Personas (la forma de ``consultar_renaper``).
+    RENAPER_ENCUENTRA = {
+        "success": True,
+        "data": {
+            "dni": "27555666",
+            "nombre": "Marta",
+            "apellido": "Ruiz",
+            "fecha_nacimiento": "1980-05-02",
+            "genero": "F",
+            "domicilio": "Mitre 100",
+            "provincia": None,
+        },
+        "datos_api": {},
+    }
+    RENAPER_NO_ESTA = {"success": False, "status_code": 404}
+    RENAPER_FALLECIDA = {"success": False, "fallecido": True}
+    CONSULTA_RENAPER = "programas.services.ingreso.CiudadanosService.consultar_renaper"
+
+    def setUp(self):
+        super().setUp()
+        self.guardia = self._usuario_con("guardia", ("stock.ver", "stock.entregar", "ciudadano.ver"))
+        self.persona = Ciudadano.objects.create(dni="30111222", nombre="Ana", apellido="Paz")
+        self.edificio_b = Edificio.objects.create(codigo="ED-B1", nombre="Edificio de la otra")
+        self.edificio_b.dispositivos.add(self.disp_b)
+
+    def _entregar(self, usuario=None, lineas=None, dni="30111222", **kwargs):
+        return servicio.entregar_a_persona(
+            usuario or self.guardia,
+            kwargs.pop("dispositivo", self.disp),
+            kwargs.pop("edificio", self.edificio),
+            dni,
+            lineas if lineas is not None else {self.colchon.pk: 1},
+            **kwargs,
+        )

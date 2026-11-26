@@ -1,0 +1,90 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Stock · Entregar a persona{% endblock %}
+
+{% block main-content %}
+{% comment %}Stock · «Entregar a persona» (análisis 010, PR 5). Molde: golden de Formulario (becas/config/segmento_form.html), variante
+«destino con tabla de cantidades» (emergencia/kits/nueva.html). El «destino» es una persona: primero un GET con DNI y sexo que
+la resuelve sin escribir nada; con la persona elegida, su historial y el formulario con la tabla de cantidades. La persona viaja
+en ocultos y el servicio la vuelve a resolver. Lo que rechace el servicio vuelve arriba del formulario.{% endcomment %}
+<div class="space-y-5">
+  {% page_header titulo="Entregar a persona" eyebrow=edificio.nombre volver_url=url_stock volver_label="stock del edificio" %}
+    {% bajada %}Buscá a la persona por DNI y cargá cuánto se le entrega de cada insumo. Lo que dejes vacío no se descuenta.{% endbajada %}
+  {% endpage_header %}
+
+  <form method="get" action="{{ url_entregar }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold mb-4">Persona</h2>
+    {% include "components/_form_errores.html" with form=persona_form %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for field in persona_form.campos_visibles %}{% include "components/_field.html" %}{% endfor %}
+    </div>
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <button type="submit" class="btn-nodo btn-secondary btn-base">{% if persona %}Cambiar la persona{% else %}Buscar persona{% endif %}</button>
+    </div>
+  </form>
+
+  {% if persona %}
+    {% include "components/_alerta.html" with tono="info" titulo=persona.apellido|add:", "|add:persona.nombre|add:" · DNI "|add:persona.dni texto=texto_persona role="status" %}
+
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entrega-historial-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="entrega-historial-titulo" class="text-heading font-bold">Lo que recibió antes</h2>
+        <p class="text-xs text-body-subtle mt-1">Últimas {{ tope_historial }} entregas de insumos en toda la red. Las de otras instituciones no dicen cuál es.</p>
+      </div>
+      {% if historial %}
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <caption class="sr-only">Entregas de insumos que recibió esta persona</caption>
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th" scope="col">Fecha</th>
+              <th class="nodo-th" scope="col">Institución</th>
+              <th class="nodo-th" scope="col">Qué recibió</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entrega in historial %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-body whitespace-nowrap">{{ entrega.fecha }}</td>
+              <td class="nodo-td text-body">{{ entrega.institucion }}</td>
+              <td class="nodo-td text-body">
+                <ul>{% for linea in entrega.lineas %}<li>{{ linea }}</li>{% endfor %}</ul>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo="Todavía no recibió insumos" texto="Esta persona no tiene entregas registradas." %}
+      {% endif %}
+    </section>
+
+    {% if sin_insumos %}
+      {% include "components/_alerta.html" with tono="warning" titulo="Este edificio no tiene insumos con stock" texto="Sin saldo no se puede entregar. Cargá stock con un ingreso o con la recepción de un kit." %}
+    {% else %}
+    <form method="post" action="{{ url_entregar }}" class="bg-white rounded-xl border border-base shadow-sm p-6">
+      {% csrf_token %}
+      {% include "components/_form_errores.html" %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+      <h2 class="text-heading font-bold">{{ edificio.nombre }} <span class="text-body-subtle font-normal">· {{ dispositivo.nombre }}</span></h2>
+      <p class="mt-1 text-xs text-body-subtle">La columna «En stock» es lo que hay ahora en este edificio.</p>
+
+      <div class="mt-4">
+        {% include "components/_tabla_cantidades.html" with filas=filas columnas_info=columnas_info rotulo_item="Insumo" rotulo_cantidad="Cantidad a entregar" caption="Insumos con stock en el edificio y la cantidad a entregar" only %}
+      </div>
+
+      <div class="border-t border-light mt-6 pt-4">
+        {% include "components/_field.html" with field=form.observacion %}
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+        <a href="{{ url_stock }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+        <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-hand-holding-heart" aria-hidden="true"></i> Registrar entrega</button>
+      </div>
+    </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

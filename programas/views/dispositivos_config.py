@@ -8,6 +8,7 @@ detalle del tipo solo los lista.
 """
 
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -92,7 +93,12 @@ class TipoDispositivoUpdateView(ConfigurarDispositivosMixin, UpdateView):
         return self.render_to_response(context)
 
     def form_valid(self, form):
-        self.object = form.save()
+        try:
+            self.object = form.save()
+        except ValidationError as error:
+            # RN-010-16: entró stock entre la validación y el guardado (el guardado lo cuenta bajo candado).
+            form.add_error(None, error)
+            return self.form_invalid(form)
         if is_ajax(self.request):
             return _detalle_ajax(self.request, self.object, "Tipo de dispositivo actualizado.")
         messages.success(self.request, "Tipo de dispositivo actualizado.")

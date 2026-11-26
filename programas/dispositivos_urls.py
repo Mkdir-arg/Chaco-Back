@@ -13,6 +13,7 @@ from programas.views import dispositivos_legajo as legajo
 from programas.views import dispositivos_relevamientos as relevamientos
 from programas.views import dispositivos_sectores as sectores_views
 from programas.views import reportes
+from programas.views import stock as stock_views
 
 app_name = "dispositivos"
 
@@ -141,6 +142,32 @@ urlpatterns = [
         "<int:pk>/edificios/<int:edificio_pk>/",
         edificio_operativo.EdificioOperativoView.as_view(),
         name="edificio_operativo",
+    ),
+    # Stock del edificio (análisis 010). Todas las rutas existen: `edificio_stock._url_de_accion` ya no esconde ninguna.
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/entregar/",
+        stock_views.EntregarAPersonaView.as_view(),
+        name="stock_entregar",
+    ),
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/ingresar/",
+        stock_views.IngresarStockView.as_view(),
+        name="stock_ingresar",
+    ),
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/traspasar/",
+        stock_views.TraspasarStockView.as_view(),
+        name="stock_traspasar",
+    ),
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/ajustar/",
+        stock_views.AjustarStockView.as_view(),
+        name="stock_ajustar",
+    ),
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/movimientos/",
+        stock_views.MovimientosStockView.as_view(),
+        name="stock_movimientos",
     ),
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),

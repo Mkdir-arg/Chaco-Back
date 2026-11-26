@@ -1,17 +1,19 @@
-"""Lectura del stock de insumos (anÃ¡lisis 010, PR 2a). Sin reglas de negocio ni permisos: quiÃ©n puede ver quÃ© lo
-decide quien llama (``services.stock.puede_ver_stock``). Cada funciÃ³n es una consulta, o dos como mucho."""
+"""Lectura del stock de insumos (análisis 010, PR 2a). Sin reglas de negocio ni permisos: quién puede ver qué lo
+decide quien llama (``services.stock.puede_ver_stock``). Cada función es una consulta, o dos como mucho."""
+
+from collections import defaultdict
 
 from django.db.models import Count, Exists, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 
-from core.utils_fechas import rango_dia_local
-from programas.models import MovimientoStock, SaldoStock
+from core.utils_fechas import q_rango_local
+from programas.models import MovimientoStock, OperacionStock, SaldoStock, TipoKit
 
 
 def saldos_de(dispositivo, edificio):
-    """Las filas de saldo de (instituciÃ³n, edificio) con su insumo, por nombre.
+    """Las filas de saldo de (institución, edificio) con su insumo, por nombre.
 
-    Un insumo desactivado con saldo 0 no se muestra (RN-010-17); uno activo con saldo 0 sÃ­, porque se puede cargar.
+    Un insumo desactivado con saldo 0 no se muestra (RN-010-17); uno activo con saldo 0 sí, porque se puede cargar.
     """
 
     return (
@@ -22,16 +24,28 @@ def saldos_de(dispositivo, edificio):
     )
 
 
-#: Filtros que entiende :func:`movimientos_de`.
-FILTROS_DE_MOVIMIENTOS = ("item", "tipo", "desde", "hasta")
+def insumos_para_ingresar(dispositivo, edificio):
+    """Los insumos **activos** del catálogo con lo que hay ahora en (institución, edificio): ``[(TipoKit, en_stock)]``.
+
+    Es la lista de «Ingresar stock» (RN-010-17: un insumo desactivado no recibe stock nuevo). Una consulta, con el
+    saldo como subconsulta: un insumo sin fila de saldo figura con 0. Por nombre, como ``saldos_de``.
+    """
+
+    saldo = SaldoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, item=OuterRef("pk")).values(
+        "cantidad"
+    )
+    insumos = (
+        TipoKit.objects.filter(activo=True).annotate(en_stock=Coalesce(Subquery(saldo), 0)).order_by("nombre", "pk")
+    )
+    return [(insumo, insumo.en_stock) for insumo in insumos]
 
 
-def movimientos_de(dispositivo, edificio, filtros=None):
-    """Los movimientos de (instituciÃ³n, edificio), del mÃ¡s nuevo al mÃ¡s viejo.
+def movimientos_de(dispositivo, edificio, filtros=None, *, con_persona=False):
+    """Los movimientos de (institución, edificio), del más nuevo al más viejo.
 
     ``filtros`` (todos opcionales): ``item`` (id), ``tipo`` (un ``MovimientoStock.Tipo``), ``desde`` y ``hasta``
-    (``date`` locales, inclusivos). No trae a la persona: el nombre de quien recibiÃ³ una entrega es un dato personal
-    que decide la pantalla segÃºn ``ciudadano.ver`` (PR 6b).
+    (``date`` locales, inclusivos). Trae la persona de las entregas (``operacion__ciudadano``) **solo** con
+    ``con_persona=True``: su nombre es un dato personal y quien llama lo pide según ``ciudadano.ver``.
     """
 
     filtros = filtros or {}
@@ -40,29 +54,104 @@ def movimientos_de(dispositivo, edificio, filtros=None):
         consulta = consulta.filter(item_id=filtros["item"])
     if filtros.get("tipo"):
         consulta = consulta.filter(tipo=filtros["tipo"])
-    if filtros.get("desde"):
-        consulta = consulta.filter(creado_en__gte=rango_dia_local(filtros["desde"])[0])
-    if filtros.get("hasta"):
-        consulta = consulta.filter(creado_en__lt=rango_dia_local(filtros["hasta"])[1])
-    return consulta.select_related("item", "operacion", "operacion__usuario").order_by("-creado_en", "-id")
+    consulta = consulta.filter(q_rango_local("creado_en", filtros.get("desde"), filtros.get("hasta")))
+    # Lo que el detalle de cada fila nombra, traído en la misma consulta (la solapa no hace una por movimiento).
+    relacionados = [
+        "item",
+        "operacion",
+        "operacion__usuario",
+        "operacion__entrega_kit",
+        "operacion__edificio",
+        "operacion__destino_edificio",
+    ]
+    if con_persona:
+        relacionados.append("operacion__ciudadano")
+    return consulta.select_related(*relacionados).order_by("-creado_en", "-id")
 
 
-def resumen_por_edificio(dispositivo, edificio_ids):
-    """Para la tarjeta del edificio, en **una** consulta agrupada: ``{edificio_id: {"insumos": n, "unidades": total}}``.
+def insumos_con_movimientos(dispositivo, edificio):
+    """Los insumos que tienen algún movimiento en (institución, edificio), por nombre: el filtro «Insumo» del listado.
 
-    Cuenta los insumos con saldo mayor que 0. Un edificio sin saldo no aparece en el resultado.
+    Una consulta, con ``Exists``: un insumo del catálogo que nunca se movió acá no ofrece un filtro que da vacío.
+    """
+
+    movidos = MovimientoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, item=OuterRef("pk"))
+    return list(TipoKit.objects.filter(Exists(movidos)).order_by("nombre", "pk"))
+
+
+def resumen_de_insumos_por_edificio(dispositivo, edificio_ids):
+    """Para la fila «Stock» de la tarjeta, en **una** consulta agrupada: ``{edificio_id: {"insumos": n, "sin_existencia": m}}``.
+
+    ``insumos`` son los que la solapa muestra (con saldo, o activos y en 0: ``saldos_de``); ``sin_existencia`` son
+    los activos en 0. Un edificio sin ninguna fila de saldo no aparece en el resultado.
     """
 
     filas = (
-        SaldoStock.objects.filter(dispositivo=dispositivo, edificio_id__in=list(edificio_ids), cantidad__gt=0)
+        SaldoStock.objects.filter(dispositivo=dispositivo, edificio_id__in=list(edificio_ids))
+        .exclude(item__activo=False, cantidad=0)
         .values("edificio_id")
-        .annotate(insumos=Count("item_id"), unidades=Sum("cantidad"))
+        .annotate(insumos=Count("item_id"), sin_existencia=Count("item_id", filter=Q(cantidad=0)))
     )
-    return {fila["edificio_id"]: {"insumos": fila["insumos"], "unidades": fila["unidades"]} for fila in filas}
+    return {
+        fila["edificio_id"]: {"insumos": fila["insumos"], "sin_existencia": fila["sin_existencia"]} for fila in filas
+    }
+
+
+#: Cuántas entregas muestra el historial de una persona (RN-010-10).
+HISTORIAL_DE_PERSONA = 20
+OTRA_INSTITUCION = "Otra institución"
+
+
+def historial_de_persona(ciudadano, desde_dispositivo, limite=HISTORIAL_DE_PERSONA):
+    """Las últimas ``limite`` entregas de insumos a ``ciudadano`` en **toda la red**, de la más nueva a la más vieja.
+
+    Devuelve ``[{"creado_en", "institucion", "propia", "lineas": [{"nombre", "unidad", "cantidad"}]}]`` en **dos**
+    consultas, sin importar cuántas entregas ni cuántos insumos haya. Privacidad (RNF-010-07): la institución se
+    nombra solo si es ``desde_dispositivo`` —la misma desde la que se entrega—; cualquier otra figura como
+    :data:`OTRA_INSTITUCION`, y de ella no se lee ni el nombre, ni la localidad, ni si tiene la ubicación reservada,
+    ni el edificio ni quién entregó. Tampoco la observación, que es texto libre. Lleva identidad: quien la muestra
+    exige ``ciudadano.ver`` (``services.stock.consultar_persona``).
+    """
+
+    if ciudadano is None:
+        return []
+    operaciones = list(
+        OperacionStock.objects.filter(ciudadano=ciudadano, tipo=OperacionStock.Tipo.ENTREGA_PERSONA)
+        .order_by("-creado_en", "-id")
+        .values("id", "creado_en", "dispositivo_id")[:limite]
+    )
+    if not operaciones:
+        return []
+    lineas = defaultdict(list)
+    movimientos = (
+        MovimientoStock.objects.filter(operacion_id__in=[operacion["id"] for operacion in operaciones])
+        .order_by("item__nombre", "item_id")
+        .values("operacion_id", "item__nombre", "item__unidad", "cantidad")
+    )
+    for movimiento in movimientos:
+        lineas[movimiento["operacion_id"]].append(
+            {
+                "nombre": movimiento["item__nombre"],
+                "unidad": movimiento["item__unidad"],
+                # El movimiento es la salida (negativa): lo que recibió la persona es el valor absoluto.
+                "cantidad": -movimiento["cantidad"],
+            }
+        )
+    return [
+        {
+            "creado_en": operacion["creado_en"],
+            "institucion": (
+                desde_dispositivo.nombre if operacion["dispositivo_id"] == desde_dispositivo.pk else OTRA_INSTITUCION
+            ),
+            "propia": operacion["dispositivo_id"] == desde_dispositivo.pk,
+            "lineas": lineas[operacion["id"]],
+        }
+        for operacion in operaciones
+    ]
 
 
 def stock_por_dispositivo_e_item(dispositivo_ids):
-    """Î£ de los saldos de **todos** los edificios de cada instituciÃ³n, en una consulta (E8, RN-010-20).
+    """Σ de los saldos de **todos** los edificios de cada institución, en una consulta (E8, RN-010-20).
 
     ``{dispositivo_id: {item_id: cantidad}}``, solo con cantidades mayores que 0.
     """
@@ -79,10 +168,10 @@ def stock_por_dispositivo_e_item(dispositivo_ids):
 
 
 def diferencias_de_saldo():
-    """Las claves donde se rompe el invariante ``saldo == Î£ movimientos == saldo_posterior del Ãºltimo`` (Â§6.5).
+    """Las claves donde se rompe el invariante ``saldo == Σ movimientos == saldo_posterior del último`` (§6.5).
 
-    Devuelve ``[{"dispositivo_id", "edificio_id", "item_id", "saldo", "suma", "ultimo"}]``; vacÃ­o si todo cierra. Una
-    consulta agrupada con subconsultas correlacionadas, mÃ¡s una por si hubiera movimientos de una clave sin fila de
+    Devuelve ``[{"dispositivo_id", "edificio_id", "item_id", "saldo", "suma", "ultimo"}]``; vacío si todo cierra. Una
+    consulta agrupada con subconsultas correlacionadas, más una por si hubiera movimientos de una clave sin fila de
     saldo (que los servicios no producen: crean el saldo antes de moverlo).
     """
 

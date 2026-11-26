@@ -294,6 +294,25 @@ def _texto_de_lo_que_no_se_repone(sin_item_activo):
     return ", ".join(f"{nombre} ({cantidad})" for nombre, cantidad in sin_item_activo)
 
 
+def _filas_para_la_tabla(filas, horas_demorada):
+    """Las filas del form más lo que dibuja ``components/_tabla_cantidades.html``: ``nombre``, ``unidad`` e ``info``.
+
+    La columna «Le falta (estimado)» es una sola celda: la cifra y, si hay, cuántos están demorados.
+    """
+
+    resultado = []
+    for fila in filas:
+        estimado = fila["estimado"]
+        celda = {"texto": "", "nota": ""}
+        if estimado:
+            celda["texto"] = str(estimado.faltan)
+            if estimado.demoradas:
+                plural = "s" if estimado.demoradas != 1 else ""
+                celda["nota"] = f"{estimado.demoradas} demorado{plural} (más de {horas_demorada} h)"
+        resultado.append({**fila, "nombre": fila["item"].nombre, "unidad": fila["item"].unidad, "info": [celda]})
+    return resultado
+
+
 class NuevaEntregaView(MesaPermissionMixin, View):
     """«Nueva entrega»: destino, cantidades, salida y nota en una sola pantalla (Cambio 586).
 
@@ -364,7 +383,8 @@ class NuevaEntregaView(MesaPermissionMixin, View):
             contexto.update(
                 destino=_resumen_del_destino(destino),
                 form=form,
-                filas=form.filas_de_cantidad(estimado),
+                filas=_filas_para_la_tabla(form.filas_de_cantidad(estimado), EntregaKit.HORAS_PARA_DEMORADA),
+                columnas_info=["Le falta (estimado)"],
                 aviso_estimado=aviso,
                 # En una reposición las cantidades arrancan con lo que faltó, no con lo estimado: el botón no se ofrece.
                 hay_estimado=bool(estimado) and original is None,

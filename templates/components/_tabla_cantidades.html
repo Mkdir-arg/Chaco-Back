@@ -1,0 +1,48 @@
+{% load nodo_ui %}{% comment %}
+Tabla «una fila por ítem con control de cantidad»: el ítem con su unidad, 0 a N columnas informativas y el campo de cantidad.
+Va dentro del <form> del consumidor, que pone la card, el csrf y el pie. No pagina ni calcula nada.
+  {% include "components/_tabla_cantidades.html" with filas=filas columnas_info=columnas_info rotulo_cantidad="Cantidad a enviar" caption="Ítems de la entrega" only %}
+Contexto:
+  filas             lista armada por la VISTA: campo (BoundField de la cantidad), nombre, unidad e info.
+                    info = [{texto, nota}], una celda por rótulo de `columnas_info`; texto vacío dibuja «—»; nota (opcional) va
+                    debajo en text-xs text-body-subtle.
+  columnas_info     rótulos de las columnas informativas, en el mismo orden que `info` (lista vacía o ausente: sin columnas).
+  rotulo_item       opcional: rótulo de la primera columna (por defecto «Ítem»; el stock usa «Insumo»).
+  rotulo_cantidad   rótulo de la última columna, la del control.
+  caption           texto para el lector de pantalla (sr-only).
+El control sale de `campo_control` (ARIA desde el servidor): el <label for> es el nombre, la unidad vive en `<auto_id>-ayuda`
+(la nombra aria-describedby) y el error por fila en `<auto_id>-error` con `data-error`, que el guardado AJAX y el servidor llenan.
+Sin `filas` no dibuja nada.
+{% endcomment %}{% if filas %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse">
+    <caption class="sr-only">{{ caption }}</caption>
+    <thead>
+      <tr class="nodo-thead-row">
+        <th class="nodo-th" scope="col">{{ rotulo_item|default:"Ítem" }}</th>
+        {% for rotulo in columnas_info %}<th class="nodo-th text-right" scope="col">{{ rotulo }}</th>{% endfor %}
+        <th class="nodo-th text-right" scope="col">{{ rotulo_cantidad }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fila in filas %}
+      <tr class="hover:bg-secondary">
+        <td class="nodo-td text-heading font-medium">
+          <label for="{{ fila.campo.id_for_label }}">{{ fila.nombre }}</label>
+          <span id="{{ fila.campo.auto_id }}-ayuda" class="block text-xs text-body-subtle">{{ fila.unidad }}</span>
+        </td>
+        {% for celda in fila.info %}
+        <td class="nodo-td text-right">
+          {% if celda.texto %}{{ celda.texto }}{% if celda.nota %}<span class="block text-xs text-body-subtle">{{ celda.nota }}</span>{% endif %}{% else %}—{% endif %}
+        </td>
+        {% endfor %}
+        <td class="nodo-td text-right">
+          {% campo_control fila.campo %}
+          <p id="{{ fila.campo.auto_id }}-error" class="mt-1 text-xs text-fg-danger{% if not fila.campo.errors %} hidden{% endif %}" data-error="{{ fila.campo.name }}">{{ fila.campo.errors|join:" " }}</p>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

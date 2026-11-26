@@ -1,0 +1,40 @@
+{% comment %}
+Tabla de movimientos de stock: una fila por movimiento, ya en texto. Va dentro de la surface del consumidor; no pone card ni paginación.
+  {% include "components/_tabla_movimientos.html" with filas=stock.movimientos caption="Últimos movimientos de stock" only %}
+Contexto:
+  filas     lista armada por la VISTA o el servicio: fecha, tipo_texto, tipo_tono (gray, info, success, warning, danger…), insumo,
+            unidad, cantidad_texto («+8» o «−3», el signo escrito), suma (True: entra, False: sale), queda, quien y detalle.
+  caption   texto para el lector de pantalla (sr-only).
+Cantidad: el signo va en el texto; el color (text-fg-success / text-fg-danger) solo lo refuerza.
+Con `filas` vacío no dibuja nada: el consumidor muestra el estado vacío.
+{% endcomment %}{% if filas %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse">
+    <caption class="sr-only">{{ caption }}</caption>
+    <thead>
+      <tr class="nodo-thead-row">
+        <th class="nodo-th" scope="col">Fecha</th>
+        <th class="nodo-th" scope="col">Tipo</th>
+        <th class="nodo-th" scope="col">Insumo</th>
+        <th class="nodo-th text-right" scope="col">Cantidad</th>
+        <th class="nodo-th text-right" scope="col">Queda</th>
+        <th class="nodo-th" scope="col">Quién</th>
+        <th class="nodo-th" scope="col">Detalle</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fila in filas %}
+      <tr class="hover:bg-secondary">
+        <td class="nodo-td text-body whitespace-nowrap">{{ fila.fecha }}</td>
+        <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.tipo_tono }}">{{ fila.tipo_texto }}</span></td>
+        <td class="nodo-td text-heading font-medium">{{ fila.insumo }}<span class="block text-xs text-body-subtle font-normal">{{ fila.unidad }}</span></td>
+        <td class="nodo-td text-right font-semibold {% if fila.suma %}text-fg-success{% else %}text-fg-danger{% endif %}">{{ fila.cantidad_texto }}</td>
+        <td class="nodo-td text-right text-body">{{ fila.queda }}</td>
+        <td class="nodo-td text-body">{{ fila.quien }}</td>
+        <td class="nodo-td text-body">{{ fila.detalle|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
