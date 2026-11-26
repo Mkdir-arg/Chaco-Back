@@ -55,8 +55,15 @@ CODIGO_PERSONA_SIN_DATOS = "PERSONA_SIN_DATOS"
 _CLAVE_DE_LA_APP = {"item": "item_id"}
 
 
-class _RechazoSerializer(serializers.Serializer):
-    """409 de ``UUID_EN_USO`` y ``STOCK_NO_HABILITADO``: solo el mensaje y el código."""
+class UuidEnUsoSerializer(serializers.Serializer):
+    """409 de ``UUID_EN_USO``: solo el mensaje y el código."""
+
+    detail = serializers.CharField()
+    code = serializers.CharField()
+
+
+class StockNoHabilitadoSerializer(serializers.Serializer):
+    """409 de ``STOCK_NO_HABILITADO``: solo el mensaje y el código."""
 
     detail = serializers.CharField()
     code = serializers.CharField()
@@ -65,8 +72,15 @@ class _RechazoSerializer(serializers.Serializer):
 _CONFLICTOS = OpenApiResponse(
     response=PolymorphicProxySerializer(
         component_name="RechazoDeStock409",
-        serializers=[SaldoInsuficienteSerializer, SaldoCambioSerializer, _RechazoSerializer],
-        resource_type_field_name=None,
+        # El discriminador es `code`: un cuerpo `SALDO_INSUFICIENTE` también tiene `detail` y `code`, así que sin él
+        # los tres esquemas se superponen y `oneOf` no dice cuál es.
+        serializers={
+            "SALDO_INSUFICIENTE": SaldoInsuficienteSerializer,
+            "SALDO_CAMBIO": SaldoCambioSerializer,
+            "UUID_EN_USO": UuidEnUsoSerializer,
+            "STOCK_NO_HABILITADO": StockNoHabilitadoSerializer,
+        },
+        resource_type_field_name="code",
     ),
     description=(
         "`code: SALDO_INSUFICIENTE` (con `saldos` de todas las líneas que salen), `SALDO_CAMBIO` (ajuste: con "
@@ -107,7 +121,8 @@ class _EscrituraDeStockView(_VistaDeStock):
     parser_classes = [JSONParser]
     throttle_classes = [StockEscrituraThrottle]
     envio = None
-    #: Una entrega rechazada por la persona o por el saldo gasta la cuota de identidad (ver ``_descontar_identidad``).
+    #: Una entrega rechazada por la persona, por el saldo o por una institución o un edificio no activos gasta la cuota
+    #: de identidad (ver ``_descontar_identidad``).
     gasta_cuota_de_identidad = False
 
     def puede(self, usuario, dispositivo, edificio_id):
@@ -163,8 +178,8 @@ class _EscrituraDeStockView(_VistaDeStock):
             return None, _respuesta_de_validacion(_errores(_con_claves_de_la_app(error)))
 
     def _descontar_identidad(self):
-        """La entrega rechazada por la persona o por el saldo ya consultó el legajo o el Registro y dice si el DNI
-        existe o figura fallecido: gasta de ``personas_campo`` como el «DNI ya registrado» de ``crear_caso``. La
+        """La entrega rechazada por la persona, por el saldo o por una institución o un edificio no activos
+        (``StockNoHabilitado``) ya consultó el legajo o el Registro y dice si el DNI existe o figura fallecido: gasta de ``personas_campo`` como el «DNI ya registrado» de ``crear_caso``. La
         asentada no gasta; agotada la cuota, contesta 429."""
 
         if not self.gasta_cuota_de_identidad:
