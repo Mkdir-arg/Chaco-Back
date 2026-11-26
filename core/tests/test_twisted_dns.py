@@ -1,4 +1,4 @@
-"""Precondición de la excepción temporal CVE-2026-83813 (PR #988)."""
+"""Precondición de daphne: sigue sin cargar twisted.names (origen de la excepción CVE-2026-83813, ya retirada)."""
 
 import json
 import subprocess
