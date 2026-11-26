@@ -74,6 +74,10 @@ nh3==0.3.7
 channels==4.3.2
 channels-redis==4.1.0
 daphne==4.2.3
+# twisted lo trae daphne. Se pinea para que la imagen no se quede con una versión vieja
+# por la capa cacheada de `pip install`: 26.10.0 es la primera final que corrige las
+# siete advisories que tenían excepción en `security/excepciones.toml` (Cambio 611).
+twisted==26.10.0
 
 # Performance Profiling
 # `zeal` se queda acá y no en `requirements-dev.txt`: `config/settings.py` lo suma a
