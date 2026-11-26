@@ -7,7 +7,8 @@ Lo que lee la app (`Chaco-mobile`) está fijado con **claves exactas** (las cons
 ``test_emergencia_api_m2*``. Este fija lo transversal:
 
 * **H10 / RU-4** — una sola regla de acceso al módulo (``modulo_habilitado``): la usan el
-  login (``"emergencia"`` en ``modulos``) y los permisos del namespace. Agente con
+  login (``"emergencia"`` en ``modulos``), el perfil y las vistas de stock; el resto del namespace exige
+  ``modulo_de_campo_habilitado`` (lo mismo sin sumar a quien solo lleva stock). Agente con
   ``emergencia.relevar``, guardia con ``dispositivo.admitir`` o ``emergencia.recibir_kit``
   **en el Equipo** de un dispositivo, o administrador del programa Dispositivos.
 * **H11** — las claves del login no cambian (``CLAVES_LOGIN`` es el de Becas, importado);
@@ -90,6 +91,7 @@ from programas.tests.base_emergencia_api import (
     URLS_DE_KITS_DEL_BARRIDO,
     URLS_DE_LLEGADAS_DEL_BARRIDO,
     URLS_DE_PLAZAS_DEL_BARRIDO,
+    URLS_DE_STOCK_DEL_BARRIDO,
     BaseApiEmergencia,
     urls_de_la_api_de_becas,
     urls_de_la_api_de_emergencia,
@@ -102,9 +104,16 @@ Estado = CasoEmergencia.Estado
 Prioridad = CasoEmergencia.Prioridad
 
 
-def _accesos(relevar=False, llegadas=False, kits=False, plazas=False):
+def _accesos(relevar=False, llegadas=False, kits=False, plazas=False, stock=False):
     """Lo que contesta ``roles_en_app``: ``dispositivo`` es siempre ``llegadas or kits``."""
-    return {"relevar": relevar, "llegadas": llegadas, "kits": kits, "dispositivo": llegadas or kits, "plazas": plazas}
+    return {
+        "relevar": relevar,
+        "llegadas": llegadas,
+        "kits": kits,
+        "dispositivo": llegadas or kits,
+        "plazas": plazas,
+        "stock": stock,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +288,7 @@ class AccesoAlNamespaceTests(BaseApiEmergencia):
                 + URLS_DE_ESTADIAS_DEL_BARRIDO
                 + URLS_DE_ACCIONES_DE_PLAZA_DEL_BARRIDO
                 + URLS_DE_PLAZAS_DEL_BARRIDO
+                + URLS_DE_STOCK_DEL_BARRIDO
             ),
         )
         self.assertGreaterEqual(len(urls_de_la_api_de_becas()), 5)

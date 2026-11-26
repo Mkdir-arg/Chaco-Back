@@ -16,17 +16,14 @@ backoffice y junto con los demás errores. Las dos reglas propias del canal sí 
 del teléfono no puede ser del futuro (`emergencia_campo.acotar_relevado_en`).
 """
 
-import re
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
-from rest_framework.fields import empty
-from rest_framework.utils import html
 
 from core.validators import ADJUNTO_MAX_BYTES, MENSAJE_ADJUNTO_TAMANIO, firma_coincide
-from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion, EntregaKit, GrupoFamiliar, LineaEntrega
+from programas.models import AdjuntoCaso, CasoEmergencia, Derivacion, GrupoFamiliar
 from programas.selectors.emergencia_mesa import nombre_de
 from programas.services.avisos_emergencia import por_vencer
 from programas.services.emergencia import NECESIDADES
@@ -59,7 +56,7 @@ def validar_foto_de_la_app(archivo):
     return archivo
 
 
-def _texto(**kwargs):
+def texto(**kwargs):
     return serializers.CharField(required=False, allow_blank=True, default="", **kwargs)
 
 
@@ -92,23 +89,23 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     )
 
     # Paso 1 · traslado y responsable
-    traslado = _texto(help_text=f"Obligatorio. Fuerza que traslada: {_TRASLADOS}.")
-    traslado_otro = _texto(help_text="Obligatorio si `traslado` es `OTRA`.")
-    dni = _texto(help_text="Obligatorio. DNI del responsable; se queda solo con los dígitos.")
-    nombre = _texto(
+    traslado = texto(help_text=f"Obligatorio. Fuerza que traslada: {_TRASLADOS}.")
+    traslado_otro = texto(help_text="Obligatorio si `traslado` es `OTRA`.")
+    dni = texto(help_text="Obligatorio. DNI del responsable; se queda solo con los dígitos.")
+    nombre = texto(
         help_text=(
             "Obligatorio si la persona no está en el legajo (alta mínima). Si está, se omite, coincide con el "
             "legajo o va con `identidad_en_conflicto`."
         )
     )
-    apellido = _texto(
+    apellido = texto(
         help_text=(
             "Obligatorio si la persona no está en el legajo (alta mínima). Si está, se omite, coincide con el "
             "legajo o va con `identidad_en_conflicto`."
         )
     )
     fecha_nacimiento = serializers.DateField(required=False, allow_null=True, default=None)
-    telefono = _texto()
+    telefono = texto()
     documento_extraviado = _aviso(help_text="Perdió el documento pero sabe el número.")
     identidad_en_conflicto = _aviso(
         help_text=(
@@ -142,7 +139,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     mascotas = _aviso()
 
     # Paso 4 · ubicación y fotos
-    direccion = _texto(help_text="Obligatoria: calle y número, o una referencia. Hasta 240 caracteres.")
+    direccion = texto(help_text="Obligatoria: calle y número, o una referencia. Hasta 240 caracteres.")
     localidad = serializers.IntegerField(
         required=False, allow_null=True, default=None, help_text="`id` de `GET /api/emergencia/localidades/`."
     )
@@ -151,7 +148,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     precision_m = serializers.FloatField(
         required=False, allow_null=True, default=None, help_text="Precisión del GPS en metros."
     )
-    observaciones = _texto()
+    observaciones = texto()
     foto_vivienda = serializers.FileField(
         required=False,
         allow_null=True,
@@ -240,145 +237,8 @@ class PerfilEmergenciaSerializer(serializers.Serializer):
     plazas = serializers.BooleanField(
         help_text="Ve al menos un edificio con `dispositivo.ver` en su alcance: «Plazas y estadías» (Cambio 596)."
     )
-
-
-# ---------------------------------------------------------------------------
-# M3 · Recepción de kits
-# ---------------------------------------------------------------------------
-
-#: Cómo viaja la cantidad de cada ítem en el multipart de la recepción: `cantidades[<id del ítem>]`.
-CLAVE_DE_CANTIDAD = re.compile(r"^cantidades\[(\d+)\]$")
-MENSAJE_SIN_CANTIDADES = "Indicá cuánto llegó de cada ítem: un campo `cantidades[<id del ítem>]` por línea."
-MENSAJE_CANTIDADES_INVALIDAS = "La cantidad de cada ítem tiene que ser un número entero, cero o más."
-
-
-class MiDispositivoEmergenciaSerializer(serializers.Serializer):
-    """Un dispositivo donde el usuario es de la guardia de Emergencia (RU-5)."""
-
-    id = serializers.IntegerField()
-    nombre = serializers.CharField()
-    entregas_pendientes = serializers.IntegerField(
-        help_text="Entregas de kits que el usuario puede recibir ahí (en camino o preparadas). 0 si solo admite."
-    )
-    plazas_libres = serializers.IntegerField(
-        help_text="Camas libres ahora (PR 8). 0 donde el usuario solo recibe kits y no admite familias."
-    )
-    derivaciones_pendientes = serializers.IntegerField(
-        help_text="Derivaciones por aceptar o rechazar (PR 8). 0 donde el usuario solo recibe kits."
-    )
-    admite = serializers.BooleanField(
-        help_text="El usuario admite familias (`dispositivo.admitir`) en este dispositivo: ofrecer M2 acá."
-    )
-    recibe_kits = serializers.BooleanField(
-        help_text="El usuario recibe kits (`emergencia.recibir_kit`) en este dispositivo: ofrecer M3 acá."
-    )
-
-
-class LineaEntregaKitSerializer(serializers.ModelSerializer):
-    """Un ítem de la entrega: lo enviado y, cuando ya se recibió, lo recibido."""
-
-    item = serializers.IntegerField(source="item_id", read_only=True, help_text="`id` del ítem del catálogo.")
-    nombre = serializers.CharField(source="nombre_visible", read_only=True)
-    enviada = serializers.IntegerField(source="cantidad_enviada", read_only=True)
-    recibida = serializers.IntegerField(
-        source="cantidad_recibida", read_only=True, allow_null=True, help_text="`null` hasta que se recibe."
-    )
-
-    class Meta:
-        model = LineaEntrega
-        fields = ["item", "nombre", "unidad", "enviada", "recibida"]
-        read_only_fields = fields
-
-
-class EntregaKitSerializer(serializers.ModelSerializer):
-    """Una entrega de kits como la ve la guardia: la misma forma en la lista y en el detalle."""
-
-    lineas = LineaEntregaKitSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = EntregaKit
-        fields = [
-            "id",
-            "numero",
-            "estado",
-            "despachada_en",
-            "recibida_en",
-            "observacion_mesa",
-            "observacion_dispositivo",
-            "lineas",
-        ]
-        read_only_fields = fields
-
-
-class _CantidadesField(serializers.DictField):
-    """``{"<id del ítem>": cantidad}``. En multipart, un campo ``cantidades[<id>]`` por ítem."""
-
-    def get_value(self, dictionary):
-        if html.is_html_input(dictionary):
-            cantidades = {}
-            for clave in dictionary:
-                coincide = CLAVE_DE_CANTIDAD.match(clave)
-                if coincide:
-                    cantidades[coincide.group(1)] = dictionary.get(clave)
-            return cantidades or empty
-        return super().get_value(dictionary)
-
-    def run_child_validation(self, data):
-        # Un solo mensaje para el campo, no un dict de errores por ítem: el 400 de la app es
-        # una lista de mensajes por clave.
-        try:
-            return super().run_child_validation(data)
-        except serializers.ValidationError:
-            raise serializers.ValidationError(MENSAJE_CANTIDADES_INVALIDAS) from None
-
-
-class RecepcionKitEnvioSerializer(serializers.Serializer):
-    """Cuerpo multipart de ``POST /api/emergencia/entregas/{id}/recibir/``.
-
-    Acá solo se mira **la forma** (que el identificador sea un UUID, que las cantidades sean
-    enteros). Las reglas —una cantidad por cada línea, el remito obligatorio en JPEG de hasta
-    5 MB, el estado de la entrega, el alcance— son de ``recibir_entrega``, la misma función
-    que usa la recepción web (RU-2): por eso el remito no es obligatorio en este nivel.
-    """
-
-    uuid_cliente = serializers.UUIDField(
-        help_text="Identificador de la recepción, generado en el celular. Reenviarlo no la repite."
-    )
-    cantidades = _CantidadesField(
-        child=serializers.IntegerField(min_value=0),
-        error_messages={"required": MENSAJE_SIN_CANTIDADES},
-        help_text=(
-            "Cuánto llegó de **cada** ítem de la entrega, aunque sea 0. En multipart, un campo "
-            "`cantidades[<id del ítem>]` por línea (p. ej. `cantidades[12]=8`)."
-        ),
-    )
-    remito = serializers.FileField(
-        required=False,
-        allow_null=True,
-        default=None,
-        help_text="Obligatorio. Foto del remito en JPEG, hasta 5 MB. HEIC/HEIF se convierten en la app.",
-    )
-    observacion = _texto(help_text="Lo que la mesa tiene que saber de esta entrega. Opcional.")
-
-    def cantidades_por_item(self):
-        """``{item_id: cantidad}`` con las claves como enteros: lo que recibe ``recibir_entrega``."""
-        return {int(item_id): cantidad for item_id, cantidad in self.validated_data["cantidades"].items()}
-
-
-class DiferenciaDeRecepcionSerializer(serializers.Serializer):
-    item = serializers.IntegerField(help_text="`id` del ítem del catálogo.")
-    enviada = serializers.IntegerField()
-    recibida = serializers.IntegerField()
-
-
-class RecepcionKitRespuestaSerializer(serializers.Serializer):
-    """«Recibida · 2 ítems con diferencia» (M3-2): el estado final y lo que difirió."""
-
-    estado = serializers.ChoiceField(
-        choices=EntregaKit.Estado.choices, help_text="`RECIBIDA` o `RECIBIDA_CON_DIFERENCIAS`."
-    )
-    diferencias = DiferenciaDeRecepcionSerializer(
-        many=True, help_text="Las líneas con `recibida` distinta de `enviada`. Vacía si llegó completa."
+    stock = serializers.BooleanField(
+        help_text="Ve el stock (`stock.ver`) de al menos un edificio de una institución que lleva stock: «Stock»."
     )
 
 
@@ -771,8 +631,8 @@ class AceptacionSerializer(serializers.Serializer):
 
 
 class RechazarDerivacionEnvioSerializer(serializers.Serializer):
-    motivo = _texto(help_text="Obligatorio: `SIN_PLAZAS`, `NO_CUMPLE_PERFIL`, `NO_LLEGO` u `OTRO`.")
-    observacion = _texto(help_text="Obligatoria con `OTRO`.")
+    motivo = texto(help_text="Obligatorio: `SIN_PLAZAS`, `NO_CUMPLE_PERFIL`, `NO_LLEGO` u `OTRO`.")
+    observacion = texto(help_text="Obligatoria con `OTRO`.")
 
 
 class RechazoSerializer(serializers.Serializer):
@@ -864,23 +724,23 @@ class AlojarFamiliaEnvioSerializer(serializers.Serializer):
     sector = serializers.IntegerField(
         required=False, allow_null=True, default=None, help_text="`id` de un sector del dispositivo (`…/plazas/`)."
     )
-    aula = _texto(help_text="Aula o dormitorio. Hasta 80 caracteres.")
+    aula = texto(help_text="Aula o dormitorio. Hasta 80 caracteres.")
     tarjeta_entregada = _aviso()
-    tarjeta_numero = _texto(help_text="Obligatorio si `tarjeta_entregada`. Hasta 40 caracteres.")
-    encargado = _texto(
+    tarjeta_numero = texto(help_text="Obligatorio si `tarjeta_entregada`. Hasta 40 caracteres.")
+    encargado = texto(
         help_text="Obsoleto: se ignora. Quien recibe es siempre el usuario autenticado (se guarda su id y su nombre)."
     )
 
 
 class CerrarConDiferenciaEnvioSerializer(serializers.Serializer):
     derivacion = _derivacion_vista()
-    motivo = _texto(help_text="Obligatorio: `QUEDO_CON_FAMILIARES`, `NO_LLEGO`, `DERIVADO_A_SALUD` u `OTRO`.")
-    observacion = _texto(help_text="Obligatoria con `OTRO`.")
+    motivo = texto(help_text="Obligatorio: `QUEDO_CON_FAMILIARES`, `NO_LLEGO`, `DERIVADO_A_SALUD` u `OTRO`.")
+    observacion = texto(help_text="Obligatoria con `OTRO`.")
 
 
 class CancelarIngresoEnvioSerializer(serializers.Serializer):
     derivacion = _derivacion_vista()
-    motivo = _texto(help_text="Obligatorio, hasta 200 caracteres.")
+    motivo = texto(help_text="Obligatorio, hasta 200 caracteres.")
 
 
 class CierreDeIngresoSerializer(serializers.Serializer):
@@ -940,7 +800,7 @@ class IngresoDirectoEnvioSerializer(CasoEmergenciaEnvioSerializer):
     """
 
     relevado_en = None
-    direccion = _texto(help_text="Opcional: sin ella va el domicilio del dispositivo. Hasta 240 caracteres.")
+    direccion = texto(help_text="Opcional: sin ella va el domicilio del dispositivo. Hasta 240 caracteres.")
 
 
 class IngresoDirectoSerializer(serializers.Serializer):

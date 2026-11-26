@@ -251,8 +251,9 @@ class ObtainCampoToken(ObtainAuthToken):
         # no abre nada por sí solo: cada recurso exige su capacidad (`CampoBecasPermission`,
         # `CampoInspeccionPermission`), así que ninguna de las dos abre la otra.
         # Tercera vía (módulo Emergencia): el agente territorial con `emergencia.relevar` y la
-        # guardia de un dispositivo. La regla es una sola función, la misma que usan los
-        # permisos de `/api/emergencia/`: el login no ofrece un módulo que después da 403.
+        # guardia de un dispositivo. La regla es una sola función, la misma que usan el
+        # perfil y las vistas de stock de `/api/emergencia/` (el resto exige `modulo_de_campo_habilitado`): el login no
+        # ofrece un módulo que después da 403.
         abre_becas = puede(user, CAP)
         abre_dispositivos = puede_en_programa_dispositivos(user, CAP_RELEVAR)
         abre_emergencia = modulo_habilitado(user)

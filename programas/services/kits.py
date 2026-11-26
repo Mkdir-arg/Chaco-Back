@@ -1,7 +1,10 @@
 """Entregas de kits de Emergencia: armar, marcar en camino, cancelar, recibir y observar (etapa 4).
 
-**Una entrega, una recepción.** No hay stock ni depósitos (RN-4.6): nada de este módulo
-suma ni descuenta existencias, y las cantidades son lo que dice un remito.
+**Una entrega, una recepción.** Antes (RN-4.6) no había stock: las cantidades eran lo que decía un remito. El
+módulo Stock (análisis 010, RN-010-06) **revirtió** esa regla: cuando el tipo de la institución lleva stock, lo
+recibido se suma al stock de su edificio, dentro de la misma transacción que la recepción
+(:func:`recibir_entrega` → ``stock.sumar_recepcion_de_kit``). Una institución que no lleva stock se comporta como
+siempre. Este módulo **solo suma**: nunca descuenta, y ``stock`` es quien guarda saldos y movimientos.
 
 **Toda regla de la entrega vive acá.** La mesa (E4, E5), la recepción web dentro del
 dispositivo y la API de la app (M3) llaman a estas mismas funciones (RU-2). Lo que se lee
@@ -44,6 +47,11 @@ un ciclo de tres. El dispositivo va antes que el edificio porque «inactivar» y
 Dispositivo → Edificio, y el ``INSERT`` pide un candado compartido sobre el dispositivo (FK). Las demás transiciones
 bloquean solo la entrega (recibir sigue con el dispositivo). Ninguna toma el numerador y *después* una entrega, así que
 no hay orden que cruzar.
+
+``recibir_entrega`` sigue el orden de RN-010-19 (entrega → Dispositivo → Edificio → SaldoStock): bloquea la entrega, si
+hay que elegir edificio toma el Dispositivo y después el Edificio antes de escribir, y ``stock`` toma los saldos al
+final. ``stock`` importa de este módulo, así que acá se lo importa **dentro** de la función (import circular).
+
 La carrera cancelar / recibir se resuelve sobre la misma fila: gana quien llega primero al
 candado y el otro lee el estado nuevo y recibe :class:`EstadoCambioEntrega`. Las carreras
 contra el motor real están en ``programas.tests.test_emergencia_kits`` con ``@tag("mysql")``
@@ -71,7 +79,7 @@ from programas.models import (
 )
 from programas.services.bitacora import anotar_novedad_automatica
 from programas.services.bitacora_detalle import plural
-from programas.services.dispositivos import puede_operar_edificio
+from programas.services.dispositivos import alcance_de_edificios, puede_operar_edificio
 from programas.services.emergencia import EstadoCambio, UuidEnUso, siguiente_correlativo
 from programas.services.emergencia_comun import _hora
 from programas.services.emergencia_programa import CAP_RECIBIR_KIT, puede_operar_la_mesa
@@ -111,6 +119,16 @@ EDIFICIO_INACTIVO = (
     "El edificio {nombre} está inactivo y no recibe entregas nuevas. "
     "Reactivalo o, si el dispositivo tiene otro edificio, elegí ese."
 )
+SIN_EDIFICIO_PARA_EL_STOCK = (
+    "{nombre} lleva stock y no tiene un edificio activo: vinculale uno antes de enviarle kits, "
+    "porque lo que reciba se suma al stock de su edificio."
+)
+SIN_EDIFICIO_PARA_RECIBIR = (
+    "{nombre} lleva stock y no tiene un edificio activo: vinculale uno para recibir esta entrega, "
+    "porque lo que llegue se suma al stock de su edificio."
+)
+ELEGI_EL_EDIFICIO_DE_LA_RECEPCION = "Elegí en qué edificio se recibe: lo recibido se suma al stock de ese edificio."
+EDIFICIO_NO_ES_DEL_DISPOSITIVO = "El edificio tiene que ser uno de los edificios vinculados a este dispositivo."
 SIN_DIFERENCIA_QUE_CERRAR = "La entrega {numero} no tiene una diferencia para cerrar."
 DIFERENCIA_YA_CERRADA = "La diferencia de la entrega {numero} ya está cerrada ({como}). Recargá la pantalla."
 FALTA_EL_MOTIVO = "Indicá por qué se cancela la entrega."
@@ -374,6 +392,10 @@ def _edificio_de_la_entrega(destino, edificio, original):
             raise ValidationError({"edificio": "El edificio tiene que estar vinculado al dispositivo destino."})
         return _exigir_edificio_activo(pk)
     if original is not None and original.edificio_id is not None:
+        if suma_al_stock(destino) and not vinculados.filter(pk=original.edificio_id).exists():
+            # El edificio de la original se desvinculó después: con stock, recibir la reposición exige un edificio
+            # vinculado (`stock._preparar`), así que se rechaza acá y no al recibir.
+            raise ValidationError({"edificio": EDIFICIO_NO_ES_DEL_DISPOSITIVO})
         return _exigir_edificio_activo(original.edificio_id)
     activos = list(vinculados.filter(activo=True).values_list("pk", flat=True)[:2])
     if len(activos) > 1:
@@ -472,6 +494,10 @@ def crear_entrega(
             raise
         return existente
     edificio_id = _edificio_de_la_entrega(destino, edificio, original)
+    if edificio_id is None and suma_al_stock(destino):
+        # RN-010-07: lo que reciba se suma al stock de un edificio, así que no se envía a una institución con stock que
+        # no tiene a cuál sumarlo. Se pide vincular uno (decisión 10).
+        raise ValidationError({"edificio": SIN_EDIFICIO_PARA_EL_STOCK.format(nombre=destino.nombre)})
 
     ahora = timezone.now()
     try:
@@ -665,9 +691,74 @@ def _exigir_uuid_libre(uuid_cliente, entrega):
         raise UuidEnUso(UUID_EN_USO)
 
 
+def suma_al_stock(dispositivo):
+    """Si lo que se recibe en ``dispositivo`` se suma al stock (RN-010-06): el tipo de la institución lleva stock.
+
+    Es el predicado de ``stock.lleva_stock`` (importado acá y no arriba: ``stock`` importa de este módulo); los demás
+    lugares de ``kits`` lo piden por esta función y no repiten la regla.
+    """
+
+    from programas.services import stock
+
+    return stock.lleva_stock(dispositivo)
+
+
+def requiere_edificio_al_recibir(entrega):
+    """¿Quien recibe ``entrega`` tiene que elegir el edificio? Sí si **no tiene edificio** y la institución lleva stock.
+
+    La única escritura de esta regla (RN-010-07): la aplican :func:`edificios_para_recibir`, :func:`recibir_entrega` y
+    el ``requiere_edificio`` que lee la app.
+    """
+
+    return entrega.edificio_id is None and bool(suma_al_stock(entrega.dispositivo))
+
+
+def edificios_para_recibir(usuario, entrega):
+    """Entre qué edificios elige quien recibe ``entrega``, o ``[]`` si no hay nada que elegir (RN-010-07).
+
+    Solo se elige cuando la entrega **no tiene edificio** (anteriores al Cambio 523) y la institución lleva stock: los
+    edificios activos vinculados a la institución que alcanza ``usuario`` con ``emergencia.recibir_kit``. Es la misma
+    regla que aplica :func:`recibir_entrega`; la pantalla solo la dibuja.
+    """
+
+    from programas.models import Edificio
+
+    if not requiere_edificio_al_recibir(entrega):
+        return []
+    alcance = alcance_de_edificios(usuario, entrega.dispositivo, CAP_RECIBIR_KIT)
+    activos = Edificio.objects.filter(dispositivos=entrega.dispositivo, activo=True).order_by("nombre")
+    return [edificio for edificio in activos if alcance.permite(edificio.pk)]
+
+
+def _edificio_de_la_recepcion(usuario, entrega, edificio):
+    """El edificio en que se recibe una entrega que no lo tenía, en una institución que lleva stock (RN-010-07).
+
+    Lo elige quien recibe: tiene que estar vinculado a la institución, activo y dentro del alcance de
+    ``emergencia.recibir_kit``. Toma los candados en el orden del módulo (entrega ya tomada → Dispositivo → Edificio) y
+    **relee** el vínculo y el estado bajo ellos: «Inactivar» y «Desvincular» edificio piden ese mismo orden. Un edificio
+    ajeno o fuera de alcance da el mismo rechazo que uno inexistente. Devuelve el pk.
+    """
+
+    from programas.models import Edificio
+
+    pk = _entero(getattr(edificio, "pk", edificio))
+    if pk is None:
+        if not Edificio.objects.filter(dispositivos=entrega.dispositivo_id, activo=True).exists():
+            # Sin edificios activos no hay qué elegir (la pantalla no dibuja el desplegable): se dice qué falta.
+            raise ValidationError({"edificio": SIN_EDIFICIO_PARA_RECIBIR.format(nombre=entrega.dispositivo.nombre)})
+        raise ValidationError({"edificio": ELEGI_EL_EDIFICIO_DE_LA_RECEPCION})
+    Dispositivo.objects.select_for_update().filter(pk=entrega.dispositivo_id).first()
+    vinculado = Edificio.dispositivos.through.objects.filter(dispositivo_id=entrega.dispositivo_id, edificio_id=pk)
+    # `puede_recibir` ya exigió alcance sobre TODA la institución (la entrega no tiene edificio), así que esta guarda no
+    # debería dispararse hoy: queda como defensa en profundidad por si esa regla se afina por edificio.
+    if not vinculado.exists() or not puede_operar_edificio(usuario, entrega.dispositivo, pk, CAP_RECIBIR_KIT):
+        raise ValidationError({"edificio": EDIFICIO_NO_ES_DEL_DISPOSITIVO})
+    return _exigir_edificio_activo(pk)
+
+
 @archivos_atomicos
 @transaction.atomic
-def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_cliente=None):
+def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_cliente=None, edificio=None):
     """El dispositivo confirma qué llegó (HU-4.3). Deja la entrega ``RECIBIDA`` o ``RECIBIDA_CON_DIFERENCIAS``.
 
     1. **Alcance** (RN-4.8): ``emergencia.recibir_kit`` con ``puede_operar_dispositivo``
@@ -684,7 +775,12 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
        clave (``cantidades``, ``remito``, ``uuid_cliente``).
     5. Estado final: ``RECIBIDA_CON_DIFERENCIAS`` si alguna línea tiene
        ``recibida != enviada`` —llegar de más también es una diferencia—.
-    6. Traza, y la novedad ``GENERAL`` automática «Kit recibido N.° X» en la bitácora del
+    6. **Stock** (RN-010-06, revierte RN-4.6): si el tipo de la institución lleva stock, lo recibido (cada línea
+       mayor que 0) se suma al stock del edificio de la entrega con ``stock.sumar_recepcion_de_kit``, en esta misma
+       transacción: si la suma falla, la entrega no queda recibida. Una entrega **sin edificio** (anteriores al
+       Cambio 523) pide ``edificio`` —uno vinculado, activo y dentro del alcance—, que se guarda en la entrega; sin él,
+       ``ValidationError`` en la clave ``edificio``. La rama idempotente no suma; una institución sin stock no se toca.
+    7. Traza, y la novedad ``GENERAL`` automática «Kit recibido N.° X» en la bitácora del
        dispositivo (RU-15); sin turno vigente no se escribe, como toda automática.
 
     El archivo y la fila son una sola unidad (``archivos_atomicos``): si algo falla, el
@@ -707,6 +803,12 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
     validar_remito(remito)
     if uuid_cliente is not None:
         _exigir_uuid_libre(uuid_cliente, bloqueada)
+
+    lleva_stock = suma_al_stock(bloqueada.dispositivo)
+    edificio_elegido = None
+    if requiere_edificio_al_recibir(bloqueada):
+        edificio_elegido = _edificio_de_la_recepcion(usuario, bloqueada, edificio)
+        bloqueada.edificio_id = edificio_elegido
 
     ahora = timezone.now()
     anterior = bloqueada.estado
@@ -734,12 +836,18 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
                     "uuid_cliente_recepcion",
                     "remito",
                     "modificado",
+                    *(["edificio"] if edificio_elegido is not None else []),
                 ]
             )
     except IntegrityError:
         raise UuidEnUso(UUID_EN_USO) from None
     anotar_archivo_escrito(bloqueada.remito, asignado=remito)
     LineaEntrega.objects.bulk_update(lineas, ["cantidad_recibida", "modificado"])
+    if lleva_stock:
+        # Después de guardar las líneas (la suma las lee de la base) y antes de la novedad. Perezoso: `stock` importa de acá.
+        from programas.services import stock
+
+        stock.sumar_recepcion_de_kit(bloqueada, usuario)
 
     if con_diferencia:
         detalle = "1 ítem con diferencia" if con_diferencia == 1 else f"{con_diferencia} ítems con diferencia"
