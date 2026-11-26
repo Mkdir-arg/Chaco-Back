@@ -43,7 +43,8 @@ def ids_con_cantidad(datos):
     for clave, valor in datos.items():
         if clave.startswith(PREFIJO_CANTIDAD) and str(valor).strip():
             resto = clave[len(PREFIJO_CANTIDAD) :]
-            if resto.isdigit():
+            # `isdigit` deja pasar «²» y `int()` lo rechaza: solo dígitos ASCII, para que un POST armado a mano no dé 500.
+            if resto.isascii() and resto.isdecimal():
                 ids.append(int(resto))
     return ids
 

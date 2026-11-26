@@ -93,9 +93,9 @@ def aviso_sin_edificio_activo(dispositivo, url_vincular=""):
 def _url_de_accion(nombre_de_ruta, dispositivo, edificio):
     """La ruta de una acción, o ``""`` si todavía no existe.
 
-    «Entregar a persona» llegó con el PR 5; ``stock_ingresar``, ``stock_traspasar`` y ``stock_ajustar`` llegan con el
-    PR 6, y ese PR **retira** este ``except``: con todas las rutas, un nombre mal escrito tiene que romper, no esconder
-    el botón. Mientras tanto un test fija que cada nombre existente resuelve (``RutasDeStockTests``).
+    «Entregar a persona» llegó con el PR 5 y ``stock_ingresar`` y ``stock_traspasar`` con el PR 6a; ``stock_ajustar``
+    llega con el PR 6b, y ese PR **retira** este ``except``: con todas las rutas, un nombre mal escrito tiene que
+    romper, no esconder el botón. Mientras tanto un test fija que cada nombre existente resuelve (``RutasDeStockTests``).
     """
 
     try:
@@ -104,11 +104,12 @@ def _url_de_accion(nombre_de_ruta, dispositivo, edificio):
         return ""
 
 
-def _acciones(user, dispositivo, edificio):
+def _acciones(user, dispositivo, edificio, ve):
     """Los botones del panel, **solo** los que ``user`` puede usar hoy sobre este edificio: ``[{texto, icono, url, variante}]``.
 
     Un edificio inactivo no ofrece ninguna (no puede tener saldo: RN-010-15). Con la institución no activa solo
-    queda traspasar y ajustar, para vaciar lo que quede (RN-010-14).
+    queda traspasar y ajustar, para vaciar lo que quede (RN-010-14). ``ve`` es ``stock.ver`` sobre el edificio, leído
+    **una** vez por la página: sin él no hay botones, y con él no se vuelve a leer por cada uno.
     """
 
     if not edificio.activo:
@@ -127,11 +128,20 @@ def _acciones(user, dispositivo, edificio):
         ("dispositivos:stock_traspasar", "Traspasar", "fa-right-left", "secondary", servicio.puede_ingresar, False),
     )
     acciones = []
+    if not ve:
+        return acciones
+    decididos = {}
     for ruta, texto, icono, variante, permiso, exige_activa in candidatas:
         if exige_activa and not institucion_activa:
             continue
         url = _url_de_accion(ruta, dispositivo, edificio)
-        if url and permiso(user, dispositivo, edificio.pk):
+        if not url:
+            continue
+        # ``stock.ver`` ya se comprobó una vez para todos los botones, y cada permiso se decide una vez aunque lo
+        # compartan dos (Ingresar y Traspasar piden ``stock.ingresar``): el alcance por edificios cuesta consultas.
+        if permiso not in decididos:
+            decididos[permiso] = permiso(user, dispositivo, edificio.pk, ya_ve=True)
+        if decididos[permiso]:
             acciones.append({"texto": texto, "icono": icono, "url": url, "variante": variante})
     return acciones
 
@@ -211,13 +221,14 @@ def contexto_de_la_solapa(user, dispositivo, edificio):
     """Lo que dibuja el panel: ``resumen``, ``filas`` de saldo, ``movimientos`` y los botones que ``user`` puede usar."""
 
     saldos = list(selectores.saldos_de(dispositivo, edificio))
+    ve = servicio.puede_ver_stock(user, dispositivo, edificio.pk)
     puede_ver_persona = puede(user, CAP_VER_CIUDADANO)
     movimientos = selectores.movimientos_de(dispositivo, edificio, con_persona=puede_ver_persona)[
         :MOVIMIENTOS_EN_LA_SOLAPA
     ]
     url_ajustar = (
         _url_de_accion("dispositivos:stock_ajustar", dispositivo, edificio)
-        if edificio.activo and servicio.puede_ajustar(user, dispositivo, edificio.pk)
+        if ve and edificio.activo and servicio.puede_ajustar(user, dispositivo, edificio.pk, ya_ve=True)
         else ""
     )
     sin_existencia = sum(1 for saldo in saldos if saldo.cantidad == 0)
@@ -226,7 +237,7 @@ def contexto_de_la_solapa(user, dispositivo, edificio):
         "resumen": texto_de_resumen(len(saldos), sin_existencia),
         "filas": [_fila_de_saldo(saldo, url_ajustar) for saldo in saldos],
         "movimientos": [fila_de_movimiento(m, puede_ver_persona=puede_ver_persona) for m in movimientos],
-        "acciones": _acciones(user, dispositivo, edificio),
+        "acciones": _acciones(user, dispositivo, edificio, ve),
         "puede_ajustar": bool(url_ajustar),
     }
 

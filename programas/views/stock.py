@@ -31,20 +31,43 @@ from django.views import View
 
 from core import rbac
 from programas.forms_cantidades import ids_con_cantidad
-from programas.forms_stock import EntregaPersonaForm, PersonaForm
+from programas.forms_stock import (
+    DestinoForm,
+    EntregaPersonaForm,
+    IngresoForm,
+    PersonaForm,
+    TraspasoForm,
+    valor_de_destino,
+)
 from programas.selectors import stock as selectores
 from programas.services import stock as servicio
-from programas.services.dispositivos import CAP_STOCK_ENTREGAR, dispositivos_en_alcance, puede_operar_edificio
+from programas.services.dispositivos import (
+    CAP_STOCK_ENTREGAR,
+    CAP_STOCK_INGRESAR,
+    dispositivos_en_alcance,
+    puede_operar_edificio,
+)
 from programas.services.edificio_operativo import edificio_de_la_institucion
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.stock_personas import PersonaSinDatos, filas_de_historial, texto_de_la_persona
 
 TEMPLATE_ENTREGAR = "programas/dispositivos/stock/entregar.html"
+TEMPLATE_INGRESAR = "programas/dispositivos/stock/ingresar.html"
+TEMPLATE_TRASPASAR = "programas/dispositivos/stock/traspasar.html"
 AUTO_ID_ENTREGA = "entrega_%s"
+AUTO_ID_INGRESO = "ingreso_%s"
+AUTO_ID_TRASPASO = "traspaso_%s"
+COLUMNAS_EN_STOCK = ["En stock"]
 
 
-class EntregarAPersonaView(LoginRequiredMixin, View):
-    """«Entregar a persona»: descuenta insumos del stock de un edificio y los asienta a nombre de una persona."""
+class _OperarStockView(LoginRequiredMixin, View):
+    """Lo común de las pantallas que operan el stock de **un edificio**: el lugar, sus dos 4xx y las URL de vuelta.
+
+    ``CAPACIDAD`` es la que abre la pantalla (``stock.entregar``, ``stock.ingresar``); cada subclase suma lo suyo a
+    ``_puede_abrir``. La acción vuelve a exigir todo en el servicio.
+    """
+
+    CAPACIDAD = None
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -52,10 +75,15 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
         self.dispositivo, self.edificio = self._lugar(request.user, kwargs["pk"], kwargs["edificio_pk"])
         return super().dispatch(request, *args, **kwargs)
 
-    def _lugar(self, usuario, dispositivo_pk, edificio_pk):
-        """``(institución, edificio)`` sobre los que ``usuario`` entrega, o 403 / 404 (ver el docstring del módulo)."""
+    def _puede_abrir(self, usuario, dispositivo, edificio):
+        """Lo que la pantalla exige **además** de operar el edificio: ``stock.ver`` ahí. Sin esto, 403."""
 
-        en_alcance = dispositivos_en_alcance(usuario, CAP_STOCK_ENTREGAR)
+        return servicio.puede_ver_stock(usuario, dispositivo, edificio.pk)
+
+    def _lugar(self, usuario, dispositivo_pk, edificio_pk):
+        """``(institución, edificio)`` sobre los que ``usuario`` opera, o 403 / 404 (ver el docstring del módulo)."""
+
+        en_alcance = dispositivos_en_alcance(usuario, self.CAPACIDAD)
         dispositivo = en_alcance.select_related("tipo").filter(pk=dispositivo_pk).first()
         if dispositivo is None:
             if not en_alcance.exists():
@@ -65,38 +93,64 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
         if (
             edificio is None
             or not servicio.lleva_stock(dispositivo)
-            or not puede_operar_edificio(usuario, dispositivo, edificio.pk, CAP_STOCK_ENTREGAR)
+            or not puede_operar_edificio(usuario, dispositivo, edificio.pk, self.CAPACIDAD)
         ):
             raise Http404("Ese edificio no es de esta institución o no está en tu alcance.")
-        if not (servicio.puede_ver_stock(usuario, dispositivo, edificio.pk) and rbac.puede(usuario, CAP_VER_CIUDADANO)):
+        if not self._puede_abrir(usuario, dispositivo, edificio):
             raise PermissionDenied
         return dispositivo, edificio
 
     def _url_stock(self):
         return reverse("dispositivos:edificio_operativo", args=[self.dispositivo.pk, self.edificio.pk]) + "?tab=stock"
 
-    def _url_entregar(self):
-        return reverse("dispositivos:stock_entregar", args=[self.dispositivo.pk, self.edificio.pk])
-
     def _saldos(self, cargados=()):
         """Los insumos con fila: los que **hoy** tienen saldo en este edificio **más** los que llegan cargados (una consulta).
 
         Un insumo que llegó a 0 entre el GET y el POST conserva su fila: el servicio contesta ``SaldoInsuficiente`` y
-        la pantalla dice «Hay 0 y pediste 3» en vez de entregar el resto sin avisar.
+        la pantalla dice «Hay 0 y pediste 3» en vez de operar el resto sin avisar.
         """
 
         cargados = set(cargados)
         return [
-            saldo
+            (saldo.item, saldo.cantidad)
             for saldo in selectores.saldos_de(self.dispositivo, self.edificio)
             if saldo.cantidad > 0 or saldo.item_id in cargados
         ]
+
+    def _terminada(self, request, operacion, hecho, ya_estaba):
+        """Éxito, o reenvío del mismo ``uuid_cliente`` (``ya_existia``): en los dos casos vuelve a la solapa Stock."""
+
+        if getattr(operacion, "ya_existia", False):
+            messages.info(request, ya_estaba)
+        else:
+            messages.success(request, hecho)
+        return redirect(self._url_stock())
+
+    @staticmethod
+    def _con_otro_identificador(datos):
+        """Una copia de ``datos`` con un ``uuid_cliente`` nuevo: el reintento tras ``UuidEnUso`` es una operación nueva."""
+
+        datos = datos.copy()
+        datos["uuid_cliente"] = str(uuid4())
+        return datos
+
+
+class EntregarAPersonaView(_OperarStockView):
+    """«Entregar a persona»: descuenta insumos del stock de un edificio y los asienta a nombre de una persona."""
+
+    CAPACIDAD = CAP_STOCK_ENTREGAR
+
+    def _puede_abrir(self, usuario, dispositivo, edificio):
+        return super()._puede_abrir(usuario, dispositivo, edificio) and rbac.puede(usuario, CAP_VER_CIUDADANO)
+
+    def _url_entregar(self):
+        return reverse("dispositivos:stock_entregar", args=[self.dispositivo.pk, self.edificio.pk])
 
     def _form_entrega(self, datos=None, initial=None):
         """El formulario de la entrega con los saldos de ahora. ``auto_id`` propio: los ocultos repiten los ids del GET."""
 
         cargados = ids_con_cantidad(datos) if datos is not None else ()
-        return EntregaPersonaForm(datos, initial=initial, saldos=self._saldos(cargados), auto_id=AUTO_ID_ENTREGA)
+        return EntregaPersonaForm(datos, initial=initial, insumos=self._saldos(cargados), auto_id=AUTO_ID_ENTREGA)
 
     def _pantalla(self, request, persona_form, form=None, persona=None, historial=(), status=200):
         contexto = {
@@ -113,9 +167,9 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
                 texto_persona=texto_de_la_persona(persona),
                 historial=filas_de_historial(historial),
                 tope_historial=selectores.HISTORIAL_DE_PERSONA,
-                filas=form.filas() if form.saldos else [],
-                columnas_info=["En stock"],
-                sin_insumos=not form.saldos,
+                filas=form.filas() if form.insumos else [],
+                columnas_info=COLUMNAS_EN_STOCK,
+                sin_insumos=not form.insumos,
             )
         return render(request, TEMPLATE_ENTREGAR, contexto, status=status)
 
@@ -193,9 +247,7 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
             except servicio.UuidEnUso as error:
                 # Ese identificador ya fue de otra operación: se regenera para que el reintento sea una entrega nueva.
                 resuelta = getattr(error, "persona", None)
-                datos = request.POST.copy()
-                datos["uuid_cliente"] = str(uuid4())
-                form = self._form_entrega(datos)
+                form = self._form_entrega(self._con_otro_identificador(request.POST))
                 form.full_clean()
                 form.agregar_errores_del_servicio(error)
             except PersonaSinDatos as error:
@@ -210,10 +262,162 @@ class EntregarAPersonaView(LoginRequiredMixin, View):
         return self._mostrar_persona(request, persona_form, lambda: form, resuelta)
 
     def _entregada(self, request, operacion):
-        """Éxito, o reenvío del mismo ``uuid_cliente`` (``ya_existia``): en los dos casos vuelve a la solapa Stock."""
+        return self._terminada(
+            request,
+            operacion,
+            "Entrega registrada: el stock del edificio ya está descontado.",
+            "Esa entrega ya estaba registrada: no se descontó dos veces.",
+        )
 
-        if getattr(operacion, "ya_existia", False):
-            messages.info(request, "Esa entrega ya estaba registrada: no se descontó dos veces.")
-        else:
-            messages.success(request, "Entrega registrada: el stock del edificio ya está descontado.")
-        return redirect(self._url_stock())
+
+class IngresarStockView(_OperarStockView):
+    """«Ingresar stock»: suma insumos al stock de un edificio con su origen (donación, compra…) y un comprobante de texto."""
+
+    CAPACIDAD = CAP_STOCK_INGRESAR
+
+    def _url_ingresar(self):
+        return reverse("dispositivos:stock_ingresar", args=[self.dispositivo.pk, self.edificio.pk])
+
+    def _form(self, datos=None):
+        """Con los insumos activos de ahora. ``auto_id`` propio, como en Entregar."""
+
+        insumos = selectores.insumos_para_ingresar(self.dispositivo, self.edificio)
+        return IngresoForm(datos, insumos=insumos, auto_id=AUTO_ID_INGRESO)
+
+    def _pantalla(self, request, form, status=200):
+        contexto = {
+            "dispositivo": self.dispositivo,
+            "edificio": self.edificio,
+            "form": form,
+            "filas": form.filas(),
+            "columnas_info": COLUMNAS_EN_STOCK,
+            "sin_insumos": not form.insumos,
+            "url_stock": self._url_stock(),
+            "url_ingresar": self._url_ingresar(),
+        }
+        return render(request, TEMPLATE_INGRESAR, contexto, status=status)
+
+    def get(self, request, **_url):
+        return self._pantalla(request, self._form())
+
+    def post(self, request, **_url):
+        form = self._form(request.POST)
+        if form.is_valid():
+            datos = form.cleaned_data
+            try:
+                operacion = servicio.ingresar_manual(
+                    request.user,
+                    self.dispositivo,
+                    self.edificio,
+                    form.lineas(),
+                    datos["origen"],
+                    origen_detalle=datos["origen_detalle"],
+                    comprobante=datos["comprobante"],
+                    uuid_cliente=datos["uuid_cliente"],
+                )
+            except servicio.UuidEnUso as error:
+                form = self._form(self._con_otro_identificador(request.POST))
+                form.full_clean()
+                form.agregar_errores_del_servicio(error)
+            except ValidationError as error:
+                form.agregar_errores_del_servicio(error)
+            else:
+                return self._terminada(
+                    request,
+                    operacion,
+                    "Ingreso registrado: el stock del edificio ya está sumado.",
+                    "Ese ingreso ya estaba registrado: no se sumó dos veces.",
+                )
+        return self._pantalla(request, form)
+
+
+class TraspasarStockView(_OperarStockView):
+    """«Traspasar stock»: pasa insumos de este edificio a otro lugar del alcance de quien traspasa, de inmediato.
+
+    Un GET ``?destino=`` elige el destino de los que da ``destinos_de_traspaso`` (no escribe nada); el POST lo lleva
+    en un oculto y el servicio lo vuelve a validar.
+    """
+
+    CAPACIDAD = CAP_STOCK_INGRESAR
+
+    def _url_traspasar(self):
+        return reverse("dispositivos:stock_traspasar", args=[self.dispositivo.pk, self.edificio.pk])
+
+    def _destinos(self):
+        return servicio.destinos_de_traspaso(self.request.user, self.dispositivo, self.edificio)
+
+    def _form(self, datos=None, initial=None):
+        cargados = ids_con_cantidad(datos) if datos is not None else ()
+        return TraspasoForm(datos, initial=initial, insumos=self._saldos(cargados), auto_id=AUTO_ID_TRASPASO)
+
+    def _pantalla(self, request, destino_form, destinos, elegido=None, form=None):
+        contexto = {
+            "dispositivo": self.dispositivo,
+            "edificio": self.edificio,
+            "destino_form": destino_form,
+            "sin_destinos": not destinos,
+            "destino": elegido,
+            "form": form,
+            "url_stock": self._url_stock(),
+            "url_traspasar": self._url_traspasar(),
+            "columnas_info": COLUMNAS_EN_STOCK,
+        }
+        if elegido is not None and form is not None:
+            contexto.update(filas=form.filas() if form.insumos else [], sin_insumos=not form.insumos)
+        return render(request, TEMPLATE_TRASPASAR, contexto)
+
+    def get(self, request, **_url):
+        destinos = self._destinos()
+        if "destino" not in request.GET:
+            return self._pantalla(request, DestinoForm(destinos=destinos), destinos)
+        destino_form = DestinoForm(request.GET, destinos=destinos)
+        elegido = destino_form.elegido()
+        if elegido is None:
+            return self._pantalla(request, destino_form, destinos)
+        iniciales = {"destino": valor_de_destino(*elegido), "uuid_cliente": uuid4()}
+        return self._pantalla(request, destino_form, destinos, elegido, self._form(initial=iniciales))
+
+    def post(self, request, **_url):
+        destinos = self._destinos()
+        destino_form = DestinoForm({"destino": request.POST.get("destino", "")}, destinos=destinos)
+        elegido = destino_form.elegido()
+        form = self._form(request.POST)
+        if form.is_valid():
+            destino_dispositivo, destino_edificio = form.ids_de_destino()
+            try:
+                operacion = servicio.traspasar(
+                    request.user,
+                    self.dispositivo,
+                    self.edificio,
+                    destino_dispositivo,
+                    destino_edificio,
+                    form.lineas(),
+                    observacion=form.cleaned_data["observacion"],
+                    uuid_cliente=form.cleaned_data["uuid_cliente"],
+                )
+            except servicio.SaldoInsuficiente as error:
+                form = self._form(request.POST)
+                form.full_clean()
+                form.agregar_errores_del_servicio(error)
+                form.marcar_faltantes(error.faltantes)
+            except servicio.UuidEnUso as error:
+                form = self._form(self._con_otro_identificador(request.POST))
+                form.full_clean()
+                form.agregar_errores_del_servicio(error)
+            except ValidationError as error:
+                if hasattr(error, "error_dict") and "destino" in error.error_dict:
+                    # El destino no vale (alcance, estado, o ya no está): se vuelve a elegir, sin tabla.
+                    if "destino" not in destino_form.errors:
+                        destino_form.add_error("destino", error.error_dict["destino"])
+                    return self._pantalla(request, destino_form, destinos)
+                form.agregar_errores_del_servicio(error)
+            else:
+                return self._terminada(
+                    request,
+                    operacion,
+                    "Traspaso registrado: el stock ya pasó al destino.",
+                    "Ese traspaso ya estaba registrado: no se movió dos veces.",
+                )
+        if elegido is None:
+            return self._pantalla(request, destino_form, destinos)
+        return self._pantalla(request, destino_form, destinos, elegido, form)

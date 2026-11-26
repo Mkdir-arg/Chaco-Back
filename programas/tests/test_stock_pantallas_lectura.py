@@ -236,22 +236,25 @@ class RutasDeStockTests(BaseLecturaStock):
     def test_una_ruta_que_todavia_no_existe_no_dibuja_el_boton_y_una_que_existe_si(self):
         from programas.services.edificio_stock import _url_de_accion
 
-        self.assertEqual(_url_de_accion("dispositivos:stock_ingresar", self.cis, self.edif_a), "")
-        self.assertTrue(_url_de_accion("dispositivos:stock_entregar", self.cis, self.edif_a))
+        self.assertEqual(_url_de_accion("dispositivos:stock_ajustar", self.cis, self.edif_a), "")
+        for nombre in ("entregar", "ingresar", "traspasar"):
+            self.assertTrue(_url_de_accion(f"dispositivos:stock_{nombre}", self.cis, self.edif_a), nombre)
 
 
 class AccionesTests(BaseLecturaStock):
     """Las acciones se ofrecen con su capacidad y solo si su ruta existe (los PR 5 y 6 las crean)."""
 
-    def test_hoy_solo_existe_la_ruta_de_entregar(self):
-        """Ingresar, Traspasar y Ajustar llegan con el PR 6: sin su ruta el panel no dibuja un botón que da 404."""
+    def test_hoy_existen_las_rutas_de_entregar_ingresar_y_traspasar_pero_no_la_de_ajustar(self):
+        """Ajustar llega con el PR 6b: sin su ruta el panel no dibuja un botón que da 404."""
 
         completa = self._con("Completa", *LECTURA, "stock.entregar", "stock.ingresar", "stock.ajustar", "ciudadano.ver")
 
         stock = self._get(completa, self.edif_a, tab="stock").context["stock"]
 
-        self.assertEqual([a["texto"] for a in stock["acciones"]], ["Entregar a persona"])
-        self.assertTrue(stock["acciones"][0]["url"].endswith("/stock/entregar/"))
+        self.assertEqual([a["texto"] for a in stock["acciones"]], ["Entregar a persona", "Ingresar", "Traspasar"])
+        self.assertEqual(
+            [a["url"].rsplit("/stock/", 1)[1] for a in stock["acciones"]], ["entregar/", "ingresar/", "traspasar/"]
+        )
         self.assertFalse(stock["puede_ajustar"])
 
     def test_con_las_rutas_cada_boton_exige_su_capacidad(self):
@@ -464,6 +467,31 @@ class PresupuestoDeStockTests(BaseLecturaStock):
         self.assertEqual(con_treinta, con_uno)
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
         self.assertLessEqual(con_treinta, techo["consultas_fijas"], f"medido con la guardia: {con_treinta}")
+
+    def test_el_peor_usuario_real_entra_en_el_techo_y_no_crece_con_los_insumos(self):
+        """El peor perfil de la solapa: alcance «Edificios» (Cambio 523), que paga el alcance por capacidad, con las cuatro
+        capacidades de stock y ``ciudadano.ver``. Decide los tres botones y el ajuste. ``stock.ver`` se lee **una** vez
+        por página, no una por botón."""
+
+        peor = self._con(
+            "Peor de stock",
+            *LECTURA,
+            "stock.entregar",
+            "stock.ingresar",
+            "stock.ajustar",
+            "ciudadano.ver",
+            alcance=Alcance.EDIFICIOS,
+            edificios=[self.edif_a],
+        )
+        self._cargar(1)
+        con_uno = self._medir(peor, self._url(self.edif_a), tab="stock")
+        self._cargar(29, desde=1)
+
+        con_treinta = self._medir(peor, self._url(self.edif_a), tab="stock")
+
+        self.assertEqual(con_treinta, con_uno)
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
+        self.assertLessEqual(con_treinta, techo["consultas_fijas"], f"medido con el peor usuario: {con_treinta}")
 
     def _mover_de_todo(self, cuantos, desde=0):
         """``cuantos`` movimientos de **cada** tipo que nombra otra fila (kit, traspaso y entrega a persona), en edif_a."""

@@ -7,7 +7,7 @@ from django.db.models import Count, Exists, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 
 from core.utils_fechas import q_rango_local
-from programas.models import MovimientoStock, OperacionStock, SaldoStock
+from programas.models import MovimientoStock, OperacionStock, SaldoStock, TipoKit
 
 
 def saldos_de(dispositivo, edificio):
@@ -22,6 +22,22 @@ def saldos_de(dispositivo, edificio):
         .select_related("item")
         .order_by("item__nombre", "item_id")
     )
+
+
+def insumos_para_ingresar(dispositivo, edificio):
+    """Los insumos **activos** del catálogo con lo que hay ahora en (institución, edificio): ``[(TipoKit, en_stock)]``.
+
+    Es la lista de «Ingresar stock» (RN-010-17: un insumo desactivado no recibe stock nuevo). Una consulta, con el
+    saldo como subconsulta: un insumo sin fila de saldo figura con 0. Por nombre, como ``saldos_de``.
+    """
+
+    saldo = SaldoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, item=OuterRef("pk")).values(
+        "cantidad"
+    )
+    insumos = (
+        TipoKit.objects.filter(activo=True).annotate(en_stock=Coalesce(Subquery(saldo), 0)).order_by("nombre", "pk")
+    )
+    return [(insumo, insumo.en_stock) for insumo in insumos]
 
 
 def movimientos_de(dispositivo, edificio, filtros=None, *, con_persona=False):

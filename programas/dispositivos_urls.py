@@ -143,12 +143,22 @@ urlpatterns = [
         edificio_operativo.EdificioOperativoView.as_view(),
         name="edificio_operativo",
     ),
-    # Stock del edificio (análisis 010). «Ingresar», «Traspasar» y «Ajustar» llegan con el PR 6: hasta entonces el panel
-    # no dibuja esos botones (`edificio_stock._url_de_accion`).
+    # Stock del edificio (análisis 010). «Ajustar» llega con el PR 6b: hasta entonces el panel no dibuja ese botón
+    # (`edificio_stock._url_de_accion`).
     path(
         "<int:pk>/edificios/<int:edificio_pk>/stock/entregar/",
         stock_views.EntregarAPersonaView.as_view(),
         name="stock_entregar",
+    ),
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/ingresar/",
+        stock_views.IngresarStockView.as_view(),
+        name="stock_ingresar",
+    ),
+    path(
+        "<int:pk>/edificios/<int:edificio_pk>/stock/traspasar/",
+        stock_views.TraspasarStockView.as_view(),
+        name="stock_traspasar",
     ),
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),

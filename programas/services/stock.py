@@ -149,26 +149,30 @@ def puede_ver_stock(user, dispositivo, edificio_id):
     return puede_operar_edificio(user, dispositivo, edificio_id, CAP_STOCK_VER)
 
 
-def _puede_con(user, dispositivo, edificio_id, capacidad):
-    """RN-010-13: cada acción exige su capacidad **y** ``stock.ver`` sobre el mismo edificio."""
+def _puede_con(user, dispositivo, edificio_id, capacidad, ya_ve):
+    """RN-010-13: cada acción exige su capacidad **y** ``stock.ver`` sobre el mismo edificio.
 
-    return puede_ver_stock(user, dispositivo, edificio_id) and puede_operar_edificio(
+    ``ya_ve=True`` es de quien **acaba de comprobar** ``puede_ver_stock`` sobre este mismo edificio y decide varias
+    acciones seguidas (el panel de la solapa): no lo vuelve a leer por cada botón. Los servicios no lo pasan nunca.
+    """
+
+    return (ya_ve or puede_ver_stock(user, dispositivo, edificio_id)) and puede_operar_edificio(
         user, dispositivo, edificio_id, capacidad
     )
 
 
-def puede_entregar(user, dispositivo, edificio_id):
+def puede_entregar(user, dispositivo, edificio_id, *, ya_ve=False):
     """Entregar exige además ``ciudadano.ver``, como el ingreso de personas (``puede_ingresar_persona``)."""
 
-    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_ENTREGAR) and rbac.puede(user, CAP_VER_CIUDADANO)
+    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_ENTREGAR, ya_ve) and rbac.puede(user, CAP_VER_CIUDADANO)
 
 
-def puede_ingresar(user, dispositivo, edificio_id):
-    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_INGRESAR)
+def puede_ingresar(user, dispositivo, edificio_id, *, ya_ve=False):
+    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_INGRESAR, ya_ve)
 
 
-def puede_ajustar(user, dispositivo, edificio_id):
-    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_AJUSTAR)
+def puede_ajustar(user, dispositivo, edificio_id, *, ya_ve=False):
+    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_AJUSTAR, ya_ve)
 
 
 def _exigir(permiso, user, dispositivo, edificio_id):

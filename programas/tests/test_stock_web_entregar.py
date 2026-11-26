@@ -329,6 +329,17 @@ class ElPostEntregaTests(BaseWebEntregar):
         self.assertContains(respuesta, "Algún insumo ya no está en el stock de este edificio")
         self.assertEqual(self._cantidad(self.frazada), 2)
 
+    def test_una_clave_de_cantidad_que_no_es_un_numero_se_rechaza_sin_dar_500(self):
+        """``"²".isdigit()`` es verdadero y ``int("²")`` falla: un POST armado a mano no puede romper la vista."""
+
+        for clave in ("cantidad_²", "cantidad_٣", "cantidad_1e3", "cantidad_-4", "cantidad_"):
+            with self.subTest(clave=clave):
+                datos = self._datos({self.frazada: 1}, **{clave: "2"})
+                respuesta = self.client.post(self._url(), datos)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertContains(respuesta, "Algún insumo ya no está en el stock de este edificio")
+                self.assertEqual(self._cantidad(self.frazada), 2)
+
     def test_un_error_del_alta_en_un_campo_oculto_se_muestra_arriba(self):
         """Un nombre de 200 caracteres desde el Registro rompe el alta del legajo: el error sube, no se pierde."""
 
