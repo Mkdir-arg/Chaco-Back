@@ -94,6 +94,8 @@ misma pantalla (`ACCIONES_DE_ALERTA` en `pantalla_situacion_emergencia.py`: AE-6
 filtros), con `accion_url` y `accion_texto` del contrato. La solapa Abastecimiento
 (`programas/templates/programas/emergencia/situacion/_abastecimiento.html`) repite la composición para AE-8 a AE-10,
 sin acción; el estado «sin regla de consumo» enlaza a «Insumos» y el de «sin inicio del evento» a «Plazos de atención».
+Si alguna institución lleva stock (`abastecimiento.con_stock`), la tabla suma la columna «Stock registrado» y la
+explicación, la línea que aclara que ese número lo carga la institución y no entra en el faltante (RN-010-20).
 Los avisos de la mesa arriba de la ficha del caso (`programas/templates/programas/emergencia/casos/detail.html`,
 armados por `avisos_de_la_mesa` de `programas/selectors/emergencia_mesa.py`) van uno por include con `only`. La
 condición de cada aviso es una sola y la comparten el tablero, la fila de la bandeja y la ficha

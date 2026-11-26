@@ -3,7 +3,8 @@
 chicas, _alerta, tablas densas con badge de ícono + texto, _estado_vacio y el plegable «Cómo se calcula» del Resumen.
 Todo llega escrito de services/pantalla_abastecimiento_emergencia.py: el template no cuenta ni decide. Solo se calcula
 con ?tab=abastecimiento; si no calcula (otra solapa, sin inicio del evento, sin reglas, sin alojados), `vacio` trae el
-estado vacío ya resuelto. Todo número es una estimación con la regla de consumo de cada ítem, no un inventario. «Preparar entrega» y el enlace a E7 solo llegan con
+estado vacío ya resuelto. Todo número es una estimación con la regla de consumo de cada ítem, no un inventario,
+salvo la columna «Stock registrado» (RN-010-20). «Preparar entrega» y el enlace a E7 solo llegan con
 la capacidad que los habilita.{% endcomment %}
 <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-titulo">
   <div class="px-5 py-4 border-b border-light">
@@ -107,6 +108,9 @@ la capacidad que los habilita.{% endcomment %}
           <th class="nodo-th text-right" scope="col">Personas</th>
           <th class="nodo-th" scope="col">Última recepción</th>
           <th class="nodo-th" scope="col">Qué necesita en 48 h (estimado)</th>
+          {% if abastecimiento.con_stock %}
+          <th class="nodo-th" scope="col">Stock registrado</th>
+          {% endif %}
           {% if abastecimiento.con_accion %}
           <th class="nodo-th nodo-col-acciones text-right" scope="col"><span class="sr-only">Acciones</span></th>
           {% endif %}
@@ -123,6 +127,9 @@ la capacidad que los habilita.{% endcomment %}
           <td class="nodo-td text-right whitespace-nowrap">{{ fila.personas }}</td>
           <td class="nodo-td whitespace-nowrap">{{ fila.ultima }}</td>
           <td class="nodo-td">{{ fila.necesita }}</td>
+          {% if abastecimiento.con_stock %}
+          <td class="nodo-td">{{ fila.stock }}</td>
+          {% endif %}
           {% if abastecimiento.con_accion %}
           <td class="nodo-td nodo-col-acciones text-right">
             {% if fila.url_preparar %}<a href="{{ fila.url_preparar }}" class="btn-nodo btn-secondary btn-sm btn-fit" aria-label="Preparar entrega para {{ fila.nombre }}">Preparar entrega</a>{% endif %}
@@ -152,6 +159,9 @@ la capacidad que los habilita.{% endcomment %}
       <p><strong>Desde el inicio del evento:</strong> lo recibido, lo en camino, lo preparado y la gente que pasó se cuentan desde la fecha de inicio cargada en Plazos de atención. Se cuenta lo recibido, no lo enviado; las entregas canceladas no cuentan.</p>
       <p><strong>Faltan</strong> = necesario − en camino − preparadas, dispositivo por dispositivo, redondeado hacia arriba. Un ítem sin regla nunca deja a un dispositivo sin cobertura.</p>
       <p><strong>Familias y lactantes:</strong> una familia cuenta entera en el dispositivo de su integrante alojado de menor número. Los lactantes son los declarados al relevar.{% if not abastecimiento.hay_regla_lactante %} Ningún ítem tiene regla por lactante: no se alerta sobre lactantes.{% endif %}</p>
+      {% if abastecimiento.con_stock %}
+      <p><strong>Stock registrado:</strong> lo que la institución cargó en sus edificios de cada ítem que le falta. Lo mide la institución; no entra en el cálculo del faltante.</p>
+      {% endif %}
       <p><strong>Límite conocido:</strong> si una persona se traslada y cambia de estadía, su consumo anterior deja de contarse en el dispositivo de origen.</p>
       {% if abastecimiento.reglas %}
       <p><strong>Reglas vigentes:</strong></p>

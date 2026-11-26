@@ -187,7 +187,8 @@ class InsumoForm(forms.ModelForm):
             "unidad": "Por ejemplo: unidad, kit, bidón, paquete.",
             "regla_modo": (
                 "Con esto la pantalla Situación estima qué le falta a cada institución. "
-                "No es stock: el sistema no lleva inventario ni descuenta al enviar, y no cambia lo que se puede enviar."
+                "La regla estima el consumo. Enviar no descuenta nada; el stock real se lleva solo en las "
+                "instituciones cuyo tipo lo tiene activado."
             ),
         }
 

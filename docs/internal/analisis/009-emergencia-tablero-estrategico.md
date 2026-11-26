@@ -54,10 +54,11 @@ derivaciones, kits), dos capas del mapa y una tercera solapa, **«Abastecimiento
 «¿Llegan los insumos?» tiene dos mitades. El bloque de logística del Resumen (B12) mira **hacia atrás**: qué se
 envió, qué se recibió, qué llegó con diferencias. Quien coordina necesita además la mitad que mira **hacia
 adelante**: qué le falta a cada dispositivo y qué conviene mandar en las próximas 48 h. El sistema no tiene stock
-ni consumo registrado (RN-4.6), pero sí sabe cuánta gente y cuántas familias hay en cada dispositivo, cuántos
+ni consumo registrado (RN-4.6; hoy lo lleva el análisis 010 solo en las instituciones con stock), pero sí sabe cuánta gente y cuántas familias hay en cada dispositivo, cuántos
 lactantes declararon esas familias, qué recibió cada dispositivo de cada ítem, qué está en camino y qué está
 preparado. Con una **regla de consumo por ítem** configurable en E7, eso alcanza para una **estimación rotulada**
-(§3.9); nunca para un stock real.
+(§3.9); nunca para un stock real. **Salvedad (análisis 010, RN-010-20):** las instituciones cuyo tipo lleva stock
+muestran además su «Stock registrado», aparte de la estimación y rotulado así; el faltante no cambia.
 
 La propuesta de octubre ya ponía el mapa provincial como pantalla principal de una mesa de situación, pero sobre
 datos que DATAÑACH **no tiene** (incidentes, alertas pluviales, criticidad cargada por los equipos, stock, cuatro
@@ -331,7 +332,7 @@ principio, qué está en camino o preparado para él, y cuándo fue su última r
 | Tema | Decisión | Por qué |
 |---|---|---|
 | Dónde vive | Tercera solapa de E8, no pantalla nueva ni bloque del Resumen | Es la misma audiencia y el mismo molde; como bloque del Resumen pagaría sus consultas en cada carga |
-| Qué es | **Estimación rotulada** («estimado con la regla de consumo de cada ítem; no es un inventario»), nunca «stock» | No hay inventario, depósitos ni consumo registrado (RN-4.6): lo recibido se da por consumido según una regla, no según lo que pasó |
+| Qué es | **Estimación rotulada** («estimado con la regla de consumo de cada ítem; no es un inventario»), nunca «stock» (desde el análisis 010, RN-010-20: las instituciones cuyo tipo lleva stock muestran además su «Stock registrado», rotulado así; el faltante sigue siendo estimado) | No hay inventario, depósitos ni consumo registrado (RN-4.6; ver el 010 para las instituciones con stock): lo recibido se da por consumido según una regla, no según lo que pasó |
 | De dónde sale el consumo | Una **regla de consumo por ítem** en el catálogo de E7 (campos nuevos de `TipoKit`, §8.1): `modo` dotación o reposición, `cantidad`, `por` persona / familia / lactante y, en reposición, `cada_dias` | El catálogo es libre (`TipoKit.nombre` es texto): el sistema no puede adivinar qué es «agua» |
 | Ítem sin regla | No se calcula faltante: la fila dice «Sin regla de consumo» y enlaza a E7 (solo con `supervisar`) | Inventar un consumo sería peor que no mostrarlo |
 | Cuándo se calcula | **Solo con `?tab=abastecimiento`** (deep link de `tabs.md`, «no calcular el contenido de todas las solapas»). Desde otra solapa, el panel trae «Calcular el abastecimiento», un enlace GET a la misma URL con `tab=abastecimiento` | Presupuesto propio (RNF-009-11): sin la solapa, E8 sigue en 15 / 21 |
@@ -417,7 +418,7 @@ Configuración de la mesa», con el enlace solo con `supervisar`).
 | RNF-009-10 | Índices a medir con `EXPLAIN` en `scripts/perf_mysql/` antes de mergear el selector: casos de la ventana, integrantes alojados, ritmo de `Estadia`, **derivaciones por estado y fecha**, **entregas por estado y fecha** y, para Abastecimiento, **líneas de entregas recibidas y abiertas agrupadas por dispositivo e ítem** y **`IntegranteGrupo.egresado_en`** (§4.1), con egresados y entregas de **un evento anterior** en el dataset | Performance |
 | RNF-009-11 | Presupuesto de la solapa Abastecimiento: **≤ 5 consultas** propias, fijas (no crecen con dispositivos, ítems, entregas ni personas), sobre la foto de E8; la vista con `?tab=abastecimiento` en **≤ 26** (21 + 5). Sin la solapa activa, 0 consultas extra (la vista sigue en ≤ 21). Test `@tag("performance")` con 50 dispositivos, 30 ítems, 2.000 entregas y 3.000 personas alojadas, **más** un evento anterior (2.000 entregas recibidas y 3.000 egresados antes de `inicio_evento`) que no tiene que cambiar ni el número de consultas ni los resultados | Performance |
 | RNF-009-12 | Las reglas de consumo son **funciones puras** de servicio (`services/abastecimiento_emergencia.py`), sin consultas ni `now()`: reciben números y `ahora`; el selector solo lee y agrega | Testabilidad / Arquitectura |
-| RNF-009-13 | Todo número de Abastecimiento se rotula «estimado»; ninguna etiqueta dice «stock», «inventario» ni «hay» | Comunicación |
+| RNF-009-13 | Todo número **calculado** de Abastecimiento se rotula «estimado»; ninguna etiqueta dice «stock», «inventario» ni «hay», **salvo** la columna «Stock registrado» de las instituciones cuyo tipo lleva stock (análisis 010, RN-010-20: revierte esta regla solo ahí; el faltante sigue siendo estimado) | Comunicación |
 
 ### 4.1 Rendimiento: qué es caro y cómo se lee
 
@@ -496,7 +497,7 @@ general 60/80 de `ocupacion.py`.
 
 | Pedido posible | Por qué no |
 |---|---|
-| Stock real o faltantes **medidos** en un albergue | No hay stock ni depósitos (RN-4.6): solo entregas. La solapa Abastecimiento los **estima** con reglas de consumo (§3.9), rotulados como estimación |
+| Stock real o faltantes **medidos** en un albergue | No hay stock ni depósitos (RN-4.6): solo entregas (el análisis 010 suma stock por edificio solo en las instituciones cuyo tipo lo lleva). La solapa Abastecimiento los **estima** con reglas de consumo (§3.9), rotulados como estimación |
 | Población afectada (no evacuada) | El sistema solo conoce a quien se releva para alojar |
 | Criticidad hídrica, cotas, alertas pluviales | No hay dato; la propuesta de octubre lo cargaba a mano |
 | Incidentes, Mesas 1–4, FUSE | No existen en DATAÑACH |

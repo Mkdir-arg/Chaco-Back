@@ -252,7 +252,8 @@ class AltaDeInsumosTests(BaseInsumos):
         respuesta = self.client.get(self.url, {"nuevo": 1})
         self.assertContains(respuesta, "Consumo por unidad")
         self.assertNotContains(respuesta, ">Cantidad<")
-        self.assertContains(respuesta, "No es stock")
+        self.assertContains(respuesta, "La regla estima el consumo. Enviar no descuenta nada")
+        self.assertContains(respuesta, "el stock real se lleva solo en las instituciones cuyo tipo lo tiene activado")
         self.assertContains(respuesta, "Ej.: 3 raciones por persona cada 1 día")
 
 
