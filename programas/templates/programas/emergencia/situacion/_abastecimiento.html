@@ -3,7 +3,8 @@
 chicas, _alerta, tablas densas con badge de ícono + texto, _estado_vacio y el plegable «Cómo se calcula» del Resumen.
 Todo llega escrito de services/pantalla_abastecimiento_emergencia.py: el template no cuenta ni decide. Solo se calcula
 con ?tab=abastecimiento; si no calcula (otra solapa, sin inicio del evento, sin reglas, sin alojados), `vacio` trae el
-estado vacío ya resuelto. Todo número es una estimación con la regla de consumo de cada ítem, no un inventario. «Preparar entrega» y el enlace a E7 solo llegan con
+estado vacío ya resuelto. Todo número es una estimación con la regla de consumo de cada ítem, no un inventario,
+salvo la columna «Stock registrado» (RN-010-20). «Preparar entrega» y el enlace a E7 solo llegan con
 la capacidad que los habilita.{% endcomment %}
 <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="abastecimiento-titulo">
   <div class="px-5 py-4 border-b border-light">

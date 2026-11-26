@@ -953,6 +953,7 @@ class PresupuestoAbastecimientoTests(BancoSituacion):
 
     def test_e8_stock_registrado_suma_una_consulta_como_maximo(self):
         """RN-010-20: con todas las instituciones con stock, la solapa lee los saldos en UNA consulta agrupada."""
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]["consultas_fijas"]
         sin = self._vista(URL_SOLAPA)
         TipoDispositivo.objects.filter(pk=self.tipo.pk).update(maneja_stock=True)
         item = next(i for i in self.items if i.regla_modo == Modo.DOTACION)
@@ -965,6 +966,7 @@ class PresupuestoAbastecimientoTests(BancoSituacion):
         )
         con = self._vista(URL_SOLAPA)
         self.assertEqual(len(con) - len(sin), 1, con)
+        self.assertLessEqual(len(con), techo, con)
         self.assertEqual(sum("programas_saldostock" in q for q in con), 1)
 
     def test_tc_1187_41_consultas_fijas_y_un_evento_anterior_no_cambia_nada(self):
