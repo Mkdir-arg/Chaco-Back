@@ -230,7 +230,16 @@ URLS_DE_STOCK_DEL_BARRIDO = [
     "/api/emergencia/dispositivos/1/edificios/1/stock/destinos-traspaso/",
     "/api/emergencia/dispositivos/1/edificios/1/stock/movimientos/",
     "/api/emergencia/dispositivos/1/edificios/1/stock/persona/",
+    # PR 7b: las escrituras. Sus claves y tests están en ``test_emergencia_api_stock_escritura``.
+    "/api/emergencia/dispositivos/1/edificios/1/stock/ajustes/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/entregas/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/ingresos/",
+    "/api/emergencia/dispositivos/1/edificios/1/stock/traspasos/",
 ]
+
+#: Claves de las respuestas de escritura del stock (PR 7b, §17).
+CLAVES_STOCK_OPERACION = ["creado_en", "id", "movimientos", "tipo", "uuid_cliente", "ya_existia"]
+CLAVES_STOCK_MOVIMIENTO_OPERACION = ["cantidad", "item_id", "nombre", "saldo_posterior", "unidad"]
 
 #: Las de M2 (PR 8) que llevan un id. Sus claves están arriba; los tests de cada ruta, en
 #: los ``test_emergencia_api_m2*``.

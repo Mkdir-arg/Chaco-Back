@@ -31,6 +31,18 @@ class ConsultaPersonasThrottle(UserRateThrottle):
     scope = "personas_campo"
 
 
+class StockEscrituraThrottle(UserRateThrottle):
+    """Tope por usuario de las escrituras de stock de la app (``stock_escritura``, PR 7b).
+
+    Una entrega a una persona puede consultar al Registro de Personas, así que no queda sin tope; pero una guardia en
+    plena distribución entrega a decenas de familias por hora, de modo que el límite es holgado. Por usuario, no por
+    IP, por la misma razón que ``personas_campo``. La entrega no devuelve el nombre de la persona: no abre una
+    consulta de identidad por otra puerta.
+    """
+
+    scope = "stock_escritura"
+
+
 def descontar_consulta_de_identidad(request):
     """Descuenta una consulta de la cubeta ``personas_campo`` del usuario (SEC-25).
 

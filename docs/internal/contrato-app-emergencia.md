@@ -62,6 +62,10 @@ Roles, pantallas del backoffice, flujo de punta a punta y casos de prueba del m�
 | `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/movimientos/` | stock | El libro del edificio, de a 50 (§17) |
 | `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/destinos-traspaso/` | `stock.ingresar` | A qué edificios puede traspasar desde este (§17) |
 | `GET /api/emergencia/dispositivos/{d}/edificios/{e}/stock/persona/?dni=` | `stock.entregar` + `ciudadano.ver` | A quién se le entrega y qué recibió antes; no escribe (§17) |
+| `POST /api/emergencia/dispositivos/{d}/edificios/{e}/stock/entregas/` | `stock.entregar` + `ciudadano.ver` | Entrega insumos a una persona; idempotente por `uuid_cliente` (§17.1) |
+| `POST /api/emergencia/dispositivos/{d}/edificios/{e}/stock/ingresos/` | `stock.ingresar` | Suma stock cargado a mano (§17.1) |
+| `POST /api/emergencia/dispositivos/{d}/edificios/{e}/stock/traspasos/` | `stock.ingresar` (origen y destino) | Pasa insumos a otro par institución-edificio (§17.1) |
+| `POST /api/emergencia/dispositivos/{d}/edificios/{e}/stock/ajustes/` | `stock.ajustar` | Lleva el saldo de un insumo a lo contado (§17.1) |
 
 «Módulo», «agente», «kits», «llegadas» y «stock» son los permisos del namespace (§2).
 
@@ -1256,9 +1260,9 @@ estaba así, 200 sin cambios.
 | 403 | ve la cama pero no tiene la capacidad de la acción | `{"detail", "code": "SIN_PERMISO"}` (o `SIN_MODULO` si no abre el módulo) |
 | 404 | la cama no existe, es de un sector dado de baja o de un edificio fuera de su alcance | `{"detail": "No encontrado."}` |
 
-## 17. Stock (lectura) — PR 7a
+## 17. Stock — lectura (PR 7a) y escritura (PR 7b)
 
-Solo lectura. Las escrituras (entregar a una persona, ingresar, ajustar, traspasar) son de otro PR. Vale para
+Lectura en este apartado; las escrituras, en §17.1. Vale para
 **instituciones cuyo tipo lleva stock** y **edificios activos**. Quién ve qué es el alcance de la web: `stock.ver`
 con su alcance (Institución o Edificios, `q_edificios_en_alcance`). El permiso «Stock» (§2) dice que el usuario ve
 el stock *de algún edificio*; qué institución y qué edificio son suyos se resuelve por alcance, y lo ajeno, lo
@@ -1327,3 +1331,69 @@ de la consulta es **403** `{"detail", "code": "SIN_PERMISO"}`. Toda respuesta va
 | 403 `SIN_PERMISO` | Ve el edificio pero no puede traspasar (`destinos-traspaso/`) ni entregar (`persona/`) |
 | 404 | La institución o el edificio no existen, no están vinculados, están fuera del alcance de `stock.ver` o la institución no lleva stock |
 | 429 | `persona/`: tope de consultas de identidad (`personas_campo`). Trae `Retry-After` |
+
+### 17.1 Escritura (PR 7b)
+
+Cuatro `POST` en JSON, todos sobre un par institución-edificio, **sin cola offline** (decisión 7): la app necesita
+conexión y no los reintenta sola con otro `uuid_cliente`. Cada uno llama a la **misma función** que la web
+(`services.stock`): ninguna regla de saldo, de estado o de permiso es de la API.
+
+| Ruta (bajo `dispositivos/{d}/edificios/{e}/stock/`) | Capacidad | Cuerpo |
+|---|---|---|
+| `entregas/` | `stock.entregar` + `ciudadano.ver` | `uuid_cliente`, `dni`, `lineas`, `sexo`?, `nombre`?, `apellido`?, `observacion`? |
+| `ingresos/` | `stock.ingresar` | `uuid_cliente`, `lineas`, `origen`, `origen_detalle`?, `comprobante`? |
+| `traspasos/` | `stock.ingresar` en el origen **y** en el destino | `uuid_cliente`, `destino_dispositivo_id`, `destino_edificio_id`, `lineas`, `observacion`? |
+| `ajustes/` | `stock.ajustar` | `uuid_cliente`, `item_id`, `cantidad_contada`, `saldo_visto`, `motivo`, `detalle`? |
+
+- **`lineas`**: `[{"item_id": 12, "cantidad": 2}]`, al menos una, sin repetir insumo, cantidades enteras mayores que 0
+  (el tope por saldo lo pone el servicio). Entregar y traspasar admiten un insumo desactivado mientras tenga saldo;
+  ingresar, no.
+- **`origen`**: `DONACION`, `MUNICIPIO`, `COMPRA`, `OTRO_PROGRAMA`, `OTRO` (con `OTRO`, `origen_detalle` es obligatorio).
+- **`motivo`**: `INVENTARIO_INICIAL`, `CONTEO_PERIODICO`, `ROTURA_VENCIMIENTO`, `PERDIDA_ROBO`, `CORRECCION_CARGA`, `OTRO`
+  (con `OTRO` y `CORRECCION_CARGA`, `detalle` es obligatorio). `saldo_visto` es el saldo que la app mostró al abrir el
+  conteo; si cambió, 409 `SALDO_CAMBIO`. Contar lo mismo que hay es 400.
+- **Persona (`entregas/`)**: sale del legajo, del Registro (con `sexo`) o del alta mínima (con `nombre` y `apellido`).
+  Si no alcanza, 400 `PERSONA_SIN_DATOS` con `pide_sexo` y `motivo`. La respuesta **no devuelve datos de la persona**.
+- **Traspaso**: el destino sale de `destinos-traspaso/`. Uno inexistente, no vinculado o fuera del alcance de
+  `stock.ingresar` contesta lo mismo: 400 `VALIDACION` con `destino`. Es inmediato; el destino no confirma.
+- **Orden de los chequeos**: 401 → 403 `SIN_MODULO` → 404 (par fuera de alcance) → 403 `SIN_PERMISO` → 400 (forma) →
+  reglas del servicio.
+
+**Idempotencia.** `uuid_cliente` es obligatorio. **201** la primera vez; **200** con `ya_existia: true` si el mismo
+usuario lo reenvía para la misma acción y el mismo lugar (y, en un traspaso, el mismo destino): devuelve el resultado
+de la primera vez y **no mueve el saldo**. Un reenvío con el cuerpo malformado es 400 antes de llegar al servicio. Si el
+`uuid_cliente` ya es de otro usuario, de otra acción, de otro edificio o de otro destino: 409 `UUID_EN_USO`.
+
+```json
+// 201 (o 200 con "ya_existia": true)
+{"id": 91, "tipo": "ENTREGA_PERSONA", "uuid_cliente": "5b0e...", "ya_existia": false,
+ "creado_en": "2026-11-26T10:00:00-03:00",
+ "movimientos": [{"item_id": 12, "nombre": "Colchón", "unidad": "unidad", "cantidad": -2, "saldo_posterior": 16}]}
+
+// 409 SALDO_INSUFICIENTE: los saldos de todas las líneas que salen
+{"detail": "No alcanza el stock de: Colchón (hay 1, pediste 2). Recargá para ver el saldo actual.",
+ "code": "SALDO_INSUFICIENTE",
+ "saldos": [{"item_id": 12, "nombre": "Colchón", "unidad": "unidad", "cantidad": 1, "alcanza": false}]}
+
+// 409 SALDO_CAMBIO
+{"detail": "El saldo cambió mientras contabas: ahora hay 7 y habías visto 10. Volvé a contar.",
+ "code": "SALDO_CAMBIO", "saldo_actual": 7, "saldo_visto": 10}
+
+// 400 PERSONA_SIN_DATOS
+{"detail": "La persona no está en el legajo: indicá su sexo ...", "code": "PERSONA_SIN_DATOS",
+ "non_field_errors": ["..."], "pide_sexo": true, "motivo": ""}
+```
+
+`movimientos` trae solo los del **edificio de origen**: en un traspaso, la salida; nunca el otro lado.
+
+| Código | Cuándo |
+|---|---|
+| 400 `VALIDACION` | Cuerpo mal armado, líneas, `origen`, `motivo`, destino inválido, nada que ajustar, DNI inválido o persona fallecida. Detalle por campo (`item_id`, `lineas`, `destino`…) |
+| 400 `PERSONA_SIN_DATOS` | `entregas/`: no hay legajo ni datos del Registro y faltan `nombre` y `apellido` (o `sexo`) |
+| 403 `SIN_MODULO` / `SIN_PERMISO` | No ve stock en ningún edificio / ve el edificio pero no tiene la capacidad de la acción |
+| 404 | El par no existe, no está vinculado, queda fuera de `stock.ver` o la institución no lleva stock (mismo cuerpo) |
+| 409 `SALDO_INSUFICIENTE` | Una salida supera el saldo leído bajo candado. Con `saldos`. No se mueve nada |
+| 409 `SALDO_CAMBIO` | `ajustes/`: el saldo ya no es `saldo_visto`. Con `saldo_actual` |
+| 409 `UUID_EN_USO` | Ese `uuid_cliente` es de otra operación, otro usuario, otro edificio u otro destino |
+| 409 `STOCK_NO_HABILITADO` | La institución no está activa (ingresar, entregar y recibir un traspaso lo exigen) o el edificio está inactivo |
+| 429 | Tope de escrituras de stock del usuario (`stock_escritura`, 600/hora). Trae `Retry-After` |

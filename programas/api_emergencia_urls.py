@@ -64,6 +64,12 @@ from programas.api.views_emergencia_stock import (
     StockDeLaAppView,
     StockDelEdificioView,
 )
+from programas.api.views_emergencia_stock_escritura import (
+    AjusteView,
+    EntregaAPersonaView,
+    IngresoManualView,
+    TraspasoView,
+)
 
 app_name = "emergencia_api"
 
@@ -165,5 +171,26 @@ urlpatterns = [
         "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/persona/",
         PersonaDelStockView.as_view(),
         name="stock-persona",
+    ),
+    # Stock (PR 7b): escrituras. Idempotentes por `uuid_cliente`; 201 la primera vez y 200 el reenvío.
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/entregas/",
+        EntregaAPersonaView.as_view(),
+        name="stock-entregar",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/ingresos/",
+        IngresoManualView.as_view(),
+        name="stock-ingresar",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/traspasos/",
+        TraspasoView.as_view(),
+        name="stock-traspasar",
+    ),
+    path(
+        "dispositivos/<int:dispositivo_id>/edificios/<int:edificio_id>/stock/ajustes/",
+        AjusteView.as_view(),
+        name="stock-ajustar",
     ),
 ]

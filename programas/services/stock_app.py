@@ -1,4 +1,4 @@
-"""Stock de insumos para la app de campo (análisis 010, PR 7a): solo lectura.
+"""Stock de insumos para la app de campo (análisis 010, PR 7a y 7b): lectura y respuesta de las escrituras.
 
 Es lo que la web muestra en la solapa Stock del edificio con **el mismo alcance y las mismas reglas**: nada de reglas
 nuevas, solo otra forma de entregarlas. Quién ve qué sale de ``stock.ver`` (``q_edificios_en_alcance`` /
@@ -265,5 +265,62 @@ def persona_del_stock(user, dispositivo, edificio, dni, sexo=""):
         "historial": [
             {"creado_en": entrega["creado_en"], "institucion": entrega["institucion"], "lineas": entrega["lineas"]}
             for entrega in historial
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Escrituras (PR 7b): cómo se le cuenta a la app lo que pasó. Las reglas son de ``services.stock``.
+# ---------------------------------------------------------------------------
+
+
+def operacion_para_la_app(operacion, dispositivo, edificio):
+    """La operación recién asentada (o su reenvío) con sus movimientos **del edificio de origen**.
+
+    En un traspaso trae la salida y no la entrada: el otro lado puede ser de una institución que quien opera no
+    alcanza (mismo criterio que el libro). ``ya_existia`` la pone el servicio; un reenvío devuelve lo de la primera vez.
+    """
+
+    movimientos = (
+        operacion.movimientos.filter(dispositivo=dispositivo, edificio=edificio)
+        .select_related("item")
+        .order_by("item__nombre", "pk")
+    )
+    return {
+        "id": operacion.pk,
+        "tipo": operacion.tipo,
+        "uuid_cliente": operacion.uuid_cliente,
+        "ya_existia": operacion.ya_existia,
+        "creado_en": operacion.creado_en,
+        "movimientos": [
+            {
+                "item_id": m.item_id,
+                "nombre": m.item.nombre,
+                "unidad": m.item.unidad,
+                "cantidad": m.cantidad,
+                "saldo_posterior": m.saldo_posterior,
+            }
+            for m in movimientos
+        ],
+    }
+
+
+def rechazo_por_saldo(error):
+    """El cuerpo del 409 ``SALDO_INSUFICIENTE``: los saldos de **todas** las líneas que salían, leídos bajo candado."""
+
+    insumos = {i.pk: i for i in TipoKit.objects.filter(pk__in=error.saldos_actuales)}
+    return {
+        "detail": error.messages[0],
+        "code": "SALDO_INSUFICIENTE",
+        "saldos": [
+            {
+                "item_id": item_id,
+                "nombre": insumos[item_id].nombre,
+                "unidad": insumos[item_id].unidad,
+                "cantidad": cantidad,
+                "alcanza": item_id not in error.faltantes,
+            }
+            for item_id, cantidad in sorted(error.saldos_actuales.items())
+            if item_id in insumos
         ],
     }
