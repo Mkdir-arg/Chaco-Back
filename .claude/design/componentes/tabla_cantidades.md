@@ -2,8 +2,10 @@
 
 **Clasificación:** Canónico reutilizable. Pieza única: una fila por ítem con su control de cantidad.
 **Evidencia:** `templates/components/_tabla_cantidades.html`, `programas/templates/programas/emergencia/kits/nueva.html`
-(consumidor), `programas/templates/programas/dispositivos/stock/entregar.html` (consumidor, `rotulo_item="Insumo"`, columna
-«En stock»), `core/tests/test_nodo_ui_piezas.py` (`TablaCantidadesTest`).
+(consumidor), `programas/templates/programas/dispositivos/stock/entregar.html` (consumidor, `rotulo_item="Insumo"`,
+columna «En stock»), `stock/ingresar.html` (consumidor: todos los insumos activos, «En stock», `rotulo_cantidad="Cantidad a
+ingresar"`), `stock/traspasar.html` (consumidor: insumos con saldo, «En stock», `rotulo_cantidad="Cantidad a
+traspasar"`), `core/tests/test_nodo_ui_piezas.py` (`TablaCantidadesTest`).
 
 Va **dentro del `<form>` del consumidor**, que pone la card, el csrf y el pie. No pagina ni calcula.
 
@@ -28,8 +30,14 @@ Va **dentro del `<form>` del consumidor**, que pone la card, el csrf y el pie. N
 - Un `texto` vacío en una celda de `info` dibuja «—»; la `nota` va debajo en `text-xs text-body-subtle`.
 - Sin `filas` no dibuja nada. Lleva su propio `overflow-x-auto`.
 - Los campos se arman con `programas/forms_cantidades.py` (`campo_de_cantidad`, con `help_text="En <unidad>."`, que
-  es lo que llena `<auto_id>-ayuda`) y su guarda: un insumo pedido que ya no tiene fila no se descarta en silencio. En
+  es lo que hace que `campo_control` agregue `<auto_id>-ayuda` al `aria-describedby` del control; el texto visible de ese
+  `<span>` es `fila.unidad`, `_tabla_cantidades.html:32`) y su guarda: un insumo pedido que ya no tiene fila no se descarta en silencio. En
   stock las filas son los insumos con saldo **más** los que llegan cargados en el POST («Hay 0 y pediste N»).
+- Cada pantalla elige su `rotulo_cantidad` («Cantidad a enviar», «a entregar», «a ingresar», «a traspasar»); la pieza no
+  cambia. Las filas de una pantalla de stock las arma el form (`FormConTablaDeCantidades.filas()`) con
+  `info = [{texto: <lo que hay ahora>, nota: ""}]`.
+- La guarda de la clave rara: `ids_con_cantidad` solo acepta `cantidad_<dígitos ASCII>`; `cantidad_²` o `cantidad_٣` no
+  rompen la vista (la guarda las rechaza como cualquier clave sin campo).
 
 ## Prohibido
 

@@ -125,16 +125,35 @@ solo pone etiqueta y error.
   vuelve arriba con `_form_errores`. Pie: «Cancelar» `btn-tertiary` y la acción `btn-brand`. No usa la sesión: lo elegido
   viaja en un oculto y la vista lo revalida. Un enlace `btn-tertiary btn-sm` («Cargar lo estimado») rellena con un GET y
   no se ofrece cuando la pantalla ya está atada a algo (una reposición). Evidencia:
-  `programas/templates/programas/emergencia/kits/nueva.html`, que dibuja la tabla con la pieza
-  `components/_tabla_cantidades.html` (`componentes/tabla_cantidades.md`), y
-  `programas/templates/programas/dispositivos/stock/entregar.html` («Entregar a persona», Stock); no pasan los marcadores
-  de campo por grilla del auditor (la tabla es el control), se validan por revisión y con el test de la vista.
+  `programas/templates/programas/emergencia/kits/nueva.html` (destino = una institución), que dibuja la tabla con la pieza
+  `components/_tabla_cantidades.html` (`componentes/tabla_cantidades.md`),
+  `programas/templates/programas/dispositivos/stock/entregar.html` (destino = una persona),
+  `programas/templates/programas/dispositivos/stock/ingresar.html` (sin destino: el edificio lo fija la URL) y
+  `programas/templates/programas/dispositivos/stock/traspasar.html` (destino = otro edificio del alcance); no pasan los
+  marcadores de campo por grilla del auditor (la tabla es el control), se validan por revisión y con el test de la vista.
   El «destino» puede ser una persona: la superficie 1 es un GET con DNI y sexo; nombre y apellido se piden cuando el
-  servicio contesta `PERSONA_SIN_DATOS`, cuando la persona sale de un alta manual o cuando el alta del legajo rechaza el
-  dato (`views/stock.py`, `_mostrar_persona`); un POST rechazado no vuelve a consultar al Registro. La persona se anuncia con `_alerta` info y se revalida en el POST. Entre la alerta y el form va una
+  servicio contesta `PERSONA_SIN_DATOS`, cuando la persona sale de un alta manual, o cuando la consulta rechaza el dato
+  y ya venían nombre o apellido (`views/stock.py`, `_mostrar_persona`). Si el alta rechaza un nombre que vino del
+  Registro (el caso de los 200 caracteres), el error sube arriba del formulario pero no se pide el nombre; un POST rechazado no vuelve a consultar al Registro. La persona se anuncia con `_alerta` info y se revalida en el POST. Entre la alerta y el form va una
   superficie de solo lectura «Lo que recibió antes» (encabezado `px-5 py-4 border-b border-light`, tabla canónica escrita a
   mano: Fecha / Institución / «Qué recibió», tope de 20 recortado en el selector, `_estado_vacio` si no hay). El saldo va
   como columna informativa «En stock» de `_tabla_cantidades`.
+  Variantes del módulo Stock con la misma pieza:
+  - **«Ingresar stock»** (`stock/ingresar.html`) no tiene superficie GET: el destino —el edificio— ya lo eligió la URL.
+    Una sola superficie `<form method="post">` con, en este orden, el `h2` del edificio, los tres campos canónicos
+    (`origen`, `origen_detalle`, `comprobante`) en `grid grid-cols-1 sm:grid-cols-2 gap-4` y, bajo `border-t border-light
+    pt-4`, la tabla `_tabla_cantidades` de **todos** los insumos activos del catálogo (columna informativa «En stock»;
+    cantidad vacía = no entra de ese). Sin insumos activos, `_alerta` `warning` en vez del formulario. «Obligatorio con
+    “Otro”» lo decide el servicio y vuelve en el campo; no hay JS ni Alpine.
+  - **«Traspasar stock»** (`stock/traspasar.html`): la superficie 1 es un GET con un `select` «Destino» cuyas opciones son
+    **solo** los pares que da `destinos_de_traspaso` (no escribe nada). Con destino elegido, la superficie 2 es el POST
+    con el destino en un oculto, la tabla de los insumos **con saldo** en el origen («En stock»), la observación y el
+    identificador del envío. Sin destinos posibles, `_alerta` `warning` con el motivo y sin selector; sin insumos con
+    saldo, `_alerta` `warning` en vez de la superficie 2. Un destino que el servicio rechaza (alcance, estado) vuelve a
+    la superficie 1 con el error en el campo, sin tabla.
+  - Las tres pantallas de stock comparten `FormConTablaDeCantidades` (`programas/forms_stock.py`): campos
+    `cantidad_<id>`, guarda de «un insumo pedido que ya no tiene fila no se descarta en silencio» y «cargá al menos un
+    insumo». Cada una dibuja sus ocultos con `form.hidden_fields` y el `auto_id` propio de la vista.
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.
 - Grilla de dos columnas: envolver los `{% include %}` de campo en
