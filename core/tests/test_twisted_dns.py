@@ -1,4 +1,9 @@
-"""Precondición de la excepción temporal CVE-2026-83813 (PR #988)."""
+"""Daphne resuelve DNS con GAIResolver/getaddrinfo y no carga `twisted.names`.
+
+Fue la precondición de la excepción de CVE-2026-83813 (PR #988), retirada en el Cambio 611
+con twisted 26.10.0. Se mantiene como guarda por si una advisory futura de `twisted.names`
+vuelve a pedir una excepción.
+"""
 
 import json
 import subprocess
