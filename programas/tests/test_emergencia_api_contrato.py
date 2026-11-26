@@ -7,7 +7,8 @@ Lo que lee la app (`Chaco-mobile`) está fijado con **claves exactas** (las cons
 ``test_emergencia_api_m2*``. Este fija lo transversal:
 
 * **H10 / RU-4** — una sola regla de acceso al módulo (``modulo_habilitado``): la usan el
-  login (``"emergencia"`` en ``modulos``) y los permisos del namespace. Agente con
+  login (``"emergencia"`` en ``modulos``), el perfil y las vistas de stock; el resto del namespace exige
+  ``modulo_de_campo_habilitado`` (lo mismo sin sumar a quien solo lleva stock). Agente con
   ``emergencia.relevar``, guardia con ``dispositivo.admitir`` o ``emergencia.recibir_kit``
   **en el Equipo** de un dispositivo, o administrador del programa Dispositivos.
 * **H11** — las claves del login no cambian (``CLAVES_LOGIN`` es el de Becas, importado);

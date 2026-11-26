@@ -96,8 +96,9 @@ def roles_en_app(user):
       kits» (M3).
     * ``dispositivo`` — ``llegadas or kits``: **opera de verdad** en algún dispositivo. Se
       mantiene por compatibilidad con la app que todavía no lee las dos de arriba.
-    * ``plazas`` — ve al menos un edificio con ``dispositivo.ver`` en su alcance (Cambio 596):
-      abre «Plazas y estadías». Aditiva; es de Dispositivos y vale para cualquier institución.
+    * ``plazas`` — ve al menos un edificio con ``dispositivo.ver`` en su alcance (Cambio 596) **y** abre el módulo de
+      campo (:func:`modulo_de_campo_habilitado`): abre «Plazas y estadías». Aditiva; quien solo lleva stock no la
+      tiene, porque esas rutas le contestan 403.
     * ``stock`` — ve el stock de al menos un edificio activo de una institución que lleva stock, con ``stock.ver``
       (análisis 010, §12.1): abre «Stock». Aditiva.
 
@@ -118,12 +119,14 @@ def roles_en_app(user):
 
     llegadas = admite_familias(user)
     kits = recibe_kits(user)
+    # Plazas es de campo: quien solo lleva stock recibe 403 en esas rutas, así que el perfil no se las ofrece.
+    campo = modulo_de_campo_habilitado(user)
     return {
         "relevar": puede_en_programa_emergencia(user, CAP_EMERGENCIA_RELEVAR),
         "llegadas": llegadas,
         "kits": kits,
         "dispositivo": llegadas or kits,
-        "plazas": ve_plazas(user),
+        "plazas": campo and ve_plazas(user),
         "stock": ve_stock(user),
     }
 

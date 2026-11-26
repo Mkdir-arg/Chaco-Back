@@ -146,6 +146,8 @@ class AccesoAlStockTests(BaseApiStock):
 
         **Mutación vista en rojo:** sacar ``stock.ver`` de ``_lleva_stock_en_su_equipo`` deja a este usuario sin el
         módulo: el login no trae ``"emergencia"`` y todas las rutas contestan 403.
+        **Mutación vista en rojo:** ``plazas`` sin ``modulo_de_campo_habilitado`` en ``roles_en_app``: el perfil dice
+        ``plazas: true`` y ``edificios/`` contesta 403.
         """
 
         self.assertTrue(modulo_habilitado(self.ve))
@@ -160,6 +162,9 @@ class AccesoAlStockTests(BaseApiStock):
         self.assertEqual(perfil.status_code, 200)
         self.assertEqual(sorted(perfil.json()), CLAVES_PERFIL)
         self.assertIs(perfil.json()["stock"], True)
+        # Plazas es de campo: tiene `dispositivo.ver`, pero esas rutas le dan 403, así que el perfil no se la ofrece.
+        self.assertIs(perfil.json()["plazas"], False)
+        self.assertEqual(self._como(self.ve).get(reverse("emergencia_api:edificios")).status_code, 403)
         self.assertEqual(self._get(self.ve, "stock").status_code, 200)
 
     def test_una_institucion_que_no_lleva_stock_no_abre_el_modulo(self):
@@ -391,7 +396,7 @@ class StockDelEdificioTests(BaseApiStock):
     def test_404_fuera_de_alcance_es_igual_a_inexistente(self):
         """Ajeno, no vinculado, de institución sin stock, fuera de alcance y no existente: el mismo 404 y cuerpo.
 
-        **Mutación vista en rojo:** sin el filtro de alcance de ``edificio_de_stock`` el edificio fuera de alcance del
+        **Mutación vista en rojo:** sin el filtro de alcance de ``edificio_de_la_institucion`` el edificio fuera de alcance del
         usuario de un edificio contesta 200.
         """
 

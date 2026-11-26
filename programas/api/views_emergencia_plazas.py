@@ -3,7 +3,7 @@
 Vale para **cualquier** institución y edificio, de Emergencia o no: quién ve qué es el alcance de siempre
 (``dispositivo.ver`` con ``q_edificios_en_alcance`` y ``edificio_de_la_institucion``), igual que la página operativa del
 edificio de la web. Un edificio ajeno, desvinculado o fuera de alcance es **404**, igual que un id que no existe.
-El permiso de módulo es el de todo el namespace (``modulo_habilitado``).
+El permiso de módulo es el de todo el namespace (``modulo_de_campo_habilitado``: el stock solo no lo abre).
 
 Las vistas solo orquestan; el armado y las reglas están en ``programas.services.plazas_app``.
 """

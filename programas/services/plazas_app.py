@@ -108,18 +108,12 @@ def _resumen(conteo):
 # ---------------------------------------------------------------------------------------
 
 
-def _pares_en_alcance(user):
-    """Los vínculos institución-edificio que ``user`` alcanza leyendo (``dispositivo.ver``), como filas del vínculo."""
-
-    return pares_en_alcance(user, CAP_VER)
-
-
 def ve_plazas(user):
     """¿``user`` ve al menos un edificio con ``dispositivo.ver``? Es la clave ``plazas`` del perfil de la app."""
 
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return _pares_en_alcance(user).exists()
+    return pares_en_alcance(user, CAP_VER).exists()
 
 
 def edificios_de_la_app(user):
@@ -129,7 +123,7 @@ def edificios_de_la_app(user):
     """
 
     pares = list(
-        _pares_en_alcance(user)
+        pares_en_alcance(user, CAP_VER)
         .select_related("edificio", "dispositivo")
         .only(
             "dispositivo_id",

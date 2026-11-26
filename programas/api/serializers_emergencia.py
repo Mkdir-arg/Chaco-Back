@@ -56,7 +56,7 @@ def validar_foto_de_la_app(archivo):
     return archivo
 
 
-def _texto(**kwargs):
+def texto(**kwargs):
     return serializers.CharField(required=False, allow_blank=True, default="", **kwargs)
 
 
@@ -89,23 +89,23 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     )
 
     # Paso 1 · traslado y responsable
-    traslado = _texto(help_text=f"Obligatorio. Fuerza que traslada: {_TRASLADOS}.")
-    traslado_otro = _texto(help_text="Obligatorio si `traslado` es `OTRA`.")
-    dni = _texto(help_text="Obligatorio. DNI del responsable; se queda solo con los dígitos.")
-    nombre = _texto(
+    traslado = texto(help_text=f"Obligatorio. Fuerza que traslada: {_TRASLADOS}.")
+    traslado_otro = texto(help_text="Obligatorio si `traslado` es `OTRA`.")
+    dni = texto(help_text="Obligatorio. DNI del responsable; se queda solo con los dígitos.")
+    nombre = texto(
         help_text=(
             "Obligatorio si la persona no está en el legajo (alta mínima). Si está, se omite, coincide con el "
             "legajo o va con `identidad_en_conflicto`."
         )
     )
-    apellido = _texto(
+    apellido = texto(
         help_text=(
             "Obligatorio si la persona no está en el legajo (alta mínima). Si está, se omite, coincide con el "
             "legajo o va con `identidad_en_conflicto`."
         )
     )
     fecha_nacimiento = serializers.DateField(required=False, allow_null=True, default=None)
-    telefono = _texto()
+    telefono = texto()
     documento_extraviado = _aviso(help_text="Perdió el documento pero sabe el número.")
     identidad_en_conflicto = _aviso(
         help_text=(
@@ -139,7 +139,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     mascotas = _aviso()
 
     # Paso 4 · ubicación y fotos
-    direccion = _texto(help_text="Obligatoria: calle y número, o una referencia. Hasta 240 caracteres.")
+    direccion = texto(help_text="Obligatoria: calle y número, o una referencia. Hasta 240 caracteres.")
     localidad = serializers.IntegerField(
         required=False, allow_null=True, default=None, help_text="`id` de `GET /api/emergencia/localidades/`."
     )
@@ -148,7 +148,7 @@ class CasoEmergenciaEnvioSerializer(serializers.Serializer):
     precision_m = serializers.FloatField(
         required=False, allow_null=True, default=None, help_text="Precisión del GPS en metros."
     )
-    observaciones = _texto()
+    observaciones = texto()
     foto_vivienda = serializers.FileField(
         required=False,
         allow_null=True,
@@ -631,8 +631,8 @@ class AceptacionSerializer(serializers.Serializer):
 
 
 class RechazarDerivacionEnvioSerializer(serializers.Serializer):
-    motivo = _texto(help_text="Obligatorio: `SIN_PLAZAS`, `NO_CUMPLE_PERFIL`, `NO_LLEGO` u `OTRO`.")
-    observacion = _texto(help_text="Obligatoria con `OTRO`.")
+    motivo = texto(help_text="Obligatorio: `SIN_PLAZAS`, `NO_CUMPLE_PERFIL`, `NO_LLEGO` u `OTRO`.")
+    observacion = texto(help_text="Obligatoria con `OTRO`.")
 
 
 class RechazoSerializer(serializers.Serializer):
@@ -724,23 +724,23 @@ class AlojarFamiliaEnvioSerializer(serializers.Serializer):
     sector = serializers.IntegerField(
         required=False, allow_null=True, default=None, help_text="`id` de un sector del dispositivo (`…/plazas/`)."
     )
-    aula = _texto(help_text="Aula o dormitorio. Hasta 80 caracteres.")
+    aula = texto(help_text="Aula o dormitorio. Hasta 80 caracteres.")
     tarjeta_entregada = _aviso()
-    tarjeta_numero = _texto(help_text="Obligatorio si `tarjeta_entregada`. Hasta 40 caracteres.")
-    encargado = _texto(
+    tarjeta_numero = texto(help_text="Obligatorio si `tarjeta_entregada`. Hasta 40 caracteres.")
+    encargado = texto(
         help_text="Obsoleto: se ignora. Quien recibe es siempre el usuario autenticado (se guarda su id y su nombre)."
     )
 
 
 class CerrarConDiferenciaEnvioSerializer(serializers.Serializer):
     derivacion = _derivacion_vista()
-    motivo = _texto(help_text="Obligatorio: `QUEDO_CON_FAMILIARES`, `NO_LLEGO`, `DERIVADO_A_SALUD` u `OTRO`.")
-    observacion = _texto(help_text="Obligatoria con `OTRO`.")
+    motivo = texto(help_text="Obligatorio: `QUEDO_CON_FAMILIARES`, `NO_LLEGO`, `DERIVADO_A_SALUD` u `OTRO`.")
+    observacion = texto(help_text="Obligatoria con `OTRO`.")
 
 
 class CancelarIngresoEnvioSerializer(serializers.Serializer):
     derivacion = _derivacion_vista()
-    motivo = _texto(help_text="Obligatorio, hasta 200 caracteres.")
+    motivo = texto(help_text="Obligatorio, hasta 200 caracteres.")
 
 
 class CierreDeIngresoSerializer(serializers.Serializer):
@@ -800,7 +800,7 @@ class IngresoDirectoEnvioSerializer(CasoEmergenciaEnvioSerializer):
     """
 
     relevado_en = None
-    direccion = _texto(help_text="Opcional: sin ella va el domicilio del dispositivo. Hasta 240 caracteres.")
+    direccion = texto(help_text="Opcional: sin ella va el domicilio del dispositivo. Hasta 240 caracteres.")
 
 
 class IngresoDirectoSerializer(serializers.Serializer):
