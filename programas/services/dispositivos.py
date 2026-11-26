@@ -19,8 +19,13 @@ CAP_VER_TODOS = "dispositivo.ver_todos"
 CAP_EDITAR = "dispositivo.editar"
 #: La sección «Edificios» (#1164). Es de lectura: `ver_todos` la amplía como a `CAP_VER`.
 CAP_VER_EDIFICIOS = "edificio.ver"
-#: Las capacidades de lectura que `dispositivo.ver_todos` amplía a toda la red.
-_CAPS_LECTURA_RED = frozenset({CAP_VER, CAP_VER_EDIFICIOS})
+#: Stock de insumos por edificio (análisis 010). Solo ``stock.ver`` es de lectura; las otras tres operan.
+CAP_STOCK_VER = "stock.ver"
+CAP_STOCK_ENTREGAR = "stock.entregar"
+CAP_STOCK_INGRESAR = "stock.ingresar"
+CAP_STOCK_AJUSTAR = "stock.ajustar"
+#: Las capacidades de lectura que `dispositivo.ver_todos` amplía a toda la red (RN-010-13: nunca las de operar).
+_CAPS_LECTURA_RED = frozenset({CAP_VER, CAP_VER_EDIFICIOS, CAP_STOCK_VER})
 # `CAP_ADMITIR` vivía acá para que `core.views.media` dejara al admisor bajar el F-00
 # que él mismo había subido. Se fue con la admisión vieja (MVP v2, release A); la
 # capacidad sigue en el catálogo y la repone la E2 con el ingreso contra `Estadia`.
@@ -247,7 +252,7 @@ def _del_equipo(user, capacidad, programa):
 
 
 def _ve_todos(user, capacidad, programa):
-    """``dispositivo.ver_todos`` da lectura total y **solo** lectura (``CAP_VER`` y ``CAP_VER_EDIFICIOS``)."""
+    """``dispositivo.ver_todos`` da lectura total y **solo** lectura (:data:`_CAPS_LECTURA_RED`)."""
 
     return capacidad in _CAPS_LECTURA_RED and rbac.puede(user, CAP_VER_TODOS, programa=programa)
 

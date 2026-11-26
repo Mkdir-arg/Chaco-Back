@@ -77,9 +77,10 @@ class SembrarRolesTests(TestCase):
     def test_las_capacidades_pedidas_por_el_pm(self):
         _correr()
         self.assertEqual(
-            _capacidades("dispositivos.supervision_red"), {"dispositivo.ver", "dispositivo.ver_todos", "edificio.ver"}
+            _capacidades("dispositivos.supervision_red"),
+            {"dispositivo.ver", "dispositivo.ver_todos", "edificio.ver", "stock.ver"},
         )
-        self.assertEqual(_capacidades("dispositivos.consulta"), {"dispositivo.ver", "edificio.ver"})
+        self.assertEqual(_capacidades("dispositivos.consulta"), {"dispositivo.ver", "edificio.ver", "stock.ver"})
         self.assertEqual(_capacidades("emergencia.autoridad"), {"emergencia.ver_situacion"})
         self.assertEqual(_capacidades("emergencia.agente_territorial"), {"emergencia.relevar"})
         self.assertEqual(_capacidades("emergencia.supervisor_mesa"), {"emergencia.operar", "emergencia.supervisar"})

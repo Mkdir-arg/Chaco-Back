@@ -360,6 +360,8 @@ class CatalogoProgramaTests(TestCase):
                 # de kits, acotada a DISPOSITIVOS (hallazgo H3 del plan).
                 "emergencia",
                 "dispositivos_emergencia",
+                # Stock de insumos por edificio (análisis 010, PR 1), acotado a DISPOSITIVOS.
+                "dispositivos_stock",
                 "becas_admin",
                 "becas_segmentos",
                 "becas_subsegmentos",

@@ -104,6 +104,10 @@ TABLAS = {
     "TrazaCaso": "programas_trazacaso",
     "EntregaKit": "programas_entregakit",
     "LineaEntrega": "programas_lineaentrega",
+    # Stock de insumos por edificio (análisis 010, PR 1): viven en `programas/models/stock.py`.
+    "SaldoStock": "programas_saldostock",
+    "OperacionStock": "programas_operacionstock",
+    "MovimientoStock": "programas_movimientostock",
     "TrazaEntrega": "programas_trazaentrega",
     "Sector": "programas_sector",
     "Segmento": "programas_segmento",
