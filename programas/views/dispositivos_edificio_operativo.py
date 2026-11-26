@@ -109,7 +109,7 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
             return None
         return {
             "titulo": f"Ajustar · {fila['nombre']}",
-            "hay": f"Hay {fila['cantidad']} {fila['unidad']} ahora",
+            "hay": f"Hay {fila['cantidad']} ahora ({fila['unidad']})",
             "form": AjusteForm(initial={"item": item_id, "saldo_visto": fila["cantidad"]}),
         }
 

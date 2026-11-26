@@ -35,6 +35,17 @@ PARAMETRO_AJUSTAR = "ajustar"
 #: Texto de la fila «Stock» de la tarjeta de edificio cuando todavía no se cargó nada.
 SIN_STOCK_CARGADO = "Sin stock cargado"
 
+
+def url_abrir_ajuste(dispositivo, edificio, item_id):
+    """URL de la solapa Stock del edificio con el modal «Ajustar» abierto sobre ``item_id``.
+
+    Es la única que la arma: el botón de cada fila y el reintento tras ``SaldoCambio`` / ``UuidEnUso`` abren el mismo modal.
+    """
+
+    pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
+    return f"{pagina}?tab=stock&{PARAMETRO_AJUSTAR}={item_id}"
+
+
 _MENOS = "\N{MINUS SIGN}"
 
 #: El tono del badge de cada tipo de movimiento: lo que suma es verde, lo que sale a una persona es informativo.
@@ -231,13 +242,12 @@ def contexto_de_la_solapa(user, dispositivo, edificio):
         :MOVIMIENTOS_EN_LA_SOLAPA
     ]
     puede_ajustar = ve and edificio.activo and servicio.puede_ajustar(user, dispositivo, edificio.pk)
-    pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
     sin_existencia = sum(1 for saldo in saldos if saldo.cantidad == 0)
     return {
         "insumos": len(saldos),
         "resumen": texto_de_resumen(len(saldos), sin_existencia),
         "filas": [
-            _fila_de_saldo(saldo, f"{pagina}?tab=stock&{PARAMETRO_AJUSTAR}={saldo.item_id}" if puede_ajustar else "")
+            _fila_de_saldo(saldo, url_abrir_ajuste(dispositivo, edificio, saldo.item_id) if puede_ajustar else "")
             for saldo in saldos
         ],
         "movimientos": [fila_de_movimiento(m, puede_ver_persona=puede_ver_persona) for m in movimientos],
@@ -257,4 +267,5 @@ __all__ = [
     "fila_de_movimiento",
     "puede_solapa",
     "texto_de_resumen",
+    "url_abrir_ajuste",
 ]

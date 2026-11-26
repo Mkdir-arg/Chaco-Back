@@ -8,7 +8,8 @@ Mutaciones verificadas a mano (se rompe la regla, se mira el test rojo, se resta
 
 * sacar el ``puede_ajustar`` de ``ajustar`` (servicio) pone rojo ``test_el_servicio_rechaza_aunque_la_vista_deje_pasar``;
 * cambiar ``CAPACIDAD = CAP_STOCK_AJUSTAR`` de ``AjustarStockView`` por ``CAP_STOCK_INGRESAR`` pone rojo
-  ``test_sin_stock_ajustar_en_ningun_lado_es_403``;
+  ``test_sin_stock_ajustar_en_ningun_lado_es_403``, y por ``CAP_STOCK_VER`` pone rojo
+  ``test_la_vista_filtra_por_stock_ajustar_en_la_institucion_antes_que_el_servicio`` (el servicio solo daría 403);
 * sacar el ``except SaldoCambio`` de ``AjustarStockView.post`` pone rojo ``test_un_saldo_que_cambio_reabre_el_modal_con_el_saldo_de_ahora``;
 * sacar el ``con_persona`` / ``puede_ver_persona`` de ``MovimientosStockView.get`` pone rojo
   ``test_la_persona_de_una_entrega_solo_se_nombra_con_ciudadano_ver``;
@@ -22,6 +23,7 @@ import uuid
 from pathlib import Path
 
 from django.db import connection
+from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -89,6 +91,18 @@ class AjustePermisosTests(BaseAjuste):
         self.tipo.save()
         self._entrar()
         self.assertEqual(self.client.post(self._url(), self._datos()).status_code, 404)
+
+    def test_la_vista_filtra_por_stock_ajustar_en_la_institucion_antes_que_el_servicio(self):
+        """Primera capa: con ``stock.ver`` en ``disp`` y ``stock.ajustar`` solo en ``disp_b``, la **vista** da 404 en
+        ``disp``. Si la vista pidiera ``stock.ver`` pasaría y el 403 lo daría recién el servicio."""
+
+        usuario = self._usuario_con("ajusta_en_otra", ("stock.ver",))
+        rol = self._rol("Ajusta solo en B", ("dispositivo.ver", "stock.ver", "stock.ajustar"))
+        usuario.groups.add(rol)  # la capacidad del programa la da el grupo; el equipo la acota a ``disp_b``
+        self._miembro(self.disp_b, usuario, rol)
+        self._entrar(self._fresco(usuario))
+        self.assertEqual(self.client.post(self._url(), self._datos()).status_code, 404)
+        self.assertEqual(self._cantidad(self.colchon), 10)
 
     def test_el_ajuste_es_solo_post(self):
         self._entrar()
@@ -203,7 +217,7 @@ class AjustePostTests(BaseAjuste):
         self.assertFalse(MovimientoStock.objects.filter(tipo=MovimientoStock.Tipo.AJUSTE).exists())
         pagina = self.client.get(cuerpo["redirect"])
         self.assertEqual(pagina.status_code, 200)
-        self.assertEqual(pagina.context["ajuste"]["hay"], "Hay 15 unidad ahora")
+        self.assertEqual(pagina.context["ajuste"]["hay"], "Hay 15 ahora (unidad)")
         self.assertEqual(pagina.context["ajuste"]["form"].initial["saldo_visto"], 15)
         self.assertContains(pagina, 'id="modal-ajustar-titulo"')
 
@@ -271,7 +285,7 @@ class AjusteModalTests(BaseAjuste):
         abierto = self._get(ajustar=self.colchon.pk)
         self.assertContains(abierto, 'id="modal-ajustar-titulo"')
         self.assertContains(abierto, "Ajustar · Colchón stock")
-        self.assertContains(abierto, "Hay 10 unidad ahora")
+        self.assertContains(abierto, "Hay 10 ahora (unidad)")
         self.assertContains(abierto, "data-ajax")
         self.assertContains(abierto, reverse(self.RUTA, args=[self.disp.pk, self.edificio.pk]))
 
@@ -426,6 +440,14 @@ class MovimientosListadoTests(MovimientosBase):
         self.assertEqual(len(self._filas(respuesta)), 2)
         self.assertFalse(respuesta.context["hay_filtros"])
 
+    def test_un_hasta_en_la_fecha_maxima_es_sin_tope_y_no_da_500(self):
+        """``9999-12-31`` es válida pero el rango del día le suma uno y desborda: se trata como «sin tope»."""
+
+        respuesta = self._get(hasta="9999-12-31")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(len(self._filas(respuesta)), 2)
+        self.assertFalse(respuesta.context["hay_filtros"])
+
     def test_sin_resultados_distingue_el_filtro_del_edificio_sin_movimientos(self):
         con_filtro = self._get(tipo="AJUSTE")
         self.assertContains(con_filtro, "Ningún movimiento coincide con los filtros")
@@ -473,6 +495,7 @@ class MovimientosPrivacidadTests(MovimientosBase):
         self.assertContains(self._get(), f"A {self.otro_edificio.nombre}")
 
 
+@tag("performance")
 class MovimientosPresupuestoTests(MovimientosBase):
     def _mover(self, vueltas):
         """Por vuelta: un ingreso, una entrega a una persona y un traspaso (cuatro movimientos de tres clases que
@@ -506,7 +529,20 @@ class MovimientosPresupuestoTests(MovimientosBase):
         con_persona = self._consultas(self.guardia)
         sin_persona = self._consultas(self.carga)
         self.assertLessEqual(sin_persona, con_persona)
-        self.assertLessEqual(con_persona, 25, f"medido: {con_persona}")
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"]["dispositivos_stock_movimientos"]
+        self.assertLessEqual(con_persona, techo["consultas_fijas"], f"medido: {con_persona}")
+
+    def test_un_listado_con_filtros_entra_en_el_mismo_techo(self):
+        self._mover(8)
+        self._entrar(self.guardia)
+        parametros = {"insumo": self.colchon.pk, "tipo": "INGRESO", "desde": "2020-01-01", "hasta": "2999-12-31"}
+        self.client.get(self._url(), parametros)
+        with CaptureQueriesContext(connection) as medidas:
+            respuesta = self.client.get(self._url(), parametros)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context["hay_filtros"])
+        techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"]["dispositivos_stock_movimientos"]
+        self.assertLessEqual(len(medidas), techo["consultas_fijas"], f"medido con filtros: {len(medidas)}")
 
 
 class PermisosMemoizadosTests(MovimientosBase):

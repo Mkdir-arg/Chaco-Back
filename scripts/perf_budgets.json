@@ -320,6 +320,11 @@
       "consultas_fijas": 33,
       "motivo": "Presupuesto nuevo (Cambio 603, PR 4 de Stock; 24 -> 28 en el Cambio 606, PR 5, con la guardia; 28 -> 36 en el Cambio 608, PR 6a, y 36 -> 33 en el Cambio 610, PR 6b, cuando stock.ver pasa a memoizarse en el user y deja de leerse dos veces; medido con el peor usuario real: alcance Edificios con stock.entregar, stock.ingresar, stock.ajustar y ciudadano.ver, ver dispositivos_edificio_operativo_stock_peor_usuario_608; son lecturas fijas del alcance por capacidad y no crecen con los insumos ni los movimientos): la solapa Stock de la pagina del edificio se arma SOLO con la solapa abierta (?tab=stock) y solo con un tipo que lleva stock y stock.ver sobre el edificio. Son las 22 del encabezado mas dos lecturas fijas: el saldo por insumo y los ultimos movimientos con todo lo que nombran traido en la misma consulta. El test mide 1 y 30 insumos y exige el mismo numero: no hay consultas por insumo ni por movimiento (RNF-010-04)."
     },
+    "dispositivos_stock_movimientos": {
+      "servicio": "programas.views.stock.MovimientosStockView",
+      "consultas_fijas": 15,
+      "motivo": "Presupuesto nuevo (Cambio 610, PR 6b de Stock, ronda 2): el listado de Movimientos de un edificio (primera pagina de 25 filas) cuesta 15 consultas medidas, con y sin ciudadano.ver y con o sin filtros. Son lecturas fijas: el alcance por capacidad (la vista abre con stock.ver sobre el edificio), el edificio, el conteo y la pagina de movimientos con el insumo, la operacion, la persona y el otro edificio traidos en la misma consulta, y el selector de insumos con movimientos. No crecen con la cantidad de movimientos (el test mide 34 y 114) ni con los filtros (RNF-010-04)."
+    },
     "dispositivos_edificio_operativo_historial": {
       "servicio": "programas.views.dispositivos_edificio_operativo.EdificioOperativoView",
       "consultas_fijas": 35,

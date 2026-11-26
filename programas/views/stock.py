@@ -19,6 +19,7 @@ escribir nada; el POST lleva a la persona en ocultos, el servicio la vuelve a re
 operación idempotente por ``uuid_cliente``.
 """
 
+from datetime import date
 from uuid import uuid4
 
 from django.contrib import messages
@@ -54,7 +55,7 @@ from programas.services.dispositivos import (
     puede_operar_edificio,
 )
 from programas.services.edificio_operativo import edificio_de_la_institucion
-from programas.services.edificio_stock import PARAMETRO_AJUSTAR, fila_de_movimiento
+from programas.services.edificio_stock import fila_de_movimiento, url_abrir_ajuste
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.stock_personas import PersonaSinDatos, filas_de_historial, texto_de_la_persona
 from programas.views.ajax_utils import ajax_redirect, is_ajax, rechazar
@@ -465,7 +466,7 @@ class AjustarStockView(_OperarStockView):
     http_method_names = ["post"]
 
     def _reabrir(self, request, error, item):
-        url = f"{self._url_stock()}&{PARAMETRO_AJUSTAR}={item}"
+        url = url_abrir_ajuste(self.dispositivo, self.edificio, item)
         if is_ajax(request):
             return ajax_redirect(request, url, error.messages[0], level=messages.WARNING)
         messages.warning(request, error.messages[0])
@@ -527,7 +528,8 @@ class MovimientosStockView(_OperarStockView):
                 fecha = a_fecha(crudos[clave])
             except ValueError:
                 fecha = None
-            if fecha is not None:
+            # `date.max` equivale a «sin tope»: el rango del día le suma uno y desborda, así que no se filtra por él.
+            if fecha is not None and not (clave == "hasta" and fecha >= date.max):
                 valores[clave] = fecha
         return valores, crudos
 
