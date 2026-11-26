@@ -283,10 +283,52 @@ class EntregaSinEdificioTests(BaseRecepcionStock):
         guardia = self._guardia("guardia_sin_stock", [RECIBIR_KIT], [sin_stock])
         entrega = self._legada_sin_edificio(sin_stock)
 
-        recibida = self._recibir(entrega, self._datos(), usuario=guardia)
+        # Se pasa un edificio —vinculado a OTRA institución— para probar que se ignora de verdad.
+        recibida = self._recibir(entrega, self._datos(), usuario=guardia, edificio=self.edificio)
 
+        self.assertEqual(recibida.estado, EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS)
         self.assertIsNone(recibida.edificio_id)
+        entrega.refresh_from_db()
+        self.assertIsNone(entrega.edificio_id)
         self.assertFalse(OperacionStock.objects.exists())
+
+    def test_sin_edificios_activos_dice_que_falta_vincular_uno(self):
+        Edificio.objects.filter(pk=self.edificio.pk).update(activo=False)
+        entrega = self._legada_sin_edificio()
+
+        with self.assertRaises(ValidationError) as ctx:
+            self._recibir(entrega, self._datos())
+
+        self.assertEqual(
+            ctx.exception.message_dict["edificio"],
+            [servicio.SIN_EDIFICIO_PARA_EL_STOCK.format(nombre=self.club.nombre)],
+        )
+
+    def test_con_edificios_activos_y_sin_elegir_pide_elegir(self):
+        with self.assertRaises(ValidationError) as ctx:
+            self._recibir(self._legada_sin_edificio(), self._datos())
+
+        self.assertEqual(ctx.exception.message_dict["edificio"], [servicio.ELEGI_EL_EDIFICIO_DE_LA_RECEPCION])
+
+    def test_el_orden_de_candados_con_edificio_elegido(self):
+        """La rama de la entrega sin edificio toma Dispositivo y Edificio ANTES de escribir el saldo (M4)."""
+
+        entrega = self._legada_sin_edificio()
+
+        with orden_de_candados(
+            compartido="institucion",
+            entrega=EntregaKit.objects,
+            dispositivo=Dispositivo.objects,
+            edificio=Edificio.objects,
+            saldo=SaldoStock.objects,
+        ) as orden:
+            self._recibir(entrega, self._datos(), edificio=self.edificio)
+
+        self.assertEqual(orden[0], "entrega")
+        self.assertLess(
+            min(i for i, c in enumerate(orden) if c in ("institucion", "dispositivo")), orden.index("edificio")
+        )
+        self.assertLess(orden.index("edificio"), orden.index("saldo"))
 
     def test_el_reenvio_idempotente_no_pide_edificio_ni_suma(self):
         entrega = self._legada_sin_edificio()
@@ -313,10 +355,32 @@ class CrearEntregaConStockTests(BaseRecepcionStock):
     def test_una_institucion_sin_stock_sigue_pudiendo_recibir_sin_edificio(self):
         tipo = TipoDispositivo.objects.create(codigo="SIN-STOCK", nombre="Sin stock")
         sin_stock = self._dispositivo("Sin stock", tipo=tipo)
+        guardia = self._guardia("guardia_sin_stock_2", [RECIBIR_KIT], [sin_stock])
 
-        entrega = self._entrega(dispositivo=sin_stock)
+        entrega = servicio.marcar_en_camino(self._entrega(dispositivo=sin_stock), self.operador)
+        recibida = self._recibir(entrega, usuario=guardia)
 
         self.assertIsNone(entrega.edificio_id)
+        self.assertEqual(recibida.estado, EntregaKit.Estado.RECIBIDA)
+        self.assertIsNone(recibida.edificio_id)
+
+    def test_reponer_hereda_el_edificio_y_exige_que_siga_vinculado(self):
+        original = self._recibida_con_faltante()
+        self.edificio.dispositivos.remove(self.club)
+
+        with self.assertRaises(ValidationError) as ctx:
+            self._entrega(lineas=[(self.colchon, 2)], repone_a=original)
+
+        self.assertEqual(ctx.exception.message_dict["edificio"], [servicio.EDIFICIO_NO_ES_DEL_DISPOSITIVO])
+        original.refresh_from_db()
+        self.assertEqual(original.estado, EntregaKit.Estado.RECIBIDA_CON_DIFERENCIAS)
+
+    def test_reponer_con_el_edificio_vinculado_funciona(self):
+        original = self._recibida_con_faltante()
+
+        reposicion = self._entrega(lineas=[(self.colchon, 2)], repone_a=original)
+
+        self.assertEqual(reposicion.edificio_id, self.edificio.pk)
 
     def test_con_un_edificio_activo_queda_fijo(self):
         self.assertEqual(self._entrega().edificio, self.edificio)
@@ -375,6 +439,44 @@ class GuardasDeEdificioConSaldoTests(BaseRecepcionStock):
 
     def test_desvincular_con_saldo_en_cero_pasa(self):
         self._sembrar_saldo(self.colchon, 0)
+
+        desvincular_edificio(edificio=self.edificio, dispositivo=self.club, usuario=self.admin)
+
+        self.assertFalse(self.edificio.dispositivos.filter(pk=self.club.pk).exists())
+
+    def test_desvincular_con_una_entrega_por_recibir_hacia_el_edificio_se_rechaza(self):
+        self._entrega()  # PREPARADA
+
+        with self.assertRaises(ValidationError) as ctx:
+            desvincular_edificio(edificio=self.edificio, dispositivo=self.club, usuario=self.admin)
+
+        mensaje = ctx.exception.message_dict["__all__"][0]
+        self.assertIn("1 entrega de kits por recibir", mensaje)
+        self.assertIn("Recibí la entrega", mensaje)
+        self.assertTrue(self.edificio.dispositivos.filter(pk=self.club.pk).exists())
+
+    def test_desvincular_con_una_entrega_en_camino_hacia_el_edificio_se_rechaza(self):
+        self._en_camino()
+
+        with self.assertRaises(ValidationError) as ctx:
+            desvincular_edificio(edificio=self.edificio, dispositivo=self.club, usuario=self.admin)
+
+        self.assertIn("1 entrega de kits por recibir", ctx.exception.message_dict["__all__"][0])
+        self.assertTrue(self.edificio.dispositivos.filter(pk=self.club.pk).exists())
+
+    def test_desvincular_con_la_entrega_ya_recibida_pasa(self):
+        self._recibir(self._en_camino(), {self.colchon.pk: 0, self.alimentos.pk: 0})
+
+        desvincular_edificio(edificio=self.edificio, dispositivo=self.club, usuario=self.admin)
+
+        self.assertFalse(self.edificio.dispositivos.filter(pk=self.club.pk).exists())
+
+    def test_la_entrega_a_otro_edificio_o_a_otra_institucion_no_impide_desvincular(self):
+        otro = Edificio.objects.create(codigo="ED-OTRO2", nombre="Otro 2")
+        otro.dispositivos.add(self.club)
+        self._entrega(edificio=otro)
+        self.edificio.dispositivos.add(self.escuela)
+        self._entrega(dispositivo=self.escuela, edificio=self.edificio)
 
         desvincular_edificio(edificio=self.edificio, dispositivo=self.club, usuario=self.admin)
 

@@ -384,6 +384,10 @@ def _edificio_de_la_entrega(destino, edificio, original):
             raise ValidationError({"edificio": "El edificio tiene que estar vinculado al dispositivo destino."})
         return _exigir_edificio_activo(pk)
     if original is not None and original.edificio_id is not None:
+        if suma_al_stock(destino) and not vinculados.filter(pk=original.edificio_id).exists():
+            # El edificio de la original se desvinculó después: con stock, recibir la reposición exige un edificio
+            # vinculado (`stock._preparar`), así que se rechaza acá y no al recibir.
+            raise ValidationError({"edificio": EDIFICIO_NO_ES_DEL_DISPOSITIVO})
         return _exigir_edificio_activo(original.edificio_id)
     activos = list(vinculados.filter(activo=True).values_list("pk", flat=True)[:2])
     if len(activos) > 1:
@@ -482,7 +486,7 @@ def crear_entrega(
             raise
         return existente
     edificio_id = _edificio_de_la_entrega(destino, edificio, original)
-    if edificio_id is None and destino.tipo.maneja_stock:
+    if edificio_id is None and suma_al_stock(destino):
         # RN-010-07: lo que reciba se suma al stock de un edificio, así que no se envía a una institución con stock que
         # no tiene a cuál sumarlo. Se pide vincular uno (decisión 10).
         raise ValidationError({"edificio": SIN_EDIFICIO_PARA_EL_STOCK.format(nombre=destino.nombre)})
@@ -680,9 +684,15 @@ def _exigir_uuid_libre(uuid_cliente, entrega):
 
 
 def suma_al_stock(dispositivo):
-    """Si lo que se recibe en ``dispositivo`` se suma al stock (RN-010-06): el tipo de la institución lleva stock."""
+    """Si lo que se recibe en ``dispositivo`` se suma al stock (RN-010-06): el tipo de la institución lleva stock.
 
-    return bool(dispositivo.tipo.maneja_stock)
+    Es el predicado de ``stock.lleva_stock`` (importado acá y no arriba: ``stock`` importa de este módulo); los demás
+    lugares de ``kits`` lo piden por esta función y no repiten la regla.
+    """
+
+    from programas.services import stock
+
+    return stock.lleva_stock(dispositivo)
 
 
 def edificios_para_recibir(usuario, entrega):
@@ -715,9 +725,14 @@ def _edificio_de_la_recepcion(usuario, entrega, edificio):
 
     pk = _entero(getattr(edificio, "pk", edificio))
     if pk is None:
+        if not Edificio.objects.filter(dispositivos=entrega.dispositivo_id, activo=True).exists():
+            # Sin edificios activos no hay qué elegir (la pantalla no dibuja el desplegable): se dice qué falta.
+            raise ValidationError({"edificio": SIN_EDIFICIO_PARA_EL_STOCK.format(nombre=entrega.dispositivo.nombre)})
         raise ValidationError({"edificio": ELEGI_EL_EDIFICIO_DE_LA_RECEPCION})
     Dispositivo.objects.select_for_update().filter(pk=entrega.dispositivo_id).first()
     vinculado = Edificio.dispositivos.through.objects.filter(dispositivo_id=entrega.dispositivo_id, edificio_id=pk)
+    # `puede_recibir` ya exigió alcance sobre TODA la institución (la entrega no tiene edificio), así que esta guarda no
+    # debería dispararse hoy: queda como defensa en profundidad por si esa regla se afina por edificio.
     if not vinculado.exists() or not puede_operar_edificio(usuario, entrega.dispositivo, pk, CAP_RECIBIR_KIT):
         raise ValidationError({"edificio": EDIFICIO_NO_ES_DEL_DISPOSITIVO})
     return _exigir_edificio_activo(pk)
@@ -771,7 +786,7 @@ def recibir_entrega(entrega, usuario, cantidades, remito, observacion="", uuid_c
     if uuid_cliente is not None:
         _exigir_uuid_libre(uuid_cliente, bloqueada)
 
-    lleva_stock = bloqueada.dispositivo.tipo.maneja_stock
+    lleva_stock = suma_al_stock(bloqueada.dispositivo)
     edificio_elegido = None
     if lleva_stock and bloqueada.edificio_id is None:
         edificio_elegido = _edificio_de_la_recepcion(usuario, bloqueada, edificio)

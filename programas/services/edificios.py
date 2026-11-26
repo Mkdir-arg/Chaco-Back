@@ -270,6 +270,19 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
             }
         )
 
+    por_recibir = EntregaKit.objects.filter(
+        dispositivo=dispositivo, edificio=edificio, estado__in=EntregaKit.ESTADOS_ABIERTOS
+    ).count()
+    if por_recibir:
+        # Con stock, recibir esa entrega exige un edificio vinculado (`stock._preparar`): quedaría trabada.
+        raise ValidationError(
+            {
+                "__all__": f"No se puede desvincular {edificio.nombre}: tiene "
+                f"{_plural(por_recibir, 'entrega de kits por recibir', 'entregas de kits por recibir')}. "
+                f"{'Recibí la entrega' if por_recibir == 1 else 'Recibí las entregas'} antes."
+            }
+        )
+
     con_stock = SaldoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, cantidad__gt=0).count()
     if con_stock:
         raise ValidationError({"__all__": STOCK_EN_EL_EDIFICIO.format(cuantos=_plural(con_stock, "insumo", "insumos"))})
