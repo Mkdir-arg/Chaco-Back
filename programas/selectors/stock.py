@@ -69,6 +69,16 @@ def movimientos_de(dispositivo, edificio, filtros=None, *, con_persona=False):
     return consulta.select_related(*relacionados).order_by("-creado_en", "-id")
 
 
+def insumos_con_movimientos(dispositivo, edificio):
+    """Los insumos que tienen algún movimiento en (institución, edificio), por nombre: el filtro «Insumo» del listado.
+
+    Una consulta, con ``Exists``: un insumo del catálogo que nunca se movió acá no ofrece un filtro que da vacío.
+    """
+
+    movidos = MovimientoStock.objects.filter(dispositivo=dispositivo, edificio=edificio, item=OuterRef("pk"))
+    return list(TipoKit.objects.filter(Exists(movidos)).order_by("nombre", "pk"))
+
+
 def resumen_de_insumos_por_edificio(dispositivo, edificio_ids):
     """Para la fila «Stock» de la tarjeta, en **una** consulta agrupada: ``{edificio_id: {"insumos": n, "sin_existencia": m}}``.
 

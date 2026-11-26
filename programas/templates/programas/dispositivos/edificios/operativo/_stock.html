@@ -38,7 +38,7 @@
               {% if fila.url_ajustar %}
               <a href="{{ fila.url_ajustar }}" class="nodo-icon-btn" aria-label="Ajustar el stock de {{ fila.nombre }}" title="Ajustar">
                 <i class="fas fa-sliders" aria-hidden="true"></i>
-              </a>{# Una sola acción por fila: botón de ícono (tabla.md). Si el PR 6b suma otra, pasan a `menu_fila` con 3. #}
+              </a>{# Una sola acción por fila: botón de ícono (tabla.md); abre el modal «Ajustar» de la página (`?ajustar=`). Con 3 acciones pasarían a `menu_fila`. #}
               {% endif %}
             </td>
             {% endif %}
@@ -53,9 +53,14 @@
   </section>
 
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="stock-movimientos-titulo">
-    <div class="px-5 py-4 border-b border-light">
-      <h2 id="stock-movimientos-titulo" class="text-heading font-bold">Últimos movimientos</h2>
-      <p class="text-xs text-body-subtle mt-1">Ingresos, entregas, traspasos y ajustes de este edificio, del más nuevo al más viejo.</p>
+    <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <h2 id="stock-movimientos-titulo" class="text-heading font-bold">Últimos movimientos</h2>
+        <p class="text-xs text-body-subtle mt-1">Ingresos, entregas, traspasos y ajustes de este edificio, del más nuevo al más viejo.</p>
+      </div>
+      {% if stock.url_movimientos and stock.movimientos %}
+      <a href="{{ stock.url_movimientos }}" class="btn-nodo btn-tertiary btn-sm">Ver todos los movimientos</a>
+      {% endif %}
     </div>
     {% if stock.movimientos %}
     {% include "components/_tabla_movimientos.html" with filas=stock.movimientos caption="Últimos movimientos de stock de este edificio" only %}

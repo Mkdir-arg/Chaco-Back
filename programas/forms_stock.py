@@ -15,10 +15,19 @@ from django import forms
 
 from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
-from programas.forms_cantidades import campo_de, campo_de_cantidad, claves_sin_campo
+from programas.forms_cantidades import campo_de, campo_de_cantidad, claves_sin_campo, numero
 from programas.forms_emergencia import ErroresDelServicioMixin
 from programas.models import OperacionStock
-from programas.services.stock import COMPROBANTE_MAXIMO, DESTINO_INVALIDO, OBSERVACION_MAXIMA, ORIGEN_DETALLE_MAXIMO
+from programas.services.kits import CANTIDAD_MAXIMA
+from programas.services.stock import (
+    COMPROBANTE_MAXIMO,
+    CONTADO_INVALIDO,
+    DESTINO_INVALIDO,
+    MOTIVO_INVALIDO,
+    OBSERVACION_MAXIMA,
+    ORIGEN_DETALLE_MAXIMO,
+    SALDO_VISTO_INVALIDO,
+)
 
 CANTIDAD_INVALIDA = "Tiene que ser un número entero, cero o más."
 FALTA_EL_IDENTIFICADOR = "Falta el identificador del envío: volvé a abrir la pantalla."
@@ -263,3 +272,69 @@ class TraspasoForm(FormConTablaDeCantidades):
 
         izquierda, _dos_puntos, derecha = (self.cleaned_data.get("destino") or "").partition(":")
         return tuple(int(parte) if parte.isascii() and parte.isdecimal() else None for parte in (izquierda, derecha))
+
+
+class AjusteForm(ErroresDelServicioMixin, forms.Form):
+    """El ajuste por conteo de **un** insumo (RN-010-12): el motivo del catálogo, lo que se contó y el detalle.
+
+    Viaja en ocultos el insumo, el ``saldo_visto`` —el que había al abrir el modal: si cambió, el servicio contesta
+    ``SaldoCambio``— y el ``uuid_cliente``. Es un modal AJAX: los errores salen como ``{campo: [mensajes]}``
+    (:meth:`errores`) y los de un oculto suben al error general. El servicio decide el resto (el detalle obligatorio,
+    contar lo mismo que hay, un insumo desactivado hacia arriba).
+    """
+
+    CAMPOS_ARRIBA = ("item", "saldo_visto", "uuid_cliente")
+
+    item = forms.IntegerField(widget=forms.HiddenInput())
+    saldo_visto = forms.IntegerField(
+        min_value=0,
+        error_messages={"required": SALDO_VISTO_INVALIDO, "invalid": SALDO_VISTO_INVALIDO},
+        widget=forms.HiddenInput(),
+    )
+    uuid_cliente = forms.UUIDField(
+        error_messages={"required": FALTA_EL_IDENTIFICADOR, "invalid": FALTA_EL_IDENTIFICADOR},
+        widget=forms.HiddenInput(),
+    )
+    motivo = forms.ChoiceField(
+        label="Motivo",
+        choices=[("", "Elegí…"), *OperacionStock.MotivoAjuste.choices],
+        error_messages={"required": MOTIVO_INVALIDO, "invalid_choice": MOTIVO_INVALIDO},
+        widget=_select(),
+    )
+    cantidad_contada = forms.IntegerField(
+        label="Cantidad contada",
+        min_value=0,
+        max_value=CANTIDAD_MAXIMA,
+        help_text="Lo que hay hoy en el edificio, contado. El sistema calcula la diferencia.",
+        error_messages={
+            "required": CONTADO_INVALIDO,
+            "invalid": CONTADO_INVALIDO,
+            "min_value": CONTADO_INVALIDO,
+            "max_value": CONTADO_INVALIDO,
+        },
+        widget=numero(0),
+    )
+    detalle = forms.CharField(
+        label="Detalle",
+        required=False,
+        max_length=OBSERVACION_MAXIMA,
+        help_text="Obligatorio con «Otro» y con «Corrección de carga».",
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial.setdefault("uuid_cliente", uuid.uuid4())
+
+    def campos_visibles(self):
+        return [self["motivo"], self["cantidad_contada"], self["detalle"]]
+
+    def errores(self):
+        """Los errores en la forma del modal: ``{campo: [mensajes]}``; los de un oculto, en ``__all__``."""
+
+        resultado = {}
+        for campo, mensajes in self.errors.items():
+            destino = "__all__" if campo in self.CAMPOS_ARRIBA or campo not in self.fields else campo
+            resultado.setdefault(destino, []).extend(mensajes)
+        return resultado

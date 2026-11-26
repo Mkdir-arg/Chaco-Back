@@ -146,33 +146,42 @@ def lleva_stock(dispositivo):
 
 
 def puede_ver_stock(user, dispositivo, edificio_id):
-    return puede_operar_edificio(user, dispositivo, edificio_id, CAP_STOCK_VER)
+    """``stock.ver`` sobre ese edificio, **memoizado en el ``user``** por ``(institución, edificio)``.
 
-
-def _puede_con(user, dispositivo, edificio_id, capacidad, ya_ve):
-    """RN-010-13: cada acción exige su capacidad **y** ``stock.ver`` sobre el mismo edificio.
-
-    ``ya_ve=True`` es de quien **acaba de comprobar** ``puede_ver_stock`` sobre este mismo edificio y decide varias
-    acciones seguidas (el panel de la solapa): no lo vuelve a leer por cada botón. Los servicios no lo pasan nunca.
+    Mismo criterio que ``core.rbac``, que memoiza las capacidades en el objeto ``user`` (vive una request): el
+    encabezado de la página, el panel y cada acción piden lo mismo y el alcance por edificios cuesta consultas. Así la
+    API pública no lleva ninguna marca «ya lo vi»: ninguna acción puede saltearse ``stock.ver`` (RN-010-13).
     """
 
-    return (ya_ve or puede_ver_stock(user, dispositivo, edificio_id)) and puede_operar_edificio(
+    if user is None:
+        return puede_operar_edificio(user, dispositivo, edificio_id, CAP_STOCK_VER)
+    memo = user.__dict__.setdefault("_stock_ver_cache", {})
+    clave = (_pk(dispositivo), edificio_id)
+    if clave not in memo:
+        memo[clave] = puede_operar_edificio(user, dispositivo, edificio_id, CAP_STOCK_VER)
+    return memo[clave]
+
+
+def _puede_con(user, dispositivo, edificio_id, capacidad):
+    """RN-010-13: cada acción exige su capacidad **y** ``stock.ver`` sobre el mismo edificio."""
+
+    return puede_ver_stock(user, dispositivo, edificio_id) and puede_operar_edificio(
         user, dispositivo, edificio_id, capacidad
     )
 
 
-def puede_entregar(user, dispositivo, edificio_id, *, ya_ve=False):
+def puede_entregar(user, dispositivo, edificio_id):
     """Entregar exige además ``ciudadano.ver``, como el ingreso de personas (``puede_ingresar_persona``)."""
 
-    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_ENTREGAR, ya_ve) and rbac.puede(user, CAP_VER_CIUDADANO)
+    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_ENTREGAR) and rbac.puede(user, CAP_VER_CIUDADANO)
 
 
-def puede_ingresar(user, dispositivo, edificio_id, *, ya_ve=False):
-    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_INGRESAR, ya_ve)
+def puede_ingresar(user, dispositivo, edificio_id):
+    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_INGRESAR)
 
 
-def puede_ajustar(user, dispositivo, edificio_id, *, ya_ve=False):
-    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_AJUSTAR, ya_ve)
+def puede_ajustar(user, dispositivo, edificio_id):
+    return _puede_con(user, dispositivo, edificio_id, CAP_STOCK_AJUSTAR)
 
 
 def _exigir(permiso, user, dispositivo, edificio_id):

@@ -24,14 +24,17 @@ from uuid import uuid4
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views import View
 
 from core import rbac
+from core.utils_fechas import a_fecha
 from programas.forms_cantidades import ids_con_cantidad
 from programas.forms_stock import (
+    AjusteForm,
     DestinoForm,
     EntregaPersonaForm,
     IngresoForm,
@@ -39,21 +42,28 @@ from programas.forms_stock import (
     TraspasoForm,
     valor_de_destino,
 )
+from programas.models import MovimientoStock
 from programas.selectors import stock as selectores
 from programas.services import stock as servicio
 from programas.services.dispositivos import (
+    CAP_STOCK_AJUSTAR,
     CAP_STOCK_ENTREGAR,
     CAP_STOCK_INGRESAR,
+    CAP_STOCK_VER,
     dispositivos_en_alcance,
     puede_operar_edificio,
 )
 from programas.services.edificio_operativo import edificio_de_la_institucion
+from programas.services.edificio_stock import PARAMETRO_AJUSTAR, fila_de_movimiento
 from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.services.stock_personas import PersonaSinDatos, filas_de_historial, texto_de_la_persona
+from programas.views.ajax_utils import ajax_redirect, is_ajax, rechazar
 
 TEMPLATE_ENTREGAR = "programas/dispositivos/stock/entregar.html"
 TEMPLATE_INGRESAR = "programas/dispositivos/stock/ingresar.html"
 TEMPLATE_TRASPASAR = "programas/dispositivos/stock/traspasar.html"
+TEMPLATE_MOVIMIENTOS = "programas/dispositivos/stock/movimientos.html"
+MOVIMIENTOS_POR_PAGINA = 25
 AUTO_ID_ENTREGA = "entrega_%s"
 AUTO_ID_INGRESO = "ingreso_%s"
 AUTO_ID_TRASPASO = "traspaso_%s"
@@ -118,12 +128,16 @@ class _OperarStockView(LoginRequiredMixin, View):
         ]
 
     def _terminada(self, request, operacion, hecho, ya_estaba):
-        """Éxito, o reenvío del mismo ``uuid_cliente`` (``ya_existia``): en los dos casos vuelve a la solapa Stock."""
+        """Éxito, o reenvío del mismo ``uuid_cliente`` (``ya_existia``): en los dos casos vuelve a la solapa Stock.
 
-        if getattr(operacion, "ya_existia", False):
-            messages.info(request, ya_estaba)
-        else:
-            messages.success(request, hecho)
+        Desde un modal AJAX (el ajuste) la vuelta es una orden de navegar, y el aviso queda en ``messages``.
+        """
+
+        reenvio = getattr(operacion, "ya_existia", False)
+        texto, nivel = (ya_estaba, messages.INFO) if reenvio else (hecho, messages.SUCCESS)
+        if is_ajax(request):
+            return ajax_redirect(request, self._url_stock(), texto, level=nivel)
+        messages.add_message(request, nivel, texto)
         return redirect(self._url_stock())
 
     @staticmethod
@@ -133,6 +147,24 @@ class _OperarStockView(LoginRequiredMixin, View):
         datos = datos.copy()
         datos["uuid_cliente"] = str(uuid4())
         return datos
+
+    def _form_tras_uuid_en_uso(self, error, datos, armar):
+        """El formulario que vuelve cuando el ``uuid_cliente`` ya era de otra operación: con uno nuevo y el rechazo arriba."""
+
+        form = armar(self._con_otro_identificador(datos))
+        form.full_clean()
+        form.agregar_errores_del_servicio(error)
+        return form
+
+    @staticmethod
+    def _form_tras_saldo_insuficiente(error, datos, armar):
+        """El formulario con el saldo **de ahora** en cada fila y, marcada, cada línea que no alcanzó."""
+
+        form = armar(datos)
+        form.full_clean()
+        form.agregar_errores_del_servicio(error)
+        form.marcar_faltantes(error.faltantes)
+        return form
 
 
 class EntregarAPersonaView(_OperarStockView):
@@ -240,16 +272,11 @@ class EntregarAPersonaView(_OperarStockView):
             except servicio.SaldoInsuficiente as error:
                 # El saldo de ahora (otra entrega pudo haber pasado): se vuelve a leer y se marca cada fila.
                 resuelta = getattr(error, "persona", None)
-                form = self._form_entrega(request.POST)
-                form.full_clean()
-                form.agregar_errores_del_servicio(error)
-                form.marcar_faltantes(error.faltantes)
+                form = self._form_tras_saldo_insuficiente(error, request.POST, self._form_entrega)
             except servicio.UuidEnUso as error:
                 # Ese identificador ya fue de otra operación: se regenera para que el reintento sea una entrega nueva.
                 resuelta = getattr(error, "persona", None)
-                form = self._form_entrega(self._con_otro_identificador(request.POST))
-                form.full_clean()
-                form.agregar_errores_del_servicio(error)
+                form = self._form_tras_uuid_en_uso(error, request.POST, self._form_entrega)
             except PersonaSinDatos as error:
                 persona_form.pedir_nombre = True
                 persona_form.add_error(None, error)
@@ -316,9 +343,7 @@ class IngresarStockView(_OperarStockView):
                     uuid_cliente=datos["uuid_cliente"],
                 )
             except servicio.UuidEnUso as error:
-                form = self._form(self._con_otro_identificador(request.POST))
-                form.full_clean()
-                form.agregar_errores_del_servicio(error)
+                form = self._form_tras_uuid_en_uso(error, request.POST, self._form)
             except ValidationError as error:
                 form.agregar_errores_del_servicio(error)
             else:
@@ -396,19 +421,19 @@ class TraspasarStockView(_OperarStockView):
                     uuid_cliente=form.cleaned_data["uuid_cliente"],
                 )
             except servicio.SaldoInsuficiente as error:
-                form = self._form(request.POST)
-                form.full_clean()
-                form.agregar_errores_del_servicio(error)
-                form.marcar_faltantes(error.faltantes)
+                form = self._form_tras_saldo_insuficiente(error, request.POST, self._form)
             except servicio.UuidEnUso as error:
-                form = self._form(self._con_otro_identificador(request.POST))
-                form.full_clean()
-                form.agregar_errores_del_servicio(error)
+                form = self._form_tras_uuid_en_uso(error, request.POST, self._form)
             except ValidationError as error:
                 if hasattr(error, "error_dict") and "destino" in error.error_dict:
                     # El destino no vale (alcance, estado, o ya no está): se vuelve a elegir, sin tabla.
                     if "destino" not in destino_form.errors:
                         destino_form.add_error("destino", error.error_dict["destino"])
+                    return self._pantalla(request, destino_form, destinos)
+                if elegido is None:
+                    # El destino salió de la lista entre el GET y el POST (se inactivó): se dibuja solo el selector,
+                    # y el motivo real del servicio va ahí, no a un formulario que no se ve.
+                    destino_form.agregar_errores_del_servicio(error)
                     return self._pantalla(request, destino_form, destinos)
                 form.agregar_errores_del_servicio(error)
             else:
@@ -421,3 +446,106 @@ class TraspasarStockView(_OperarStockView):
         if elegido is None:
             return self._pantalla(request, destino_form, destinos)
         return self._pantalla(request, destino_form, destinos, elegido, form)
+
+
+class AjustarStockView(_OperarStockView):
+    """«Ajustar»: lleva el saldo de **un** insumo a lo que se contó. Es el POST del modal de la solapa Stock.
+
+    Solo POST (el modal lo abre ``?ajustar=<insumo>`` en la página del edificio). El servicio calcula la diferencia y
+    exige ``stock.ajustar``; acá se traduce lo que contesta, para el modal AJAX y, sin JS, para un POST común:
+
+    * éxito o reenvío → vuelve a la solapa Stock con su aviso;
+    * ``SaldoCambio`` (otro movimiento cambió el saldo mientras se contaba) y ``UuidEnUso`` → el modal se **reabre**
+      con el saldo y el identificador de ahora: reenviar el mismo oculto fallaría siempre, así que el rechazo viaja
+      como aviso y la página vuelve a armar el formulario;
+    * cualquier otro ``ValidationError`` → el error en su campo del modal (400).
+    """
+
+    CAPACIDAD = CAP_STOCK_AJUSTAR
+    http_method_names = ["post"]
+
+    def _reabrir(self, request, error, item):
+        url = f"{self._url_stock()}&{PARAMETRO_AJUSTAR}={item}"
+        if is_ajax(request):
+            return ajax_redirect(request, url, error.messages[0], level=messages.WARNING)
+        messages.warning(request, error.messages[0])
+        return redirect(url)
+
+    def post(self, request, **_url):
+        form = AjusteForm(request.POST)
+        if not form.is_valid():
+            return rechazar(request, form.errores(), self._url_stock())
+        datos = form.cleaned_data
+        try:
+            operacion = servicio.ajustar(
+                request.user,
+                self.dispositivo,
+                self.edificio,
+                datos["item"],
+                datos["cantidad_contada"],
+                datos["saldo_visto"],
+                datos["motivo"],
+                detalle=datos["detalle"],
+                uuid_cliente=datos["uuid_cliente"],
+            )
+        except (servicio.SaldoCambio, servicio.UuidEnUso) as error:
+            return self._reabrir(request, error, datos["item"])
+        except ValidationError as error:
+            form.agregar_errores_del_servicio(error)
+            return rechazar(request, form.errores(), self._url_stock())
+        return self._terminada(
+            request,
+            operacion,
+            "Ajuste registrado: el saldo del insumo ya es el que contaste.",
+            "Ese ajuste ya estaba registrado: no se aplicó dos veces.",
+        )
+
+
+class MovimientosStockView(_OperarStockView):
+    """«Movimientos»: el libro de un edificio, paginado y filtrable por insumo, tipo y fechas. Solo lectura.
+
+    Abre con ``stock.ver`` sobre el edificio (la misma regla que la solapa). La persona de una entrega se nombra solo
+    con ``ciudadano.ver`` y un traspaso a otra institución no nombra a la otra (``edificio_stock.fila_de_movimiento``).
+    Un filtro que no es válido se ignora: no da error.
+    """
+
+    CAPACIDAD = CAP_STOCK_VER
+    http_method_names = ["get"]
+
+    @staticmethod
+    def _filtros(parametros):
+        """``(valores para el selector, texto para repintar los controles)`` de lo que llegó en la URL."""
+
+        crudos = {clave: (parametros.get(clave) or "").strip() for clave in ("insumo", "tipo", "desde", "hasta")}
+        valores = {}
+        if crudos["insumo"].isascii() and crudos["insumo"].isdecimal():
+            valores["item"] = int(crudos["insumo"])
+        if crudos["tipo"] in MovimientoStock.Tipo.values:
+            valores["tipo"] = crudos["tipo"]
+        for clave in ("desde", "hasta"):
+            try:
+                fecha = a_fecha(crudos[clave])
+            except ValueError:
+                fecha = None
+            if fecha is not None:
+                valores[clave] = fecha
+        return valores, crudos
+
+    def get(self, request, **_url):
+        valores, crudos = self._filtros(request.GET)
+        ve_personas = rbac.puede(request.user, CAP_VER_CIUDADANO)
+        movimientos = selectores.movimientos_de(self.dispositivo, self.edificio, valores, con_persona=ve_personas)
+        pagina = Paginator(movimientos, MOVIMIENTOS_POR_PAGINA).get_page(request.GET.get("page"))
+        contexto = {
+            "dispositivo": self.dispositivo,
+            "edificio": self.edificio,
+            "page_obj": pagina,
+            "filas": [fila_de_movimiento(m, puede_ver_persona=ve_personas) for m in pagina.object_list],
+            "filtros": crudos,
+            "insumos": selectores.insumos_con_movimientos(self.dispositivo, self.edificio),
+            "tipos": MovimientoStock.Tipo.choices,
+            "hay_filtros": bool(valores),
+            "url_stock": self._url_stock(),
+            "url_movimientos": reverse("dispositivos:stock_movimientos", args=[self.dispositivo.pk, self.edificio.pk]),
+        }
+        return render(request, TEMPLATE_MOVIMIENTOS, contexto)

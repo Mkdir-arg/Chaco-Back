@@ -7,7 +7,7 @@
 
 {% block main-content %}
 {# La solapa abierta la normaliza el servicio (`normalizar_solapa`): una que este usuario no tiene cae en la de siempre #}
-<div x-data="{ tab: '{{ tab }}' }">
+<div x-data="{ tab: '{{ tab }}'{% if ajuste %}, modalAjustar: true{% endif %} }" {% if ajuste %}@becas-saved.window="modalAjustar=false"{% endif %}>
   <div class="space-y-5">
 
     {# ===== PageHeader: el edificio, siempre en el contexto de su institución ===== #}
@@ -210,12 +210,14 @@
     </div>
 
   </div>
+  {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
+  {% if ajuste %}{% include "programas/dispositivos/edificios/operativo/_stock_ajuste_modal.html" %}{% endif %}
 </div>
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}
 {# Sectores, Equipo y Estadías comparten el AJAX de sus modales y `becas-modal.js`; el egreso suma los scripts de su formulario #}
-{% if sectores_cargados or equipo_cargado or kits_cargados or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
+{% if sectores_cargados or equipo_cargado or kits_cargados or ajuste or tab == 'estadias' %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endif %}
 {% if sectores_cargados or equipo_cargado %}<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endif %}
 {% include "programas/dispositivos/legajo/_estadia_modales_js.html" %}{% endblock %}

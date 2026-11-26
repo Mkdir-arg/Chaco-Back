@@ -1,0 +1,20 @@
+{# Modal «Ajustar» del stock (Cambio 610, PR 6b). Clon de la golden del arquetipo Modal (becas/config/programa_list.html), variante «abierto por parámetro GET»; «Asignar relevamiento» (dispositivos/relevamientos/list.html) es solo evidencia de esa variante. Al cerrar, el foco cae en el body (no hay disparador al que devolverlo tras la recarga: limitación aceptada de la variante). Se abre con `?tab=stock&ajustar=<insumo>` (la vista arma `ajuste` con el saldo de ahora) y se declara UNA vez, fuera del `space-y-*`. Contexto: `ajuste` ({titulo, hay, form}) y `stock.url_enviar_ajuste`. #}
+<div x-show="modalAjustar" x-cloak x-becas-modal="modalAjustar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalAjustar=false"></div>
+  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+       role="dialog" aria-modal="true" aria-labelledby="modal-ajustar-titulo">
+    {% include "programas/becas/_modal_header.html" with titulo=ajuste.titulo titulo_id="modal-ajustar-titulo" subtitulo="Contá lo que hay y cargá el total: el sistema registra la diferencia." icono="fa-sliders" cerrar="modalAjustar=false" %}
+    <form id="form-ajustar-stock" method="post" action="{{ stock.url_enviar_ajuste }}" data-ajax class="flex flex-col flex-1 min-h-0">
+      {% csrf_token %}
+      {% for field in ajuste.form.hidden_fields %}{{ field }}{% endfor %}
+      <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        <div>
+          <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+          {% include "components/_alerta.html" with tono="info" titulo=ajuste.hay texto="Es el saldo que ve el sistema ahora. Si cambia mientras contás, te avisamos y volvés a contar." %}
+        </div>
+        {% for field in ajuste.form.campos_visibles %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+      </div>
+      {% include "programas/becas/_modal_footer.html" with cancelar="modalAjustar=false" accion_texto="Guardar ajuste" accion_icono="fa-check" %}
+    </form>
+  </div>
+</div>

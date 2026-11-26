@@ -17,6 +17,7 @@ from django.http import Http404
 from django.urls import reverse
 from django.views.generic import DetailView
 
+from programas.forms_stock import AjusteForm
 from programas.mixins_dispositivos import DispositivoObjectPermissionMixin, _entero
 from programas.mixins_dispositivos_equipo import contexto_modal_alcance, contexto_modal_sumar_persona
 from programas.mixins_dispositivos_estadias import contexto_modales_de_estadia, preparar_filas_de_estadias
@@ -32,7 +33,7 @@ from programas.services.edificio_operativo import (
     q_estadias_del_edificio,
 )
 from programas.services.edificio_operativo_edilicio import contexto_edilicio
-from programas.services.edificio_stock import contexto_de_la_solapa
+from programas.services.edificio_stock import PARAMETRO_AJUSTAR, contexto_de_la_solapa
 from programas.services.emergencia_programa import puede_operar_la_mesa
 from programas.services.ingreso import maneja_plazas
 from programas.services.kits import url_de_kits_del_edificio
@@ -88,6 +89,30 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         self.edificio_fijo = edificio
         return dispositivo
 
+    def _ajuste_a_abrir(self, stock):
+        """El modal «Ajustar» de ``?ajustar=<insumo>``, armado con el saldo de **ahora**, o ``None`` si no se pide.
+
+        Solo abre para una fila que el panel ofrece (``url_ajustar``: el usuario puede ajustar y el insumo figura en
+        el saldo); un insumo ajeno, sin fila o sin permiso no abre nada y dice por qué. Este es el camino de vuelta
+        de un ``SaldoCambio``: el POST rechazado redirige acá y el formulario nace con el saldo y el identificador nuevos.
+        """
+
+        pedido = self.request.GET.get(PARAMETRO_AJUSTAR)
+        if not pedido:
+            return None
+        item_id = _entero(pedido)
+        fila = next((f for f in stock["filas"] if f["item_id"] == item_id and f["url_ajustar"]), None)
+        if fila is None:
+            messages.warning(
+                self.request, "Ese insumo no se puede ajustar: ya no figura en el stock o no tenés permiso."
+            )
+            return None
+        return {
+            "titulo": f"Ajustar · {fila['nombre']}",
+            "hay": f"Hay {fila['cantidad']} {fila['unidad']} ahora",
+            "form": AjusteForm(initial={"item": item_id, "saldo_visto": fila["cantidad"]}),
+        }
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         dispositivo = self.object
@@ -124,6 +149,7 @@ class EdificioOperativoView(SectoresPlazasMixin, DispositivoObjectPermissionMixi
         if context["stock_cargado"]:
             context["stock"] = contexto_de_la_solapa(self.request.user, dispositivo, edificio)
             context["contadores"]["stock"] = context["stock"]["insumos"]
+            context["ajuste"] = self._ajuste_a_abrir(context["stock"])
         # Historial (Cambio 571): se arma solo con la solapa abierta; con otra, su botón navega a `?tab=historial`.
         if context["historial_cargado"]:
             context.update(

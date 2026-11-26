@@ -225,29 +225,32 @@ class PanelTests(BaseLecturaStock):
 
 
 class RutasDeStockTests(BaseLecturaStock):
-    """``_url_de_accion`` esconde en silencio una ruta que no existe: un nombre mal escrito no se vería sin este test."""
+    """Con todas las rutas, ``_url_de_accion`` ya no esconde nada: un nombre mal escrito rompe, y este test fija los reales."""
 
-    def test_los_nombres_de_ruta_que_el_panel_conoce_resuelven(self):
-        self.assertEqual(
-            reverse("dispositivos:stock_entregar", args=[self.cis.pk, self.edif_a.pk]),
-            f"/dispositivos/{self.cis.pk}/edificios/{self.edif_a.pk}/stock/entregar/",
-        )
-
-    def test_una_ruta_que_todavia_no_existe_no_dibuja_el_boton_y_una_que_existe_si(self):
+    def test_cada_nombre_de_ruta_que_el_panel_conoce_resuelve(self):
         from programas.services.edificio_stock import _url_de_accion
 
-        self.assertEqual(_url_de_accion("dispositivos:stock_ajustar", self.cis, self.edif_a), "")
-        for nombre in ("entregar", "ingresar", "traspasar"):
-            self.assertTrue(_url_de_accion(f"dispositivos:stock_{nombre}", self.cis, self.edif_a), nombre)
+        for nombre in ("entregar", "ingresar", "traspasar", "ajustar", "movimientos"):
+            self.assertEqual(
+                _url_de_accion(f"dispositivos:stock_{nombre}", self.cis, self.edif_a),
+                f"/dispositivos/{self.cis.pk}/edificios/{self.edif_a.pk}/stock/{nombre}/",
+            )
+
+    def test_un_nombre_mal_escrito_rompe_en_vez_de_esconder_el_boton(self):
+        from django.urls import NoReverseMatch
+
+        from programas.services.edificio_stock import _url_de_accion
+
+        with self.assertRaises(NoReverseMatch):
+            _url_de_accion("dispositivos:stock_ajustra", self.cis, self.edif_a)
 
 
 class AccionesTests(BaseLecturaStock):
-    """Las acciones se ofrecen con su capacidad y solo si su ruta existe (los PR 5 y 6 las crean)."""
+    """Las acciones se ofrecen solo con su capacidad (y ``stock.ver``)."""
 
-    def test_hoy_existen_las_rutas_de_entregar_ingresar_y_traspasar_pero_no_la_de_ajustar(self):
-        """Ajustar llega con el PR 6b: sin su ruta el panel no dibuja un botón que da 404."""
-
+    def test_la_guardia_completa_ve_las_tres_acciones_y_el_ajuste_por_fila(self):
         completa = self._con("Completa", *LECTURA, "stock.entregar", "stock.ingresar", "stock.ajustar", "ciudadano.ver")
+        self._sembrar(self.colchon, 5)
 
         stock = self._get(completa, self.edif_a, tab="stock").context["stock"]
 
@@ -255,18 +258,18 @@ class AccionesTests(BaseLecturaStock):
         self.assertEqual(
             [a["url"].rsplit("/stock/", 1)[1] for a in stock["acciones"]], ["entregar/", "ingresar/", "traspasar/"]
         )
-        self.assertFalse(stock["puede_ajustar"])
+        self.assertTrue(stock["puede_ajustar"])
+        self.assertEqual(stock["filas"][0]["url_ajustar"].split("?")[1], f"tab=stock&ajustar={self.colchon.pk}")
 
-    def test_con_las_rutas_cada_boton_exige_su_capacidad(self):
+    def test_cada_boton_exige_su_capacidad(self):
         entrega = self._con("Entrega", *LECTURA, "stock.entregar", "ciudadano.ver")
         ingresa = self._con("Ingresa", *LECTURA, "stock.ingresar")
-        with mock.patch("programas.services.edificio_stock._url_de_accion", return_value="/ruta/"):
-            textos = {
-                usuario.username: [
-                    a["texto"] for a in self._get(usuario, self.edif_a, tab="stock").context["stock"]["acciones"]
-                ]
-                for usuario in (entrega, ingresa, self.ve_inst)
-            }
+        textos = {
+            usuario.username: [
+                a["texto"] for a in self._get(usuario, self.edif_a, tab="stock").context["stock"]["acciones"]
+            ]
+            for usuario in (entrega, ingresa, self.ve_inst)
+        }
 
         self.assertEqual(textos[entrega.username], ["Entregar a persona"])
         self.assertEqual(textos[ingresa.username], ["Ingresar", "Traspasar"])
@@ -274,8 +277,7 @@ class AccionesTests(BaseLecturaStock):
 
     def test_entregar_exige_ciudadano_ver(self):
         sin_ciudadano = self._con("Entrega sin ciudadano", *LECTURA, "stock.entregar")
-        with mock.patch("programas.services.edificio_stock._url_de_accion", return_value="/ruta/"):
-            stock = self._get(sin_ciudadano, self.edif_a, tab="stock").context["stock"]
+        stock = self._get(sin_ciudadano, self.edif_a, tab="stock").context["stock"]
 
         self.assertEqual(stock["acciones"], [])
 
@@ -283,8 +285,7 @@ class AccionesTests(BaseLecturaStock):
         ingresa = self._con("Ingresa 2", *LECTURA, "stock.ingresar")
         self.edif_a.activo = False
         self.edif_a.save(update_fields=["activo"])
-        with mock.patch("programas.services.edificio_stock._url_de_accion", return_value="/ruta/"):
-            stock = self._get(ingresa, self.edif_a, tab="stock").context["stock"]
+        stock = self._get(ingresa, self.edif_a, tab="stock").context["stock"]
 
         self.assertEqual(stock["acciones"], [])
 

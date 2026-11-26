@@ -22,7 +22,8 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from programas.models import MiembroEquipoDispositivo, OperacionStock, TipoKit
+from programas.models import Edificio, MiembroEquipoDispositivo, OperacionStock, TipoKit
+from programas.services.stock import DESTINO_INACTIVO
 from programas.tests.base_stock import BaseEntrega
 from programas.views.stock import IngresarStockView, TraspasarStockView
 
@@ -570,12 +571,17 @@ class TraspasarPostTests(BaseWeb):
         self.assertNotEqual(str(respuesta.context["form"]["uuid_cliente"].value()), str(usado))
 
     def test_un_destino_inactivo_vuelve_con_el_motivo(self):
+        # Con otro destino activo en la lista, la pantalla dibuja el selector y ahí tiene que estar el motivo real.
+        tercero = Edificio.objects.create(codigo="ED-S3", nombre="Tercer edificio")
+        tercero.dispositivos.add(self.disp)
         self.otro_edificio.activo = False
         self.otro_edificio.save()
         respuesta = self.client.post(self._url(), self._datos({self.colchon: 1}))
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(self._cantidad(self.colchon), 10)
         self.assertEqual(self._cantidad(self.colchon, edificio=self.otro_edificio), 0)
+        # El motivo REAL del servicio (no el genérico del selector) llega a la pantalla, que solo dibuja el selector.
+        self.assertContains(respuesta, DESTINO_INACTIVO)
 
     def test_traspaso_a_otra_institucion_del_alcance(self):
         self._entrar(self.coordinador)

@@ -16,7 +16,7 @@ No hay consultas por insumo ni por movimiento (RNF-010-04). El contador del bot�
 cuando la solapa no está abierta, y ninguna cuando lo está (sale de la lista).
 """
 
-from django.urls import NoReverseMatch, reverse
+from django.urls import reverse
 
 from core.rbac import puede
 from programas.models import MovimientoStock
@@ -26,8 +26,11 @@ from programas.services import stock as servicio
 from programas.services.dispositivos import fecha_corta
 from programas.services.estadias import CAP_VER_CIUDADANO
 
-#: Cuántos movimientos muestra la solapa antes del «Ver todos» del PR 6b.
+#: Cuántos movimientos muestra la solapa antes del «Ver todos» (el listado paginado de ``stock_movimientos``).
 MOVIMIENTOS_EN_LA_SOLAPA = 20
+
+#: El parámetro de la página del edificio que abre el modal «Ajustar» de ese insumo.
+PARAMETRO_AJUSTAR = "ajustar"
 
 #: Texto de la fila «Stock» de la tarjeta de edificio cuando todavía no se cargó nada.
 SIN_STOCK_CARGADO = "Sin stock cargado"
@@ -91,28 +94,23 @@ def aviso_sin_edificio_activo(dispositivo, url_vincular=""):
 
 
 def _url_de_accion(nombre_de_ruta, dispositivo, edificio):
-    """La ruta de una acción, o ``""`` si todavía no existe.
+    """La ruta de una acción del edificio. Todas existen: un nombre mal escrito rompe (``NoReverseMatch``) en vez de
+    esconder el botón. ``RutasDeStockTests`` fija que cada nombre resuelve."""
 
-    «Entregar a persona» llegó con el PR 5 y ``stock_ingresar`` y ``stock_traspasar`` con el PR 6a; ``stock_ajustar``
-    llega con el PR 6b, y ese PR **retira** este ``except``: con todas las rutas, un nombre mal escrito tiene que
-    romper, no esconder el botón. Mientras tanto un test fija que cada nombre existente resuelve (``RutasDeStockTests``).
-    """
-
-    try:
-        return reverse(nombre_de_ruta, args=[dispositivo.pk, edificio.pk])
-    except NoReverseMatch:
-        return ""
+    return reverse(nombre_de_ruta, args=[dispositivo.pk, edificio.pk])
 
 
 def _acciones(user, dispositivo, edificio, ve):
     """Los botones del panel, **solo** los que ``user`` puede usar hoy sobre este edificio: ``[{texto, icono, url, variante}]``.
 
     Un edificio inactivo no ofrece ninguna (no puede tener saldo: RN-010-15). Con la institución no activa solo
-    queda traspasar y ajustar, para vaciar lo que quede (RN-010-14). ``ve`` es ``stock.ver`` sobre el edificio, leído
-    **una** vez por la página: sin él no hay botones, y con él no se vuelve a leer por cada uno.
+    queda traspasar y ajustar, para vaciar lo que quede (RN-010-14). ``ve`` es ``stock.ver``: sin él no hay botones.
+    ``servicio.puede_ver_stock`` está memoizado en el ``user``, así que cada ``puede_*`` lo pide sin pagarlo de nuevo,
+    y cada permiso se decide una sola vez aunque lo compartan dos botones (Ingresar y Traspasar piden
+    ``stock.ingresar``): el alcance por edificios cuesta consultas.
     """
 
-    if not edificio.activo:
+    if not edificio.activo or not ve:
         return []
     institucion_activa = dispositivo.estado == dispositivo.Estado.ACTIVO
     candidatas = (
@@ -128,21 +126,21 @@ def _acciones(user, dispositivo, edificio, ve):
         ("dispositivos:stock_traspasar", "Traspasar", "fa-right-left", "secondary", servicio.puede_ingresar, False),
     )
     acciones = []
-    if not ve:
-        return acciones
     decididos = {}
     for ruta, texto, icono, variante, permiso, exige_activa in candidatas:
         if exige_activa and not institucion_activa:
             continue
-        url = _url_de_accion(ruta, dispositivo, edificio)
-        if not url:
-            continue
-        # ``stock.ver`` ya se comprobó una vez para todos los botones, y cada permiso se decide una vez aunque lo
-        # compartan dos (Ingresar y Traspasar piden ``stock.ingresar``): el alcance por edificios cuesta consultas.
         if permiso not in decididos:
-            decididos[permiso] = permiso(user, dispositivo, edificio.pk, ya_ve=True)
+            decididos[permiso] = permiso(user, dispositivo, edificio.pk)
         if decididos[permiso]:
-            acciones.append({"texto": texto, "icono": icono, "url": url, "variante": variante})
+            acciones.append(
+                {
+                    "texto": texto,
+                    "icono": icono,
+                    "url": _url_de_accion(ruta, dispositivo, edificio),
+                    "variante": variante,
+                }
+            )
     return acciones
 
 
@@ -204,21 +202,27 @@ def fila_de_movimiento(movimiento, *, puede_ver_persona):
     }
 
 
-def _fila_de_saldo(saldo, url_ajustar):
+def _fila_de_saldo(saldo, url_abrir_ajuste):
     item = saldo.item
     return {
+        "item_id": item.pk,
         "nombre": item.nombre,
         "unidad": item.unidad,
         "cantidad": saldo.cantidad,
         "sin_existencia": saldo.cantidad == 0,
         "desactivado": not item.activo,
         "ultimo": fecha_corta(saldo.ultimo_movimiento_en) if saldo.ultimo_movimiento_en else "—",
-        "url_ajustar": url_ajustar,
+        "url_ajustar": url_abrir_ajuste,
     }
 
 
 def contexto_de_la_solapa(user, dispositivo, edificio):
-    """Lo que dibuja el panel: ``resumen``, ``filas`` de saldo, ``movimientos`` y los botones que ``user`` puede usar."""
+    """Lo que dibuja el panel: ``resumen``, ``filas`` de saldo, ``movimientos`` y los botones que ``user`` puede usar.
+
+    «Ajustar» por fila no navega a otra pantalla: abre el modal de la misma página con ``?tab=stock&ajustar=<insumo>``
+    (``url_ajustar`` de cada fila), y el modal manda su POST a ``url_enviar_ajuste``. ``url_movimientos`` es el «Ver
+    todos» del listado paginado.
+    """
 
     saldos = list(selectores.saldos_de(dispositivo, edificio))
     ve = servicio.puede_ver_stock(user, dispositivo, edificio.pk)
@@ -226,24 +230,27 @@ def contexto_de_la_solapa(user, dispositivo, edificio):
     movimientos = selectores.movimientos_de(dispositivo, edificio, con_persona=puede_ver_persona)[
         :MOVIMIENTOS_EN_LA_SOLAPA
     ]
-    url_ajustar = (
-        _url_de_accion("dispositivos:stock_ajustar", dispositivo, edificio)
-        if ve and edificio.activo and servicio.puede_ajustar(user, dispositivo, edificio.pk, ya_ve=True)
-        else ""
-    )
+    puede_ajustar = ve and edificio.activo and servicio.puede_ajustar(user, dispositivo, edificio.pk)
+    pagina = reverse("dispositivos:edificio_operativo", args=[dispositivo.pk, edificio.pk])
     sin_existencia = sum(1 for saldo in saldos if saldo.cantidad == 0)
     return {
         "insumos": len(saldos),
         "resumen": texto_de_resumen(len(saldos), sin_existencia),
-        "filas": [_fila_de_saldo(saldo, url_ajustar) for saldo in saldos],
+        "filas": [
+            _fila_de_saldo(saldo, f"{pagina}?tab=stock&{PARAMETRO_AJUSTAR}={saldo.item_id}" if puede_ajustar else "")
+            for saldo in saldos
+        ],
         "movimientos": [fila_de_movimiento(m, puede_ver_persona=puede_ver_persona) for m in movimientos],
         "acciones": _acciones(user, dispositivo, edificio, ve),
-        "puede_ajustar": bool(url_ajustar),
+        "puede_ajustar": bool(puede_ajustar),
+        "url_enviar_ajuste": _url_de_accion("dispositivos:stock_ajustar", dispositivo, edificio),
+        "url_movimientos": _url_de_accion("dispositivos:stock_movimientos", dispositivo, edificio) if ve else "",
     }
 
 
 __all__ = [
     "MOVIMIENTOS_EN_LA_SOLAPA",
+    "PARAMETRO_AJUSTAR",
     "SIN_STOCK_CARGADO",
     "contar_insumos",
     "contexto_de_la_solapa",
