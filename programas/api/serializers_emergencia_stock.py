@@ -8,7 +8,7 @@ Agregar una clave es seguro; renombrarla o sacarla es un release coordinado de l
 
 from rest_framework import serializers
 
-from programas.api.serializers_emergencia import _texto
+from programas.api.serializers_emergencia import texto
 from programas.api.serializers_emergencia_plazas import DispositivoBreveSerializer, EdificioBreveSerializer
 from programas.models import MovimientoStock, OperacionStock
 
@@ -156,18 +156,18 @@ class EntregaAPersonaEnvioSerializer(serializers.Serializer):
     uuid_cliente = _uuid_cliente()
     dni = serializers.CharField(max_length=20, help_text="El DNI de la persona.")
     lineas = _lineas()
-    sexo = _texto(help_text="`F`, `M` o `X`: con él se consulta al Registro si la persona no tiene legajo.")
-    nombre = _texto(help_text="Solo si no hay legajo ni Registro (`PERSONA_SIN_DATOS`): con el apellido, da el alta.")
-    apellido = _texto(help_text="Ver `nombre`.")
-    observacion = _texto(help_text="Texto libre. No sale en el libro de la app.")
+    sexo = texto(help_text="`F`, `M` o `X`: con él se consulta al Registro si la persona no tiene legajo.")
+    nombre = texto(help_text="Solo si no hay legajo ni Registro (`PERSONA_SIN_DATOS`): con el apellido, da el alta.")
+    apellido = texto(help_text="Ver `nombre`.")
+    observacion = texto(help_text="Texto libre. No sale en el libro de la app.")
 
 
 class IngresoManualEnvioSerializer(serializers.Serializer):
     uuid_cliente = _uuid_cliente()
     lineas = _lineas()
     origen = serializers.CharField(help_text="`" + "`, `".join(OperacionStock.Origen.values) + "`.")
-    origen_detalle = _texto(help_text="Obligatorio con origen `OTRO`.")
-    comprobante = _texto(help_text="Texto libre y opcional.")
+    origen_detalle = texto(help_text="Obligatorio con origen `OTRO`.")
+    comprobante = texto(help_text="Texto libre y opcional.")
 
 
 class TraspasoEnvioSerializer(serializers.Serializer):
@@ -175,7 +175,7 @@ class TraspasoEnvioSerializer(serializers.Serializer):
     destino_dispositivo_id = serializers.IntegerField(help_text="Uno de `destinos-traspaso/`.")
     destino_edificio_id = serializers.IntegerField(help_text="Uno de `destinos-traspaso/`.")
     lineas = _lineas()
-    observacion = _texto(help_text="Texto libre.")
+    observacion = texto(help_text="Texto libre.")
 
 
 class AjusteEnvioSerializer(serializers.Serializer):
@@ -186,7 +186,7 @@ class AjusteEnvioSerializer(serializers.Serializer):
         help_text="El saldo que se vio al abrir el ajuste: si cambió, 409 `SALDO_CAMBIO`."
     )
     motivo = serializers.CharField(help_text="`" + "`, `".join(OperacionStock.MotivoAjuste.values) + "`.")
-    detalle = _texto(help_text="Obligatorio con motivo `OTRO` y `CORRECCION_CARGA`.")
+    detalle = texto(help_text="Obligatorio con motivo `OTRO` y `CORRECCION_CARGA`.")
 
 
 class MovimientoDeLaOperacionSerializer(serializers.Serializer):
