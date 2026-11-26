@@ -90,7 +90,8 @@ def _texto(valor):
 def resolver_persona(dni, sexo="", nombre="", apellido=""):
     """La persona a la que se le entrega, **sin escribir nada** (RN-010-09). Devuelve :class:`PersonaResuelta`.
 
-    1. **Legajo** por DNI (``buscar_ciudadano_por_dni``: encuentra también las fichas con separadores).
+    1. **Legajo** por DNI (``buscar_ciudadano_por_dni``: encuentra también las fichas con separadores). Si el legajo
+       figura fallecido, se rechaza.
     2. Sin legajo y con ``sexo``: **Registro de Personas**. Si figura fallecida, se rechaza. Si responde, esos datos.
     3. Sin Registro (no la tiene, o no respondió): el **alta mínima** con ``nombre`` y ``apellido``.
 
@@ -106,6 +107,9 @@ def resolver_persona(dni, sexo="", nombre="", apellido=""):
         raise ValidationError({"sexo": SEXO_INVALIDO})
     ciudadano = ingreso.buscar_ciudadano_por_dni(numero)
     if ciudadano is not None:
+        # DECISIÓN TOMADA POR DEFECTO: un legajo ya marcado fallecido se rechaza igual que si responde el Registro.
+        if ciudadano.estado_renaper == Ciudadano.EstadoRenaper.FALLECIDO:
+            raise ValidationError({"dni": PERSONA_FALLECIDA})
         return PersonaResuelta(numero, ciudadano, None, None)
 
     motivo = ""

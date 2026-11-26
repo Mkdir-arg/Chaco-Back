@@ -6,7 +6,7 @@ from collections import defaultdict
 from django.db.models import Count, Exists, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 
-from core.utils_fechas import rango_dia_local
+from core.utils_fechas import q_rango_local
 from programas.models import MovimientoStock, OperacionStock, SaldoStock
 
 
@@ -24,10 +24,6 @@ def saldos_de(dispositivo, edificio):
     )
 
 
-#: Filtros que entiende :func:`movimientos_de`.
-FILTROS_DE_MOVIMIENTOS = ("item", "tipo", "desde", "hasta")
-
-
 def movimientos_de(dispositivo, edificio, filtros=None):
     """Los movimientos de (institución, edificio), del más nuevo al más viejo.
 
@@ -42,10 +38,7 @@ def movimientos_de(dispositivo, edificio, filtros=None):
         consulta = consulta.filter(item_id=filtros["item"])
     if filtros.get("tipo"):
         consulta = consulta.filter(tipo=filtros["tipo"])
-    if filtros.get("desde"):
-        consulta = consulta.filter(creado_en__gte=rango_dia_local(filtros["desde"])[0])
-    if filtros.get("hasta"):
-        consulta = consulta.filter(creado_en__lt=rango_dia_local(filtros["hasta"])[1])
+    consulta = consulta.filter(q_rango_local("creado_en", filtros.get("desde"), filtros.get("hasta")))
     return consulta.select_related("item", "operacion", "operacion__usuario").order_by("-creado_en", "-id")
 
 

@@ -461,6 +461,9 @@ class IdempotenciaTests(BaseStock):
         self.assertTrue(resultado.ya_existia)
         self.assertEqual(resultado.pk, primera["op"].pk)
         self.assertEqual(MovimientoStock.objects.count(), 0)
+        # La relectura vuelve **antes** de crear saldos: sin ella, el respaldo del UNIQUE devolvería la misma operación
+        # pero dejando los saldos en cero ya creados.
+        self.assertFalse(SaldoStock.objects.exists())
 
 
 class SumarRecepcionDeKitTests(BaseStock):

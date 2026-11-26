@@ -360,9 +360,6 @@ def alta_desde_registro(datos):
     )
 
 
-_alta_desde_registro = alta_desde_registro  # el nombre de antes: mismo comportamiento
-
-
 def _alta_manual(datos):
     """Crea el legajo con el alta mínima, como la carga manual de Legajos.
 

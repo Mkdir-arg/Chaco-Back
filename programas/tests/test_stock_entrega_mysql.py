@@ -120,7 +120,10 @@ class EntregaYTraspasoConcurrentesTests(MotorRealMixin, TransactionTestCase):
         self.assertInvarianteDelLibro()
 
     def test_la_entrega_que_pierde_no_deja_un_legajo_a_medio_crear(self):
-        """B es una persona **sin legajo**: si pierde por saldo, su legajo no puede haberse creado."""
+        """B es una persona **sin legajo**: si pierde por saldo, su legajo no puede haberse creado.
+
+        Lo garantiza el ``atomic`` de la entrega (sacarlo pone rojo este test); que el alta vaya después del saldo
+        lo detecta ``test_stock_ronda2``."""
 
         resultados, errores = en_paralelo(
             self._entregar(self.juana, self.ana),

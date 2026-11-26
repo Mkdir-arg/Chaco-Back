@@ -206,6 +206,26 @@ class DestinoDelTraspasoTests(BaseTraspaso):
         with self.assertRaises(PermissionDenied):
             servicio.destinos_de_traspaso(supervisor, self.disp, self.edificio)
 
+    def test_ver_todos_no_da_destino_aunque_pase_el_origen(self):
+        """Pasa el permiso del ORIGEN (miembro de ``disp`` con ``stock.ingresar``) y falla solo en el destino.
+
+        ``dispositivo.ver_todos`` amplía ``stock.ver`` a toda la red, pero no ``stock.ingresar``: sin el segundo
+        filtro del destino, un coordinador con ``ver_todos`` traspasaría a cualquier institución.
+        """
+
+        rol = self._rol("Opera en A y ve todo", ("dispositivo.ver", "dispositivo.ver_todos", *CAPS_COORDINADOR))
+        usuario = self._usuario("ve_todo_opera_en_a", rol)
+        self._miembro(self.disp, usuario, rol)
+        usuario = self._fresco(usuario)
+
+        with self.assertRaises(ValidationError) as contexto:
+            self._traspasar(usuario, destino=(self.disp_b, self.edificio_b))
+        self.assertEqual(contexto.exception.message_dict, {"destino": [servicio.DESTINO_INVALIDO]})
+        self.assertEqual(self._cantidad(self.colchon), 10)
+        destinos = servicio.destinos_de_traspaso(usuario, self.disp, self.edificio)
+        self.assertNotIn(self.disp_b, [d for d, _e in destinos])
+        self.assertIn((self.disp, self.otro_edificio), destinos)
+
     def test_el_destino_tambien_necesita_stock_ver(self):
         rol_sin_ver = self._rol("Ingresa sin ver en B", ("dispositivo.ver", "stock.ingresar"))
         rol_con_ver = self._rol("Ve y opera en A", ("dispositivo.ver", "stock.ver", "stock.ingresar"))
@@ -261,7 +281,7 @@ class DestinoDelTraspasoTests(BaseTraspaso):
         with self.assertRaises(servicio.StockNoHabilitado) as contexto:
             self._traspasar()
 
-        self.assertEqual(contexto.exception.messages, [servicio.EDIFICIO_INACTIVO])
+        self.assertEqual(contexto.exception.messages, [servicio.DESTINO_INACTIVO])
         self.assertEqual(self._cantidad(self.colchon), 10)
 
     def test_una_institucion_destino_que_no_esta_activa_se_rechaza(self):
@@ -271,7 +291,7 @@ class DestinoDelTraspasoTests(BaseTraspaso):
         with self.assertRaises(servicio.StockNoHabilitado) as contexto:
             self._traspasar(self.coordinador, destino=(self.disp_b, self.edificio_b))
 
-        self.assertEqual(contexto.exception.messages, [servicio.INSTITUCION_NO_ACTIVA])
+        self.assertEqual(contexto.exception.messages, [servicio.DESTINO_INACTIVO])
         self.assertEqual(self._cantidad(self.colchon), 10)
 
     def test_una_institucion_destino_que_no_lleva_stock_se_rechaza(self):
