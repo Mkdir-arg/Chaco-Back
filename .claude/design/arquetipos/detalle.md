@@ -173,6 +173,11 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   lee `static/custom/js/nodo-tabs.js` (`componentes/tabs.md`). Molde: la solapa «Sectores y plazas» de la
   página del edificio (`dispositivos/edificios/operativo.html`), cuyo cuerpo es `dispositivos/sectores/_cuerpo.html`, el
   mismo que dibuja la pantalla suelta de siempre, con el edificio fijo y sin el filtro «Edificio» (Cambio 565).
+- **Solapa Stock de la página del edificio** (clon de Kits, Cambio 601): el botón y el panel van bajo el mismo
+  `{% if puede_stock %}`; el panel es `p-5` y se arma solo con `?tab=stock` (variante «solapa que navega»). El botón lleva
+  el badge «N insumos» (`badge-info` activa, `badge-gray` si no). Dentro, `_stock.html`: surface «Saldo de insumos» con tabla
+  canónica y, solo con `puede_ajustar`, la columna de acciones con el menú ⋮ «Ajustar» (`menu_fila`); y surface «Últimos
+  movimientos» con `components/_tabla_movimientos.html` (`componentes/tabla_movimientos.md`). Sin datos, `_estado_vacio`.
 - Solapa condicionada por permiso: el `{% if %}` envuelve **el botón y el panel**.
 - Solapa inicial validada por el servidor: en P4
   (`programas/templates/programas/dispositivos/legajo/detail.html`),

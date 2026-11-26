@@ -1,7 +1,7 @@
 # Componente · Tarjeta de edificio (`components/_tarjeta_edificio.html`)
 
 **Clasificación:** Canónico reutilizable. Una tarjeta por edificio en la sección «Edificios · N» de la ficha de una
-institución (Cambio 570): estado edilicio, ocupación, plazas disponibles, kits y equipo del edificio, y la puerta a su
+institución (Cambio 570): estado edilicio, ocupación, plazas disponibles, kits y equipo y stock del edificio, y la puerta a su
 página operativa (`dispositivos:edificio_operativo`).
 **Evidencia:** `templates/components/_tarjeta_edificio.html`, `core/tests/test_nodo_ui_piezas.py`
 (`TarjetaEdificioTest`), `programas/tests/test_dispositivos_infraestructura_tarjetas.py`.
@@ -11,14 +11,16 @@ en el cuerpo, fuera de las solapas). Solo usa clases y tokens que ya existen. Lo
 equipo, movimientos de hoy) los suma `programas/services/ficha_edificios.py` (`completar_tarjetas`) con costo constante en la
 cantidad de edificios. La fila Kits nunca lleva un número suelto: dice «0 por recibir» o «N por recibir» (en camino y
 preparadas juntas), igual que el badge de la solapa Kits de la página del edificio. El alcance de kits lo calcula la vista una sola vez
-(también lo usa el aviso de kits de la ficha, Cambio 581) y entra a `completar_tarjetas` como `alcance_kits`.
+(también lo usa el aviso de kits de la ficha, Cambio 581) y entra a `completar_tarjetas` como `alcance_kits`; el de `stock.ver`
+entra como `alcance_stock` (opcional, `None` por defecto) y el resumen de todos los edificios sale de una sola consulta. La
+fila Stock usa el mismo texto que el badge y el resumen de la solapa Stock de la página del edificio.
 
 ## Por qué no es `_lista_tarjetas`
 
 `_lista_tarjetas.html` (`lista_tarjetas.md`) es la **alternativa móvil de una tabla**: va en `md:hidden`, repite las
 mismas columnas y acciones de la fila y no agrega nada propio. Esta pieza es otra cosa: es la **vista principal en
 todos los anchos** (no hay tabla de la que sea reemplazo), presenta un inmueble con su estado edilicio y su aviso de
-vencimiento, la ocupación (`_barra_umbral`), una lista de datos (Disponibles, Kits, Equipo) y un pie con los
+vencimiento, la ocupación (`_barra_umbral`), una lista de datos (Disponibles, Kits, Stock, Equipo) y un pie con los
 movimientos de hoy y el enlace «Abrir edificio». Por eso lleva su caja de ícono tonal y el pie, que la tarjeta móvil
 no tiene ni debe tener. Comparten el contrato de fondo —un dict armado por la vista y `menu_fila` con las mismas claves
 de ítem— y no se mezclan: una tabla densa con tarjetas móviles usa `_lista_tarjetas`; un listado de inmuebles que se
@@ -49,7 +51,7 @@ abre a una ficha usa ésta.
 Claves de `edificio`: `pk`, `nombre`, `codigo`, `domicilio`, `estado` (estado edilicio: `texto`, `tono`), `aviso`
 (`texto`, `tono` o `None`; con el edificio inactivo es «Inactivo» en gris y la fila sale sin `url_editar` ni `url_desvincular`, Cambio 583), `predio_compartido`, `ocupacion` (`valor`, `maximo`, `porcentaje`, `tono`, `etiqueta`, `texto`,
 `nombre`; `None` si el tipo no maneja plazas: sin barra ni «Disponibles»), `disponibles`, `kits` (`texto`, `clase`; `None`
-si quien mira no recibe kits: sin fila), `equipo` (`texto`, `clase`) y `movimientos` (texto del pie). El servicio también
+si quien mira no recibe kits: sin fila), `stock` (`texto`, `clase`; `None` si el tipo no lleva stock o quien mira no tiene `stock.ver` sobre ese edificio: sin fila; si no, «N insumos · M sin existencia» o «Sin stock cargado»), `equipo` (`texto`, `clase`) y `movimientos` (texto del pie). El servicio también
 deja en la fila `url_abrir`, `url_editar`, `url_desvincular` y `url_agregar_persona`: el template del consumidor no
 concatena URL.
 
