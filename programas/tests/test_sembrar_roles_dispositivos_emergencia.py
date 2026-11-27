@@ -10,11 +10,13 @@ Lo que se fija acá:
 6. Las capacidades de la definición existen en el catálogo y valen para su programa.
 """
 
+import dataclasses
 from io import StringIO
 from unittest import mock
 
 from django.contrib.auth.models import Group, Permission
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 
 from core import rbac
@@ -188,7 +190,7 @@ class NombreOcupadoTests(TestCase):
         salida = _correr()
         self._intacto(grupo, None)
         self.assertIn("ya existe un rol con ese nombre", salida)
-        self.assertIn("10 creados", salida)
+        self.assertIn("10 creados, 1 sin crear por nombre ocupado.", salida)
 
     def test_nombre_igual_con_otra_clave_no_se_toca_ni_en_la_segunda_corrida(self):
         grupo = self._rol_ajeno("Emergencia — Autoridad", clave="otra.clave")
@@ -244,3 +246,14 @@ class DefensaDelSavepointTests(TestCase):
         self.assertIsNone(RolMeta.objects.get(grupo=con_meta).clave)
         self.assertEqual(sin_meta.permissions.count(), 0)
         self.assertEqual(salida.count("ya existe un rol con ese nombre"), 2)
+
+
+class CapacidadFueraDeCatalogoTests(TestCase):
+    def test_corta_con_command_error_y_no_escribe(self):
+        primero = ROLES_DISPOSITIVOS_EMERGENCIA[0]
+        roto = dataclasses.replace(primero, capacidades=(*primero.capacidades, "no.existe"))
+        ruta = "programas.management.commands.sembrar_roles_dispositivos_emergencia.ROLES_DISPOSITIVOS_EMERGENCIA"
+        with mock.patch(ruta, (roto,)):
+            with self.assertRaisesMessage(CommandError, f"{primero.clave}: capacidades fuera del catálogo"):
+                _correr()
+        self.assertFalse(RolMeta.objects.filter(clave=primero.clave).exists())

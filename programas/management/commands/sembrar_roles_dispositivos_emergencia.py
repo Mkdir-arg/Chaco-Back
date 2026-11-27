@@ -25,7 +25,7 @@ Las definiciones viven en ``programas/services/roles_sembrados.py``.
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from core import rbac
@@ -92,7 +92,7 @@ class Command(BaseCommand):
         self._ct = ContentType.objects.get_for_model(Capacidad)
         codigos_validos = set(rbac.codigos_de_capacidad())
         programas = {p.codigo: p for p in Programa.objects.all()}
-        creados = salteados = 0
+        creados = salteados = ocupados = 0
 
         titulo = "=== Roles de Dispositivos y Emergencia" + (" (dry-run)" if dry else "") + " ===\n"
         self.stdout.write(self.style.MIGRATE_HEADING(titulo))
@@ -101,7 +101,7 @@ class Command(BaseCommand):
         for rol in ROLES_DISPOSITIVOS_EMERGENCIA:
             faltan = [c for c in rol.capacidades if c not in codigos_validos]
             if faltan:
-                raise ValueError(f"{rol.clave}: capacidades fuera del catálogo: {faltan}")
+                raise CommandError(f"{rol.clave}: capacidades fuera del catálogo: {faltan}")
             programa = programas.get(rol.programa)
             defaults = {
                 "descripcion": rol.descripcion,
@@ -133,6 +133,7 @@ class Command(BaseCommand):
             if estado == "existia":
                 self.stdout.write(f"  · {nombre}: ya existía")
             elif estado == "ocupado":
+                ocupados += 1
                 self.stdout.write(
                     self.style.WARNING(f"  ! {nombre}: ya existe un rol con ese nombre (sin esa clave): no se toca")
                 )
@@ -146,4 +147,6 @@ class Command(BaseCommand):
         resumen = f"\n{creados} por crear" if dry else f"\n{creados} creados"
         if salteados:
             resumen += f", {salteados} salteados por falta de programa"
+        if ocupados:
+            resumen += f", {ocupados} sin crear por nombre ocupado"
         self.stdout.write(resumen + ("; no se escribió nada." if dry else "."))
