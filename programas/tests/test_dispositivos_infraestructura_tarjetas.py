@@ -42,28 +42,19 @@ class BaseTarjetas(BaseInfraestructura):
         return respuesta, respuesta.context["infraestructura"], _panel(respuesta.content.decode())
 
 
-class EdificioInicialDelFormularioTests(SimpleTestCase):
-    def _form(self, edificio_inicial, n=2):
+class EdificioDelFormularioTests(SimpleTestCase):
+    def _form(self, n):
         edificios = [Edificio(pk=pk, codigo=f"ED-{pk}", nombre=f"Edificio {pk}") for pk in range(1, n + 1)]
-        return AsignarRelevamientoDispositivoForm(
-            edificios=edificios, agentes=get_user_model().objects.none(), edificio_inicial=edificio_inicial
-        )
+        return AsignarRelevamientoDispositivoForm(edificios=edificios, agentes=get_user_model().objects.none())
 
-    def test_con_varios_y_el_inicial_elegible_queda_preseleccionado(self):
+    def test_con_varios_arranca_vacio_y_editable(self):
         form = self._form(2)
 
-        self.assertEqual(form.fields["edificio"].initial, "2")
-        self.assertEqual(form["edificio"].value(), "2")
+        self.assertFalse(form["edificio"].value())
         self.assertFalse(form.edificio_fijo)
 
-    def test_con_el_inicial_no_elegible_queda_vacio(self):
-        self.assertFalse(self._form(99)["edificio"].value())
-
-    def test_sin_inicial_queda_vacio(self):
-        self.assertFalse(self._form(None)["edificio"].value())
-
-    def test_con_uno_solo_va_fijo_aunque_el_inicial_sea_otro(self):
-        form = self._form(99, n=1)
+    def test_con_uno_solo_va_fijo(self):
+        form = self._form(1)
 
         self.assertTrue(form.edificio_fijo)
         self.assertEqual(form["edificio"].value(), "1")
