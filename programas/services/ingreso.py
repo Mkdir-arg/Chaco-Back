@@ -28,7 +28,8 @@ from core.dni import normalizar_dni
 from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
-from programas.models import Plaza, ReservaPlaza, Sector
+from programas.forms_dinamicos import es_adjunto, sin_archivos
+from programas.models import MomentoFormulario, Plaza, ReservaPlaza, Sector
 from programas.services.dispositivos import bloquear_instituciones, dispositivos_en_alcance, q_edificios_en_alcance
 from programas.services.estadias import (
     CAP_ADMITIR,
@@ -38,7 +39,13 @@ from programas.services.estadias import (
 )
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import ESTADO_PRESTADA, ESTADO_RESERVADA, estado_de_plazas
-from programas.services.respuestas_dispositivo import guardar_respuestas_ingreso
+from programas.services.respuestas_dispositivo import (
+    faltantes_de,
+    formulario_vigente,
+    foto_vigente,
+    guardar_respuestas_ingreso,
+)
+from programas.services.validacion_relevamiento import RespuestasInvalidas, validar_respuestas_con_avisos
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +219,46 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_
     return armados, elegibles
 
 
+class FormularioCambio(Exception):
+    """La versión del formulario de ingreso que mandó la app ya no es la vigente (o el tipo ya no lo pide)."""
+
+
+class IngresoConArchivo(Exception):
+    """El formulario de ingreso pide un archivo o una firma obligatorios y la app no los puede mandar."""
+
+
+def formulario_de_ingreso_de_la_app(tipo_id, envio):
+    """El formulario de ingreso que manda la app, validado **antes** de escribir nada.
+
+    ``envio`` es ``{version, respuestas}`` o ``None``. Devuelve un :class:`FormularioDeIngreso` o ``None`` si el
+    tipo no pide formulario. Archivos y firmas no viajan: se descartan. Levanta :class:`FormularioCambio` (la
+    versión ya no es la vigente), :class:`IngresoConArchivo` (un archivo obligatorio visible) o
+    :class:`RespuestasInvalidas` (``por_clave`` con lo que no pasa el motor).
+    """
+    diseno = formulario_vigente(tipo_id, MomentoFormulario.INGRESO)
+    if envio is not None and (diseno is None or envio["version"] != diseno.version):
+        raise FormularioCambio
+    if diseno is None:
+        return None
+    foto = foto_vigente(diseno)
+    respuestas = sin_archivos(foto, (envio or {}).get("respuestas"))
+    if any(es_adjunto(campo) for campo in faltantes_de(foto, respuestas)):
+        raise IngresoConArchivo
+    efectivas, errores, _avisos = validar_respuestas_con_avisos(foto, respuestas)
+    if errores:
+        raise RespuestasInvalidas(errores)
+    return FormularioDeIngreso(diseno, foto, efectivas, ())
+
+
+class FormularioDeIngreso(NamedTuple):
+    """El formulario de ingreso ya validado: lo que :func:`ingresar_con_formulario` guarda junto a la estadía."""
+
+    diseno: object
+    foto: object
+    respuestas: dict
+    archivos: tuple
+
+
 def ingresar_con_formulario(
     *,
     dispositivo,
@@ -225,7 +272,7 @@ def ingresar_con_formulario(
 ):
     """El ingreso y, si el tipo lo pide, sus respuestas: **una** transacción (la web y la app la comparten).
 
-    ``formulario`` es ``(diseno, foto, respuestas, archivos)`` o ``None``. Si guardar las respuestas falla se
+    ``formulario`` es un :class:`FormularioDeIngreso` o ``None``. Si guardar las respuestas falla se
     deshace también la estadía y el alta del legajo; el borrado de un archivo ya escrito es de quien llama
     (``archivos_atomicos``). Deja pasar lo que deja pasar :func:`confirmar_ingreso`.
     """
@@ -241,8 +288,9 @@ def ingresar_con_formulario(
             fecha_ingreso=fecha_ingreso,
         )
         if formulario is not None:
-            diseno, foto, respuestas, archivos = formulario
-            guardar_respuestas_ingreso(estadia, diseno, foto, respuestas, archivos, usuario)
+            guardar_respuestas_ingreso(
+                estadia, formulario.diseno, formulario.foto, formulario.respuestas, formulario.archivos, usuario
+            )
     return estadia
 
 
