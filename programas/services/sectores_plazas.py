@@ -215,6 +215,10 @@ def motivo_de_rechazo_de_estado(plaza, accion):
 
     La capacidad ya se exigió: acá se pregunta solo qué admite la plaza (estado, reserva abierta y
     estado de la institución), con las capacidades en alto.
+
+    Solo conoce cinco acciones (``_FRASES_DE_LA_ACCION``: reservar, prestar, liberar, fuera de servicio y
+    volver). Con otra, devuelve ``None`` si la plaza la ofrece y, si no la ofrece, falla con ``KeyError`` al
+    armar la frase en vez de devolver un motivo: quien la llama ya filtró la acción antes.
     """
     estado = estado_de_plazas([plaza], puede_ver_personas=False)[plaza.pk]
     ofrecidas = acciones_de_plaza(

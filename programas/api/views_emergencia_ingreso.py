@@ -321,8 +321,6 @@ class IngresarView(_VistaDeIngreso):
             respuesta = _respuesta_de_validacion({"respuestas": list(error.por_clave.values())})
             respuesta.data["claves"] = error.por_clave
             return None, respuesta
-        if validado is None:
-            return None, None
         return validado, None
 
     def _ingresar(self, request, dispositivo, datos, persona, plaza, formulario):
