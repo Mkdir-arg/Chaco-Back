@@ -147,6 +147,19 @@ class UbicacionAvisoAproximadoTest(SimpleTestCase):
         # Con la regla compartida invertida, la decisión de la pieza se invierte.
         self.assertEqual([s[0] for s in salida], ["aproximado", None])
 
+    def test_al_elegir_entre_varios_resultados_tambien_decide_NodoMapa_esPreciso(self):
+        resultados = [_resultado("ROOFTOP", direccion="A"), _resultado("GEOMETRIC_CENTER", direccion="B")]
+        escenarios = [
+            {"resultados": resultados, "acciones": ["ubicar", "elegir:0"]},
+            {"resultados": resultados, "acciones": ["ubicar", "elegir:1"]},
+        ]
+
+        salida = self.correr(escenarios, invertir=True)
+
+        # Sin invertir, elegir:0 no avisa y elegir:1 sí; con la regla compartida invertida, al revés.
+        self.assertEqual(salida[0], [None, "aproximado"])
+        self.assertEqual(salida[1], [None, None])
+
     def test_la_regla_de_precision_es_la_de_derivar(self):
         casos = [
             ("ROOFTOP", False, None),
