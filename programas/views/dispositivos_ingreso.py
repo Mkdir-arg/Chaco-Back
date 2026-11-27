@@ -56,6 +56,7 @@ from programas.services.estadias import (
     verificar_alojamiento_en_red,
 )
 from programas.services.ingreso import (
+    FormularioDeIngreso,
     buscar_ciudadano_por_dni,
     buscar_en_registro_de_personas,
     ingresar_con_formulario,
@@ -845,7 +846,7 @@ class IngresoConfirmarView(IngresoBaseView):
             plaza_id=estado.get("plaza_id"),
             fecha_ingreso=form.cleaned_data["fecha_ingreso"],
             formulario=(
-                (formulario.diseno, formulario.foto, formulario.respuestas(), formulario.archivos())
+                FormularioDeIngreso(formulario.diseno, formulario.foto, formulario.respuestas(), formulario.archivos())
                 if formulario is not None
                 else None
             ),

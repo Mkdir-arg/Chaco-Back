@@ -39,6 +39,7 @@ from programas.services.ocupacion import (
     ESTADO_PRESTADA,
     ESTADO_RESERVADA,
     estado_de_plazas,
+    nombre_completo_en_plaza,
     ocupacion_de_plazas,
 )
 from programas.services.plazas import puede_configurar_plazas
@@ -84,12 +85,6 @@ ESTADO_ESTADIA_EGRESADA = "egresada"
 
 def _iso(momento):
     return timezone.localtime(momento).isoformat() if momento else None
-
-
-def _nombre(apellido, nombre):
-    """«Apellido, Nombre» sin dejar la coma suelta si falta una de las dos partes."""
-
-    return f"{apellido}, {nombre}".strip(", ")
 
 
 def _resumen(conteo):
@@ -185,7 +180,7 @@ def _reservas_abiertas(plaza_ids, momento):
     for plaza_id, pk, desde, hasta, apellido, nombre, dni in filas:
         _viejo, vigente = abiertas.get(plaza_id, (None, None))
         if vigente is None and desde <= momento and (hasta is None or hasta >= momento):
-            vigente = (desde, hasta, _nombre(apellido, nombre), dni)
+            vigente = (desde, hasta, nombre_completo_en_plaza(apellido, nombre), dni)
         abiertas[plaza_id] = (pk, vigente)
     return abiertas
 

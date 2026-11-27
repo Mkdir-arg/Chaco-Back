@@ -42,7 +42,6 @@ from programas.services.estadias import (
     volver_plaza_a_servicio,
 )
 from programas.services.ingreso import buscar_ciudadano_por_dni
-from programas.services.ocupacion import estado_de_plazas
 from programas.services.plazas_app import mapa_del_edificio
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
@@ -50,8 +49,7 @@ from programas.services.sectores_plazas import (
     ACCION_PRESTAR,
     ACCION_RESERVAR,
     ACCION_VOLVER,
-    acciones_de_plaza,
-    bloqueo_de_plaza,
+    motivo_de_rechazo_de_estado,
 )
 
 CAP_VER_CIUDADANO = "ciudadano.ver"
@@ -60,14 +58,6 @@ CODIGO_SIN_PERMISO = "SIN_PERMISO"
 CODIGO_PERSONA_NO_ENCONTRADA = "PERSONA_NO_ENCONTRADA"
 MENSAJE_SIN_PERMISO = "No tenés permiso para hacer esto con esta plaza."
 MENSAJE_PERSONA_NO_ENCONTRADA = "No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona."
-
-_FRASES = {
-    ACCION_RESERVAR: "reservarse",
-    ACCION_PRESTAR: "prestarse",
-    ACCION_LIBERAR: "liberarse",
-    ACCION_FUERA_SERVICIO: "sacarse de servicio",
-    ACCION_VOLVER: "volver a servicio",
-}
 
 _SIN_PERMISO = OpenApiResponse(
     description=(
@@ -136,27 +126,9 @@ class _AccionDeCamaView(_VistaDeCampo):
         return False
 
     def _rechazo_de_estado(self, plaza):
-        """El 400 con el motivo si el estado de la plaza no admite la acción, o ``None``.
-
-        La capacidad ya se exigió: acá se pregunta solo qué admite la plaza (estado, reserva abierta y
-        estado de la institución), con las capacidades en alto.
-        """
-        estado = estado_de_plazas([plaza], puede_ver_personas=False)[plaza.pk]
-        ofrecidas = acciones_de_plaza(
-            estado,
-            reserva_abierta_de(plaza) is not None,
-            puede_admitir=True,
-            puede_editar=True,
-            puede_buscar_personas=True,
-            puede_egresar=False,
-            estado_dispositivo=plaza.sector.dispositivo.estado,
-        )
-        # «Sacar de servicio» una plaza ocupada sí se ofrece (deshabilitada, con su motivo): acá se rechaza.
-        motivo = bloqueo_de_plaza(estado, self.accion)
-        if not motivo and self.accion in ofrecidas:
-            return None
-        motivo = motivo or f"Esta plaza no puede {_FRASES[self.accion]} ahora."
-        return _respuesta_de_validacion({"estado": [motivo]})
+        """El 400 con el motivo si el estado de la plaza no admite la acción, o ``None``."""
+        motivo = motivo_de_rechazo_de_estado(plaza, self.accion)
+        return None if motivo is None else _respuesta_de_validacion({"estado": [motivo]})
 
     def post(self, request, pk):
         plaza = self._plaza(request, pk)
