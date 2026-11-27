@@ -1108,6 +1108,10 @@ async function correr(esc) {
     } else if (accion === 'arrastrar') {
       marcador.position = {lat: 1, lng: 2};
       marcador.dragend();
+    } else if (accion === 'campos' || accion === 'campos-js') {
+      campos.la.value = '-27.100000';
+      campos.lo.value = '-58.100000';
+      campos.la.listeners.change({isTrusted: accion === 'campos'});
     } else if (accion === 'tocar') {
       mapa.click({latLng: {lat: 3, lng: 4}});
     }
@@ -1192,6 +1196,18 @@ class UbicacionAvisoAproximadoTest(SimpleTestCase):
         self.assertEqual(salida[0], ["aproximado", None])
         self.assertEqual(salida[1], ["aproximado", None])
         self.assertEqual(salida[2], ["aproximado", None])
+
+    def test_escribir_las_coordenadas_a_mano_limpia_el_aviso_pero_no_cuando_las_rellena_el_js(self):
+        aprox = [_resultado("GEOMETRIC_CENTER")]
+        escenarios = [
+            {"resultados": aprox, "acciones": ["ubicar", "campos"]},
+            {"resultados": aprox, "acciones": ["ubicar", "campos-js"]},
+        ]
+
+        salida = self.correr(escenarios)
+
+        self.assertEqual(salida[0], ["aproximado", None])
+        self.assertEqual(salida[1], ["aproximado", "aproximado"])
 
     def test_el_template_trae_la_alerta_aproximado_como_warning(self):
         html = UbicacionDomicilioTest().render(UbicacionDomicilioTest.Form())

@@ -8,7 +8,7 @@
  *   - El marcador se arrastra y un clic en el mapa lo mueve; latitud y longitud se escriben en los campos.
  * `data-domicilio-extra` (opcional): id de otro control cuyo texto se suma al domicilio (calle + número).
  * Si Google ubica el domicilio en forma aproximada, el marcador se pone igual y aparece el aviso «aproximado»,
- * que no bloquea el guardado; se va al mover el marcador, tocar el mapa o ubicar de nuevo.
+ * que no bloquea el guardado; se va al mover el marcador, tocar el mapa, escribir las coordenadas a mano o ubicar de nuevo.
  * Con `data-a-pedido` (domicilio de una persona, SEC-33) no se le pide nada a Google al abrir la
  * pantalla: el mapa carga recién con «Ubicar en el mapa» o «Ver en el mapa».
  * Requiere window.NodoMapa (components/_google_maps.html), cargado antes que este archivo.
@@ -322,6 +322,7 @@
       if (!valida(lat, lng)) { return; }
       q('ubicacion-lat').textContent = lat.toFixed(6);
       q('ubicacion-lng').textContent = lng.toFixed(6);
+      mostrarAviso(null);
       estado('manual');
       if (!mapa) { ver.hidden = !aPedido || Boolean(carga); return; }
       ponerMarcador(lat, lng);
