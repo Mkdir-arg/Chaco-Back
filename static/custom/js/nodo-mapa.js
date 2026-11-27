@@ -103,12 +103,20 @@
     });
   }
 
+  // Una respuesta del Geocoder es precisa si no tiene coincidencia parcial y es ROOFTOP o RANGE_INTERPOLATED:
+  // un barrio o una manzana vuelve como el centro de la zona. La usan la pieza de domicilio y el panel Derivar.
+  function esPreciso(resultado) {
+    var tipo = resultado.geometry && resultado.geometry.location_type;
+    return !resultado.partial_match && (tipo === 'ROOFTOP' || tipo === 'RANGE_INTERPOLATED');
+  }
+
   window.NodoMapa = {
     configurado: Boolean(config.key),
     mapId: config.mapId || '',
     centro: CENTRO,
     cargar: cargar,
     importar: importar,
-    crearMapa: crearMapa
+    crearMapa: crearMapa,
+    esPreciso: esPreciso
   };
 })();

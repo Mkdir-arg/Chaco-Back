@@ -11,7 +11,8 @@
  * que no bloquea el guardado; se va al mover el marcador, tocar el mapa, escribir las coordenadas a mano o ubicar de nuevo.
  * Con `data-a-pedido` (domicilio de una persona, SEC-33) no se le pide nada a Google al abrir la
  * pantalla: el mapa carga recién con «Ubicar en el mapa» o «Ver en el mapa».
- * Requiere window.NodoMapa (components/_google_maps.html), cargado antes que este archivo.
+ * Requiere window.NodoMapa (components/_google_maps.html), cargado antes que este archivo; la regla de precisión
+ * del resultado es NodoMapa.esPreciso.
  */
 (function () {
   'use strict';
@@ -35,12 +36,6 @@
   }
   function valida(lat, lng) {
     return lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-  }
-  // Preciso: sin coincidencia parcial y con ROOFTOP o RANGE_INTERPOLATED. Es la regla de esPreciso en
-  // nodo-derivar-distancias.js: un barrio o una manzana vuelve como el centro de la zona.
-  function esPreciso(resultado) {
-    var tipo = resultado.geometry && resultado.geometry.location_type;
-    return !resultado.partial_match && (tipo === 'ROOFTOP' || tipo === 'RANGE_INTERPOLATED');
   }
   function comoLiteral(pos) {
     if (!pos) { return null; }
@@ -78,7 +73,9 @@
       badge.appendChild(document.createTextNode(e[2]));
       badge.hidden = false;
     }
+    var avisoActual = null;
     function mostrarAviso(clave) {
+      avisoActual = clave || null;
       aviso.innerHTML = '';
       aviso.hidden = !clave;
       if (clave) { aviso.appendChild(raiz.querySelector('[data-ubicacion-alerta="' + clave + '"]').content.cloneNode(true)); }
@@ -165,7 +162,7 @@
           var p = comoLiteral(r.geometry.location);
           consultaUbicada = consulta();
           fijar(p.lat, p.lng, 'google', true);
-          mostrarAviso(esPreciso(r) ? null : 'aproximado');
+          mostrarAviso(window.NodoMapa.esPreciso(r) ? null : 'aproximado');
         });
         li.appendChild(b);
         lista.appendChild(li);
@@ -207,7 +204,7 @@
           var p = comoLiteral(resultados[0].geometry.location);
           consultaUbicada = pedido;
           fijar(p.lat, p.lng, 'google', true);
-          if (!esPreciso(resultados[0])) { mostrarAviso('aproximado'); }
+          if (!window.NodoMapa.esPreciso(resultados[0])) { mostrarAviso('aproximado'); }
         })
         .catch(function () {
           mostrarAviso('error');
@@ -322,7 +319,8 @@
       if (!valida(lat, lng)) { return; }
       q('ubicacion-lat').textContent = lat.toFixed(6);
       q('ubicacion-lng').textContent = lng.toFixed(6);
-      mostrarAviso(null);
+      // Escribir las coordenadas desmiente solo el aviso «aproximado»: «error» y «no-encontrado» siguen vigentes.
+      if (avisoActual === 'aproximado') { mostrarAviso(null); }
       estado('manual');
       if (!mapa) { ver.hidden = !aPedido || Boolean(carga); return; }
       ponerMarcador(lat, lng);
