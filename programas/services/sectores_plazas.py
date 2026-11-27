@@ -116,18 +116,6 @@ ACCION_INGRESAR = "ingresar"
 #: y el modal la ofrece al pie a quien puede configurar las plazas, con su bloqueo propio.
 ACCION_BAJA = "baja"
 
-#: Las acciones que la app de campo puede recibir en `acciones` de una plaza, en el orden del modal de la web.
-ACCIONES_DE_LA_APP = (
-    ACCION_EGRESAR,
-    ACCION_REUBICAR,
-    ACCION_LIBERAR,
-    ACCION_RESERVAR,
-    ACCION_PRESTAR,
-    ACCION_FUERA_SERVICIO,
-    ACCION_VOLVER,
-    ACCION_INGRESAR,
-)
-
 # Las acciones cuyo formulario arma el navegador: con una sola, el modal abre directo en él.
 ACCIONES_CON_FORMULARIO = (ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO, ACCION_LIBERAR, ACCION_VOLVER)
 

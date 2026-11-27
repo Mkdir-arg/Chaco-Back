@@ -50,9 +50,6 @@ from programas.services.respuestas_dispositivo import (
     foto_vigente,
     guardar_respuestas_ingreso,
 )
-
-# ``requiere_archivo`` se queda en ``validacion_relevamiento`` (junto a ``RespuestasInvalidas``): lo usa solo el
-# formulario de ingreso de la app, pero es una pregunta sobre la foto del formulario, no sobre el ingreso.
 from programas.services.validacion_relevamiento import RespuestasInvalidas, validar_respuestas_con_avisos
 
 logger = logging.getLogger(__name__)

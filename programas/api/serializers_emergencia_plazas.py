@@ -8,13 +8,14 @@ app y de ``programas/tests/test_api_emergencia_plazas.py``. Documentado en ``doc
 from rest_framework import serializers
 
 from programas.services.plazas_app import (
+    ACCIONES_DE_LA_APP,
     ESTADO_DE_LA_APP,
     ESTADO_ESTADIA_ACTIVA,
     ESTADO_ESTADIA_EGRESADA,
     ORIGEN_DISPOSITIVO,
     ORIGEN_EMERGENCIA,
 )
-from programas.services.sectores_plazas import ACCION_EGRESAR, ACCION_REUBICAR, ACCIONES_DE_LA_APP
+from programas.services.sectores_plazas import ACCION_EGRESAR, ACCION_REUBICAR
 
 
 class ResumenPlazasSerializer(serializers.Serializer):
