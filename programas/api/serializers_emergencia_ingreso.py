@@ -87,6 +87,7 @@ class AlojamientoDelIngresoSerializer(serializers.Serializer):
 
 class PersonaDelIngresoRespuestaSerializer(serializers.Serializer):
     encontrada = serializers.BooleanField()
+    puede_dar_de_alta = serializers.BooleanField(required=False)
     persona = PersonaDelIngresoSerializer(required=False)
     alojada = serializers.BooleanField(required=False)
     alojamiento = AlojamientoDelIngresoSerializer(required=False, allow_null=True)
