@@ -62,7 +62,9 @@ async function correr(esc) {
     addEventListener() {}
   });
   // El nodo-mapa.js real: así `NodoMapa.esPreciso` es la regla verdadera. Solo se simula lo que habla con Google.
+  delete globalThis.NodoMapa;
   vm.runInThisContext(fuenteMapa);
+  if (process.env.INVERTIR === '1') { const real = NodoMapa.esPreciso; NodoMapa.esPreciso = (r) => !real(r); }
   Object.assign(NodoMapa, {configurado: true, importar: () => Promise.resolve(librerias),
     crearMapa: () => Promise.resolve({addListener(t, f) { mapa[t] = f; }, panTo() {}, setZoom() {}})});
   vm.runInThisContext(fuente);
@@ -116,7 +118,7 @@ class UbicacionAvisoAproximadoTest(SimpleTestCase):
 
     FUENTE = JS / "nodo-ubicacion.js"
 
-    def correr(self, escenarios):
+    def correr(self, escenarios, invertir=False):
         proceso = subprocess.run(
             [NODE, "-e", _HARNESS_UBICACION],
             env={
@@ -124,6 +126,7 @@ class UbicacionAvisoAproximadoTest(SimpleTestCase):
                 "FUENTE": str(self.FUENTE),
                 "FUENTE_MAPA": str(JS / "nodo-mapa.js"),
                 "ESCENARIOS": json.dumps(escenarios),
+                "INVERTIR": "1" if invertir else "0",
             },
             capture_output=True,
             text=True,
@@ -132,6 +135,17 @@ class UbicacionAvisoAproximadoTest(SimpleTestCase):
         )
         self.assertEqual(proceso.returncode, 0, proceso.stderr)
         return json.loads(proceso.stdout)
+
+    def test_la_pieza_decide_con_NodoMapa_esPreciso_y_no_con_una_copia(self):
+        escenarios = [
+            {"resultados": [_resultado("ROOFTOP")], "acciones": ["ubicar"]},
+            {"resultados": [_resultado("GEOMETRIC_CENTER")], "acciones": ["ubicar"]},
+        ]
+
+        salida = self.correr(escenarios, invertir=True)
+
+        # Con la regla compartida invertida, la decisión de la pieza se invierte.
+        self.assertEqual([s[0] for s in salida], ["aproximado", None])
 
     def test_la_regla_de_precision_es_la_de_derivar(self):
         casos = [
@@ -253,6 +267,7 @@ Object.assign(globalThis, {
   }
 });
 vm.runInThisContext(fs.readFileSync(process.env.FUENTE_MAPA, 'utf8'));
+if (process.env.INVERTIR === '1') { const real = NodoMapa.esPreciso; NodoMapa.esPreciso = (r) => !real(r); }
 Object.assign(NodoMapa, {configurado: true, importar: (nombre) => Promise.resolve(nombre === 'geocoding' ?
   [{Geocoder: class { geocode() { return Promise.resolve({results: [resultado]}); } }}] : [{}])});
 vm.runInThisContext(fs.readFileSync(process.env.FUENTE, 'utf8'));
@@ -265,7 +280,7 @@ setTimeout(() => console.log(JSON.stringify(guardados)), 30);
 class DerivarUsaLaReglaDePrecisionCompartidaTest(SimpleTestCase):
     """«Derivar» guarda el domicilio de la familia solo con un resultado preciso: la regla es `NodoMapa.esPreciso`."""
 
-    def guardados(self, tipo, parcial=False):
+    def guardados(self, tipo, parcial=False, invertir=False):
         proceso = subprocess.run(
             [NODE, "-e", _HARNESS_DERIVAR],
             env={
@@ -273,6 +288,7 @@ class DerivarUsaLaReglaDePrecisionCompartidaTest(SimpleTestCase):
                 "FUENTE": str(JS / "nodo-derivar-distancias.js"),
                 "FUENTE_MAPA": str(JS / "nodo-mapa.js"),
                 "RESULTADO": json.dumps(_resultado(tipo, parcial)),
+                "INVERTIR": "1" if invertir else "0",
             },
             capture_output=True,
             text=True,
@@ -287,3 +303,8 @@ class DerivarUsaLaReglaDePrecisionCompartidaTest(SimpleTestCase):
         self.assertEqual(self.guardados("RANGE_INTERPOLATED"), ["/guardar/"])
         self.assertEqual(self.guardados("GEOMETRIC_CENTER"), [])
         self.assertEqual(self.guardados("ROOFTOP", parcial=True), [])
+
+    def test_derivar_decide_con_NodoMapa_esPreciso_y_no_con_una_copia(self):
+        # Con la regla compartida invertida, la decisión de Derivar se invierte.
+        self.assertEqual(self.guardados("ROOFTOP", invertir=True), [])
+        self.assertEqual(self.guardados("GEOMETRIC_CENTER", invertir=True), ["/guardar/"])
