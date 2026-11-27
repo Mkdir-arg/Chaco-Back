@@ -28,6 +28,7 @@ Una sola vez, en el bloque `customJS` de la pantalla que dibuja un mapa:
 | `configurado` | `false` sin `GOOGLE_MAPS_API_KEY`: la pantalla no intenta cargar y muestra su estado vacío |
 | `crearMapa(elemento, opciones)` | `Promise<google.maps.Map>` con el Map ID del ambiente, centro en Resistencia, zoom 13, sin controles de tipo de mapa, Street View ni pantalla completa, POI no clicables y `gestureHandling: 'cooperative'`. `opciones` pisa cualquiera |
 | `importar('marker', 'geocoding', …)` | `Promise` con las librerías pedidas (`google.maps.importLibrary`) |
+| `esPreciso(resultado)` | `true` sin `partial_match` y con `ROOFTOP` o `RANGE_INTERPOLATED`; la usan la pieza de domicilio y Derivar |
 | `cargar()` | `Promise<google.maps>`; la usan las dos anteriores |
 | evento `nodo-mapa:error` en `document` | La key no vale para el sitio (`gm_authFailure`); `detail.mensaje` en castellano |
 
