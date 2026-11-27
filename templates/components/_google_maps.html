@@ -6,6 +6,7 @@ Contexto: ninguno. La key y el Map ID salen de settings (GOOGLE_MAPS_API_KEY, GO
   NodoMapa.configurado                 false sin key: la pantalla no intenta cargar y muestra su estado vacío.
   NodoMapa.crearMapa(elemento, opc)    Promise<google.maps.Map> con el Map ID del ambiente, centrado en Resistencia.
   NodoMapa.importar("marker", …)       Promise con las librerías pedidas (google.maps.importLibrary).
+  NodoMapa.esPreciso(resultado)        true si un resultado del Geocoder es exacto (sin coincidencia parcial, ROOFTOP o RANGE_INTERPOLATED).
 Google se pide recién en la primera llamada, no al cargar la página: una pantalla que solo muestra el mapa a
 pedido (Becas, SEC-33) no le manda nada a Google hasta que alguien lo abre. Si la key es inválida para el sitio,
 se dispara `nodo-mapa:error` en `document` con `detail.mensaje`.

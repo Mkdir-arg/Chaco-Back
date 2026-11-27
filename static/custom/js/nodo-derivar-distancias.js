@@ -49,13 +49,6 @@
     pintadas += 1;
   }
 
-  // Solo una respuesta precisa del Geocoder se guarda como el domicilio de la familia: un barrio o una
-  // manzana que Google no encuentra vuelve como el centro de la localidad, y guardado pasaría por exacto.
-  function esPreciso(resultado) {
-    var tipo = resultado.geometry && resultado.geometry.location_type;
-    return !resultado.partial_match && (tipo === 'ROOFTOP' || tipo === 'RANGE_INTERPOLATED');
-  }
-
   function csrf() {
     var campo = document.querySelector('input[name="csrfmiddlewaretoken"]');
     return campo ? campo.value : '';
@@ -74,7 +67,9 @@
       var punto = { lat: resultado.geometry.location.lat(), lng: resultado.geometry.location.lng() };
       // Para un reintento en la misma página: no se vuelve a pagar el Geocoding.
       config.origen = punto;
-      if (config.ubicar_url && resultados.length === 1 && esPreciso(resultado)) {
+      // Solo una respuesta precisa se guarda como el domicilio de la familia: un barrio o una manzana que Google
+      // no encuentra vuelve como el centro de la localidad, y guardado pasaría por exacto.
+      if (config.ubicar_url && resultados.length === 1 && window.NodoMapa.esPreciso(resultado)) {
         var datos = new FormData();
         datos.append('latitud', punto.lat.toFixed(6));
         datos.append('longitud', punto.lng.toFixed(6));
