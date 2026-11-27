@@ -27,7 +27,10 @@ class RespuestasInvalidas(ValidationError):
 
 
 def requiere_archivo(foto):
-    """¿La foto tiene un campo de archivo o firma **obligatorio**? Ese formulario no se completa desde la app."""
+    """¿La foto tiene un campo de archivo o firma **obligatorio**? Ese formulario no se completa desde la app.
+
+    La usa solo el formulario de ingreso de la app, pero se queda acá (junto a ``RespuestasInvalidas``): es una
+    pregunta sobre la foto del formulario, no sobre el ingreso."""
     return any(campo.get("obligatorio") and es_adjunto(campo) for campo in campos_de(foto))
 
 

@@ -81,6 +81,9 @@ ACCIONES_DE_LA_APP = (
 
 ESTADO_ESTADIA_ACTIVA = "activa"
 ESTADO_ESTADIA_EGRESADA = "egresada"
+#: De dónde viene la estadía que lista la app: de un caso de emergencia o de un ingreso directo al dispositivo.
+ORIGEN_EMERGENCIA = "emergencia"
+ORIGEN_DISPOSITIVO = "dispositivo"
 
 
 def _iso(momento):
@@ -336,7 +339,7 @@ def estadias_de_la_app(user, dispositivo, edificio, estado, sector, pagina):
                 "fecha_ingreso": _iso(estadia.fecha_ingreso),
                 "fecha_egreso": _iso(estadia.fecha_egreso),
                 "estado": ESTADO_ESTADIA_ACTIVA if activa else ESTADO_ESTADIA_EGRESADA,
-                "origen": "emergencia" if marca else "dispositivo",
+                "origen": ORIGEN_EMERGENCIA if marca else ORIGEN_DISPOSITIVO,
                 "emergencia": {"caso_numero": marca["numero"]} if marca else None,
                 "acciones": acciones,
             }
