@@ -11,16 +11,10 @@ from programas.services.plazas_app import (
     ESTADO_DE_LA_APP,
     ESTADO_ESTADIA_ACTIVA,
     ESTADO_ESTADIA_EGRESADA,
+    ORIGEN_DISPOSITIVO,
+    ORIGEN_EMERGENCIA,
 )
-from programas.services.sectores_plazas import (
-    ACCION_EGRESAR,
-    ACCION_FUERA_SERVICIO,
-    ACCION_LIBERAR,
-    ACCION_PRESTAR,
-    ACCION_RESERVAR,
-    ACCION_REUBICAR,
-    ACCION_VOLVER,
-)
+from programas.services.sectores_plazas import ACCION_EGRESAR, ACCION_REUBICAR, ACCIONES_DE_LA_APP
 
 
 class ResumenPlazasSerializer(serializers.Serializer):
@@ -76,17 +70,7 @@ class PlazaDelEdificioSerializer(serializers.Serializer):
     desde = serializers.CharField(allow_null=True, help_text="Ingreso de la estadía o inicio de la reserva (ISO 8601).")
     hasta = serializers.CharField(allow_null=True, help_text="Fin de la reserva o del préstamo, si tiene.")
     acciones = serializers.ListField(
-        child=serializers.ChoiceField(
-            choices=[
-                ACCION_EGRESAR,
-                ACCION_REUBICAR,
-                ACCION_LIBERAR,
-                ACCION_RESERVAR,
-                ACCION_PRESTAR,
-                ACCION_FUERA_SERVICIO,
-                ACCION_VOLVER,
-            ]
-        ),
+        child=serializers.ChoiceField(choices=list(ACCIONES_DE_LA_APP)),
         help_text="Lo que este usuario puede hacer con la cama ahora, en el orden del modal de la web.",
     )
     bloqueo = serializers.CharField(
@@ -141,7 +125,7 @@ class EstadiaDelEdificioSerializer(serializers.Serializer):
     fecha_ingreso = serializers.CharField()
     fecha_egreso = serializers.CharField(allow_null=True)
     estado = serializers.ChoiceField(choices=[ESTADO_ESTADIA_ACTIVA, ESTADO_ESTADIA_EGRESADA])
-    origen = serializers.ChoiceField(choices=["emergencia", "dispositivo"])
+    origen = serializers.ChoiceField(choices=[ORIGEN_EMERGENCIA, ORIGEN_DISPOSITIVO])
     emergencia = EmergenciaDeLaEstadiaSerializer(allow_null=True)
     acciones = serializers.ListField(child=serializers.ChoiceField(choices=[ACCION_EGRESAR, ACCION_REUBICAR]))
 

@@ -15,9 +15,14 @@ Dos reglas que no se pueden perder:
 2. **La persona que no está en el legajo se da de alta recién al confirmar**, en la misma
    transacción que la estadía: un paso intermedio nunca escribe, y si el ingreso falla
    no queda un legajo huérfano.
+
+También valida el formulario de ingreso que manda la app (:func:`formulario_de_ingreso_de_la_app`):
+antes de escribir nada, contra la versión vigente y sin archivos; el resultado es un
+:class:`FormularioDeIngreso` que :func:`ingresar_con_formulario` guarda junto a la estadía.
 """
 
 import logging
+from collections.abc import Sequence
 from typing import NamedTuple
 
 from django.core.exceptions import ValidationError
@@ -45,6 +50,9 @@ from programas.services.respuestas_dispositivo import (
     foto_vigente,
     guardar_respuestas_ingreso,
 )
+
+# ``requiere_archivo`` se queda en ``validacion_relevamiento`` (junto a ``RespuestasInvalidas``): lo usa solo el
+# formulario de ingreso de la app, pero es una pregunta sobre la foto del formulario, no sobre el ingreso.
 from programas.services.validacion_relevamiento import RespuestasInvalidas, validar_respuestas_con_avisos
 
 logger = logging.getLogger(__name__)
@@ -227,6 +235,15 @@ class IngresoConArchivo(Exception):
     """El formulario de ingreso pide un archivo o una firma obligatorios y la app no los puede mandar."""
 
 
+class FormularioDeIngreso(NamedTuple):
+    """El formulario de ingreso ya validado: lo que :func:`ingresar_con_formulario` guarda junto a la estadía."""
+
+    diseno: object
+    foto: object
+    respuestas: dict
+    archivos: Sequence[tuple[str, object]]
+
+
 def formulario_de_ingreso_de_la_app(tipo_id, envio):
     """El formulario de ingreso que manda la app, validado **antes** de escribir nada.
 
@@ -248,15 +265,6 @@ def formulario_de_ingreso_de_la_app(tipo_id, envio):
     if errores:
         raise RespuestasInvalidas(errores)
     return FormularioDeIngreso(diseno, foto, efectivas, ())
-
-
-class FormularioDeIngreso(NamedTuple):
-    """El formulario de ingreso ya validado: lo que :func:`ingresar_con_formulario` guarda junto a la estadía."""
-
-    diseno: object
-    foto: object
-    respuestas: dict
-    archivos: tuple
 
 
 def ingresar_con_formulario(

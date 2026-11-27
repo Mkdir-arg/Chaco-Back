@@ -15,7 +15,7 @@ por el shell: solo marcas, muestra de la leyenda y alto contraste), el relleno `
 `_contador_avance` cuenta **unidades** («3 de 7») y su barra no tiene nivel. `_ficha_avance` es el medidor de
 una sección de ficha. Acá el dato es un **porcentaje con nivel de tensión**: la barra tiene que mostrar dónde
 empieza cada nivel, y el nivel lo decide el dominio (`programas/services/ocupacion.py`, que con `tipos=(Plaza.Tipo.CAMA,)` cuenta solo
-camas), no la pantalla. El mismo servicio entrega el estado de cada plaza (`EstadoPlaza`): su `detalle` abreviado va en la celda del mapa y su `ocupante` («Apellido, Nombre», solo con `ciudadano.ver`) en el modal de la plaza ocupada. El nombre completo sale de `_nombre_completo_en_plaza` (`programas/services/ocupacion.py`): «Apellido, Nombre» sin coma suelta, el mismo resultado de siempre.
+camas), no la pantalla. El mismo servicio entrega el estado de cada plaza (`EstadoPlaza`): su `detalle` abreviado va en la celda del mapa y su `ocupante` («Apellido, Nombre», solo con `ciudadano.ver`) en el modal de la plaza ocupada. El nombre completo sale de `nombre_completo_en_plaza` (`programas/services/ocupacion.py`): «Apellido, Nombre» sin coma suelta, el mismo resultado de siempre.
 
 ## Invocación
 
