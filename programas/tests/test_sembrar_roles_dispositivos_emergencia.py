@@ -249,6 +249,13 @@ class DefensaDelSavepointTests(TestCase):
 
 
 class CapacidadFueraDeCatalogoTests(TestCase):
+    def setUp(self):
+        for codigo, tipo in (
+            ("DISPOSITIVOS", Programa.TipoPrograma.DISPOSITIVOS),
+            ("EMERGENCIA", Programa.TipoPrograma.EMERGENCIA),
+        ):
+            Programa.objects.get_or_create(codigo=codigo, defaults={"nombre": codigo.title(), "tipo": tipo})
+
     def test_corta_con_command_error_y_no_escribe(self):
         primero = ROLES_DISPOSITIVOS_EMERGENCIA[0]
         roto = dataclasses.replace(primero, capacidades=(*primero.capacidades, "no.existe"))
