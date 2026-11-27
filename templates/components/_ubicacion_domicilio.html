@@ -66,6 +66,7 @@ Ficha: .claude/design/componentes/ubicacion_domicilio.md
   </div>
 
   <template data-ubicacion-alerta="no-encontrado">{% include "components/_alerta.html" with tono="warning" titulo="No encontramos ese domicilio." texto="Revisá calle y número, o marcá el punto tocando el mapa." %}</template>
+  <template data-ubicacion-alerta="aproximado">{% include "components/_alerta.html" with tono="warning" texto="Google ubicó esta dirección en forma aproximada. Mové el marcador al lugar exacto antes de guardar." %}</template>
   <template data-ubicacion-alerta="sin-mapa">{% include "components/_alerta.html" with tono="info" titulo="El mapa no está disponible en este ambiente." texto="Cargá latitud y longitud a mano." %}</template>
   <template data-ubicacion-alerta="error">{% include "components/_alerta.html" with tono="danger" titulo="No se pudo usar Google Maps." texto="Cargá las coordenadas a mano o volvé a intentar más tarde." %}</template>
 </div>

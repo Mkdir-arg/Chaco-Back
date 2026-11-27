@@ -61047,7 +61047,7 @@ coordenadas del edificio y la distancia de «Derivar» de Emergencia las necesit
 ## Alcance acordado
 Reusar la pieza de domicilio con mapa del Cambio 493 (`components/_ubicacion_domicilio.html`, `nodo-ubicacion.js`) en
 el modal del edificio. Afuera: el aviso cuando el domicilio que devuelve Google es aproximado (espera decisión del
-usuario).
+usuario; resuelto en el Cambio 619).
 
 ## Decisiones tomadas
 - **Misma pieza, un parámetro nuevo.** El edificio separa calle y número, y la pieza espera un solo domicilio:
@@ -61095,7 +61095,7 @@ sin key, sin modal no hay Google) se verificaron por mutación.
 No requiere.
 
 ## Pendientes / a definir
-- El aviso cuando el domicilio que ubica Google es aproximado (espera decisión del usuario).
+- ~~El aviso cuando el domicilio que ubica Google es aproximado~~ — resuelto en el Cambio 619 (27/11/2026).
 
 ## Reversión
 Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las lee «Derivar».
@@ -61104,6 +61104,7 @@ Desplegar el código anterior. Las coordenadas cargadas quedan en la tabla y las
 
 - **21/11/2026:** alta del cambio.
 - **21/11/2026:** auditoría del #1290: el edificio reservado no va a Google, orden de los campos del modal y error de coordenadas visible.
+- **27/11/2026:** el aviso por domicilio aproximado se resolvió en el Cambio 619, en la pieza compartida (también sale en este modal).
 
 ---
 
