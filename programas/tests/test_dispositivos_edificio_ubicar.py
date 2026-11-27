@@ -131,6 +131,13 @@ class ModalDeEdificioConMapaTests(BaseCapacidad):
         self.assertIn("custom/css/nodo-ubicacion.css", html)
         self.assertEqual(html.count('name="calle"'), 1)
 
+    def test_el_modal_trae_el_aviso_de_ubicacion_aproximada_de_la_pieza(self):
+        # Cambio 619: el aviso vive en la pieza compartida; el modal lo hereda sin tocar su vista.
+        html = self._modal(edificio="nuevo")
+
+        self.assertIn('data-ubicacion-alerta="aproximado"', html)
+        self.assertIn("Google ubicó esta dirección en forma aproximada.", html)
+
     def test_al_editar_el_punto_vigente_va_en_los_campos(self):
         edificio = crear_edificio(
             dispositivo=self.cis,
