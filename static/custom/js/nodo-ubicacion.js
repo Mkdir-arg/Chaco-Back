@@ -7,6 +7,8 @@
  *   - Un resultado: pone el marcador. Varios: lista para elegir. Ninguno: aviso y se marca tocando el mapa.
  *   - El marcador se arrastra y un clic en el mapa lo mueve; latitud y longitud se escriben en los campos.
  * `data-domicilio-extra` (opcional): id de otro control cuyo texto se suma al domicilio (calle + número).
+ * Si Google ubica el domicilio en forma aproximada, el marcador se pone igual y aparece el aviso «aproximado»,
+ * que no bloquea el guardado; se va al mover el marcador, tocar el mapa o ubicar de nuevo.
  * Con `data-a-pedido` (domicilio de una persona, SEC-33) no se le pide nada a Google al abrir la
  * pantalla: el mapa carga recién con «Ubicar en el mapa» o «Ver en el mapa».
  * Requiere window.NodoMapa (components/_google_maps.html), cargado antes que este archivo.
@@ -33,6 +35,12 @@
   }
   function valida(lat, lng) {
     return lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+  // Preciso: sin coincidencia parcial y con ROOFTOP o RANGE_INTERPOLATED. Es la regla de esPreciso en
+  // nodo-derivar-distancias.js: un barrio o una manzana vuelve como el centro de la zona.
+  function esPreciso(resultado) {
+    var tipo = resultado.geometry && resultado.geometry.location_type;
+    return !resultado.partial_match && (tipo === 'ROOFTOP' || tipo === 'RANGE_INTERPOLATED');
   }
   function comoLiteral(pos) {
     if (!pos) { return null; }
@@ -117,6 +125,7 @@
         marcador.addListener('dragend', function () {
           var p = comoLiteral(marcador.position);
           escribir(p.lat, p.lng);
+          mostrarAviso(null);
           estado(consultaUbicada ? 'ajustado' : 'manual');
         });
       } else {
@@ -156,6 +165,7 @@
           var p = comoLiteral(r.geometry.location);
           consultaUbicada = consulta();
           fijar(p.lat, p.lng, 'google', true);
+          mostrarAviso(esPreciso(r) ? null : 'aproximado');
         });
         li.appendChild(b);
         lista.appendChild(li);
@@ -197,6 +207,7 @@
           var p = comoLiteral(resultados[0].geometry.location);
           consultaUbicada = pedido;
           fijar(p.lat, p.lng, 'google', true);
+          if (!esPreciso(resultados[0])) { mostrarAviso('aproximado'); }
         })
         .catch(function () {
           mostrarAviso('error');

@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
@@ -22,6 +23,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, override_setti
 from django.urls import reverse
 
 from core.templatetags.nodo_ui import hay_filtros, resumen_barras, sin_parametros
+from core.tests.js_harness import NODE, requiere_node
 
 
 class PageHeaderEstadoTests(SimpleTestCase):
@@ -1042,6 +1044,164 @@ class UbicacionDomicilioTest(SimpleTestCase):
         self.assertIn("data-manual-abierto", html)
         self.assertIn('aria-invalid="true"', html)
         self.assertNotIn("data-manual-abierto", self.render(self.Form()))
+
+
+# DOM mínimo para correr `nodo-ubicacion.js` en node: Google queda simulado (Geocoder, mapa y marcador) y cada
+# escenario devuelve qué aviso quedó a la vista después de cada acción.
+_HARNESS_UBICACION = r"""
+const fs = require('fs'), vm = require('vm');
+const fuente = fs.readFileSync(process.env.FUENTE, 'utf8');
+const escenarios = JSON.parse(process.env.ESCENARIOS);
+function el() {
+  const e = {dataset: {}, hidden: false, className: '', disabled: false, value: '', children: [], listeners: {},
+    textContent: '', _h: '', classList: {toggle() {}},
+    addEventListener(t, f) { this.listeners[t] = f; }, setAttribute() {}, removeAttribute() {},
+    hasAttribute() { return false; }, appendChild(c) { this.children.push(c); return c; },
+    querySelector() { return el(); }, querySelectorAll() { return []; }, focus() {}, dispatchEvent() {}};
+  Object.defineProperty(e, 'innerHTML', {get() { return this._h; }, set(v) { this._h = v; if (v === '') { this.children = []; } }});
+  return e;
+}
+async function correr(esc) {
+  const piezas = {}, campos = {d: el(), la: el(), lo: el()};
+  campos.d.id = 'd';
+  const raiz = el();
+  Object.assign(raiz.dataset, {domicilio: 'd', latitud: 'la', longitud: 'lo', provincia: 'Chaco'});
+  raiz.querySelector = function (sel) {
+    const alerta = /data-ubicacion-alerta="([^"]+)"/.exec(sel);
+    if (alerta) { return {content: {cloneNode() { return {alerta: alerta[1]}; }}}; }
+    const clave = /\[data-([a-z-]+)\]/.exec(sel)[1];
+    return piezas[clave] || (piezas[clave] = el());
+  };
+  const lista = raiz.querySelector('[data-ubicacion-candidatos-lista]');
+  lista.querySelector = function () { return this.children[0].children[0]; };
+  let marcador = null, llamadas = 0;
+  const mapa = {};
+  class Marcador {
+    constructor(o) { this.position = o.position; marcador = this; }
+    addListener(t, f) { this[t] = f; }
+  }
+  const librerias = [
+    {AdvancedMarkerElement: Marcador, PinElement: class { constructor() { this.element = {}; } }},
+    {Geocoder: class { geocode() { llamadas += 1; return Promise.resolve({results: llamadas > 1 && esc.siguiente ? esc.siguiente : esc.resultados}); } }}
+  ];
+  Object.assign(globalThis, {
+    window: globalThis, MutationObserver: class { observe() {} },
+    getComputedStyle: () => ({getPropertyValue: () => 'x'}),
+    document: {readyState: 'complete', addEventListener() {}, createElement: el,
+      createTextNode: (t) => ({t}), documentElement: {},
+      getElementById: (id) => campos[id] || null, querySelectorAll: () => [raiz]},
+    NodoMapa: {configurado: true, importar: () => Promise.resolve(librerias),
+      crearMapa: () => Promise.resolve({addListener(t, f) { mapa[t] = f; }, panTo() {}, setZoom() {}})}
+  });
+  vm.runInThisContext(fuente);
+  const espera = () => new Promise((r) => setTimeout(r, 15));
+  await espera();
+  const aviso = () => (piezas['ubicacion-aviso'].hidden ? null : piezas['ubicacion-aviso'].children[0].alerta);
+  const vistos = [];
+  for (const accion of esc.acciones) {
+    if (accion === 'ubicar') {
+      campos.d.value = 'Calle 1';
+      piezas['ubicacion-buscar'].disabled = false;
+      piezas['ubicacion-buscar'].listeners.click();
+    } else if (accion.startsWith('elegir:')) {
+      lista.children[Number(accion.split(':')[1])].children[0].listeners.click();
+    } else if (accion === 'arrastrar') {
+      marcador.position = {lat: 1, lng: 2};
+      marcador.dragend();
+    } else if (accion === 'tocar') {
+      mapa.click({latLng: {lat: 3, lng: 4}});
+    }
+    await espera();
+    vistos.push(aviso());
+  }
+  return vistos;
+}
+(async () => {
+  const salida = [];
+  for (const esc of escenarios) { salida.push(await correr(esc)); }
+  console.log(JSON.stringify(salida));
+})();
+"""
+
+
+def _resultado(tipo, parcial=False, direccion="Calle 1, Resistencia"):
+    r = {
+        "formatted_address": direccion,
+        "geometry": {"location_type": tipo, "location": {"lat": -27.45, "lng": -58.98}},
+    }
+    if parcial:
+        r["partial_match"] = True
+    return r
+
+
+@requiere_node
+class UbicacionAvisoAproximadoTest(SimpleTestCase):
+    """Cambio 619: con un resultado aproximado de Google el marcador se pone y aparece un aviso que no bloquea."""
+
+    FUENTE = Path(__file__).resolve().parents[2] / "static" / "custom" / "js" / "nodo-ubicacion.js"
+
+    def correr(self, escenarios):
+        proceso = subprocess.run(
+            [NODE, "-e", _HARNESS_UBICACION],
+            env={**os.environ, "FUENTE": str(self.FUENTE), "ESCENARIOS": json.dumps(escenarios)},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=60,
+        )
+        self.assertEqual(proceso.returncode, 0, proceso.stderr)
+        return json.loads(proceso.stdout)
+
+    def test_la_regla_de_precision_es_la_de_derivar(self):
+        casos = [
+            ("ROOFTOP", False, None),
+            ("RANGE_INTERPOLATED", False, None),
+            ("GEOMETRIC_CENTER", False, "aproximado"),
+            ("APPROXIMATE", False, "aproximado"),
+            ("ROOFTOP", True, "aproximado"),
+            ("RANGE_INTERPOLATED", True, "aproximado"),
+        ]
+        escenarios = [{"resultados": [_resultado(t, p)], "acciones": ["ubicar"]} for t, p, _ in casos]
+
+        salida = self.correr(escenarios)
+
+        self.assertEqual([s[0] for s in salida], [esperado for _, _, esperado in casos])
+
+    def test_con_varios_resultados_avisa_solo_si_la_persona_elige_uno_aproximado(self):
+        resultados = [_resultado("ROOFTOP", direccion="A"), _resultado("GEOMETRIC_CENTER", direccion="B")]
+        escenarios = [
+            {"resultados": resultados, "acciones": ["ubicar", "elegir:1"]},
+            {"resultados": resultados, "acciones": ["ubicar", "elegir:0"]},
+        ]
+
+        salida = self.correr(escenarios)
+
+        self.assertEqual(salida[0], [None, "aproximado"])
+        self.assertEqual(salida[1], [None, None])
+
+    def test_el_aviso_se_va_al_mover_el_marcador_tocar_el_mapa_o_ubicar_con_precision(self):
+        aprox = [_resultado("GEOMETRIC_CENTER")]
+        escenarios = [
+            {"resultados": aprox, "acciones": ["ubicar", "arrastrar"]},
+            {"resultados": aprox, "acciones": ["ubicar", "tocar"]},
+            {"resultados": aprox, "siguiente": [_resultado("ROOFTOP")], "acciones": ["ubicar", "ubicar"]},
+        ]
+
+        salida = self.correr(escenarios)
+
+        self.assertEqual(salida[0], ["aproximado", None])
+        self.assertEqual(salida[1], ["aproximado", None])
+        self.assertEqual(salida[2], ["aproximado", None])
+
+    def test_el_template_trae_la_alerta_aproximado_como_warning(self):
+        html = UbicacionDomicilioTest().render(UbicacionDomicilioTest.Form())
+
+        plantilla = html.split('data-ubicacion-alerta="aproximado"')[1].split("</template>")[0]
+        self.assertIn(
+            "Google ubicó esta dirección en forma aproximada. Mové el marcador al lugar exacto antes de guardar.",
+            plantilla,
+        )
+        self.assertIn('role="alert"', plantilla)
 
 
 class LineaTiempoTest(SimpleTestCase):

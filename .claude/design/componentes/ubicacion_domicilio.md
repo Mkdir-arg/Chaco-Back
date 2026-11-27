@@ -46,6 +46,11 @@ RENAPER y edición del ciudadano (`legajos/templates/legajos/ciudadano_manual_fo
   quedó vacío al terminar la carga, se avisa en el campo y el botón se libera.
 - Un resultado pone el marcador y centra el mapa. Varios (hasta 5, sin repetidos) se listan para elegir. Ninguno:
   alerta `warning` y el punto se marca tocando el mapa.
+- **Aviso «aproximado» (Cambio 619):** si el resultado no es preciso (con `partial_match`, o con un `location_type` que no
+  sea `ROOFTOP` ni `RANGE_INTERPOLATED`: la regla de `nodo-derivar-distancias.js`) el marcador se pone igual y aparece la
+  alerta `warning` `data-ubicacion-alerta="aproximado"`: «Google ubicó esta dirección en forma aproximada. Mové el marcador
+  al lugar exacto antes de guardar.» No bloquea el guardado. Con varios resultados avisa al elegir uno aproximado. Se va al
+  arrastrar el marcador, tocar el mapa o ubicar de nuevo. Un edificio reservado no usa Google: no cambia.
 - El marcador (`AdvancedMarkerElement` con `PinElement` del color de marca) se arrastra; un clic en el mapa lo
   mueve. Latitud y longitud se escriben en los campos reales con 6 decimales y disparan `input`/`change`.
 - Badge de estado: Sin ubicar · Con ubicación · Ubicado con Google · Ajustado a mano · Marcado a mano · Elegí una
