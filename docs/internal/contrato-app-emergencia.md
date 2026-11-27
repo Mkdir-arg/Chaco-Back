@@ -1431,9 +1431,14 @@ La cama `disponible` ofrece la acción `ingresar` en `plazas[].acciones` del map
                  "dentro_del_alcance": true, "dispositivo": "Club Sarmiento", "plaza": "C002", "desde": "2026-11-25T09:30:00-03:00"},
  "plaza_reservada_id": null}
 
-// no está en el padrón: la app pide los datos y los manda en `persona_nueva` (paso 3)
-{"encontrada": false}
+// no está en el padrón y el usuario puede darla de alta: la app pide los datos y los manda en `persona_nueva` (paso 3)
+{"encontrada": false, "puede_dar_de_alta": true}
+
+// no está en el padrón y el usuario NO tiene `ciudadano.crear`
+{"encontrada": false, "puede_dar_de_alta": false}
 ```
+
+- `puede_dar_de_alta` solo viene con `encontrada: false` (con `true` no existe) y es `ciudadano.crear` del usuario, el mismo chequeo que hace el paso 3 para una persona nueva. Con `false` la app **no deja seguir**: muestra «La persona no está en el Legajo Ciudadano y no tenés permiso para darla de alta.» (el texto de la web) y no pide el formulario de alta. El `POST ingresar` sigue rechazando con 403 `SIN_PERMISO` («No tenés permiso para dar de alta personas en el padrón.»): es la defensa real, el campo solo evita llegar hasta ahí.
 
 - `alojada: true` con `alojamiento.dentro_del_alcance: false`: está alojada en una institución fuera del alcance del usuario; `dispositivo` y `plaza` vienen vacíos (`""`), `desde` en `null`, y el `mensaje` dice a quién pedir el egreso. La app lo muestra y **no deja seguir**: el paso 3 lo rechazaría igual.
 - `plaza_reservada_id`: la cama que la persona tiene reservada o prestada **en este dispositivo**. El ingreso la consume (la cama es elegible para ella aunque el mapa la muestre `reservada` o `prestada`).

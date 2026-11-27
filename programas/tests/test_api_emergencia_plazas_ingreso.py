@@ -461,7 +461,13 @@ class IngresoPersonaTests(BaseIngresoApi):
     def test_no_esta_en_el_padron(self):
         respuesta = self._persona("40111222")
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        self.assertEqual(respuesta.json(), {"encontrada": False})
+        self.assertEqual(respuesta.json(), {"encontrada": False, "puede_dar_de_alta": True})
+
+    def test_no_esta_en_el_padron_y_sin_ciudadano_crear_no_puede_darla_de_alta(self):
+        sin_crear = self._guardia("sin_crear_persona", [VER, ADMITIR, CIUDADANO], [self.club])
+        respuesta = self._persona("40111222", usuario=sin_crear)
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json(), {"encontrada": False, "puede_dar_de_alta": False})
 
     def test_esta_en_el_padron(self):
         respuesta = self._persona("30.111.222")
