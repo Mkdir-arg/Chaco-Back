@@ -125,7 +125,7 @@ class IngresoPersonaView(_VistaDeIngreso):
         },
         description=(
             "Paso 1 del ingreso: busca a la persona por DNI **solo en el padrón** (no consulta el Registro de "
-            "Personas). `encontrada: false` si no está (la app pide sus datos y la da de alta al confirmar). Si está, "
+            "Personas). `encontrada: false` si no está, con `puede_dar_de_alta` (si el usuario tiene `ciudadano.crear`: si es false la app no deja seguir; si es true pide sus datos y la da de alta al confirmar). Si está, "
             "trae `alojada` (y `alojamiento` con dónde, según el alcance del usuario) y `plaza_reservada_id`, la "
             "cama que tiene reservada o prestada en este dispositivo, que el ingreso consume."
         ),
@@ -141,7 +141,8 @@ class IngresoPersonaView(_VistaDeIngreso):
         self.check_throttles(request)
         ciudadano = buscar_ciudadano_por_dni(dni)
         if ciudadano is None:
-            return Response({"encontrada": False})
+            # Mismo chequeo que el POST para la persona nueva: la app frena en el DNI, como la web.
+            return Response({"encontrada": False, "puede_dar_de_alta": puede(request.user, CAP_CREAR_CIUDADANO)})
         verificacion = verificar_alojamiento_en_red(ciudadano, request.user)
         alojamiento = None
         if verificacion.alojada:
