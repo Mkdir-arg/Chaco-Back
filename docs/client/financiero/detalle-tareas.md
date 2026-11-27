@@ -1493,20 +1493,423 @@
     **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día está en las secciones de ese
     mes: 799 h 30 min + 92 h 30 min = **892 h 00 min**.
 
+### :material-package-variant-closed: Consumo del 1 al 8 de noviembre — por entregable
+
+!!! note "Equipo, alta de oficio y diseño del lote de derivaciones"
+    La primera semana cerró la **solapa Equipo** de Dispositivos con sus responsables y sugerencias de
+    personas, el **alta de oficio** de inscriptos de Becas y la bitácora con correcciones. Los días con
+    poca entrega se dedicaron al **análisis funcional** —Versión 2.2, módulo de Capacitación y front del
+    link público— y a reuniones técnicas de planificación del lote de **derivaciones a dispositivos**,
+    que arrancó en desarrollo. La gestión editó el **video de capacitación de Becas**, corrigió y
+    **reenvió a SIIS 207 casos** en producción y preparó los dos videos narrados de presentación de las
+    derivaciones. El fin de semana se trabajó en sectores, plazas, infraestructura por edificio y los
+    bocetos del tablero de gestión.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 02/11 | Matías Fariña | Dispositivos | Definición de la solapa Equipo y de los responsables | Quién integra el Equipo de cada dispositivo y qué responsables son obligatorios en el alta. | 2 h | — |
+| 02/11 | Matías Fariña | Transversal | Informe de cierre de octubre para el organismo | Texto del informe mensual y su revisión. | 2 h | — |
+| 02/11 | Matías Fariña | Transversal | Depuración del tablero y del Project | Tareas implementadas cerradas y pruebas pendientes ordenadas para QA. | 2,5 h | — |
+| 02/11 | Matías Fariña | Becas | Envío a SIIS: diagnóstico de los DNI que quedaron afuera | Consulta en producción del motivo de cada caso. | 1 h | — |
+| 02/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 1 h | — |
+| 02/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 02/11 | Pablo Cao | Dispositivos | Solapa Equipo y responsables obligatorios en el alta | Equipo por persona y responsables exigidos al dar de alta la institución. | 4 h | 8 h |
+| 02/11 | Pablo Cao | Dispositivos | «Sumar como agente» desde «Buscar agente» | Si la persona existe se suma como agente desde la misma búsqueda. | 2 h | 4 h |
+| 02/11 | Pablo Cao | Dispositivos | Sugerencias de personas en Reservar y Prestar plaza | La búsqueda sugiere personas mientras se escribe. | 2 h | 4 h |
+| 02/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/11 | Juani Portilla | Dispositivos | Equipo por persona y permiso para ver todos los dispositivos | Nuevo permiso de lectura general y Equipo armado por persona. | 3 h | 6 h |
+| 02/11 | Juani Portilla | Dispositivos | Permisos de ingreso, reenvío del rechazado y clave provisoria | Correcciones del ingreso y del circuito de rechazo. | 3 h | 6 h |
+| 02/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 02/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/11 | Matías Abate | Dispositivos | Pruebas y casos de prueba de Equipo y responsables | Alta con responsables, Equipo por persona y permisos. | 4 h | — |
+| 02/11 | Matías Abate | Dispositivos | Pruebas de las sugerencias de personas | Reservar plaza, Prestar plaza y Buscar agente. | 2 h | — |
+| 02/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2 h | — |
+| 02/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/11 | Nahuel De Francesco | Dispositivos | Tablas de Dispositivos legibles en el celular | Listados que se leen a 390 px sin scroll horizontal. | 4 h | 8 h |
+| 02/11 | Nahuel De Francesco | Dispositivos | Respuestas de versiones anteriores del formulario | El formulario muestra lo respondido en versiones anteriores. | 2 h | 4 h |
+| 02/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 02/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/11 | Matías Fariña | Becas | Edición del video de capacitación de Becas | Edición del video de 2 h del programa: cortes, rótulos y capítulos. | 2 h | — |
+| 03/11 | Matías Fariña | Becas | Envío a SIIS: planilla de errores para el organismo | Cada DNI con su error y el dato que hay que corregir. | 1,5 h | — |
+| 03/11 | Matías Fariña | Becas | Convocatorias con link público que no admitían inscripción | Diagnóstico en producción: la convocatoria estaba vencida. | 1 h | — |
+| 03/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2 h | — |
+| 03/11 | Matías Fariña | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 2 h | — |
+| 03/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 03/11 | Pablo Cao | Dispositivos | Sugerencias en «Ingresar persona» y «Buscar agente» | Las búsquedas de personas sugieren mientras se escribe. | 4 h | 8 h |
+| 03/11 | Pablo Cao | Dispositivos | Reunión técnica: alcance de las derivaciones a dispositivos | Cómo llega una familia derivada a un dispositivo. | 2 h | — |
+| 03/11 | Pablo Cao | Becas | Alta de oficio de inscriptos: diseño | Inscripción directa en estado aprobado para los casos que define el organismo. | 2 h | 4 h |
+| 03/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/11 | Juani Portilla | Dispositivos | Reunión técnica: arquitectura del lote de derivaciones | Modelo, servicios y API de campo del lote. | 2 h | — |
+| 03/11 | Juani Portilla | Dispositivos | Banco de rendimiento para las derivaciones | Datos de volumen para medir las pantallas nuevas. | 4 h | 8 h |
+| 03/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 03/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 3 h | — |
+| 03/11 | Matías Abate | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 2 h | — |
+| 03/11 | Matías Abate | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 1 h | — |
+| 03/11 | Matías Abate | Dispositivos | Casos de prueba de Equipo | Redacción de los casos del Equipo y los responsables. | 2 h | — |
+| 03/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 03/11 | Nahuel De Francesco | Dispositivos | Reunión técnica: piezas de pantalla del lote | Qué piezas comunes necesita el lote antes de la primera pantalla. | 2 h | — |
+| 03/11 | Nahuel De Francesco | Dispositivos | Diseño de las pantallas de la mesa de derivaciones | Bandeja, ficha del caso y alta. En desarrollo. | 4 h | 8 h |
+| 03/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 03/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/11 | Matías Fariña | Becas | Edición del video de capacitación de Becas | Edición del video de 2 h del programa: cortes, rótulos y capítulos. | 2 h | — |
+| 04/11 | Matías Fariña | Becas | Envío a SIIS: corrección de localidad y reenvío de 207 casos en producción | Localidad corregida y reenvío controlado de los casos observados. | 3,5 h | — |
+| 04/11 | Matías Fariña | Dispositivos | Relevamiento de errores en testing y alta de tareas | Cada error encontrado queda como tarea con sus casos. | 1 h | — |
+| 04/11 | Matías Fariña | Dispositivos | Idea del programa de derivaciones a dispositivos | Cómo funcionaría a grandes rasgos y qué formularios usa. | 1 h | — |
+| 04/11 | Matías Fariña | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 1 h | — |
+| 04/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 04/11 | Pablo Cao | Dispositivos | Modelo del caso y de la derivación a dispositivos | Datos del caso, de las personas y de la derivación. En desarrollo. | 5 h | 10 h |
+| 04/11 | Pablo Cao | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 04/11 | Pablo Cao | Becas | Alta de oficio de inscriptos: servicio | Servicio del alta directa en estado aprobado. | 1 h | 2 h |
+| 04/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/11 | Juani Portilla | Dispositivos | Servicios de la mesa de derivaciones | Alta del caso, cambios de etapa y registro. En desarrollo. | 5 h | 10 h |
+| 04/11 | Juani Portilla | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 1 h | — |
+| 04/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 04/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/11 | Matías Abate | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 3 h | — |
+| 04/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 3 h | — |
+| 04/11 | Matías Abate | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 04/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 04/11 | Nahuel De Francesco | Dispositivos | Piezas de pantalla del lote de derivaciones | Componentes comunes del lote con su ficha de diseño. En desarrollo. | 5 h | 10 h |
+| 04/11 | Nahuel De Francesco | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 1 h | — |
+| 04/11 | Nahuel De Francesco | Dispositivos | Documentación funcional del Equipo | Cómo se arma el Equipo y quién es responsable. | 2 h | — |
+| 04/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/11 | Matías Fariña | Becas | Edición del video de capacitación de Becas | Edición del video de 2 h del programa: cortes, rótulos y capítulos. | 2 h | — |
+| 05/11 | Matías Fariña | Dispositivos | Videos de Dispositivos: presentación narrada de las derivaciones (2 de 7) | Guion, narración y edición de los dos videos de presentación. | 3 h | — |
+| 05/11 | Matías Fariña | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 2 h | — |
+| 05/11 | Matías Fariña | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 1,5 h | — |
+| 05/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 05/11 | Pablo Cao | Becas | Alta de oficio de inscriptos: comando del organismo | Comando para dar de alta inscriptos aprobados de oficio. | 4 h | 8 h |
+| 05/11 | Pablo Cao | Dispositivos | Crear persona al sumarla al Equipo | Si la persona no existe se crea desde la misma ventana. | 4 h | 8 h |
+| 05/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/11 | Juani Portilla | Dispositivos | Capacidades y configuración de las derivaciones | Permisos del módulo y su configuración. | 4 h | 8 h |
+| 05/11 | Juani Portilla | Transversal | Banco de rendimiento: mediciones de base | Mediciones de referencia antes del lote. | 2 h | 4 h |
+| 05/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 05/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 3 h | — |
+| 05/11 | Matías Abate | Becas | Casos de prueba del alta de oficio | Inscripción aprobada de oficio y sus validaciones. | 3 h | — |
+| 05/11 | Matías Abate | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 05/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/11 | Nahuel De Francesco | Dispositivos | Pantallas de la mesa: bandeja y ficha del caso | Bandeja de casos y ficha. En desarrollo. | 6 h | 12 h |
+| 05/11 | Nahuel De Francesco | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 05/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/11 | Matías Fariña | Becas | Revisión del alta de oficio | Recorrido del alta de oficio antes de publicarla. | 1 h | — |
+| 06/11 | Matías Fariña | Becas | Segmentos en producción y planilla del alta de oficio | Diagnóstico de la falla al crear segmentos y preparación de la planilla de inscriptos aprobados. | 1 h | — |
+| 06/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2 h | — |
+| 06/11 | Matías Fariña | Transversal | Publicación en testing y coordinación | Publicación en el ambiente de pruebas y seguimiento del tablero. | 2 h | — |
+| 06/11 | Matías Fariña | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 2 h | — |
+| 06/11 | Matías Fariña | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 0,5 h | — |
+| 06/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 06/11 | Pablo Cao | Dispositivos | Plazas numeradas por sector y sector dentro de un edificio | Cada sector pertenece a un edificio y sus plazas se numeran desde 1. | 5 h | 10 h |
+| 06/11 | Pablo Cao | Dispositivos | Bitácora: corregir una novedad sumando archivos y personas | La corrección suma adjuntos y personas a la novedad. | 3 h | 6 h |
+| 06/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/11 | Juani Portilla | Dispositivos | Relevamientos dentro del alcance de inspección | Sin alcance sobre el dispositivo la página no existe para el usuario. | 4 h | 8 h |
+| 06/11 | Juani Portilla | Becas | Equivalencias de localidades para SIIS | Propuesta de equivalencias para que la revise el organismo. | 2 h | 4 h |
+| 06/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 06/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/11 | Matías Abate | Becas | Pruebas del alta de oficio | Alta aprobada y aviso por correo. | 3 h | — |
+| 06/11 | Matías Abate | Dispositivos | Pruebas de la bitácora | Novedades, correcciones y adjuntos. | 3 h | — |
+| 06/11 | Matías Abate | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 2 h | — |
+| 06/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/11 | Nahuel De Francesco | Dispositivos | Pulido visual de Dispositivos en el celular | Ajustes de las pantallas móviles. | 4 h | 8 h |
+| 06/11 | Nahuel De Francesco | Dispositivos | Relevamientos como lista de tarjetas en el celular | La lista se lee como tarjetas en pantallas chicas. | 4 h | 8 h |
+| 06/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 07/11 | Matías Fariña | Dispositivos | Revisión en testing de la bitácora y de los sectores | Recorrido de lo publicado en la semana. | 2 h | — |
+| 07/11 | Matías Fariña | Becas | Provincia y Localidad con catálogo en Requisitos generales | El domicilio se elige de un catálogo geográfico. | 2 h | 4 h |
+| 07/11 | Matías Fariña | Dispositivos | Correcciones de lógica del recorrido de QA | Errores encontrados en las pruebas de la semana. | 3 h | 6 h |
+| 07/11 | Matías Fariña | Transversal | Coordinación del trabajo del fin de semana | Reparto y seguimiento del tablero. | 2 h | — |
+| 07/11 | Pablo Cao | Dispositivos | Detalle de una novedad con adjuntos y legajo | La novedad muestra sus archivos y las personas vinculadas. | 3 h | 6 h |
+| 07/11 | Pablo Cao | Dispositivos | Sectores inactivos: reactivar y editar desde el listado | Un sector inactivo vuelve a usarse sin perder su historia. | 3 h | 6 h |
+| 07/11 | Pablo Cao | Dispositivos | La plaza ocupada del mapa ofrece más acciones | Desde el mapa se gestiona la plaza ocupada. | 3 h | 6 h |
+| 08/11 | Matías Fariña | Transversal | Columna de acciones fija en las tablas del sistema | Usuarios, Roles, Configuración, Legajos y Notificaciones. | 3 h | 6 h |
+| 08/11 | Matías Fariña | Dispositivos | Revisión de la Infraestructura por edificio | Recorrido de las tarjetas por edificio. | 1 h | — |
+| 08/11 | Matías Fariña | Becas | Opciones del catálogo en los Requisitos generales | Los modales de Requisitos ofrecen las opciones del catálogo. | 2 h | 4 h |
+| 08/11 | Matías Fariña | Dispositivos | Bocetos del tablero de gestión de Dispositivos y su documentación | Propuesta de tablero general con mapa y su documentación funcional. | 4 h | — |
+| 08/11 | Matías Fariña | Transversal | Tareas y casos de prueba para el QA del organismo | Tareas ordenadas por flujo para las pruebas en testing. | 1 h | — |
+| 08/11 | Pablo Cao | Dispositivos | Infraestructura del dispositivo como tarjetas por edificio | Cada edificio con su tarjeta y su ficha. | 4 h | 8 h |
+| 08/11 | Pablo Cao | Becas | Columna de acciones fija en las tablas de Becas | Las acciones quedan visibles al desplazar la tabla. | 2 h | 4 h |
+| | | | **Total 01 al 08/11** | | **265 h** | **234 h** |
+
+### :material-package-variant-closed: Consumo del 9 al 15 de noviembre — por entregable
+
+!!! note "Derivaciones a dispositivos, formularios por tipo y videos de capacitación"
+    Se retiró el programa Merenderos, llegaron los **formularios de ingreso y egreso por tipo** y se
+    integró el lote de **derivaciones a dispositivos**: mesa de casos, alojamiento, kits y API de campo,
+    con su manual. La gestión siguió con los **videos de Dispositivos**, una auditoría de Becas y
+    Dispositivos y la limpieza de la base de testing con un usuario por rol. El análisis funcional de la
+    Versión 2.2, de Capacitación y del link público **sigue en curso**.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 09/11 | Matías Fariña | Dispositivos | Definición del retiro del alcance por dispositivo | El alcance pasa a darse por Equipo. | 2 h | — |
+| 09/11 | Matías Fariña | Transversal | Diagnóstico en el servidor de testing | El ambiente corría con el modo de depuración encendido. | 1 h | — |
+| 09/11 | Matías Fariña | Transversal | Tareas y casos de prueba para el QA del organismo | Tareas ordenadas por flujo para las pruebas en testing. | 1 h | — |
+| 09/11 | Matías Fariña | Dispositivos | Revisión en testing del recorrido de QA | Recorrido de las correcciones publicadas. | 1,5 h | — |
+| 09/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2 h | — |
+| 09/11 | Matías Fariña | Transversal | Publicación en testing y coordinación | Publicación en el ambiente de pruebas y seguimiento del tablero. | 1 h | — |
+| 09/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 09/11 | Pablo Cao | Dispositivos | El alta toma el contacto del responsable elegido | Teléfono y correo se completan desde el responsable. | 4 h | 8 h |
+| 09/11 | Pablo Cao | Dispositivos | Búsqueda en Instituciones y solapa activa en el celular | Buscador del listado y solapa visible en pantallas chicas. | 2 h | 4 h |
+| 09/11 | Pablo Cao | Dispositivos | Arreglos del recorrido de QA de noviembre | Correcciones de lo encontrado en las pruebas. | 2 h | 4 h |
+| 09/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/11 | Juani Portilla | Transversal | Registro de errores en producción | El servidor registra los errores aunque no esté en modo de depuración. | 3 h | 6 h |
+| 09/11 | Juani Portilla | Dispositivos | Retiro de la vía vieja de alcance por dispositivo | El alcance se resuelve solo por Equipo. | 3 h | 6 h |
+| 09/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 09/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/11 | Matías Abate | Dispositivos | Recorrido de QA de noviembre en Dispositivos | Prueba de punta a punta del programa en testing. | 5 h | — |
+| 09/11 | Matías Abate | Dispositivos | Casos de prueba del alta con responsable | Contacto tomado del responsable y nombre obligatorio. | 3 h | — |
+| 09/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/11 | Nahuel De Francesco | Dispositivos | Mesa de derivaciones: bandeja y ficha del caso | Bandeja de casos y ficha. En desarrollo. | 6 h | 12 h |
+| 09/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 09/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/11 | Matías Fariña | Dispositivos | Decisión del retiro del programa Merenderos | Qué se retira y qué datos se conservan. | 1 h | — |
+| 10/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 3 h | — |
+| 10/11 | Matías Fariña | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 1 h | — |
+| 10/11 | Matías Fariña | Transversal | Despliegue a testing | Publicación del back y de la app en el ambiente de pruebas del organismo. | 0,5 h | — |
+| 10/11 | Matías Fariña | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 1 h | — |
+| 10/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 2 h | — |
+| 10/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 10/11 | Pablo Cao | Dispositivos | Retiro del programa Merenderos | El programa sale del sistema completo. | 4 h | 8 h |
+| 10/11 | Pablo Cao | Dispositivos | Mesa de derivaciones: alta del caso | Nuevo caso con sus personas. En desarrollo. | 4 h | 8 h |
+| 10/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/11 | Juani Portilla | Dispositivos | Vencimientos de la mesa de derivaciones | Los casos sin movimiento vencen solos según la configuración. | 5 h | 10 h |
+| 10/11 | Juani Portilla | Dispositivos | Limpieza posterior al retiro de Merenderos | Restos del programa retirado. | 2 h | 4 h |
+| 10/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 10/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/11 | Matías Abate | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 3 h | — |
+| 10/11 | Matías Abate | Dispositivos | Pruebas tras el retiro de Merenderos | Que nada del resto del sistema dependa del programa retirado. | 3 h | — |
+| 10/11 | Matías Abate | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 2 h | — |
+| 10/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 10/11 | Nahuel De Francesco | Dispositivos | API de campo: ingreso, perfil y consulta de personas | Servicios para la app de campo. En desarrollo. | 6 h | 12 h |
+| 10/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 10/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/11 | Matías Fariña | Transversal | Auditoría de Becas y Dispositivos y alta de sus tareas | Hallazgos priorizados, soluciones y orden de trabajo. | 2 h | — |
+| 11/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2,5 h | — |
+| 11/11 | Matías Fariña | Transversal | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 11/11 | Matías Fariña | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 1 h | — |
+| 11/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 1 h | — |
+| 11/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 11/11 | Pablo Cao | Dispositivos | Formularios de ingreso y egreso por tipo de dispositivo | Cada tipo pide sus propios datos al ingresar y al egresar. | 5 h | 10 h |
+| 11/11 | Pablo Cao | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 11/11 | Pablo Cao | Dispositivos | API de campo: llegada de familias | Registro de la llegada desde la app. En desarrollo. | 1 h | 2 h |
+| 11/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/11 | Juani Portilla | Dispositivos | Kits: recepción en el dispositivo | Entrega y recepción de kits. En desarrollo. | 4 h | 8 h |
+| 11/11 | Juani Portilla | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 11/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 11/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/11 | Matías Abate | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 3 h | — |
+| 11/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 3 h | — |
+| 11/11 | Matías Abate | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 11/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 11/11 | Nahuel De Francesco | Dispositivos | Tablero y avisos de la mesa de derivaciones | Resumen de casos y avisos. En desarrollo. | 5 h | 10 h |
+| 11/11 | Nahuel De Francesco | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 11/11 | Nahuel De Francesco | Dispositivos | Documentación funcional de las derivaciones | Recorrido funcional de la mesa. | 1 h | — |
+| 11/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/11 | Matías Fariña | Dispositivos | Edición de los videos de capacitación de Dispositivos | Videos cortos del programa: cortes, rótulos y capítulos. | 2 h | — |
+| 12/11 | Matías Fariña | Transversal | Definición: nadie cambia sus propios roles | Quién puede asignar el rol de Administrador. | 1 h | — |
+| 12/11 | Matías Fariña | Dispositivos | Revisión en testing del ingreso y egreso por tipo | Recorrido de los formularios por tipo. | 2 h | — |
+| 12/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 3 h | — |
+| 12/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 12/11 | Pablo Cao | Dispositivos | Formulario de egreso por tipo en el modal de egreso | El egreso pide los datos del tipo de dispositivo. | 4 h | 8 h |
+| 12/11 | Pablo Cao | Dispositivos | Alojar: llegadas en el dispositivo | El dispositivo registra a las familias que llegan. | 4 h | 8 h |
+| 12/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/11 | Juani Portilla | Transversal | Nadie se cambia sus propios roles ni reparte el Administrador | Guarda de seguridad en el ABM de Usuarios. | 4 h | 8 h |
+| 12/11 | Juani Portilla | Dispositivos | Rendimiento: el formulario por tipo se arma una sola vez | Menos consultas al abrir el formulario. | 2 h | 4 h |
+| 12/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 12/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/11 | Matías Abate | Dispositivos | Pruebas del ingreso y egreso por tipo | Formularios por tipo en el ingreso y el egreso. | 4 h | — |
+| 12/11 | Matías Abate | Transversal | Pruebas de la guarda de roles | Nadie se asigna roles a sí mismo. | 2 h | — |
+| 12/11 | Matías Abate | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 2 h | — |
+| 12/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/11 | Nahuel De Francesco | Dispositivos | Marcas de la bandeja y la ficha del caso | Indicadores de etapa en la bandeja y en la ficha. | 6 h | 12 h |
+| 12/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 12/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/11 | Matías Fariña | Dispositivos | Edición de los videos de capacitación de Dispositivos | Videos cortos del programa: cortes, rótulos y capítulos. | 2 h | — |
+| 13/11 | Matías Fariña | Dispositivos | Base de testing: datos de prueba y un usuario por rol | Borrado de datos y roles de prueba; alta de un usuario por cada rol del programa. | 1,5 h | — |
+| 13/11 | Matías Fariña | Dispositivos | Integración del lote de derivaciones a dispositivos | Revisión e integración de las entregas del lote. | 2 h | — |
+| 13/11 | Matías Fariña | Transversal | Despliegue a testing | Publicación del back y de la app en el ambiente de pruebas del organismo. | 0,5 h | — |
+| 13/11 | Matías Fariña | Becas | Alta por planilla en producción: preparación | Retoma del procedimiento para dar de alta inscriptos desde una planilla. | 0,5 h | — |
+| 13/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 2 h | — |
+| 13/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 13/11 | Pablo Cao | Dispositivos | «Ingresar persona» desde una plaza disponible del mapa | El ingreso arranca desde la plaza libre. | 3 h | 6 h |
+| 13/11 | Pablo Cao | Dispositivos | Reservas de derivación y bitácora automática | La derivación reserva plaza y deja registro en la bitácora. | 5 h | 10 h |
+| 13/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/11 | Juani Portilla | Dispositivos | Integración y pruebas automáticas del lote de derivaciones | Cobertura automatizada del lote completo. | 5 h | 10 h |
+| 13/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 3 h | — |
+| 13/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/11 | Matías Abate | Dispositivos | Pruebas del lote de derivaciones a dispositivos | Mesa, alojamiento, kits y API de campo. | 5 h | — |
+| 13/11 | Matías Abate | Dispositivos | Pruebas de «Ingresar persona» desde el mapa | Ingreso desde una plaza disponible. | 3 h | — |
+| 13/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/11 | Nahuel De Francesco | Dispositivos | «Formulario del dispositivo» en el alta de institución | El alta elige el formulario que usa la institución. | 3 h | 6 h |
+| 13/11 | Nahuel De Francesco | Dispositivos | La edición toma el contacto del primer responsable | Contacto completado desde el Equipo. | 2 h | 4 h |
+| 13/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 3 h | — |
+| 13/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/11 | Matías Fariña | Dispositivos | Manual del módulo de derivaciones a dispositivos | Manual de uso de la mesa, el alojamiento y los kits. | 3 h | — |
+| | | | **Total 09 al 15/11** | | **232,5 h** | **188 h** |
+
+### :material-package-variant-closed: Consumo del 16 al 22 de noviembre — por entregable
+
+!!! note "Edificios, tablero de situación, mapa y capacitación"
+    Dispositivos sumó la sección **Edificios**, la baja de plazas sin perder historia y el **tablero de
+    situación** con resumen, mapa y abastecimiento. El sistema pasó a **Google Maps** con una pantalla
+    de mapa general. Se terminaron de editar los **siete videos de Dispositivos** y se dio
+    **capacitación a usuarios**. Hubo **tres despliegues a producción** y se dio de alta en producción a
+    los **inscriptos de Ñandé**. El fin de semana arrancó el **Equipo con alcance por edificio**, que
+    **sigue en desarrollo**.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 16/11 | Matías Fariña | Dispositivos | Edición de los videos de capacitación de Dispositivos | Videos cortos del programa: cortes, rótulos y capítulos. | 2 h | — |
+| 16/11 | Matías Fariña | Transversal | Despliegue a producción | Control del respaldo de la base y publicación de la versión probada en testing. | 2 h | — |
+| 16/11 | Matías Fariña | Transversal | Despliegue a testing del back y de la app | Publicación de las dos aplicaciones en el ambiente de pruebas. | 1 h | — |
+| 16/11 | Matías Fariña | Dispositivos | Recorrido local del módulo de derivaciones | Prueba completa antes de publicar. | 2 h | — |
+| 16/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 1,5 h | — |
+| 16/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 16/11 | Pablo Cao | Dispositivos | Número de caso con serie y cancelar ingreso desde la app | Numeración propia del caso y cancelación con la derivación vista. | 4 h | 8 h |
+| 16/11 | Pablo Cao | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 16/11 | Pablo Cao | Transversal | Grupo propio en el menú lateral | El módulo nuevo sale del grupo «Programas». | 2 h | 4 h |
+| 16/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/11 | Juani Portilla | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 16/11 | Juani Portilla | Dispositivos | Banco de rendimiento: siembra de derivaciones y dispositivos | Datos de volumen para medir el lote. | 4 h | 8 h |
+| 16/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 16/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 3 h | — |
+| 16/11 | Matías Abate | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 3 h | — |
+| 16/11 | Matías Abate | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 16/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/11 | Nahuel De Francesco | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 16/11 | Nahuel De Francesco | Dispositivos | Documentación funcional del módulo de derivaciones | Manual funcional y casos de uso. | 4 h | — |
+| 16/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 16/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/11 | Matías Fariña | Dispositivos | Edición de los videos de capacitación de Dispositivos | Videos cortos del programa: cortes, rótulos y capítulos. | 1,5 h | — |
+| 17/11 | Matías Fariña | Becas | Análisis funcional de la definición del front del link público | Pantallas, textos y recorrido del ciudadano en la inscripción por link. En curso. | 2 h | — |
+| 17/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2,5 h | — |
+| 17/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 2 h | — |
+| 17/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 17/11 | Pablo Cao | Dispositivos | Dar de baja una plaza y reactivarla | La cama se da de baja sin borrar su historia. | 4 h | 8 h |
+| 17/11 | Pablo Cao | Dispositivos | La consulta de identidad busca también en los legajos | Si la persona ya tiene legajo se la encuentra ahí. | 2 h | 4 h |
+| 17/11 | Pablo Cao | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 17/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/11 | Juani Portilla | Becas | Constructor de formularios: campo «Firma» | Firma con trazo, nombre y DNI. | 4 h | 8 h |
+| 17/11 | Juani Portilla | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 17/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 17/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/11 | Matías Abate | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 3 h | — |
+| 17/11 | Matías Abate | Dispositivos | Pruebas de la baja y reactivación de plazas | Baja, reactivación e historia de la cama. | 3 h | — |
+| 17/11 | Matías Abate | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 17/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 17/11 | Nahuel De Francesco | Dispositivos | Diseño de la ficha del edificio | Pantallas de Edificios dentro del dispositivo. En desarrollo. | 4 h | 8 h |
+| 17/11 | Nahuel De Francesco | Dispositivos | Reunión técnica | Definiciones técnicas con el equipo sobre el trabajo de la semana. | 2 h | — |
+| 17/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 17/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/11 | Matías Fariña | Dispositivos | Análisis del tablero estratégico de situación | Resumen, mapa y abastecimiento: preguntas resueltas y tareas. | 1,5 h | — |
+| 18/11 | Matías Fariña | Transversal | Capacitación a usuarios | Sesión de capacitación sobre el uso del sistema. | 2,5 h | — |
+| 18/11 | Matías Fariña | Becas | Alta de los inscriptos de Ñandé en producción | Análisis de la planilla, paso a paso con el organismo y ejecución sobre el relevamiento. | 2,5 h | — |
+| 18/11 | Matías Fariña | Transversal | Dos despliegues a producción (uno de noche) | Control del respaldo y publicación de las versiones probadas. | 2 h | — |
+| 18/11 | Matías Fariña | Transversal | Diagnóstico de la búsqueda de personas | La consulta al servicio de personas no encontraba a nadie. | 1 h | — |
+| 18/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 18/11 | Pablo Cao | Dispositivos | Edificios: selector, listado y ficha del edificio | Sección Edificios con su ficha y su ítem en el menú. | 5 h | 10 h |
+| 18/11 | Pablo Cao | Becas | Eliminar programas, segmentos, convocatorias y relevamientos | Baja lógica en cascada con aviso de lo que arrastra. | 3 h | 6 h |
+| 18/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/11 | Juani Portilla | Dispositivos | Regla de consumo por ítem y fecha de inicio del evento | Configuración del abastecimiento. | 3 h | 6 h |
+| 18/11 | Juani Portilla | Becas | No se elimina un relevamiento en la gracia de sincronización | Protege lo cargado en la app que todavía no sincronizó. | 2 h | 4 h |
+| 18/11 | Juani Portilla | Dispositivos | Un DNI ya registrado no se reemplaza en silencio | Se avisa si el DNI corresponde a otra persona. | 1 h | 2 h |
+| 18/11 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 18/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/11 | Matías Abate | Dispositivos | Pruebas de Edificios | Selector, listado y ficha del edificio. | 5 h | — |
+| 18/11 | Matías Abate | Becas | Pruebas de la eliminación en Becas | Baja en cascada y sus avisos. | 3 h | — |
+| 18/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 18/11 | Nahuel De Francesco | Dispositivos | Permiso para ver Edificios e ítem del menú | Nueva capacidad de lectura de Edificios. | 3 h | 6 h |
+| 18/11 | Nahuel De Francesco | Dispositivos | «Volver» del informe a la ficha del edificio | La navegación regresa a donde se abrió el informe. | 1 h | 2 h |
+| 18/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 2 h | — |
+| 18/11 | Nahuel De Francesco | Transversal | Documentación de especificaciones pendientes | Orden de las especificaciones del equipo. | 2 h | — |
+| 18/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/11 | Matías Fariña | Transversal | Capacitación a usuarios | Sesión de capacitación sobre el uso del sistema. | 2,5 h | — |
+| 19/11 | Matías Fariña | Transversal | Despliegue a testing | Publicación del back y de la app en el ambiente de pruebas del organismo. | 0,5 h | — |
+| 19/11 | Matías Fariña | Transversal | Tareas y casos de prueba para el QA del organismo | Tareas ordenadas por flujo para las pruebas en testing. | 2 h | — |
+| 19/11 | Matías Fariña | Dispositivos | Pruebas en testing de lo integrado | Recorrido de los cambios integrados desde el 16/11. | 1,5 h | — |
+| 19/11 | Matías Fariña | Transversal | Análisis funcional del módulo de Capacitación | Qué se capacita, a quién, cómo se registra la asistencia y qué se certifica. En curso. | 2 h | — |
+| 19/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 19/11 | Pablo Cao | Dispositivos | Pantalla de situación: filtros y resumen | Foto del estado de los dispositivos con alertas. | 4 h | 8 h |
+| 19/11 | Pablo Cao | Transversal | Mapa: base común y domicilio a coordenadas | Base de mapas compartida por los módulos. | 4 h | 8 h |
+| 19/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/11 | Juani Portilla | Transversal | Auditoría de noviembre: informes de rendimiento y código | Informes de Becas y Dispositivos con sus hallazgos. | 4 h | 8 h |
+| 19/11 | Juani Portilla | Dispositivos | Banco de rendimiento: rutas de derivaciones y dispositivos | Medición de las pantallas nuevas. | 2 h | 4 h |
+| 19/11 | Juani Portilla | Dispositivos | Seguridad: el reenvío del ingreso no muestra personas de otro dispositivo | Corrección de seguridad. | 2 h | 4 h |
+| 19/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/11 | Matías Abate | Dispositivos | Pruebas del tablero de situación | Filtros, resumen y alertas. | 4 h | — |
+| 19/11 | Matías Abate | Becas | Pruebas de los avisos al eliminar en Becas | Textos y conteos del aviso. | 2 h | — |
+| 19/11 | Matías Abate | Becas | Pruebas de seguridad de la exportación de Becas | Errores de filtro de la exportación del tablero. | 2 h | — |
+| 19/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/11 | Nahuel De Francesco | Transversal | Piezas de pantalla: barra con umbral, barras pareadas e ítem de lista | Componentes nuevos con su ficha de diseño. | 5 h | 10 h |
+| 19/11 | Nahuel De Francesco | Transversal | Modelo de pantalla «Tablero de programa» | Pantalla de referencia para los tableros. | 3 h | 6 h |
+| 19/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/11 | Matías Fariña | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2,5 h | — |
+| 20/11 | Matías Fariña | Dispositivos | Pruebas en testing de lo integrado | Recorrido de los cambios integrados desde el 16/11. | 1,5 h | — |
+| 20/11 | Matías Fariña | Dispositivos | Revisión en testing de las solapas Mapa y Abastecimiento | Recorrido de lo publicado. | 2 h | — |
+| 20/11 | Matías Fariña | Transversal | Publicación en testing y coordinación | Publicación en el ambiente de pruebas y seguimiento del tablero. | 2,5 h | — |
+| 20/11 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 20/11 | Pablo Cao | Dispositivos | Tablero de situación: solapa «Mapa» | Mapa con capas de los dispositivos. | 4 h | 8 h |
+| 20/11 | Pablo Cao | Dispositivos | Tablero de situación: solapa «Abastecimiento» | Qué falta y qué mandar en las próximas 48 h. | 4 h | 8 h |
+| 20/11 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/11 | Juani Portilla | Dispositivos | Seguimiento de la auditoría de Dispositivos: seguridad y visibilidad del agente | Correcciones de seguridad y regla única de visibilidad. | 5 h | 10 h |
+| 20/11 | Juani Portilla | Transversal | Mediciones del banco en los informes de la auditoría | Números medidos en lugar de estimados. | 3 h | 6 h |
+| 20/11 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/11 | Matías Abate | Dispositivos | Pruebas de las solapas Mapa y Abastecimiento | Capas del mapa y cálculo de faltantes. | 4 h | — |
+| 20/11 | Matías Abate | Dispositivos | Análisis funcional de la Versión 2.2 | Relevamiento de lo pedido por las instituciones y definición del alcance. En curso. | 2 h | — |
+| 20/11 | Matías Abate | Dispositivos | Pruebas de las correcciones de seguridad de Dispositivos | Accesos fuera del alcance. | 2 h | — |
+| 20/11 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/11 | Nahuel De Francesco | Transversal | Mapa con capas: pieza reutilizable y correcciones | Pieza de mapa para todos los módulos. | 5 h | 10 h |
+| 20/11 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el sistema de diseño. | 3 h | — |
+| 20/11 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/11 | Matías Fariña | Dispositivos | Equipo con alcance por edificio: definición y revisión | Quién ve qué edificio y cómo se registra el tipo de contratación. | 3 h | — |
+| 21/11 | Matías Fariña | Dispositivos | «Derivar» por edificio y distancia desde el domicilio | La derivación propone el edificio más cercano. | 3 h | 6 h |
+| 21/11 | Matías Fariña | Transversal | Mapa: pantalla con capas por módulo y puntos editables | Pantalla de mapa general. | 2 h | 4 h |
+| 21/11 | Matías Fariña | Dispositivos | Base de testing: borrado de casos y datos de prueba | Se conservan instituciones y edificios reales. | 1 h | — |
+| 21/11 | Matías Fariña | Transversal | Repositorio de la app movido a la organización | El código de la app y su publicación salen del repositorio nuevo. | 1 h | — |
+| 21/11 | Matías Fariña | Transversal | Despliegue a testing | Publicación del back y de la app en el ambiente de pruebas del organismo. | 0,5 h | — |
+| 21/11 | Matías Fariña | Transversal | Coordinación y tablero | Reparto del día y seguimiento del tablero. | 0,5 h | — |
+| 21/11 | Pablo Cao | Dispositivos | Equipo con alcance por edificio: datos, servicios, bitácora e historial | Cada integrante ve solo lo de sus edificios. | 6 h | 12 h |
+| 21/11 | Pablo Cao | Becas | Becas pasa a Google Maps en «Ver en el mapa» | Mismo mapa que el resto del sistema. | 2 h | 4 h |
+| 21/11 | Pablo Cao | Dispositivos | «Ubicar en el mapa» en el formulario de edificio | El edificio se ubica con un clic en el mapa. | 2 h | 4 h |
+| 22/11 | Matías Fariña | Dispositivos | Página del edificio y «Sectores y plazas» por edificio | Página operativa del edificio dentro de la institución. | 3 h | 6 h |
+| 22/11 | Matías Fariña | Dispositivos | Estados de la institución y de las plazas con gente adentro | Correcciones del relevamiento del lote. | 3 h | 6 h |
+| 22/11 | Matías Fariña | Transversal | Registro de requerimientos: un archivo por cambio | Ordena el registro interno de decisiones. | 1 h | 2 h |
+| 22/11 | Matías Fariña | Transversal | Despliegue a testing del back y de la app | Publicación de las dos aplicaciones en el ambiente de pruebas. | 1 h | — |
+| 22/11 | Matías Fariña | Transversal | Coordinación del lote y revisión de las entregas | Revisión e integración de las entregas del fin de semana. | 3 h | — |
+| 22/11 | Pablo Cao | Dispositivos | Equipo: selector de alcance y «Agregar persona al edificio» | Alta de integrantes por edificio. | 4 h | 8 h |
+| 22/11 | Pablo Cao | Dispositivos | Ingresar y egresar: formulario por secciones y sexo desde el legajo | El pop-up se ordena por secciones y no repite datos del legajo. | 3 h | 6 h |
+| 22/11 | Pablo Cao | Dispositivos | Correcciones de la mesa: alta, bandeja y quitar persona | Ajustes de la mesa de derivaciones. | 4 h | 8 h |
+| | | | **Total 16 al 22/11** | | **273,5 h** | **240 h** |
+
+### :material-briefcase-outline: Consumo de noviembre por programa
+
+| Programa | Horas noviembre |
+|---|---:|
+| Dispositivos | 469 h 30 min |
+| Transversal | 230 h 00 min |
+| Becas | 113 h 30 min |
+| **Consumo de noviembre 2026 al 22/11** | **813 h 00 min** |
+
+!!! note "Qué incluye"
+    El trabajo propio de noviembre al 22/11 es de **771 h 00 min**. Las horas de Becas incluyen además las
+    **42 h trasladadas de octubre**, cuyo detalle día por día está en las secciones de ese mes:
+    771 h 00 min + 42 h = **813 h 00 min**. El mes sigue en curso.
+
 ---
 
 ## :material-account-group: Consumo por persona — acumulado del proyecto
 
-| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre | **Total** |
-|---|---|---:|---:|---:|---:|---:|---:|
-| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 153,5 | **924 h 10 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 255,0 | **973 h 01 min** |
-| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 153,0 | **705 h 44 min** |
-| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 143,0 | **527 h 30 min** |
-| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 95,0 | **133 h 30 min** |
-| Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | **112 h 17 min** |
-| Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **799 h 30 min** | **3.441 h 12 min** |
+| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre | Noviembre | **Total** |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 153,5 | 135,0 | **1.059 h 10 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 255,0 | 195,0 | **1.168 h 01 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 153,0 | 171,0 | **876 h 44 min** |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 143,0 | 135,0 | **662 h 30 min** |
+| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 95,0 | 135,0 | **268 h 30 min** |
+| Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | — | **112 h 17 min** |
+| Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | — | — | **65 h 00 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **799 h 30 min** | **771 h 00 min** | **4.212 h 12 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
@@ -1520,7 +1923,8 @@
 
     Agosto y septiembre son **esfuerzo real**, no imputación: agosto 803 h 30 min (se imputaron 700 h y
     103 h 30 min pasaron a septiembre), septiembre 942 h 30 min (se imputaron 850 h y 92 h 30 min
-    pasaron a octubre) y octubre 892 h (se imputaron 850 h y 42 h pasaron a noviembre).
+    pasaron a octubre) y octubre 892 h (se imputaron 850 h y 42 h pasaron a noviembre). Noviembre está en
+    curso: la columna llega hasta el 22/11.
 
 ### :material-clipboard-text-outline: En qué trabajó cada uno en septiembre
 
@@ -1555,9 +1959,9 @@
 
 !!! success "Contador total"
 
-    **206.472 minutos** (3.441 h 12 min)
+    **252.732 minutos** (4.212 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 799 h 30 min.
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 799 h 30 min + noviembre 771 h 00 min (en curso, al 22/11).
 
     Es el **esfuerzo real ejecutado**, no la imputación. A efectos de imputación, agosto cerró por 700 h con
     103 h 30 min trasladadas a septiembre, septiembre cerró por 850 h con 92 h 30 min trasladadas a octubre,

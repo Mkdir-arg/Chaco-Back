@@ -34,7 +34,7 @@ hide:
 
     ---
 
-    **Noviembre 2026 (en curso):** 42h consumidas de 850h (5%), con 808h disponibles — traslado del excedente de octubre
+    **Noviembre 2026 (en curso):** 813h consumidas de 850h (96%), con 37h disponibles — trabajo al 22/11 más el traslado de octubre
 
     **Octubre 2026 (cerrado):** esfuerzo real 892h, imputadas las 850h del presupuesto (100%); 42h pasaron a noviembre como consumo inicial
 
