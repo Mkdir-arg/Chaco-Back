@@ -201,6 +201,38 @@ def bloqueo_de_plaza(estado, accion, hay_plazas_libres=True):
     return ""
 
 
+_FRASES_DE_LA_ACCION = {
+    ACCION_RESERVAR: "reservarse",
+    ACCION_PRESTAR: "prestarse",
+    ACCION_LIBERAR: "liberarse",
+    ACCION_FUERA_SERVICIO: "sacarse de servicio",
+    ACCION_VOLVER: "volver a servicio",
+}
+
+
+def motivo_de_rechazo_de_estado(plaza, accion):
+    """El motivo por el que el estado de la plaza no admite la acción, o ``None`` si la admite.
+
+    La capacidad ya se exigió: acá se pregunta solo qué admite la plaza (estado, reserva abierta y
+    estado de la institución), con las capacidades en alto.
+    """
+    estado = estado_de_plazas([plaza], puede_ver_personas=False)[plaza.pk]
+    ofrecidas = acciones_de_plaza(
+        estado,
+        reserva_abierta_de(plaza) is not None,
+        puede_admitir=True,
+        puede_editar=True,
+        puede_buscar_personas=True,
+        puede_egresar=False,
+        estado_dispositivo=plaza.sector.dispositivo.estado,
+    )
+    # «Sacar de servicio» una plaza ocupada sí se ofrece (deshabilitada, con su motivo): acá se rechaza.
+    motivo = bloqueo_de_plaza(estado, accion)
+    if not motivo and accion in ofrecidas:
+        return None
+    return motivo or f"Esta plaza no puede {_FRASES_DE_LA_ACCION[accion]} ahora."
+
+
 def bloqueo_del_modal(estado, acciones):
     """El `bloqueo` que viaja con los datos del modal de una plaza: el de «sacar de servicio» si es
     una de sus opciones (queda deshabilitada con ese motivo) y, si no, el de su primera acción."""
@@ -482,7 +514,7 @@ def _plaza_para_el_mapa(plaza, estado, url, click=""):
     }
 
 
-def _plazas_por_sector(sector_ids):
+def plazas_por_sector(sector_ids):
     """`{sector_id: [plazas]}` acotado al tope, en **una** consulta para todos los sectores.
 
     El recorte por sector va en Python y no en el SQL: un `LIMIT` por sector es una
@@ -503,10 +535,6 @@ def _plazas_por_sector(sector_ids):
         pk: sorted(fila, key=lambda p: clave_natural(p.codigo))[:TOPE_PLAZAS_POR_SECTOR]
         for pk, fila in por_sector.items()
     }
-
-
-#: El agrupado por sector, sin el guion bajo, para quien arma el mismo mapa por otro canal (la API de la app).
-plazas_por_sector = _plazas_por_sector
 
 
 def _reservas_abiertas_por_plaza(plazas):
@@ -580,7 +608,7 @@ def sectores_con_plazas(
         .filter(q_sectores)
         .select_related("edificio")
     }
-    por_sector = _plazas_por_sector(list(sectores))
+    por_sector = plazas_por_sector(list(sectores))
 
     dibujadas = [plaza for item in ocupacion.sectores for plaza in por_sector.get(item.sector_id, ())]
     # Una sola vez para todo el dispositivo, no una por sector: son dos consultas fijas.

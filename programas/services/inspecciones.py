@@ -96,7 +96,7 @@ from programas.services.respuestas_dispositivo import (
     guardar_respuestas_relevamiento,
 )
 from programas.services.validacion_relevamiento import (
-    RespuestasInvalidas,  # noqa: F401  (se reexporta: la API de inspecciones lo importa de acá)
+    RespuestasInvalidas,
     avisos_de_archivos_obligatorios,
     validar_respuestas_con_avisos,
 )

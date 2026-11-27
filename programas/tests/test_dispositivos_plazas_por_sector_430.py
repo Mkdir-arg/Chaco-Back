@@ -6,7 +6,7 @@ from programas.services.bitacora import _texto_automatico
 from programas.services.estadias import sacar_plaza_de_servicio
 from programas.services.ingreso import plazas_para_ingresar
 from programas.services.nombre_plaza import clave_natural, nombre_de_plaza, plaza_con_sector
-from programas.services.sectores_plazas import _plazas_por_sector
+from programas.services.sectores_plazas import plazas_por_sector
 from programas.tests.test_dispositivos_movimientos import BaseMovimientos
 
 
@@ -53,7 +53,7 @@ class OrdenNaturalTests(BaseMovimientos):
         for codigo in ("98", "99", "100"):
             Plaza.objects.create(sector=self.otro_sector, codigo=codigo)
 
-        codigos = [p.codigo for p in _plazas_por_sector([self.otro_sector.pk])[self.otro_sector.pk]]
+        codigos = [p.codigo for p in plazas_por_sector([self.otro_sector.pk])[self.otro_sector.pk]]
 
         self.assertEqual(codigos, ["M1", "98", "99", "100"])
 

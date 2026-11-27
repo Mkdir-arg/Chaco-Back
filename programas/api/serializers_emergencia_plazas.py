@@ -7,6 +7,21 @@ app y de ``programas/tests/test_api_emergencia_plazas.py``. Documentado en ``doc
 
 from rest_framework import serializers
 
+from programas.services.plazas_app import (
+    ESTADO_DE_LA_APP,
+    ESTADO_ESTADIA_ACTIVA,
+    ESTADO_ESTADIA_EGRESADA,
+)
+from programas.services.sectores_plazas import (
+    ACCION_EGRESAR,
+    ACCION_FUERA_SERVICIO,
+    ACCION_LIBERAR,
+    ACCION_PRESTAR,
+    ACCION_RESERVAR,
+    ACCION_REUBICAR,
+    ACCION_VOLVER,
+)
+
 
 class ResumenPlazasSerializer(serializers.Serializer):
     total = serializers.IntegerField()
@@ -52,7 +67,7 @@ class PlazaDelEdificioSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     codigo = serializers.CharField()
     tipo = serializers.CharField()
-    estado = serializers.ChoiceField(choices=["disponible", "ocupada", "reservada", "prestada", "fuera_servicio"])
+    estado = serializers.ChoiceField(choices=list(ESTADO_DE_LA_APP.values()))
     persona = PersonaEnPlazaSerializer(allow_null=True, help_text="Solo con `ciudadano.ver`; si no, `null`.")
     estadia_id = serializers.IntegerField(allow_null=True)
     reserva_id = serializers.IntegerField(
@@ -62,7 +77,15 @@ class PlazaDelEdificioSerializer(serializers.Serializer):
     hasta = serializers.CharField(allow_null=True, help_text="Fin de la reserva o del préstamo, si tiene.")
     acciones = serializers.ListField(
         child=serializers.ChoiceField(
-            choices=["egresar", "reubicar", "liberar", "reservar", "prestar", "fuera_servicio", "volver"]
+            choices=[
+                ACCION_EGRESAR,
+                ACCION_REUBICAR,
+                ACCION_LIBERAR,
+                ACCION_RESERVAR,
+                ACCION_PRESTAR,
+                ACCION_FUERA_SERVICIO,
+                ACCION_VOLVER,
+            ]
         ),
         help_text="Lo que este usuario puede hacer con la cama ahora, en el orden del modal de la web.",
     )
@@ -117,10 +140,10 @@ class EstadiaDelEdificioSerializer(serializers.Serializer):
     plaza = PlazaBreveSerializer(allow_null=True)
     fecha_ingreso = serializers.CharField()
     fecha_egreso = serializers.CharField(allow_null=True)
-    estado = serializers.ChoiceField(choices=["activa", "egresada"])
+    estado = serializers.ChoiceField(choices=[ESTADO_ESTADIA_ACTIVA, ESTADO_ESTADIA_EGRESADA])
     origen = serializers.ChoiceField(choices=["emergencia", "dispositivo"])
     emergencia = EmergenciaDeLaEstadiaSerializer(allow_null=True)
-    acciones = serializers.ListField(child=serializers.ChoiceField(choices=["egresar", "reubicar"]))
+    acciones = serializers.ListField(child=serializers.ChoiceField(choices=[ACCION_EGRESAR, ACCION_REUBICAR]))
 
 
 class PaginaDeEstadiasSerializer(serializers.Serializer):

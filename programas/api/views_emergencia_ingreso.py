@@ -1,7 +1,7 @@
 """API de campo, ingresar a una persona en una cama (Cambio 614).
 
 Es el asistente de ingreso de la web (``IngresoPersonaView`` + ``IngresoPlazaView`` + ``IngresoConfirmarView``)
-en tres extremos, con las mismas reglas y el mismo servicio de escritura (``ingreso.confirmar_ingreso``):
+en tres extremos, con las mismas reglas y el mismo servicio de escritura (``ingreso.ingresar_con_formulario``):
 
 * ``GET dispositivos/<d>/ingreso/persona/?dni=`` — paso 1: ¿la persona está en el padrón y ya está alojada?
 * ``GET dispositivos/<d>/ingreso/formulario/`` — paso 2: el formulario de INGRESO vigente del tipo, o ``null``.
@@ -44,20 +44,17 @@ from programas.services.dispositivos import (
 )
 from programas.services.estadias import CAP_ADMITIR, CAP_VER_CIUDADANO, verificar_alojamiento_en_red
 from programas.services.ingreso import (
+    FormularioCambio,
+    IngresoConArchivo,
     buscar_ciudadano_por_dni,
     errores_del_alta_manual,
+    formulario_de_ingreso_de_la_app,
     ingresar_con_formulario,
     plaza_reservada_de,
     plazas_para_ingresar,
 )
 from programas.services.respuestas_dispositivo import formulario_vigente, foto_vigente
-from programas.services.validacion_relevamiento import (
-    FormularioCambio,
-    IngresoConArchivo,
-    RespuestasInvalidas,
-    formulario_de_ingreso_de_la_app,
-    requiere_archivo,
-)
+from programas.services.validacion_relevamiento import RespuestasInvalidas, requiere_archivo
 
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
@@ -106,10 +103,10 @@ class IngresoPersonaView(_VistaDeIngreso):
     institución) y con un DNI bien formado, para que lo rechazado no gaste la cubeta del usuario."""
 
     throttle_classes = [ConsultaPersonasThrottle]
-    _descuenta = False
 
-    def get_throttles(self):
-        return super().get_throttles() if self._descuenta else []
+    def check_throttles(self, request):
+        # La cubeta se descuenta en ``get``, después de las puertas de la institución y del DNI.
+        return None
 
     @extend_schema(
         parameters=[OpenApiParameter("dni", str, required=True, description="DNI de la persona (7 u 8 dígitos).")],
@@ -137,8 +134,7 @@ class IngresoPersonaView(_VistaDeIngreso):
         dni = normalizar_dni(request.query_params.get("dni", ""))
         if not dni_valido(dni):
             return _respuesta_de_validacion({"dni": [MENSAJE_DNI_INVALIDO]})
-        self._descuenta = True
-        self.check_throttles(request)
+        super().check_throttles(request)
         ciudadano = buscar_ciudadano_por_dni(dni)
         if ciudadano is None:
             # Mismo chequeo que el POST para la persona nueva: la app frena en el DNI, como la web.
@@ -308,7 +304,7 @@ class IngresarView(_VistaDeIngreso):
         return plaza.first(), None
 
     def _formulario(self, dispositivo, envio):
-        """``((diseno, foto, respuestas, ()) | None, None)`` o ``(None, respuesta)``. Valida antes de escribir."""
+        """``(FormularioDeIngreso | None, None)`` o ``(None, respuesta)``. Valida antes de escribir."""
         try:
             validado = formulario_de_ingreso_de_la_app(dispositivo.tipo_id, envio)
         except FormularioCambio:
@@ -327,8 +323,7 @@ class IngresarView(_VistaDeIngreso):
             return None, respuesta
         if validado is None:
             return None, None
-        diseno, foto, respuestas = validado
-        return (diseno, foto, respuestas, ()), None
+        return validado, None
 
     def _ingresar(self, request, dispositivo, datos, persona, plaza, formulario):
         """La estadía y sus respuestas en una transacción (el servicio de siempre revalida y toma la cama)."""
