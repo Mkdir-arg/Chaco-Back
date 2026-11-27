@@ -413,8 +413,7 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
     un relevamiento en curso, de este dispositivo). Con uno solo va fijo y de solo lectura:
     un campo deshabilitado ignora lo que llegue por POST y usa el inicial, así que no se
     puede cambiar. El agente lo acota la vista (``agentes_asignables_para``) y lo decide el
-    servicio contra el edificio elegido. ``edificio_inicial`` (pk, opcional) preelige el de la ficha
-    abierta cuando hay varios elegibles.
+    servicio contra el edificio elegido.
     """
 
     edificio = forms.ChoiceField(
@@ -427,7 +426,7 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
         },
     )
 
-    def __init__(self, *args, edificios, aviso_formulario="", edificio_inicial=None, **kwargs):
+    def __init__(self, *args, edificios, aviso_formulario="", **kwargs):
         super().__init__(*args, **kwargs)
         # D3: el tipo de la institución no tiene formulario «Relevamiento» (lo decide la vista).
         self.aviso_formulario = aviso_formulario
@@ -441,9 +440,6 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
         else:
             campo.choices = [("", "Elegí un edificio"), *opciones]
             campo.help_text = "Solo los edificios de la institución que no tienen un relevamiento en curso."
-            # El edificio cuya ficha se está mirando llega preelegido (sigue editable); si no es elegible, queda vacío.
-            if edificio_inicial is not None and str(edificio_inicial) in self._edificios:
-                campo.initial = str(edificio_inicial)
 
     @property
     def edificio_fijo(self):
